@@ -10,6 +10,14 @@ type PropagationBindingListerExpansion interface{}
 // PropagationBindingNamespaceLister.
 type PropagationBindingNamespaceListerExpansion interface{}
 
+// PropagationPolicyListerExpansion allows custom methods to be added to
+// PropagationPolicyLister.
+type PropagationPolicyListerExpansion interface{}
+
+// PropagationPolicyNamespaceListerExpansion allows custom methods to be added to
+// PropagationPolicyNamespaceLister.
+type PropagationPolicyNamespaceListerExpansion interface{}
+
 // PropagationWorkListerExpansion allows custom methods to be added to
 // PropagationWorkLister.
 type PropagationWorkListerExpansion interface{}
