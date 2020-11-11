@@ -16,6 +16,10 @@ func (c *FakePropagationstrategyV1alpha1) PropagationBindings(namespace string) 
 	return &FakePropagationBindings{c, namespace}
 }
 
+func (c *FakePropagationstrategyV1alpha1) PropagationPolicies(namespace string) v1alpha1.PropagationPolicyInterface {
+	return &FakePropagationPolicies{c, namespace}
+}
+
 func (c *FakePropagationstrategyV1alpha1) PropagationWorks(namespace string) v1alpha1.PropagationWorkInterface {
 	return &FakePropagationWorks{c, namespace}
 }
