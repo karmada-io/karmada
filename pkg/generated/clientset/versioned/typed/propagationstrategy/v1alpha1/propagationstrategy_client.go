@@ -11,6 +11,7 @@ import (
 type PropagationstrategyV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	PropagationBindingsGetter
+	PropagationPoliciesGetter
 	PropagationWorksGetter
 }
 
@@ -21,6 +22,10 @@ type PropagationstrategyV1alpha1Client struct {
 
 func (c *PropagationstrategyV1alpha1Client) PropagationBindings(namespace string) PropagationBindingInterface {
 	return newPropagationBindings(c, namespace)
+}
+
+func (c *PropagationstrategyV1alpha1Client) PropagationPolicies(namespace string) PropagationPolicyInterface {
+	return newPropagationPolicies(c, namespace)
 }
 
 func (c *PropagationstrategyV1alpha1Client) PropagationWorks(namespace string) PropagationWorkInterface {

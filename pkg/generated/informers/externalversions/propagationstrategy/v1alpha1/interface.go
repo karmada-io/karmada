@@ -10,6 +10,8 @@ import (
 type Interface interface {
 	// PropagationBindings returns a PropagationBindingInformer.
 	PropagationBindings() PropagationBindingInformer
+	// PropagationPolicies returns a PropagationPolicyInformer.
+	PropagationPolicies() PropagationPolicyInformer
 	// PropagationWorks returns a PropagationWorkInformer.
 	PropagationWorks() PropagationWorkInformer
 }
@@ -28,6 +30,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // PropagationBindings returns a PropagationBindingInformer.
 func (v *version) PropagationBindings() PropagationBindingInformer {
 	return &propagationBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// PropagationPolicies returns a PropagationPolicyInformer.
+func (v *version) PropagationPolicies() PropagationPolicyInformer {
+	return &propagationPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // PropagationWorks returns a PropagationWorkInformer.
