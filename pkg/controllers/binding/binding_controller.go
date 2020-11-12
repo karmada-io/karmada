@@ -34,6 +34,7 @@ type Controller struct {
 	// kubeClientSet is a standard kubernetes clientset.
 	kubeClientSet kubernetes.Interface
 
+	karmadaInformerFactory   informers.SharedInformerFactory
 	propagationBindingLister listers.PropagationBindingLister
 	propagationBindingSynced cache.InformerSynced
 	// workqueue is a rate limited work queue. This is used to queue work to be
@@ -72,8 +73,8 @@ func newPropagationBindingController(config *util.ControllerConfig) (*Controller
 	kubeClientSet := kubernetes.NewForConfigOrDie(headClusterConfig)
 
 	karmadaClientSet := clientset.NewForConfigOrDie(headClusterConfig)
-	propagationBindingInformer := informers.NewSharedInformerFactory(karmadaClientSet, 0).Propagationstrategy().V1alpha1().PropagationBindings()
-
+	karmadaInformerFactory := informers.NewSharedInformerFactory(karmadaClientSet, 0)
+	propagationBindingInformer := karmadaInformerFactory.Propagationstrategy().V1alpha1().PropagationBindings()
 	// Add karmada types to the default Kubernetes Scheme so Events can be logged for karmada types.
 	utilruntime.Must(karmadaScheme.AddToScheme(scheme.Scheme))
 
@@ -85,6 +86,7 @@ func newPropagationBindingController(config *util.ControllerConfig) (*Controller
 	controller := &Controller{
 		karmadaClientSet:         karmadaClientSet,
 		kubeClientSet:            kubeClientSet,
+		karmadaInformerFactory:   karmadaInformerFactory,
 		propagationBindingLister: propagationBindingInformer.Lister(),
 		propagationBindingSynced: propagationBindingInformer.Informer().HasSynced,
 		workqueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerAgentName),
@@ -117,7 +119,8 @@ func (c *Controller) Run(workerNumber int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
-	klog.Infof("Starting controller: %s", controllerAgentName)
+	klog.Infof("Run controller: %s", controllerAgentName)
+	c.karmadaInformerFactory.Start(stopCh)
 
 	// Wait for the caches to be synced before starting workers
 	klog.Info("Waiting for informer caches to sync")
@@ -223,7 +226,7 @@ func (c *Controller) syncHandler(key string) error {
 
 		return err
 	}
-
+	klog.Infof("propagationBinding: %+v", propagationBinding)
 	klog.Infof("Sync propagationBinding: %s/%s", propagationBinding.Namespace, propagationBinding.Name)
 
 	return nil
