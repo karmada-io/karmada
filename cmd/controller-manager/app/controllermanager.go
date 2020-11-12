@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -104,10 +103,5 @@ func startControllers(opts *options.Options, stopChan <-chan struct{}) {
 
 	if err := membercluster.StartMemberClusterController(controllerConfig, stopChan); err != nil {
 		klog.Fatalf("Failed to start member cluster controller. error: %v", err)
-	}
-
-	for {
-		klog.Info("starting controller.")
-		time.Sleep(5 * time.Second)
 	}
 }
