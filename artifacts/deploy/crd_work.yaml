@@ -1,0 +1,28 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    "helm.sh/hook": crd-install
+  creationTimestamp: null
+  name: propagationworks.propagationstrategy.karmada.io
+spec:
+  group: propagationstrategy.karmada.io
+  names:
+    kind: PropagationWork
+    listKind: PropagationWorkList
+    plural: propagationworks
+    singular: propagationwork
+  scope: Namespaced
+  version: v1alpha1
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---

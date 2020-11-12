@@ -17,6 +17,7 @@ import (
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/leaderelection"
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/options"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/membercluster"
+	"github.com/huawei-cloudnative/karmada/pkg/controllers/binding"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 )
 
@@ -103,5 +104,9 @@ func startControllers(opts *options.Options, stopChan <-chan struct{}) {
 
 	if err := membercluster.StartMemberClusterController(controllerConfig, stopChan); err != nil {
 		klog.Fatalf("Failed to start member cluster controller. error: %v", err)
+	}
+
+	if err := binding.StartPropagationBindingController(controllerConfig, stopChan); err != nil {
+		klog.Fatalf("Failed to start binding controller. error: %v", err)
 	}
 }
