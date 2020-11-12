@@ -34,8 +34,9 @@ type Controller struct {
 	// kubeClientSet is a standard kubernetes clientset.
 	kubeClientSet kubernetes.Interface
 
-	memberclusterLister listers.MemberClusterLister
-	memberclusterSynced cache.InformerSynced
+	karmadaInformerFactory informers.SharedInformerFactory
+	memberclusterLister    listers.MemberClusterLister
+	memberclusterSynced    cache.InformerSynced
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -72,8 +73,9 @@ func newMemberClusterController(config *util.ControllerConfig) (*Controller, err
 	headClusterConfig := rest.CopyConfig(config.HeadClusterConfig)
 	kubeClientSet := kubernetes.NewForConfigOrDie(headClusterConfig)
 
-	multikubeClientSet := clientset.NewForConfigOrDie(headClusterConfig)
-	memberclusterInformer := informers.NewSharedInformerFactory(multikubeClientSet, 0).Membercluster().V1alpha1().MemberClusters()
+	karmadaClientSet := clientset.NewForConfigOrDie(headClusterConfig)
+	karmadaInformerFactory := informers.NewSharedInformerFactory(karmadaClientSet, 0)
+	memberclusterInformer := karmadaInformerFactory.Membercluster().V1alpha1().MemberClusters()
 
 	// Add multikube types to the default Kubernetes Scheme so Events can be logged for karmada types.
 	utilruntime.Must(multikubecheme.AddToScheme(scheme.Scheme))
@@ -84,12 +86,13 @@ func newMemberClusterController(config *util.ControllerConfig) (*Controller, err
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeClientSet.CoreV1().Events("")})
 
 	controller := &Controller{
-		karmadaClientSet:    multikubeClientSet,
-		kubeClientSet:       kubeClientSet,
-		memberclusterLister: memberclusterInformer.Lister(),
-		memberclusterSynced: memberclusterInformer.Informer().HasSynced,
-		workqueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerAgentName),
-		eventRecorder:       eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
+		karmadaClientSet:       karmadaClientSet,
+		kubeClientSet:          kubeClientSet,
+		karmadaInformerFactory: karmadaInformerFactory,
+		memberclusterLister:    memberclusterInformer.Lister(),
+		memberclusterSynced:    memberclusterInformer.Informer().HasSynced,
+		workqueue:              workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerAgentName),
+		eventRecorder:          eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
 	}
 
 	klog.Info("Setting up event handlers")
@@ -118,7 +121,8 @@ func (c *Controller) Run(workerNumber int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
-	klog.Infof("Starting controller: %s", controllerAgentName)
+	klog.Infof("Run controller: %s", controllerAgentName)
+	c.karmadaInformerFactory.Start(stopCh)
 
 	// Wait for the caches to be synced before starting workers
 	klog.Info("Waiting for informer caches to sync")
