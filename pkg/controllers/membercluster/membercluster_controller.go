@@ -1,11 +1,14 @@
 package membercluster
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -17,9 +20,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 	clientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
-	multikubecheme "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/scheme"
+	karmadakubecheme "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/huawei-cloudnative/karmada/pkg/generated/informers/externalversions"
 	listers "github.com/huawei-cloudnative/karmada/pkg/generated/listers/membercluster/v1alpha1"
 )
@@ -59,7 +63,7 @@ func StartMemberClusterController(config *util.ControllerConfig, stopChan <-chan
 	klog.Infof("Starting member cluster controller")
 
 	go wait.Until(func() {
-		if err := controller.Run(1, stopChan); err != nil {
+		if err := controller.Run(2, stopChan); err != nil {
 			klog.Errorf("controller exit unexpected! will restart later, controller: %s, error: %v", controllerAgentName, err)
 		}
 	}, 1*time.Second, stopChan)
@@ -74,11 +78,11 @@ func newMemberClusterController(config *util.ControllerConfig) (*Controller, err
 	kubeClientSet := kubernetes.NewForConfigOrDie(headClusterConfig)
 
 	karmadaClientSet := clientset.NewForConfigOrDie(headClusterConfig)
-	karmadaInformerFactory := informers.NewSharedInformerFactory(karmadaClientSet, 0)
+	karmadaInformerFactory := informers.NewSharedInformerFactory(karmadaClientSet, 10*time.Second)
 	memberclusterInformer := karmadaInformerFactory.Membercluster().V1alpha1().MemberClusters()
 
-	// Add multikube types to the default Kubernetes Scheme so Events can be logged for karmada types.
-	utilruntime.Must(multikubecheme.AddToScheme(scheme.Scheme))
+	// Add karmada types to the default Kubernetes Scheme so Events can be logged for karmada types.
+	utilruntime.Must(karmadakubecheme.AddToScheme(scheme.Scheme))
 
 	// Create event broadcaster
 	klog.V(1).Infof("Creating event broadcaster for %s", controllerAgentName)
@@ -106,7 +110,29 @@ func newMemberClusterController(config *util.ControllerConfig) (*Controller, err
 			controller.enqueueEventResource(new)
 		},
 		DeleteFunc: func(obj interface{}) {
-			klog.Infof("Received delete event. Do nothing just log.")
+			castObj, ok := obj.(*v1alpha1.MemberCluster)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					klog.Errorf("Couldn't get object from tombstone %#v", obj)
+					return
+				}
+				castObj, ok = tombstone.Obj.(*v1alpha1.MemberCluster)
+				if !ok {
+					klog.Errorf("Tombstone contained object that is not expected %#v", obj)
+					return
+				}
+			}
+
+			// TODO: postpone delete namespace if there is any work object which should be deleted by binding controller.
+
+			// delete member cluster workspace when member cluster unjoined
+			if err := controller.kubeClientSet.CoreV1().Namespaces().Delete(context.TODO(), castObj.Name, v1.DeleteOptions{}); err != nil {
+				if !apierrors.IsNotFound(err) {
+					klog.Errorf("Error while deleting namespace %s: %s", castObj.Name, err)
+					return
+				}
+			}
 		},
 	})
 
@@ -228,6 +254,36 @@ func (c *Controller) syncHandler(key string) error {
 
 		return err
 	}
+
+	// create member cluster workspace when member cluster joined
+	_, err = c.kubeClientSet.CoreV1().Namespaces().Get(context.TODO(), membercluster.Name, v1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			memberclusterNS := &corev1.Namespace{
+				ObjectMeta: v1.ObjectMeta{
+					Name: membercluster.Name,
+				},
+			}
+			_, err = c.kubeClientSet.CoreV1().Namespaces().Create(context.TODO(), memberclusterNS, v1.CreateOptions{})
+			if err != nil {
+
+				return err
+			}
+		} else {
+			klog.V(2).Infof("Could not get %s namespace: %v", membercluster.Name, err)
+			return err
+		}
+	}
+
+	// create a ClusterClient for the given member cluster
+	memberclusterClient, err := NewClusterClientSet(membercluster, c.kubeClientSet, membercluster.Spec.SecretRef.Namespace)
+	if err != nil {
+		c.eventRecorder.Eventf(membercluster, corev1.EventTypeWarning, "MalformedClusterConfig", err.Error())
+		return err
+	}
+
+	// update status of the given member cluster
+	updateIndividualClusterStatus(membercluster, c.karmadaClientSet, memberclusterClient)
 
 	klog.Infof("Sync member cluster: %s/%s", membercluster.Namespace, membercluster.Name)
 
