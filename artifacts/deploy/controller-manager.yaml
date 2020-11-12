@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-controller-manager
+  namespace: karmada-system
+  labels:
+    app: karmada-controller-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: karmada-controller-manager
+  template:
+    metadata:
+      labels:
+        app: karmada-controller-manager
+    spec:
+      serviceAccountName: karmada-controller-manager
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+      containers:
+        - name: karmada-controller-manager
+          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager:latest
+          imagePullPolicy: Always
