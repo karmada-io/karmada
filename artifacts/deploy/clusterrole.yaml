@@ -14,3 +14,7 @@ rules:
     resources:
     - '*'
     verbs: ["get", "watch", "list", "create", "update", "delete"]
+  - apiGroups: ["propagationstrategy.karmada.io"]
+      resources:
+        - '*'
+      verbs: ["get", "watch", "list", "create", "update", "delete"]

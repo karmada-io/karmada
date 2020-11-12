@@ -1,0 +1,10 @@
+apiVersion: propagationstrategy.karmada.io/v1alpha1
+kind: PropagationBinding
+metadata:
+  name: binding-foo
+spec:
+  resource:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx
+    namespace: default
