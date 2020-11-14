@@ -16,8 +16,8 @@ import (
 
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/leaderelection"
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/options"
-	"github.com/huawei-cloudnative/karmada/pkg/controllers/membercluster"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/binding"
+	"github.com/huawei-cloudnative/karmada/pkg/controllers/membercluster"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 )
 
