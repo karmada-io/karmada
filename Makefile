@@ -24,6 +24,12 @@ karmada-controller-manager: $(SOURCES)
 		-o karmada-controller-manager \
 		cmd/controller-manager/controller-manager.go
 
+karmadactl: $(SOURCES)
+	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+		-ldflags $(LDFLAGS) \
+		-o karmadactl \
+		cmd/karmadactl/karmadactl.go
+
 clean:
 	rm -rf karmada-controller-manager
 
