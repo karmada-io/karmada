@@ -1,13 +1,19 @@
 package binding
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -17,6 +23,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	"github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 	clientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
 	karmadaScheme "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/scheme"
@@ -24,7 +31,27 @@ import (
 	listers "github.com/huawei-cloudnative/karmada/pkg/generated/listers/propagationstrategy/v1alpha1"
 )
 
-const controllerAgentName = "binding-controller"
+const (
+	controllerAgentName = "binding-controller"
+)
+
+// todo: this can get by kubectl api-resources
+var resourceKindMap = map[string]string{
+	"ConfigMap":             "configmaps",
+	"Namespace":             "namespaces",
+	"PersistentVolumeClaim": "persistentvolumeclaims",
+	"PersistentVolume":      "persistentvolumes",
+	"Pod":                   "pods",
+	"Secret":                "secrets",
+	"Service":               "services",
+	"Deployment":            "deployments",
+	"DaemonSet":             "daemonsets",
+	"StatefulSet":           "statefulsets",
+	"ReplicaSet":            "replicasets",
+	"CronJob":               "cronjobs",
+	"Job":                   "jobs",
+	"Ingress":               "ingresses",
+}
 
 // Controller is the controller implementation for binding resources
 type Controller struct {
@@ -32,8 +59,8 @@ type Controller struct {
 	karmadaClientSet clientset.Interface
 
 	// kubeClientSet is a standard kubernetes clientset.
-	kubeClientSet kubernetes.Interface
-
+	kubeClientSet            kubernetes.Interface
+	dynamicClientSet         dynamic.Interface
 	karmadaInformerFactory   informers.SharedInformerFactory
 	propagationBindingLister listers.PropagationBindingLister
 	propagationBindingSynced cache.InformerSynced
@@ -73,6 +100,10 @@ func newPropagationBindingController(config *util.ControllerConfig) (*Controller
 	kubeClientSet := kubernetes.NewForConfigOrDie(headClusterConfig)
 
 	karmadaClientSet := clientset.NewForConfigOrDie(headClusterConfig)
+	dynamicClientSet, err := dynamic.NewForConfig(headClusterConfig)
+	if err != nil {
+		return nil, err
+	}
 	karmadaInformerFactory := informers.NewSharedInformerFactory(karmadaClientSet, 0)
 	propagationBindingInformer := karmadaInformerFactory.Propagationstrategy().V1alpha1().PropagationBindings()
 	// Add karmada types to the default Kubernetes Scheme so Events can be logged for karmada types.
@@ -86,6 +117,7 @@ func newPropagationBindingController(config *util.ControllerConfig) (*Controller
 	controller := &Controller{
 		karmadaClientSet:         karmadaClientSet,
 		kubeClientSet:            kubeClientSet,
+		dynamicClientSet:         dynamicClientSet,
 		karmadaInformerFactory:   karmadaInformerFactory,
 		propagationBindingLister: propagationBindingInformer.Lister(),
 		propagationBindingSynced: propagationBindingInformer.Informer().HasSynced,
@@ -226,8 +258,96 @@ func (c *Controller) syncHandler(key string) error {
 
 		return err
 	}
-	klog.Infof("propagationBinding: %+v", propagationBinding)
-	klog.Infof("Sync propagationBinding: %s/%s", propagationBinding.Namespace, propagationBinding.Name)
+	klog.V(2).Infof("Sync propagationBinding: %s/%s", propagationBinding.Namespace, propagationBinding.Name)
+	err = c.transformBindingToWorks(propagationBinding)
+	if err != nil {
+		klog.Errorf("failed to transform propagationBinding %s/%s to propagationWorks. error: %+v",
+			propagationBinding.Namespace, propagationBinding.Name, err)
+		return err
+	}
+	return nil
+}
+
+// get resource yaml from kubernetes
+func (c *Controller) getResourceStructure(propagationBinding *v1alpha1.PropagationBinding) (*unstructured.Unstructured, error) {
+	groupVersion, err := schema.ParseGroupVersion(propagationBinding.Spec.Resource.APIVersion)
+	if err != nil {
+		return nil, fmt.Errorf("can't get parse groupVersion[namespace: %s name: %s kind: %s]. error: %v", propagationBinding.Spec.Resource.Namespace,
+			propagationBinding.Spec.Resource.Name, resourceKindMap[propagationBinding.Spec.Resource.Kind], err)
+	}
+	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: resourceKindMap[propagationBinding.Spec.Resource.Kind]}
+	result, err := c.dynamicClientSet.Resource(dynamicResource).Namespace(propagationBinding.Spec.Resource.Namespace).Get(context.TODO(), propagationBinding.Spec.Resource.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("can't get resource[namespace: %s name: %s kind: %s]. error: %v", propagationBinding.Spec.Resource.Namespace,
+			propagationBinding.Spec.Resource.Name, resourceKindMap[propagationBinding.Spec.Resource.Kind], err)
+	}
+	return result, nil
+}
+
+// get clusterName list from bind clusters field
+func (c *Controller) getBindingClusterNames(propagationBinding *v1alpha1.PropagationBinding) []string {
+	var clusterNames []string
+	for _, targetCluster := range propagationBinding.Spec.Clusters {
+		clusterNames = append(clusterNames, targetCluster.Name)
+	}
+	return clusterNames
+}
+
+// delete irrelevant field from workload. such as uid, timestamp, status
+func (c *Controller) removeIrrelevantField(workload *unstructured.Unstructured) {
+	unstructured.RemoveNestedField(workload.Object, "metadata", "creationTimestamp")
+	unstructured.RemoveNestedField(workload.Object, "metadata", "generation")
+	unstructured.RemoveNestedField(workload.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(workload.Object, "metadata", "selfLink")
+	unstructured.RemoveNestedField(workload.Object, "metadata", "uid")
+	unstructured.RemoveNestedField(workload.Object, "status")
+}
+
+// transform propagationBinding resource to propagationWork resources
+func (c *Controller) transformBindingToWorks(propagationBinding *v1alpha1.PropagationBinding) error {
+	workload, err := c.getResourceStructure(propagationBinding)
+	if err != nil {
+		klog.Errorf("failed to get resource. error: %v", err)
+		return err
+	}
+
+	clusterNames := c.getBindingClusterNames(propagationBinding)
+
+	for _, clusterNameMirrorNamespace := range clusterNames {
+		c.removeIrrelevantField(workload)
+		formatWorkload, err := workload.MarshalJSON()
+		if err != nil {
+			klog.Errorf("failed to marshal workload. error: %v", err)
+			return err
+		}
+
+		rawExtension := runtime.RawExtension{
+			Raw: formatWorkload,
+		}
+
+		propagationWork := v1alpha1.PropagationWork{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      propagationBinding.Name,
+				Namespace: clusterNameMirrorNamespace,
+			},
+			Spec: v1alpha1.PropagationWorkSpec{
+				Workload: v1alpha1.WorkloadTemplate{
+					Manifests: []v1alpha1.Manifest{
+						{
+							RawExtension: rawExtension,
+						},
+					},
+				},
+			},
+		}
+		// todo. if works exists, how to do?
+		result, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
+		if err != nil {
+			klog.Errorf("failed to create propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
+			return err
+		}
+		klog.V(2).Infof("create propagationWork %s/%s success. result is %+v", propagationWork.Namespace, propagationWork.Name, result)
+	}
 
 	return nil
 }
