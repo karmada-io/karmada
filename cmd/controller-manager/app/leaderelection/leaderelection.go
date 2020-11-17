@@ -18,6 +18,7 @@ import (
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/options"
 )
 
+// NewLeaderElector builds a leader elector.
 func NewLeaderElector(opts *options.Options, fnStartControllers func(*options.Options, <-chan struct{})) (*leaderelection.LeaderElector, error) {
 	const component = "controller-manager"
 	rest.AddUserAgent(opts.KubeConfig, "leader-election")

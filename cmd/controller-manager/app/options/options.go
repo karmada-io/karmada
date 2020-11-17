@@ -23,6 +23,7 @@ type Options struct {
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 }
 
+// NewOptions builds an empty options.
 func NewOptions() *Options {
 	return &Options{}
 }
