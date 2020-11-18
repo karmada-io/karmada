@@ -3,7 +3,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // +genclient
@@ -95,15 +94,24 @@ type MemberClusterStatus struct {
 	// +optional
 	KubernetesVersion string `json:"kubernetesVersion,omitempty"`
 
-	// APIEnablement represents the list of APIs installed in the member cluster.
+	// APIEnablements represents the list of APIs installed in the member cluster.
 	// +optional
-	APIEnablement []schema.GroupVersionKind `json:"apiEnablement,omitempty"`
+	APIEnablements []APIEnablement `json:"apiEnablements,omitempty"`
 
 	// Conditions is an array of current cluster conditions.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// NodeSummary represents the summary of nodes status in the member cluster.
 	NodeSummary NodeSummary `json:"nodeSummary,omitempty"`
+}
+
+// APIEnablement is a list of API resource, it is used to expose the name of the
+// resources supported in a specific group and version.
+type APIEnablement struct {
+	// GroupVersion is the group and version this APIEnablement is for.
+	GroupVersion string `json:"groupVersion"`
+	// Resources contains the name of the resources.
+	Resources []string `json:"resources"`
 }
 
 // NodeSummary represents the summary of nodes status in a specific cluster.
