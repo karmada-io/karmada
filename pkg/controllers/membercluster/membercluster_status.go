@@ -8,6 +8,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 	clientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
 )
 
@@ -23,7 +24,7 @@ const (
 	clusterOffline            = "Offline"
 )
 
-func updateIndividualClusterStatus(cluster *v1alpha1.MemberCluster, hostClient clientset.Interface, clusterClient *ClusterClient) {
+func updateIndividualClusterStatus(cluster *v1alpha1.MemberCluster, hostClient clientset.Interface, clusterClient *util.ClusterClient) {
 	// update the health status of member cluster
 	currentClusterStatus, err := getMemberClusterHealthStatus(clusterClient)
 	if err != nil {
@@ -52,7 +53,7 @@ func updateIndividualClusterStatus(cluster *v1alpha1.MemberCluster, hostClient c
 	}
 }
 
-func getMemberClusterHealthStatus(clusterClient *ClusterClient) (*v1alpha1.MemberClusterStatus, error) {
+func getMemberClusterHealthStatus(clusterClient *util.ClusterClient) (*v1alpha1.MemberClusterStatus, error) {
 	clusterStatus := v1alpha1.MemberClusterStatus{}
 	currentTime := v1.Now()
 	clusterReady := clusterReady
@@ -96,7 +97,7 @@ func getMemberClusterHealthStatus(clusterClient *ClusterClient) (*v1alpha1.Membe
 
 	body, err := clusterClient.KubeClient.DiscoveryClient.RESTClient().Get().AbsPath("/healthz").Do(context.TODO()).Raw()
 	if err != nil {
-		klog.Warningf("Failed to do cluster health check for cluster %v, err is : %v ", clusterClient.clusterName, err)
+		klog.Warningf("Failed to do cluster health check for cluster %v, err is : %v ", clusterClient.ClusterName, err)
 		clusterStatus.Conditions = append(clusterStatus.Conditions, newClusterOfflineCondition)
 	} else {
 		if !strings.EqualFold(string(body), "ok") {
