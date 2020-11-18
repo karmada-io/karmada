@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.0
+    controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
   name: propagationworks.propagationstrategy.karmada.io
 spec:
@@ -45,7 +45,9 @@ spec:
                     description: Manifests represents a list of Kubernetes resources
                       to be deployed on the managed cluster.
                     items:
-                      type: Any
+                      description: Manifest represents a resource to be deployed on
+                        managed cluster.
+                      type: object
                     type: array
                 type: object
             type: object
