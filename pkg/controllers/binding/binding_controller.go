@@ -7,10 +7,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -34,24 +34,6 @@ import (
 const (
 	controllerAgentName = "binding-controller"
 )
-
-// todo: this can get by kubectl api-resources
-var resourceKindMap = map[string]string{
-	"ConfigMap":             "configmaps",
-	"Namespace":             "namespaces",
-	"PersistentVolumeClaim": "persistentvolumeclaims",
-	"PersistentVolume":      "persistentvolumes",
-	"Pod":                   "pods",
-	"Secret":                "secrets",
-	"Service":               "services",
-	"Deployment":            "deployments",
-	"DaemonSet":             "daemonsets",
-	"StatefulSet":           "statefulsets",
-	"ReplicaSet":            "replicasets",
-	"CronJob":               "cronjobs",
-	"Job":                   "jobs",
-	"Ingress":               "ingresses",
-}
 
 // Controller is the controller implementation for binding resources
 type Controller struct {
@@ -95,7 +77,6 @@ func StartPropagationBindingController(config *util.ControllerConfig, stopChan <
 
 // newPropagationBindingController returns a new controller.
 func newPropagationBindingController(config *util.ControllerConfig) (*Controller, error) {
-
 	headClusterConfig := rest.CopyConfig(config.HeadClusterConfig)
 	kubeClientSet := kubernetes.NewForConfigOrDie(headClusterConfig)
 
@@ -136,7 +117,7 @@ func newPropagationBindingController(config *util.ControllerConfig) (*Controller
 			controller.enqueueEventResource(new)
 		},
 		DeleteFunc: func(obj interface{}) {
-			klog.Infof("Received delete event. Do nothing just log.")
+			klog.Infof("Received delete event. Do delete action.")
 		},
 	})
 
@@ -268,22 +249,6 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
-// get resource yaml from kubernetes
-func (c *Controller) getResourceStructure(propagationBinding *v1alpha1.PropagationBinding) (*unstructured.Unstructured, error) {
-	groupVersion, err := schema.ParseGroupVersion(propagationBinding.Spec.Resource.APIVersion)
-	if err != nil {
-		return nil, fmt.Errorf("can't get parse groupVersion[namespace: %s name: %s kind: %s]. error: %v", propagationBinding.Spec.Resource.Namespace,
-			propagationBinding.Spec.Resource.Name, resourceKindMap[propagationBinding.Spec.Resource.Kind], err)
-	}
-	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: resourceKindMap[propagationBinding.Spec.Resource.Kind]}
-	result, err := c.dynamicClientSet.Resource(dynamicResource).Namespace(propagationBinding.Spec.Resource.Namespace).Get(context.TODO(), propagationBinding.Spec.Resource.Name, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("can't get resource[namespace: %s name: %s kind: %s]. error: %v", propagationBinding.Spec.Resource.Namespace,
-			propagationBinding.Spec.Resource.Name, resourceKindMap[propagationBinding.Spec.Resource.Kind], err)
-	}
-	return result, nil
-}
-
 // get clusterName list from bind clusters field
 func (c *Controller) getBindingClusterNames(propagationBinding *v1alpha1.PropagationBinding) []string {
 	var clusterNames []string
@@ -305,7 +270,8 @@ func (c *Controller) removeIrrelevantField(workload *unstructured.Unstructured) 
 
 // transform propagationBinding resource to propagationWork resources
 func (c *Controller) transformBindingToWorks(propagationBinding *v1alpha1.PropagationBinding) error {
-	workload, err := c.getResourceStructure(propagationBinding)
+	workload, err := util.GetResourceStructure(c.dynamicClientSet, propagationBinding.Spec.Resource.APIVersion,
+		propagationBinding.Spec.Resource.Kind, propagationBinding.Spec.Resource.Namespace, propagationBinding.Spec.Resource.Name)
 	if err != nil {
 		klog.Errorf("failed to get resource. error: %v", err)
 		return err
@@ -340,13 +306,29 @@ func (c *Controller) transformBindingToWorks(propagationBinding *v1alpha1.Propag
 				},
 			},
 		}
-		// todo. if works exists, how to do?
-		result, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
-		if err != nil {
-			klog.Errorf("failed to create propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
+
+		workGetResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Get(context.TODO(), propagationWork.Name, metav1.GetOptions{})
+		if err != nil && apierrors.IsNotFound(err) {
+			workCreateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
+			if err != nil {
+				klog.Errorf("failed to create propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
+				return err
+			}
+			klog.Infof("create propagationWork %s/%s success", propagationWork.Namespace, propagationWork.Name)
+			klog.V(2).Infof("create propagationWork: %+v", workCreateResult)
+			return nil
+		} else if err != nil && !apierrors.IsNotFound(err) {
+			klog.Errorf("failed to get propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
 			return err
 		}
-		klog.V(2).Infof("create propagationWork %s/%s success. result is %+v", propagationWork.Namespace, propagationWork.Name, result)
+		workGetResult.Spec = propagationWork.Spec
+		workUpdateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Update(context.TODO(), workGetResult, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("failed to update propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
+			return err
+		}
+		klog.Infof("update propagationWork %s/%s success", propagationWork.Namespace, propagationWork.Name)
+		klog.V(2).Infof("update propagationWork: %+v", workUpdateResult)
 	}
 
 	return nil
