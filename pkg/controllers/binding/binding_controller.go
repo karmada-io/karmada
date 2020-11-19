@@ -117,7 +117,7 @@ func newPropagationBindingController(config *util.ControllerConfig) (*Controller
 			controller.enqueueEventResource(new)
 		},
 		DeleteFunc: func(obj interface{}) {
-			klog.Infof("Received delete event. Do delete action.")
+			klog.Infof("Received delete event. Do nothing just log.")
 		},
 	})
 
@@ -279,34 +279,53 @@ func (c *Controller) transformBindingToWorks(propagationBinding *v1alpha1.Propag
 
 	clusterNames := c.getBindingClusterNames(propagationBinding)
 
-	for _, clusterNameMirrorNamespace := range clusterNames {
-		c.removeIrrelevantField(workload)
-		formatWorkload, err := workload.MarshalJSON()
-		if err != nil {
-			klog.Errorf("failed to marshal workload. error: %v", err)
-			return err
-		}
+	err = c.ensurePropagationWork(workload, clusterNames, propagationBinding)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-		rawExtension := runtime.RawExtension{
-			Raw: formatWorkload,
-		}
-
-		propagationWork := v1alpha1.PropagationWork{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      propagationBinding.Name,
-				Namespace: clusterNameMirrorNamespace,
+// ensurePropagationWork ensure PropagationWork to be created or updated
+func (c *Controller) ensurePropagationWork(workload *unstructured.Unstructured, clusterNames []string,
+	propagationBinding *v1alpha1.PropagationBinding) error {
+	c.removeIrrelevantField(workload)
+	formatWorkload, err := workload.MarshalJSON()
+	if err != nil {
+		klog.Errorf("failed to marshal workload. error: %v", err)
+		return err
+	}
+	rawExtension := runtime.RawExtension{
+		Raw: formatWorkload,
+	}
+	controllerFlag := true
+	blockOwnerDeletion := true
+	propagationWork := v1alpha1.PropagationWork{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: propagationBinding.Name,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         propagationBinding.APIVersion,
+					Kind:               propagationBinding.Kind,
+					Name:               propagationBinding.Name,
+					UID:                propagationBinding.UID,
+					Controller:         &controllerFlag,
+					BlockOwnerDeletion: &blockOwnerDeletion,
+				},
 			},
-			Spec: v1alpha1.PropagationWorkSpec{
-				Workload: v1alpha1.WorkloadTemplate{
-					Manifests: []v1alpha1.Manifest{
-						{
-							RawExtension: rawExtension,
-						},
+		},
+		Spec: v1alpha1.PropagationWorkSpec{
+			Workload: v1alpha1.WorkloadTemplate{
+				Manifests: []v1alpha1.Manifest{
+					{
+						RawExtension: rawExtension,
 					},
 				},
 			},
-		}
+		},
+	}
 
+	for _, clusterNameMirrorNamespace := range clusterNames {
 		workGetResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Get(context.TODO(), propagationWork.Name, metav1.GetOptions{})
 		if err != nil && apierrors.IsNotFound(err) {
 			workCreateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
@@ -322,6 +341,7 @@ func (c *Controller) transformBindingToWorks(propagationBinding *v1alpha1.Propag
 			return err
 		}
 		workGetResult.Spec = propagationWork.Spec
+		workGetResult.ObjectMeta.OwnerReferences = propagationWork.ObjectMeta.OwnerReferences
 		workUpdateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Update(context.TODO(), workGetResult, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("failed to update propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
@@ -330,7 +350,6 @@ func (c *Controller) transformBindingToWorks(propagationBinding *v1alpha1.Propag
 		klog.Infof("update propagationWork %s/%s success", propagationWork.Namespace, propagationWork.Name)
 		klog.V(2).Infof("update propagationWork: %+v", workUpdateResult)
 	}
-
 	return nil
 }
 
