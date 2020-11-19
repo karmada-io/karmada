@@ -18,6 +18,7 @@ import (
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/options"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/binding"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/membercluster"
+	"github.com/huawei-cloudnative/karmada/pkg/controllers/policy"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 )
 
@@ -108,5 +109,9 @@ func startControllers(opts *options.Options, stopChan <-chan struct{}) {
 
 	if err := binding.StartPropagationBindingController(controllerConfig, stopChan); err != nil {
 		klog.Fatalf("Failed to start binding controller. error: %v", err)
+	}
+
+	if err := policy.StartPropagationPolicyController(controllerConfig, stopChan); err != nil {
+		klog.Fatalf("Failed to start policy controller. error: %v", err)
 	}
 }
