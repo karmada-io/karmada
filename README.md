@@ -14,7 +14,7 @@ Its key capabilities include:
 
 ## Concepts
 
-![Architecture](docs/images/Architecture.png)
+![Architecture](docs/images/architecture.png)
 
 The Karmada Control Plane consists of the following components:
 
