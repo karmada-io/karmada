@@ -48,6 +48,7 @@ spec:
                       description: Manifest represents a resource to be deployed on
                         managed cluster.
                       type: object
+                      x-kubernetes-preserve-unknown-fields: true
                     type: array
                 type: object
             type: object
