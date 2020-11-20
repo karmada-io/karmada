@@ -3,18 +3,8 @@ kind: ClusterRole
 metadata:
   name: karmada-controller-manager
 rules:
-  - apiGroups: [""] # "" indicates the core API group
-    resources:
-    - '*'
+  - apiGroups: ['*']
+    resources: ['*']
     verbs: ["get", "watch", "list", "create", "update", "delete"]
-  - apiGroups: ["coordination.k8s.io"]
-    resources: ["leases"]
-    verbs: ["get", "watch", "list", "create", "update", "delete"]
-  - apiGroups: ["membercluster.karmada.io"]
-    resources:
-    - '*'
-    verbs: ["get", "watch", "list", "create", "update", "delete"]
-  - apiGroups: ["propagationstrategy.karmada.io"]
-      resources:
-        - '*'
-      verbs: ["get", "watch", "list", "create", "update", "delete"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
