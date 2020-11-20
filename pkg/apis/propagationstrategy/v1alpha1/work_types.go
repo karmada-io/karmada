@@ -36,6 +36,7 @@ type WorkloadTemplate struct {
 
 // Manifest represents a resource to be deployed on managed cluster.
 type Manifest struct {
+	// +kubebuilder:pruning:PreserveUnknownFields
 	runtime.RawExtension `json:",inline"`
 }
 
