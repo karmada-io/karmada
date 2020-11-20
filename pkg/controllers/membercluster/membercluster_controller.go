@@ -102,11 +102,9 @@ func newMemberClusterController(config *util.ControllerConfig) (*Controller, err
 	klog.Info("Setting up event handlers")
 	memberclusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			klog.Infof("Received add event. just add to queue.")
 			controller.enqueueEventResource(obj)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			klog.Infof("Received update event. just add to queue.")
 			controller.enqueueEventResource(new)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -219,7 +217,6 @@ func (c *Controller) processNextWorkItem() bool {
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		c.workqueue.Forget(obj)
-		klog.Infof("Successfully synced '%s'", key)
 		return nil
 	}(obj)
 
@@ -283,9 +280,8 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// update status of the given member cluster
+	// TODO(RainbowMango): need to check errors and return error if update status failed.
 	updateIndividualClusterStatus(membercluster, c.karmadaClientSet, memberclusterClient)
-
-	klog.Infof("Sync member cluster: %s/%s", membercluster.Namespace, membercluster.Name)
 
 	return nil
 }
