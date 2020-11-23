@@ -18,6 +18,8 @@ VERSION?=$(shell git describe --tags)
 # We don't have tags yet, so just use hardcode one
 VERSION="latest"
 
+all: karmada-controller-manager karmadactl
+
 karmada-controller-manager: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
 		-ldflags $(LDFLAGS) \
