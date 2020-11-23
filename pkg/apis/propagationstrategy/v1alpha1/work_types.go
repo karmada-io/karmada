@@ -49,7 +49,8 @@ type PropagationWorkStatus struct {
 	// 3. Available represents workload in PropagationWork exists on the managed cluster.
 	// 4. Degraded represents the current state of workload does not match the desired
 	// state for a certain period.
-	Conditions []metav1.Condition `json:"conditions"`
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// ManifestConditions represents the conditions of each Kubernetes resource in work
 	// deployed on managed cluster.
@@ -64,7 +65,8 @@ type ManifestCondition struct {
 	Identifier ResourceIdentifier `json:"identifier"`
 
 	// Conditions represents the conditions of this resource on the managed cluster
-	Conditions []metav1.Condition `json:"conditions"`
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // ResourceIdentifier provides the identifiers needed to interact with any arbitrary object.
