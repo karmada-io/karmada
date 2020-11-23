@@ -273,7 +273,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// create a ClusterClient for the given member cluster
-	memberclusterClient, err := NewClusterClientSet(membercluster, c.kubeClientSet, membercluster.Spec.SecretRef.Namespace)
+	memberclusterClient, err := util.NewClusterClientSet(membercluster, c.kubeClientSet, membercluster.Spec.SecretRef.Namespace)
 	if err != nil {
 		c.eventRecorder.Eventf(membercluster, corev1.EventTypeWarning, "MalformedClusterConfig", err.Error())
 		return err
