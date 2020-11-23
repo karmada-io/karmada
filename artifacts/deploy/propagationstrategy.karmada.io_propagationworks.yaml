@@ -250,12 +250,9 @@ spec:
                       - version
                       type: object
                   required:
-                  - conditions
                   - identifier
                   type: object
                 type: array
-            required:
-            - conditions
             type: object
         required:
         - spec
