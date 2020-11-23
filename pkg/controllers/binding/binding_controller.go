@@ -35,6 +35,8 @@ const (
 	controllerAgentName = "binding-controller"
 )
 
+var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationBinding")
+
 // Controller is the controller implementation for binding resources
 type Controller struct {
 	// karmadaClientSet is the clientset for our own API group.
@@ -298,20 +300,11 @@ func (c *Controller) ensurePropagationWork(workload *unstructured.Unstructured, 
 	rawExtension := runtime.RawExtension{
 		Raw: formatWorkload,
 	}
-	controllerFlag := true
-	blockOwnerDeletion := true
 	propagationWork := v1alpha1.PropagationWork{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: propagationBinding.Name,
 			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         propagationBinding.APIVersion,
-					Kind:               propagationBinding.Kind,
-					Name:               propagationBinding.Name,
-					UID:                propagationBinding.UID,
-					Controller:         &controllerFlag,
-					BlockOwnerDeletion: &blockOwnerDeletion,
-				},
+				*metav1.NewControllerRef(propagationBinding, controllerKind),
 			},
 		},
 		Spec: v1alpha1.PropagationWorkSpec{
@@ -330,24 +323,24 @@ func (c *Controller) ensurePropagationWork(workload *unstructured.Unstructured, 
 		if err != nil && apierrors.IsNotFound(err) {
 			workCreateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
 			if err != nil {
-				klog.Errorf("failed to create propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
+				klog.Errorf("failed to create propagationWork %s/%s. error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
 				return err
 			}
-			klog.Infof("create propagationWork %s/%s success", propagationWork.Namespace, propagationWork.Name)
+			klog.Infof("create propagationWork %s/%s success", clusterNameMirrorNamespace, propagationWork.Name)
 			klog.V(2).Infof("create propagationWork: %+v", workCreateResult)
 			return nil
 		} else if err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf("failed to get propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
+			klog.Errorf("failed to get propagationWork %s/%s. error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
 			return err
 		}
 		workGetResult.Spec = propagationWork.Spec
 		workGetResult.ObjectMeta.OwnerReferences = propagationWork.ObjectMeta.OwnerReferences
 		workUpdateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Update(context.TODO(), workGetResult, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("failed to update propagationWork %s/%s. error: %v", propagationWork.Namespace, propagationWork.Name, err)
+			klog.Errorf("failed to update propagationWork %s/%s. error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
 			return err
 		}
-		klog.Infof("update propagationWork %s/%s success", propagationWork.Namespace, propagationWork.Name)
+		klog.Infof("update propagationWork %s/%s success", clusterNameMirrorNamespace, propagationWork.Name)
 		klog.V(2).Infof("update propagationWork: %+v", workUpdateResult)
 	}
 	return nil
