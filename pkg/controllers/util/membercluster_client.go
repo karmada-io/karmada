@@ -1,10 +1,11 @@
-package membercluster
+package util
 
 import (
 	"context"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -15,16 +16,22 @@ import (
 const (
 	// kubeAPIQPS is the maximum QPS to the master from this client
 	kubeAPIQPS = 20.0
-	// kubeAPIBurst is the Maximum burst for throttle
+	// kubeAPIBurst is the maximum burst for throttle
 	kubeAPIBurst = 30
 	tokenKey     = "token"
 	cADataKey    = "caBundle"
 )
 
-// ClusterClient stands for a ClusterClient for the given member cluster
+// ClusterClient stands for a cluster Clientset for the given member cluster
 type ClusterClient struct {
 	KubeClient  *kubeclientset.Clientset
-	clusterName string
+	ClusterName string
+}
+
+// DynamicClusterClient stands for a dynamic client for the given member cluster
+type DynamicClusterClient struct {
+	DynamicClientSet dynamic.Interface
+	ClusterName      string
 }
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
@@ -33,10 +40,24 @@ func NewClusterClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interfa
 	if err != nil {
 		return nil, err
 	}
-	var clusterClientSet = ClusterClient{clusterName: c.Name}
+	var clusterClientSet = ClusterClient{ClusterName: c.Name}
 
 	if clusterConfig != nil {
 		clusterClientSet.KubeClient = kubeclientset.NewForConfigOrDie(clusterConfig)
+	}
+	return &clusterClientSet, nil
+}
+
+// NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
+func NewClusterDynamicClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interface, namespace string) (*DynamicClusterClient, error) {
+	clusterConfig, err := buildMemberClusterConfig(c, client, namespace)
+	if err != nil {
+		return nil, err
+	}
+	var clusterClientSet = DynamicClusterClient{ClusterName: c.Name}
+
+	if clusterConfig != nil {
+		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
 }

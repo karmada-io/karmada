@@ -17,6 +17,7 @@ import (
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/leaderelection"
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/options"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/binding"
+	"github.com/huawei-cloudnative/karmada/pkg/controllers/execution"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/membercluster"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/policy"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
@@ -113,5 +114,9 @@ func startControllers(opts *options.Options, stopChan <-chan struct{}) {
 
 	if err := policy.StartPropagationPolicyController(controllerConfig, stopChan); err != nil {
 		klog.Fatalf("Failed to start policy controller. error: %v", err)
+	}
+
+	if err := execution.StartExecutionController(controllerConfig, stopChan); err != nil {
+		klog.Fatalf("Failed to start execution controller. error: %v", err)
 	}
 }

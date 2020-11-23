@@ -12,7 +12,9 @@ import (
 )
 
 // todo: this can get by kubectl api-resources
-var resourceKindMap = map[string]string{
+
+// ResourceKindMap get the Resource of a given kind
+var ResourceKindMap = map[string]string{
 	"ConfigMap":             "configmaps",
 	"Namespace":             "namespaces",
 	"PersistentVolumeClaim": "persistentvolumeclaims",
@@ -34,13 +36,13 @@ func GetResourceStructure(client dynamic.Interface, apiVersion, kind, namespace,
 	groupVersion, err := schema.ParseGroupVersion(apiVersion)
 	if err != nil {
 		return nil, fmt.Errorf("can't get parse groupVersion[namespace: %s name: %s kind: %s]. error: %v", namespace,
-			name, resourceKindMap[kind], err)
+			name, ResourceKindMap[kind], err)
 	}
-	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: resourceKindMap[kind]}
+	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: ResourceKindMap[kind]}
 	result, err := client.Resource(dynamicResource).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("can't get resource[namespace: %s name: %s kind: %s]. error: %v", namespace,
-			name, resourceKindMap[kind], err)
+			name, ResourceKindMap[kind], err)
 	}
 	return result, nil
 }
