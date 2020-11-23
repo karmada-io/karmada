@@ -99,9 +99,11 @@ type MemberClusterStatus struct {
 	APIEnablements []APIEnablement `json:"apiEnablements,omitempty"`
 
 	// Conditions is an array of current cluster conditions.
+	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// NodeSummary represents the summary of nodes status in the member cluster.
+	// +optional
 	NodeSummary NodeSummary `json:"nodeSummary,omitempty"`
 }
 
@@ -132,5 +134,7 @@ type NodeSummary struct {
 type MemberClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
+	
+	// Items holds a list of MemberCluster.
 	Items           []MemberCluster `json:"items"`
 }
