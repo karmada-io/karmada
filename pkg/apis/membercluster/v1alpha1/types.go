@@ -134,7 +134,7 @@ type NodeSummary struct {
 type MemberClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	
+
 	// Items holds a list of MemberCluster.
-	Items           []MemberCluster `json:"items"`
+	Items []MemberCluster `json:"items"`
 }
