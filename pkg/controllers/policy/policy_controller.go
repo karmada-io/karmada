@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -32,6 +32,8 @@ import (
 )
 
 const controllerAgentName = "policy-controller"
+
+var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationPolicy")
 
 // Controller is the controller implementation for policy resources
 type Controller struct {
@@ -273,21 +275,12 @@ func (c *Controller) transformPolicyToBinding(propagationPolicy *v1alpha1.Propag
 // create propagationBinding
 func (c *Controller) ensurePropagationBinding(propagationPolicy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured, clusterNames []v1alpha1.TargetCluster) error {
 	bindingName := strings.ToLower(workload.GetNamespace() + "-" + workload.GetKind() + "-" + workload.GetName())
-	blockOwnerDeletion := true
-	controllerFlag := true
 	propagationBinding := v1alpha1.PropagationBinding{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: propagationPolicy.Namespace,
-			OwnerReferences: []v1.OwnerReference{
-				{
-					APIVersion:         propagationPolicy.APIVersion,
-					Kind:               propagationPolicy.Kind,
-					Name:               propagationPolicy.Name,
-					UID:                propagationPolicy.UID,
-					Controller:         &controllerFlag,
-					BlockOwnerDeletion: &blockOwnerDeletion,
-				},
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(propagationPolicy, controllerKind),
 			},
 		},
 		Spec: v1alpha1.PropagationBindingSpec{
@@ -302,9 +295,9 @@ func (c *Controller) ensurePropagationBinding(propagationPolicy *v1alpha1.Propag
 		},
 	}
 
-	bindingGetResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Get(context.TODO(), propagationBinding.Name, v1.GetOptions{})
+	bindingGetResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Get(context.TODO(), propagationBinding.Name, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		bindingCreateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), &propagationBinding, v1.CreateOptions{})
+		bindingCreateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), &propagationBinding, metav1.CreateOptions{})
 		if err != nil {
 			klog.Errorf("failed to create propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 			return err
@@ -318,7 +311,7 @@ func (c *Controller) ensurePropagationBinding(propagationPolicy *v1alpha1.Propag
 	}
 	bindingGetResult.Spec = propagationBinding.Spec
 	bindingGetResult.ObjectMeta.OwnerReferences = propagationBinding.ObjectMeta.OwnerReferences
-	bindingUpdateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Update(context.TODO(), bindingGetResult, v1.UpdateOptions{})
+	bindingUpdateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Update(context.TODO(), bindingGetResult, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("failed to update propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 		return err
