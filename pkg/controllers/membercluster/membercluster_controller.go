@@ -8,8 +8,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -28,7 +30,12 @@ import (
 	listers "github.com/huawei-cloudnative/karmada/pkg/generated/listers/membercluster/v1alpha1"
 )
 
-const controllerAgentName = "membercluster-controller"
+const (
+	controllerAgentName      = "membercluster-controller"
+	finalizer                = "karmada.io/membercluster-controller"
+	executionSpaceLabelKey   = "karmada.io/executionspace"
+	executionSpaceLabelValue = ""
+)
 
 // Controller is the controller implementation for membercluster resources
 type Controller struct {
@@ -108,29 +115,7 @@ func newMemberClusterController(config *util.ControllerConfig) (*Controller, err
 			controller.enqueueEventResource(new)
 		},
 		DeleteFunc: func(obj interface{}) {
-			castObj, ok := obj.(*v1alpha1.MemberCluster)
-			if !ok {
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					klog.Errorf("Couldn't get object from tombstone %#v", obj)
-					return
-				}
-				castObj, ok = tombstone.Obj.(*v1alpha1.MemberCluster)
-				if !ok {
-					klog.Errorf("Tombstone contained object that is not expected %#v", obj)
-					return
-				}
-			}
-
-			// TODO: postpone delete namespace if there is any work object which should be deleted by binding controller.
-
-			// delete member cluster workspace when member cluster unjoined
-			if err := controller.kubeClientSet.CoreV1().Namespaces().Delete(context.TODO(), castObj.Name, v1.DeleteOptions{}); err != nil {
-				if !apierrors.IsNotFound(err) {
-					klog.Errorf("Error while deleting namespace %s: %s", castObj.Name, err)
-					return
-				}
-			}
+			controller.enqueueEventResource(obj)
 		},
 	})
 
@@ -252,24 +237,22 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	// create member cluster workspace when member cluster joined
-	_, err = c.kubeClientSet.CoreV1().Namespaces().Get(context.TODO(), membercluster.Name, v1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			memberclusterNS := &corev1.Namespace{
-				ObjectMeta: v1.ObjectMeta{
-					Name: membercluster.Name,
-				},
-			}
-			_, err = c.kubeClientSet.CoreV1().Namespaces().Create(context.TODO(), memberclusterNS, v1.CreateOptions{})
-			if err != nil {
+	if membercluster.GetDeletionTimestamp() != nil {
+		return c.removeMemberCluster(membercluster)
+	}
 
-				return err
-			}
-		} else {
-			klog.V(2).Infof("Could not get %s namespace: %v", membercluster.Name, err)
-			return err
-		}
+	err = c.createExecutionSpace(membercluster)
+	if err != nil {
+		return err
+	}
+
+	// ensure finalizer
+	updated, err := c.ensureFinalizer(membercluster)
+	if err != nil {
+		klog.Infof("Failed to ensure finalizer for membercluster %q", membercluster.Name)
+		return err
+	} else if updated {
+		return nil
 	}
 
 	// create a ClusterClient for the given member cluster
@@ -297,4 +280,109 @@ func (c *Controller) enqueueEventResource(obj interface{}) {
 		return
 	}
 	c.workqueue.Add(key)
+}
+
+func (c *Controller) removeMemberCluster(membercluster *v1alpha1.MemberCluster) error {
+	err := c.removeExecutionSpace(membercluster)
+	if apierrors.IsNotFound(err) {
+		return c.removeFinalizer(membercluster)
+	}
+	if err != nil {
+		klog.Errorf("Failed to remove execution space %v, err is %v", membercluster.Name, err)
+		return err
+	}
+
+	// make sure the given execution space has been deleted
+	existES, err := c.ensureRemoveExecutionSpace(membercluster)
+	if err != nil {
+		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
+		return err
+	} else if existES {
+		return fmt.Errorf("the execution space %v still exist", membercluster.Name)
+	}
+
+	return c.removeFinalizer(membercluster)
+}
+
+// removeExecutionSpace delete the given execution space
+func (c *Controller) removeExecutionSpace(memberCluster *v1alpha1.MemberCluster) error {
+	// todo: executionSpace := "karmada-es-" + memberCluster.Name
+	executionSpace := memberCluster.Name
+	if err := c.kubeClientSet.CoreV1().Namespaces().Delete(context.TODO(), executionSpace, v1.DeleteOptions{}); err != nil {
+		klog.Errorf("Error while deleting namespace %s: %s", executionSpace, err)
+		return err
+	}
+	return nil
+}
+
+// ensureRemoveExecutionSpace make sure the given execution space has been deleted
+func (c *Controller) ensureRemoveExecutionSpace(memberCluster *v1alpha1.MemberCluster) (bool, error) {
+	// todo: executionSpace := "karmada-es-" + memberCluster.Name
+	executionSpace := memberCluster.Name
+	_, err := c.kubeClientSet.CoreV1().Namespaces().Get(context.TODO(), executionSpace, v1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		klog.Infof("Failed to get execution space %v, err is %v ", executionSpace, err)
+		return false, err
+	}
+	return true, nil
+}
+
+func (c *Controller) removeFinalizer(memberCluster *v1alpha1.MemberCluster) error {
+	accessor, err := meta.Accessor(memberCluster)
+	if err != nil {
+		return err
+	}
+	finalizers := sets.NewString(accessor.GetFinalizers()...)
+	if !finalizers.Has(finalizer) {
+		return nil
+	}
+	finalizers.Delete(finalizer)
+	accessor.SetFinalizers(finalizers.List())
+	_, err = c.karmadaClientSet.MemberclusterV1alpha1().MemberClusters(memberCluster.Namespace).Update(context.TODO(), memberCluster, v1.UpdateOptions{})
+	return err
+}
+
+func (c *Controller) ensureFinalizer(memberCluster *v1alpha1.MemberCluster) (bool, error) {
+	accessor, err := meta.Accessor(memberCluster)
+	if err != nil {
+		return false, err
+	}
+	finalizers := sets.NewString(accessor.GetFinalizers()...)
+	if finalizers.Has(finalizer) {
+		return false, nil
+	}
+	finalizers.Insert(finalizer)
+	accessor.SetFinalizers(finalizers.List())
+	_, err = c.karmadaClientSet.MemberclusterV1alpha1().MemberClusters(memberCluster.Namespace).Update(context.TODO(), memberCluster, v1.UpdateOptions{})
+	return true, err
+}
+
+// createExecutionSpace create member cluster execution space when member cluster joined
+func (c *Controller) createExecutionSpace(membercluster *v1alpha1.MemberCluster) error {
+	// todo: executionSpace := "karmada-es-" + membercluster.Name
+	executionSpace := membercluster.Name
+	// create member cluster execution space when member cluster joined
+	_, err := c.kubeClientSet.CoreV1().Namespaces().Get(context.TODO(), executionSpace, v1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			memberclusterES := &corev1.Namespace{
+				ObjectMeta: v1.ObjectMeta{
+					Name:   executionSpace,
+					Labels: map[string]string{executionSpaceLabelKey: executionSpaceLabelValue},
+				},
+			}
+			_, err = c.kubeClientSet.CoreV1().Namespaces().Create(context.TODO(), memberclusterES, v1.CreateOptions{})
+			if err != nil {
+				klog.Errorf("Failed to create execution space for membercluster %v", membercluster.Name)
+				return err
+			}
+		} else {
+			klog.V(2).Infof("Could not get %s namespace: %v", executionSpace, err)
+			return err
+		}
+	}
+	return nil
 }
