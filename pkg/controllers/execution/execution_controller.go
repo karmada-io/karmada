@@ -36,6 +36,7 @@ import (
 const (
 	controllerAgentName = "execution-controller"
 	finalizer           = "karmada.io/execution-controller"
+	memberClusterNS     = "karmada-cluster"
 )
 
 // Controller is the controller implementation for PropagationWork resources
@@ -240,70 +241,34 @@ func (c *Controller) syncHandler(key string) error {
 
 		return err
 	}
-	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	membercluster, err := c.karmadaClientSet.MemberclusterV1alpha1().MemberClusters("karmada-cluster").Get(context.TODO(), propagationWork.Namespace, v1.GetOptions{})
+
+	if propagationWork.GetDeletionTimestamp() != nil {
+		applied := c.isResourceApplied(&propagationWork.Status)
+		if applied {
+			err = c.deletePropagationWork(propagationWork)
+			if err != nil {
+				klog.Infof("Failed to delete propagationwork %v, err is %v", propagationWork.Name, err)
+				return err
+			}
+		}
+		return c.removeFinalizer(propagationWork)
+	}
+
+	// ensure finalizer
+	updated, err := c.ensureFinalizer(propagationWork)
 	if err != nil {
-		klog.Errorf("Failed to get status of the given member cluster")
+		klog.Infof("Failed to ensure finalizer for propagationwork %q", propagationWork.Name)
+		return err
+	} else if updated {
+		return nil
+	}
+
+	err = c.dispatchPropagationWork(propagationWork)
+	if err != nil {
 		return err
 	}
 
-	if !c.IsMemberClusterReady(&membercluster.Status) {
-		klog.Errorf("The status of the given member cluster is unready")
-		return fmt.Errorf("cluster %s not ready, skip", membercluster.Name)
-	}
-
-	for _, manifest := range propagationWork.Spec.Workload.Manifests {
-		workload := &unstructured.Unstructured{}
-		err = workload.UnmarshalJSON(manifest.Raw)
-		if err != nil {
-			klog.Errorf("failed to unmarshal workload, error is: %v", err)
-			return err
-		}
-
-		memberclusterDynamicClient, err := util.NewClusterDynamicClientSet(membercluster, c.kubeClientSet, membercluster.Spec.SecretRef.Namespace)
-		if err != nil {
-			c.eventRecorder.Eventf(membercluster, corev1.EventTypeWarning, "MalformedClusterConfig", err.Error())
-			return err
-		}
-
-		if propagationWork.GetDeletionTimestamp() != nil {
-			err = c.DeleteResource(memberclusterDynamicClient, workload)
-			if err != nil {
-				klog.Errorf("Failed to delete resource in the given member cluster, err is %v", err)
-				return err
-			}
-
-			err = c.removeFinalizer(propagationWork)
-			if err != nil {
-				klog.Errorf("Failed to remove finalizer from propagationWork %v, err is %v", propagationWork.Name, err)
-				return err
-			}
-
-			return nil
-		}
-
-		alreadyExists, err := c.IsResourceExist(memberclusterDynamicClient, workload)
-		if err != nil {
-			klog.Errorf("Failed to check weather the resource exist in the given member cluster or not, error is: %v", err)
-			return err
-		}
-
-		if alreadyExists {
-			err = c.UpdateResource(memberclusterDynamicClient, workload)
-			if err != nil {
-				klog.Errorf("Failed to update resource in the given member cluster, err is %v", err)
-				return err
-			}
-		} else {
-			err = c.CreateResource(memberclusterDynamicClient, workload)
-			if err != nil {
-				klog.Errorf("Failed to create resource in the given member cluster,err is %v", err)
-				return err
-			}
-		}
-
-		klog.Infof("Sync propagationWork: %s/%s", propagationWork.Namespace, propagationWork.Name)
-	}
+	klog.Infof("Sync propagationWork: %s/%s", propagationWork.Namespace, propagationWork.Name)
 	return nil
 }
 
@@ -321,7 +286,7 @@ func (c *Controller) enqueueEventResource(obj interface{}) {
 }
 
 // IsMemberClusterReady checking readiness for the given member cluster
-func (c *Controller) IsMemberClusterReady(clusterStatus *v1alpha1.MemberClusterStatus) bool {
+func (c *Controller) isMemberClusterReady(clusterStatus *v1alpha1.MemberClusterStatus) bool {
 	for _, condition := range clusterStatus.Conditions {
 		if condition.Type == "ClusterReady" {
 			if condition.Status == v1.ConditionTrue {
@@ -333,26 +298,118 @@ func (c *Controller) IsMemberClusterReady(clusterStatus *v1alpha1.MemberClusterS
 }
 
 // IsResourceExist checking weather resource exist in host cluster
-func (c *Controller) IsResourceExist(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) (bool, error) {
-	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
-	if err != nil {
-		return false, fmt.Errorf("can't get parse groupVersion[namespace: %s name: %s kind: %s]. error: %v", workload.GetNamespace(),
-			workload.GetName(), util.ResourceKindMap[workload.GetKind()], err)
+func (c *Controller) isResourceApplied(propagationWorkStatus *pagationstrategy.PropagationWorkStatus) bool {
+	for _, condition := range propagationWorkStatus.Conditions {
+		if condition.Type == "Applied" {
+			if condition.Status == v1.ConditionTrue {
+				return true
+			}
+		}
 	}
-	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: util.ResourceKindMap[workload.GetKind()]}
-	_, err = memberclusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), v1.GetOptions{})
-	if apierrors.IsNotFound(err) {
-		return false, nil
-	}
-	if err != nil {
-		klog.Infof("Failed to delete resource %v, err is %v ", workload.GetName(), err)
-		return false, err
-	}
-	return true, nil
+	return false
 }
 
-// DeleteResource delete resource in member cluster
-func (c *Controller) DeleteResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
+func (c *Controller) deletePropagationWork(propagationWork *pagationstrategy.PropagationWork) error {
+	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
+	membercluster, err := c.karmadaClientSet.MemberclusterV1alpha1().MemberClusters(memberClusterNS).Get(context.TODO(), propagationWork.Namespace, v1.GetOptions{})
+	if err != nil {
+		klog.Errorf("Failed to get status of the given member cluster")
+		return err
+	}
+
+	if !c.isMemberClusterReady(&membercluster.Status) {
+		klog.Errorf("The status of the given member cluster is unready")
+		return fmt.Errorf("cluster %s not ready, requeuing operation until cluster state is ready", membercluster.Name)
+	}
+
+	memberclusterDynamicClient, err := util.NewClusterDynamicClientSet(membercluster, c.kubeClientSet, membercluster.Spec.SecretRef.Namespace)
+	if err != nil {
+		c.eventRecorder.Eventf(membercluster, corev1.EventTypeWarning, "MalformedClusterConfig", err.Error())
+		return err
+	}
+
+	for _, manifest := range propagationWork.Spec.Workload.Manifests {
+		workload := &unstructured.Unstructured{}
+		err := workload.UnmarshalJSON(manifest.Raw)
+		if err != nil {
+			klog.Errorf("failed to unmarshal workload, error is: %v", err)
+			return err
+		}
+
+		err = c.deleteResource(memberclusterDynamicClient, workload)
+		if err != nil {
+			klog.Errorf("Failed to delete resource in the given member cluster, err is %v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Controller) dispatchPropagationWork(propagationWork *pagationstrategy.PropagationWork) error {
+	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
+	membercluster, err := c.karmadaClientSet.MemberclusterV1alpha1().MemberClusters(memberClusterNS).Get(context.TODO(), propagationWork.Namespace, v1.GetOptions{})
+	if err != nil {
+		klog.Errorf("Failed to get status of the given member cluster")
+		return err
+	}
+
+	if !c.isMemberClusterReady(&membercluster.Status) {
+		klog.Errorf("The status of the given member cluster is unready")
+		return fmt.Errorf("cluster %s not ready, requeuing operation until cluster state is ready", membercluster.Name)
+	}
+
+	err = c.syncToMemberClusters(membercluster, propagationWork)
+	if err != nil {
+		klog.Infof("Failed to delete propagationwork %v, err is %v", propagationWork.Name, err)
+		return err
+	}
+
+	return nil
+}
+
+// syncToMemberClusters ensures that the state of the given object is synchronized to member clusters.
+func (c *Controller) syncToMemberClusters(membercluster *v1alpha1.MemberCluster, propagationWork *pagationstrategy.PropagationWork) error {
+	memberclusterDynamicClient, err := util.NewClusterDynamicClientSet(membercluster, c.kubeClientSet, membercluster.Spec.SecretRef.Namespace)
+	if err != nil {
+		c.eventRecorder.Eventf(membercluster, corev1.EventTypeWarning, "MalformedClusterConfig", err.Error())
+		return err
+	}
+
+	for _, manifest := range propagationWork.Spec.Workload.Manifests {
+		workload := &unstructured.Unstructured{}
+		err := workload.UnmarshalJSON(manifest.Raw)
+		if err != nil {
+			klog.Errorf("failed to unmarshal workload, error is: %v", err)
+			return err
+		}
+
+		applied := c.isResourceApplied(&propagationWork.Status)
+		if applied {
+			err = c.updateResource(memberclusterDynamicClient, workload)
+			if err != nil {
+				klog.Errorf("Failed to update resource in the given member cluster, err is %v", err)
+				return err
+			}
+		} else {
+			err = c.createResource(memberclusterDynamicClient, workload)
+			if err != nil {
+				klog.Errorf("Failed to create resource in the given member cluster,err is %v", err)
+				return err
+			}
+
+			err := c.updateAppliedCondition(propagationWork)
+			if err != nil {
+				klog.Errorf("Failed to update applied status for given propagationwork %v, err is %v", propagationWork.Name, err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// deleteResource delete resource in member cluster
+func (c *Controller) deleteResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
 	// start delete resource in member cluster
 	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
 	if err != nil {
@@ -371,8 +428,8 @@ func (c *Controller) DeleteResource(memberclusterDynamicClient *util.DynamicClus
 	return nil
 }
 
-// CreateResource create resource in member cluster
-func (c *Controller) CreateResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
+// createResource create resource in member cluster
+func (c *Controller) createResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
 	// start create resource in member cluster
 	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
 	if err != nil {
@@ -382,15 +439,17 @@ func (c *Controller) CreateResource(memberclusterDynamicClient *util.DynamicClus
 	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: util.ResourceKindMap[workload.GetKind()]}
 	_, err = memberclusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Create(context.TODO(), workload, v1.CreateOptions{})
 	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return nil
+		}
 		klog.Infof("Failed to create resource %v, err is %v ", workload.GetName(), err)
 		return err
 	}
-
 	return nil
 }
 
-// UpdateResource update resource in member cluster
-func (c *Controller) UpdateResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
+// updateResource update resource in member cluster
+func (c *Controller) updateResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
 	// start update resource in member cluster
 	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
 	if err != nil {
@@ -419,5 +478,39 @@ func (c *Controller) removeFinalizer(propagationWork *pagationstrategy.Propagati
 	finalizers.Delete(finalizer)
 	accessor.SetFinalizers(finalizers.List())
 	_, err = c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(propagationWork.Namespace).Update(context.TODO(), propagationWork, v1.UpdateOptions{})
+	return err
+}
+
+// ensureFinalizer ensure finalizer for the given PropagationWork
+func (c *Controller) ensureFinalizer(propagationWork *pagationstrategy.PropagationWork) (bool, error) {
+	accessor, err := meta.Accessor(propagationWork)
+	if err != nil {
+		return false, err
+	}
+	finalizers := sets.NewString(accessor.GetFinalizers()...)
+	if finalizers.Has(finalizer) {
+		return false, nil
+	}
+	finalizers.Insert(finalizer)
+	accessor.SetFinalizers(finalizers.List())
+	_, err = c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(propagationWork.Namespace).Update(context.TODO(), propagationWork, v1.UpdateOptions{})
+	return true, err
+}
+
+// updateAppliedCondition update the Applied condition for the given PropagationWork
+func (c *Controller) updateAppliedCondition(propagationWork *pagationstrategy.PropagationWork) error {
+	currentTime := v1.Now()
+	propagationWorkApplied := "Applied"
+	appliedSuccess := "AppliedSuccess"
+	resourceApplied := "Success sync resource in member cluster"
+	newPropagationWorkAppliedCondition := v1.Condition{
+		Type:               propagationWorkApplied,
+		Status:             v1.ConditionTrue,
+		Reason:             appliedSuccess,
+		Message:            resourceApplied,
+		LastTransitionTime: currentTime,
+	}
+	propagationWork.Status.Conditions = append(propagationWork.Status.Conditions, newPropagationWorkAppliedCondition)
+	_, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationWorks(propagationWork.Namespace).Update(context.TODO(), propagationWork, v1.UpdateOptions{})
 	return err
 }
