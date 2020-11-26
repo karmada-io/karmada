@@ -220,29 +220,69 @@ func (c *Controller) processNextWorkItem() bool {
 func (c *Controller) fetchWorkloads(resourceSelectors []v1alpha1.ResourceSelector) ([]*unstructured.Unstructured, error) {
 	var workloads []*unstructured.Unstructured
 	// todo: if resources repetitive, deduplication.
+	// todo: if namespaces, names, labelSelector is nil, need to do something
 	for _, resourceSelector := range resourceSelectors {
 		matchNamespaces := util.GetMatchItems(resourceSelector.Namespaces, resourceSelector.ExcludeNamespaces)
-		klog.V(2).Infof("matchNamespaces: %v", matchNamespaces)
+		deduplicationNames := util.GetDeduplicationArray(resourceSelector.Names)
 		for _, namespace := range matchNamespaces {
-			for _, name := range resourceSelector.Names {
-				workload, err := util.GetResourceStructure(c.dynamicClientSet, resourceSelector.APIVersion,
-					resourceSelector.Kind, namespace, name)
+			if resourceSelector.LabelSelector == nil {
+				err := c.fetchWorkloadsWithOutLabelSelector(resourceSelector, namespace, deduplicationNames, &workloads)
 				if err != nil {
-					klog.Errorf("failed to get resource. error: %v", err)
+					klog.Errorf("failed to fetch workloads by names in namespace %s. error: %v", namespace, err)
 					return nil, err
 				}
-				workloads = append(workloads, workload)
+			} else {
+				err := c.fetchWorkloadsWithLabelSelector(resourceSelector, namespace, deduplicationNames, &workloads)
+				if err != nil {
+					klog.Errorf("failed to fetch workloads with labelSelector in namespace %s. error: %v", namespace, err)
+					return nil, err
+				}
 			}
 		}
 	}
-	// todo: resource labelSelector
 	return workloads, nil
+}
+
+// fetchWorkloadsWithOutLabelSelector query workloads by names
+func (c *Controller) fetchWorkloadsWithOutLabelSelector(resourceSelector v1alpha1.ResourceSelector, namespace string, names []string, workloads *[]*unstructured.Unstructured) error {
+	for _, name := range names {
+		workload, err := util.GetResourceStructure(c.dynamicClientSet, resourceSelector.APIVersion,
+			resourceSelector.Kind, namespace, name)
+		if err != nil {
+			return err
+		}
+		*workloads = append(*workloads, workload)
+	}
+	return nil
+}
+
+// fetchWorkloadsWithLabelSelector query workloads by labelSelector and names
+func (c *Controller) fetchWorkloadsWithLabelSelector(resourceSelector v1alpha1.ResourceSelector, namespace string, names []string, workloads *[]*unstructured.Unstructured) error {
+	unstructuredWorkLoadList, err := util.GetResourcesStructureByFilter(c.dynamicClientSet, resourceSelector.APIVersion,
+		resourceSelector.Kind, namespace, resourceSelector.LabelSelector)
+	if err != nil {
+		return err
+	}
+	if resourceSelector.Names == nil {
+		for _, unstructuredWorkLoad := range unstructuredWorkLoadList.Items {
+			*workloads = append(*workloads, &unstructuredWorkLoad)
+		}
+	} else {
+		for _, unstructuredWorkLoad := range unstructuredWorkLoadList.Items {
+			for _, name := range names {
+				if unstructuredWorkLoad.GetName() == name {
+					*workloads = append(*workloads, &unstructuredWorkLoad)
+					break
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // getTargetClusters get targetClusters by placement
 func (c *Controller) getTargetClusters(placement v1alpha1.Placement) []v1alpha1.TargetCluster {
 	matchClusterNames := util.GetMatchItems(placement.ClusterAffinity.ClusterNames, placement.ClusterAffinity.ExcludeClusters)
-	klog.V(2).Infof("matchClusterNames: %v", matchClusterNames)
 
 	// todo: cluster labelSelector, fieldSelector, clusterTolerations
 	// todo: calc spread contraints. such as maximumClusters, minimumClusters
@@ -268,7 +308,6 @@ func (c *Controller) transformPolicyToBinding(propagationPolicy *v1alpha1.Propag
 			return err
 		}
 	}
-
 	return nil
 }
 

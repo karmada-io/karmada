@@ -1,0 +1,31 @@
+apiVersion: propagationstrategy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: example-policy
+  namespace: default
+spec:
+  resourceSelector:
+    - apiVersion: apps/v1
+      kind: Deployment
+      names:
+        - nginx
+      namespaces:
+        - default
+        - exclude
+      excludeNamespaces:
+        - exclude
+      labelSelector:
+        matchLabels:
+          a: b
+  association: false
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - cluster1
+        - cluster3
+      exclude:
+        - cluster1
+    spreadConstraints:
+      - maximumClusters: 3
+        minimumClusters: 3
+  schedulerName: default
