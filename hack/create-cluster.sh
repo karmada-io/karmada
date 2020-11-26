@@ -35,5 +35,5 @@ kubectl config rename-context "kind-${CLUSTER_NAME}" "${CLUSTER_NAME}" --kubecon
 
 # Kind cluster uses `127.0.0.1` as kube-apiserver endpoint by default, thus kind clusters can't reach each other.
 # So we need to update endpoint with container IP.
-docker_ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${CLUSTER_NAME}-control-plane")
+container_ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${CLUSTER_NAME}-control-plane")
 kubectl config set-cluster "${CLUSTER_NAME}" --server="https://${docker_ip}:6443" --kubeconfig="${KUBECONFIG}"
