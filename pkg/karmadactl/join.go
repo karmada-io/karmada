@@ -27,7 +27,7 @@ var (
 	joinLong = `Join registers a member cluster to control plane.`
 
 	joinExample = `
-karmadactl join CLUSTER_NAME --member-cluster-config-path=<KUBECONFIG>
+karmadactl join CLUSTER_NAME --member-cluster-kubeconfig=<KUBECONFIG>
 `
 )
 
