@@ -1,0 +1,16 @@
+apiVersion: propagationstrategy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: nginx-propagation
+spec:
+  resourceSelector:
+    - apiVersion: apps/v1
+      kind: Deployment
+      names:
+        - nginx
+      namespaces:
+        - default
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member

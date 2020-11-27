@@ -37,28 +37,76 @@ The following figure shows how Karmada resource relate to the objects created in
 
 ![karmada-resource-relation](docs/images/karmada-resource-relation.png)
 
-## Features
+## Quickstart
 
+Please install [kind](https://kind.sigs.k8s.io/) and [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) before the following steps.
 
+### Install karmada
 
+1. Clone this repo to get karmada.
 
+```
+git clone https://github.com/huawei-cloudnative/karmada
+```
 
-## Guides
+2. Move to the karmada package directory.
 
-### Quickstart
+```
+cd karmada
+```
 
+3. Install karmada.
 
+```
+export KUBECONFIG=/root/.kube/host.config
+hack/local-up-karmada.sh
+```
 
-### User Guide
+4. Verify that karmada's component is deployed and running.
 
+```
+kubectl get pods -n karmada-system
+```
 
+### Join member cluster
 
-### Development Guide
+1. Create **member cluster** for attaching it to karmada.
 
+```
+hack/create-cluster.sh member /root/.kube/member.config
+```
 
+2. Join member cluster to karmada using karmadactl.
 
-## Community
+```
+make karmadactl
+./karmadactl join member --member-cluster-kubeconfig=/root/.kube/member.config
+```
 
+3. Verify member cluster is Joined to karmada successfully.
 
+```
+kubectl get membercluster -n karmada-cluster
+```
 
-## Code of Conduct
+### Propagate application
+
+1. Create nginx deployment in karmada.
+
+```
+kubectl create -f samples/nginx/deployment.yaml
+```
+
+2. Create PropagationPolicy that will propagate nginx to member cluster.
+
+```
+kubectl create -f samples/nginx/propagationpolicy.yaml
+```
+
+3. Verify the nginx is deployed successfully in **member cluster**.
+
+```
+export KUBECONFIG=/root/.kube/member.config
+kubectl describe deploy nginx
+```
+
