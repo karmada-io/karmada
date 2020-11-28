@@ -27,13 +27,19 @@ ifeq ($(VERSION), "")
     endif
 endif
 
-all: karmada-controller-manager karmadactl
+all: karmada-controller-manager karmada-scheduler karmadactl
 
 karmada-controller-manager: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-controller-manager \
 		cmd/controller-manager/controller-manager.go
+
+karmada-scheduler: $(SOURCES)
+	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+		-ldflags $(LDFLAGS) \
+		-o karmada-scheduler \
+		cmd/karmada-scheduler/karmada-scheduler.go
 
 karmadactl: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
@@ -42,18 +48,23 @@ karmadactl: $(SOURCES)
 		cmd/karmadactl/karmadactl.go
 
 clean:
-	rm -rf karmada-controller-manager
+	rm -rf karmada-controller-manager karmada-scheduler karmadactl
 
 .PHONY: test
 test:
 	go test --race --v ./pkg/...
 
-images: image-karmada-controller-manager
+images: image-karmada-controller-manager image-karmada-scheduler
 
 image-karmada-controller-manager: karmada-controller-manager
 	cp karmada-controller-manager cluster/images/karmada-controller-manager && \
 	docker build -t $(REGISTRY)/karmada-controller-manager:$(VERSION) cluster/images/karmada-controller-manager && \
 	rm cluster/images/karmada-controller-manager/karmada-controller-manager
+
+image-karmada-scheduler: karmada-scheduler
+	cp karmada-scheduler cluster/images/karmada-scheduler && \
+	docker build -t $(REGISTRY)/karmada-scheduler:$(VERSION) cluster/images/karmada-scheduler && \
+	rm cluster/images/karmada-scheduler/karmada-scheduler
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
@@ -61,4 +72,4 @@ ifneq ($(REGISTRY_USER_NAME), "")
 	docker login -u ${REGISTRY_USER_NAME} -p ${REGISTRY_PASSWORD} ${REGISTRY_SERVER_ADDRESS}
 endif
 	docker push ${REGISTRY}/karmada-controller-manager:${VERSION}
-
+	docker push ${REGISTRY}/karmada-scheduler:${VERSION}
