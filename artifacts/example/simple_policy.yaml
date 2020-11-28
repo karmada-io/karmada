@@ -11,6 +11,7 @@ spec:
         - nginx
       namespaces:
         - default
+        - exclude
       excludeNamespaces:
         - exclude
   association: false
@@ -20,7 +21,7 @@ spec:
         - cluster1
         - cluster3
       exclude:
-        - cluster2
+        - cluster1
     spreadConstraints:
       - maximumClusters: 3
         minimumClusters: 3

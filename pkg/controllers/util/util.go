@@ -39,8 +39,7 @@ func GetResourceStructure(client dynamic.Interface, apiVersion, kind, namespace,
 	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: resourceKindMap[kind]}
 	result, err := client.Resource(dynamicResource).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("can't get resource[namespace: %s name: %s kind: %s]. error: %v", namespace,
-			name, resourceKindMap[kind], err)
+		return nil, err
 	}
 	return result, nil
 }

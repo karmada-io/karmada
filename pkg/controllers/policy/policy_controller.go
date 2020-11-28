@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -32,6 +32,8 @@ import (
 )
 
 const controllerAgentName = "policy-controller"
+
+var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationPolicy")
 
 // Controller is the controller implementation for policy resources
 type Controller struct {
@@ -83,7 +85,7 @@ func newPropagationPolicyController(config *util.ControllerConfig) (*Controller,
 		return nil, err
 	}
 	karmadaClientSet := clientset.NewForConfigOrDie(headClusterConfig)
-	karmadaInformerFactory := informers.NewSharedInformerFactory(karmadaClientSet, 0)
+	karmadaInformerFactory := informers.NewSharedInformerFactory(karmadaClientSet, 10*time.Second)
 	propagationPolicyInformer := karmadaInformerFactory.Propagationstrategy().V1alpha1().PropagationPolicies()
 	// Add karmada types to the default Kubernetes Scheme so Events can be logged for karmada types.
 	utilruntime.Must(karmadaScheme.AddToScheme(scheme.Scheme))
@@ -111,7 +113,7 @@ func newPropagationPolicyController(config *util.ControllerConfig) (*Controller,
 			controller.enqueueEventResource(obj)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			klog.Infof("Received update event. just add to queue.")
+			klog.V(1).Infof("Received update event. just add to queue.")
 			controller.enqueueEventResource(new)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -202,7 +204,7 @@ func (c *Controller) processNextWorkItem() bool {
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		c.workqueue.Forget(obj)
-		klog.Infof("Successfully synced '%s'", key)
+		klog.V(1).Infof("Successfully synced '%s'", key)
 		return nil
 	}(obj)
 
@@ -215,8 +217,9 @@ func (c *Controller) processNextWorkItem() bool {
 }
 
 // fetchWorkloads query matched kubernetes resource by resourceSelector
-func (c *Controller) fetchWorkloads(resourceSelectors []v1alpha1.ResourceSelector) ([]*unstructured.Unstructured, error) {
-	var workloads []*unstructured.Unstructured
+func (c *Controller) fetchWorkloads(resourceSelectors []v1alpha1.ResourceSelector) ([]*unstructured.Unstructured, []*unstructured.Unstructured, error) {
+	var fetchedWorkloads []*unstructured.Unstructured
+	var nonexistentWorkloads []*unstructured.Unstructured
 	// todo: if resources repetitive, deduplication.
 	for _, resourceSelector := range resourceSelectors {
 		matchNamespaces := util.GetMatchItems(resourceSelector.Namespaces, resourceSelector.ExcludeNamespaces)
@@ -226,15 +229,26 @@ func (c *Controller) fetchWorkloads(resourceSelectors []v1alpha1.ResourceSelecto
 				workload, err := util.GetResourceStructure(c.dynamicClientSet, resourceSelector.APIVersion,
 					resourceSelector.Kind, namespace, name)
 				if err != nil {
+					if apierrors.IsNotFound(err) {
+						klog.V(1).Infof("%s resource %s/%s is not found. error: %v", resourceSelector.Kind,
+							namespace, name, err)
+						var nonexistentWorkload unstructured.Unstructured
+						nonexistentWorkload.SetAPIVersion(resourceSelector.APIVersion)
+						nonexistentWorkload.SetName(name)
+						nonexistentWorkload.SetNamespace(namespace)
+						nonexistentWorkload.SetKind(resourceSelector.Kind)
+						nonexistentWorkloads = append(nonexistentWorkloads, &nonexistentWorkload)
+						continue
+					}
 					klog.Errorf("failed to get resource. error: %v", err)
-					return nil, err
+					return nil, nil, err
 				}
-				workloads = append(workloads, workload)
+				fetchedWorkloads = append(fetchedWorkloads, workload)
 			}
 		}
 	}
 	// todo: resource labelSelector
-	return workloads, nil
+	return fetchedWorkloads, nonexistentWorkloads, nil
 }
 
 // getTargetClusters get targetClusters by placement
@@ -253,41 +267,53 @@ func (c *Controller) getTargetClusters(placement v1alpha1.Placement) []v1alpha1.
 
 // transform propagationPolicy to propagationBindings
 func (c *Controller) transformPolicyToBinding(propagationPolicy *v1alpha1.PropagationPolicy) error {
-	workloads, err := c.fetchWorkloads(propagationPolicy.Spec.ResourceSelectors)
+	fetchedWorkloads, nonexistentWorkload, err := c.fetchWorkloads(propagationPolicy.Spec.ResourceSelectors)
 	if err != nil {
 		return err
 	}
 
 	targetCluster := c.getTargetClusters(propagationPolicy.Spec.Placement)
 
-	for _, workload := range workloads {
+	for _, workload := range fetchedWorkloads {
 		err := c.ensurePropagationBinding(propagationPolicy, workload, targetCluster)
 		if err != nil {
 			return err
 		}
 	}
 
+	for _, workload := range nonexistentWorkload {
+		err := c.deletePropagationBinding(propagationPolicy, workload)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.V(1).Infof("resource is not exist. error: %v", err)
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+// delete propagationBinding
+func (c *Controller) deletePropagationBinding(propagationPolicy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured) error {
+	bindingName := strings.ToLower(workload.GetNamespace() + "-" + workload.GetKind() + "-" + workload.GetName())
+	err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationPolicy.Namespace).Delete(context.TODO(), bindingName, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	klog.Infof("delete propagationBinding %s/%s due to workload is not exist.", propagationPolicy.Namespace, bindingName)
 	return nil
 }
 
 // create propagationBinding
 func (c *Controller) ensurePropagationBinding(propagationPolicy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured, clusterNames []v1alpha1.TargetCluster) error {
 	bindingName := strings.ToLower(workload.GetNamespace() + "-" + workload.GetKind() + "-" + workload.GetName())
-	blockOwnerDeletion := true
-	controllerFlag := true
 	propagationBinding := v1alpha1.PropagationBinding{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: propagationPolicy.Namespace,
-			OwnerReferences: []v1.OwnerReference{
-				{
-					APIVersion:         propagationPolicy.APIVersion,
-					Kind:               propagationPolicy.Kind,
-					Name:               propagationPolicy.Name,
-					UID:                propagationPolicy.UID,
-					Controller:         &controllerFlag,
-					BlockOwnerDeletion: &blockOwnerDeletion,
-				},
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(propagationPolicy, controllerKind),
 			},
 		},
 		Spec: v1alpha1.PropagationBindingSpec{
@@ -302,15 +328,14 @@ func (c *Controller) ensurePropagationBinding(propagationPolicy *v1alpha1.Propag
 		},
 	}
 
-	bindingGetResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Get(context.TODO(), propagationBinding.Name, v1.GetOptions{})
+	bindingGetResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Get(context.TODO(), propagationBinding.Name, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		bindingCreateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), &propagationBinding, v1.CreateOptions{})
+		_, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), &propagationBinding, metav1.CreateOptions{})
 		if err != nil {
 			klog.Errorf("failed to create propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 			return err
 		}
 		klog.Infof("create propagationBinding %s/%s success", propagationBinding.Namespace, propagationBinding.Name)
-		klog.V(2).Infof("create propagationBinding: %+v", bindingCreateResult)
 		return nil
 	} else if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("failed to get propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
@@ -318,13 +343,12 @@ func (c *Controller) ensurePropagationBinding(propagationPolicy *v1alpha1.Propag
 	}
 	bindingGetResult.Spec = propagationBinding.Spec
 	bindingGetResult.ObjectMeta.OwnerReferences = propagationBinding.ObjectMeta.OwnerReferences
-	bindingUpdateResult, err := c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Update(context.TODO(), bindingGetResult, v1.UpdateOptions{})
+	_, err = c.karmadaClientSet.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Update(context.TODO(), bindingGetResult, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("failed to update propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 		return err
 	}
-	klog.Infof("update propagationBinding %s/%s success", propagationBinding.Namespace, propagationBinding.Name)
-	klog.V(2).Infof("update propagationBinding: %+v", bindingUpdateResult)
+	klog.V(1).Infof("update propagationBinding %s/%s success", propagationBinding.Namespace, propagationBinding.Name)
 
 	return nil
 }
