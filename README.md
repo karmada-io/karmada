@@ -58,7 +58,7 @@ cd karmada
 3. Install karmada.
 
 ```
-export KUBECONFIG=/root/.kube/host.config
+export KUBECONFIG=/root/.kube/karmada.config
 hack/local-up-karmada.sh
 ```
 
@@ -73,14 +73,14 @@ kubectl get pods -n karmada-system
 1. Create **member cluster** for attaching it to karmada.
 
 ```
-hack/create-cluster.sh member /root/.kube/member.config
+hack/create-cluster.sh member-cluster-1 /root/.kube/membercluster1.config
 ```
 
 2. Join member cluster to karmada using karmadactl.
 
 ```
 make karmadactl
-./karmadactl join member --member-cluster-kubeconfig=/root/.kube/member.config
+./karmadactl join member-cluster-1 --member-cluster-kubeconfig=/root/.kube/membercluster1.config
 ```
 
 3. Verify member cluster is Joined to karmada successfully.
@@ -94,19 +94,20 @@ kubectl get membercluster -n karmada-cluster
 1. Create nginx deployment in karmada.
 
 ```
+export KUBECONFIG=/root/.kube/karmada.config
 kubectl create -f samples/nginx/deployment.yaml
 ```
 
 2. Create PropagationPolicy that will propagate nginx to member cluster.
 
 ```
+export KUBECONFIG=/root/.kube/karmada.config
 kubectl create -f samples/nginx/propagationpolicy.yaml
 ```
 
-3. Verify the nginx is deployed successfully in **member cluster**.
+3. Verify the nginx is deployed successfully in **member-cluster-1**.
 
 ```
-export KUBECONFIG=/root/.kube/member.config
+export KUBECONFIG=/root/.kube/membercluster1.config
 kubectl describe deploy nginx
 ```
-
