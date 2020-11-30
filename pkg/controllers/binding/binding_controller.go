@@ -328,7 +328,7 @@ func (c *Controller) ensurePropagationWork(workload *unstructured.Unstructured, 
 			}
 			klog.Infof("create propagationWork %s/%s success", clusterNameMirrorNamespace, propagationWork.Name)
 			klog.V(2).Infof("create propagationWork: %+v", workCreateResult)
-			return nil
+			continue
 		} else if err != nil && !apierrors.IsNotFound(err) {
 			klog.Errorf("failed to get propagationWork %s/%s. error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
 			return err
