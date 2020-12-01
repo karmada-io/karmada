@@ -105,11 +105,11 @@ type SpreadConstraint struct {
 
 	// Maximum restricts the maximum number of cluster units to be selected.
 	// +optional
-	Maximum int `json:"maximumClusters,omitempty"`
+	Maximum int `json:"maximum,omitempty"`
 
 	// Minimum restricts the minimum number of cluster units to be selected.
 	// +optional
-	Minimum int `json:"minimumClusters,omitempty"`
+	Minimum int `json:"minimum,omitempty"`
 }
 
 // ClusterAffinity represents the filter to select clusters.
