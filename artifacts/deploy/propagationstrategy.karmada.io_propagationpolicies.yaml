@@ -197,11 +197,11 @@ spec:
                       description: SpreadConstraint represents the spread constraints
                         on resources.
                       properties:
-                        maximumClusters:
+                        maximum:
                           description: Maximum restricts the maximum number of cluster
                             units to be selected.
                           type: integer
-                        minimumClusters:
+                        minimum:
                           description: Minimum restricts the minimum number of cluster
                             units to be selected.
                           type: integer

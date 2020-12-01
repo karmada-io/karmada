@@ -22,6 +22,6 @@ spec:
       exclude:
         - cluster2
     spreadConstraints:
-      - maximumClusters: 3
-        minimumClusters: 3
+      - maximum: 3
+        minimum: 3
   schedulerName: default
