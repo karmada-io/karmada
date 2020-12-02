@@ -26,6 +26,7 @@ spec:
       exclude:
         - cluster1
     spreadConstraints:
-      - maximumClusters: 3
-        minimumClusters: 3
+      - spreadByLabel: failuredomain.kubernetes.io/zone
+        maximum: 3
+        minimum: 3
   schedulerName: default
