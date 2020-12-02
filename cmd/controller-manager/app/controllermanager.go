@@ -10,18 +10,34 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime"
 
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/leaderelection"
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/options"
+	memberclusterv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
+	propagationv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/binding"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/execution"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/membercluster"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/policy"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
+	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
 )
+
+// aggregatedScheme aggregates all Kubernetes and extended schemes used by controllers.
+var aggregatedScheme = runtime.NewScheme()
+
+func init() {
+	var _ = scheme.AddToScheme(aggregatedScheme)                // add Kubernetes schemes
+	var _ = propagationv1alpha1.AddToScheme(aggregatedScheme)   // add propagation schemes
+	var _ = memberclusterv1alpha1.AddToScheme(aggregatedScheme) // add membercluster schemes
+}
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
 func NewControllerManagerCommand(stopChan <-chan struct{}) *cobra.Command {
@@ -61,6 +77,24 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 	opts.KubeConfig, err = clientcmd.BuildConfigFromFlags("", "")
 	if err != nil {
 		panic(err)
+	}
+
+	controllerManager, err := controllerruntime.NewManager(opts.KubeConfig, controllerruntime.Options{
+		Scheme:           aggregatedScheme,
+		LeaderElection:   true, // TODO(RainbowMango): Add a flag '--enable-leader-election' for this option.
+		LeaderElectionID: "41db11fa.karmada.io",
+	})
+	if err != nil {
+		klog.Fatalf("failed to build controller manager: %v", err)
+	}
+
+	// TODO: To be removed.
+	startControllers(opts, stopChan)
+
+	setupControllers(controllerManager)
+
+	if err := controllerManager.Start(stopChan); err != nil {
+		klog.Fatalf("controller manager exits unexpectedly: %v", err)
 	}
 
 	if len(opts.HostNamespace) == 0 {
@@ -112,11 +146,23 @@ func startControllers(opts *options.Options, stopChan <-chan struct{}) {
 		klog.Fatalf("Failed to start binding controller. error: %v", err)
 	}
 
-	if err := policy.StartPropagationPolicyController(controllerConfig, stopChan); err != nil {
-		klog.Fatalf("Failed to start policy controller. error: %v", err)
-	}
-
 	if err := execution.StartExecutionController(controllerConfig, stopChan); err != nil {
 		klog.Fatalf("Failed to start execution controller. error: %v", err)
+	}
+}
+
+func setupControllers(mgr controllerruntime.Manager) {
+	resetConfig := mgr.GetConfig()
+	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
+	karmadaClient := karmadaclientset.NewForConfigOrDie(resetConfig)
+
+	policyController := &policy.PropagationPolicyController{
+		Client:        mgr.GetClient(),
+		DynamicClient: dynamicClientSet,
+		KarmadaClient: karmadaClient,
+		EventRecorder: mgr.GetEventRecorderFor(policy.ControllerName),
+	}
+	if err := policyController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup policy controller: %v", err)
 	}
 }
