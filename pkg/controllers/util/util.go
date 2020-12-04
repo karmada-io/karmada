@@ -68,8 +68,8 @@ func GetResourcesStructureByFilter(client dynamic.Interface, apiVersion, kind, n
 	return result, nil
 }
 
-// GetMatchItems get match item by compare include items and exclude items
-func GetMatchItems(includeItems, excludeItems []string) []string {
+// GetDifferenceSet get match item by compare include items and exclude items
+func GetDifferenceSet(includeItems, excludeItems []string) []string {
 	if includeItems == nil {
 		includeItems = []string{}
 	}
@@ -90,8 +90,8 @@ func GetMatchItems(includeItems, excludeItems []string) []string {
 	return matchItems.List()
 }
 
-// GetDeduplicationArray get deduplication array
-func GetDeduplicationArray(list []string) []string {
+// GetUniqueElements get deduplication array
+func GetUniqueElements(list []string) []string {
 	if list == nil {
 		return []string{}
 	}
