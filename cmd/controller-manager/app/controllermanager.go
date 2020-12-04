@@ -1,13 +1,9 @@
 package app
 
 import (
-	"context"
-	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,7 +15,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
 
-	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/leaderelection"
 	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/options"
 	memberclusterv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
 	propagationv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
@@ -85,56 +80,20 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 		LeaderElectionID: "41db11fa.karmada.io",
 	})
 	if err != nil {
-		klog.Fatalf("failed to build controller manager: %v", err)
+		klog.Errorf("failed to build controller manager: %v", err)
+		return err
 	}
-
-	// TODO: To be removed.
-	startControllers(opts, stopChan)
 
 	setupControllers(controllerManager)
 
+	// blocks until the stop channel is closed.
 	if err := controllerManager.Start(stopChan); err != nil {
-		klog.Fatalf("controller manager exits unexpectedly: %v", err)
+		klog.Errorf("controller manager exits unexpectedly: %v", err)
+		return err
 	}
 
-	if len(opts.HostNamespace) == 0 {
-		// For in-cluster deployment set the namespace associated with the service account token
-		data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-		if err != nil {
-			klog.Fatalf("An error occurred while attempting to discover the namespace from the service account: %v", err)
-		}
-		opts.HostNamespace = strings.TrimSpace(string(data))
-	}
-
-	// Validate if the namespace is configured
-	if len(opts.HostNamespace) == 0 {
-		klog.Fatalf("The namespace must be specified")
-	}
-
-	elector, err := leaderelection.NewLeaderElector(opts, startControllers)
-	if err != nil {
-		panic(err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() {
-		select {
-		case <-stopChan:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-
-	elector.Run(ctx)
-
-	klog.Errorf("lost lease")
-	return errors.New("lost lease")
-}
-
-func startControllers(opts *options.Options, stopChan <-chan struct{}) {
-
+	// never reach here
+	return nil
 }
 
 func setupControllers(mgr controllerruntime.Manager) {
