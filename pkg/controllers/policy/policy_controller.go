@@ -57,6 +57,7 @@ func (c *PropagationPolicyController) Reconcile(req controllerruntime.Request) (
 	return c.syncPolicy(policy)
 }
 
+// syncPolicy will fetch matched resource by policy, then transform them to propagationBindings
 func (c *PropagationPolicyController) syncPolicy(policy *v1alpha1.PropagationPolicy) (controllerruntime.Result, error) {
 	workloads, err := c.fetchWorkloads(policy.Spec.ResourceSelectors)
 	if err != nil {
@@ -83,8 +84,8 @@ func (c *PropagationPolicyController) fetchWorkloads(resourceSelectors []v1alpha
 	// todo: if resources repetitive, deduplication.
 	// todo: if namespaces, names, labelSelector is nil, need to do something
 	for _, resourceSelector := range resourceSelectors {
-		matchNamespaces := util.GetMatchItems(resourceSelector.Namespaces, resourceSelector.ExcludeNamespaces)
-		deduplicationNames := util.GetDeduplicationArray(resourceSelector.Names)
+		matchNamespaces := util.GetDifferenceSet(resourceSelector.Namespaces, resourceSelector.ExcludeNamespaces)
+		deduplicationNames := util.GetUniqueElements(resourceSelector.Names)
 		for _, namespace := range matchNamespaces {
 			if resourceSelector.LabelSelector == nil {
 				err := c.fetchWorkloadsWithOutLabelSelector(resourceSelector, namespace, deduplicationNames, &workloads)
@@ -104,6 +105,7 @@ func (c *PropagationPolicyController) fetchWorkloads(resourceSelectors []v1alpha
 	return workloads, nil
 }
 
+// buildPropagationBinding will build propagationBinding by matched resources
 func (c *PropagationPolicyController) buildPropagationBinding(policy *v1alpha1.PropagationPolicy, workloads []*unstructured.Unstructured) (controllerruntime.Result, error) {
 	targetCluster := c.getTargetClusters(policy.Spec.Placement)
 
@@ -157,7 +159,7 @@ func (c *PropagationPolicyController) fetchWorkloadsWithOutLabelSelector(resourc
 // getTargetClusters get targetClusters by placement
 // TODO(RainbowMango): This is a dummy function and will be removed once scheduler on board.
 func (c *PropagationPolicyController) getTargetClusters(placement v1alpha1.Placement) []v1alpha1.TargetCluster {
-	matchClusterNames := util.GetMatchItems(placement.ClusterAffinity.ClusterNames, placement.ClusterAffinity.ExcludeClusters)
+	matchClusterNames := util.GetDifferenceSet(placement.ClusterAffinity.ClusterNames, placement.ClusterAffinity.ExcludeClusters)
 
 	// todo: cluster labelSelector, fieldSelector, clusterTolerations
 	// todo: calc spread contraints. such as maximumClusters, minimumClusters
@@ -168,7 +170,7 @@ func (c *PropagationPolicyController) getTargetClusters(placement v1alpha1.Place
 	return targetClusters
 }
 
-// create propagationBinding
+// ensurePropagationBinding will ensure propagationBinding are created or updated.
 func (c *PropagationPolicyController) ensurePropagationBinding(propagationPolicy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured, clusterNames []v1alpha1.TargetCluster) error {
 	bindingName := strings.ToLower(workload.GetNamespace() + "-" + workload.GetKind() + "-" + workload.GetName())
 	propagationBinding := v1alpha1.PropagationBinding{
@@ -193,13 +195,12 @@ func (c *PropagationPolicyController) ensurePropagationBinding(propagationPolicy
 
 	bindingGetResult, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Get(context.TODO(), propagationBinding.Name, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		bindingCreateResult, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), &propagationBinding, metav1.CreateOptions{})
+		_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), &propagationBinding, metav1.CreateOptions{})
 		if err != nil {
 			klog.Errorf("failed to create propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 			return err
 		}
 		klog.Infof("create propagationBinding %s/%s success", propagationBinding.Namespace, propagationBinding.Name)
-		klog.V(2).Infof("create propagationBinding: %+v", bindingCreateResult)
 		return nil
 	} else if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("failed to get propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
@@ -207,13 +208,12 @@ func (c *PropagationPolicyController) ensurePropagationBinding(propagationPolicy
 	}
 	bindingGetResult.Spec = propagationBinding.Spec
 	bindingGetResult.ObjectMeta.OwnerReferences = propagationBinding.ObjectMeta.OwnerReferences
-	bindingUpdateResult, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Update(context.TODO(), bindingGetResult, metav1.UpdateOptions{})
+	_, err = c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Update(context.TODO(), bindingGetResult, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("failed to update propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 		return err
 	}
 	klog.Infof("update propagationBinding %s/%s success", propagationBinding.Namespace, propagationBinding.Name)
-	klog.V(2).Infof("update propagationBinding: %+v", bindingUpdateResult)
 
 	return nil
 }
