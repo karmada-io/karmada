@@ -142,10 +142,6 @@ func startControllers(opts *options.Options, stopChan <-chan struct{}) {
 		klog.Fatalf("Failed to start member cluster controller. error: %v", err)
 	}
 
-	if err := binding.StartPropagationBindingController(controllerConfig, stopChan); err != nil {
-		klog.Fatalf("Failed to start binding controller. error: %v", err)
-	}
-
 	if err := execution.StartExecutionController(controllerConfig, stopChan); err != nil {
 		klog.Fatalf("Failed to start execution controller. error: %v", err)
 	}
@@ -164,5 +160,15 @@ func setupControllers(mgr controllerruntime.Manager) {
 	}
 	if err := policyController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup policy controller: %v", err)
+	}
+
+	bindingController := &binding.PropagationBindingController{
+		Client:        mgr.GetClient(),
+		DynamicClient: dynamicClientSet,
+		KarmadaClient: karmadaClient,
+		EventRecorder: mgr.GetEventRecorderFor(binding.ControllerName),
+	}
+	if err := bindingController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup binding controller: %v", err)
 	}
 }
