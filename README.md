@@ -1,29 +1,29 @@
 # Karmada
 
-Karmada is a multi-cluster management system speaks Kubernetes native API. 
+Karmada (Kubernetes Armada) is a multi-cluster management system speaks Kubernetes native API.
 Karmada aims to provide turnkey automation for multi-cluster application management in multi-cloud and hybrid cloud scenarios, and intended to realize multi-cloud centralized management, high availability, failure recovery and traffic scheduling.
 
 Its key capabilities include:
 
-- Cross-cluster applications managements based on k8s native API, allow user migrate apps from single cluser to multi-cluster conveniently and quickly.
+- Cross-cluster applications managements based on K8s native API, allow user migrate apps from single cluser to multi-cluster conveniently and quickly.
 - Support provisioning or attaching Kubernetes clusters for centralized operations and management.
 - Cross-cluster applications auto-scaling ,failover and loadbalancing on multi-cluster.
 - Advanced scheduling strategy: region, available zone, cloud provider, cluster affinity/anti-affinity.
 
 ----
 
-## Concepts
+## Architecture
 
 ![Architecture](docs/images/architecture.png)
 
 The Karmada Control Plane consists of the following components:
 
 - ETCD for storing the karmada API objects
-- Karmada API server
+- Karmada API Server
 - Karmada Controller Manager
 - Karmada Scheduler
 
-ETCD stores the karmada API objects, the API server is the REST endpoint all other components talk to, and the Karmada Controller Manager perform operations based on the API objects you create through the API server.
+ETCD stores the karmada API objects, the API Server is the REST endpoint all other components talk to, and the Karmada Controller Manager perform operations based on the API objects you create through the API server.
 
 The Karmada Controller Manager runs the various controllers,  the controllers watch karmada objects and then talk to the underlying clusters’ API servers to create regular Kubernetes resources.
 
@@ -33,7 +33,21 @@ The Karmada Controller Manager runs the various controllers,  the controllers wa
 3. Binding Controller: the controller watches PropagationBinding object and create PropagationWork object corresponding to each cluster with single resource manifest.
 4. Excution Controller: the controller watches PropagationWork objects.When PropagationWork objects are created, it will distribute the resources to member clusters.
 
-The following figure shows how Karmada resource relate to the objects created in the underlying clusters.
+
+## Concepts
+
+**Resource template**: Karmada uses Kubernetes Native API definition for federated resource template, to make it easy to integrate with existing tools that already adopt on Kubernetes
+
+**Propagation Policy**: Karmada offers standalone (placement) policy API to define spreading requirements.
+- Support 1:n mapping of Policy: workload, users don't need to indicate scheduling constraints every time creating federated applications.
+- With default policies, users can just interact with K8s API
+
+**Override Policy**: Karmada provides standalone override API for specializing cluster relevant configuration automation. E.g.:
+- Override image prefix according to member cluster region
+- Override StorageClass according to cloud provider
+
+
+The following diagram shows how Karmada resources are involved when propagating resources to member clusters.
 
 ![karmada-resource-relation](docs/images/karmada-resource-relation.png)
 
