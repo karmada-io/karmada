@@ -35,8 +35,8 @@ type DynamicClusterClient struct {
 }
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
-func NewClusterClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interface, namespace string) (*ClusterClient, error) {
-	clusterConfig, err := buildMemberClusterConfig(c, client, namespace)
+func NewClusterClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interface) (*ClusterClient, error) {
+	clusterConfig, err := buildMemberClusterConfig(c, client)
 	if err != nil {
 		return nil, err
 	}
@@ -49,8 +49,8 @@ func NewClusterClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interfa
 }
 
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
-func NewClusterDynamicClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interface, namespace string) (*DynamicClusterClient, error) {
-	clusterConfig, err := buildMemberClusterConfig(c, client, namespace)
+func NewClusterDynamicClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interface) (*DynamicClusterClient, error) {
+	clusterConfig, err := buildMemberClusterConfig(c, client)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func NewClusterDynamicClientSet(c *v1alpha1.MemberCluster, client kubeclientset.
 	return &clusterClientSet, nil
 }
 
-func buildMemberClusterConfig(memberCluster *v1alpha1.MemberCluster, client kubeclientset.Interface, namespace string) (*rest.Config, error) {
+func buildMemberClusterConfig(memberCluster *v1alpha1.MemberCluster, client kubeclientset.Interface) (*rest.Config, error) {
 	clusterName := memberCluster.Name
 	apiEndpoint := memberCluster.Spec.APIEndpoint
 	if apiEndpoint == "" {
@@ -74,7 +74,7 @@ func buildMemberClusterConfig(memberCluster *v1alpha1.MemberCluster, client kube
 		return nil, fmt.Errorf("cluster %s does not have a secret name", clusterName)
 	}
 
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(memberCluster.Spec.SecretRef.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
-	clientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
 )
 
 const (
@@ -24,13 +25,19 @@ const (
 	clusterOffline            = "Offline"
 )
 
-func updateIndividualClusterStatus(cluster *v1alpha1.MemberCluster, hostClient clientset.Interface, clusterClient *util.ClusterClient) {
+func updateIndividualClusterStatus(cluster *v1alpha1.MemberCluster, hostClient client.Client, kubeClient kubernetes.Interface) {
+	// create a ClusterClient for the given member cluster
+	clusterClient, err := util.NewClusterClientSet(cluster, kubeClient)
+	if err != nil {
+		return
+	}
+
 	// update the health status of member cluster
 	currentClusterStatus, err := getMemberClusterHealthStatus(clusterClient)
 	if err != nil {
 		klog.Warningf("Failed to get health status of the member cluster: %v, err is : %v", cluster.Name, err)
 		cluster.Status = *currentClusterStatus
-		_, err = hostClient.MemberclusterV1alpha1().MemberClusters("karmada-cluster").Update(context.TODO(), cluster, v1.UpdateOptions{})
+		err = hostClient.Update(context.TODO(), cluster)
 		if err != nil {
 			klog.Warningf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
 			return
@@ -39,14 +46,13 @@ func updateIndividualClusterStatus(cluster *v1alpha1.MemberCluster, hostClient c
 	}
 
 	// update the cluster version of member cluster
-	clusterVersion, err := clusterClient.KubeClient.Discovery().ServerVersion()
+	currentClusterStatus, err = getKubernetesVersion(currentClusterStatus, clusterClient)
 	if err != nil {
 		klog.Warningf("Failed to get server version of the member cluster: %v, err is : %v", cluster.Name, err)
 	}
 
-	currentClusterStatus.KubernetesVersion = clusterVersion.GitVersion
 	cluster.Status = *currentClusterStatus
-	_, err = hostClient.MemberclusterV1alpha1().MemberClusters("karmada-cluster").Update(context.TODO(), cluster, v1.UpdateOptions{})
+	err = hostClient.Update(context.TODO(), cluster)
 	if err != nil {
 		klog.Warningf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
 		return
@@ -108,4 +114,14 @@ func getMemberClusterHealthStatus(clusterClient *util.ClusterClient) (*v1alpha1.
 	}
 
 	return &clusterStatus, err
+}
+
+func getKubernetesVersion(currentClusterStatus *v1alpha1.MemberClusterStatus, clusterClient *util.ClusterClient) (*v1alpha1.MemberClusterStatus, error) {
+	clusterVersion, err := clusterClient.KubeClient.Discovery().ServerVersion()
+	if err != nil {
+		return currentClusterStatus, err
+	}
+
+	currentClusterStatus.KubernetesVersion = clusterVersion.GitVersion
+	return currentClusterStatus, nil
 }
