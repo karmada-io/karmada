@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/component-base/logs"
@@ -26,7 +27,6 @@ import (
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/execution"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/membercluster"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/policy"
-	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
 )
 
@@ -134,23 +134,23 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 }
 
 func startControllers(opts *options.Options, stopChan <-chan struct{}) {
-	controllerConfig := &util.ControllerConfig{
-		HeadClusterConfig: opts.KubeConfig,
-	}
 
-	if err := membercluster.StartMemberClusterController(controllerConfig, stopChan); err != nil {
-		klog.Fatalf("Failed to start member cluster controller. error: %v", err)
-	}
-
-	if err := execution.StartExecutionController(controllerConfig, stopChan); err != nil {
-		klog.Fatalf("Failed to start execution controller. error: %v", err)
-	}
 }
 
 func setupControllers(mgr controllerruntime.Manager) {
 	resetConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
 	karmadaClient := karmadaclientset.NewForConfigOrDie(resetConfig)
+	kubeClientSet := kubernetes.NewForConfigOrDie(resetConfig)
+
+	MemberClusterController := &membercluster.Controller{
+		Client:        mgr.GetClient(),
+		KubeClientSet: kubeClientSet,
+		EventRecorder: mgr.GetEventRecorderFor(membercluster.ControllerName),
+	}
+	if err := MemberClusterController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup membercluster controller: %v", err)
+	}
 
 	policyController := &policy.PropagationPolicyController{
 		Client:        mgr.GetClient(),
@@ -171,4 +171,15 @@ func setupControllers(mgr controllerruntime.Manager) {
 	if err := bindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup binding controller: %v", err)
 	}
+
+	executionController := &execution.Controller{
+		Client:        mgr.GetClient(),
+		KubeClientSet: kubeClientSet,
+		KarmadaClient: karmadaClient,
+		EventRecorder: mgr.GetEventRecorderFor(execution.ControllerName),
+	}
+	if err := executionController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup execution controller: %v", err)
+	}
+
 }
