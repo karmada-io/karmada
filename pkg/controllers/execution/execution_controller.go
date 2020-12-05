@@ -21,6 +21,7 @@ import (
 	propagationstrategy "github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
+	"github.com/huawei-cloudnative/karmada/pkg/util/restmapper"
 )
 
 const (
@@ -36,6 +37,7 @@ type Controller struct {
 	KubeClientSet kubernetes.Interface       // used to get kubernetes resources.
 	KarmadaClient karmadaclientset.Interface // used to get MemberCluster resources.
 	EventRecorder record.EventRecorder
+	RESTMapper    meta.RESTMapper
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -237,14 +239,12 @@ func (c *Controller) deleteResource(memberClusterDynamicClient *util.DynamicClus
 
 // createResource create resource in member cluster
 func (c *Controller) createResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
-	// start create resource in member cluster
-	// todo: get GVR by RESTMapping
-	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
+	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
 	if err != nil {
-		return fmt.Errorf("can't parse groupVersion[namespace: %s name: %s kind: %s]. error: %v", workload.GetNamespace(),
-			workload.GetName(), util.ResourceKindMap[workload.GetKind()], err)
+		klog.Errorf("Failed to create resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
+		return err
 	}
-	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: util.ResourceKindMap[workload.GetKind()]}
+
 	_, err = memberclusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Create(context.TODO(), workload, v1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -258,14 +258,12 @@ func (c *Controller) createResource(memberclusterDynamicClient *util.DynamicClus
 
 // updateResource update resource in member cluster
 func (c *Controller) updateResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
-	// start update resource in member cluster
-	// todo: get GVR by RESTMapping
-	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
+	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
 	if err != nil {
-		return fmt.Errorf("can't parse groupVersion[namespace: %s name: %s kind: %s]. error: %v", workload.GetNamespace(),
-			workload.GetName(), util.ResourceKindMap[workload.GetKind()], err)
+		klog.Errorf("Failed to update resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
+		return err
 	}
-	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: util.ResourceKindMap[workload.GetKind()]}
+
 	_, err = memberclusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, v1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("Failed to update resource %v, err is %v ", workload.GetName(), err)
