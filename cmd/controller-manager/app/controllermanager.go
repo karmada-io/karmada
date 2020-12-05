@@ -136,6 +136,7 @@ func setupControllers(mgr controllerruntime.Manager) {
 		KubeClientSet: kubeClientSet,
 		KarmadaClient: karmadaClient,
 		EventRecorder: mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:    mgr.GetRESTMapper(),
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup execution controller: %v", err)
