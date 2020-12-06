@@ -94,18 +94,6 @@ func (c *Controller) syncWork(propagationWork *propagationstrategy.PropagationWo
 	return controllerruntime.Result{}, nil
 }
 
-// isMemberClusterReady checking readiness for the given member cluster
-func (c *Controller) isMemberClusterReady(clusterStatus *v1alpha1.MemberClusterStatus) bool {
-	for _, condition := range clusterStatus.Conditions {
-		if condition.Type == "ClusterReady" {
-			if condition.Status == v1.ConditionTrue {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // isResourceApplied checking weather resource has been dispatched to member cluster or not
 func (c *Controller) isResourceApplied(propagationWorkStatus *propagationstrategy.PropagationWorkStatus) bool {
 	for _, condition := range propagationWorkStatus.Conditions {
@@ -135,7 +123,7 @@ func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.Prop
 	}
 
 	// Do not clean up resource in the given member cluster if the status of the given member cluster is unready
-	if !c.isMemberClusterReady(&memberCluster.Status) {
+	if !util.IsMemberClusterReady(&memberCluster.Status) {
 		klog.Infof("Do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", memberCluster.Name)
 		return nil
 	}
@@ -177,7 +165,7 @@ func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrateg
 		return err
 	}
 
-	if !c.isMemberClusterReady(&memberCluster.Status) {
+	if !util.IsMemberClusterReady(&memberCluster.Status) {
 		klog.Errorf("The status of the given member cluster %s is unready", memberCluster.Name)
 		return fmt.Errorf("cluster %s is not ready, requeuing operation until cluster state is ready", memberCluster.Name)
 	}

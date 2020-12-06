@@ -121,7 +121,7 @@ func isMemberClusterMeetRequirements(clusters []*clusterapi.MemberCluster) (bool
 
 	// check if all member cluster status is ready
 	for _, cluster := range clusters {
-		if !util.IsMemberClusterReady(cluster) {
+		if !util.IsMemberClusterReady(&cluster.Status) {
 			return false, fmt.Errorf("cluster %s not ready", cluster.GetName())
 		}
 	}
