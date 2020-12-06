@@ -100,6 +100,15 @@ func setupControllers(mgr controllerruntime.Manager) {
 		klog.Fatalf("Failed to setup membercluster controller: %v", err)
 	}
 
+	MemberClusterStatusController := &status.MemberClusterStatusController{
+		Client:        mgr.GetClient(),
+		KubeClientSet: kubeClientSet,
+		EventRecorder: mgr.GetEventRecorderFor(status.ControllerName),
+	}
+	if err := MemberClusterStatusController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup memberclusterstatus controller: %v", err)
+	}
+
 	policyController := &policy.PropagationPolicyController{
 		Client:        mgr.GetClient(),
 		DynamicClient: dynamicClientSet,
