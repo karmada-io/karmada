@@ -84,19 +84,19 @@ func (c *PropagationPolicyController) fetchWorkloads(resourceSelectors []v1alpha
 	// todo: if resources repetitive, deduplication.
 	// todo: if namespaces, names, labelSelector is nil, need to do something
 	for _, resourceSelector := range resourceSelectors {
-		matchNamespaces := util.GetDifferenceSet(resourceSelector.Namespaces, resourceSelector.ExcludeNamespaces)
-		deduplicationNames := util.GetUniqueElements(resourceSelector.Names)
-		for _, namespace := range matchNamespaces {
+		names := util.GetUniqueElements(resourceSelector.Names)
+		namespaces := util.GetDifferenceSet(resourceSelector.Namespaces, resourceSelector.ExcludeNamespaces)
+		for _, namespace := range namespaces {
 			if resourceSelector.LabelSelector == nil {
-				err := c.fetchWorkloadsWithOutLabelSelector(resourceSelector, namespace, deduplicationNames, &workloads)
+				err := c.fetchWorkloadsWithOutLabelSelector(resourceSelector, namespace, names, &workloads)
 				if err != nil {
-					klog.Errorf("failed to fetch workloads by names in namespace %s. error: %v", namespace, err)
+					klog.Errorf("Failed to fetch workloads by names in namespace %s. Error: %v", namespace, err)
 					return nil, err
 				}
 			} else {
-				err := c.fetchWorkloadsWithLabelSelector(resourceSelector, namespace, deduplicationNames, &workloads)
+				err := c.fetchWorkloadsWithLabelSelector(resourceSelector, namespace, names, &workloads)
 				if err != nil {
-					klog.Errorf("failed to fetch workloads with labelSelector in namespace %s. error: %v", namespace, err)
+					klog.Errorf("Failed to fetch workloads with labelSelector in namespace %s. Error: %v", namespace, err)
 					return nil, err
 				}
 			}
@@ -121,7 +121,7 @@ func (c *PropagationPolicyController) buildPropagationBinding(policy *v1alpha1.P
 
 // fetchWorkloadsWithLabelSelector query workloads by labelSelector and names
 func (c *PropagationPolicyController) fetchWorkloadsWithLabelSelector(resourceSelector v1alpha1.ResourceSelector, namespace string, names []string, workloads *[]*unstructured.Unstructured) error {
-	unstructuredWorkLoadList, err := util.GetResourcesStructureByFilter(c.DynamicClient, resourceSelector.APIVersion,
+	unstructuredWorkLoadList, err := util.ListUnstructuredByFilter(c.DynamicClient, resourceSelector.APIVersion,
 		resourceSelector.Kind, namespace, resourceSelector.LabelSelector)
 	if err != nil {
 		return err
@@ -146,7 +146,7 @@ func (c *PropagationPolicyController) fetchWorkloadsWithLabelSelector(resourceSe
 // fetchWorkloadsWithOutLabelSelector query workloads by names
 func (c *PropagationPolicyController) fetchWorkloadsWithOutLabelSelector(resourceSelector v1alpha1.ResourceSelector, namespace string, names []string, workloads *[]*unstructured.Unstructured) error {
 	for _, name := range names {
-		workload, err := util.GetResourceStructure(c.DynamicClient, resourceSelector.APIVersion,
+		workload, err := util.GetUnstructured(c.DynamicClient, resourceSelector.APIVersion,
 			resourceSelector.Kind, namespace, name)
 		if err != nil {
 			return err
@@ -162,7 +162,7 @@ func (c *PropagationPolicyController) getTargetClusters(placement v1alpha1.Place
 	matchClusterNames := util.GetDifferenceSet(placement.ClusterAffinity.ClusterNames, placement.ClusterAffinity.ExcludeClusters)
 
 	// todo: cluster labelSelector, fieldSelector, clusterTolerations
-	// todo: calc spread contraints. such as maximumClusters, minimumClusters
+	// todo: calc spread contraints. such as maximum, minimum
 	var targetClusters []v1alpha1.TargetCluster
 	for _, matchClusterName := range matchClusterNames {
 		targetClusters = append(targetClusters, v1alpha1.TargetCluster{Name: matchClusterName})
@@ -197,23 +197,23 @@ func (c *PropagationPolicyController) ensurePropagationBinding(propagationPolicy
 	if err != nil && apierrors.IsNotFound(err) {
 		_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), &propagationBinding, metav1.CreateOptions{})
 		if err != nil {
-			klog.Errorf("failed to create propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
+			klog.Errorf("Failed to create propagationBinding %s/%s. Error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 			return err
 		}
-		klog.Infof("create propagationBinding %s/%s success", propagationBinding.Namespace, propagationBinding.Name)
+		klog.Infof("Create propagationBinding %s/%s successfully", propagationBinding.Namespace, propagationBinding.Name)
 		return nil
 	} else if err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("failed to get propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
+		klog.Errorf("Failed to get propagationBinding %s/%s. Error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 		return err
 	}
 	bindingGetResult.Spec = propagationBinding.Spec
 	bindingGetResult.ObjectMeta.OwnerReferences = propagationBinding.ObjectMeta.OwnerReferences
 	_, err = c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Update(context.TODO(), bindingGetResult, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("failed to update propagationBinding %s/%s. error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
+		klog.Errorf("Failed to update propagationBinding %s/%s. Error: %v", propagationBinding.Namespace, propagationBinding.Name, err)
 		return err
 	}
-	klog.Infof("update propagationBinding %s/%s success", propagationBinding.Namespace, propagationBinding.Name)
+	klog.Infof("Update propagationBinding %s/%s successfully", propagationBinding.Namespace, propagationBinding.Name)
 
 	return nil
 }

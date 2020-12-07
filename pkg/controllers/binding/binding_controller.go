@@ -61,7 +61,7 @@ func (c *PropagationBindingController) Reconcile(req controllerruntime.Request) 
 func (c *PropagationBindingController) syncBinding(binding *v1alpha1.PropagationBinding) (controllerruntime.Result, error) {
 	err := c.transformBindingToWorks(binding)
 	if err != nil {
-		klog.Errorf("failed to transform propagationBinding %s/%s to propagationWorks. error: %+v",
+		klog.Errorf("Failed to transform propagationBinding %s/%s to propagationWorks. Error: %+v",
 			binding.Namespace, binding.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
@@ -88,16 +88,18 @@ func (c *PropagationBindingController) removeIrrelevantField(workload *unstructu
 	unstructured.RemoveNestedField(workload.Object, "metadata", "generation")
 	unstructured.RemoveNestedField(workload.Object, "metadata", "resourceVersion")
 	unstructured.RemoveNestedField(workload.Object, "metadata", "selfLink")
+	unstructured.RemoveNestedField(workload.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(workload.Object, "metadata", "uid")
 	unstructured.RemoveNestedField(workload.Object, "status")
 }
 
 // transformBindingToWorks will transform propagationBinding to propagationWorks
 func (c *PropagationBindingController) transformBindingToWorks(binding *v1alpha1.PropagationBinding) error {
-	workload, err := util.GetResourceStructure(c.DynamicClient, binding.Spec.Resource.APIVersion,
+	workload, err := util.GetUnstructured(c.DynamicClient, binding.Spec.Resource.APIVersion,
 		binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name)
 	if err != nil {
-		klog.Errorf("failed to get resource. error: %v", err)
+		klog.Errorf("Failed to get resource, kind: %s, namespace: %s, name: %s. Error: %v",
+			binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, err)
 		return err
 	}
 
@@ -116,7 +118,8 @@ func (c *PropagationBindingController) ensurePropagationWork(workload *unstructu
 	c.removeIrrelevantField(workload)
 	formatWorkload, err := workload.MarshalJSON()
 	if err != nil {
-		klog.Errorf("failed to marshal workload. error: %v", err)
+		klog.Errorf("Failed to marshal workload, kind: %s, namespace: %s, name: %s. Error: %v",
+			workload.GetKind(), workload.GetName(), workload.GetNamespace(), err)
 		return err
 	}
 	rawExtension := runtime.RawExtension{
@@ -145,23 +148,23 @@ func (c *PropagationBindingController) ensurePropagationWork(workload *unstructu
 		if err != nil && apierrors.IsNotFound(err) {
 			_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
 			if err != nil {
-				klog.Errorf("failed to create propagationWork %s/%s. error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
+				klog.Errorf("Failed to create propagationWork %s/%s. Error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
 				return err
 			}
-			klog.Infof("create propagationWork %s/%s success", clusterNameMirrorNamespace, propagationWork.Name)
+			klog.Infof("Create propagationWork %s/%s successfully", clusterNameMirrorNamespace, propagationWork.Name)
 			continue
 		} else if err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf("failed to get propagationWork %s/%s. error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
+			klog.Errorf("Failed to get propagationWork %s/%s. Error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
 			return err
 		}
 		workGetResult.Spec = propagationWork.Spec
 		workGetResult.ObjectMeta.OwnerReferences = propagationWork.ObjectMeta.OwnerReferences
 		_, err = c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Update(context.TODO(), workGetResult, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("failed to update propagationWork %s/%s. error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
+			klog.Errorf("Failed to update propagationWork %s/%s. Error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
 			return err
 		}
-		klog.Infof("update propagationWork %s/%s success", clusterNameMirrorNamespace, propagationWork.Name)
+		klog.Infof("Update propagationWork %s/%s successfully", clusterNameMirrorNamespace, propagationWork.Name)
 	}
 	return nil
 }
