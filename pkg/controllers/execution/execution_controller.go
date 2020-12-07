@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -218,14 +217,12 @@ func (c *Controller) syncToMemberClusters(membercluster *v1alpha1.MemberCluster,
 
 // deleteResource delete resource in member cluster
 func (c *Controller) deleteResource(memberClusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
-	// start delete resource in member cluster
-	// todo: get GVR by RESTMappings
-	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
+	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
 	if err != nil {
-		return fmt.Errorf("can't parse groupVersion[namespace: %s name: %s kind: %s]. error: %v", workload.GetNamespace(),
-			workload.GetName(), util.ResourceKindMap[workload.GetKind()], err)
+		klog.Errorf("Failed to delete resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
+		return err
 	}
-	dynamicResource := schema.GroupVersionResource{Group: groupVersion.Group, Version: groupVersion.Version, Resource: util.ResourceKindMap[workload.GetKind()]}
+
 	err = memberClusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Delete(context.TODO(), workload.GetName(), v1.DeleteOptions{})
 	if apierrors.IsNotFound(err) {
 		err = nil
