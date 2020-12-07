@@ -41,8 +41,8 @@ func generateGroupVersionResource(apiVersion, kind string) (schema.GroupVersionR
 	return dynamicResource, nil
 }
 
-// GetResourceStructure get resource yaml from kubernetes
-func GetResourceStructure(client dynamic.Interface, apiVersion, kind, namespace, name string) (*unstructured.Unstructured, error) {
+// GetUnstructured will get unstructured object
+func GetUnstructured(client dynamic.Interface, apiVersion, kind, namespace, name string) (*unstructured.Unstructured, error) {
 	dynamicResource, err := generateGroupVersionResource(apiVersion, kind)
 	if err != nil {
 		return nil, err
@@ -54,8 +54,8 @@ func GetResourceStructure(client dynamic.Interface, apiVersion, kind, namespace,
 	return result, nil
 }
 
-// GetResourcesStructureByFilter get resources yaml from kubernetes by filter
-func GetResourcesStructureByFilter(client dynamic.Interface, apiVersion, kind, namespace string, labelSelector *metav1.LabelSelector) (*unstructured.UnstructuredList, error) {
+// ListUnstructuredByFilter will list unstructuredList by labelSelector
+func ListUnstructuredByFilter(client dynamic.Interface, apiVersion, kind, namespace string, labelSelector *metav1.LabelSelector) (*unstructured.UnstructuredList, error) {
 	dynamicResource, err := generateGroupVersionResource(apiVersion, kind)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func GetResourcesStructureByFilter(client dynamic.Interface, apiVersion, kind, n
 	return result, nil
 }
 
-// GetDifferenceSet get match item by compare include items and exclude items
+// GetDifferenceSet will get difference set from includeItems and excludeItems
 func GetDifferenceSet(includeItems, excludeItems []string) []string {
 	if includeItems == nil {
 		includeItems = []string{}
@@ -90,7 +90,7 @@ func GetDifferenceSet(includeItems, excludeItems []string) []string {
 	return matchItems.List()
 }
 
-// GetUniqueElements get deduplication array
+// GetUniqueElements will delete duplicate element in list
 func GetUniqueElements(list []string) []string {
 	if list == nil {
 		return []string{}
