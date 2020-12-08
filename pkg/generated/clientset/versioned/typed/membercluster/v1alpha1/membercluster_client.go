@@ -18,8 +18,8 @@ type MemberclusterV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *MemberclusterV1alpha1Client) MemberClusters(namespace string) MemberClusterInterface {
-	return newMemberClusters(c, namespace)
+func (c *MemberclusterV1alpha1Client) MemberClusters() MemberClusterInterface {
+	return newMemberClusters(c)
 }
 
 // NewForConfig creates a new MemberclusterV1alpha1Client for the given config.

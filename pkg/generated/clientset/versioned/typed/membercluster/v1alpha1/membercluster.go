@@ -17,7 +17,7 @@ import (
 // MemberClustersGetter has a method to return a MemberClusterInterface.
 // A group's client should implement this interface.
 type MemberClustersGetter interface {
-	MemberClusters(namespace string) MemberClusterInterface
+	MemberClusters() MemberClusterInterface
 }
 
 // MemberClusterInterface has methods to work with MemberCluster resources.
@@ -37,14 +37,12 @@ type MemberClusterInterface interface {
 // memberClusters implements MemberClusterInterface
 type memberClusters struct {
 	client rest.Interface
-	ns     string
 }
 
 // newMemberClusters returns a MemberClusters
-func newMemberClusters(c *MemberclusterV1alpha1Client, namespace string) *memberClusters {
+func newMemberClusters(c *MemberclusterV1alpha1Client) *memberClusters {
 	return &memberClusters{
 		client: c.RESTClient(),
-		ns:     namespace,
 	}
 }
 
@@ -52,7 +50,6 @@ func newMemberClusters(c *MemberclusterV1alpha1Client, namespace string) *member
 func (c *memberClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MemberCluster, err error) {
 	result = &v1alpha1.MemberCluster{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("memberclusters").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -69,7 +66,6 @@ func (c *memberClusters) List(ctx context.Context, opts v1.ListOptions) (result 
 	}
 	result = &v1alpha1.MemberClusterList{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("memberclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -86,7 +82,6 @@ func (c *memberClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Namespace(c.ns).
 		Resource("memberclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -97,7 +92,6 @@ func (c *memberClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.
 func (c *memberClusters) Create(ctx context.Context, memberCluster *v1alpha1.MemberCluster, opts v1.CreateOptions) (result *v1alpha1.MemberCluster, err error) {
 	result = &v1alpha1.MemberCluster{}
 	err = c.client.Post().
-		Namespace(c.ns).
 		Resource("memberclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(memberCluster).
@@ -110,7 +104,6 @@ func (c *memberClusters) Create(ctx context.Context, memberCluster *v1alpha1.Mem
 func (c *memberClusters) Update(ctx context.Context, memberCluster *v1alpha1.MemberCluster, opts v1.UpdateOptions) (result *v1alpha1.MemberCluster, err error) {
 	result = &v1alpha1.MemberCluster{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("memberclusters").
 		Name(memberCluster.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -125,7 +118,6 @@ func (c *memberClusters) Update(ctx context.Context, memberCluster *v1alpha1.Mem
 func (c *memberClusters) UpdateStatus(ctx context.Context, memberCluster *v1alpha1.MemberCluster, opts v1.UpdateOptions) (result *v1alpha1.MemberCluster, err error) {
 	result = &v1alpha1.MemberCluster{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("memberclusters").
 		Name(memberCluster.Name).
 		SubResource("status").
@@ -139,7 +131,6 @@ func (c *memberClusters) UpdateStatus(ctx context.Context, memberCluster *v1alph
 // Delete takes name of the memberCluster and deletes it. Returns an error if one occurs.
 func (c *memberClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("memberclusters").
 		Name(name).
 		Body(&opts).
@@ -154,7 +145,6 @@ func (c *memberClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOpt
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("memberclusters").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -167,7 +157,6 @@ func (c *memberClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOpt
 func (c *memberClusters) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MemberCluster, err error) {
 	result = &v1alpha1.MemberCluster{}
 	err = c.client.Patch(pt).
-		Namespace(c.ns).
 		Resource("memberclusters").
 		Name(name).
 		SubResource(subresources...).
