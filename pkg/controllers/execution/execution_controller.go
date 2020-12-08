@@ -26,9 +26,8 @@ import (
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName  = "execution-controller"
-	finalizer       = "karmada.io/execution-controller"
-	memberClusterNS = "karmada-cluster"
+	ControllerName = "execution-controller"
+	finalizer      = "karmada.io/execution-controller"
 )
 
 // Controller is to sync PropagationWork.
@@ -127,7 +126,7 @@ func (c *Controller) deletePropagationWork(propagationWork *propagationstrategy.
 	}
 
 	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters(memberClusterNS).Get(context.TODO(), executionSpace, v1.GetOptions{})
+	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), executionSpace, v1.GetOptions{})
 	if err != nil {
 		klog.Errorf("Failed to get status of the given member cluster %s", executionSpace)
 		return err
@@ -169,7 +168,7 @@ func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrateg
 	}
 
 	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters(memberClusterNS).Get(context.TODO(), executionSpace, v1.GetOptions{})
+	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), executionSpace, v1.GetOptions{})
 	if err != nil {
 		klog.Errorf("Failed to get status of the given member cluster %s", executionSpace)
 		return err
