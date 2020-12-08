@@ -12,11 +12,20 @@ REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
 
-# Set you version by env or using latest tags from git
-VERSION?=$(shell git describe --tags)
-
-# We don't have tags yet, so just use hardcode one
-VERSION="latest"
+# Set your version by env or using latest tags from git
+VERSION?=""
+ifeq ($(VERSION), "")
+    $(info "Guessing version from git latest tags...")
+    LATEST_TAG=$(shell git describe --tags)
+    ifeq ($(LATEST_TAG),)
+        # Forked repo may not sync tags from upstream, so give it a default tag to make CI happy.
+        $(info "no tags found, set version with unknown")
+        VERSION="unknown"
+    else
+        $(info "using latest git tag($(LATEST_TAG)) as version")
+        VERSION=$(LATEST_TAG)
+    endif
+endif
 
 all: karmada-controller-manager karmadactl
 
