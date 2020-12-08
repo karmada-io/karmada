@@ -71,7 +71,7 @@ func (c *PropagationPolicyController) Reconcile(req controllerruntime.Request) (
 
 // syncPolicy will fetch matched resource by policy, then transform them to propagationBindings.
 func (c *PropagationPolicyController) syncPolicy(policy *v1alpha1.PropagationPolicy) (controllerruntime.Result, error) {
-	workloads, err := c.fetchWorkloads(policy.Spec.ResourceSelectors)
+	workloads, err := c.fetchWorkloads(policy)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
@@ -93,29 +93,19 @@ func (c *PropagationPolicyController) syncPolicy(policy *v1alpha1.PropagationPol
 }
 
 // fetchWorkloads fetches all matched resources via resource selectors.
-// TODO(RainbowMango): the implementation is old and too complicated, need refactor later.
-func (c *PropagationPolicyController) fetchWorkloads(resourceSelectors []v1alpha1.ResourceSelector) ([]*unstructured.Unstructured, error) {
+func (c *PropagationPolicyController) fetchWorkloads(policy *v1alpha1.PropagationPolicy) ([]*unstructured.Unstructured, error) {
 	var workloads []*unstructured.Unstructured
-	// todo: if resources repetitive, deduplication.
-	// todo: if namespaces, names, labelSelector is nil, need to do something
-	for _, resourceSelector := range resourceSelectors {
-		names := util.GetUniqueElements(resourceSelector.Names)
-		namespaces := util.GetDifferenceSet(resourceSelector.Namespaces, resourceSelector.ExcludeNamespaces)
-		for _, namespace := range namespaces {
-			if resourceSelector.LabelSelector == nil {
-				err := c.fetchWorkloadsWithOutLabelSelector(resourceSelector, namespace, names, &workloads)
-				if err != nil {
-					klog.Errorf("Failed to fetch workloads by names in namespace %s. Error: %v.", namespace, err)
-					return nil, err
-				}
-			} else {
-				err := c.fetchWorkloadsWithLabelSelector(resourceSelector, namespace, names, &workloads)
-				if err != nil {
-					klog.Errorf("Failed to fetch workloads with labelSelector in namespace %s. Error: %v.", namespace, err)
-					return nil, err
-				}
-			}
+
+	for _, resourceSelector := range policy.Spec.ResourceSelectors {
+		if resourceSelector.Namespace == "" {
+			resourceSelector.Namespace = policy.Namespace
 		}
+		tmpWorkloads, err := c.fetchWorkloadsByResourceSelector(resourceSelector)
+		if err != nil {
+			klog.Errorf("Failed to fetch workloads with labelSelector in namespace %s. Error: %v.", policy.Namespace, err)
+			return nil, err
+		}
+		workloads = append(workloads, tmpWorkloads...)
 	}
 	return workloads, nil
 }
@@ -237,65 +227,64 @@ func (c *PropagationPolicyController) ignoreIrrelevantWorkload(policy *v1alpha1.
 	return result
 }
 
-// fetchWorkloadsWithLabelSelector query workloads by labelSelector and names
-func (c *PropagationPolicyController) fetchWorkloadsWithLabelSelector(resourceSelector v1alpha1.ResourceSelector,
-	namespace string, names []string, workloads *[]*unstructured.Unstructured) error {
+// fetchWorkloadsByResourceSelector query workloads by labelSelector and names
+func (c *PropagationPolicyController) fetchWorkloadsByResourceSelector(resourceSelector v1alpha1.ResourceSelector) ([]*unstructured.Unstructured, error) {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 		schema.FromAPIVersionAndKind(resourceSelector.APIVersion, resourceSelector.Kind))
 	if err != nil {
 		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resourceSelector.APIVersion, resourceSelector.Kind, err)
-		return err
+		return nil, err
 	}
-	unstructuredWorkLoadList, err := c.DynamicClient.Resource(dynamicResource).Namespace(namespace).List(context.TODO(),
-		metav1.ListOptions{LabelSelector: labels.Set(resourceSelector.LabelSelector.MatchLabels).String()})
+
+	if resourceSelector.Name != "" {
+		workload, err := c.fetchWorkload(resourceSelector)
+		if err != nil || workload == nil {
+			return nil, err
+		}
+
+		return []*unstructured.Unstructured{workload}, nil
+	}
+
+	unstructuredWorkLoadList, err := c.DynamicClient.Resource(dynamicResource).Namespace(resourceSelector.Namespace).List(context.TODO(),
+		metav1.ListOptions{LabelSelector: resourceSelector.LabelSelector.String()})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if resourceSelector.Names == nil {
-		for _, unstructuredWorkLoad := range unstructuredWorkLoadList.Items {
-			if unstructuredWorkLoad.GetDeletionTimestamp() == nil {
-				*workloads = append(*workloads, &unstructuredWorkLoad)
-			}
-		}
-	} else {
-		for _, unstructuredWorkLoad := range unstructuredWorkLoadList.Items {
-			for _, name := range names {
-				if unstructuredWorkLoad.GetName() == name && unstructuredWorkLoad.GetDeletionTimestamp() == nil {
-					*workloads = append(*workloads, &unstructuredWorkLoad)
-					break
-				}
-			}
+
+	var workloads []*unstructured.Unstructured
+	for _, unstructuredWorkLoad := range unstructuredWorkLoadList.Items {
+		if unstructuredWorkLoad.GetDeletionTimestamp() == nil {
+			workloads = append(workloads, &unstructuredWorkLoad)
 		}
 	}
-	return nil
+
+	return workloads, nil
 }
 
-// fetchWorkloadsWithOutLabelSelector query workloads by names
-func (c *PropagationPolicyController) fetchWorkloadsWithOutLabelSelector(resourceSelector v1alpha1.ResourceSelector, namespace string, names []string, workloads *[]*unstructured.Unstructured) error {
-	for _, name := range names {
-		dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
-			schema.FromAPIVersionAndKind(resourceSelector.APIVersion, resourceSelector.Kind))
-		if err != nil {
-			klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resourceSelector.APIVersion,
-				resourceSelector.Kind, err)
-			return err
-		}
-		workload, err := c.DynamicClient.Resource(dynamicResource).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			klog.Errorf("Failed to get workload, kind: %s, namespace: %s, name: %s. Error: %v",
-				resourceSelector.Kind, namespace, name, err)
-			return err
-		}
-		if err != nil && errors.IsNotFound(err) {
-			klog.Warningf("Workload is not exist, kind: %s, namespace: %s, name: %s",
-				resourceSelector.Kind, namespace, name)
-			continue
-		}
-		if workload.GetDeletionTimestamp() == nil {
-			*workloads = append(*workloads, workload)
-		}
+func (c *PropagationPolicyController) fetchWorkload(resourceSelector v1alpha1.ResourceSelector) (*unstructured.Unstructured, error) {
+	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
+		schema.FromAPIVersionAndKind(resourceSelector.APIVersion, resourceSelector.Kind))
+	if err != nil {
+		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resourceSelector.APIVersion,
+			resourceSelector.Kind, err)
+		return nil, err
 	}
-	return nil
+	workload, err := c.DynamicClient.Resource(dynamicResource).Namespace(resourceSelector.Namespace).Get(context.TODO(), resourceSelector.Name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			klog.Warningf("Workload does not exist, kind: %s, namespace: %s, name: %s",
+				resourceSelector.Kind, resourceSelector.Namespace, resourceSelector.Name)
+			return nil, nil
+		}
+
+		klog.Errorf("Failed to get workload, kind: %s, namespace: %s, name: %s. Error: %v",
+			resourceSelector.Kind, resourceSelector.Namespace, resourceSelector.Name, err)
+		return nil, err
+	}
+	if workload.GetDeletionTimestamp() != nil {
+		return nil, nil
+	}
+	return workload, nil
 }
 
 // getTargetClusters get targetClusters by placement.
