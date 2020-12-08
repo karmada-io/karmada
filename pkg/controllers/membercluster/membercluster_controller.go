@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/huawei-cloudnative/karmada/pkg/util/names"
 )
 
 const (
@@ -109,8 +110,12 @@ func (c *Controller) removeMemberCluster(memberCluster *v1alpha1.MemberCluster) 
 
 // removeExecutionSpace delete the given execution space
 func (c *Controller) removeExecutionSpace(memberCluster *v1alpha1.MemberCluster) error {
-	// todo: executionSpace := "karmada-es-" + memberCluster.Name
-	executionSpace := memberCluster.Name
+	executionSpace, err := names.GenerateExecutionSpaceName(memberCluster.Name)
+	if err != nil {
+		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", memberCluster.Name, err)
+		return err
+	}
+
 	if err := c.KubeClientSet.CoreV1().Namespaces().Delete(context.TODO(), executionSpace, v1.DeleteOptions{}); err != nil {
 		klog.Errorf("Error while deleting namespace %s: %s", executionSpace, err)
 		return err
@@ -120,9 +125,13 @@ func (c *Controller) removeExecutionSpace(memberCluster *v1alpha1.MemberCluster)
 
 // ensureRemoveExecutionSpace make sure the given execution space has been deleted
 func (c *Controller) ensureRemoveExecutionSpace(memberCluster *v1alpha1.MemberCluster) (bool, error) {
-	// todo: executionSpace := "karmada-es-" + memberCluster.Name
-	executionSpace := memberCluster.Name
-	_, err := c.KubeClientSet.CoreV1().Namespaces().Get(context.TODO(), executionSpace, v1.GetOptions{})
+	executionSpace, err := names.GenerateExecutionSpaceName(memberCluster.Name)
+	if err != nil {
+		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", memberCluster.Name, err)
+		return false, err
+	}
+
+	_, err = c.KubeClientSet.CoreV1().Namespaces().Get(context.TODO(), executionSpace, v1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		return false, nil
 	}
@@ -167,22 +176,26 @@ func (c *Controller) ensureFinalizer(memberCluster *v1alpha1.MemberCluster) (boo
 }
 
 // createExecutionSpace create member cluster execution space when member cluster joined
-func (c *Controller) createExecutionSpace(membercluster *v1alpha1.MemberCluster) error {
-	// todo: executionSpace := "karmada-es-" + membercluster.Name
-	executionSpace := membercluster.Name
+func (c *Controller) createExecutionSpace(memberCluster *v1alpha1.MemberCluster) error {
+	executionSpace, err := names.GenerateExecutionSpaceName(memberCluster.Name)
+	if err != nil {
+		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", memberCluster.Name, err)
+		return err
+	}
+
 	// create member cluster execution space when member cluster joined
-	_, err := c.KubeClientSet.CoreV1().Namespaces().Get(context.TODO(), executionSpace, v1.GetOptions{})
+	_, err = c.KubeClientSet.CoreV1().Namespaces().Get(context.TODO(), executionSpace, v1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			memberclusterES := &corev1.Namespace{
+			memberClusterES := &corev1.Namespace{
 				ObjectMeta: v1.ObjectMeta{
 					Name:   executionSpace,
 					Labels: map[string]string{executionSpaceLabelKey: executionSpaceLabelValue},
 				},
 			}
-			_, err = c.KubeClientSet.CoreV1().Namespaces().Create(context.TODO(), memberclusterES, v1.CreateOptions{})
+			_, err = c.KubeClientSet.CoreV1().Namespaces().Create(context.TODO(), memberClusterES, v1.CreateOptions{})
 			if err != nil {
-				klog.Errorf("Failed to create execution space for membercluster %v", membercluster.Name)
+				klog.Errorf("Failed to create execution space for membercluster %v", memberCluster.Name)
 				return err
 			}
 		} else {

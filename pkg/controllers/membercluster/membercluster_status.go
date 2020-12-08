@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
-	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
+	"github.com/huawei-cloudnative/karmada/pkg/util"
 )
 
 const (
