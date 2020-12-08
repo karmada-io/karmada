@@ -18,8 +18,9 @@ import (
 
 	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
 	propagationstrategy "github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
-	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
+	"github.com/huawei-cloudnative/karmada/pkg/util"
+	"github.com/huawei-cloudnative/karmada/pkg/util/names"
 	"github.com/huawei-cloudnative/karmada/pkg/util/restmapper"
 )
 
@@ -119,10 +120,16 @@ func (c *Controller) isResourceApplied(propagationWorkStatus *propagationstrateg
 }
 
 func (c *Controller) deletePropagationWork(propagationWork *propagationstrategy.PropagationWork) error {
-	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters(memberClusterNS).Get(context.TODO(), propagationWork.Namespace, v1.GetOptions{})
+	executionSpace, err := names.GetMemberClusterName(propagationWork.Namespace)
 	if err != nil {
-		klog.Errorf("Failed to get status of the given member cluster %s", propagationWork.Namespace)
+		klog.Errorf("Failed to get member cluster name for propagationWork %s/%s", propagationWork.Namespace, propagationWork.Name)
+		return err
+	}
+
+	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
+	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters(memberClusterNS).Get(context.TODO(), executionSpace, v1.GetOptions{})
+	if err != nil {
+		klog.Errorf("Failed to get status of the given member cluster %s", executionSpace)
 		return err
 	}
 
@@ -155,10 +162,16 @@ func (c *Controller) deletePropagationWork(propagationWork *propagationstrategy.
 }
 
 func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrategy.PropagationWork) error {
-	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters(memberClusterNS).Get(context.TODO(), propagationWork.Namespace, v1.GetOptions{})
+	executionSpace, err := names.GetMemberClusterName(propagationWork.Namespace)
 	if err != nil {
-		klog.Errorf("Failed to get status of the given member cluster %s", propagationWork.Namespace)
+		klog.Errorf("Failed to get member cluster name for propagationWork %s/%s", propagationWork.Namespace, propagationWork.Name)
+		return err
+	}
+
+	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
+	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters(memberClusterNS).Get(context.TODO(), executionSpace, v1.GetOptions{})
+	if err != nil {
+		klog.Errorf("Failed to get status of the given member cluster %s", executionSpace)
 		return err
 	}
 
@@ -177,8 +190,8 @@ func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrateg
 }
 
 // syncToMemberClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToMemberClusters(membercluster *v1alpha1.MemberCluster, propagationWork *propagationstrategy.PropagationWork) error {
-	memberClusterDynamicClient, err := util.NewClusterDynamicClientSet(membercluster, c.KubeClientSet)
+func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.MemberCluster, propagationWork *propagationstrategy.PropagationWork) error {
+	memberClusterDynamicClient, err := util.NewClusterDynamicClientSet(memberCluster, c.KubeClientSet)
 	if err != nil {
 		return err
 	}
@@ -195,13 +208,13 @@ func (c *Controller) syncToMemberClusters(membercluster *v1alpha1.MemberCluster,
 		if applied {
 			err = c.updateResource(memberClusterDynamicClient, workload)
 			if err != nil {
-				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", membercluster.Name, err)
+				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", memberCluster.Name, err)
 				return err
 			}
 		} else {
 			err = c.createResource(memberClusterDynamicClient, workload)
 			if err != nil {
-				klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", membercluster.Name, err)
+				klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", memberCluster.Name, err)
 				return err
 			}
 
@@ -235,14 +248,14 @@ func (c *Controller) deleteResource(memberClusterDynamicClient *util.DynamicClus
 }
 
 // createResource create resource in member cluster
-func (c *Controller) createResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
+func (c *Controller) createResource(memberClusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to create resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
 		return err
 	}
 
-	_, err = memberclusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Create(context.TODO(), workload, v1.CreateOptions{})
+	_, err = memberClusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Create(context.TODO(), workload, v1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil
@@ -254,14 +267,14 @@ func (c *Controller) createResource(memberclusterDynamicClient *util.DynamicClus
 }
 
 // updateResource update resource in member cluster
-func (c *Controller) updateResource(memberclusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
+func (c *Controller) updateResource(memberClusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to update resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
 		return err
 	}
 
-	_, err = memberclusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, v1.UpdateOptions{})
+	_, err = memberClusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, v1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("Failed to update resource %v, err is %v ", workload.GetName(), err)
 		return err

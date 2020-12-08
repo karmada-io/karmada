@@ -17,6 +17,7 @@ import (
 	"github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/huawei-cloudnative/karmada/pkg/controllers/util"
 	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
+	"github.com/huawei-cloudnative/karmada/pkg/util/names"
 )
 
 // ControllerName is the controller name that will be used when reporting events.
@@ -143,28 +144,33 @@ func (c *PropagationBindingController) ensurePropagationWork(workload *unstructu
 		},
 	}
 
-	for _, clusterNameMirrorNamespace := range clusterNames {
-		workGetResult, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Get(context.TODO(), propagationWork.Name, metav1.GetOptions{})
+	for _, clusterName := range clusterNames {
+		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
+		if err != nil {
+			klog.Errorf("Failed to generate execution space name for propagationWork %s/%s. Error: %v", executionSpace, propagationWork.Name, err)
+			return err
+		}
+		workGetResult, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(executionSpace).Get(context.TODO(), propagationWork.Name, metav1.GetOptions{})
 		if err != nil && apierrors.IsNotFound(err) {
-			_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
+			_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(executionSpace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
 			if err != nil {
-				klog.Errorf("Failed to create propagationWork %s/%s. Error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
+				klog.Errorf("Failed to create propagationWork %s/%s. Error: %v", executionSpace, propagationWork.Name, err)
 				return err
 			}
-			klog.Infof("Create propagationWork %s/%s successfully", clusterNameMirrorNamespace, propagationWork.Name)
+			klog.Infof("Create propagationWork %s/%s successfully", executionSpace, propagationWork.Name)
 			continue
 		} else if err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get propagationWork %s/%s. Error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
+			klog.Errorf("Failed to get propagationWork %s/%s. Error: %v", executionSpace, propagationWork.Name, err)
 			return err
 		}
 		workGetResult.Spec = propagationWork.Spec
 		workGetResult.ObjectMeta.OwnerReferences = propagationWork.ObjectMeta.OwnerReferences
-		_, err = c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(clusterNameMirrorNamespace).Update(context.TODO(), workGetResult, metav1.UpdateOptions{})
+		_, err = c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(executionSpace).Update(context.TODO(), workGetResult, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("Failed to update propagationWork %s/%s. Error: %v", clusterNameMirrorNamespace, propagationWork.Name, err)
+			klog.Errorf("Failed to update propagationWork %s/%s. Error: %v", executionSpace, propagationWork.Name, err)
 			return err
 		}
-		klog.Infof("Update propagationWork %s/%s successfully", clusterNameMirrorNamespace, propagationWork.Name)
+		klog.Infof("Update propagationWork %s/%s successfully", executionSpace, propagationWork.Name)
 	}
 	return nil
 }
