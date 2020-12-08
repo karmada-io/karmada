@@ -24,7 +24,7 @@ type GlobalCommandOptions struct {
 
 // AddFlags adds flags to the specified FlagSet.
 func (o *GlobalCommandOptions) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&o.KubeConfig, "kubeconfig-path", "", "Path to the control plane KUBECONFIG file.")
+	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Path to the control plane KUBECONFIG file.")
 	flags.StringVar(&o.ClusterContext, "cluster-context", "", "Name of the cluster context in control plane KUBECONFIG file.")
 	flags.StringVar(&o.ClusterNamespace, "cluster-namespace", DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster are stored.")
 	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
