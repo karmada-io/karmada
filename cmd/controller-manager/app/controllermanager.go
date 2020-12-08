@@ -116,6 +116,7 @@ func setupControllers(mgr controllerruntime.Manager) {
 		DynamicClient: dynamicClientSet,
 		KarmadaClient: karmadaClient,
 		EventRecorder: mgr.GetEventRecorderFor(policy.ControllerName),
+		RESTMapper:    mgr.GetRESTMapper(),
 	}
 	if err := policyController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup policy controller: %v", err)
@@ -126,6 +127,7 @@ func setupControllers(mgr controllerruntime.Manager) {
 		DynamicClient: dynamicClientSet,
 		KarmadaClient: karmadaClient,
 		EventRecorder: mgr.GetEventRecorderFor(binding.ControllerName),
+		RESTMapper:    mgr.GetRESTMapper(),
 	}
 	if err := bindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup binding controller: %v", err)
@@ -141,5 +143,4 @@ func setupControllers(mgr controllerruntime.Manager) {
 	if err := executionController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup execution controller: %v", err)
 	}
-
 }
