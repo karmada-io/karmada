@@ -36,3 +36,12 @@ func CreateNamespace(client kubeclient.Interface, namespaceObj *corev1.Namespace
 
 	return namespaceObj, nil
 }
+
+// DeleteNamespace just try to delete the namespace.
+func DeleteNamespace(client kubeclient.Interface, namespace string) error {
+	err := client.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
