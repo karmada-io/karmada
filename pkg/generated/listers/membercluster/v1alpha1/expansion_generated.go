@@ -5,7 +5,3 @@ package v1alpha1
 // MemberClusterListerExpansion allows custom methods to be added to
 // MemberClusterLister.
 type MemberClusterListerExpansion interface{}
-
-// MemberClusterNamespaceListerExpansion allows custom methods to be added to
-// MemberClusterNamespaceLister.
-type MemberClusterNamespaceListerExpansion interface{}
