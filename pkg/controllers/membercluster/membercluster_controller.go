@@ -40,7 +40,7 @@ type Controller struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling memberCluster %s", req.NamespacedName.String())
+	klog.V(4).Infof("Reconciling memberCluster %s", req.NamespacedName.Name)
 
 	memberCluster := &v1alpha1.MemberCluster{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, memberCluster); err != nil {

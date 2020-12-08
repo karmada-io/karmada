@@ -229,7 +229,6 @@ func Run(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) 
 	}
 
 	memberClusterObj := &memberclusterapi.MemberCluster{}
-	memberClusterObj.Namespace = opts.ClusterNamespace
 	memberClusterObj.Name = opts.MemberClusterName
 	memberClusterObj.Spec.APIEndpoint = memberClusterConfig.Host
 	memberClusterObj.Spec.SecretRef = &memberclusterapi.LocalSecretReference{
@@ -380,7 +379,7 @@ func createMemberClusterObject(controlPlaneClient *karmadaclientset.Clientset, m
 
 // IsMemberClusterExist tells if a member cluster (namespace/name) already joined to control plane.
 func IsMemberClusterExist(controlPlaneClient karmadaclientset.Interface, namespace string, name string) (bool, error) {
-	_, err := controlPlaneClient.MemberclusterV1alpha1().MemberClusters(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	_, err := controlPlaneClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
@@ -395,7 +394,7 @@ func IsMemberClusterExist(controlPlaneClient karmadaclientset.Interface, namespa
 
 // CreateMemberCluster creates a new member cluster object in control plane.
 func CreateMemberCluster(controlPlaneClient karmadaclientset.Interface, cluster *memberclusterapi.MemberCluster) error {
-	_, err := controlPlaneClient.MemberclusterV1alpha1().MemberClusters(cluster.Namespace).Create(context.TODO(), cluster, metav1.CreateOptions{})
+	_, err := controlPlaneClient.MemberclusterV1alpha1().MemberClusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create member cluster. member cluster: %s/%s, error: %v", cluster.Namespace, cluster.Name, err)
 		return err
