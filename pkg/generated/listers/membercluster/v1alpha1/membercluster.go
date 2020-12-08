@@ -15,8 +15,9 @@ type MemberClusterLister interface {
 	// List lists all MemberClusters in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.MemberCluster, err error)
-	// MemberClusters returns an object that can list and get MemberClusters.
-	MemberClusters(namespace string) MemberClusterNamespaceLister
+	// Get retrieves the MemberCluster from the index for a given name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*v1alpha1.MemberCluster, error)
 	MemberClusterListerExpansion
 }
 
@@ -38,41 +39,9 @@ func (s *memberClusterLister) List(selector labels.Selector) (ret []*v1alpha1.Me
 	return ret, err
 }
 
-// MemberClusters returns an object that can list and get MemberClusters.
-func (s *memberClusterLister) MemberClusters(namespace string) MemberClusterNamespaceLister {
-	return memberClusterNamespaceLister{indexer: s.indexer, namespace: namespace}
-}
-
-// MemberClusterNamespaceLister helps list and get MemberClusters.
-// All objects returned here must be treated as read-only.
-type MemberClusterNamespaceLister interface {
-	// List lists all MemberClusters in the indexer for a given namespace.
-	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.MemberCluster, err error)
-	// Get retrieves the MemberCluster from the indexer for a given namespace and name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.MemberCluster, error)
-	MemberClusterNamespaceListerExpansion
-}
-
-// memberClusterNamespaceLister implements the MemberClusterNamespaceLister
-// interface.
-type memberClusterNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all MemberClusters in the indexer for a given namespace.
-func (s memberClusterNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.MemberCluster, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.MemberCluster))
-	})
-	return ret, err
-}
-
-// Get retrieves the MemberCluster from the indexer for a given namespace and name.
-func (s memberClusterNamespaceLister) Get(name string) (*v1alpha1.MemberCluster, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+// Get retrieves the MemberCluster from the index for a given name.
+func (s *memberClusterLister) Get(name string) (*v1alpha1.MemberCluster, error) {
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}

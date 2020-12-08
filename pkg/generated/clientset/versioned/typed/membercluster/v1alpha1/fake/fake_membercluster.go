@@ -17,7 +17,6 @@ import (
 // FakeMemberClusters implements MemberClusterInterface
 type FakeMemberClusters struct {
 	Fake *FakeMemberclusterV1alpha1
-	ns   string
 }
 
 var memberclustersResource = schema.GroupVersionResource{Group: "membercluster.karmada.io", Version: "v1alpha1", Resource: "memberclusters"}
@@ -27,8 +26,7 @@ var memberclustersKind = schema.GroupVersionKind{Group: "membercluster.karmada.i
 // Get takes name of the memberCluster, and returns the corresponding memberCluster object, and an error if there is any.
 func (c *FakeMemberClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MemberCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(memberclustersResource, c.ns, name), &v1alpha1.MemberCluster{})
-
+		Invokes(testing.NewRootGetAction(memberclustersResource, name), &v1alpha1.MemberCluster{})
 	if obj == nil {
 		return nil, err
 	}
@@ -38,8 +36,7 @@ func (c *FakeMemberClusters) Get(ctx context.Context, name string, options v1.Ge
 // List takes label and field selectors, and returns the list of MemberClusters that match those selectors.
 func (c *FakeMemberClusters) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.MemberClusterList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(memberclustersResource, memberclustersKind, c.ns, opts), &v1alpha1.MemberClusterList{})
-
+		Invokes(testing.NewRootListAction(memberclustersResource, memberclustersKind, opts), &v1alpha1.MemberClusterList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -60,15 +57,13 @@ func (c *FakeMemberClusters) List(ctx context.Context, opts v1.ListOptions) (res
 // Watch returns a watch.Interface that watches the requested memberClusters.
 func (c *FakeMemberClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(memberclustersResource, c.ns, opts))
-
+		InvokesWatch(testing.NewRootWatchAction(memberclustersResource, opts))
 }
 
 // Create takes the representation of a memberCluster and creates it.  Returns the server's representation of the memberCluster, and an error, if there is any.
 func (c *FakeMemberClusters) Create(ctx context.Context, memberCluster *v1alpha1.MemberCluster, opts v1.CreateOptions) (result *v1alpha1.MemberCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(memberclustersResource, c.ns, memberCluster), &v1alpha1.MemberCluster{})
-
+		Invokes(testing.NewRootCreateAction(memberclustersResource, memberCluster), &v1alpha1.MemberCluster{})
 	if obj == nil {
 		return nil, err
 	}
@@ -78,8 +73,7 @@ func (c *FakeMemberClusters) Create(ctx context.Context, memberCluster *v1alpha1
 // Update takes the representation of a memberCluster and updates it. Returns the server's representation of the memberCluster, and an error, if there is any.
 func (c *FakeMemberClusters) Update(ctx context.Context, memberCluster *v1alpha1.MemberCluster, opts v1.UpdateOptions) (result *v1alpha1.MemberCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(memberclustersResource, c.ns, memberCluster), &v1alpha1.MemberCluster{})
-
+		Invokes(testing.NewRootUpdateAction(memberclustersResource, memberCluster), &v1alpha1.MemberCluster{})
 	if obj == nil {
 		return nil, err
 	}
@@ -90,8 +84,7 @@ func (c *FakeMemberClusters) Update(ctx context.Context, memberCluster *v1alpha1
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *FakeMemberClusters) UpdateStatus(ctx context.Context, memberCluster *v1alpha1.MemberCluster, opts v1.UpdateOptions) (*v1alpha1.MemberCluster, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(memberclustersResource, "status", c.ns, memberCluster), &v1alpha1.MemberCluster{})
-
+		Invokes(testing.NewRootUpdateSubresourceAction(memberclustersResource, "status", memberCluster), &v1alpha1.MemberCluster{})
 	if obj == nil {
 		return nil, err
 	}
@@ -101,14 +94,13 @@ func (c *FakeMemberClusters) UpdateStatus(ctx context.Context, memberCluster *v1
 // Delete takes name of the memberCluster and deletes it. Returns an error if one occurs.
 func (c *FakeMemberClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(memberclustersResource, c.ns, name), &v1alpha1.MemberCluster{})
-
+		Invokes(testing.NewRootDeleteAction(memberclustersResource, name), &v1alpha1.MemberCluster{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeMemberClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(memberclustersResource, c.ns, listOpts)
+	action := testing.NewRootDeleteCollectionAction(memberclustersResource, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.MemberClusterList{})
 	return err
@@ -117,8 +109,7 @@ func (c *FakeMemberClusters) DeleteCollection(ctx context.Context, opts v1.Delet
 // Patch applies the patch and returns the patched memberCluster.
 func (c *FakeMemberClusters) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MemberCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(memberclustersResource, c.ns, name, pt, data, subresources...), &v1alpha1.MemberCluster{})
-
+		Invokes(testing.NewRootPatchSubresourceAction(memberclustersResource, name, pt, data, subresources...), &v1alpha1.MemberCluster{})
 	if obj == nil {
 		return nil, err
 	}

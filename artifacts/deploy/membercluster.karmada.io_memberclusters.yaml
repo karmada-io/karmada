@@ -14,7 +14,7 @@ spec:
     listKind: MemberClusterList
     plural: memberclusters
     singular: membercluster
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:

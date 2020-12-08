@@ -25,5 +25,5 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 
 // MemberClusters returns a MemberClusterInformer.
 func (v *version) MemberClusters() MemberClusterInformer {
-	return &memberClusterInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+	return &memberClusterInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
