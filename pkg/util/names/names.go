@@ -24,3 +24,13 @@ func GetMemberClusterName(executionSpaceName string) (string, error) {
 	}
 	return strings.TrimPrefix(executionSpaceName, executionSpacePrefix), nil
 }
+
+// GenerateBindingName will generate binding name by namespace, kind and name
+func GenerateBindingName(namespace, kind, name string) string {
+	return strings.ToLower(namespace + "-" + kind + "-" + name)
+}
+
+// GenerateOwnerLabelValue will get owner label value.
+func GenerateOwnerLabelValue(namespace, name string) string {
+	return namespace + "." + name
+}
