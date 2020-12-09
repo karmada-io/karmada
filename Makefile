@@ -44,8 +44,9 @@ karmadactl: $(SOURCES)
 clean:
 	rm -rf karmada-controller-manager
 
+.PHONY: test
 test:
-	go test ./...
+	go test --race --v ./pkg/...
 
 images: image-karmada-controller-manager
 
