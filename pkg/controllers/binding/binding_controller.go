@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,6 +16,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
@@ -190,65 +190,62 @@ func (c *PropagationBindingController) transformBindingToWorks(binding *v1alpha1
 }
 
 // ensurePropagationWork ensure PropagationWork to be created or updated
-// TODO: refactor by CreateOrUpdate Later, if propagationBinding is unchanged, do nothing.
 func (c *PropagationBindingController) ensurePropagationWork(workload *unstructured.Unstructured, clusterNames []string,
 	binding *v1alpha1.PropagationBinding) error {
 	c.removeIrrelevantField(workload)
-	formatWorkload, err := workload.MarshalJSON()
+	workloadJSON, err := workload.MarshalJSON()
 	if err != nil {
 		klog.Errorf("Failed to marshal workload, kind: %s, namespace: %s, name: %s. Error: %v",
 			workload.GetKind(), workload.GetName(), workload.GetNamespace(), err)
 		return err
 	}
-	rawExtension := runtime.RawExtension{
-		Raw: formatWorkload,
-	}
-	propagationWork := v1alpha1.PropagationWork{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: binding.Name,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(binding, controllerKind),
-			},
-			Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(binding.GetNamespace(), binding.GetName())},
-		},
-		Spec: v1alpha1.PropagationWorkSpec{
-			Workload: v1alpha1.WorkloadTemplate{
-				Manifests: []v1alpha1.Manifest{
-					{
-						RawExtension: rawExtension,
-					},
-				},
-			},
-		},
-	}
 
 	for _, clusterName := range clusterNames {
 		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
 		if err != nil {
-			klog.Errorf("Failed to generate execution space name for propagationWork %s/%s. Error: %v.", executionSpace, propagationWork.GetName(), err)
+			klog.Errorf("Failed to ensure PropagationWork for cluster: %s. Error: %v.", clusterName, err)
 			return err
 		}
-		workGetResult, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(executionSpace).Get(context.TODO(), propagationWork.GetName(), metav1.GetOptions{})
-		if err != nil && apierrors.IsNotFound(err) {
-			_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(executionSpace).Create(context.TODO(), &propagationWork, metav1.CreateOptions{})
-			if err != nil {
-				klog.Errorf("Failed to create propagationWork %s/%s. Error: %v.", executionSpace, propagationWork.GetName(), err)
-				return err
-			}
-			klog.Infof("Create propagationWork %s/%s successfully.", executionSpace, propagationWork.GetName())
-			continue
-		} else if err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get propagationWork %s/%s. Error: %v.", executionSpace, propagationWork.GetName(), err)
-			return err
+
+		propagationWork := &v1alpha1.PropagationWork{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      binding.Name,
+				Namespace: executionSpace,
+				OwnerReferences: []metav1.OwnerReference{
+					*metav1.NewControllerRef(binding, controllerKind),
+				},
+				Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(binding.GetNamespace(), binding.GetName())},
+			},
+			Spec: v1alpha1.PropagationWorkSpec{
+				Workload: v1alpha1.WorkloadTemplate{
+					Manifests: []v1alpha1.Manifest{
+						{
+							RawExtension: runtime.RawExtension{
+								Raw: workloadJSON,
+							},
+						},
+					},
+				},
+			},
 		}
-		workGetResult.Spec = propagationWork.Spec
-		workGetResult.ObjectMeta.OwnerReferences = propagationWork.ObjectMeta.OwnerReferences
-		_, err = c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(executionSpace).Update(context.TODO(), workGetResult, metav1.UpdateOptions{})
+
+		runtimeObject := propagationWork.DeepCopy()
+		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), c.Client, runtimeObject, func() error {
+			runtimeObject.Spec = propagationWork.Spec
+			return nil
+		})
 		if err != nil {
-			klog.Errorf("Failed to update propagationWork %s/%s. Error: %v.", executionSpace, propagationWork.GetName(), err)
+			klog.Errorf("Failed to create/update propagationWork %s/%s. Error: %v", propagationWork.GetNamespace(), propagationWork.GetName(), err)
 			return err
 		}
-		klog.Infof("Update propagationWork %s/%s successfully.", executionSpace, propagationWork.GetName())
+
+		if operationResult == controllerutil.OperationResultCreated {
+			klog.Infof("Create propagationWork %s/%s successfully.", propagationWork.GetNamespace(), propagationWork.GetName())
+		} else if operationResult == controllerutil.OperationResultUpdated {
+			klog.Infof("Update propagationWork %s/%s successfully.", propagationWork.GetNamespace(), propagationWork.GetName())
+		} else {
+			klog.V(2).Infof("PropagationWork %s/%s is up to date.", propagationWork.GetNamespace(), propagationWork.GetName())
+		}
 	}
 	return nil
 }
