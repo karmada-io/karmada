@@ -26,5 +26,8 @@ kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.i
 kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationbindings.yaml"
 kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationworks.yaml"
 
+# create secret for controller-manager
+kubectl create secret generic kubeconfig --from-file=kubeconfig="${KUBECONFIG}" -n karmada-system
+
 # deploy controller-manager
 kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/controller-manager.yaml"

@@ -23,3 +23,15 @@ spec:
         - name: karmada-controller-manager
           image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager:latest
           imagePullPolicy: Always
+          command:
+            - /bin/karmada-controller-manager
+            - --kubeconfig=/etc/kubeconfig
+          volumeMounts:
+          - name: kubeconfig
+            subPath: kubeconfig
+            mountPath: /etc/kubeconfig
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig
+

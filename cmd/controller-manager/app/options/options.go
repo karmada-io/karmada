@@ -4,7 +4,6 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 	"k8s.io/klog/v2"
@@ -18,7 +17,6 @@ var (
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
-	KubeConfig     *rest.Config
 	HostNamespace  string
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 }
