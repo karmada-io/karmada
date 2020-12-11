@@ -16,6 +16,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
@@ -305,10 +306,9 @@ func (c *PropagationPolicyController) getTargetClusters(placement v1alpha1.Place
 }
 
 // ensurePropagationBinding will ensure propagationBinding are created or updated.
-// TODO: refactor by CreateOrUpdate Later, if propagationBinding is unchanged, do nothing.
 func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured, clusterNames []v1alpha1.TargetCluster) error {
 	bindingName := names.GenerateBindingName(workload.GetNamespace(), workload.GetKind(), workload.GetName())
-	propagationBinding := v1alpha1.PropagationBinding{
+	propagationBinding := &v1alpha1.PropagationBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: policy.GetNamespace(),
@@ -329,28 +329,23 @@ func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.
 		},
 	}
 
-	bindingGetResult, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.GetNamespace()).Get(context.TODO(), propagationBinding.GetName(), metav1.GetOptions{})
-	if err != nil && apierrors.IsNotFound(err) {
-		_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.GetNamespace()).Create(context.TODO(), &propagationBinding, metav1.CreateOptions{})
-		if err != nil {
-			klog.Errorf("Failed to create propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
-			return err
-		}
-		klog.Infof("Create propagationBinding %s/%s successfully", propagationBinding.GetNamespace(), propagationBinding.GetName())
+	runtimeObject := propagationBinding.DeepCopy()
+	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), c.Client, runtimeObject, func() error {
+		runtimeObject.Spec = propagationBinding.Spec
 		return nil
-	} else if err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("Failed to get propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
-		return err
-	}
-	bindingGetResult.Spec = propagationBinding.Spec
-	bindingGetResult.ObjectMeta.OwnerReferences = propagationBinding.ObjectMeta.OwnerReferences
-	_, err = c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.GetNamespace()).Update(context.TODO(), bindingGetResult, metav1.UpdateOptions{})
+	})
 	if err != nil {
-		klog.Errorf("Failed to update propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
+		klog.Errorf("Failed to create/update propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
 		return err
 	}
-	klog.Infof("Update propagationBinding %s/%s successfully", propagationBinding.GetNamespace(), propagationBinding.GetName())
 
+	if operationResult == controllerutil.OperationResultCreated {
+		klog.Infof("Create propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+	} else if operationResult == controllerutil.OperationResultUpdated {
+		klog.Infof("Update propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+	} else {
+		klog.V(2).Infof("PropagationBinding %s/%s is up to date.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+	}
 	return nil
 }
 
