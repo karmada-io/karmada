@@ -10,7 +10,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
@@ -36,17 +35,12 @@ func init() {
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
 func NewControllerManagerCommand(stopChan <-chan struct{}) *cobra.Command {
-	verFlag := false
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
 		Use:  "controller-manager",
 		Long: `The controller manager runs a bunch of controllers`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if verFlag {
-				os.Exit(0)
-			}
-
 			opts.Complete()
 			if err := Run(opts, stopChan); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -56,9 +50,6 @@ func NewControllerManagerCommand(stopChan <-chan struct{}) *cobra.Command {
 	}
 
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
-
-	cmd.Flags().BoolVar(&verFlag, "version", false, "Prints the version info of controller manager.")
-
 	return cmd
 }
 
@@ -67,14 +58,11 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	var err error
-	// TODO(RainbowMango): need to change to shim kube-apiserver config.
-	opts.KubeConfig, err = clientcmd.BuildConfigFromFlags("", "")
+	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)
 	}
-
-	controllerManager, err := controllerruntime.NewManager(opts.KubeConfig, controllerruntime.Options{
+	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:           aggregatedScheme,
 		LeaderElection:   true, // TODO(RainbowMango): Add a flag '--enable-leader-election' for this option.
 		LeaderElectionID: "41db11fa.karmada.io",
