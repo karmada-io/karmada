@@ -23,6 +23,14 @@ KARMADA_KUBECONFIG="${KUBECONFIG_PATH}/karmada.config"
 "${SCRIPT_ROOT}"/hack/create-cluster.sh karmada "${KARMADA_KUBECONFIG}"
 export KUBECONFIG="${KARMADA_KUBECONFIG}"
 
+# make controller-manager image
+export VERSION="latest"
+export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+make images
+
+# load controller-manager image
+kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name=karmada
+
 # deploy karmada control plane
 "${SCRIPT_ROOT}"/hack/deploy-karmada.sh
 
