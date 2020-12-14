@@ -58,7 +58,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	if !work.DeletionTimestamp.IsZero() {
 		applied := c.isResourceApplied(&work.Status)
 		if applied {
-			err := c.deletePropagationWork(work)
+			err := c.tryDeleteWorkload(work)
 			if err != nil {
 				klog.Errorf("Failed to delete propagationWork %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 				return controllerruntime.Result{Requeue: true}, err
@@ -118,23 +118,26 @@ func (c *Controller) isResourceApplied(propagationWorkStatus *propagationstrateg
 	return false
 }
 
-func (c *Controller) deletePropagationWork(propagationWork *propagationstrategy.PropagationWork) error {
-	executionSpace, err := names.GetMemberClusterName(propagationWork.Namespace)
+// tryDeleteWorkload tries to delete resource in the given member cluster.
+// Abort deleting when the member cluster is unready, otherwise we can't unjoin the member cluster when the member cluster is unready
+func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.PropagationWork) error {
+	memberClusterName, err := names.GetMemberClusterName(propagationWork.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for propagationWork %s/%s", propagationWork.Namespace, propagationWork.Name)
 		return err
 	}
 
 	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), executionSpace, v1.GetOptions{})
+	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), memberClusterName, v1.GetOptions{})
 	if err != nil {
-		klog.Errorf("Failed to get status of the given member cluster %s", executionSpace)
+		klog.Errorf("Failed to get the given member cluster %s", memberClusterName)
 		return err
 	}
 
+	// Do not clean up resource in the given member cluster if the status of the given member cluster is unready
 	if !c.isMemberClusterReady(&memberCluster.Status) {
-		klog.Errorf("The status of the given member cluster %s is unready", memberCluster.Name)
-		return fmt.Errorf("cluster %s not ready, requeuing operation until cluster state is ready", memberCluster.Name)
+		klog.Infof("Do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", memberCluster.Name)
+		return nil
 	}
 
 	memberClusterDynamicClient, err := util.NewClusterDynamicClientSet(memberCluster, c.KubeClientSet)
@@ -161,16 +164,16 @@ func (c *Controller) deletePropagationWork(propagationWork *propagationstrategy.
 }
 
 func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrategy.PropagationWork) error {
-	executionSpace, err := names.GetMemberClusterName(propagationWork.Namespace)
+	memberClusterName, err := names.GetMemberClusterName(propagationWork.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for propagationWork %s/%s", propagationWork.Namespace, propagationWork.Name)
 		return err
 	}
 
 	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), executionSpace, v1.GetOptions{})
+	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), memberClusterName, v1.GetOptions{})
 	if err != nil {
-		klog.Errorf("Failed to get status of the given member cluster %s", executionSpace)
+		klog.Errorf("Failed to the get given member cluster %s", memberClusterName)
 		return err
 	}
 

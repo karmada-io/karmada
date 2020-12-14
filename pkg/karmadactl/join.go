@@ -3,7 +3,6 @@ package karmadactl
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"time"
 
@@ -13,14 +12,17 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	memberclusterapi "github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
 	"github.com/huawei-cloudnative/karmada/pkg/karmadactl/options"
 	"github.com/huawei-cloudnative/karmada/pkg/util"
+	"github.com/huawei-cloudnative/karmada/pkg/util/names"
 )
 
 var (
@@ -49,6 +51,8 @@ var (
 	}
 )
 
+var resourceKind = v1alpha1.SchemeGroupVersion.WithKind("MemberCluster")
+
 const (
 	// TODO(RainbowMango) token and caData key both used by command and controller.
 	// It's better to put them to a common place, such as API definition.
@@ -72,7 +76,7 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
 				return
 			}
 
-			err = Run(cmdOut, karmadaConfig, opts)
+			err = RunJoin(cmdOut, karmadaConfig, opts)
 			if err != nil {
 				klog.Errorf("Error: %v", err)
 				return
@@ -126,9 +130,9 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 		"Path of the member cluster's kubeconfig.")
 }
 
-// Run is the implementation of the 'join' command.
+// RunJoin is the implementation of the 'join' command.
 // TODO(RainbowMango): consider to remove the 'KarmadaConfig'.
-func Run(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
+func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
 	klog.V(1).Infof("joining member cluster. member cluster name: %s", opts.MemberClusterName)
 	klog.V(1).Infof("joining member cluster. cluster namespace: %s", opts.ClusterNamespace)
 
@@ -165,14 +169,14 @@ func Run(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) 
 	// create a ServiceAccount in member cluster.
 	serviceAccountObj := &corev1.ServiceAccount{}
 	serviceAccountObj.Namespace = opts.ClusterNamespace
-	serviceAccountObj.Name = fmt.Sprintf("%s-%s", "karmada", opts.MemberClusterName)
+	serviceAccountObj.Name = names.GenerateServiceAccountName(opts.MemberClusterName)
 	if serviceAccountObj, err = ensureServiceAccountExist(memberClusterKubeClient, serviceAccountObj, opts.DryRun); err != nil {
 		return err
 	}
 
 	// create a ClusterRole in member cluster.
 	clusterRole := &rbacv1.ClusterRole{}
-	clusterRole.Name = util.GenerateRoleName(serviceAccountObj.Name)
+	clusterRole.Name = names.GenerateRoleName(serviceAccountObj.Name)
 	clusterRole.Rules = clusterPolicyRules
 	if _, err := ensureClusterRoleExist(memberClusterKubeClient, clusterRole, opts.DryRun); err != nil {
 		return err
@@ -208,10 +212,12 @@ func Run(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) 
 	}
 
 	// create secret in control plane
+	secretNamespace := opts.ClusterNamespace
+	secretName := opts.MemberClusterName
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: opts.ClusterNamespace,
-			Name:      opts.MemberClusterName,
+			Namespace: secretNamespace,
+			Name:      secretName,
 		},
 		Data: map[string][]byte{
 			caDataKey: memberClusterSecret.Data["ca.crt"], // TODO(RainbowMango): change ca bundle key to 'ca.crt'.
@@ -232,12 +238,26 @@ func Run(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) 
 	memberClusterObj.Name = opts.MemberClusterName
 	memberClusterObj.Spec.APIEndpoint = memberClusterConfig.Host
 	memberClusterObj.Spec.SecretRef = &memberclusterapi.LocalSecretReference{
-		Namespace: secret.Namespace,
-		Name:      secret.Name,
+		Namespace: secretNamespace,
+		Name:      secretName,
 	}
-	err = createMemberClusterObject(controlPlaneKarmadaClient, memberClusterObj, false)
+	memberCluster, err := createMemberClusterObject(controlPlaneKarmadaClient, memberClusterObj, false)
 	if err != nil {
 		klog.Errorf("failed to create member cluster object. cluster name: %s, error: %v", opts.MemberClusterName, err)
+		return err
+	}
+
+	patchSecretBody := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(memberCluster, resourceKind),
+			},
+		},
+	}
+
+	err = util.PatchSecret(controlPlaneKubeClient, secretNamespace, secretName, types.MergePatchType, patchSecretBody)
+	if err != nil {
+		klog.Errorf("failed to patch secret %s/%s, error: %v", secret.Namespace, secret.Name, err)
 		return err
 	}
 
@@ -352,55 +372,55 @@ func ensureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 	return createdObj, nil
 }
 
-func createMemberClusterObject(controlPlaneClient *karmadaclientset.Clientset, memberClusterObj *memberclusterapi.MemberCluster, errorOnExisting bool) error {
-	exist, err := IsMemberClusterExist(controlPlaneClient, memberClusterObj.Namespace, memberClusterObj.Name)
+func createMemberClusterObject(controlPlaneClient *karmadaclientset.Clientset, memberClusterObj *memberclusterapi.MemberCluster, errorOnExisting bool) (*memberclusterapi.MemberCluster, error) {
+	memberCluster, exist, err := GetMemberCluster(controlPlaneClient, memberClusterObj.Namespace, memberClusterObj.Name)
 	if err != nil {
 		klog.Errorf("failed to create member cluster object. member cluster: %s/%s, error: %v", memberClusterObj.Namespace, memberClusterObj.Name, err)
-		return err
+		return nil, err
 	}
 
 	if exist {
 		if errorOnExisting {
 			klog.Errorf("failed to create member cluster object. member cluster: %s/%s, error: %v", memberClusterObj.Namespace, memberClusterObj.Name, err)
-			return err
+			return memberCluster, err
 		}
 
 		klog.V(1).Infof("create member cluster succeed as already exist. member cluster: %s/%s", memberClusterObj.Namespace, memberClusterObj.Name)
-		return nil
+		return memberCluster, nil
 	}
 
-	if err := CreateMemberCluster(controlPlaneClient, memberClusterObj); err != nil {
+	if memberCluster, err = CreateMemberCluster(controlPlaneClient, memberClusterObj); err != nil {
 		klog.Warningf("failed to create member cluster. member cluster: %s/%s, error: %v", memberClusterObj.Namespace, memberClusterObj.Name, err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return memberCluster, nil
 }
 
-// IsMemberClusterExist tells if a member cluster (namespace/name) already joined to control plane.
-func IsMemberClusterExist(controlPlaneClient karmadaclientset.Interface, namespace string, name string) (bool, error) {
-	_, err := controlPlaneClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), name, metav1.GetOptions{})
+// GetMemberCluster tells if a member cluster (namespace/name) already joined to control plane.
+func GetMemberCluster(client karmadaclientset.Interface, namespace string, name string) (*memberclusterapi.MemberCluster, bool, error) {
+	memberCluster, err := client.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return false, nil
+			return nil, false, nil
 		}
 
 		klog.Warningf("failed to retrieve member cluster. member cluster: %s/%s, error: %v", namespace, name, err)
-		return false, err
+		return nil, false, err
 	}
 
-	return true, nil
+	return memberCluster, true, nil
 }
 
 // CreateMemberCluster creates a new member cluster object in control plane.
-func CreateMemberCluster(controlPlaneClient karmadaclientset.Interface, cluster *memberclusterapi.MemberCluster) error {
-	_, err := controlPlaneClient.MemberclusterV1alpha1().MemberClusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
+func CreateMemberCluster(controlPlaneClient karmadaclientset.Interface, cluster *memberclusterapi.MemberCluster) (*memberclusterapi.MemberCluster, error) {
+	memberCluster, err := controlPlaneClient.MemberclusterV1alpha1().MemberClusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create member cluster. member cluster: %s/%s, error: %v", cluster.Namespace, cluster.Name, err)
-		return err
+		return memberCluster, err
 	}
 
-	return nil
+	return memberCluster, nil
 }
 
 // buildRoleBindingSubjects will generate a subject as per service account.

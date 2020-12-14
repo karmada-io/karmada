@@ -36,3 +36,12 @@ func IsServiceAccountExist(client kubeclient.Interface, namespace string, name s
 
 	return true, nil
 }
+
+// DeleteServiceAccount just try to delete the ServiceAccount.
+func DeleteServiceAccount(client kubeclient.Interface, namespace, name string) error {
+	err := client.CoreV1().ServiceAccounts(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
