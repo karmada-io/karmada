@@ -5,8 +5,8 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
-	propagationstrategyv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	propagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )

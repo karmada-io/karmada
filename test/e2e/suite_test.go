@@ -16,8 +16,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	karmada "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
-	"github.com/huawei-cloudnative/karmada/pkg/util"
+	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (

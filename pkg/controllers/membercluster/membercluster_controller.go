@@ -17,8 +17,8 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
-	"github.com/huawei-cloudnative/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (

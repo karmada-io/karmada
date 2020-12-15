@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy"
+	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy"
 )
 
 // SchemeGroupVersion is group version used to register these objects

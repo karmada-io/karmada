@@ -3,8 +3,8 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
-	"github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/scheme"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

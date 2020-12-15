@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/component-base/logs"
 
-	"github.com/huawei-cloudnative/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/karmadactl"
 )
 
 func main() {

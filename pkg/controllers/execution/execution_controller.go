@@ -16,12 +16,12 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
-	propagationstrategy "github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
-	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
-	"github.com/huawei-cloudnative/karmada/pkg/util"
-	"github.com/huawei-cloudnative/karmada/pkg/util/names"
-	"github.com/huawei-cloudnative/karmada/pkg/util/restmapper"
+	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 const (

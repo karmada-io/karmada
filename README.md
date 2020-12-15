@@ -60,7 +60,7 @@ Please install [kind](https://kind.sigs.k8s.io/) and [kubectl](https://kubernete
 1. Clone this repo to get karmada.
 
 ```
-git clone https://github.com/huawei-cloudnative/karmada
+git clone https://github.com/karmada-io/karmada
 ```
 
 2. Move to the karmada package directory.

@@ -14,14 +14,14 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
 
-	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app/options"
-	memberclusterv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
-	propagationv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
-	"github.com/huawei-cloudnative/karmada/pkg/controllers/binding"
-	"github.com/huawei-cloudnative/karmada/pkg/controllers/execution"
-	"github.com/huawei-cloudnative/karmada/pkg/controllers/membercluster"
-	"github.com/huawei-cloudnative/karmada/pkg/controllers/policy"
-	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
+	memberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	propagationv1alpha1 "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/controllers/binding"
+	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/controllers/membercluster"
+	"github.com/karmada-io/karmada/pkg/controllers/policy"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 )
 
 // aggregatedScheme aggregates all Kubernetes and extended schemes used by controllers.
