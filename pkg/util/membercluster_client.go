@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/huawei-cloudnative/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
 )
 
 const (

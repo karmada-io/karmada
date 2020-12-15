@@ -3,11 +3,11 @@
 package fake
 
 import (
-	clientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
-	memberclusterv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1"
-	fakememberclusterv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1/fake"
-	propagationstrategyv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1"
-	fakepropagationstrategyv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1/fake"
+	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	memberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1"
+	fakememberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1/fake"
+	propagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1"
+	fakepropagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

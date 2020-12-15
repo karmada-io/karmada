@@ -5,8 +5,8 @@ package versioned
 import (
 	"fmt"
 
-	memberclusterv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1"
-	propagationstrategyv1alpha1 "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1"
+	memberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1"
+	propagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
