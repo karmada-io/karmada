@@ -3,8 +3,8 @@
 package propagationstrategy
 
 import (
-	internalinterfaces "github.com/huawei-cloudnative/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/huawei-cloudnative/karmada/pkg/generated/informers/externalversions/propagationstrategy/v1alpha1"
+	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/propagationstrategy/v1alpha1"
 )
 
 // Interface provides access to each of this group's versions.

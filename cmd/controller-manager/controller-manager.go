@@ -7,7 +7,7 @@ import (
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/component-base/logs"
 
-	"github.com/huawei-cloudnative/karmada/cmd/controller-manager/app"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 )
 
 // Controller-manager main.

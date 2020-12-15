@@ -14,10 +14,10 @@ import (
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
-	"github.com/huawei-cloudnative/karmada/pkg/karmadactl/options"
-	"github.com/huawei-cloudnative/karmada/pkg/util"
-	"github.com/huawei-cloudnative/karmada/pkg/util/names"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 var (

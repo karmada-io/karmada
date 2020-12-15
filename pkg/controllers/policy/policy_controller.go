@@ -18,11 +18,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/huawei-cloudnative/karmada/pkg/apis/propagationstrategy/v1alpha1"
-	karmadaclientset "github.com/huawei-cloudnative/karmada/pkg/generated/clientset/versioned"
-	"github.com/huawei-cloudnative/karmada/pkg/util"
-	"github.com/huawei-cloudnative/karmada/pkg/util/names"
-	"github.com/huawei-cloudnative/karmada/pkg/util/restmapper"
+	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 // ControllerName is the controller name that will be used when reporting events.
