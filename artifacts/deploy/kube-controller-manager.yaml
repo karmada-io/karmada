@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-kube-controller-manager
+  namespace: karmada-system
+  labels:
+    app: kube-controller-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-controller-manager
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: kube-controller-manager
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kube-controller-manager
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - command:
+            - kube-controller-manager
+            - --allocate-node-cidrs=true
+            - --authentication-kubeconfig=/etc/kubeconfig
+            - --authorization-kubeconfig=/etc/kubeconfig
+            - --bind-address=127.0.0.1
+            - --client-ca-file=/etc/karmada/pki/server-ca.crt
+            - --cluster-cidr=10.244.0.0/16
+            - --cluster-name=karmada
+            - --cluster-signing-cert-file=/etc/karmada/pki/server-ca.crt
+            - --cluster-signing-key-file=/etc/karmada/pki/server-ca.key
+            - --controllers=namespace,garbagecollector,serviceaccount-token
+            - --kubeconfig=/etc/kubeconfig
+            - --leader-elect=true
+            - --node-cidr-mask-size=24
+            - --port=0
+            - --root-ca-file=/etc/karmada/pki/server-ca.crt
+            - --service-account-private-key-file=/etc/karmada/pki/karmada.key
+            - --service-cluster-ip-range=10.96.0.0/12
+            - --use-service-account-credentials=true
+          image: k8s.gcr.io/kube-controller-manager:v1.19.1
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              host: 127.0.0.1
+              path: /healthz
+              port: 10257
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 15
+          name: kube-controller-manager
+          resources:
+            requests:
+              cpu: 200m
+          startupProbe:
+            failureThreshold: 24
+            httpGet:
+              host: 127.0.0.1
+              path: /healthz
+              port: 10257
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 15
+          volumeMounts:
+            - mountPath: /etc/karmada/pki
+              name: k8s-certs
+              readOnly: true
+            - mountPath: /etc/kubeconfig
+              subPath: kubeconfig
+              name: kubeconfig
+      priorityClassName: system-node-critical
+      volumes:
+        - name: k8s-certs
+          secret:
+            secretName: karmada-cert-secret
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig

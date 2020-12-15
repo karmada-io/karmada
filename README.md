@@ -94,12 +94,14 @@ hack/create-cluster.sh member-cluster-1 /root/.kube/membercluster1.config
 
 ```
 make karmadactl
+export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
 ./karmadactl join member-cluster-1 --member-cluster-kubeconfig=/root/.kube/membercluster1.config
 ```
 
 3. Verify member cluster is Joined to karmada successfully.
 
 ```
+export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
 kubectl get membercluster -n karmada-cluster
 ```
 
@@ -108,14 +110,14 @@ kubectl get membercluster -n karmada-cluster
 1. Create nginx deployment in karmada.
 
 ```
-export KUBECONFIG=/root/.kube/karmada.config
+export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
 kubectl create -f samples/nginx/deployment.yaml
 ```
 
 2. Create PropagationPolicy that will propagate nginx to member cluster.
 
 ```
-export KUBECONFIG=/root/.kube/karmada.config
+export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
 kubectl create -f samples/nginx/propagationpolicy.yaml
 ```
 
