@@ -10,12 +10,14 @@ set -o pipefail
 # 2. used by e2e testing to setup test environment automatically.
 
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
+KARMADA_APISERVER_KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG:-"/var/run/karmada"}
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
 export KUBECONFIG_PATH="${KUBECONFIG_PATH}"
 "${REPO_ROOT}"/hack/local-up-karmada.sh
-export KUBECONFIG="${KUBECONFIG_PATH}/karmada.config"
+
+export KUBECONFIG="${KARMADA_APISERVER_KUBECONFIG}/karmada-apiserver.config"
 
 # Install karmadactl
 GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl"

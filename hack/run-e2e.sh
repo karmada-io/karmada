@@ -10,15 +10,15 @@ set -o pipefail
 #
 # Usage: hack/run-e2e.sh
 # Example 1: hack/run-e2e.sh (run e2e with default config)
-# Example 2: export CONTROL_PLANE_KUBECONFIG=<KUBECONFIG PATH> hack/run-e2e.sh (run e2e with your KUBECONFIG)
+# Example 2: export KARMADA_APISERVER_KUBECONFIG=<KUBECONFIG PATH> hack/run-e2e.sh (run e2e with your KUBECONFIG)
 
-CONTROL_PLANE_KUBECONFIG=${CONTROL_PLANE_KUBECONFIG:-"${HOME}/.kube/karmada.config"}
+KARMADA_APISERVER_KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG:-"/var/run/karmada/karmada-apiserver.config"}
 
-export KUBECONFIG=${CONTROL_PLANE_KUBECONFIG}
+export KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG}
 
 # Install ginkgo
 GO111MODULE=on go install github.com/onsi/ginkgo/ginkgo
 
 # Run e2e
-export KUBECONFIG=${CONTROL_PLANE_KUBECONFIG}
+export KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG}
 ginkgo -v -race -failFast ./test/e2e/
