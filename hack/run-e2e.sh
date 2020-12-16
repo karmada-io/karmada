@@ -17,7 +17,7 @@ CONTROL_PLANE_KUBECONFIG=${CONTROL_PLANE_KUBECONFIG:-"${HOME}/.kube/karmada.conf
 export KUBECONFIG=${CONTROL_PLANE_KUBECONFIG}
 
 # Install ginkgo
-GO111MODULE=on go install github.com/onsi/ginkgo
+GO111MODULE=on go install github.com/onsi/ginkgo/ginkgo
 
 # Run e2e
 export KUBECONFIG=${CONTROL_PLANE_KUBECONFIG}

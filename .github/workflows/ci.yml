@@ -52,7 +52,7 @@ jobs:
       - name: make images
         run: make images
   test:
-    name: run unit test
+    name: unit test
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -64,3 +64,18 @@ jobs:
           go-version: 1.14.x
       - name: make test
         run: make test
+  e2e:
+    name: e2e test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+      - name: install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14.x
+      - name: setup e2e test environment
+        run: hack/karmada-bootstrap.sh
+      - name: run e2e
+        run: hack/run-e2e.sh
