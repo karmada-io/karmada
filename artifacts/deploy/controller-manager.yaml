@@ -22,7 +22,7 @@ spec:
       containers:
         - name: karmada-controller-manager
           image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/kubeconfig
