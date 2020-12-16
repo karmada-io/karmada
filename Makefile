@@ -61,4 +61,3 @@ ifneq ($(REGISTRY_USER_NAME), "")
 	docker login -u ${REGISTRY_USER_NAME} -p ${REGISTRY_PASSWORD} ${REGISTRY_SERVER_ADDRESS}
 endif
 	docker push ${REGISTRY}/karmada-controller-manager:${VERSION}
-
