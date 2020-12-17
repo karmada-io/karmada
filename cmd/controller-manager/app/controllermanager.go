@@ -21,6 +21,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/membercluster"
 	"github.com/karmada-io/karmada/pkg/controllers/policy"
+	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 )
 
@@ -130,5 +131,15 @@ func setupControllers(mgr controllerruntime.Manager) {
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup execution controller: %v", err)
+	}
+
+	workStatusController := &status.PropagationWorkStatusController{
+		Client:        mgr.GetClient(),
+		DynamicClient: dynamicClientSet,
+		EventRecorder: mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:    mgr.GetRESTMapper(),
+	}
+	if err := workStatusController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup work status controller: %v", err)
 	}
 }
