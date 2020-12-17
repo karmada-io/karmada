@@ -52,21 +52,19 @@ type PropagationWorkStatus struct {
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// ManifestConditions represents the conditions of each Kubernetes resource in work
-	// deployed on managed cluster.
+	// ManifestStatuses contains running status of manifests in spec.
 	// +optional
-	ManifestConditions []ManifestCondition `json:"manifestConditions,omitempty"`
+	ManifestStatuses []ManifestStatus `json:"manifestStatuses,omitempty"`
 }
 
-// ManifestCondition represents the conditions of the resources deployed on
-// managed cluster
-type ManifestCondition struct {
+// ManifestStatus contains running status of a specific manifest in spec.
+type ManifestStatus struct {
 	// Identifier represents the identity of a resource linking to manifests in spec.
 	Identifier ResourceIdentifier `json:"identifier"`
 
-	// Conditions represents the conditions of this resource on the managed cluster
-	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// Status reflects running status of current manifest.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Status runtime.RawExtension `json:",inline"`
 }
 
 // ResourceIdentifier provides the identifiers needed to interact with any arbitrary object.
