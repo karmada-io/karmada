@@ -794,6 +794,7 @@ k8s.io/kube-openapi/pkg/util
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/sets
 # k8s.io/utils v0.0.0-20200729134348-d5654de09c73
+## explicit
 k8s.io/utils/buffer
 k8s.io/utils/integer
 k8s.io/utils/net
