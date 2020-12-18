@@ -209,6 +209,9 @@ func (c *PropagationPolicyController) claimResources(owner string, workloads []*
 			return err
 		}
 		workloadLabel := workload.GetLabels()
+		if workloadLabel == nil {
+			workloadLabel = make(map[string]string, 1)
+		}
 		workloadLabel[util.PolicyClaimLabel] = owner
 		workload.SetLabels(workloadLabel)
 		_, err = c.DynamicClient.Resource(dynamicResource).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
