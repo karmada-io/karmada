@@ -6,6 +6,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 
 // PropagationBinding represents a binding of a kubernetes resource with a propagation policy.
 type PropagationBinding struct {

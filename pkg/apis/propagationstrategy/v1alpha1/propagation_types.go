@@ -7,6 +7,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 
 // PropagationPolicy represents the policy that propagates a group of resources to one or more clusters.
 type PropagationPolicy struct {
