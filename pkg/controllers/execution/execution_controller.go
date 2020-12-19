@@ -333,6 +333,6 @@ func (c *Controller) updateAppliedCondition(propagationWork *propagationstrategy
 		LastTransitionTime: currentTime,
 	}
 	propagationWork.Status.Conditions = append(propagationWork.Status.Conditions, newPropagationWorkAppliedCondition)
-	err := c.Client.Update(context.TODO(), propagationWork)
+	err := c.Client.Status().Update(context.TODO(), propagationWork)
 	return err
 }
