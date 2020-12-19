@@ -9,6 +9,7 @@ import (
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:scope="Cluster"
+// +kubebuilder:subresource:status
 
 // MemberCluster represents the desire state and status of a member cluster.
 type MemberCluster struct {
