@@ -37,7 +37,7 @@ func updateIndividualClusterStatus(cluster *v1alpha1.MemberCluster, hostClient c
 	if err != nil {
 		klog.Warningf("Failed to get health status of the member cluster: %v, err is : %v", cluster.Name, err)
 		cluster.Status = *currentClusterStatus
-		err = hostClient.Update(context.TODO(), cluster)
+		err = hostClient.Status().Update(context.TODO(), cluster)
 		if err != nil {
 			klog.Warningf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
 			return
@@ -52,7 +52,7 @@ func updateIndividualClusterStatus(cluster *v1alpha1.MemberCluster, hostClient c
 	}
 
 	cluster.Status = *currentClusterStatus
-	err = hostClient.Update(context.TODO(), cluster)
+	err = hostClient.Status().Update(context.TODO(), cluster)
 	if err != nil {
 		klog.Warningf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
 		return
