@@ -90,6 +90,12 @@ type LocalSecretReference struct {
 	Name string `json:"name"`
 }
 
+// Define valid conditions of a member cluster.
+const (
+	// ClusterConditionReady means the cluster is healthy and ready to accept workloads.
+	ClusterConditionReady = "Ready"
+)
+
 // MemberClusterStatus contains information about the current status of a
 // cluster updated periodically by cluster controller.
 type MemberClusterStatus struct {
