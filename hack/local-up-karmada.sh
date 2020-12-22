@@ -39,7 +39,7 @@ function print_success() {
   echo "Local Karmada is running."
   echo "To start using your karmada, run:"
 cat <<EOF
-  export KUBECONFIG=${KARMADA_KUBECONFIG}
+  export KUBECONFIG=${KUBECONFIG_PATH}/karmada-apiserver.config
 EOF
 }
 

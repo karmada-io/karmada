@@ -29,3 +29,15 @@ karmadactl join member1 --member-cluster-kubeconfig="${MEMBER_CLUSTER_1_KUBECONF
 MEMBER_CLUSTER_2_KUBECONFIG="${KUBECONFIG_PATH}/member2.config"
 "${REPO_ROOT}"/hack/create-cluster.sh member2 "${MEMBER_CLUSTER_2_KUBECONFIG}"
 karmadactl join member2 --member-cluster-kubeconfig="${MEMBER_CLUSTER_2_KUBECONFIG}"
+
+
+function print_success() {
+  echo
+  echo "Local Karmada is running."
+  echo "To start using your karmada, run:"
+cat <<EOF
+  export KUBECONFIG=${KUBECONFIG}
+EOF
+}
+
+print_success
