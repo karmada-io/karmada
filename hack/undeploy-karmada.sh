@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -o errexit
+set +e
 set -o nounset
 set -o pipefail
 
