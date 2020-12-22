@@ -34,26 +34,26 @@ function installCRDs() {
     fi
 
     # install APIs
-    kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/namespace.yaml"
-    kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/membercluster.karmada.io_memberclusters.yaml"
-    kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationpolicies.yaml"
-    kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationbindings.yaml"
-    kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationworks.yaml"
+    kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/namespace.yaml"
+    kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/membercluster.karmada.io_memberclusters.yaml"
+    kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationpolicies.yaml"
+    kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationbindings.yaml"
+    kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationworks.yaml"
 }
 
 # create namespace for control plane components
-kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/namespace.yaml"
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/namespace.yaml"
 
 # create service account, cluster role for controller-manager
-kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/serviceaccount.yaml"
-kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/clusterrole.yaml"
-kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/clusterrolebinding.yaml"
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/serviceaccount.yaml"
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/clusterrole.yaml"
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/clusterrolebinding.yaml"
 
 #generate cert
 "${SCRIPT_ROOT}"/hack/generate-cert.sh
 
 # deploy karmada etcd
-kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/karmada-etcd.yaml"
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/karmada-etcd.yaml"
 
 # Wait for karmada-etcd to come up before launching the rest of the components.
 waitPodReady $etcd_pod_label "karmada-system"
@@ -63,13 +63,13 @@ KARMADA_API_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.
 cp -rf ${SCRIPT_ROOT}/artifacts/deploy/karmada-apiserver.yaml ${SCRIPT_ROOT}/artifacts/deploy/karmada-apiserver-tmp.yaml
 sed -i "s/{{api_addr}}/${KARMADA_API_IP}/g" ${SCRIPT_ROOT}/artifacts/deploy/karmada-apiserver-tmp.yaml
 
-kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/karmada-apiserver-tmp.yaml"
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/karmada-apiserver-tmp.yaml"
 
 # Wait for karmada-apiserver to come up before launching the rest of the components.
 waitPodReady $apiserver_pod_label "karmada-system"
 
 # deploy kube controller manager
-kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
 
 # Wait for karmada kube controller manager to come up before launching the rest of the components.
 waitPodReady $controller_pod_label "karmada-system"
@@ -82,4 +82,4 @@ installCRDs
 export KUBECONFIG=${KARMADA_KUBECONFIG}
 
 # deploy controller-manager
-kubectl create -f "${SCRIPT_ROOT}/artifacts/deploy/controller-manager.yaml"
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/controller-manager.yaml"
