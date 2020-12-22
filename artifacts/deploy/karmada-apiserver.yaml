@@ -114,13 +114,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: karmad-apiserver
+  name: karmada-apiserver
   namespace: karmada-system
   labels:
     app: karmada-apiserver
 spec:
   ports:
-    - name: karmad-apiserver-kubectl
+    - name: karmada-apiserver-kubectl
       port: 5443
       protocol: TCP
       targetPort: 5443
