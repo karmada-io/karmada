@@ -85,3 +85,4 @@ func (m *multiClusterInformerManagerImpl) WaitForCacheSync(cluster string, stopC
 	}
 	return manager.WaitForCacheSync(stopCh)
 }
+
