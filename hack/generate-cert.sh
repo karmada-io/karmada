@@ -4,13 +4,16 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+# The host cluster name which used to install karmada control plane components.
+HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
+API_SECURE_PORT=${API_SECURE_PORT:-5443}
+
 CERT_DIR=${CERT_DIR:-"/var/run/karmada"}
 mkdir -p "${CERT_DIR}" &>/dev/null || sudo mkdir -p "${CERT_DIR}"
 CFSSL_VERSION="v1.5.0"
 CONTROLPLANE_SUDO=$(test -w "${CERT_DIR}" || echo "sudo -E")
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
-API_SECURE_PORT=${API_SECURE_PORT:-5443}
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
 # check whether openssl is installed.
 function ensure_openssl {
@@ -95,7 +98,7 @@ function generate_certs {
 
 # generate kubeconfig file for kubectl
 function generate_kubeconfig {
-    KARMADA_API_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "karmada-control-plane")
+    KARMADA_API_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
     write_client_kubeconfig "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "${ROOT_CA_FILE}" "${KARMADA_API_IP}" "${API_SECURE_PORT}" karmada-apiserver
 }
 
