@@ -23,6 +23,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/policy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/util/informermanager"
 )
 
 // aggregatedScheme aggregates all Kubernetes and extended schemes used by controllers.
@@ -143,10 +144,14 @@ func setupControllers(mgr controllerruntime.Manager) {
 	}
 
 	workStatusController := &status.PropagationWorkStatusController{
-		Client:        mgr.GetClient(),
-		DynamicClient: dynamicClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:    mgr.GetRESTMapper(),
+		Client:            mgr.GetClient(),
+		DynamicClient:     dynamicClientSet,
+		EventRecorder:     mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:        mgr.GetRESTMapper(),
+		KarmadaClient:     karmadaClient,
+		KubeClientSet:     kubeClientSet,
+		InformerManager:   informermanager.NewMultiClusterInformerManagerImpl(),
+		EventHandlerFuncs: nil,
 	}
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup work status controller: %v", err)

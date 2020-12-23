@@ -35,6 +35,15 @@ func GenerateOwnerLabelValue(namespace, name string) string {
 	return namespace + "." + name
 }
 
+// GetNamespaceAndName will get namespace and name from ownerLabel.
+func GetNamespaceAndName(value string) (string, string, error) {
+	splits := strings.Split(value, ".")
+	if len(splits) != 2 {
+		return "", "", fmt.Errorf("value is not correct")
+	}
+	return splits[0], splits[1], nil
+}
+
 // GenerateServiceAccountName generates the name of a ServiceAccount.
 func GenerateServiceAccountName(clusterName string) string {
 	return fmt.Sprintf("%s-%s", "karmada", clusterName)

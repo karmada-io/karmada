@@ -194,6 +194,13 @@ func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.MemberCluster,
 			return err
 		}
 
+		workloadLabel := workload.GetLabels()
+		if workloadLabel == nil {
+			workloadLabel = make(map[string]string, 1)
+		}
+		workloadLabel[util.OwnerLabel] = names.GenerateOwnerLabelValue(propagationWork.GetNamespace(), propagationWork.GetName())
+		workload.SetLabels(workloadLabel)
+
 		applied := c.isResourceApplied(&propagationWork.Status)
 		if applied {
 			err = c.updateResource(memberClusterDynamicClient, workload)

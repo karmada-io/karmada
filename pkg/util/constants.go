@@ -9,4 +9,6 @@ const (
 	// example1: set it in propagationBinding, the label value is propagationPolicy.
 	// example2: set it in propagationWork, the label value is propagationBinding.
 	OwnerLabel = "karmada.io/created-by"
+	// NotFound means no hit in the array.
+	NotFound = -1
 )
