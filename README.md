@@ -80,7 +80,7 @@ This guide will cover:
 # hack/local-up-karmada.sh
 ```
 The script `hack/local-up-karmada.sh` will do following tasks for you:
-- Start a Kubernetes cluster which as known as the `host cluster`.
+- Start a Kubernetes cluster to run the karmada control plane, aka. the `host cluster`.
 - Build karmada control plane components based on current codebase.
 - Deploy karmada control plane components on `host cluster`.
 
@@ -93,15 +93,12 @@ To start checking karmada components running status on the host cluster, please 
   export KUBECONFIG="/root/.kube/karmada-host.config"
 ```
 
-It should be noticed that, you will get two `KUBECONFIG` file after the script run:
+The two `KUBECONFIG` files after the script run are:
 - karmada-apiserver.config
 - karmada-host.config
 
-The script `hack/local-up-karmada.sh` is expected to deploy an extra `kube-apiserver`, it's called `karmada apiserver`,  on the `host cluster`.
-So, the `karmada-apiserver.config` is the config for `karmada apiserver`, and `karmada-host.config` is the config for
-`host cluster`.
+The `karmada-apiserver.config` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host.config` is only used for debuging karmada installation with host cluster.
 
-Furthermore, the `host cluster` only used to deploy karmada control plane components.
 
 #### 4. Verify the karmada components:
 
