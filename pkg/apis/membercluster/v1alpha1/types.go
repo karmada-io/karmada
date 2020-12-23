@@ -10,6 +10,8 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:scope="Cluster"
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=`.status.kubernetesVersion`,name="KubernetesVersion",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].status`,name="Ready",type=string
 
 // MemberCluster represents the desire state and status of a member cluster.
 type MemberCluster struct {
