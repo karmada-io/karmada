@@ -16,7 +16,14 @@ spec:
     singular: membercluster
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.kubernetesVersion
+      name: KubernetesVersion
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: MemberCluster represents the desire state and status of a member
