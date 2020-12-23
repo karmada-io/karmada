@@ -24,7 +24,7 @@ function waitPodReady() {
     local pod_namespace=$2
 
     echo "wait the $pod_label ready..."
-    kubectl wait --for=condition=Ready --timeout=60s pods -l app=$pod_label -n $pod_namespace
+    kubectl wait --for=condition=Ready --timeout=200s pods -l app=$pod_label -n $pod_namespace
 }
 
 function installCRDs() {
