@@ -51,79 +51,131 @@ The following diagram shows how Karmada resources are involved when propagating 
 
 ![karmada-resource-relation](docs/images/karmada-resource-relation.png)
 
-## Quickstart
+## Quick Start
 
-Please install [kind](https://kind.sigs.k8s.io/) and [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) before the following steps.
+This guide will cover:
+- Install `karmada` control plane components in a Kubernetes cluster which as known as `host cluster`.
+- Join a member cluster to `karmada` control plane.
+- Propagate an application by `karmada`.
 
-### Install karmada
+### Prerequisites
+- Go version v1.14+
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
+- [kind](https://kind.sigs.k8s.io/) version v0.9.0+
 
-1. Clone this repo to get karmada.
+### Install karmada control plane
 
+#### 1. Clone this repo to your machine:
 ```
-git clone https://github.com/karmada-io/karmada
-```
-
-2. Move to the karmada package directory.
-
-```
-cd karmada
-```
-
-3. Install karmada.
-
-```
-export KUBECONFIG=/root/.kube/karmada.config
-hack/local-up-karmada.sh
+# git clone https://github.com/karmada-io/karmada
 ```
 
-4. Verify that karmada's component is deployed and running.
+#### 2. Change to karmada directory:
+```
+# cd karmada
+```
 
+#### 3. Deploy and run karmada control plane:
 ```
-kubectl get pods -n karmada-system
+# hack/local-up-karmada.sh
 ```
+The script `hack/local-up-karmada.sh` will do following tasks for you:
+- Start a Kubernetes cluster which as known as the `host cluster`.
+- Build karmada control plane components based on current codebase.
+- Deploy karmada control plane components on `host cluster`.
+
+If everything goes well, at the end of the script output, you will see similar messages as follows:
+```
+Local Karmada is running.
+To start using your karmada, run:
+  export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
+To start checking karmada components running status on the host cluster, please run:
+  export KUBECONFIG="/root/.kube/karmada-host.config"
+```
+
+It should be noticed that, you will get two `KUBECONFIG` file after the script run:
+- karmada-apiserver.config
+- karmada-host.config
+
+The script `hack/local-up-karmada.sh` is expected to deploy an extra `kube-apiserver`, it's called `karmada apiserver`,  on the `host cluster`.
+So, the `karmada-apiserver.config` is the config for `karmada apiserver`, and `karmada-host.config` is the config for
+`host cluster`.
+
+Furthermore, the `host cluster` only used to deploy karmada control plane components.
+
+#### 4. Verify the karmada components:
+
+Now, we are going to checking karmada control plane components running status on `host cluster`, make sure set the 
+`KUBECONFIG` environment variable with `host cluster` config file:
+```
+# export KUBECONFIG="/root/.kube/karmada-host.config"
+``` 
+
+The karmada control plane components are expecting to be installed in `karmada-system` namespaces: 
+```
+# kubectl get deployments.apps -n karmada-system 
+NAME                              READY   UP-TO-DATE   AVAILABLE   AGE
+karmada-apiserver                 1/1     1            1           16m
+karmada-controller-manager        1/1     1            1           14m
+karmada-kube-controller-manager   1/1     1            1           16m
+```
+(Note: `karmada-scheduler` is still under development.)
 
 ### Join member cluster
+In the following steps, we are going to create a member cluster and then join the cluster to 
+karmada control plane.
 
-1. Create **member cluster** for attaching it to karmada.
-
+#### 1. Create member cluster
+We are going to create a cluster named `member-cluster-1` and we want the `KUBECONFIG` file 
+in `/root/.kube/membercluster1.config`. Run following comand:
 ```
-hack/create-cluster.sh member-cluster-1 /root/.kube/membercluster1.config
+# hack/create-cluster.sh member-cluster-1 /root/.kube/membercluster1.config
+```
+The script `hack/create-cluster.sh` will create a standalone cluster.
+
+#### 2. Join member cluster to karmada control plane
+The command `karmadactl` will help to join the member cluster to karmada control plane, 
+before that, we should set `KUBECONFIG` to karmada apiserver:
+```
+# export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
 ```
 
-2. Join member cluster to karmada using karmadactl.
-
+Then, install `karmadactl` command and join the member cluster:
 ```
-make karmadactl
-export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
-./karmadactl join member-cluster-1 --member-cluster-kubeconfig=/root/.kube/membercluster1.config
+# go get github.com/karmada-io/karmada/cmd/karmadactl
+# karmadactl join member-cluster-1 --member-cluster-kubeconfig=/root/.kube/membercluster1.config
 ```
+The `karmadactl join` command will create a `MemberCluster` object to reflect the member cluster.
 
-3. Verify member cluster is Joined to karmada successfully.
-
+### 3. Check member cluster status
+Now, check the member clusters from karmada control plane by following command:
 ```
-export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
-kubectl get membercluster -n karmada-cluster
+# kubectl get membercluster 
+NAME               KUBERNETESVERSION  READY  AGE
+member-cluster-1   v1.19.1            True   75s
 ```
 
 ### Propagate application
+In the following steps, we are going to propagate a deployment by karmada.
 
-1. Create nginx deployment in karmada.
-
+#### 1. Create nginx deployment in karmada.
+First, create a [deployment](samples/nginx/deployment.yaml) named `nginx`:
 ```
-export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
-kubectl create -f samples/nginx/deployment.yaml
-```
-
-2. Create PropagationPolicy that will propagate nginx to member cluster.
-
-```
-export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
-kubectl create -f samples/nginx/propagationpolicy.yaml
+# kubectl create -f samples/nginx/deployment.yaml
 ```
 
-3. Verify the nginx is deployed successfully in **member-cluster-1**.
-
+#### 2. Create PropagationPolicy that will propagate nginx to member cluster
+Then, we need create a policy to drive the deployment to our member cluster.
 ```
-export KUBECONFIG=/root/.kube/membercluster1.config
-kubectl describe deploy nginx
+# kubectl create -f samples/nginx/propagationpolicy.yaml
+``` 
+
+#### 3. Verify the nginx is deployed successfully in member cluster
+Start another window, set `KUBECONFIG` with the file we specified in `hack/create-cluster.sh` command,
+and then check if the deployment exist:
+```
+# export KUBECONFIG=/root/.kube/membercluster1.config
+# kubectl get deployment
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   1/1     1            1           43s
 ```
