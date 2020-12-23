@@ -6,8 +6,9 @@ set -o nounset
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CERT_DIR=${CERT_DIR:-"/var/run/karmada"}
 KARMADA_APISERVER_CONFIG="${CERT_DIR}/karmada-apiserver.config"
-KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
-KARMADA_KUBECONFIG="${KUBECONFIG_PATH}/karmada.config"
+# The host cluster name which used to install karmada control plane components.
+HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
+HOST_CLUSTER_KUBECONFIG=${HOST_CLUSTER_KUBECONFIG:-"${HOME}/.kube/karmada-host.config"}
 
 etcd_pod_label="etcd"
 apiserver_pod_label="karmada-apiserver"
@@ -41,6 +42,8 @@ function installCRDs() {
     kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationworks.yaml"
 }
 
+export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
+
 # create namespace for control plane components
 kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/namespace.yaml"
 
@@ -59,7 +62,7 @@ kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/karmada-etcd.yaml"
 waitPodReady $etcd_pod_label "karmada-system"
 
 # deploy karmada apiserver
-KARMADA_API_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "karmada-control-plane")
+KARMADA_API_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
 cp -rf ${SCRIPT_ROOT}/artifacts/deploy/karmada-apiserver.yaml ${SCRIPT_ROOT}/artifacts/deploy/karmada-apiserver-tmp.yaml
 sed -i "s/{{api_addr}}/${KARMADA_API_IP}/g" ${SCRIPT_ROOT}/artifacts/deploy/karmada-apiserver-tmp.yaml
 
@@ -74,12 +77,10 @@ kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
 # Wait for karmada kube controller manager to come up before launching the rest of the components.
 waitPodReady $controller_pod_label "karmada-system"
 
+# install CRD APIs on karmada apiserver.
 export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
-
-# install CRD APIs
 installCRDs
 
-export KUBECONFIG=${KARMADA_KUBECONFIG}
-
-# deploy controller-manager
+# deploy controller-manager on host cluster
+export KUBECONFIG=${HOST_CLUSTER_KUBECONFIG}
 kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/controller-manager.yaml"
