@@ -13,7 +13,7 @@ function usage() {
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
-HOST_CLUSTER_KUBECONFIG="${KUBECONFIG_PATH}/karmada.config"
+HOST_CLUSTER_KUBECONFIG="${KUBECONFIG_PATH}/karmada-host.config"
 
 export KUBECONFIG=${HOST_CLUSTER_KUBECONFIG}
 kubectl delete ns karmada-system
