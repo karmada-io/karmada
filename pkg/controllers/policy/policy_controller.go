@@ -76,12 +76,7 @@ func (c *PropagationPolicyController) syncPolicy(policy *v1alpha1.PropagationPol
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	if len(workloads) == 0 {
-		klog.Infof("No resource be selected, ignore sync: %s/%s.", policy.Namespace, policy.Name)
-		// TODO(RainbowMango): Need to report an event for no resource policy that may be a mistake.
-		return controllerruntime.Result{}, nil
-	}
-
+	// TODO(RainbowMango): Need to report an event for no resource policy that may be a mistake.
 	// Ignore the workloads that owns by other policy and can not be shared.
 	policyReferenceWorkloads := c.ignoreIrrelevantWorkload(policy, workloads)
 
@@ -258,12 +253,14 @@ func (c *PropagationPolicyController) fetchWorkloadsWithLabelSelector(resourceSe
 	}
 	if resourceSelector.Names == nil {
 		for _, unstructuredWorkLoad := range unstructuredWorkLoadList.Items {
-			*workloads = append(*workloads, &unstructuredWorkLoad)
+			if unstructuredWorkLoad.GetDeletionTimestamp() == nil {
+				*workloads = append(*workloads, &unstructuredWorkLoad)
+			}
 		}
 	} else {
 		for _, unstructuredWorkLoad := range unstructuredWorkLoadList.Items {
 			for _, name := range names {
-				if unstructuredWorkLoad.GetName() == name {
+				if unstructuredWorkLoad.GetName() == name && unstructuredWorkLoad.GetDeletionTimestamp() == nil {
 					*workloads = append(*workloads, &unstructuredWorkLoad)
 					break
 				}
@@ -284,12 +281,19 @@ func (c *PropagationPolicyController) fetchWorkloadsWithOutLabelSelector(resourc
 			return err
 		}
 		workload, err := c.DynamicClient.Resource(dynamicResource).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			klog.Errorf("Failed to get workload, kind: %s, namespace: %s, name: %s. Error: %v",
 				resourceSelector.Kind, namespace, name, err)
 			return err
 		}
-		*workloads = append(*workloads, workload)
+		if err != nil && errors.IsNotFound(err) {
+			klog.Warningf("Workload is not exist, kind: %s, namespace: %s, name: %s",
+				resourceSelector.Kind, namespace, name)
+			continue
+		}
+		if workload.GetDeletionTimestamp() == nil {
+			*workloads = append(*workloads, workload)
+		}
 	}
 	return nil
 }
