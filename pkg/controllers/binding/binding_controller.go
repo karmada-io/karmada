@@ -176,10 +176,15 @@ func (c *PropagationBindingController) transformBindingToWorks(binding *v1alpha1
 	}
 	workload, err := c.DynamicClient.Resource(dynamicResource).Namespace(binding.Spec.Resource.Namespace).Get(context.TODO(),
 		binding.Spec.Resource.Name, metav1.GetOptions{})
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		klog.Errorf("Failed to get workload, kind: %s, namespace: %s, name: %s. Error: %v",
 			binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, err)
 		return err
+	}
+	if err != nil && errors.IsNotFound(err) {
+		klog.Warningf("Workload is not exist, kind: %s, namespace: %s, name: %s",
+			binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name)
+		return nil
 	}
 
 	err = c.ensurePropagationWork(workload, clusterNames, binding)
