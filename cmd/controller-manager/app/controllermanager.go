@@ -134,7 +134,6 @@ func setupControllers(mgr controllerruntime.Manager) {
 	executionController := &execution.Controller{
 		Client:        mgr.GetClient(),
 		KubeClientSet: kubeClientSet,
-		KarmadaClient: karmadaClient,
 		EventRecorder: mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:    mgr.GetRESTMapper(),
 	}

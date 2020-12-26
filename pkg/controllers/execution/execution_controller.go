@@ -18,7 +18,6 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
 	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -32,9 +31,8 @@ const (
 
 // Controller is to sync PropagationWork.
 type Controller struct {
-	client.Client                            // used to operate PropagationWork resources.
-	KubeClientSet kubernetes.Interface       // used to get kubernetes resources.
-	KarmadaClient karmadaclientset.Interface // used to get MemberCluster resources.
+	client.Client                      // used to operate PropagationWork resources.
+	KubeClientSet kubernetes.Interface // used to get kubernetes resources.
 	EventRecorder record.EventRecorder
 	RESTMapper    meta.RESTMapper
 }
@@ -115,8 +113,7 @@ func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.Prop
 		return err
 	}
 
-	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), memberClusterName, v1.GetOptions{})
+	memberCluster, err := util.GetMemberCluster(c.Client, memberClusterName)
 	if err != nil {
 		klog.Errorf("Failed to get the given member cluster %s", memberClusterName)
 		return err
@@ -158,8 +155,7 @@ func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrateg
 		return err
 	}
 
-	// TODO(RainbowMango): retrieve member cluster from the local cache instead of a real request to API server.
-	memberCluster, err := c.KarmadaClient.MemberclusterV1alpha1().MemberClusters().Get(context.TODO(), memberClusterName, v1.GetOptions{})
+	memberCluster, err := util.GetMemberCluster(c.Client, memberClusterName)
 	if err != nil {
 		klog.Errorf("Failed to the get given member cluster %s", memberClusterName)
 		return err
