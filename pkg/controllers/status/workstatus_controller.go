@@ -62,8 +62,8 @@ func (c *PropagationWorkStatusController) Reconcile(req controllerruntime.Reques
 	return c.buildResourceInformers(work)
 }
 
-// buildResourceInformers builds informers for kubernetes resources and CRDs, the callback function of informers will
-// process status.
+// buildResourceInformers builds informer dynamically for managed resources in member cluster.
+// The created informer watches resource change and then sync to the relevant PropagationWork object.
 func (c *PropagationWorkStatusController) buildResourceInformers(work *v1alpha1.PropagationWork) (controllerruntime.Result, error) {
 	err := c.registerInformersAndStart(work)
 	if err != nil {
