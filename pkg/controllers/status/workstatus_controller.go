@@ -73,7 +73,7 @@ func (c *PropagationWorkStatusController) buildResourceInformers(work *v1alpha1.
 	return controllerruntime.Result{}, nil
 }
 
-// getEventHandler return callback function that knows how to handler events from the member cluster.
+// getEventHandler return callback function that knows how to handle events from the member cluster.
 func (c *PropagationWorkStatusController) getEventHandler() cache.ResourceEventHandler {
 	if c.eventHandler == nil {
 		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.syncPropagationWorkStatus)
