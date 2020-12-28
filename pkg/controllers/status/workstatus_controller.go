@@ -3,11 +3,11 @@ package status
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -37,6 +37,7 @@ type PropagationWorkStatusController struct {
 	InformerManager informermanager.MultiClusterInformerManager
 	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
 	StopChan        <-chan struct{}
+	worker          util.ReconcileWorker // worker process resources periodic from rateLimitingQueue.
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -44,7 +45,7 @@ type PropagationWorkStatusController struct {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *PropagationWorkStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling status of PropagationWork %s.", req.NamespacedName.String())
-
+	c.ensureRunWorkQueue()
 	work := &v1alpha1.PropagationWork{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
@@ -76,9 +77,25 @@ func (c *PropagationWorkStatusController) buildResourceInformers(work *v1alpha1.
 // getEventHandler return callback function that knows how to handle events from the member cluster.
 func (c *PropagationWorkStatusController) getEventHandler() cache.ResourceEventHandler {
 	if c.eventHandler == nil {
-		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.syncPropagationWorkStatus)
+		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.worker.Enqueue)
 	}
 	return c.eventHandler
+}
+
+// ensureRunWorkQueue ensures the worker is Running.
+func (c *PropagationWorkStatusController) ensureRunWorkQueue() {
+	if c.worker == nil {
+		c.worker = util.NewReconcileWorker(c.syncPropagationWorkStatus, "work-status", time.Second*1)
+		c.worker.Run(c.StopChan)
+	}
+}
+
+// syncPropagationWorkStatus will find propagationWork by label in workload, then update resource status to propagationWork status.
+// label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
+// TODO(chenxianpao): sync workload status to propagationWork status.
+func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) error {
+	klog.Infof("sync workload %s", key)
+	return nil
 }
 
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
@@ -154,15 +171,6 @@ func (c *PropagationWorkStatusController) getSingleClusterManager(memberClusterN
 		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)
 	}
 	return singleClusterInformerManager, nil
-}
-
-// syncPropagationWorkStatus will find propagationWork by label in workload, then update resource status to propagationWork status.
-// label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
-// TODO(chenxianpao): sync workload status to propagationWork status.
-func (c *PropagationWorkStatusController) syncPropagationWorkStatus(obj runtime.Object) error {
-	resource := obj.(*unstructured.Unstructured)
-	klog.Infof("sync obj is %s/%s/%s", resource.GetKind(), resource.GetNamespace(), resource.GetName())
-	return nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
