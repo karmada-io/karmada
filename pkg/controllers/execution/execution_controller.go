@@ -26,7 +26,6 @@ import (
 const (
 	// ControllerName is the controller name that will be used when reporting events.
 	ControllerName = "execution-controller"
-	finalizer      = "karmada.io/execution-controller"
 )
 
 // Controller is to sync PropagationWork.
@@ -74,16 +73,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 }
 
 func (c *Controller) syncWork(propagationWork *propagationstrategy.PropagationWork) (controllerruntime.Result, error) {
-	// ensure finalizer
-	updated, err := c.ensureFinalizer(propagationWork)
-	if err != nil {
-		klog.Errorf("Failed to ensure finalizer for propagationWork %q, namespace is %v, err is %v", propagationWork.Name, propagationWork.Namespace, err)
-		return controllerruntime.Result{Requeue: true}, err
-	} else if updated {
-		return controllerruntime.Result{}, nil
-	}
-
-	err = c.dispatchPropagationWork(propagationWork)
+	err := c.dispatchPropagationWork(propagationWork)
 	if err != nil {
 		klog.Errorf("Failed to dispatch propagationWork %q, namespace is %v, err is %v", propagationWork.Name, propagationWork.Namespace, err)
 		return controllerruntime.Result{Requeue: true}, err
@@ -275,32 +265,16 @@ func (c *Controller) removeFinalizer(propagationWork *propagationstrategy.Propag
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	finalizers := sets.NewString(accessor.GetFinalizers()...)
-	if !finalizers.Has(finalizer) {
+	if !finalizers.Has(util.ExecutionControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
-	finalizers.Delete(finalizer)
+	finalizers.Delete(util.ExecutionControllerFinalizer)
 	accessor.SetFinalizers(finalizers.List())
 	err = c.Client.Update(context.TODO(), propagationWork)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	return controllerruntime.Result{}, nil
-}
-
-// ensureFinalizer ensure finalizer for the given PropagationWork
-func (c *Controller) ensureFinalizer(propagationWork *propagationstrategy.PropagationWork) (bool, error) {
-	accessor, err := meta.Accessor(propagationWork)
-	if err != nil {
-		return false, err
-	}
-	finalizers := sets.NewString(accessor.GetFinalizers()...)
-	if finalizers.Has(finalizer) {
-		return false, nil
-	}
-	finalizers.Insert(finalizer)
-	accessor.SetFinalizers(finalizers.List())
-	err = c.Client.Update(context.TODO(), propagationWork)
-	return true, err
 }
 
 // updateAppliedCondition update the Applied condition for the given PropagationWork

@@ -209,8 +209,9 @@ func (c *PropagationBindingController) ensurePropagationWork(workload *unstructu
 
 		propagationWork := &v1alpha1.PropagationWork{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      binding.Name,
-				Namespace: executionSpace,
+				Name:       binding.Name,
+				Namespace:  executionSpace,
+				Finalizers: []string{util.ExecutionControllerFinalizer},
 				OwnerReferences: []metav1.OwnerReference{
 					*metav1.NewControllerRef(binding, controllerKind),
 				},
