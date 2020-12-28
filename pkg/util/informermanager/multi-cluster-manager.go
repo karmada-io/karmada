@@ -14,6 +14,10 @@ type MultiClusterInformerManager interface {
 	// ForCluster builds a informer manager for a specific cluster.
 	ForCluster(cluster string, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager
 
+	// GetSingleClusterManager gets the informer manager for a specific cluster.
+	// The informer manager should be created before, otherwise, nil will be returned.
+	GetSingleClusterManager(cluster string) SingleClusterInformerManager
+
 	// IsManagerExist checks if the informer manager for the cluster already created.
 	IsManagerExist(cluster string) bool
 
@@ -26,8 +30,8 @@ type MultiClusterInformerManager interface {
 	WaitForCacheSync(cluster string, stopCh <-chan struct{}) map[schema.GroupVersionResource]bool
 }
 
-// NewMultiClusterInformerManagerImpl constructs a new instance of multiClusterInformerManagerImpl.
-func NewMultiClusterInformerManagerImpl() MultiClusterInformerManager {
+// NewMultiClusterInformerManager constructs a new instance of multiClusterInformerManagerImpl.
+func NewMultiClusterInformerManager() MultiClusterInformerManager {
 	return &multiClusterInformerManagerImpl{
 		managers: make(map[string]SingleClusterInformerManager),
 	}
@@ -52,6 +56,16 @@ func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client dyna
 	manager = NewSingleClusterInformerManager(client, defaultResync)
 	m.managers[cluster] = manager
 	return manager
+}
+
+func (m *multiClusterInformerManagerImpl) GetSingleClusterManager(cluster string) SingleClusterInformerManager {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	manager, exist := m.managers[cluster]
+	if exist {
+		return manager
+	}
+	return nil
 }
 
 func (m *multiClusterInformerManagerImpl) IsManagerExist(cluster string) bool {
