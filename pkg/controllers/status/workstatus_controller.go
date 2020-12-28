@@ -35,7 +35,7 @@ type PropagationWorkStatusController struct {
 	RESTMapper      meta.RESTMapper
 	KubeClientSet   kubernetes.Interface // used to get kubernetes resources.
 	InformerManager informermanager.MultiClusterInformerManager
-	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handler events from the member cluster.
+	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
 	StopChan        <-chan struct{}
 }
 
