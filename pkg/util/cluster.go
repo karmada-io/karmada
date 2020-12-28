@@ -5,6 +5,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	kubeclientset "k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
@@ -30,4 +31,19 @@ func GetMemberCluster(hostClient client.Client, clusterName string) (*v1alpha1.M
 		return nil, err
 	}
 	return memberCluster, nil
+}
+
+// BuildDynamicClusterClient builds dynamic client for informerFactory by clusterName,
+// it will build kubeconfig from memberCluster resource and construct dynamic client.
+func BuildDynamicClusterClient(hostClient client.Client, kubeClient kubeclientset.Interface, cluster string) (*DynamicClusterClient, error) {
+	memberCluster, err := GetMemberCluster(hostClient, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	dynamicClusterClient, err := NewClusterDynamicClientSet(memberCluster, kubeClient)
+	if err != nil {
+		return nil, err
+	}
+	return dynamicClusterClient, nil
 }
