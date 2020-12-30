@@ -9,12 +9,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
 	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
@@ -260,17 +260,12 @@ func (c *Controller) updateResource(memberClusterDynamicClient *util.DynamicClus
 
 // removeFinalizer remove finalizer from the given propagationWork
 func (c *Controller) removeFinalizer(propagationWork *propagationstrategy.PropagationWork) (controllerruntime.Result, error) {
-	accessor, err := meta.Accessor(propagationWork)
-	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
-	}
-	finalizers := sets.NewString(accessor.GetFinalizers()...)
-	if !finalizers.Has(util.ExecutionControllerFinalizer) {
+	if !controllerutil.ContainsFinalizer(propagationWork, util.ExecutionControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
-	finalizers.Delete(util.ExecutionControllerFinalizer)
-	accessor.SetFinalizers(finalizers.List())
-	err = c.Client.Update(context.TODO(), propagationWork)
+
+	controllerutil.RemoveFinalizer(propagationWork, util.ExecutionControllerFinalizer)
+	err := c.Client.Update(context.TODO(), propagationWork)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
