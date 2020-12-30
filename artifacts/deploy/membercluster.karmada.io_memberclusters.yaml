@@ -18,11 +18,14 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.kubernetesVersion
-      name: KubernetesVersion
+      name: Version
       type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
