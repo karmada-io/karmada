@@ -7,26 +7,24 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName = "membercluster-controller"
-	// FinalizerMemberClusterController is the finalizer added by membercluster controller
-	FinalizerMemberClusterController = "karmada.io/membercluster-controller"
-	executionSpaceLabelKey           = "karmada.io/executionspace"
-	executionSpaceLabelValue         = ""
+	ControllerName           = "membercluster-controller"
+	executionSpaceLabelKey   = "karmada.io/executionspace"
+	executionSpaceLabelValue = ""
 )
 
 // Controller is to sync MemberCluster.
@@ -132,38 +130,30 @@ func (c *Controller) ensureRemoveExecutionSpace(memberCluster *v1alpha1.MemberCl
 }
 
 func (c *Controller) removeFinalizer(memberCluster *v1alpha1.MemberCluster) (controllerruntime.Result, error) {
-	accessor, err := meta.Accessor(memberCluster)
-	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
-	}
-	finalizers := sets.NewString(accessor.GetFinalizers()...)
-	if !finalizers.Has(FinalizerMemberClusterController) {
+	if !controllerutil.ContainsFinalizer(memberCluster, util.MemberClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
-	finalizers.Delete(FinalizerMemberClusterController)
-	accessor.SetFinalizers(finalizers.List())
-	err = c.Client.Update(context.TODO(), memberCluster)
+
+	controllerutil.RemoveFinalizer(memberCluster, util.MemberClusterControllerFinalizer)
+	err := c.Client.Update(context.TODO(), memberCluster)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
+
 	return controllerruntime.Result{}, nil
 }
 
 func (c *Controller) ensureFinalizer(memberCluster *v1alpha1.MemberCluster) (controllerruntime.Result, error) {
-	accessor, err := meta.Accessor(memberCluster)
-	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
-	}
-	finalizers := sets.NewString(accessor.GetFinalizers()...)
-	if finalizers.Has(FinalizerMemberClusterController) {
+	if controllerutil.ContainsFinalizer(memberCluster, util.MemberClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
-	finalizers.Insert(FinalizerMemberClusterController)
-	accessor.SetFinalizers(finalizers.List())
-	err = c.Client.Update(context.TODO(), memberCluster)
+
+	controllerutil.AddFinalizer(memberCluster, util.MemberClusterControllerFinalizer)
+	err := c.Client.Update(context.TODO(), memberCluster)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
+
 	return controllerruntime.Result{}, nil
 }
 

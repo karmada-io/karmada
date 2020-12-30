@@ -8,18 +8,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/controllers/membercluster"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -61,12 +59,11 @@ func (c *MemberClusterStatusController) Reconcile(req controllerruntime.Request)
 		return controllerruntime.Result{}, nil
 	}
 
-	// start syncing status only if the finalizer is present on the given MemberCluster resource to avoid conflict with membercluster controller
-	exist, err := c.checkFinalizerExist(memberCluster)
-	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
-	} else if !exist {
-		return controllerruntime.Result{RequeueAfter: 2 * time.Second}, err
+	// start syncing status only when the finalizer is present on the given MemberCluster to
+	// avoid conflict with membercluster controller.
+	if !controllerutil.ContainsFinalizer(memberCluster, util.MemberClusterControllerFinalizer) {
+		klog.V(2).Infof("waiting finalizer present for member cluster: %s", memberCluster.Name)
+		return controllerruntime.Result{Requeue: true}, nil
 	}
 
 	return c.syncMemberClusterStatus(memberCluster)
@@ -124,18 +121,6 @@ func (c *MemberClusterStatusController) syncMemberClusterStatus(memberCluster *v
 	currentClusterStatus.NodeSummary = nodeSummary
 
 	return c.updateStatusIfNeeded(memberCluster, currentClusterStatus)
-}
-
-func (c *MemberClusterStatusController) checkFinalizerExist(memberCluster *v1alpha1.MemberCluster) (bool, error) {
-	accessor, err := meta.Accessor(memberCluster)
-	if err != nil {
-		return false, err
-	}
-	finalizers := sets.NewString(accessor.GetFinalizers()...)
-	if finalizers.Has(membercluster.FinalizerMemberClusterController) {
-		return true, nil
-	}
-	return false, nil
 }
 
 // updateStatusIfNeeded calls updateStatus only if the status of the member cluster is not the same as the old status
