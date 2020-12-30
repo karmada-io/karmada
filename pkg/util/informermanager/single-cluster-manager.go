@@ -21,6 +21,10 @@ type SingleClusterInformerManager interface {
 	// IsHandlerExist checks if handler already added to a the informer that watches the 'resource'.
 	IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool
 
+	// Lister returns a generic lister used to get 'resource' from informer's store.
+	// The informer for 'resource' will be created if not exist, but without any event handler.
+	Lister(resource schema.GroupVersionResource) cache.GenericLister
+
 	// Start will run all informers with a stop channel, the informers will keep running until channel closed.
 	// It is intended to be called after create new informer(s), and it's safe to call multi times.
 	Start(stopCh <-chan struct{})
@@ -72,6 +76,10 @@ func (s *singleClusterInformerManagerImpl) IsHandlerExist(resource schema.GroupV
 	}
 
 	return false
+}
+
+func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) cache.GenericLister {
+	return s.informerFactory.ForResource(resource).Lister()
 }
 
 func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
