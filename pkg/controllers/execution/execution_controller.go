@@ -179,7 +179,7 @@ func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.MemberCluster,
 			klog.Errorf("failed to unmarshal workload, error is: %v", err)
 			return err
 		}
-
+		c.setOwnerLabel(workload, propagationWork)
 		applied := c.isResourceApplied(&propagationWork.Status)
 		if applied {
 			err = c.updateResource(memberClusterDynamicClient, workload)
@@ -202,6 +202,16 @@ func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.MemberCluster,
 		}
 	}
 	return nil
+}
+
+// setOwnerLabel adds ownerLabel for workload that will be applied to member cluster.
+func (c *Controller) setOwnerLabel(workload *unstructured.Unstructured, propagationWork *propagationstrategy.PropagationWork) {
+	workloadLabel := workload.GetLabels()
+	if workloadLabel == nil {
+		workloadLabel = make(map[string]string, 1)
+	}
+	workloadLabel[util.OwnerLabel] = names.GenerateOwnerLabelValue(propagationWork.GetNamespace(), propagationWork.GetName())
+	workload.SetLabels(workloadLabel)
 }
 
 // deleteResource delete resource in member cluster
