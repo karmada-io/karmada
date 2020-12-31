@@ -150,7 +150,9 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		KubeClientSet:   kubeClientSet,
 		InformerManager: informermanager.NewMultiClusterInformerManager(),
 		StopChan:        stopChan,
+		WorkerNumber:    1,
 	}
+	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup work status controller: %v", err)
 	}

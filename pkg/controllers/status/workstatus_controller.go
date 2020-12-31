@@ -3,6 +3,7 @@ package status
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -37,6 +38,8 @@ type PropagationWorkStatusController struct {
 	InformerManager informermanager.MultiClusterInformerManager
 	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
 	StopChan        <-chan struct{}
+	WorkerNumber    int              // WorkerNumber is the number of worker goroutines
+	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -76,9 +79,51 @@ func (c *PropagationWorkStatusController) buildResourceInformers(work *v1alpha1.
 // getEventHandler return callback function that knows how to handle events from the member cluster.
 func (c *PropagationWorkStatusController) getEventHandler() cache.ResourceEventHandler {
 	if c.eventHandler == nil {
-		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.syncPropagationWorkStatus)
+		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.worker.EnqueueRateLimited)
 	}
 	return c.eventHandler
+}
+
+// RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
+func (c *PropagationWorkStatusController) RunWorkQueue() {
+	c.worker = util.NewAsyncWorker(c.syncPropagationWorkStatus, "work-status", time.Second)
+	c.worker.Run(c.WorkerNumber, c.StopChan)
+}
+
+// syncPropagationWorkStatus will find propagationWork by label in workload, then update resource status to propagationWork status.
+// label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
+// TODO(chenxianpao): sync workload status to propagationWork status.
+func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) error {
+	obj, err := c.getObjectFromCache(key)
+	if err != nil {
+		return err
+	}
+	klog.Infof("sync workload %s/%s/%s", obj.GetKind(), obj.GetNamespace(), obj.GetName())
+	return nil
+}
+
+// getObjectFromCache gets full object information from cache by key in worker queue.
+func (c *PropagationWorkStatusController) getObjectFromCache(key string) (*unstructured.Unstructured, error) {
+	clusterWorkload, err := util.SplitMetaKey(key)
+	if err != nil {
+		klog.Errorf("Couldn't get key for %s. Error: %v.", key, err)
+		return nil, err
+	}
+	gvr, err := restmapper.GetGroupVersionResource(c.RESTMapper, clusterWorkload.GVK)
+	if err != nil {
+		klog.Errorf("Failed to get GVR from GVK %s. Error: %v", clusterWorkload.GVK, err)
+		return nil, err
+	}
+
+	lister := c.InformerManager.GetSingleClusterManager(clusterWorkload.Cluster).Lister(gvr)
+	var obj runtime.Object
+	obj, err = lister.Get(clusterWorkload.GetListerKey())
+	if err != nil {
+		klog.Errorf("Failed to get obj %s/%s/%s from cache in cluster %s. Error: %v.", clusterWorkload.GVK.Kind,
+			clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster, err)
+		return nil, err
+	}
+	return obj.(*unstructured.Unstructured), nil
 }
 
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
@@ -154,15 +199,6 @@ func (c *PropagationWorkStatusController) getSingleClusterManager(memberClusterN
 		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)
 	}
 	return singleClusterInformerManager, nil
-}
-
-// syncPropagationWorkStatus will find propagationWork by label in workload, then update resource status to propagationWork status.
-// label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
-// TODO(chenxianpao): sync workload status to propagationWork status.
-func (c *PropagationWorkStatusController) syncPropagationWorkStatus(obj runtime.Object) error {
-	resource := obj.(*unstructured.Unstructured)
-	klog.Infof("sync obj is %s/%s/%s", resource.GetKind(), resource.GetNamespace(), resource.GetName())
-	return nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
