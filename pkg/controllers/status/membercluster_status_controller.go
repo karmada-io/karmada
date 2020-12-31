@@ -2,7 +2,7 @@ package status
 
 import (
 	"context"
-	"strings"
+	"net/http"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -25,9 +25,9 @@ const (
 	// ControllerName is the controller name that will be used when reporting events.
 	ControllerName            = "membercluster-status-controller"
 	clusterReady              = "ClusterReady"
-	healthzOk                 = "cluster is reachable and /healthz responded with ok"
+	clusterHealthy            = "cluster is reachable and health endpoint responded with ok"
 	clusterNotReady           = "ClusterNotReady"
-	healthzNotOk              = "cluster is reachable but /healthz responded without ok"
+	clusterUnhealthy          = "cluster is reachable but health endpoint responded without ok"
 	clusterNotReachableReason = "ClusterNotReachable"
 	clusterNotReachableMsg    = "cluster is not reachable"
 )
@@ -139,15 +139,29 @@ func (c *MemberClusterStatusController) updateStatusIfNeeded(memberCluster *v1al
 }
 
 func getMemberClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy bool) {
-	body, err := clusterClient.KubeClient.DiscoveryClient.RESTClient().Get().AbsPath("/healthz").Do(context.TODO()).Raw()
+	healthStatus, err := healthEndpointCheck(clusterClient.KubeClient, "/readyz")
+	if err != nil && healthStatus == http.StatusNotFound {
+		// do health check with healthz endpoint if the readyz endpoint is not installed in member cluster
+		healthStatus, err = healthEndpointCheck(clusterClient.KubeClient, "/healthz")
+	}
+
 	if err != nil {
 		klog.Errorf("Failed to do cluster health check for cluster %v, err is : %v ", clusterClient.ClusterName, err)
 		return false, false
 	}
-	if strings.EqualFold(string(body), "ok") {
-		return true, true
+
+	if healthStatus != http.StatusOK {
+		klog.Infof("Member cluster %v isn't healthy", clusterClient.ClusterName)
+		return true, false
 	}
-	return true, false
+
+	return true, true
+}
+
+func healthEndpointCheck(client *kubernetes.Clientset, path string) (int, error) {
+	var healthStatus int
+	resp := client.DiscoveryClient.RESTClient().Get().AbsPath(path).Do(context.TODO()).StatusCode(&healthStatus)
+	return healthStatus, resp.Error()
 }
 
 func generateReadyCondition(online, healthy bool) []v1.Condition {
@@ -166,7 +180,7 @@ func generateReadyCondition(online, healthy bool) []v1.Condition {
 		Type:               v1alpha1.ClusterConditionReady,
 		Status:             v1.ConditionTrue,
 		Reason:             clusterReady,
-		Message:            healthzOk,
+		Message:            clusterHealthy,
 		LastTransitionTime: currentTime,
 	}
 
@@ -174,7 +188,7 @@ func generateReadyCondition(online, healthy bool) []v1.Condition {
 		Type:               v1alpha1.ClusterConditionReady,
 		Status:             v1.ConditionFalse,
 		Reason:             clusterNotReady,
-		Message:            healthzNotOk,
+		Message:            clusterUnhealthy,
 		LastTransitionTime: currentTime,
 	}
 
