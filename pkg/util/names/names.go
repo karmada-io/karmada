@@ -25,6 +25,16 @@ func GetMemberClusterName(executionSpaceName string) (string, error) {
 	return strings.TrimPrefix(executionSpaceName, executionSpacePrefix), nil
 }
 
+// GetNamespaceAndName will get namespace and name from ownerLabel.
+// For example: "karmada-es-member-1.default-deployment-nginx"
+func GetNamespaceAndName(value string) (string, string, error) {
+	splits := strings.Split(value, ".")
+	if len(splits) != 2 {
+		return "", "", fmt.Errorf("value is not correct")
+	}
+	return splits[0], splits[1], nil
+}
+
 // GenerateBindingName will generate binding name by namespace, kind and name
 func GenerateBindingName(namespace, kind, name string) string {
 	return strings.ToLower(namespace + "-" + kind + "-" + name)

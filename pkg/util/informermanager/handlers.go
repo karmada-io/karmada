@@ -9,24 +9,18 @@ import (
 )
 
 // NewHandlerOnAllEvents builds a ResourceEventHandler that the function 'fn' will be called on all events(add/update/delete).
-func NewHandlerOnAllEvents(fn func(runtime.Object) error) cache.ResourceEventHandler {
+func NewHandlerOnAllEvents(fn func(runtime.Object)) cache.ResourceEventHandler {
 	return &cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			curObj := cur.(runtime.Object)
 			klog.V(2).Infof("Receive add event, obj is: %+v", curObj)
-			err := fn(curObj)
-			if err != nil {
-				klog.V(2).Infof("Failed to exec fn. Error: %v.", err)
-			}
+			fn(curObj)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			curObj := cur.(runtime.Object)
 			if !reflect.DeepEqual(old, cur) {
 				klog.V(2).Infof("Receive update event, obj is: %+v", curObj)
-				err := fn(curObj)
-				if err != nil {
-					klog.V(2).Infof("Failed to exec fn. Error: %v.", err)
-				}
+				fn(curObj)
 			}
 		},
 		DeleteFunc: func(old interface{}) {
@@ -39,10 +33,7 @@ func NewHandlerOnAllEvents(fn func(runtime.Object) error) cache.ResourceEventHan
 			}
 			oldObj := old.(runtime.Object)
 			klog.V(2).Infof("Receive delete event, obj is: %+v", oldObj)
-			err := fn(oldObj)
-			if err != nil {
-				klog.V(2).Infof("Failed to exec fn. Error: %v.", err)
-			}
+			fn(oldObj)
 		},
 	}
 }
