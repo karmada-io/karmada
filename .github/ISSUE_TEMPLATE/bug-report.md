@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug encountered while using CCM.
+about: Report a bug encountered while using Karmada.
 labels: kind/bug
 
 ---
@@ -19,5 +19,4 @@ labels: kind/bug
 
 **Environment**:
 - Karmada version:
-- Kubernetes(Host) version (use `kubectl version`):
 - Others:
