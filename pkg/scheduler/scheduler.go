@@ -92,7 +92,8 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	return sched
 }
 
-func (s *Scheduler) Run(stopCh <-chan struct{}) {
+func (s *Scheduler) Run(ctx context.Context) {
+	stopCh := ctx.Done()
 	klog.Infof("Starting karmada scheduler")
 	defer klog.Infof("Shutting down karmada scheduler")
 	s.informerFactory.Start(stopCh)
