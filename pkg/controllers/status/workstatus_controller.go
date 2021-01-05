@@ -2,6 +2,7 @@ package status
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -94,12 +95,139 @@ func (c *PropagationWorkStatusController) RunWorkQueue() {
 // label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
 // TODO(chenxianpao): sync workload status to propagationWork status.
 func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) error {
+	// TODO(RainbowMango): we can't get object from cache for delete event, in that case the key will be throw into the
+	// worker queue until exceed the maxRetries. We should improve this scenario after 'version manager' get on board,
+	// which should knows if this remove event is expected.
 	obj, err := c.getObjectFromCache(key)
 	if err != nil {
 		return err
 	}
-	klog.Infof("sync workload %s/%s/%s", obj.GetKind(), obj.GetNamespace(), obj.GetName())
-	return nil
+
+	owner := util.GetLabelValue(obj.GetLabels(), util.OwnerLabel)
+	if len(owner) == 0 {
+		// Ignore the object which not managed by karmada.
+		// TODO(RainbowMango): Consider to add event filter to informer event handler to skip event from enqueue.
+		klog.V(2).Infof("Ignore the event of %s(%s/%s) which not managed by karmada.", obj.GetKind(), obj.GetNamespace(), obj.GetName())
+		return nil
+	}
+
+	ownerNamespace, ownerName, err := names.GetNamespaceAndName(owner)
+	if err != nil {
+		klog.Errorf("Failed to parse object(%s/%s) owner by label: %s", obj.GetNamespace(), obj.GetName(), owner)
+		return err
+	}
+
+	workObject := &v1alpha1.PropagationWork{}
+	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: ownerNamespace, Name: ownerName}, workObject); err != nil {
+		// Stop processing if resource no longer exist.
+		if errors.IsNotFound(err) {
+			return nil
+		}
+
+		klog.Errorf("Failed to get PropagationWork(%s/%s) from cache: %v", ownerNamespace, ownerName, err)
+		return err
+	}
+
+	// TODO: consult with version manager if current status needs update.
+
+	klog.Infof("reflecting %s(%s/%s) status of to PropagationWork(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), ownerNamespace, ownerName)
+
+	return c.reflectStatus(workObject, obj)
+}
+
+// reflectStatus grabs cluster object's running status then updates to it's owner object(PropagationWork).
+func (c *PropagationWorkStatusController) reflectStatus(work *v1alpha1.PropagationWork, clusterObj *unstructured.Unstructured) error {
+	// Stop processing if resource(such as ConfigMap,Secret,ClusterRole, etc.) doesn't contain 'spec.status' fields.
+	statusMap, exist, err := unstructured.NestedMap(clusterObj.Object, "status")
+	if err != nil {
+		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
+		return err
+	}
+	if !exist || statusMap == nil {
+		klog.V(2).Infof("Ignore resources(%s) without status.", clusterObj.GetKind())
+		return nil
+	}
+
+	identifier, err := c.buildStatusIdentifier(work, clusterObj)
+	if err != nil {
+		return err
+	}
+
+	rawExtension, err := c.buildStatusRawExtension(statusMap)
+	if err != nil {
+		return err
+	}
+
+	manifestStatus := v1alpha1.ManifestStatus{
+		Identifier: *identifier,
+		Status:     *rawExtension,
+	}
+
+	work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
+
+	return c.Client.Status().Update(context.TODO(), work)
+}
+
+func (c *PropagationWorkStatusController) buildStatusIdentifier(work *v1alpha1.PropagationWork, clusterObj *unstructured.Unstructured) (*v1alpha1.ResourceIdentifier, error) {
+	ordinal, err := c.getManifestIndex(work.Spec.Workload.Manifests, clusterObj)
+	if err != nil {
+		return nil, err
+	}
+
+	groupVersion, err := schema.ParseGroupVersion(clusterObj.GetAPIVersion())
+	if err != nil {
+		return nil, err
+	}
+
+	identifier := &v1alpha1.ResourceIdentifier{
+		Ordinal: ordinal,
+		// TODO(RainbowMango): Consider merge Group and Version to APIVersion from PropagationWork API.
+		Group:   groupVersion.Group,
+		Version: groupVersion.Version,
+		Kind:    clusterObj.GetKind(),
+		// TODO(RainbowMango): Consider remove Resource from PropagationWork API.
+		Resource:  "", // we don't need this fields.
+		Namespace: clusterObj.GetNamespace(),
+		Name:      clusterObj.GetName(),
+	}
+
+	return identifier, nil
+}
+
+func (c *PropagationWorkStatusController) buildStatusRawExtension(status map[string]interface{}) (*runtime.RawExtension, error) {
+	statusJSON, err := json.Marshal(status)
+	if err != nil {
+		klog.Errorf("Failed to marshal status. Error: %v.", statusJSON)
+		return nil, err
+	}
+
+	return &runtime.RawExtension{
+		Raw: statusJSON,
+	}, nil
+}
+
+func (c *PropagationWorkStatusController) mergeStatus(statuses []v1alpha1.ManifestStatus, newStatus v1alpha1.ManifestStatus) []v1alpha1.ManifestStatus {
+	// TODO(RainbowMango): update 'statuses' if 'newStatus' already exist.
+	// For now, we only have at most one manifest in PropagationWork, so just override current 'statuses'.
+	return []v1alpha1.ManifestStatus{newStatus}
+}
+
+func (c *PropagationWorkStatusController) getManifestIndex(manifests []v1alpha1.Manifest, clusterObj *unstructured.Unstructured) (int, error) {
+	for index, rawManifest := range manifests {
+		manifest := &unstructured.Unstructured{}
+		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
+			return -1, err
+		}
+
+		if manifest.GetAPIVersion() == clusterObj.GetAPIVersion() &&
+			manifest.GetKind() == clusterObj.GetKind() &&
+			manifest.GetNamespace() == clusterObj.GetNamespace() &&
+			manifest.GetName() == clusterObj.GetName() {
+			return index, nil
+		}
+	}
+
+	return -1, fmt.Errorf("no such manifest exist")
 }
 
 // getObjectFromCache gets full object information from cache by key in worker queue.
