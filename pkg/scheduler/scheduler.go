@@ -1,31 +1,232 @@
 package scheduler
 
 import (
+	"context"
+	"time"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	memclusterapi "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	lister "github.com/karmada-io/karmada/pkg/generated/listers/propagationstrategy/v1alpha1"
+	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/scheduler/core"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
+)
+
+const (
+	// maxRetries is the number of times a service will be retried before it is dropped out of the queue.
+	// With the current rate-limiter in use (5ms*2^(maxRetries-1)) the following numbers represent the
+	// sequence of delays between successive queuings of a propagationbinding.
+	//
+	// 5ms, 10ms, 20ms, 40ms, 80ms, 160ms, 320ms, 640ms, 1.3s, 2.6s, 5.1s, 10.2s, 20.4s, 41s, 82s
+	maxRetries = 15
 )
 
 type Scheduler struct {
-	DynamicClient dynamic.Interface
-	KarmadaClient karmadaclientset.Interface
-	KubeClient    kubernetes.Interface
+	DynamicClient   dynamic.Interface
+	KarmadaClient   karmadaclientset.Interface
+	KubeClient      kubernetes.Interface
+	bindingInformer cache.SharedIndexInformer
+	bindingLister   lister.PropagationBindingLister
+	policyInformer  cache.SharedIndexInformer
+	policyLister    lister.PropagationPolicyLister
+	informerFactory informerfactory.SharedInformerFactory
+
+	// TODO: implement a priority scheduling queue
+	queue workqueue.RateLimitingInterface
+
+	Algorithm      core.ScheduleAlgorithm
+	schedulerCache schedulercache.Cache
 }
 
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface) *Scheduler {
-	return &Scheduler{
-		DynamicClient: dynamicClient,
-		KarmadaClient: karmadaClient,
-		KubeClient:    kubeClient,
+	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
+	bindingInformer := factory.Propagationstrategy().V1alpha1().PropagationBindings().Informer()
+	bindingLister := factory.Propagationstrategy().V1alpha1().PropagationBindings().Lister()
+	policyInformer := factory.Propagationstrategy().V1alpha1().PropagationPolicies().Informer()
+	policyLister := factory.Propagationstrategy().V1alpha1().PropagationPolicies().Lister()
+	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	schedulerCache := schedulercache.NewCache()
+	// TODO: make plugins as a flag
+	algorithm := core.NewGenericScheduler(schedulerCache, policyLister, []string{clusteraffinity.Name})
+	sched := &Scheduler{
+		DynamicClient:   dynamicClient,
+		KarmadaClient:   karmadaClient,
+		KubeClient:      kubeClient,
+		bindingInformer: bindingInformer,
+		bindingLister:   bindingLister,
+		policyInformer:  policyInformer,
+		policyLister:    policyLister,
+		informerFactory: factory,
+		queue:           queue,
+		Algorithm:       algorithm,
+		schedulerCache:  schedulerCache,
+	}
+
+	bindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    sched.onPropagationBindingAdd,
+		UpdateFunc: sched.onPropagationBindingUpdate,
+	})
+
+	memclusterInformer := factory.Membercluster().V1alpha1().MemberClusters().Informer()
+	memclusterInformer.AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    sched.addCluster,
+			UpdateFunc: sched.updateCluster,
+			DeleteFunc: sched.deleteCluster,
+		},
+	)
+
+	return sched
+}
+
+func (s *Scheduler) Run(stopCh <-chan struct{}) {
+	klog.Infof("Starting karmada scheduler")
+	defer klog.Infof("Shutting down karmada scheduler")
+	s.informerFactory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, s.bindingInformer.HasSynced) {
+		return
+	}
+
+	go wait.Until(s.worker, time.Second, stopCh)
+
+	<-stopCh
+}
+
+func (s *Scheduler) onPropagationBindingAdd(obj interface{}) {
+	propagationBinnding := obj.(*v1alpha1.PropagationBinding)
+	if len(propagationBinnding.Spec.Clusters) > 0 {
+		return
+	}
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		klog.Errorf("couldn't get key for object %#v: %v", obj, err)
+		return
+	}
+
+	s.queue.Add(key)
+}
+
+func (s *Scheduler) onPropagationBindingUpdate(old, cur interface{}) {
+	s.onPropagationBindingAdd(cur)
+}
+
+func (s *Scheduler) worker() {
+	for s.scheduleNext() {
 	}
 }
 
-func (s *Scheduler) Run(stop <-chan struct{}) {
-	apiResources, _ := s.KubeClient.Discovery().ServerPreferredResources()
-	for _, apiresource := range apiResources {
-		klog.Infof("%s %v\n", apiresource.GroupVersion, apiresource.APIResources)
+func (s *Scheduler) scheduleNext() bool {
+	key, shutdown := s.queue.Get()
+	if shutdown {
+		klog.Errorf("Fail to pop item from queue")
+		return false
 	}
-	<-stop
+	defer s.queue.Done(key)
+
+	err := s.scheduleOne(key.(string))
+	s.handleErr(err, key)
+	return true
+}
+
+func (s *Scheduler) scheduleOne(key string) (err error) {
+	klog.V(4).Infof("begin scheduling PropagationBinding %s", key)
+	defer klog.V(4).Infof("end scheduling PropagationBinding %s: %v", key, err)
+
+	ns, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+	propagationBinding, err := s.bindingLister.PropagationBindings(ns).Get(name)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), propagationBinding)
+	if err != nil {
+		klog.V(2).Infof("failed scheduling PropagationBinding %s: %v", key, err)
+		return err
+	}
+	klog.V(4).Infof("PropagationBinding %s scheduled to clusters %v", key, scheduleResult.SuggestedClusters)
+
+	binding := propagationBinding.DeepCopy()
+	targetClusters := make([]v1alpha1.TargetCluster, len(scheduleResult.SuggestedClusters))
+	for i, cluster := range scheduleResult.SuggestedClusters {
+		targetClusters[i] = v1alpha1.TargetCluster{Name: cluster}
+	}
+	binding.Spec.Clusters = targetClusters
+	_, err = s.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Scheduler) handleErr(err error, key interface{}) {
+	if err == nil || errors.HasStatusCause(err, v1.NamespaceTerminatingCause) {
+		s.queue.Forget(key)
+		return
+	}
+
+	if s.queue.NumRequeues(key) < maxRetries {
+		s.queue.AddRateLimited(key)
+		return
+	}
+
+	utilruntime.HandleError(err)
+	klog.V(2).Infof("Dropping propagationbinding %q out of the queue: %v", key, err)
+	s.queue.Forget(key)
+}
+
+func (s *Scheduler) addCluster(obj interface{}) {
+	membercluster, ok := obj.(*memclusterapi.MemberCluster)
+	if !ok {
+		klog.Errorf("cannot convert to MemberCluster: %v", obj)
+		return
+	}
+	klog.V(3).Infof("add event for membercluster %s", membercluster.Name)
+
+	s.schedulerCache.AddCluster(membercluster)
+}
+
+func (s *Scheduler) updateCluster(_, newObj interface{}) {
+	newCluster, ok := newObj.(*memclusterapi.MemberCluster)
+	if !ok {
+		klog.Errorf("cannot convert newObj to MemberCluster: %v", newObj)
+		return
+	}
+	klog.V(3).Infof("update event for membercluster %s", newCluster.Name)
+	s.schedulerCache.UpdateCluster(newCluster)
+}
+
+func (s *Scheduler) deleteCluster(obj interface{}) {
+	var cluster *memclusterapi.MemberCluster
+	switch t := obj.(type) {
+	case *memclusterapi.MemberCluster:
+		cluster = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		cluster, ok = t.Obj.(*memclusterapi.MemberCluster)
+		if !ok {
+			klog.Errorf("cannot convert to memclusterapi.MemberCluster: %v", t.Obj)
+			return
+		}
+	default:
+		klog.Errorf("cannot convert to memclusterapi.MemberCluster: %v", t)
+		return
+	}
+	klog.V(3).Infof("delete event for membercluster %s", cluster.Name)
+	s.schedulerCache.DeleteCluster(cluster)
 }

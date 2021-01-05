@@ -167,8 +167,6 @@ func (c *PropagationPolicyController) calculatePropagationBindings(policy *v1alp
 
 // buildPropagationBinding will build propagationBinding by matched resources.
 func (c *PropagationPolicyController) buildPropagationBinding(policy *v1alpha1.PropagationPolicy, policyReferenceWorkloads []*unstructured.Unstructured) (controllerruntime.Result, error) {
-	targetCluster := c.getTargetClusters(policy.Spec.Placement)
-
 	orphanBindings, workloads, err := c.calculatePropagationBindings(policy, policyReferenceWorkloads)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
@@ -185,7 +183,7 @@ func (c *PropagationPolicyController) buildPropagationBinding(policy *v1alpha1.P
 	// If binding already exist, update if changed.
 	// If binding not exist, create it.
 	for _, workload := range workloads {
-		err := c.ensurePropagationBinding(policy, workload, targetCluster)
+		err := c.ensurePropagationBinding(policy, workload)
 		if err != nil {
 			return controllerruntime.Result{Requeue: true}, err
 		}
@@ -298,22 +296,8 @@ func (c *PropagationPolicyController) fetchWorkloadsWithOutLabelSelector(resourc
 	return nil
 }
 
-// getTargetClusters get targetClusters by placement.
-// TODO(RainbowMango): This is a dummy function and will be removed once scheduler on board.
-func (c *PropagationPolicyController) getTargetClusters(placement v1alpha1.Placement) []v1alpha1.TargetCluster {
-	matchClusterNames := util.GetDifferenceSet(placement.ClusterAffinity.ClusterNames, placement.ClusterAffinity.ExcludeClusters)
-
-	// TODO: cluster labelSelector, fieldSelector, clusterTolerations
-	// TODO: calc spread contraints. such as maximum, minimum
-	var targetClusters []v1alpha1.TargetCluster
-	for _, matchClusterName := range matchClusterNames {
-		targetClusters = append(targetClusters, v1alpha1.TargetCluster{Name: matchClusterName})
-	}
-	return targetClusters
-}
-
 // ensurePropagationBinding will ensure propagationBinding are created or updated.
-func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured, clusterNames []v1alpha1.TargetCluster) error {
+func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured) error {
 	bindingName := names.GenerateBindingName(workload.GetNamespace(), workload.GetKind(), workload.GetName())
 	propagationBinding := &v1alpha1.PropagationBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -332,7 +316,6 @@ func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.
 				Name:            workload.GetName(),
 				ResourceVersion: workload.GetResourceVersion(),
 			},
-			Clusters: clusterNames,
 		},
 	}
 
