@@ -42,6 +42,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Membercluster().V1alpha1().MemberClusters().Informer()}, nil
 
 		// Group=propagationstrategy.karmada.io, Version=v1alpha1
+	case propagationstrategyv1alpha1.SchemeGroupVersion.WithResource("overridepolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Propagationstrategy().V1alpha1().OverridePolicies().Informer()}, nil
 	case propagationstrategyv1alpha1.SchemeGroupVersion.WithResource("propagationbindings"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Propagationstrategy().V1alpha1().PropagationBindings().Informer()}, nil
 	case propagationstrategyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"):
