@@ -15,6 +15,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
 	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
@@ -69,7 +70,10 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&propagationstrategy.PropagationWork{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).
+		For(&propagationstrategy.PropagationWork{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		Complete(c)
 }
 
 func (c *Controller) syncWork(propagationWork *propagationstrategy.PropagationWork) (controllerruntime.Result, error) {
