@@ -27,7 +27,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:  "scheduler",
-		Long: `The karmarda scheduler binds resources to the clusters it manages.`,
+		Long: `The karmada scheduler binds resources to the clusters it manages.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(opts, stopChan); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)

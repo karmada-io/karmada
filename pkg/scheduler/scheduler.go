@@ -110,8 +110,8 @@ func (s *Scheduler) Run(ctx context.Context) {
 }
 
 func (s *Scheduler) onPropagationBindingAdd(obj interface{}) {
-	propagationBinnding := obj.(*v1alpha1.PropagationBinding)
-	if len(propagationBinnding.Spec.Clusters) > 0 {
+	propagationBinding := obj.(*v1alpha1.PropagationBinding)
+	if len(propagationBinding.Spec.Clusters) > 0 {
 		return
 	}
 	key, err := cache.MetaNamespaceKeyFunc(obj)
