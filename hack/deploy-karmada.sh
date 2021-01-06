@@ -40,6 +40,7 @@ function installCRDs() {
     kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationpolicies.yaml"
     kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationbindings.yaml"
     kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationworks.yaml"
+    kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_overridepolicies.yaml"
 }
 
 export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
