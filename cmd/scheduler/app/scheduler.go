@@ -8,16 +8,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
@@ -71,10 +67,6 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	if err != nil {
 		return err
 	}
-	// Prepare event clients.
-	broadcaster := record.NewBroadcaster()
-	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: leaderElectionClient.CoreV1().Events(opts.LeaderElection.ResourceNamespace)})
-	eventRecorder := broadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "vc-controller-manager"})
 	hostname, err := os.Hostname()
 	if err != nil {
 		return fmt.Errorf("unable to get hostname: %v", err)
@@ -88,8 +80,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		leaderElectionClient.CoreV1(),
 		leaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
-			Identity:      id,
-			EventRecorder: eventRecorder,
+			Identity: id,
 		})
 	if err != nil {
 		return fmt.Errorf("couldn't create resource lock: %v", err)
