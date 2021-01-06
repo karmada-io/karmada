@@ -7,7 +7,6 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:subresource:status
 
 // OverridePolicy represents the policy that overrides a group of resources to one or more clusters.
 type OverridePolicy struct {
