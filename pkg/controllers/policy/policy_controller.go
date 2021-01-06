@@ -16,7 +16,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -319,24 +318,17 @@ func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.
 		},
 	}
 
-	runtimeObject := propagationBinding.DeepCopy()
-	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), c.Client, runtimeObject, func() error {
-		runtimeObject.Spec = propagationBinding.Spec
-		return nil
-	})
-	if err != nil {
-		klog.Errorf("Failed to create/update propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
-		return err
-	}
-
-	if operationResult == controllerutil.OperationResultCreated {
+	_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), propagationBinding, metav1.CreateOptions{})
+	if err == nil {
 		klog.Infof("Create propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
-	} else if operationResult == controllerutil.OperationResultUpdated {
-		klog.Infof("Update propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
-	} else {
-		klog.V(2).Infof("PropagationBinding %s/%s is up to date.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+		return nil
 	}
-	return nil
+	if apierrors.IsAlreadyExists(err) {
+		klog.V(2).Infof("PropagationBinding %s/%s is up to date.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+		return nil
+	}
+	klog.Errorf("Failed to create propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
+	return err
 }
 
 // SetupWithManager creates a controller and register to controller manager.
