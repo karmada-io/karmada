@@ -2,6 +2,14 @@
 
 package v1alpha1
 
+// OverridePolicyListerExpansion allows custom methods to be added to
+// OverridePolicyLister.
+type OverridePolicyListerExpansion interface{}
+
+// OverridePolicyNamespaceListerExpansion allows custom methods to be added to
+// OverridePolicyNamespaceLister.
+type OverridePolicyNamespaceListerExpansion interface{}
+
 // PropagationBindingListerExpansion allows custom methods to be added to
 // PropagationBindingLister.
 type PropagationBindingListerExpansion interface{}

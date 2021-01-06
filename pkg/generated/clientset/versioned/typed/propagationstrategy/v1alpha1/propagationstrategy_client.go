@@ -10,6 +10,7 @@ import (
 
 type PropagationstrategyV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	OverridePoliciesGetter
 	PropagationBindingsGetter
 	PropagationPoliciesGetter
 	PropagationWorksGetter
@@ -18,6 +19,10 @@ type PropagationstrategyV1alpha1Interface interface {
 // PropagationstrategyV1alpha1Client is used to interact with features provided by the propagationstrategy.karmada.io group.
 type PropagationstrategyV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *PropagationstrategyV1alpha1Client) OverridePolicies(namespace string) OverridePolicyInterface {
+	return newOverridePolicies(c, namespace)
 }
 
 func (c *PropagationstrategyV1alpha1Client) PropagationBindings(namespace string) PropagationBindingInterface {
