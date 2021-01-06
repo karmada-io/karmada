@@ -94,7 +94,7 @@ func (g *genericScheduler) findClustersThatFit(
 	placement *v1alpha1.Placement,
 	clusterInfo *cache.Snapshot) ([]*clusterapi.MemberCluster, error) {
 	out := []*clusterapi.MemberCluster{}
-	clusters := clusterInfo.List()
+	clusters := clusterInfo.GetClusters()
 	for _, c := range clusters {
 		resMap := fwk.RunFilterPlugins(ctx, placement, c.Cluster())
 		res := resMap.Merge()

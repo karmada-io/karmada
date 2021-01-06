@@ -7,7 +7,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
-// Scheduler internal cache
+// Cache is an interface for scheduler internal cache.
 type Cache interface {
 	AddCluster(cluster *v1alpha1.MemberCluster)
 	UpdateCluster(cluster *v1alpha1.MemberCluster)

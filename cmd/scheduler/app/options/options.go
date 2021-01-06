@@ -22,7 +22,7 @@ type Options struct {
 	Master         string
 }
 
-// NewOptions builds an empty options.
+// NewOptions builds an default scheduler options.
 func NewOptions() *Options {
 	return &Options{
 		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
@@ -35,7 +35,7 @@ func NewOptions() *Options {
 	}
 }
 
-// AddEtcdFlags adds flags related to etcd storage for a specific APIServer to the specified FlagSet
+// AddFlags adds flags of scheduler to the specified FlagSet
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	if o == nil {
 		return

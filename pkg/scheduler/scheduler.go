@@ -34,6 +34,7 @@ const (
 	maxRetries = 15
 )
 
+// Scheduler is the scheduler schema, which is used to schedule a specific resource to specific clusters
 type Scheduler struct {
 	DynamicClient   dynamic.Interface
 	KarmadaClient   karmadaclientset.Interface
@@ -51,6 +52,7 @@ type Scheduler struct {
 	schedulerCache schedulercache.Cache
 }
 
+// NewScheduler instantiates a scheduler
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface) *Scheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	bindingInformer := factory.Propagationstrategy().V1alpha1().PropagationBindings().Informer()
@@ -92,6 +94,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	return sched
 }
 
+// Run runs the scheduler
 func (s *Scheduler) Run(ctx context.Context) {
 	stopCh := ctx.Done()
 	klog.Infof("Starting karmada scheduler")

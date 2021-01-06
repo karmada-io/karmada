@@ -19,10 +19,12 @@ type ClusterAffinity struct{}
 var _ framework.FilterPlugin = &ClusterAffinity{}
 var _ framework.ScorePlugin = &ClusterAffinity{}
 
+// New instantiates the clusteraffinity plugin.
 func New() framework.Plugin {
 	return &ClusterAffinity{}
 }
 
+// Name returns the plugin name.
 func (p *ClusterAffinity) Name() string {
 	return Name
 }
@@ -48,6 +50,7 @@ func (p *ClusterAffinity) Filter(ctx context.Context, placement *v1alpha1.Placem
 	return nil
 }
 
+// Score calculates the score on the candidate cluster.
 func (p *ClusterAffinity) Score(ctx context.Context, placement *v1alpha1.Placement, cluster *membercluster.MemberCluster) (float64, *framework.Result) {
 	return 0, nil
 }

@@ -22,6 +22,7 @@ type frameworkImpl struct {
 
 var _ framework.Framework = &frameworkImpl{}
 
+// NewFramework creates a scheduling framework.
 func NewFramework(plugins []string) framework.Framework {
 	pluginsMap := plugins2.NewPlugins()
 	out := &frameworkImpl{}

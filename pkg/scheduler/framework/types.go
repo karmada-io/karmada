@@ -10,6 +10,7 @@ type ClusterInfo struct {
 	cluster *v1alpha1.MemberCluster
 }
 
+// NewClusterInfo creates a ClusterInfo object.
 func NewClusterInfo(cluster *v1alpha1.MemberCluster) *ClusterInfo {
 	return &ClusterInfo{
 		cluster: cluster,
