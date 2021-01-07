@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -21,6 +20,7 @@ import (
 	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -35,6 +35,7 @@ type Controller struct {
 	KubeClientSet kubernetes.Interface // used to get kubernetes resources.
 	EventRecorder record.EventRecorder
 	RESTMapper    meta.RESTMapper
+	ObjectWatcher objectwatcher.ObjectWatcher
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -119,11 +120,6 @@ func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.Prop
 		return nil
 	}
 
-	memberClusterDynamicClient, err := util.NewClusterDynamicClientSet(memberCluster, c.KubeClientSet)
-	if err != nil {
-		return err
-	}
-
 	for _, manifest := range propagationWork.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
@@ -132,7 +128,7 @@ func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.Prop
 			return err
 		}
 
-		err = c.deleteResource(memberClusterDynamicClient, workload)
+		err = c.ObjectWatcher.Delete(memberClusterName, workload)
 		if err != nil {
 			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", memberCluster.Name, err)
 			return err
@@ -183,16 +179,31 @@ func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.MemberCluster,
 			klog.Errorf("failed to unmarshal workload, error is: %v", err)
 			return err
 		}
-		c.setOwnerLabel(workload, propagationWork)
+
+		util.MergeLabel(workload, util.OwnerLabel, names.GenerateOwnerLabelValue(propagationWork.GetNamespace(), propagationWork.GetName()))
+
 		applied := c.isResourceApplied(&propagationWork.Status)
 		if applied {
-			err = c.updateResource(memberClusterDynamicClient, workload)
+			// todo: get memberClusterObj from cache
+			dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
+			if err != nil {
+				klog.Errorf("Failed to get resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
+				return err
+			}
+
+			memberClusterObj, err := memberClusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), v1.GetOptions{})
+			if err != nil {
+				klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
+				return err
+			}
+
+			err = c.ObjectWatcher.Update(memberCluster.Name, memberClusterObj, workload)
 			if err != nil {
 				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", memberCluster.Name, err)
 				return err
 			}
 		} else {
-			err = c.createResource(memberClusterDynamicClient, workload)
+			err = c.ObjectWatcher.Create(memberCluster.Name, workload)
 			if err != nil {
 				klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", memberCluster.Name, err)
 				return err
@@ -204,70 +215,6 @@ func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.MemberCluster,
 				return err
 			}
 		}
-	}
-	return nil
-}
-
-// setOwnerLabel adds ownerLabel for workload that will be applied to member cluster.
-func (c *Controller) setOwnerLabel(workload *unstructured.Unstructured, propagationWork *propagationstrategy.PropagationWork) {
-	workloadLabel := workload.GetLabels()
-	if workloadLabel == nil {
-		workloadLabel = make(map[string]string, 1)
-	}
-	workloadLabel[util.OwnerLabel] = names.GenerateOwnerLabelValue(propagationWork.GetNamespace(), propagationWork.GetName())
-	workload.SetLabels(workloadLabel)
-}
-
-// deleteResource delete resource in member cluster
-func (c *Controller) deleteResource(memberClusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
-	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
-	if err != nil {
-		klog.Errorf("Failed to delete resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
-		return err
-	}
-
-	err = memberClusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Delete(context.TODO(), workload.GetName(), v1.DeleteOptions{})
-	if apierrors.IsNotFound(err) {
-		err = nil
-	}
-	if err != nil {
-		klog.Errorf("Failed to delete resource %v, err is %v ", workload.GetName(), err)
-		return err
-	}
-	return nil
-}
-
-// createResource create resource in member cluster
-func (c *Controller) createResource(memberClusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
-	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
-	if err != nil {
-		klog.Errorf("Failed to create resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
-		return err
-	}
-
-	_, err = memberClusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Create(context.TODO(), workload, v1.CreateOptions{})
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return nil
-		}
-		klog.Errorf("Failed to create resource %v, err is %v ", workload.GetName(), err)
-		return err
-	}
-	return nil
-}
-
-// updateResource update resource in member cluster
-func (c *Controller) updateResource(memberClusterDynamicClient *util.DynamicClusterClient, workload *unstructured.Unstructured) error {
-	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
-	if err != nil {
-		klog.Errorf("Failed to update resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
-		return err
-	}
-
-	_, err = memberClusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, v1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Failed to update resource %v, err is %v ", workload.GetName(), err)
-		return err
 	}
 	return nil
 }
