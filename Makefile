@@ -48,7 +48,7 @@ karmadactl: $(SOURCES)
 		cmd/karmadactl/karmadactl.go
 
 clean:
-	rm -rf karmada-controller-manager
+	rm -rf karmada-controller-manager karmada-scheduler karmadactl
 
 .PHONY: test
 test:
