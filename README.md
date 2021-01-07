@@ -7,10 +7,12 @@ Its key capabilities include:
 
 - Cross-cluster applications managements based on K8s native API, allow user migrate apps from single cluser to multi-cluster conveniently and quickly.
 - Support provisioning or attaching Kubernetes clusters for centralized operations and management.
-- Cross-cluster applications auto-scaling ,failover and loadbalancing on multi-cluster.
+- Cross-cluster applications auto-scaling, failover and load-balancing on multi-cluster.
 - Advanced scheduling strategy: region, available zone, cloud provider, cluster affinity/anti-affinity.
 
-----
+
+**Notice: this project is developed in continuation of Kubernetes [Federation v1](https://github.com/kubernetes-retired/federation) and [v2](https://github.com/kubernetes-sigs/kubefed). Some basic concepts are inherited from these two versions.**
+
 
 ## Architecture
 
@@ -31,7 +33,7 @@ The Karmada Controller Manager runs the various controllers,  the controllers wa
 
 2. Policy Controller: the controller watches PropagationPolicy objects. When PropagationPolicy object is added, it selects a group of resources matching the resourceSelector and create PropagationBinding with each single resource object.
 3. Binding Controller: the controller watches PropagationBinding object and create PropagationWork object corresponding to each cluster with single resource manifest.
-4. Excution Controller: the controller watches PropagationWork objects.When PropagationWork objects are created, it will distribute the resources to member clusters.
+4. Execution Controller: the controller watches PropagationWork objects.When PropagationWork objects are created, it will distribute the resources to member clusters.
 
 
 ## Concepts
