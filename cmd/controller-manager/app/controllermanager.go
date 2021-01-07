@@ -24,6 +24,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 )
 
 // aggregatedScheme aggregates all Kubernetes and extended schemes used by controllers.
@@ -92,6 +93,8 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	karmadaClient := karmadaclientset.NewForConfigOrDie(resetConfig)
 	kubeClientSet := kubernetes.NewForConfigOrDie(resetConfig)
 
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), kubeClientSet, mgr.GetRESTMapper())
+
 	MemberClusterController := &membercluster.Controller{
 		Client:        mgr.GetClient(),
 		KubeClientSet: kubeClientSet,
@@ -137,6 +140,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		KubeClientSet: kubeClientSet,
 		EventRecorder: mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:    mgr.GetRESTMapper(),
+		ObjectWatcher: objectWatcher,
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup execution controller: %v", err)
@@ -151,6 +155,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		InformerManager: informermanager.NewMultiClusterInformerManager(),
 		StopChan:        stopChan,
 		WorkerNumber:    1,
+		ObjectWatcher:   objectWatcher,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(mgr); err != nil {

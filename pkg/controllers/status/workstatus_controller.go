@@ -23,6 +23,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -41,6 +42,7 @@ type PropagationWorkStatusController struct {
 	StopChan        <-chan struct{}
 	WorkerNumber    int              // WorkerNumber is the number of worker goroutines
 	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+	ObjectWatcher   objectwatcher.ObjectWatcher
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -128,10 +130,31 @@ func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) 
 		return err
 	}
 
-	// TODO: consult with version manager if current status needs update.
+	// consult with version manager if current status needs update.
+	desireObj, err := c.getRawManifest(workObject.Spec.Workload.Manifests, obj)
+	if err != nil {
+		return err
+	}
+
+	util.MergeLabel(desireObj, util.OwnerLabel, names.GenerateOwnerLabelValue(workObject.GetNamespace(), workObject.GetName()))
+
+	clusterName, err := names.GetMemberClusterName(ownerNamespace)
+	if err != nil {
+		klog.Errorf("Failed to get member cluster name: %v", err)
+		return err
+	}
+
+	// compare version to determine if need to update resource
+	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desireObj, obj)
+	if err != nil {
+		return err
+	}
+
+	if needUpdate {
+		return c.ObjectWatcher.Update(clusterName, desireObj, obj)
+	}
 
 	klog.Infof("reflecting %s(%s/%s) status of to PropagationWork(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), ownerNamespace, ownerName)
-
 	return c.reflectStatus(workObject, obj)
 }
 
@@ -228,6 +251,24 @@ func (c *PropagationWorkStatusController) getManifestIndex(manifests []v1alpha1.
 	}
 
 	return -1, fmt.Errorf("no such manifest exist")
+}
+
+func (c *PropagationWorkStatusController) getRawManifest(manifests []v1alpha1.Manifest, clusterObj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	for _, rawManifest := range manifests {
+		manifest := &unstructured.Unstructured{}
+		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
+			return nil, err
+		}
+
+		if manifest.GetAPIVersion() == clusterObj.GetAPIVersion() &&
+			manifest.GetKind() == clusterObj.GetKind() &&
+			manifest.GetNamespace() == clusterObj.GetNamespace() &&
+			manifest.GetName() == clusterObj.GetName() {
+			return manifest, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no such manifest exist")
 }
 
 // getObjectFromCache gets full object information from cache by key in worker queue.
