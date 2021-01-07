@@ -219,7 +219,7 @@ spec:
                       type: object
                     type: array
                 type: object
-              resourceSelector:
+              resourceSelectors:
                 description: ResourceSelectors used to select resources. nil represents
                   all resources.
                 items:
@@ -229,18 +229,12 @@ spec:
                       description: APIVersion represents the API version of the target
                         resources.
                       type: string
-                    excludeNamespaces:
-                      description: ExcludeNamespaces is a list of namespaces that
-                        the ResourceSelector will ignore. Default is empty, which
-                        means don't ignore any namespace.
-                      items:
-                        type: string
-                      type: array
                     kind:
                       description: Kind represents the Kind of the target resources.
                       type: string
                     labelSelector:
-                      description: A label query over a set of resources.
+                      description: A label query over a set of resources. If name
+                        is not empty, labelSelector will be ignored.
                       properties:
                         matchExpressions:
                           description: matchExpressions is a list of label selector
@@ -283,21 +277,14 @@ spec:
                             only "value". The requirements are ANDed.
                           type: object
                       type: object
-                    names:
-                      description: Names restricts a list of referent names that the
-                        ResourceSelector will only select. Default is empty, which
-                        means selecting all resources.
-                      items:
-                        type: string
-                      type: array
-                    namespaces:
-                      description: Namespaces restricts a list of namespaces that
-                        the ResourceSelector will only select. If set, only resources
-                        in the listed namespaces will be selected. Default is empty,
-                        which means selecting all namespaces.
-                      items:
-                        type: string
-                      type: array
+                    name:
+                      description: Name of the target resource. Default is empty,
+                        which means selecting all resources.
+                      type: string
+                    namespace:
+                      description: Namespace of the target resource. Default is empty,
+                        which means inherit from the parent object scope.
+                      type: string
                   required:
                   - apiVersion
                   - kind
