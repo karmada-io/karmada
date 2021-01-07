@@ -16,7 +16,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -157,8 +156,6 @@ func (c *PropagationPolicyController) calculatePropagationBindings(policy *v1alp
 
 // buildPropagationBinding will build propagationBinding by matched resources.
 func (c *PropagationPolicyController) buildPropagationBinding(policy *v1alpha1.PropagationPolicy, policyReferenceWorkloads []*unstructured.Unstructured) (controllerruntime.Result, error) {
-	targetCluster := c.getTargetClusters(policy.Spec.Placement)
-
 	orphanBindings, workloads, err := c.calculatePropagationBindings(policy, policyReferenceWorkloads)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
@@ -175,7 +172,7 @@ func (c *PropagationPolicyController) buildPropagationBinding(policy *v1alpha1.P
 	// If binding already exist, update if changed.
 	// If binding not exist, create it.
 	for _, workload := range workloads {
-		err := c.ensurePropagationBinding(policy, workload, targetCluster)
+		err := c.ensurePropagationBinding(policy, workload)
 		if err != nil {
 			return controllerruntime.Result{Requeue: true}, err
 		}
@@ -287,22 +284,8 @@ func (c *PropagationPolicyController) fetchWorkload(resourceSelector v1alpha1.Re
 	return workload, nil
 }
 
-// getTargetClusters get targetClusters by placement.
-// TODO(RainbowMango): This is a dummy function and will be removed once scheduler on board.
-func (c *PropagationPolicyController) getTargetClusters(placement v1alpha1.Placement) []v1alpha1.TargetCluster {
-	matchClusterNames := util.GetDifferenceSet(placement.ClusterAffinity.ClusterNames, placement.ClusterAffinity.ExcludeClusters)
-
-	// TODO: cluster labelSelector, fieldSelector, clusterTolerations
-	// TODO: calc spread contraints. such as maximum, minimum
-	var targetClusters []v1alpha1.TargetCluster
-	for _, matchClusterName := range matchClusterNames {
-		targetClusters = append(targetClusters, v1alpha1.TargetCluster{Name: matchClusterName})
-	}
-	return targetClusters
-}
-
 // ensurePropagationBinding will ensure propagationBinding are created or updated.
-func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured, clusterNames []v1alpha1.TargetCluster) error {
+func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured) error {
 	bindingName := names.GenerateBindingName(workload.GetNamespace(), workload.GetKind(), workload.GetName())
 	propagationBinding := &v1alpha1.PropagationBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -321,28 +304,20 @@ func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.
 				Name:            workload.GetName(),
 				ResourceVersion: workload.GetResourceVersion(),
 			},
-			Clusters: clusterNames,
 		},
 	}
 
-	runtimeObject := propagationBinding.DeepCopy()
-	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), c.Client, runtimeObject, func() error {
-		runtimeObject.Spec = propagationBinding.Spec
-		return nil
-	})
-	if err != nil {
-		klog.Errorf("Failed to create/update propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
-		return err
-	}
-
-	if operationResult == controllerutil.OperationResultCreated {
+	_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), propagationBinding, metav1.CreateOptions{})
+	if err == nil {
 		klog.Infof("Create propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
-	} else if operationResult == controllerutil.OperationResultUpdated {
-		klog.Infof("Update propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
-	} else {
-		klog.V(2).Infof("PropagationBinding %s/%s is up to date.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+		return nil
 	}
-	return nil
+	if apierrors.IsAlreadyExists(err) {
+		klog.V(2).Infof("PropagationBinding %s/%s is up to date.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+		return nil
+	}
+	klog.Errorf("Failed to create propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
+	return err
 }
 
 // SetupWithManager creates a controller and register to controller manager.
