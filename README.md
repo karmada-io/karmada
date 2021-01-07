@@ -125,10 +125,10 @@ In the following steps, we are going to create a member cluster and then join th
 karmada control plane.
 
 #### 1. Create member cluster
-We are going to create a cluster named `member-cluster-1` and we want the `KUBECONFIG` file 
-in `/root/.kube/membercluster1.config`. Run following comand:
+We are going to create a cluster named `member1` and we want the `KUBECONFIG` file 
+in `/root/.kube/member1.config`. Run following comand:
 ```
-# hack/create-cluster.sh member-cluster-1 /root/.kube/membercluster1.config
+# hack/create-cluster.sh member1 /root/.kube/member1.config
 ```
 The script `hack/create-cluster.sh` will create a standalone cluster.
 
@@ -142,7 +142,7 @@ before that, we should set `KUBECONFIG` to karmada apiserver:
 Then, install `karmadactl` command and join the member cluster:
 ```
 # go get github.com/karmada-io/karmada/cmd/karmadactl
-# karmadactl join member-cluster-1 --member-cluster-kubeconfig=/root/.kube/membercluster1.config
+# karmadactl join member1 --member-cluster-kubeconfig=/root/.kube/member1.config
 ```
 The `karmadactl join` command will create a `MemberCluster` object to reflect the member cluster.
 
@@ -150,8 +150,8 @@ The `karmadactl join` command will create a `MemberCluster` object to reflect th
 Now, check the member clusters from karmada control plane by following command:
 ```
 # kubectl get membercluster 
-NAME               KUBERNETESVERSION  READY  AGE
-member-cluster-1   v1.19.1            True   75s
+NAME      VERSION   READY   AGE
+member1   v1.19.1   True    66s
 ```
 
 ### Propagate application
@@ -173,7 +173,7 @@ Then, we need create a policy to drive the deployment to our member cluster.
 Start another window, set `KUBECONFIG` with the file we specified in `hack/create-cluster.sh` command,
 and then check if the deployment exist:
 ```
-# export KUBECONFIG=/root/.kube/membercluster1.config
+# export KUBECONFIG=/root/.kube/member1.config
 # kubectl get deployment
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
 nginx   1/1     1            1           43s

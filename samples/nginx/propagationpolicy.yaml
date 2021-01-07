@@ -3,14 +3,11 @@ kind: PropagationPolicy
 metadata:
   name: nginx-propagation
 spec:
-  resourceSelector:
+  resourceSelectors:
     - apiVersion: apps/v1
       kind: Deployment
-      names:
-        - nginx
-      namespaces:
-        - default
+      name: nginx
   placement:
     clusterAffinity:
       clusterNames:
-        - member-cluster-1
+        - member1
