@@ -3,7 +3,7 @@ kind: PropagationPolicy
 metadata:
   name: example-policy
 spec:
-  resourceSelector:
+  resourceSelectors:
     - apiVersion: apps/v1
       kind: Deployment
       name: deployment-1
