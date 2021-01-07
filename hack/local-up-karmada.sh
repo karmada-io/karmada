@@ -33,6 +33,9 @@ make images
 # load controller-manager image
 kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
+# load scheduler image
+kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+
 # deploy karmada control plane
 "${SCRIPT_ROOT}"/hack/deploy-karmada.sh
 

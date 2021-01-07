@@ -82,6 +82,8 @@ waitPodReady $controller_pod_label "karmada-system"
 export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
 installCRDs
 
-# deploy controller-manager on host cluster
 export KUBECONFIG=${HOST_CLUSTER_KUBECONFIG}
+# deploy controller-manager on host cluster
 kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/controller-manager.yaml"
+# deploy scheduler on host cluster
+kubectl apply -f "${SCRIPT_ROOT}/artifacts/deploy/karmada-scheduler.yaml"
