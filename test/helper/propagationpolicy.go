@@ -19,8 +19,7 @@ func NewPolicyWithSingleDeployment(namespace string, name string, deployment *ap
 				{
 					APIVersion: deployment.APIVersion,
 					Kind:       deployment.Kind,
-					Names:      []string{deployment.Name},
-					Namespaces: []string{deployment.Namespace},
+					Name:       deployment.Name,
 				},
 			},
 			Placement: propagationapi.Placement{

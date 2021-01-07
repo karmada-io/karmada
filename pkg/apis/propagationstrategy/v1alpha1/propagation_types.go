@@ -22,7 +22,7 @@ type PropagationPolicy struct {
 type PropagationSpec struct {
 	// ResourceSelectors used to select resources.
 	// nil represents all resources.
-	ResourceSelectors []ResourceSelector `json:"resourceSelector,omitempty"`
+	ResourceSelectors []ResourceSelector `json:"resourceSelectors,omitempty"`
 
 	// Association tells if relevant resources should be selected automatically.
 	// e.g. a ConfigMap referred by a Deployment.
@@ -47,28 +47,20 @@ type ResourceSelector struct {
 	// Kind represents the Kind of the target resources.
 	Kind string `json:"kind"`
 
-	// Names restricts a list of referent names that the ResourceSelector will only select.
+	// Namespace of the target resource.
+	// Default is empty, which means inherit from the parent object scope.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name of the target resource.
 	// Default is empty, which means selecting all resources.
 	// +optional
-	Names []string `json:"names,omitempty"`
-
-	// Namespaces restricts a list of namespaces that the ResourceSelector will only select.
-	// If set, only resources in the listed namespaces will be selected.
-	// Default is empty, which means selecting all namespaces.
-	// +optional
-	Namespaces []string `json:"namespaces,omitempty"`
-
-	// ExcludeNamespaces is a list of namespaces that the ResourceSelector will ignore.
-	// Default is empty, which means don't ignore any namespace.
-	// +optional
-	ExcludeNamespaces []string `json:"excludeNamespaces,omitempty"`
+	Name string `json:"name,omitempty"`
 
 	// A label query over a set of resources.
+	// If name is not empty, labelSelector will be ignored.
 	// +optional
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
-
-	// FieldSelector is a field filter.
-	//FieldSelector *FieldSelector `json:"fieldSelector,omitempty"`
 }
 
 // FieldSelector is a field filter.
