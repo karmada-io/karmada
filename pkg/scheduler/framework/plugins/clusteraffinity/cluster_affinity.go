@@ -31,19 +31,22 @@ func (p *ClusterAffinity) Name() string {
 
 // Filter checks if the cluster matched the placement cluster affinity constraint.
 func (p *ClusterAffinity) Filter(ctx context.Context, placement *v1alpha1.Placement, cluster *membercluster.MemberCluster) *framework.Result {
-	for _, clusterName := range placement.ClusterAffinity.ExcludeClusters {
-		if clusterName == cluster.Name {
-			return framework.NewResult(framework.Unschedulable, "cluster is excluded")
-		}
-	}
-
-	if len(placement.ClusterAffinity.ClusterNames) > 0 {
-		for _, clusterName := range placement.ClusterAffinity.ClusterNames {
+	affinity := placement.ClusterAffinity
+	if affinity != nil {
+		for _, clusterName := range affinity.ExcludeClusters {
 			if clusterName == cluster.Name {
-				return framework.NewResult(framework.Success)
+				return framework.NewResult(framework.Unschedulable, "cluster is excluded")
 			}
 		}
-		return framework.NewResult(framework.Unschedulable, "cluster is not specified")
+
+		if len(affinity.ClusterNames) > 0 {
+			for _, clusterName := range affinity.ClusterNames {
+				if clusterName == cluster.Name {
+					return framework.NewResult(framework.Success)
+				}
+			}
+			return framework.NewResult(framework.Unschedulable, "cluster is not specified")
+		}
 	}
 
 	// If no clusters specified and it is not excluded, mark it matched
