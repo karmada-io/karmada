@@ -15,6 +15,8 @@ CONTROLPLANE_SUDO=$(test -w "${CERT_DIR}" || echo "sudo -E")
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
+source hack/util.sh
+
 # check whether openssl is installed.
 function ensure_openssl {
     OPENSSL_BIN=$(command -v openssl)
@@ -32,12 +34,7 @@ function ensure-cfssl {
         return 0
     fi
 
-    # Install cfssl tools we need.
-    TEMP_PATH=$(mktemp -d)
-    pushd "${TEMP_PATH}" >/dev/null
-      GO111MODULE=on go get github.com/cloudflare/cfssl/cmd/...@"${CFSSL_VERSION}"
-    popd >/dev/null
-    rm -rf "${TEMP_PATH}"
+    util::install_tools "github.com/cloudflare/cfssl/cmd/..." ${CFSSL_VERSION}
 
     GOPATH=$(go env | grep GOPATH | awk -F '=' '{print $2}'| sed 's/\"//g')
     CFSSL_BIN="${GOPATH}/bin/cfssl"

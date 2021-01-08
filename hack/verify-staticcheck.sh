@@ -5,11 +5,13 @@ set -o nounset
 set -o pipefail
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+GOLANGCI_LINT_PKG="github.com/golangci/golangci-lint/cmd/golangci-lint"
+GOLANGCI_LINT_VER="v1.32.2"
 
-# TODO(RainbowMango): Pin golangci-lint verison to @v1.32.2
-# go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.32.2
+cd "${REPO_ROOT}"
+source "hack/util.sh"
 
-cd ${REPO_ROOT}
+util::install_tools ${GOLANGCI_LINT_PKG} ${GOLANGCI_LINT_VER}
 
 if golangci-lint run; then
   echo 'Congratulations!  All Go source files have passed staticcheck.'
