@@ -1,8 +1,8 @@
 package v1alpha1
 
 import (
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // +genclient
@@ -47,7 +47,7 @@ type PlaintextOverrider struct {
 	// Value to be applied to target field.
 	// Must be empty when operator is Remove.
 	// +optional
-	Value runtime.RawExtension `json:",inline"`
+	Value apiextensionsv1.JSON `json:"value,omitempty"`
 }
 
 // OverriderOperator is the set of operators that can be used in an overrider.
