@@ -55,6 +55,10 @@ spec:
                         path:
                           description: Path indicates the path of target field
                           type: string
+                        value:
+                          description: Value to be applied to target field. Must be
+                            empty when operator is Remove.
+                          x-kubernetes-preserve-unknown-fields: true
                       required:
                       - operator
                       - path
