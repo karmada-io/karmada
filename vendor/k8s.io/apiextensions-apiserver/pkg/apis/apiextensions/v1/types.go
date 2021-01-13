@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,31 +43,12 @@ type CustomResourceDefinitionSpec struct {
 	// The custom resources are served under `/apis/<group>/...`.
 	// Must match the name of the CustomResourceDefinition (in the form `<names.plural>.<group>`).
 	Group string `json:"group" protobuf:"bytes,1,opt,name=group"`
-	// version is the API version of the defined custom resource.
-	// The custom resources are served under `/apis/<group>/<version>/...`.
-	// Must match the name of the first item in the `versions` list if `version` and `versions` are both specified.
-	// Optional if `versions` is specified.
-	// Deprecated: use `versions` instead.
-	// +optional
-	Version string `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
 	// names specify the resource and kind names for the custom resource.
 	Names CustomResourceDefinitionNames `json:"names" protobuf:"bytes,3,opt,name=names"`
 	// scope indicates whether the defined custom resource is cluster- or namespace-scoped.
-	// Allowed values are `Cluster` and `Namespaced`. Default is `Namespaced`.
+	// Allowed values are `Cluster` and `Namespaced`.
 	Scope ResourceScope `json:"scope" protobuf:"bytes,4,opt,name=scope,casttype=ResourceScope"`
-	// validation describes the schema used for validation and pruning of the custom resource.
-	// If present, this validation schema is used to validate all versions.
-	// Top-level and per-version schemas are mutually exclusive.
-	// +optional
-	Validation *CustomResourceValidation `json:"validation,omitempty" protobuf:"bytes,5,opt,name=validation"`
-	// subresources specify what subresources the defined custom resource has.
-	// If present, this field configures subresources for all versions.
-	// Top-level and per-version subresources are mutually exclusive.
-	// +optional
-	Subresources *CustomResourceSubresources `json:"subresources,omitempty" protobuf:"bytes,6,opt,name=subresources"`
 	// versions is the list of all API versions of the defined custom resource.
-	// Optional if `version` is specified.
-	// The name of the first item in the `versions` list must match the `version` field if `version` and `versions` are both specified.
 	// Version names are used to compute the order in which served versions are listed in API discovery.
 	// If the version string is "kube-like", it will sort above non "kube-like" version strings, which are ordered
 	// lexicographically. "Kube-like" versions start with a "v", then are followed by a number (the major version),
@@ -75,15 +56,7 @@ type CustomResourceDefinitionSpec struct {
 	// by GA > beta > alpha (where GA is a version with no suffix such as beta or alpha), and then by comparing
 	// major version, then minor version. An example sorted list of versions:
 	// v10, v2, v1, v11beta2, v10beta3, v3beta1, v12alpha1, v11alpha2, foo1, foo10.
-	// +optional
-	Versions []CustomResourceDefinitionVersion `json:"versions,omitempty" protobuf:"bytes,7,rep,name=versions"`
-	// additionalPrinterColumns specifies additional columns returned in Table output.
-	// See https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables for details.
-	// If present, this field configures columns for all versions.
-	// Top-level and per-version columns are mutually exclusive.
-	// If no top-level or per-version columns are specified, a single column displaying the age of the custom resource is used.
-	// +optional
-	AdditionalPrinterColumns []CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty" protobuf:"bytes,8,rep,name=additionalPrinterColumns"`
+	Versions []CustomResourceDefinitionVersion `json:"versions" protobuf:"bytes,7,rep,name=versions"`
 
 	// conversion defines conversion settings for the CRD.
 	// +optional
@@ -92,13 +65,10 @@ type CustomResourceDefinitionSpec struct {
 	// preserveUnknownFields indicates that object fields which are not specified
 	// in the OpenAPI schema should be preserved when persisting to storage.
 	// apiVersion, kind, metadata and known fields inside metadata are always preserved.
-	// If false, schemas must be defined for all versions.
-	// Defaults to true in v1beta for backwards compatibility.
-	// Deprecated: will be required to be false in v1. Preservation of unknown fields can be specified
-	// in the validation schema using the `x-kubernetes-preserve-unknown-fields: true` extension.
+	// This field is deprecated in favor of setting `x-preserve-unknown-fields` to true in `spec.versions[*].schema.openAPIV3Schema`.
 	// See https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#pruning-versus-preserving-unknown-fields for details.
 	// +optional
-	PreserveUnknownFields *bool `json:"preserveUnknownFields,omitempty" protobuf:"varint,10,opt,name=preserveUnknownFields"`
+	PreserveUnknownFields bool `json:"preserveUnknownFields,omitempty" protobuf:"varint,10,opt,name=preserveUnknownFields"`
 }
 
 // CustomResourceConversion describes how to convert different versions of a CR.
@@ -106,13 +76,19 @@ type CustomResourceConversion struct {
 	// strategy specifies how custom resources are converted between versions. Allowed values are:
 	// - `None`: The converter only change the apiVersion and would not touch any other field in the custom resource.
 	// - `Webhook`: API Server will call to an external webhook to do the conversion. Additional information
-	//   is needed for this option. This requires spec.preserveUnknownFields to be false, and spec.conversion.webhookClientConfig to be set.
+	//   is needed for this option. This requires spec.preserveUnknownFields to be false, and spec.conversion.webhook to be set.
 	Strategy ConversionStrategyType `json:"strategy" protobuf:"bytes,1,name=strategy"`
 
-	// webhookClientConfig is the instructions for how to call the webhook if strategy is `Webhook`.
-	// Required when `strategy` is set to `Webhook`.
+	// webhook describes how to call the conversion webhook. Required when `strategy` is set to `Webhook`.
 	// +optional
-	WebhookClientConfig *WebhookClientConfig `json:"webhookClientConfig,omitempty" protobuf:"bytes,2,name=webhookClientConfig"`
+	Webhook *WebhookConversion `json:"webhook,omitempty" protobuf:"bytes,2,opt,name=webhook"`
+}
+
+// WebhookConversion describes how to call a conversion webhook
+type WebhookConversion struct {
+	// clientConfig is the instructions for how to call the webhook if strategy is `Webhook`.
+	// +optional
+	ClientConfig *WebhookClientConfig `json:"clientConfig,omitempty" protobuf:"bytes,2,name=clientConfig"`
 
 	// conversionReviewVersions is an ordered list of preferred `ConversionReview`
 	// versions the Webhook expects. The API server will use the first version in
@@ -120,9 +96,7 @@ type CustomResourceConversion struct {
 	// are supported by API server, conversion will fail for the custom resource.
 	// If a persisted Webhook configuration specifies allowed versions and does not
 	// include any versions known to the API Server, calls to the webhook will fail.
-	// Defaults to `["v1beta1"]`.
-	// +optional
-	ConversionReviewVersions []string `json:"conversionReviewVersions,omitempty" protobuf:"bytes,3,rep,name=conversionReviewVersions"`
+	ConversionReviewVersions []string `json:"conversionReviewVersions" protobuf:"bytes,3,rep,name=conversionReviewVersions"`
 }
 
 // WebhookClientConfig contains the information to make a TLS connection with the webhook.
@@ -211,21 +185,15 @@ type CustomResourceDefinitionVersion struct {
 	// of the newest served version of equal or greater stability, if one exists.
 	// +optional
 	DeprecationWarning *string `json:"deprecationWarning,omitempty" protobuf:"bytes,8,opt,name=deprecationWarning"`
-	// schema describes the schema used for validation and pruning of this version of the custom resource.
-	// Top-level and per-version schemas are mutually exclusive.
-	// Per-version schemas must not all be set to identical values (top-level validation schema should be used instead).
+	// schema describes the schema used for validation, pruning, and defaulting of this version of the custom resource.
 	// +optional
 	Schema *CustomResourceValidation `json:"schema,omitempty" protobuf:"bytes,4,opt,name=schema"`
 	// subresources specify what subresources this version of the defined custom resource have.
-	// Top-level and per-version subresources are mutually exclusive.
-	// Per-version subresources must not all be set to identical values (top-level subresources should be used instead).
 	// +optional
 	Subresources *CustomResourceSubresources `json:"subresources,omitempty" protobuf:"bytes,5,opt,name=subresources"`
 	// additionalPrinterColumns specifies additional columns returned in Table output.
 	// See https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables for details.
-	// Top-level and per-version columns are mutually exclusive.
-	// Per-version columns must not all be set to identical values (top-level columns should be used instead).
-	// If no top-level or per-version columns are specified, a single column displaying the age of the custom resource is used.
+	// If no columns are specified, a single column displaying the age of the custom resource is used.
 	// +optional
 	AdditionalPrinterColumns []CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty" protobuf:"bytes,6,rep,name=additionalPrinterColumns"`
 }
@@ -250,9 +218,9 @@ type CustomResourceColumnDefinition struct {
 	// should be given a priority greater than 0.
 	// +optional
 	Priority int32 `json:"priority,omitempty" protobuf:"bytes,5,opt,name=priority"`
-	// JSONPath is a simple JSON path (i.e. with array notation) which is evaluated against
+	// jsonPath is a simple JSON path (i.e. with array notation) which is evaluated against
 	// each custom resource to produce the value for this column.
-	JSONPath string `json:"JSONPath" protobuf:"bytes,6,opt,name=JSONPath"`
+	JSONPath string `json:"jsonPath" protobuf:"bytes,6,opt,name=jsonPath"`
 }
 
 // CustomResourceDefinitionNames indicates the names to serve this CustomResourceDefinition
@@ -385,14 +353,9 @@ const CustomResourceCleanupFinalizer = "customresourcecleanup.apiextensions.k8s.
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +k8s:prerelease-lifecycle-gen:introduced=1.7
-// +k8s:prerelease-lifecycle-gen:deprecated=1.16
-// +k8s:prerelease-lifecycle-gen:removed=1.22
-// +k8s:prerelease-lifecycle-gen:replacement=apiextensions.k8s.io,v1,CustomResourceDefinition
 
 // CustomResourceDefinition represents a resource that should be exposed on the API server.  Its name MUST be in the format
 // <.spec.name>.<.spec.group>.
-// Deprecated in v1.16, planned for removal in v1.22. Use apiextensions.k8s.io/v1 CustomResourceDefinition instead.
 type CustomResourceDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -405,10 +368,6 @@ type CustomResourceDefinition struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +k8s:prerelease-lifecycle-gen:introduced=1.7
-// +k8s:prerelease-lifecycle-gen:deprecated=1.16
-// +k8s:prerelease-lifecycle-gen:removed=1.22
-// +k8s:prerelease-lifecycle-gen:replacement=apiextensions.k8s.io,v1,CustomResourceDefinitionList
 
 // CustomResourceDefinitionList is a list of CustomResourceDefinition objects.
 type CustomResourceDefinitionList struct {
@@ -473,11 +432,6 @@ type CustomResourceSubresourceScale struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +k8s:prerelease-lifecycle-gen:introduced=1.13
-// +k8s:prerelease-lifecycle-gen:deprecated=1.19
-// This API is never served.  It is used for outbound requests from apiservers.  This will ensure it never gets served accidentally
-// and having the generator against this group will protect future APIs which may be served.
-// +k8s:prerelease-lifecycle-gen:replacement=apiextensions.k8s.io,v1,ConversionReview
 
 // ConversionReview describes a conversion request/response.
 type ConversionReview struct {

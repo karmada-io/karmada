@@ -19,14 +19,14 @@ limitations under the License.
 
 syntax = 'proto2';
 
-package k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1beta1;
+package k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1;
 
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "v1beta1";
+option go_package = "v1";
 
 // ConversionRequest describes the conversion request parameters.
 message ConversionRequest {
@@ -99,9 +99,9 @@ message CustomResourceColumnDefinition {
   // +optional
   optional int32 priority = 5;
 
-  // JSONPath is a simple JSON path (i.e. with array notation) which is evaluated against
+  // jsonPath is a simple JSON path (i.e. with array notation) which is evaluated against
   // each custom resource to produce the value for this column.
-  optional string JSONPath = 6;
+  optional string jsonPath = 6;
 }
 
 // CustomResourceConversion describes how to convert different versions of a CR.
@@ -109,28 +109,16 @@ message CustomResourceConversion {
   // strategy specifies how custom resources are converted between versions. Allowed values are:
   // - `None`: The converter only change the apiVersion and would not touch any other field in the custom resource.
   // - `Webhook`: API Server will call to an external webhook to do the conversion. Additional information
-  //   is needed for this option. This requires spec.preserveUnknownFields to be false, and spec.conversion.webhookClientConfig to be set.
+  //   is needed for this option. This requires spec.preserveUnknownFields to be false, and spec.conversion.webhook to be set.
   optional string strategy = 1;
 
-  // webhookClientConfig is the instructions for how to call the webhook if strategy is `Webhook`.
-  // Required when `strategy` is set to `Webhook`.
+  // webhook describes how to call the conversion webhook. Required when `strategy` is set to `Webhook`.
   // +optional
-  optional WebhookClientConfig webhookClientConfig = 2;
-
-  // conversionReviewVersions is an ordered list of preferred `ConversionReview`
-  // versions the Webhook expects. The API server will use the first version in
-  // the list which it supports. If none of the versions specified in this list
-  // are supported by API server, conversion will fail for the custom resource.
-  // If a persisted Webhook configuration specifies allowed versions and does not
-  // include any versions known to the API Server, calls to the webhook will fail.
-  // Defaults to `["v1beta1"]`.
-  // +optional
-  repeated string conversionReviewVersions = 3;
+  optional WebhookConversion webhook = 2;
 }
 
 // CustomResourceDefinition represents a resource that should be exposed on the API server.  Its name MUST be in the format
 // <.spec.name>.<.spec.group>.
-// Deprecated in v1.16, planned for removal in v1.22. Use apiextensions.k8s.io/v1 CustomResourceDefinition instead.
 message CustomResourceDefinition {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
@@ -212,36 +200,14 @@ message CustomResourceDefinitionSpec {
   // Must match the name of the CustomResourceDefinition (in the form `<names.plural>.<group>`).
   optional string group = 1;
 
-  // version is the API version of the defined custom resource.
-  // The custom resources are served under `/apis/<group>/<version>/...`.
-  // Must match the name of the first item in the `versions` list if `version` and `versions` are both specified.
-  // Optional if `versions` is specified.
-  // Deprecated: use `versions` instead.
-  // +optional
-  optional string version = 2;
-
   // names specify the resource and kind names for the custom resource.
   optional CustomResourceDefinitionNames names = 3;
 
   // scope indicates whether the defined custom resource is cluster- or namespace-scoped.
-  // Allowed values are `Cluster` and `Namespaced`. Default is `Namespaced`.
+  // Allowed values are `Cluster` and `Namespaced`.
   optional string scope = 4;
 
-  // validation describes the schema used for validation and pruning of the custom resource.
-  // If present, this validation schema is used to validate all versions.
-  // Top-level and per-version schemas are mutually exclusive.
-  // +optional
-  optional CustomResourceValidation validation = 5;
-
-  // subresources specify what subresources the defined custom resource has.
-  // If present, this field configures subresources for all versions.
-  // Top-level and per-version subresources are mutually exclusive.
-  // +optional
-  optional CustomResourceSubresources subresources = 6;
-
   // versions is the list of all API versions of the defined custom resource.
-  // Optional if `version` is specified.
-  // The name of the first item in the `versions` list must match the `version` field if `version` and `versions` are both specified.
   // Version names are used to compute the order in which served versions are listed in API discovery.
   // If the version string is "kube-like", it will sort above non "kube-like" version strings, which are ordered
   // lexicographically. "Kube-like" versions start with a "v", then are followed by a number (the major version),
@@ -249,16 +215,7 @@ message CustomResourceDefinitionSpec {
   // by GA > beta > alpha (where GA is a version with no suffix such as beta or alpha), and then by comparing
   // major version, then minor version. An example sorted list of versions:
   // v10, v2, v1, v11beta2, v10beta3, v3beta1, v12alpha1, v11alpha2, foo1, foo10.
-  // +optional
   repeated CustomResourceDefinitionVersion versions = 7;
-
-  // additionalPrinterColumns specifies additional columns returned in Table output.
-  // See https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables for details.
-  // If present, this field configures columns for all versions.
-  // Top-level and per-version columns are mutually exclusive.
-  // If no top-level or per-version columns are specified, a single column displaying the age of the custom resource is used.
-  // +optional
-  repeated CustomResourceColumnDefinition additionalPrinterColumns = 8;
 
   // conversion defines conversion settings for the CRD.
   // +optional
@@ -267,10 +224,7 @@ message CustomResourceDefinitionSpec {
   // preserveUnknownFields indicates that object fields which are not specified
   // in the OpenAPI schema should be preserved when persisting to storage.
   // apiVersion, kind, metadata and known fields inside metadata are always preserved.
-  // If false, schemas must be defined for all versions.
-  // Defaults to true in v1beta for backwards compatibility.
-  // Deprecated: will be required to be false in v1. Preservation of unknown fields can be specified
-  // in the validation schema using the `x-kubernetes-preserve-unknown-fields: true` extension.
+  // This field is deprecated in favor of setting `x-preserve-unknown-fields` to true in `spec.versions[*].schema.openAPIV3Schema`.
   // See https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#pruning-versus-preserving-unknown-fields for details.
   // +optional
   optional bool preserveUnknownFields = 10;
@@ -323,23 +277,17 @@ message CustomResourceDefinitionVersion {
   // +optional
   optional string deprecationWarning = 8;
 
-  // schema describes the schema used for validation and pruning of this version of the custom resource.
-  // Top-level and per-version schemas are mutually exclusive.
-  // Per-version schemas must not all be set to identical values (top-level validation schema should be used instead).
+  // schema describes the schema used for validation, pruning, and defaulting of this version of the custom resource.
   // +optional
   optional CustomResourceValidation schema = 4;
 
   // subresources specify what subresources this version of the defined custom resource have.
-  // Top-level and per-version subresources are mutually exclusive.
-  // Per-version subresources must not all be set to identical values (top-level subresources should be used instead).
   // +optional
   optional CustomResourceSubresources subresources = 5;
 
   // additionalPrinterColumns specifies additional columns returned in Table output.
   // See https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables for details.
-  // Top-level and per-version columns are mutually exclusive.
-  // Per-version columns must not all be set to identical values (top-level columns should be used instead).
-  // If no top-level or per-version columns are specified, a single column displaying the age of the custom resource is used.
+  // If no columns are specified, a single column displaying the age of the custom resource is used.
   // +optional
   repeated CustomResourceColumnDefinition additionalPrinterColumns = 6;
 }
@@ -458,7 +406,7 @@ message JSONSchemaProps {
 
   // default is a default value for undefined object fields.
   // Defaulting is a beta feature under the CustomResourceDefaulting feature gate.
-  // CustomResourceDefinitions with defaults must be created using the v1 (or newer) CustomResourceDefinition API.
+  // Defaulting requires spec.preserveUnknownFields to be false.
   optional JSON default = 8;
 
   optional double maximum = 9;
@@ -682,5 +630,20 @@ message WebhookClientConfig {
   // If unspecified, system trust roots on the apiserver are used.
   // +optional
   optional bytes caBundle = 2;
+}
+
+// WebhookConversion describes how to call a conversion webhook
+message WebhookConversion {
+  // clientConfig is the instructions for how to call the webhook if strategy is `Webhook`.
+  // +optional
+  optional WebhookClientConfig clientConfig = 2;
+
+  // conversionReviewVersions is an ordered list of preferred `ConversionReview`
+  // versions the Webhook expects. The API server will use the first version in
+  // the list which it supports. If none of the versions specified in this list
+  // are supported by API server, conversion will fail for the custom resource.
+  // If a persisted Webhook configuration specifies allowed versions and does not
+  // include any versions known to the API Server, calls to the webhook will fail.
+  repeated string conversionReviewVersions = 3;
 }
 
