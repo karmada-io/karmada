@@ -3,6 +3,7 @@ module github.com/karmada-io/karmada
 go 1.14
 
 require (
+	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/onsi/ginkgo v1.12.1

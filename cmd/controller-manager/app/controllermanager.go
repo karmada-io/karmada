@@ -25,6 +25,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
+	overridemanager "github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
 // aggregatedScheme aggregates all Kubernetes and extended schemes used by controllers.
@@ -94,6 +95,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	kubeClientSet := kubernetes.NewForConfigOrDie(resetConfig)
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), kubeClientSet, mgr.GetRESTMapper())
+	overridemanager := overridemanager.NewOverrideManager(mgr.GetClient())
 
 	MemberClusterController := &membercluster.Controller{
 		Client:        mgr.GetClient(),
@@ -125,11 +127,12 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	}
 
 	bindingController := &binding.PropagationBindingController{
-		Client:        mgr.GetClient(),
-		DynamicClient: dynamicClientSet,
-		KarmadaClient: karmadaClient,
-		EventRecorder: mgr.GetEventRecorderFor(binding.ControllerName),
-		RESTMapper:    mgr.GetRESTMapper(),
+		Client:          mgr.GetClient(),
+		DynamicClient:   dynamicClientSet,
+		KarmadaClient:   karmadaClient,
+		EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
+		RESTMapper:      mgr.GetRESTMapper(),
+		OverrideManager: overridemanager,
 	}
 	if err := bindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup binding controller: %v", err)
