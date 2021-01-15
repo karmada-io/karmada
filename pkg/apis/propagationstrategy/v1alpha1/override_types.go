@@ -42,7 +42,8 @@ type PlaintextOverrider struct {
 	// Path indicates the path of target field
 	Path string `json:"path"`
 	// Operator indicates the operation on target field.
-	// Available operators are: Add, Update and Remove.
+	// Available operators are: add, update and remove.
+	// +kubebuilder:validation:Enum=add;remove;replace
 	Operator OverriderOperator `json:"operator"`
 	// Value to be applied to target field.
 	// Must be empty when operator is Remove.
@@ -55,9 +56,9 @@ type OverriderOperator string
 
 // These are valid overrider operators.
 const (
-	OverriderOpAdd     OverriderOperator = "Add"
-	OverriderOpRemove  OverriderOperator = "Remove"
-	OverriderOpReplace OverriderOperator = "Replace"
+	OverriderOpAdd     OverriderOperator = "add"
+	OverriderOpRemove  OverriderOperator = "remove"
+	OverriderOpReplace OverriderOperator = "replace"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
