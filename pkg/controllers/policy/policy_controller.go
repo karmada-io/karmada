@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -18,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -31,9 +31,8 @@ var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationPolicy")
 
 // PropagationPolicyController is to sync PropagationPolicy.
 type PropagationPolicyController struct {
-	client.Client                            // used to operate PropagationPolicy resources.
-	DynamicClient dynamic.Interface          // used to fetch arbitrary resources.
-	KarmadaClient karmadaclientset.Interface // used to create/update PropagationBinding resources.
+	client.Client                   // used to operate PropagationPolicy resources.
+	DynamicClient dynamic.Interface // used to fetch arbitrary resources.
 	EventRecorder record.EventRecorder
 	RESTMapper    meta.RESTMapper
 }
@@ -74,11 +73,9 @@ func (c *PropagationPolicyController) syncPolicy(policy *v1alpha1.PropagationPol
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
 	// TODO(RainbowMango): Need to report an event for no resource policy that may be a mistake.
 	// Ignore the workloads that owns by other policy and can not be shared.
 	policyReferenceWorkloads := c.ignoreIrrelevantWorkload(policy, workloads)
-
 	owner := names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())
 	// Claim the rest workloads that should be owned by current policy.
 	err = c.claimResources(owner, policyReferenceWorkloads)
@@ -87,7 +84,6 @@ func (c *PropagationPolicyController) syncPolicy(policy *v1alpha1.PropagationPol
 	}
 
 	// TODO: Remove annotation of workloads owned by current policy, but should not be owned now.
-
 	return c.buildPropagationBinding(policy, policyReferenceWorkloads)
 }
 
@@ -111,7 +107,7 @@ func (c *PropagationPolicyController) fetchWorkloads(policy *v1alpha1.Propagatio
 
 // deletePropagationBinding will create propagationBinding.
 func (c *PropagationPolicyController) deletePropagationBinding(binding v1alpha1.PropagationBinding) error {
-	err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(binding.GetNamespace()).Delete(context.TODO(), binding.GetName(), metav1.DeleteOptions{})
+	err := c.Client.Delete(context.TODO(), &binding)
 	if err != nil && apierrors.IsNotFound(err) {
 		klog.Infof("PropagationBinding %s/%s is already not exist.", binding.GetNamespace(), binding.GetName())
 		return nil
@@ -126,17 +122,17 @@ func (c *PropagationPolicyController) deletePropagationBinding(binding v1alpha1.
 // calculatePropagationBindings will get orphanBindings and workloads that need to update or create.
 func (c *PropagationPolicyController) calculatePropagationBindings(policy *v1alpha1.PropagationPolicy,
 	workloads []*unstructured.Unstructured) ([]v1alpha1.PropagationBinding, []*unstructured.Unstructured, error) {
-	ownerLabel := metav1.LabelSelector{
-		MatchLabels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())},
-	}
-
-	bindingList, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(policy.GetNamespace()).List(context.TODO(),
-		metav1.ListOptions{LabelSelector: labels.Set(ownerLabel.MatchLabels).String()})
+	labelRequirement, err := labels.NewRequirement(util.OwnerLabel, selection.Equals, []string{names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())})
 	if err != nil {
+		klog.Errorf("Failed to new a requirement. Error: %v", err)
+		return nil, nil, err
+	}
+	selector := labels.NewSelector().Add(*labelRequirement)
+	bindingList := &v1alpha1.PropagationBindingList{}
+	if err := c.Client.List(context.TODO(), bindingList, &client.ListOptions{LabelSelector: selector}); err != nil {
 		klog.Errorf("Failed to list propagationBindings in namespace %s", policy.GetNamespace())
 		return nil, nil, err
 	}
-
 	var orphanBindings []v1alpha1.PropagationBinding
 	for _, binding := range bindingList.Items {
 		isFind := false
@@ -241,20 +237,21 @@ func (c *PropagationPolicyController) fetchWorkloadsByResourceSelector(resourceS
 
 		return []*unstructured.Unstructured{workload}, nil
 	}
-
-	unstructuredWorkLoadList, err := c.DynamicClient.Resource(dynamicResource).Namespace(resourceSelector.Namespace).List(context.TODO(),
-		metav1.ListOptions{LabelSelector: resourceSelector.LabelSelector.String()})
+	selector, err := metav1.LabelSelectorAsSelector(resourceSelector.LabelSelector)
 	if err != nil {
 		return nil, err
 	}
-
+	unstructuredWorkLoadList, err := c.DynamicClient.Resource(dynamicResource).Namespace(resourceSelector.Namespace).List(context.TODO(),
+		metav1.ListOptions{LabelSelector: selector.String()})
+	if err != nil {
+		return nil, err
+	}
 	var workloads []*unstructured.Unstructured
 	for _, unstructuredWorkLoad := range unstructuredWorkLoadList.Items {
 		if unstructuredWorkLoad.GetDeletionTimestamp() == nil {
 			workloads = append(workloads, &unstructuredWorkLoad)
 		}
 	}
-
 	return workloads, nil
 }
 
@@ -306,8 +303,7 @@ func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.
 			},
 		},
 	}
-
-	_, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(propagationBinding.Namespace).Create(context.TODO(), propagationBinding, metav1.CreateOptions{})
+	err := c.Client.Create(context.TODO(), propagationBinding)
 	if err == nil {
 		klog.Infof("Create propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
 		return nil

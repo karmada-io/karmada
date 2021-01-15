@@ -116,7 +116,6 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	policyController := &policy.PropagationPolicyController{
 		Client:        mgr.GetClient(),
 		DynamicClient: dynamicClientSet,
-		KarmadaClient: karmadaClient,
 		EventRecorder: mgr.GetEventRecorderFor(policy.ControllerName),
 		RESTMapper:    mgr.GetRESTMapper(),
 	}
