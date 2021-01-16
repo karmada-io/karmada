@@ -6,35 +6,23 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
-	memberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
-	propagationv1alpha1 "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/membercluster"
 	"github.com/karmada-io/karmada/pkg/controllers/policy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 )
-
-// aggregatedScheme aggregates all Kubernetes and extended schemes used by controllers.
-var aggregatedScheme = runtime.NewScheme()
-
-func init() {
-	var _ = scheme.AddToScheme(aggregatedScheme)                // add Kubernetes schemes
-	var _ = propagationv1alpha1.AddToScheme(aggregatedScheme)   // add propagation schemes
-	var _ = memberclusterv1alpha1.AddToScheme(aggregatedScheme) // add membercluster schemes
-}
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
 func NewControllerManagerCommand(stopChan <-chan struct{}) *cobra.Command {
@@ -66,7 +54,7 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 		panic(err)
 	}
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Scheme:           aggregatedScheme,
+		Scheme:           gclient.NewSchema(),
 		LeaderElection:   true, // TODO(RainbowMango): Add a flag '--enable-leader-election' for this option.
 		LeaderElectionID: "41db11fa.karmada.io",
 	})
