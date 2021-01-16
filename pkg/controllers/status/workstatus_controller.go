@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -101,8 +102,12 @@ func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) 
 	// worker queue until exceed the maxRetries. We should improve this scenario after 'version manager' get on board,
 	// which should knows if this remove event is expected.
 	obj, err := c.getObjectFromCache(key)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		return err
+	}
+
+	if errors.IsNotFound(err) {
+		return c.handleDeleteEvent(key)
 	}
 
 	owner := util.GetLabelValue(obj.GetLabels(), util.OwnerLabel)
@@ -156,6 +161,60 @@ func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) 
 
 	klog.Infof("reflecting %s(%s/%s) status of to PropagationWork(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), ownerNamespace, ownerName)
 	return c.reflectStatus(workObject, obj)
+}
+
+func (c *PropagationWorkStatusController) handleDeleteEvent(key string) error {
+	clusterWorkload, err := util.SplitMetaKey(key)
+	if err != nil {
+		klog.Errorf("Couldn't get key for %s. Error: %v.", key, err)
+		return err
+	}
+
+	executionSpace, err := names.GenerateExecutionSpaceName(clusterWorkload.Cluster)
+	if err != nil {
+		return err
+	}
+
+	propagationWorkName := names.GenerateBindingName(clusterWorkload.Namespace, clusterWorkload.GVK.Kind, clusterWorkload.Name)
+	propagationWork := &v1alpha1.PropagationWork{}
+	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: executionSpace, Name: propagationWorkName}, propagationWork); err != nil {
+		// Stop processing if resource no longer exist.
+		if errors.IsNotFound(err) {
+			klog.Infof("workload %v/%v not found", executionSpace, propagationWorkName)
+			return nil
+		}
+
+		klog.Errorf("Failed to get PropagationWork from cache: %v", err)
+		return err
+	}
+
+	if !propagationWork.DeletionTimestamp.IsZero() {
+		klog.Infof("resource %v/%v/%v in member cluster %v does not need to recreate", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
+		return nil
+	}
+
+	return c.recreateResourceIfNeeded(propagationWork, clusterWorkload)
+}
+
+func (c *PropagationWorkStatusController) recreateResourceIfNeeded(propagationWork *v1alpha1.PropagationWork, clusterWorkload util.ClusterWorkload) error {
+	for _, rawManifest := range propagationWork.Spec.Workload.Manifests {
+		manifest := &unstructured.Unstructured{}
+		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
+			return err
+		}
+
+		desiredGVK := schema.FromAPIVersionAndKind(manifest.GetAPIVersion(), manifest.GetKind())
+		if reflect.DeepEqual(desiredGVK, clusterWorkload.GVK) &&
+			manifest.GetNamespace() == clusterWorkload.Namespace &&
+			manifest.GetName() == clusterWorkload.Name {
+
+			util.MergeLabel(manifest, util.OwnerLabel, names.GenerateOwnerLabelValue(propagationWork.GetNamespace(), propagationWork.GetName()))
+
+			klog.Infof("resource %v/%v/%v in member cluster %v needs to recreate", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
+			return c.ObjectWatcher.Create(clusterWorkload.Cluster, manifest)
+		}
+	}
+	return nil
 }
 
 // reflectStatus grabs cluster object's running status then updates to it's owner object(PropagationWork).
