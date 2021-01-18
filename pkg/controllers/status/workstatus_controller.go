@@ -96,13 +96,12 @@ func (c *PropagationWorkStatusController) RunWorkQueue() {
 
 // syncPropagationWorkStatus will find propagationWork by label in workload, then update resource status to propagationWork status.
 // label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
-// TODO(chenxianpao): sync workload status to propagationWork status.
 func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) error {
-	// TODO(RainbowMango): we can't get object from cache for delete event, in that case the key will be throw into the
-	// worker queue until exceed the maxRetries. We should improve this scenario after 'version manager' get on board,
-	// which should knows if this remove event is expected.
 	obj, err := c.getObjectFromCache(key)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return c.handleDeleteEvent(key)
+		}
 		return err
 	}
 
@@ -210,7 +209,7 @@ func (c *PropagationWorkStatusController) recreateResourceIfNeeded(propagationWo
 
 			util.MergeLabel(manifest, util.OwnerLabel, names.GenerateOwnerLabelValue(propagationWork.GetNamespace(), propagationWork.GetName()))
 
-			klog.Infof("resource %v/%v/%v in member cluster %v needs to recreate", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
+			klog.Infof("recreating %s/%s/%s in member cluster %s", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
 			return c.ObjectWatcher.Create(clusterWorkload.Cluster, manifest)
 		}
 	}
@@ -347,8 +346,14 @@ func (c *PropagationWorkStatusController) getObjectFromCache(key string) (*unstr
 	var obj runtime.Object
 	obj, err = lister.Get(clusterWorkload.GetListerKey())
 	if err != nil {
-		klog.Errorf("Failed to get obj %s/%s/%s from cache in cluster %s. Error: %v.", clusterWorkload.GVK.Kind,
+		if errors.IsNotFound(err) {
+			return nil, err
+		}
+
+		// print logs only for real error.
+		klog.Errorf("Failed to get obj %s/%s/%s from cache in cluster %s. error: %v.", clusterWorkload.GVK.Kind,
 			clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster, err)
+
 		return nil, err
 	}
 	return obj.(*unstructured.Unstructured), nil
