@@ -36,6 +36,9 @@ kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --nam
 # load scheduler image
 kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
+# load webhook image
+kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+
 # deploy karmada control plane
 "${SCRIPT_ROOT}"/hack/deploy-karmada.sh
 

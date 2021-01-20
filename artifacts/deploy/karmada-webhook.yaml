@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-webhook
+  namespace: karmada-system
+  labels:
+    app: karmada-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: karmada-webhook
+  template:
+    metadata:
+      labels:
+        app: karmada-webhook
+    spec:
+      serviceAccountName: karmada-webhook
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+        - name: karmada-webhook
+          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/karmada-webhook
+            - --kubeconfig=/etc/kubeconfig
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: kubeconfig
+              subPath: kubeconfig
+              mountPath: /etc/kubeconfig
+            - name: cert
+              mountPath: /var/serving-cert
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8443
+              scheme: HTTPS
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig
+        - name: cert
+          secret:
+            secretName: webhook-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-webhook
+  namespace: karmada-system
+spec:
+  selector:
+    app: karmada-webhook
+  ports:
+    - port: 443
+      targetPort: 8443
