@@ -22,6 +22,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -32,11 +33,12 @@ var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationBinding")
 
 // PropagationBindingController is to sync PropagationBinding.
 type PropagationBindingController struct {
-	client.Client                            // used to operate PropagationBinding resources.
-	DynamicClient dynamic.Interface          // used to fetch arbitrary resources.
-	KarmadaClient karmadaclientset.Interface // used to create/update PropagationWork resources.
-	EventRecorder record.EventRecorder
-	RESTMapper    meta.RESTMapper
+	client.Client                              // used to operate PropagationBinding resources.
+	DynamicClient   dynamic.Interface          // used to fetch arbitrary resources.
+	KarmadaClient   karmadaclientset.Interface // used to create/update PropagationWork resources.
+	EventRecorder   record.EventRecorder
+	RESTMapper      meta.RESTMapper
+	OverrideManager overridemanager.OverrideManager
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -193,14 +195,23 @@ func (c *PropagationBindingController) transformBindingToWorks(binding *v1alpha1
 func (c *PropagationBindingController) ensurePropagationWork(workload *unstructured.Unstructured, clusterNames []string,
 	binding *v1alpha1.PropagationBinding) error {
 	c.removeIrrelevantField(workload)
-	workloadJSON, err := workload.MarshalJSON()
-	if err != nil {
-		klog.Errorf("Failed to marshal workload, kind: %s, namespace: %s, name: %s. Error: %v",
-			workload.GetKind(), workload.GetName(), workload.GetNamespace(), err)
-		return err
-	}
 
 	for _, clusterName := range clusterNames {
+		// apply override policies
+		clonedWorkload := workload.DeepCopy()
+		err := c.OverrideManager.ApplyOverridePolicies(clonedWorkload, clusterName)
+		if err != nil {
+			klog.Errorf("failed to apply overrides for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+			return err
+		}
+
+		workloadJSON, err := clonedWorkload.MarshalJSON()
+		if err != nil {
+			klog.Errorf("Failed to marshal workload, kind: %s, namespace: %s, name: %s. Error: %v",
+				clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace(), err)
+			return err
+		}
+
 		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
 		if err != nil {
 			klog.Errorf("Failed to ensure PropagationWork for cluster: %s. Error: %v.", clusterName, err)
