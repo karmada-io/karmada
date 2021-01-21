@@ -11,6 +11,7 @@ APISERVER_POD_LABEL="karmada-apiserver"
 KUBE_CONTROLLER_POD_LABEL="kube-controller-manager"
 KARMADA_CONTROLLER_LABEL="karmada-controller-manager"
 KARMADA_SCHEDULER_LABEL="karmada-scheduler"
+KARMADA_WEBHOOK_LABEL="karmada-webhook"
 
 # This function installs a Go tools by 'go get' command.
 # Parameters:
@@ -248,4 +249,23 @@ function util::check_clusters_ready() {
   kubectl config set-cluster "kind-${context_name}" --server="https://${container_ip}:6443" --kubeconfig="${kubeconfig_path}"
 
   util::wait_for_condition 'ok' "kubectl --kubeconfig ${kubeconfig_path} --context ${context_name} get --raw=/healthz &> /dev/null" 120
+}
+
+# This function deploys webhook configuration
+# Parameters:
+#  - $1: CA file
+#  - $2: configuration file
+# Note:
+#   Deprecated: should be removed after helm get on board.
+function util::deploy_webhook_configuration() {
+  local ca_file=$1
+  local conf=$2
+
+  local ca_string=$(sudo cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+
+  local temp_path=$(mktemp -d)
+  cp -rf "${conf}" "${temp_path}/temp.yaml"
+  sed -i "s/{{caBundle}}/${ca_string}/g" "${temp_path}/temp.yaml"
+  kubectl apply -f "${temp_path}/temp.yaml"
+  rm -rf "${temp_path}"
 }

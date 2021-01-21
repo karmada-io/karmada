@@ -39,6 +39,7 @@ function generate_cert_secret {
     local TEMP_PATH=$(mktemp -d)
     cp -rf ${REPO_ROOT}/artifacts/deploy/karmada-cert-secret.yaml ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
     cp -rf ${REPO_ROOT}/artifacts/deploy/secret.yaml ${TEMP_PATH}/secret-tmp.yaml
+    cp -rf ${REPO_ROOT}/artifacts/deploy/karmada-webhook-cert-secret.yaml ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
 
     sed -i "s/{{ca_crt}}/${karmada_ca}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
     sed -i "s/{{client_cer}}/${karmada_crt}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
@@ -48,8 +49,12 @@ function generate_cert_secret {
     sed -i "s/{{client_cer}}/${karmada_crt}/g" ${TEMP_PATH}/secret-tmp.yaml
     sed -i "s/{{client_key}}/${karmada_key}/g" ${TEMP_PATH}/secret-tmp.yaml
 
+    sed -i "s/{{server_key}}/${karmada_key}/g" ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
+    sed -i "s/{{server_certificate}}/${karmada_crt}/g" ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
+
     kubectl apply -f ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
     kubectl apply -f ${TEMP_PATH}/secret-tmp.yaml
+    kubectl apply -f ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
     rm -rf "${TEMP_PATH}"
 }
 
@@ -74,7 +79,7 @@ util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 # create CA signers
 util::create_signing_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" server '"client auth","server auth"'
 # signs a certificate
-util::create_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "localhost" "127.0.0.1"
+util::create_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
 KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
 util::write_client_kubeconfig "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "${ROOT_CA_FILE}" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
@@ -114,13 +119,19 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
 export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
 installCRDs
 
+# deploy webhook configurations on karmada apiserver
+util::deploy_webhook_configuration ${ROOT_CA_FILE} "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
+
 export KUBECONFIG=${HOST_CLUSTER_KUBECONFIG}
 # deploy controller-manager on host cluster
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/controller-manager.yaml"
 # deploy scheduler on host cluster
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-scheduler.yaml"
+# deploy webhook on host cluster
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-webhook.yaml"
 
 # make sure all karmada control plane components are ready
 util::wait_pod_ready ${KARMADA_CONTROLLER_LABEL} "karmada-system"
 util::wait_pod_ready ${KARMADA_SCHEDULER_LABEL} "karmada-system"
 util::wait_pod_ready ${KUBE_CONTROLLER_POD_LABEL} "karmada-system"
+util::wait_pod_ready ${KARMADA_WEBHOOK_LABEL} "karmada-system"

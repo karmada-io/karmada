@@ -15,19 +15,16 @@ REGISTRY_SERVER_ADDRESS?=""
 # Set your version by env or using latest tags from git
 VERSION?=""
 ifeq ($(VERSION), "")
-    $(info "Guessing version from git latest tags...")
     LATEST_TAG=$(shell git describe --tags)
     ifeq ($(LATEST_TAG),)
         # Forked repo may not sync tags from upstream, so give it a default tag to make CI happy.
-        $(info "no tags found, set version with unknown")
         VERSION="unknown"
     else
-        $(info "using latest git tag($(LATEST_TAG)) as version")
         VERSION=$(LATEST_TAG)
     endif
 endif
 
-all: karmada-controller-manager karmada-scheduler karmadactl
+all: karmada-controller-manager karmada-scheduler karmadactl karmada-webhook
 
 karmada-controller-manager: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
@@ -47,14 +44,20 @@ karmadactl: $(SOURCES)
 		-o karmadactl \
 		cmd/karmadactl/karmadactl.go
 
+karmada-webhook: $(SOURCES)
+	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+		-ldflags $(LDFLAGS) \
+		-o karmada-webhook \
+		cmd/webhook/main.go
+
 clean:
-	rm -rf karmada-controller-manager karmada-scheduler karmadactl
+	rm -rf karmada-controller-manager karmada-scheduler karmadactl karmada-webhook
 
 .PHONY: test
 test:
 	go test --race --v ./pkg/...
 
-images: image-karmada-controller-manager image-karmada-scheduler
+images: image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook
 
 image-karmada-controller-manager: karmada-controller-manager
 	cp karmada-controller-manager cluster/images/karmada-controller-manager && \
@@ -65,6 +68,11 @@ image-karmada-scheduler: karmada-scheduler
 	cp karmada-scheduler cluster/images/karmada-scheduler && \
 	docker build -t $(REGISTRY)/karmada-scheduler:$(VERSION) cluster/images/karmada-scheduler && \
 	rm cluster/images/karmada-scheduler/karmada-scheduler
+
+image-karmada-webhook: karmada-webhook
+	cp karmada-webhook cluster/images/karmada-webhook && \
+	docker build -t $(REGISTRY)/karmada-webhook:$(VERSION) cluster/images/karmada-webhook && \
+	rm cluster/images/karmada-webhook/karmada-webhook
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
