@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -19,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -33,9 +33,8 @@ var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationBinding")
 
 // PropagationBindingController is to sync PropagationBinding.
 type PropagationBindingController struct {
-	client.Client                              // used to operate PropagationBinding resources.
-	DynamicClient   dynamic.Interface          // used to fetch arbitrary resources.
-	KarmadaClient   karmadaclientset.Interface // used to create/update PropagationWork resources.
+	client.Client                     // used to operate PropagationBinding resources.
+	DynamicClient   dynamic.Interface // used to fetch arbitrary resources.
 	EventRecorder   record.EventRecorder
 	RESTMapper      meta.RESTMapper
 	OverrideManager overridemanager.OverrideManager
@@ -107,7 +106,7 @@ func (c *PropagationBindingController) syncBinding(binding *v1alpha1.Propagation
 // removeOrphanBindings will remove orphan propagationWorks.
 func (c *PropagationBindingController) removeOrphanWorks(works []v1alpha1.PropagationWork) error {
 	for _, work := range works {
-		err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(work.GetNamespace()).Delete(context.TODO(), work.GetName(), metav1.DeleteOptions{})
+		err := c.Client.Delete(context.TODO(), &work)
 		if err != nil {
 			return err
 		}
@@ -118,12 +117,14 @@ func (c *PropagationBindingController) removeOrphanWorks(works []v1alpha1.Propag
 
 // findOrphanWorks will find orphan propagationWorks that don't match current propagationBinding clusters.
 func (c *PropagationBindingController) findOrphanWorks(ownerLabel string, clusterNames []string) ([]v1alpha1.PropagationWork, error) {
-	ownerLabelSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{util.OwnerLabel: ownerLabel},
-	}
-	propagationWorkList, err := c.KarmadaClient.PropagationstrategyV1alpha1().PropagationWorks(metav1.NamespaceAll).List(context.TODO(),
-		metav1.ListOptions{LabelSelector: labels.Set(ownerLabelSelector.MatchLabels).String()})
+	labelRequirement, err := labels.NewRequirement(util.OwnerLabel, selection.Equals, []string{ownerLabel})
 	if err != nil {
+		klog.Errorf("Failed to new a requirement. Error: %v", err)
+		return nil, err
+	}
+	selector := labels.NewSelector().Add(*labelRequirement)
+	propagationWorkList := &v1alpha1.PropagationWorkList{}
+	if err := c.Client.List(context.TODO(), propagationWorkList, &client.ListOptions{LabelSelector: selector}); err != nil {
 		return nil, err
 	}
 	var orphanWorks []v1alpha1.PropagationWork

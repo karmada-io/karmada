@@ -18,7 +18,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/membercluster"
 	"github.com/karmada-io/karmada/pkg/controllers/policy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
@@ -79,7 +78,6 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	resetConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
-	karmadaClient := karmadaclientset.NewForConfigOrDie(resetConfig)
 	kubeClientSet := kubernetes.NewForConfigOrDie(resetConfig)
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), kubeClientSet, mgr.GetRESTMapper())
@@ -116,7 +114,6 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	bindingController := &binding.PropagationBindingController{
 		Client:          mgr.GetClient(),
 		DynamicClient:   dynamicClientSet,
-		KarmadaClient:   karmadaClient,
 		EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
 		RESTMapper:      mgr.GetRESTMapper(),
 		OverrideManager: overridemanager,
