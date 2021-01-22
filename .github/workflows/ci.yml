@@ -19,7 +19,7 @@ jobs:
           # show only new issues if it's a pull request.
           only-new-issues: false
   codegen:
-    name: codegen, crdgen
+    name: codegen
     runs-on: ubuntu-latest
     steps:
       - name: checkout code
@@ -33,7 +33,7 @@ jobs:
       - name: verify crdgen
         run: hack/verify-crdgen.sh
   build:
-    name: compile binary and images
+    name: compile
     needs: codegen # rely on codegen successful completion
     runs-on: ubuntu-latest
     steps:
@@ -49,8 +49,6 @@ jobs:
           go-version: 1.14.x
       - name: compile
         run: make all
-      - name: make images
-        run: make images
   test:
     name: unit test
     needs: build
