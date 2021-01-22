@@ -26,6 +26,9 @@ spec:
           command:
             - /bin/karmada-webhook
             - --kubeconfig=/etc/kubeconfig
+            - --bind-address=0.0.0.0
+            - --secure-port=8443
+            - --cert-dir=/var/serving-cert
           ports:
             - containerPort: 8443
           volumeMounts:
