@@ -4,8 +4,8 @@ package fake
 
 import (
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	memberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1"
-	fakememberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1/fake"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1"
+	fakeclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1/fake"
 	propagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1"
 	fakepropagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -62,9 +62,9 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// MemberclusterV1alpha1 retrieves the MemberclusterV1alpha1Client
-func (c *Clientset) MemberclusterV1alpha1() memberclusterv1alpha1.MemberclusterV1alpha1Interface {
-	return &fakememberclusterv1alpha1.FakeMemberclusterV1alpha1{Fake: &c.Fake}
+// ClusterV1alpha1 retrieves the ClusterV1alpha1Client
+func (c *Clientset) ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface {
+	return &fakeclusterv1alpha1.FakeClusterV1alpha1{Fake: &c.Fake}
 }
 
 // PropagationstrategyV1alpha1 retrieves the PropagationstrategyV1alpha1Client

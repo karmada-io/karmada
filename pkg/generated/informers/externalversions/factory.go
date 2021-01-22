@@ -8,8 +8,8 @@ import (
 	time "time"
 
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	cluster "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/cluster"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	membercluster "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/membercluster"
 	propagationstrategy "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/propagationstrategy"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -157,12 +157,12 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Membercluster() membercluster.Interface
+	Cluster() cluster.Interface
 	Propagationstrategy() propagationstrategy.Interface
 }
 
-func (f *sharedInformerFactory) Membercluster() membercluster.Interface {
-	return membercluster.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Cluster() cluster.Interface {
+	return cluster.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Propagationstrategy() propagationstrategy.Interface {
