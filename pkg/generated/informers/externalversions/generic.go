@@ -5,7 +5,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	propagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
@@ -37,9 +37,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=membercluster.karmada.io, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("memberclusters"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Membercluster().V1alpha1().MemberClusters().Informer()}, nil
+	// Group=cluster.karmada.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("clusters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Cluster().V1alpha1().Clusters().Informer()}, nil
 
 		// Group=propagationstrategy.karmada.io, Version=v1alpha1
 	case propagationstrategyv1alpha1.SchemeGroupVersion.WithResource("overridepolicies"):
