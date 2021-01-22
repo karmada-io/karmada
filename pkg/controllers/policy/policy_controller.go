@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -108,10 +107,10 @@ func (c *PropagationPolicyController) fetchWorkloads(policy *v1alpha1.Propagatio
 // deletePropagationBinding will create propagationBinding.
 func (c *PropagationPolicyController) deletePropagationBinding(binding v1alpha1.PropagationBinding) error {
 	err := c.Client.Delete(context.TODO(), &binding)
-	if err != nil && apierrors.IsNotFound(err) {
+	if err != nil && errors.IsNotFound(err) {
 		klog.Infof("PropagationBinding %s/%s is already not exist.", binding.GetNamespace(), binding.GetName())
 		return nil
-	} else if err != nil && !apierrors.IsNotFound(err) {
+	} else if err != nil && !errors.IsNotFound(err) {
 		klog.Errorf("Failed to delete propagationBinding %s/%s. Error: %v.", binding.GetNamespace(), binding.GetName(), err)
 		return err
 	}
@@ -308,7 +307,7 @@ func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.
 		klog.Infof("Create propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
 		return nil
 	}
-	if apierrors.IsAlreadyExists(err) {
+	if errors.IsAlreadyExists(err) {
 		klog.V(2).Infof("PropagationBinding %s/%s is up to date.", propagationBinding.GetNamespace(), propagationBinding.GetName())
 		return nil
 	}
