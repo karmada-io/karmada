@@ -6,13 +6,13 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: memberclusters.cluster.karmada.io
+  name: clusters.cluster.karmada.io
 spec:
   group: cluster.karmada.io
   names:
-    kind: MemberCluster
-    listKind: MemberClusterList
-    plural: memberclusters
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
     singular: cluster
   scope: Cluster
   versions:
@@ -29,8 +29,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: MemberCluster represents the desire state and status of a member
-          cluster.
+        description: Cluster represents the desire state and status of a member cluster.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation

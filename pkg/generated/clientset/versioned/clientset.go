@@ -5,7 +5,7 @@ package versioned
 import (
 	"fmt"
 
-	memberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/membercluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1"
 	propagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -14,7 +14,7 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	MemberclusterV1alpha1() memberclusterv1alpha1.MemberclusterV1alpha1Interface
+	ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface
 	PropagationstrategyV1alpha1() propagationstrategyv1alpha1.PropagationstrategyV1alpha1Interface
 }
 
@@ -22,13 +22,13 @@ type Interface interface {
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	memberclusterV1alpha1       *memberclusterv1alpha1.MemberclusterV1alpha1Client
+	clusterV1alpha1             *clusterv1alpha1.ClusterV1alpha1Client
 	propagationstrategyV1alpha1 *propagationstrategyv1alpha1.PropagationstrategyV1alpha1Client
 }
 
-// MemberclusterV1alpha1 retrieves the MemberclusterV1alpha1Client
-func (c *Clientset) MemberclusterV1alpha1() memberclusterv1alpha1.MemberclusterV1alpha1Interface {
-	return c.memberclusterV1alpha1
+// ClusterV1alpha1 retrieves the ClusterV1alpha1Client
+func (c *Clientset) ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface {
+	return c.clusterV1alpha1
 }
 
 // PropagationstrategyV1alpha1 retrieves the PropagationstrategyV1alpha1Client
@@ -57,7 +57,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.memberclusterV1alpha1, err = memberclusterv1alpha1.NewForConfig(&configShallowCopy)
+	cs.clusterV1alpha1, err = clusterv1alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.memberclusterV1alpha1 = memberclusterv1alpha1.NewForConfigOrDie(c)
+	cs.clusterV1alpha1 = clusterv1alpha1.NewForConfigOrDie(c)
 	cs.propagationstrategyV1alpha1 = propagationstrategyv1alpha1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
@@ -87,7 +87,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.memberclusterV1alpha1 = memberclusterv1alpha1.New(c)
+	cs.clusterV1alpha1 = clusterv1alpha1.New(c)
 	cs.propagationstrategyV1alpha1 = propagationstrategyv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
