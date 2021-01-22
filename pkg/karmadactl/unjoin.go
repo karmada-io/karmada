@@ -99,7 +99,7 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.MemberClusterKubeConfig, "member-cluster-kubeconfig", "",
 		"Path of the member cluster's kubeconfig.")
 	flags.BoolVar(&j.forceDeletion, "force", false,
-		"Delete membercluster and secret resources even if resources in the member cluster targeted for unjoin are not removed successfully.")
+		"Delete cluster and secret resources even if resources in the member cluster targeted for unjoin are not removed successfully.")
 }
 
 // RunUnjoin is the implementation of the 'unjoin' command.

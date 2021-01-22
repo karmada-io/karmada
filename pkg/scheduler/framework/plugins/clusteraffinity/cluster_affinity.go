@@ -3,7 +3,7 @@ package clusteraffinity
 import (
 	"context"
 
-	membercluster "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	membercluster "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
@@ -30,7 +30,7 @@ func (p *ClusterAffinity) Name() string {
 }
 
 // Filter checks if the cluster matched the placement cluster affinity constraint.
-func (p *ClusterAffinity) Filter(ctx context.Context, placement *v1alpha1.Placement, cluster *membercluster.MemberCluster) *framework.Result {
+func (p *ClusterAffinity) Filter(ctx context.Context, placement *v1alpha1.Placement, cluster *membercluster.Cluster) *framework.Result {
 	affinity := placement.ClusterAffinity
 	if affinity != nil {
 		for _, clusterName := range affinity.ExcludeClusters {
@@ -54,6 +54,6 @@ func (p *ClusterAffinity) Filter(ctx context.Context, placement *v1alpha1.Placem
 }
 
 // Score calculates the score on the candidate cluster.
-func (p *ClusterAffinity) Score(ctx context.Context, placement *v1alpha1.Placement, cluster *membercluster.MemberCluster) (float64, *framework.Result) {
+func (p *ClusterAffinity) Score(ctx context.Context, placement *v1alpha1.Placement, cluster *membercluster.Cluster) (float64, *framework.Result) {
 	return 0, nil
 }

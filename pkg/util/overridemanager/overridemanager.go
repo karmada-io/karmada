@@ -10,7 +10,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -38,7 +38,7 @@ func New(client client.Client) OverrideManager {
 }
 
 func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstructured, clusterName string) error {
-	clusterObj := &clusterv1alpha1.MemberCluster{}
+	clusterObj := &clusterv1alpha1.Cluster{}
 	if err := o.Client.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 		klog.Errorf("Failed to get member cluster: %s, error: %v", clusterName, err)
 		return err
@@ -62,7 +62,7 @@ func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstruc
 }
 
 // applyClusterOverrides will apply overrides according to ClusterOverridePolicy instructions.
-func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.MemberCluster) error {
+func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) error {
 
 	// TODO(RainbowMango): implements later after ClusterOverridePolicy get on board.
 
@@ -70,7 +70,7 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 }
 
 // applyNamespacedOverrides will apply overrides according to OverridePolicy instructions.
-func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.MemberCluster) error {
+func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) error {
 	// get all namespace-scoped override policies
 	policyList := &propagationstrategy.OverridePolicyList{}
 	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{Namespace: rawObj.GetNamespace()}); err != nil {
@@ -101,7 +101,7 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 	return nil
 }
 
-func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []propagationstrategy.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.MemberCluster) []propagationstrategy.OverridePolicy {
+func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []propagationstrategy.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []propagationstrategy.OverridePolicy {
 	// select policy in which at least one resource selector matches target resource.
 	resourceMatches := make([]propagationstrategy.OverridePolicy, 0)
 	for _, policy := range policies {

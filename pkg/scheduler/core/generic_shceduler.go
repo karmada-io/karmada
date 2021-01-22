@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	memberclusterapi "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	memberclusterapi "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	lister "github.com/karmada-io/karmada/pkg/generated/listers/propagationstrategy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
@@ -92,8 +92,8 @@ func (g *genericScheduler) findClustersThatFit(
 	ctx context.Context,
 	fwk framework.Framework,
 	placement *v1alpha1.Placement,
-	clusterInfo *cache.Snapshot) ([]*memberclusterapi.MemberCluster, error) {
-	var out []*memberclusterapi.MemberCluster
+	clusterInfo *cache.Snapshot) ([]*memberclusterapi.Cluster, error) {
+	var out []*memberclusterapi.Cluster
 	clusters := clusterInfo.GetClusters()
 	for _, c := range clusters {
 		resMap := fwk.RunFilterPlugins(ctx, placement, c.Cluster())
@@ -113,7 +113,7 @@ func (g *genericScheduler) prioritizeClusters(
 	ctx context.Context,
 	fwk framework.Framework,
 	placement *v1alpha1.Placement,
-	clusters []*memberclusterapi.MemberCluster) (result framework.ClusterScoreList, err error) {
+	clusters []*memberclusterapi.Cluster) (result framework.ClusterScoreList, err error) {
 	scoresMap, err := fwk.RunScorePlugins(ctx, placement, clusters)
 	if err != nil {
 		return result, err

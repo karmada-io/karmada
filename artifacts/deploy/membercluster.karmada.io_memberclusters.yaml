@@ -6,14 +6,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: memberclusters.membercluster.karmada.io
+  name: memberclusters.cluster.karmada.io
 spec:
-  group: membercluster.karmada.io
+  group: cluster.karmada.io
   names:
     kind: MemberCluster
     listKind: MemberClusterList
     plural: memberclusters
-    singular: membercluster
+    singular: cluster
   scope: Cluster
   versions:
   - additionalPrinterColumns:

@@ -17,13 +17,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName            = "membercluster-status-controller"
+	ControllerName            = "cluster-status-controller"
 	clusterReady              = "ClusterReady"
 	clusterHealthy            = "cluster is reachable and health endpoint responded with ok"
 	clusterNotReady           = "ClusterNotReady"
@@ -32,9 +32,9 @@ const (
 	clusterNotReachableMsg    = "cluster is not reachable"
 )
 
-// MemberClusterStatusController is to sync status of MemberCluster.
+// MemberClusterStatusController is to sync status of Cluster.
 type MemberClusterStatusController struct {
-	client.Client                      // used to operate MemberCluster resources.
+	client.Client                      // used to operate Cluster resources.
 	KubeClientSet kubernetes.Interface // used to get kubernetes resources.
 	EventRecorder record.EventRecorder
 }
@@ -45,7 +45,7 @@ type MemberClusterStatusController struct {
 func (c *MemberClusterStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Syncing memberCluster status: %s", req.NamespacedName.String())
 
-	memberCluster := &v1alpha1.MemberCluster{}
+	memberCluster := &v1alpha1.Cluster{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, memberCluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
@@ -59,8 +59,8 @@ func (c *MemberClusterStatusController) Reconcile(req controllerruntime.Request)
 		return controllerruntime.Result{}, nil
 	}
 
-	// start syncing status only when the finalizer is present on the given MemberCluster to
-	// avoid conflict with membercluster controller.
+	// start syncing status only when the finalizer is present on the given Cluster to
+	// avoid conflict with cluster controller.
 	if !controllerutil.ContainsFinalizer(memberCluster, util.MemberClusterControllerFinalizer) {
 		klog.V(2).Infof("waiting finalizer present for member cluster: %s", memberCluster.Name)
 		return controllerruntime.Result{Requeue: true}, nil
@@ -71,10 +71,10 @@ func (c *MemberClusterStatusController) Reconcile(req controllerruntime.Request)
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *MemberClusterStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.MemberCluster{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).Complete(c)
 }
 
-func (c *MemberClusterStatusController) syncMemberClusterStatus(memberCluster *v1alpha1.MemberCluster) (controllerruntime.Result, error) {
+func (c *MemberClusterStatusController) syncMemberClusterStatus(memberCluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create a ClusterClient for the given member cluster
 	clusterClient, err := util.NewClusterClientSet(memberCluster, c.KubeClientSet)
 	if err != nil {
@@ -82,7 +82,7 @@ func (c *MemberClusterStatusController) syncMemberClusterStatus(memberCluster *v
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	var currentClusterStatus = v1alpha1.MemberClusterStatus{}
+	var currentClusterStatus = v1alpha1.ClusterStatus{}
 
 	// get the health status of member cluster
 	online, healthy := getMemberClusterHealthStatus(clusterClient)
@@ -124,7 +124,7 @@ func (c *MemberClusterStatusController) syncMemberClusterStatus(memberCluster *v
 }
 
 // updateStatusIfNeeded calls updateStatus only if the status of the member cluster is not the same as the old status
-func (c *MemberClusterStatusController) updateStatusIfNeeded(memberCluster *v1alpha1.MemberCluster, currentClusterStatus v1alpha1.MemberClusterStatus) (controllerruntime.Result, error) {
+func (c *MemberClusterStatusController) updateStatusIfNeeded(memberCluster *v1alpha1.Cluster, currentClusterStatus v1alpha1.ClusterStatus) (controllerruntime.Result, error) {
 	if !equality.Semantic.DeepEqual(memberCluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update memberCluster status: %s", memberCluster.Name)
 		memberCluster.Status = currentClusterStatus
@@ -205,7 +205,7 @@ func generateReadyCondition(online, healthy bool) []v1.Condition {
 	return conditions
 }
 
-func setTransitionTime(oldClusterStatus, newClusterStatus *v1alpha1.MemberClusterStatus) {
+func setTransitionTime(oldClusterStatus, newClusterStatus *v1alpha1.ClusterStatus) {
 	// preserve the last transition time if the status of member cluster not changed
 	if util.IsMemberClusterReady(oldClusterStatus) == util.IsMemberClusterReady(newClusterStatus) {
 		if len(oldClusterStatus.Conditions) != 0 {
