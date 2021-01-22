@@ -9,7 +9,7 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-
 
 bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/karmada-io/karmada/pkg/generated github.com/karmada-io/karmada/pkg/apis \
-  "propagationstrategy:v1alpha1 membercluster:v1alpha1" \
+  "propagationstrategy:v1alpha1 cluster:v1alpha1" \
   --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../.." \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate/boilerplate.go.txt
 
@@ -17,8 +17,8 @@ echo "Generating with register-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/register-gen
 register-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1 \
-  --output-package=github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1
+  --input-dirs=github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1 \
+  --output-package=github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1
 register-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --input-dirs=github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1 \

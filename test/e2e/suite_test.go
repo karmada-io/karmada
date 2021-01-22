@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	clusterapi "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	clusterapi "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/helper"
@@ -43,7 +43,7 @@ var (
 	restConfig           *rest.Config
 	kubeClient           kubernetes.Interface
 	karmadaClient        karmada.Interface
-	memberClusters       []*clusterapi.MemberCluster
+	memberClusters       []*clusterapi.Cluster
 	memberClusterNames   []string
 	memberClusterClients []*util.ClusterClient
 	testNamespace        = fmt.Sprintf("karmada-e2e-%s", rand.String(3))
@@ -97,13 +97,13 @@ var _ = ginkgo.AfterSuite(func() {
 }, TestSuiteTeardownTimeOut.Seconds())
 
 // fetchMemberClusters will fetch all member clusters we have.
-func fetchMemberClusters(client karmada.Interface) ([]*clusterapi.MemberCluster, error) {
+func fetchMemberClusters(client karmada.Interface) ([]*clusterapi.Cluster, error) {
 	clusterList, err := client.MemberclusterV1alpha1().MemberClusters().List(context.TODO(), v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	clusters := make([]*clusterapi.MemberCluster, 0, len(clusterList.Items))
+	clusters := make([]*clusterapi.Cluster, 0, len(clusterList.Items))
 	for _, cluster := range clusterList.Items {
 		pinedCluster := cluster
 		clusters = append(clusters, &pinedCluster)
@@ -113,7 +113,7 @@ func fetchMemberClusters(client karmada.Interface) ([]*clusterapi.MemberCluster,
 }
 
 // isMemberClusterMeetRequirements checks if current environment meet the requirements of E2E.
-func isMemberClusterMeetRequirements(clusters []*clusterapi.MemberCluster) (bool, error) {
+func isMemberClusterMeetRequirements(clusters []*clusterapi.Cluster) (bool, error) {
 	// check if member cluster number meets requirements
 	if len(clusters) < MinimumMemberCluster {
 		return false, fmt.Errorf("needs at lease %d member cluster to run, but got: %d", MinimumMemberCluster, len(clusters))

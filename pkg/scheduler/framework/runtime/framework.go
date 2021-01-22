@@ -7,7 +7,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	membercluster "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	membercluster "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	plugins2 "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
@@ -52,7 +52,7 @@ func NewFramework(plugins []string) framework.Framework {
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *v1alpha1.Placement, cluster *membercluster.MemberCluster) framework.PluginToResult {
+func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *v1alpha1.Placement, cluster *membercluster.Cluster) framework.PluginToResult {
 	result := make(framework.PluginToResult, len(frw.filterPlugins))
 	for _, p := range frw.filterPlugins {
 		pluginResult := p.Filter(ctx, placement, cluster)
@@ -64,7 +64,7 @@ func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *v1alp
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *v1alpha1.Placement, clusters []*membercluster.MemberCluster) (framework.PluginToClusterScores, error) {
+func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *v1alpha1.Placement, clusters []*membercluster.Cluster) (framework.PluginToClusterScores, error) {
 	result := make(framework.PluginToClusterScores, len(frw.filterPlugins))
 	for _, p := range frw.scorePlugins {
 		for i, cluster := range clusters {

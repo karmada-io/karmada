@@ -14,21 +14,21 @@ import (
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].status`,name="Ready",type=string
 // +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
-// MemberCluster represents the desire state and status of a member cluster.
-type MemberCluster struct {
+// Cluster represents the desire state and status of a member cluster.
+type Cluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Spec represents the specification of the desired behavior of member cluster.
-	Spec MemberClusterSpec `json:"spec"`
+	Spec ClusterSpec `json:"spec"`
 
 	// Status represents the status of member cluster.
 	// +optional
-	Status MemberClusterStatus `json:"status,omitempty"`
+	Status ClusterStatus `json:"status,omitempty"`
 }
 
-// MemberClusterSpec defines the desired state of a member cluster.
-type MemberClusterSpec struct {
+// ClusterSpec defines the desired state of a member cluster.
+type ClusterSpec struct {
 	// ManageMode specifies the relationship between control plane and member cluster,
 	// the mode determines how to reach each other.
 	// +optional
@@ -99,9 +99,9 @@ const (
 	ClusterConditionReady = "Ready"
 )
 
-// MemberClusterStatus contains information about the current status of a
+// ClusterStatus contains information about the current status of a
 // cluster updated periodically by cluster controller.
-type MemberClusterStatus struct {
+type ClusterStatus struct {
 	// KubernetesVersion represents version of the member cluster.
 	// +optional
 	KubernetesVersion string `json:"kubernetesVersion,omitempty"`
@@ -142,11 +142,11 @@ type NodeSummary struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// MemberClusterList contains a list of member cluster
-type MemberClusterList struct {
+// ClusterList contains a list of member cluster
+type ClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	// Items holds a list of MemberCluster.
-	Items []MemberCluster `json:"items"`
+	// Items holds a list of Cluster.
+	Items []Cluster `json:"items"`
 }

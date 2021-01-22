@@ -89,7 +89,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		EventRecorder: mgr.GetEventRecorderFor(membercluster.ControllerName),
 	}
 	if err := MemberClusterController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup membercluster controller: %v", err)
+		klog.Fatalf("Failed to setup cluster controller: %v", err)
 	}
 
 	MemberClusterStatusController := &status.MemberClusterStatusController{

@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 )
 
@@ -47,7 +47,7 @@ func ResourceMatches(resource *unstructured.Unstructured, rs v1alpha1.ResourceSe
 
 // ClusterMatches tells if specific cluster matches the affinity.
 // TODO(RainbowMango): Now only support ClusterAffinity.ClusterNames. More rules will be implemented later.
-func ClusterMatches(cluster *clusterv1alpha1.MemberCluster, affinity v1alpha1.ClusterAffinity) bool {
+func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity v1alpha1.ClusterAffinity) bool {
 	for _, clusterName := range affinity.ClusterNames {
 		if cluster.Name == clusterName {
 			return true
