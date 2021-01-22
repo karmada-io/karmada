@@ -172,8 +172,8 @@ util::check_clusters_ready ${MEMBER_CLUSTER_2_KUBECONFIG} "member2"
 
 # join member clusters
 export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
-${KARMADACTL_BIN} join member1 --member-cluster-kubeconfig="${MEMBER_CLUSTER_1_KUBECONFIG}"
-${KARMADACTL_BIN} join member2 --member-cluster-kubeconfig="${MEMBER_CLUSTER_2_KUBECONFIG}"
+${KARMADACTL_BIN} join member1 --cluster-kubeconfig="${MEMBER_CLUSTER_1_KUBECONFIG}"
+${KARMADACTL_BIN} join member2 --cluster-kubeconfig="${MEMBER_CLUSTER_2_KUBECONFIG}"
 
 function print_success() {
   echo
