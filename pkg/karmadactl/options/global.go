@@ -13,7 +13,7 @@ type GlobalCommandOptions struct {
 
 	// ClusterContext is the name of the cluster context in control plane KUBECONFIG file.
 	// Default value is the current-context.
-	ClusterContext string
+	KarmadaContext string
 
 	// ClusterNamespace holds the namespace name where the member cluster objects are stored.
 	ClusterNamespace string
@@ -25,7 +25,7 @@ type GlobalCommandOptions struct {
 // AddFlags adds flags to the specified FlagSet.
 func (o *GlobalCommandOptions) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Path to the control plane KUBECONFIG file.")
-	flags.StringVar(&o.ClusterContext, "cluster-context", "", "Name of the cluster context in control plane KUBECONFIG file.")
+	flags.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in control plane KUBECONFIG file.")
 	flags.StringVar(&o.ClusterNamespace, "cluster-namespace", DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster are stored.")
 	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
