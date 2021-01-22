@@ -35,6 +35,8 @@ func NewWebhookCommand(stopChan <-chan struct{}) *cobra.Command {
 	}
 
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+	opts.AddFlags(cmd.Flags())
+
 	return cmd
 }
 
@@ -49,9 +51,9 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 	}
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:           gclient.NewSchema(),
-		Host:             "0.0.0.0",
-		Port:             8443,
-		CertDir:          "/var/serving-cert",
+		Host:             opts.BindAddress,
+		Port:             opts.SecurePort,
+		CertDir:          opts.CertDir,
 		LeaderElection:   false,
 		LeaderElectionID: "webhook.karmada.io",
 	})
