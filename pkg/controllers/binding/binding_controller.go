@@ -130,7 +130,7 @@ func (c *PropagationBindingController) findOrphanWorks(ownerLabel string, cluste
 	var orphanWorks []v1alpha1.PropagationWork
 	expectClusters := sets.NewString(clusterNames...)
 	for _, work := range propagationWorkList.Items {
-		workTargetCluster, err := names.GetMemberClusterName(work.GetNamespace())
+		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
 		if err != nil {
 			klog.Errorf("Failed to get cluster name which PropagationWork %s/%s belongs to. Error: %v.",
 				work.GetNamespace(), work.GetName(), err)

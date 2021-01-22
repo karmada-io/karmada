@@ -14,8 +14,8 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
+	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
-	"github.com/karmada-io/karmada/pkg/controllers/membercluster"
 	"github.com/karmada-io/karmada/pkg/controllers/policy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -83,22 +83,22 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), kubeClientSet, mgr.GetRESTMapper())
 	overridemanager := overridemanager.New(mgr.GetClient())
 
-	MemberClusterController := &membercluster.Controller{
+	ClusterController := &cluster.Controller{
 		Client:        mgr.GetClient(),
 		KubeClientSet: kubeClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(membercluster.ControllerName),
+		EventRecorder: mgr.GetEventRecorderFor(cluster.ControllerName),
 	}
-	if err := MemberClusterController.SetupWithManager(mgr); err != nil {
+	if err := ClusterController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster controller: %v", err)
 	}
 
-	MemberClusterStatusController := &status.MemberClusterStatusController{
+	ClusterStatusController := &status.ClusterStatusController{
 		Client:        mgr.GetClient(),
 		KubeClientSet: kubeClientSet,
 		EventRecorder: mgr.GetEventRecorderFor(status.ControllerName),
 	}
-	if err := MemberClusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup memberclusterstatus controller: %v", err)
+	if err := ClusterStatusController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup clusterstatus controller: %v", err)
 	}
 
 	policyController := &policy.PropagationPolicyController{
