@@ -11,8 +11,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
-// IsMemberClusterReady tells whether the cluster status in 'Ready' condition.
-func IsMemberClusterReady(clusterStatus *v1alpha1.ClusterStatus) bool {
+// IsClusterReady tells whether the cluster status in 'Ready' condition.
+func IsClusterReady(clusterStatus *v1alpha1.ClusterStatus) bool {
 	for _, condition := range clusterStatus.Conditions {
 		// TODO(RainbowMango): Condition type should be defined in API, and after that update this hard code accordingly.
 		if condition.Type == v1alpha1.ClusterConditionReady {
@@ -24,24 +24,24 @@ func IsMemberClusterReady(clusterStatus *v1alpha1.ClusterStatus) bool {
 	return false
 }
 
-// GetMemberCluster returns the given Cluster resource
-func GetMemberCluster(hostClient client.Client, clusterName string) (*v1alpha1.Cluster, error) {
-	memberCluster := &v1alpha1.Cluster{}
-	if err := hostClient.Get(context.TODO(), types.NamespacedName{Name: clusterName}, memberCluster); err != nil {
+// GetCluster returns the given Cluster resource
+func GetCluster(hostClient client.Client, clusterName string) (*v1alpha1.Cluster, error) {
+	cluster := &v1alpha1.Cluster{}
+	if err := hostClient.Get(context.TODO(), types.NamespacedName{Name: clusterName}, cluster); err != nil {
 		return nil, err
 	}
-	return memberCluster, nil
+	return cluster, nil
 }
 
 // BuildDynamicClusterClient builds dynamic client for informerFactory by clusterName,
-// it will build kubeconfig from memberCluster resource and construct dynamic client.
-func BuildDynamicClusterClient(hostClient client.Client, kubeClient kubeclientset.Interface, cluster string) (*DynamicClusterClient, error) {
-	memberCluster, err := GetMemberCluster(hostClient, cluster)
+// it will build kubeconfig from cluster resource and construct dynamic client.
+func BuildDynamicClusterClient(hostClient client.Client, kubeClient kubeclientset.Interface, clusterName string) (*DynamicClusterClient, error) {
+	cluster, err := GetCluster(hostClient, clusterName)
 	if err != nil {
 		return nil, err
 	}
 
-	dynamicClusterClient, err := NewClusterDynamicClientSet(memberCluster, kubeClient)
+	dynamicClusterClient, err := NewClusterDynamicClientSet(cluster, kubeClient)
 	if err != nil {
 		return nil, err
 	}

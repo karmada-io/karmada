@@ -29,7 +29,7 @@ ETCD stores the karmada API objects, the API Server is the REST endpoint all oth
 
 The Karmada Controller Manager runs the various controllers,  the controllers watch karmada objects and then talk to the underlying clusters’ API servers to create regular Kubernetes resources.
 
-1. Cluster Controller: attach kubernetes clusters to Karmada for managing the lifecycle of the clusters by creating membercluster object.
+1. Cluster Controller: attach kubernetes clusters to Karmada for managing the lifecycle of the clusters by creating cluster object.
 
 2. Policy Controller: the controller watches PropagationPolicy objects. When PropagationPolicy object is added, it selects a group of resources matching the resourceSelector and create PropagationBinding with each single resource object.
 3. Binding Controller: the controller watches PropagationBinding object and create PropagationWork object corresponding to each cluster with single resource manifest.
@@ -144,12 +144,12 @@ Then, install `karmadactl` command and join the member cluster:
 # go get github.com/karmada-io/karmada/cmd/karmadactl
 # karmadactl join member1 --member-cluster-kubeconfig=/root/.kube/member1.config
 ```
-The `karmadactl join` command will create a `MemberCluster` object to reflect the member cluster.
+The `karmadactl join` command will create a `Cluster` object to reflect the member cluster.
 
 ### 3. Check member cluster status
 Now, check the member clusters from karmada control plane by following command:
 ```
-# kubectl get membercluster 
+# kubectl get cluster
 NAME      VERSION   READY   AGE
 member1   v1.19.1   True    66s
 ```

@@ -34,14 +34,14 @@ var _ = ginkgo.Describe("[propagation policy] propagation policy functionality t
 		ginkgo.It("propagate deployment", func() {
 			policyName := rand.String(6)
 			policyNamespace := testNamespace // keep policy in the same namespace with the resource
-			policy := helper.NewPolicyWithSingleDeployment(policyNamespace, policyName, deployment, memberClusterNames)
+			policy := helper.NewPolicyWithSingleDeployment(policyNamespace, policyName, deployment, clusterNames)
 
 			ginkgo.By(fmt.Sprintf("creating policy: %s/%s", policyNamespace, policyName), func() {
 				_, err = karmadaClient.PropagationstrategyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.By("check if resource appear in member clusters", func() {
-				for _, cluster := range memberClusters {
+				for _, cluster := range clusters {
 					clusterClient := getClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
@@ -61,7 +61,7 @@ var _ = ginkgo.Describe("[propagation policy] propagation policy functionality t
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.By("check if resource disappear from member clusters", func() {
-				for _, cluster := range memberClusters {
+				for _, cluster := range clusters {
 					clusterClient := getClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 

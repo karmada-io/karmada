@@ -4,7 +4,7 @@ import "testing"
 
 func TestGenerateExecutionSpaceName(t *testing.T) {
 	type args struct {
-		memberClusterName string
+		clusterName string
 	}
 	tests := []struct {
 		name    string
@@ -13,19 +13,19 @@ func TestGenerateExecutionSpaceName(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "normal cluster name",
-			args:    args{memberClusterName: "member-cluster-normal"},
+			args:    args{clusterName: "member-cluster-normal"},
 			want:    "karmada-es-member-cluster-normal",
 			wantErr: false,
 		},
 		{name: "empty member cluster name",
-			args:    args{memberClusterName: ""},
+			args:    args{clusterName: ""},
 			want:    "",
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateExecutionSpaceName(tt.args.memberClusterName)
+			got, err := GenerateExecutionSpaceName(tt.args.clusterName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateExecutionSpaceName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -37,7 +37,7 @@ func TestGenerateExecutionSpaceName(t *testing.T) {
 	}
 }
 
-func TestGetMemberClusterName(t *testing.T) {
+func TestGetClusterName(t *testing.T) {
 	type args struct {
 		executionSpaceName string
 	}
@@ -65,13 +65,13 @@ func TestGetMemberClusterName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetMemberClusterName(tt.args.executionSpaceName)
+			got, err := GetClusterName(tt.args.executionSpaceName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetMemberClusterName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetClusterName() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("GetMemberClusterName() got = %v, want %v", got, tt.want)
+				t.Errorf("GetClusterName() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

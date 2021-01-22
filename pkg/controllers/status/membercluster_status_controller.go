@@ -32,8 +32,8 @@ const (
 	clusterNotReachableMsg    = "cluster is not reachable"
 )
 
-// MemberClusterStatusController is to sync status of Cluster.
-type MemberClusterStatusController struct {
+// ClusterStatusController is to sync status of Cluster.
+type ClusterStatusController struct {
 	client.Client                      // used to operate Cluster resources.
 	KubeClientSet kubernetes.Interface // used to get kubernetes resources.
 	EventRecorder record.EventRecorder
@@ -42,11 +42,11 @@ type MemberClusterStatusController struct {
 // Reconcile syncs status of the given member cluster.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will requeue the reconcile key after the duration.
-func (c *MemberClusterStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Syncing memberCluster status: %s", req.NamespacedName.String())
+func (c *ClusterStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+	klog.V(4).Infof("Syncing cluster status: %s", req.NamespacedName.String())
 
-	memberCluster := &v1alpha1.Cluster{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, memberCluster); err != nil {
+	cluster := &v1alpha1.Cluster{}
+	if err := c.Client.Get(context.TODO(), req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -55,82 +55,82 @@ func (c *MemberClusterStatusController) Reconcile(req controllerruntime.Request)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	if !memberCluster.DeletionTimestamp.IsZero() {
+	if !cluster.DeletionTimestamp.IsZero() {
 		return controllerruntime.Result{}, nil
 	}
 
 	// start syncing status only when the finalizer is present on the given Cluster to
 	// avoid conflict with cluster controller.
-	if !controllerutil.ContainsFinalizer(memberCluster, util.MemberClusterControllerFinalizer) {
-		klog.V(2).Infof("waiting finalizer present for member cluster: %s", memberCluster.Name)
+	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
+		klog.V(2).Infof("waiting finalizer present for member cluster: %s", cluster.Name)
 		return controllerruntime.Result{Requeue: true}, nil
 	}
 
-	return c.syncMemberClusterStatus(memberCluster)
+	return c.syncClusterStatus(cluster)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
-func (c *MemberClusterStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
+func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).Complete(c)
 }
 
-func (c *MemberClusterStatusController) syncMemberClusterStatus(memberCluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create a ClusterClient for the given member cluster
-	clusterClient, err := util.NewClusterClientSet(memberCluster, c.KubeClientSet)
+	clusterClient, err := util.NewClusterClientSet(cluster, c.KubeClientSet)
 	if err != nil {
-		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", memberCluster.Name, err)
+		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	var currentClusterStatus = v1alpha1.ClusterStatus{}
 
 	// get the health status of member cluster
-	online, healthy := getMemberClusterHealthStatus(clusterClient)
+	online, healthy := getClusterHealthStatus(clusterClient)
 
 	if !online || !healthy {
 		// generate conditions according to the health status of member cluster
 		currentClusterStatus.Conditions = generateReadyCondition(online, healthy)
-		setTransitionTime(&memberCluster.Status, &currentClusterStatus)
-		return c.updateStatusIfNeeded(memberCluster, currentClusterStatus)
+		setTransitionTime(&cluster.Status, &currentClusterStatus)
+		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 	}
 
 	clusterVersion, err := getKubernetesVersion(clusterClient)
 	if err != nil {
-		klog.Errorf("Failed to get server version of the member cluster: %v, err is : %v", memberCluster.Name, err)
+		klog.Errorf("Failed to get server version of the member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	// get the list of APIs installed in the member cluster
 	apiEnables, err := getAPIEnablements(clusterClient)
 	if err != nil {
-		klog.Errorf("Failed to get APIs installed in the member cluster: %v, err is : %v", memberCluster.Name, err)
+		klog.Errorf("Failed to get APIs installed in the member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	// get the summary of nodes status in the member cluster
 	nodeSummary, err := getNodeSummary(clusterClient)
 	if err != nil {
-		klog.Errorf("Failed to get summary of nodes status in the member cluster: %v, err is : %v", memberCluster.Name, err)
+		klog.Errorf("Failed to get summary of nodes status in the member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	currentClusterStatus.Conditions = generateReadyCondition(online, healthy)
-	setTransitionTime(&memberCluster.Status, &currentClusterStatus)
+	setTransitionTime(&cluster.Status, &currentClusterStatus)
 	currentClusterStatus.KubernetesVersion = clusterVersion
 	currentClusterStatus.APIEnablements = apiEnables
 	currentClusterStatus.NodeSummary = nodeSummary
 
-	return c.updateStatusIfNeeded(memberCluster, currentClusterStatus)
+	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 }
 
 // updateStatusIfNeeded calls updateStatus only if the status of the member cluster is not the same as the old status
-func (c *MemberClusterStatusController) updateStatusIfNeeded(memberCluster *v1alpha1.Cluster, currentClusterStatus v1alpha1.ClusterStatus) (controllerruntime.Result, error) {
-	if !equality.Semantic.DeepEqual(memberCluster.Status, currentClusterStatus) {
-		klog.V(4).Infof("Start to update memberCluster status: %s", memberCluster.Name)
-		memberCluster.Status = currentClusterStatus
-		err := c.Client.Status().Update(context.TODO(), memberCluster)
+func (c *ClusterStatusController) updateStatusIfNeeded(cluster *v1alpha1.Cluster, currentClusterStatus v1alpha1.ClusterStatus) (controllerruntime.Result, error) {
+	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
+		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
+		cluster.Status = currentClusterStatus
+		err := c.Client.Status().Update(context.TODO(), cluster)
 		if err != nil {
-			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", memberCluster.Name, err)
+			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
 			return controllerruntime.Result{Requeue: true}, err
 		}
 	}
@@ -138,7 +138,7 @@ func (c *MemberClusterStatusController) updateStatusIfNeeded(memberCluster *v1al
 	return controllerruntime.Result{RequeueAfter: 10 * time.Second}, nil
 }
 
-func getMemberClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy bool) {
+func getClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy bool) {
 	healthStatus, err := healthEndpointCheck(clusterClient.KubeClient, "/readyz")
 	if err != nil && healthStatus == http.StatusNotFound {
 		// do health check with healthz endpoint if the readyz endpoint is not installed in member cluster
@@ -207,7 +207,7 @@ func generateReadyCondition(online, healthy bool) []v1.Condition {
 
 func setTransitionTime(oldClusterStatus, newClusterStatus *v1alpha1.ClusterStatus) {
 	// preserve the last transition time if the status of member cluster not changed
-	if util.IsMemberClusterReady(oldClusterStatus) == util.IsMemberClusterReady(newClusterStatus) {
+	if util.IsClusterReady(oldClusterStatus) == util.IsClusterReady(newClusterStatus) {
 		if len(oldClusterStatus.Conditions) != 0 {
 			for i := 0; i < len(newClusterStatus.Conditions); i++ {
 				newClusterStatus.Conditions[i].LastTransitionTime = oldClusterStatus.Conditions[0].LastTransitionTime

@@ -108,7 +108,7 @@ func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error
 		klog.Errorf("Failed to get executionNamespace from label %s", value)
 		return "", err
 	}
-	cluster, err := names.GetMemberClusterName(executionNamespace)
+	cluster, err := names.GetClusterName(executionNamespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", value, err)
 		return "", err

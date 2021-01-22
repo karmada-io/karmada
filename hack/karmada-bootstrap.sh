@@ -73,7 +73,7 @@ function installCRDs() {
 
     # install APIs
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/membercluster.karmada.io_memberclusters.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/cluster.karmada.io_clusters.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationpolicies.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationbindings.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/propagationstrategy.karmada.io_propagationworks.yaml"

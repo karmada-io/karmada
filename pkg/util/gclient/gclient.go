@@ -6,7 +6,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	memberclusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	propagationv1alpha1 "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 )
 
@@ -14,9 +14,9 @@ import (
 var aggregatedScheme = runtime.NewScheme()
 
 func init() {
-	var _ = scheme.AddToScheme(aggregatedScheme)                // add Kubernetes schemes
-	var _ = propagationv1alpha1.AddToScheme(aggregatedScheme)   // add propagation schemes
-	var _ = memberclusterv1alpha1.AddToScheme(aggregatedScheme) // add cluster schemes
+	var _ = scheme.AddToScheme(aggregatedScheme)              // add Kubernetes schemes
+	var _ = propagationv1alpha1.AddToScheme(aggregatedScheme) // add propagation schemes
+	var _ = clusterv1alpha1.AddToScheme(aggregatedScheme)     // add cluster schemes
 }
 
 // NewSchema returns a singleton schema set which aggregated Kubernetes's schemes and extended schemes.

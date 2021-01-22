@@ -82,7 +82,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		UpdateFunc: sched.onPropagationBindingUpdate,
 	})
 
-	memclusterInformer := factory.Membercluster().V1alpha1().MemberClusters().Informer()
+	memclusterInformer := factory.Cluster().V1alpha1().Clusters().Informer()
 	memclusterInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    sched.addCluster,
@@ -195,14 +195,14 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 }
 
 func (s *Scheduler) addCluster(obj interface{}) {
-	membercluster, ok := obj.(*memclusterapi.Cluster)
+	cluster, ok := obj.(*memclusterapi.Cluster)
 	if !ok {
 		klog.Errorf("cannot convert to Cluster: %v", obj)
 		return
 	}
-	klog.V(3).Infof("add event for cluster %s", membercluster.Name)
+	klog.V(3).Infof("add event for cluster %s", cluster.Name)
 
-	s.schedulerCache.AddCluster(membercluster)
+	s.schedulerCache.AddCluster(cluster)
 }
 
 func (s *Scheduler) updateCluster(_, newObj interface{}) {
