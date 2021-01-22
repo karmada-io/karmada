@@ -26,9 +26,9 @@ const (
 
 // Define finalizers used by karmada system.
 const (
-	// MemberClusterControllerFinalizer is added to MemberCluster to ensure PropagationWork as well as the
+	// ClusterControllerFinalizer is added to Cluster to ensure PropagationWork as well as the
 	// execution space (namespace) is deleted before itself is deleted.
-	MemberClusterControllerFinalizer = "karmada.io/cluster-controller"
+	ClusterControllerFinalizer = "karmada.io/cluster-controller"
 
 	// ExecutionControllerFinalizer is added to PropagationWork to ensure manifests propagated to member cluster
 	// is deleted before PropagationWork itself is deleted.

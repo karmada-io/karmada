@@ -34,19 +34,19 @@ const (
 	// pollTimeout defines the time after which the poll operation times out.
 	pollTimeout = 60 * time.Second
 
-	// MinimumMemberCluster represents the minimum number of member clusters to run E2E test.
-	MinimumMemberCluster = 2
+	// MinimumCluster represents the minimum number of member clusters to run E2E test.
+	MinimumCluster = 2
 )
 
 var (
-	kubeconfig           string
-	restConfig           *rest.Config
-	kubeClient           kubernetes.Interface
-	karmadaClient        karmada.Interface
-	memberClusters       []*clusterapi.Cluster
-	memberClusterNames   []string
-	memberClusterClients []*util.ClusterClient
-	testNamespace        = fmt.Sprintf("karmada-e2e-%s", rand.String(3))
+	kubeconfig     string
+	restConfig     *rest.Config
+	kubeClient     kubernetes.Interface
+	karmadaClient  karmada.Interface
+	clusters       []*clusterapi.Cluster
+	clusterNames   []string
+	clusterClients []*util.ClusterClient
+	testNamespace  = fmt.Sprintf("karmada-e2e-%s", rand.String(3))
 )
 
 func TestE2E(t *testing.T) {
@@ -68,37 +68,37 @@ var _ = ginkgo.BeforeSuite(func() {
 	karmadaClient, err = karmada.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	memberClusters, err = fetchMemberClusters(karmadaClient)
+	clusters, err = fetchClusters(karmadaClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	var meetRequirement bool
-	meetRequirement, err = isMemberClusterMeetRequirements(memberClusters)
+	meetRequirement, err = isClusterMeetRequirements(clusters)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	gomega.Expect(meetRequirement).Should(gomega.BeTrue())
 
-	for _, cluster := range memberClusters {
-		memberClusterNames = append(memberClusterNames, cluster.Name)
+	for _, cluster := range clusters {
+		clusterNames = append(clusterNames, cluster.Name)
 
-		memberClusterClient, err := util.NewClusterClientSet(cluster, kubeClient)
+		clusterClient, err := util.NewClusterClientSet(cluster, kubeClient)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		memberClusterClients = append(memberClusterClients, memberClusterClient)
+		clusterClients = append(clusterClients, clusterClient)
 	}
-	gomega.Expect(memberClusterNames).Should(gomega.HaveLen(len(memberClusters)))
+	gomega.Expect(clusterNames).Should(gomega.HaveLen(len(clusters)))
 
-	err = setupTestNamespace(testNamespace, kubeClient, memberClusterClients)
+	err = setupTestNamespace(testNamespace, kubeClient, clusterClients)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }, TestSuiteSetupTimeOut.Seconds())
 
 var _ = ginkgo.AfterSuite(func() {
 	// cleanup all namespaces we created both in control plane and member clusters.
 	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
-	err := cleanupTestNamespace(testNamespace, kubeClient, memberClusterClients)
+	err := cleanupTestNamespace(testNamespace, kubeClient, clusterClients)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }, TestSuiteTeardownTimeOut.Seconds())
 
-// fetchMemberClusters will fetch all member clusters we have.
-func fetchMemberClusters(client karmada.Interface) ([]*clusterapi.Cluster, error) {
-	clusterList, err := client.MemberclusterV1alpha1().MemberClusters().List(context.TODO(), v1.ListOptions{})
+// fetchClusters will fetch all member clusters we have.
+func fetchClusters(client karmada.Interface) ([]*clusterapi.Cluster, error) {
+	clusterList, err := client.ClusterV1alpha1().Clusters().List(context.TODO(), v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -112,16 +112,16 @@ func fetchMemberClusters(client karmada.Interface) ([]*clusterapi.Cluster, error
 	return clusters, nil
 }
 
-// isMemberClusterMeetRequirements checks if current environment meet the requirements of E2E.
-func isMemberClusterMeetRequirements(clusters []*clusterapi.Cluster) (bool, error) {
+// isClusterMeetRequirements checks if current environment meet the requirements of E2E.
+func isClusterMeetRequirements(clusters []*clusterapi.Cluster) (bool, error) {
 	// check if member cluster number meets requirements
-	if len(clusters) < MinimumMemberCluster {
-		return false, fmt.Errorf("needs at lease %d member cluster to run, but got: %d", MinimumMemberCluster, len(clusters))
+	if len(clusters) < MinimumCluster {
+		return false, fmt.Errorf("needs at lease %d member cluster to run, but got: %d", MinimumCluster, len(clusters))
 	}
 
 	// check if all member cluster status is ready
 	for _, cluster := range clusters {
-		if !util.IsMemberClusterReady(&cluster.Status) {
+		if !util.IsClusterReady(&cluster.Status) {
 			return false, fmt.Errorf("cluster %s not ready", cluster.GetName())
 		}
 	}
@@ -132,14 +132,14 @@ func isMemberClusterMeetRequirements(clusters []*clusterapi.Cluster) (bool, erro
 
 // setupTestNamespace will create a namespace in control plane and all member clusters, most of cases will run against it.
 // The reason why we need a separated namespace is it will make it easier to cleanup resources deployed by the testing.
-func setupTestNamespace(namespace string, kubeClient kubernetes.Interface, memberClusterClients []*util.ClusterClient) error {
+func setupTestNamespace(namespace string, kubeClient kubernetes.Interface, clusterClients []*util.ClusterClient) error {
 	namespaceObj := helper.NewNamespace(namespace)
 	_, err := util.CreateNamespace(kubeClient, namespaceObj)
 	if err != nil {
 		return err
 	}
 
-	for _, clusterClient := range memberClusterClients {
+	for _, clusterClient := range clusterClients {
 		_, err = util.CreateNamespace(clusterClient.KubeClient, namespaceObj)
 		if err != nil {
 			return err
@@ -150,13 +150,13 @@ func setupTestNamespace(namespace string, kubeClient kubernetes.Interface, membe
 }
 
 // cleanupTestNamespace will remove the namespace we setup before for the whole testing.
-func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface, memberClusterClients []*util.ClusterClient) error {
+func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface, clusterClients []*util.ClusterClient) error {
 	err := util.DeleteNamespace(kubeClient, namespace)
 	if err != nil {
 		return err
 	}
 
-	for _, clusterClient := range memberClusterClients {
+	for _, clusterClient := range clusterClients {
 		err = util.DeleteNamespace(clusterClient.KubeClient, namespace)
 		if err != nil {
 			return err
@@ -167,7 +167,7 @@ func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface, mem
 }
 
 func getClusterClient(clusterName string) kubernetes.Interface {
-	for _, client := range memberClusterClients {
+	for _, client := range clusterClients {
 		if client.ClusterName == clusterName {
 			return client.KubeClient
 		}

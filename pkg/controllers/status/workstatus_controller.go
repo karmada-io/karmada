@@ -142,7 +142,7 @@ func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) 
 
 	util.MergeLabel(desireObj, util.OwnerLabel, names.GenerateOwnerLabelValue(workObject.GetNamespace(), workObject.GetName()))
 
-	clusterName, err := names.GetMemberClusterName(ownerNamespace)
+	clusterName, err := names.GetClusterName(ownerNamespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name: %v", err)
 		return err
@@ -362,13 +362,13 @@ func (c *PropagationWorkStatusController) getObjectFromCache(key string) (*unstr
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
 // and start it.
 func (c *PropagationWorkStatusController) registerInformersAndStart(work *v1alpha1.PropagationWork) error {
-	memberClusterName, err := names.GetMemberClusterName(work.GetNamespace())
+	clusterName, err := names.GetClusterName(work.GetNamespace())
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", work.GetNamespace(), err)
 		return err
 	}
 
-	singleClusterInformerManager, err := c.getSingleClusterManager(memberClusterName)
+	singleClusterInformerManager, err := c.getSingleClusterManager(clusterName)
 	if err != nil {
 		return err
 	}
@@ -382,11 +382,11 @@ func (c *PropagationWorkStatusController) registerInformersAndStart(work *v1alph
 		singleClusterInformerManager.ForResource(gvr, c.getEventHandler())
 	}
 
-	c.InformerManager.Start(memberClusterName, c.StopChan)
-	synced := c.InformerManager.WaitForCacheSync(memberClusterName, c.StopChan)
+	c.InformerManager.Start(clusterName, c.StopChan)
+	synced := c.InformerManager.WaitForCacheSync(clusterName, c.StopChan)
 	if synced == nil {
-		klog.Errorf("No informerFactory for cluster %s exist.", memberClusterName)
-		return fmt.Errorf("no informerFactory for cluster %s exist", memberClusterName)
+		klog.Errorf("No informerFactory for cluster %s exist.", clusterName)
+		return fmt.Errorf("no informerFactory for cluster %s exist", clusterName)
 	}
 	for gvr := range gvrTargets {
 		if !synced[gvr] {
@@ -419,14 +419,14 @@ func (c *PropagationWorkStatusController) getGVRsFromPropagationWork(work *v1alp
 
 // getSingleClusterManager gets singleClusterInformerManager with clusterName.
 // If manager is not exist, create it, otherwise gets it from map.
-func (c *PropagationWorkStatusController) getSingleClusterManager(memberClusterName string) (informermanager.SingleClusterInformerManager, error) {
+func (c *PropagationWorkStatusController) getSingleClusterManager(clusterName string) (informermanager.SingleClusterInformerManager, error) {
 	// TODO(chenxianpao): If cluster A is removed, then a new cluster that name also is A joins karmada,
 	//  the cache in informer manager should be updated.
-	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(memberClusterName)
+	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(clusterName)
 	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := util.BuildDynamicClusterClient(c.Client, c.KubeClientSet, memberClusterName)
+		dynamicClusterClient, err := util.BuildDynamicClusterClient(c.Client, c.KubeClientSet, clusterName)
 		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", memberClusterName)
+			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
 			return nil, err
 		}
 		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)

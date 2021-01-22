@@ -14,7 +14,7 @@ func NewEmptySnapshot() *Snapshot {
 	return &Snapshot{}
 }
 
-// NumOfClusters returns the number of memberClusters.
+// NumOfClusters returns the number of clusters.
 func (s *Snapshot) NumOfClusters() int {
 	return len(s.clusterInfoList)
 }

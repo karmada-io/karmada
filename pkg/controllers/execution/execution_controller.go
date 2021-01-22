@@ -102,21 +102,21 @@ func (c *Controller) isResourceApplied(propagationWorkStatus *propagationstrateg
 // tryDeleteWorkload tries to delete resource in the given member cluster.
 // Abort deleting when the member cluster is unready, otherwise we can't unjoin the member cluster when the member cluster is unready
 func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.PropagationWork) error {
-	memberClusterName, err := names.GetMemberClusterName(propagationWork.Namespace)
+	clusterName, err := names.GetClusterName(propagationWork.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for propagationWork %s/%s", propagationWork.Namespace, propagationWork.Name)
 		return err
 	}
 
-	memberCluster, err := util.GetMemberCluster(c.Client, memberClusterName)
+	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
-		klog.Errorf("Failed to get the given member cluster %s", memberClusterName)
+		klog.Errorf("Failed to get the given member cluster %s", clusterName)
 		return err
 	}
 
 	// Do not clean up resource in the given member cluster if the status of the given member cluster is unready
-	if !util.IsMemberClusterReady(&memberCluster.Status) {
-		klog.Infof("Do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", memberCluster.Name)
+	if !util.IsClusterReady(&cluster.Status) {
+		klog.Infof("Do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", cluster.Name)
 		return nil
 	}
 
@@ -128,9 +128,9 @@ func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.Prop
 			return err
 		}
 
-		err = c.ObjectWatcher.Delete(memberClusterName, workload)
+		err = c.ObjectWatcher.Delete(clusterName, workload)
 		if err != nil {
-			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", memberCluster.Name, err)
+			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", cluster.Name, err)
 			return err
 		}
 	}
@@ -139,24 +139,24 @@ func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.Prop
 }
 
 func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrategy.PropagationWork) error {
-	memberClusterName, err := names.GetMemberClusterName(propagationWork.Namespace)
+	clusterName, err := names.GetClusterName(propagationWork.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for propagationWork %s/%s", propagationWork.Namespace, propagationWork.Name)
 		return err
 	}
 
-	memberCluster, err := util.GetMemberCluster(c.Client, memberClusterName)
+	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
-		klog.Errorf("Failed to the get given member cluster %s", memberClusterName)
+		klog.Errorf("Failed to the get given member cluster %s", clusterName)
 		return err
 	}
 
-	if !util.IsMemberClusterReady(&memberCluster.Status) {
-		klog.Errorf("The status of the given member cluster %s is unready", memberCluster.Name)
-		return fmt.Errorf("cluster %s is not ready, requeuing operation until cluster state is ready", memberCluster.Name)
+	if !util.IsClusterReady(&cluster.Status) {
+		klog.Errorf("The status of the given member cluster %s is unready", cluster.Name)
+		return fmt.Errorf("cluster %s is not ready, requeuing operation until cluster state is ready", cluster.Name)
 	}
 
-	err = c.syncToMemberClusters(memberCluster, propagationWork)
+	err = c.syncToClusters(cluster, propagationWork)
 	if err != nil {
 		klog.Errorf("Failed to dispatch propagationWork %v, namespace is %v, err is %v", propagationWork.Name, propagationWork.Namespace, err)
 		return err
@@ -165,9 +165,9 @@ func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrateg
 	return nil
 }
 
-// syncToMemberClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.Cluster, propagationWork *propagationstrategy.PropagationWork) error {
-	memberClusterDynamicClient, err := util.NewClusterDynamicClientSet(memberCluster, c.KubeClientSet)
+// syncToClusters ensures that the state of the given object is synchronized to member clusters.
+func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, propagationWork *propagationstrategy.PropagationWork) error {
+	clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, c.KubeClientSet)
 	if err != nil {
 		return err
 	}
@@ -184,28 +184,28 @@ func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.Cluster, propa
 
 		applied := c.isResourceApplied(&propagationWork.Status)
 		if applied {
-			// todo: get memberClusterObj from cache
+			// todo: get clusterObj from cache
 			dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
 			if err != nil {
 				klog.Errorf("Failed to get resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
 				return err
 			}
 
-			memberClusterObj, err := memberClusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), v1.GetOptions{})
+			clusterObj, err := clusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), v1.GetOptions{})
 			if err != nil {
 				klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
 				return err
 			}
 
-			err = c.ObjectWatcher.Update(memberCluster.Name, memberClusterObj, workload)
+			err = c.ObjectWatcher.Update(cluster.Name, clusterObj, workload)
 			if err != nil {
-				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", memberCluster.Name, err)
+				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", cluster.Name, err)
 				return err
 			}
 		} else {
-			err = c.ObjectWatcher.Create(memberCluster.Name, workload)
+			err = c.ObjectWatcher.Create(cluster.Name, workload)
 			if err != nil {
-				klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", memberCluster.Name, err)
+				klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", cluster.Name, err)
 				return err
 			}
 
