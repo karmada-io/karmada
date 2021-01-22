@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -166,7 +166,7 @@ func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrateg
 }
 
 // syncToMemberClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.MemberCluster, propagationWork *propagationstrategy.PropagationWork) error {
+func (c *Controller) syncToMemberClusters(memberCluster *v1alpha1.Cluster, propagationWork *propagationstrategy.PropagationWork) error {
 	memberClusterDynamicClient, err := util.NewClusterDynamicClientSet(memberCluster, c.KubeClientSet)
 	if err != nil {
 		return err

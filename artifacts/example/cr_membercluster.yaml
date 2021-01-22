@@ -1,4 +1,4 @@
-apiVersion: membercluster.karmada.io/v1alpha1
+apiVersion: cluster.karmada.io/v1alpha1
 kind: MemberCluster
 metadata:
   name: cluster-foo

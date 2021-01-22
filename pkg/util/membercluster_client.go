@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
 const (
@@ -35,8 +35,8 @@ type DynamicClusterClient struct {
 }
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
-func NewClusterClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interface) (*ClusterClient, error) {
-	clusterConfig, err := buildMemberClusterConfig(c, client)
+func NewClusterClientSet(c *v1alpha1.Cluster, client kubeclientset.Interface) (*ClusterClient, error) {
+	clusterConfig, err := buildClusterConfig(c, client)
 	if err != nil {
 		return nil, err
 	}
@@ -49,8 +49,8 @@ func NewClusterClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interfa
 }
 
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
-func NewClusterDynamicClientSet(c *v1alpha1.MemberCluster, client kubeclientset.Interface) (*DynamicClusterClient, error) {
-	clusterConfig, err := buildMemberClusterConfig(c, client)
+func NewClusterDynamicClientSet(c *v1alpha1.Cluster, client kubeclientset.Interface) (*DynamicClusterClient, error) {
+	clusterConfig, err := buildClusterConfig(c, client)
 	if err != nil {
 		return nil, err
 	}
@@ -62,19 +62,19 @@ func NewClusterDynamicClientSet(c *v1alpha1.MemberCluster, client kubeclientset.
 	return &clusterClientSet, nil
 }
 
-func buildMemberClusterConfig(memberCluster *v1alpha1.MemberCluster, client kubeclientset.Interface) (*rest.Config, error) {
-	clusterName := memberCluster.Name
-	apiEndpoint := memberCluster.Spec.APIEndpoint
+func buildClusterConfig(cluster *v1alpha1.Cluster, client kubeclientset.Interface) (*rest.Config, error) {
+	clusterName := cluster.Name
+	apiEndpoint := cluster.Spec.APIEndpoint
 	if apiEndpoint == "" {
 		return nil, fmt.Errorf("the api endpoint of cluster %s is empty", clusterName)
 	}
 
-	secretName := memberCluster.Spec.SecretRef.Name
+	secretName := cluster.Spec.SecretRef.Name
 	if secretName == "" {
 		return nil, fmt.Errorf("cluster %s does not have a secret name", clusterName)
 	}
 
-	secret, err := client.CoreV1().Secrets(memberCluster.Spec.SecretRef.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(cluster.Spec.SecretRef.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

@@ -15,21 +15,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName           = "membercluster-controller"
+	ControllerName           = "cluster-controller"
 	executionSpaceLabelKey   = "karmada.io/executionspace"
 	executionSpaceLabelValue = ""
 )
 
-// Controller is to sync MemberCluster.
+// Controller is to sync Cluster.
 type Controller struct {
-	client.Client                      // used to operate MemberCluster resources.
+	client.Client                      // used to operate Cluster resources.
 	KubeClientSet kubernetes.Interface // used to get kubernetes resources.
 	EventRecorder record.EventRecorder
 }
@@ -40,7 +40,7 @@ type Controller struct {
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling memberCluster %s", req.NamespacedName.Name)
 
-	memberCluster := &v1alpha1.MemberCluster{}
+	memberCluster := &v1alpha1.Cluster{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, memberCluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
@@ -59,10 +59,10 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.MemberCluster{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).Complete(c)
 }
 
-func (c *Controller) syncMemberCluster(memberCluster *v1alpha1.MemberCluster) (controllerruntime.Result, error) {
+func (c *Controller) syncMemberCluster(memberCluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create execution space
 	err := c.createExecutionSpace(memberCluster)
 	if err != nil {
@@ -73,7 +73,7 @@ func (c *Controller) syncMemberCluster(memberCluster *v1alpha1.MemberCluster) (c
 	return c.ensureFinalizer(memberCluster)
 }
 
-func (c *Controller) removeMemberCluster(memberCluster *v1alpha1.MemberCluster) (controllerruntime.Result, error) {
+func (c *Controller) removeMemberCluster(memberCluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	err := c.removeExecutionSpace(memberCluster)
 	if apierrors.IsNotFound(err) {
 		return c.removeFinalizer(memberCluster)
@@ -96,7 +96,7 @@ func (c *Controller) removeMemberCluster(memberCluster *v1alpha1.MemberCluster) 
 }
 
 // removeExecutionSpace delete the given execution space
-func (c *Controller) removeExecutionSpace(memberCluster *v1alpha1.MemberCluster) error {
+func (c *Controller) removeExecutionSpace(memberCluster *v1alpha1.Cluster) error {
 	executionSpace, err := names.GenerateExecutionSpaceName(memberCluster.Name)
 	if err != nil {
 		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", memberCluster.Name, err)
@@ -111,7 +111,7 @@ func (c *Controller) removeExecutionSpace(memberCluster *v1alpha1.MemberCluster)
 }
 
 // ensureRemoveExecutionSpace make sure the given execution space has been deleted
-func (c *Controller) ensureRemoveExecutionSpace(memberCluster *v1alpha1.MemberCluster) (bool, error) {
+func (c *Controller) ensureRemoveExecutionSpace(memberCluster *v1alpha1.Cluster) (bool, error) {
 	executionSpace, err := names.GenerateExecutionSpaceName(memberCluster.Name)
 	if err != nil {
 		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", memberCluster.Name, err)
@@ -129,7 +129,7 @@ func (c *Controller) ensureRemoveExecutionSpace(memberCluster *v1alpha1.MemberCl
 	return true, nil
 }
 
-func (c *Controller) removeFinalizer(memberCluster *v1alpha1.MemberCluster) (controllerruntime.Result, error) {
+func (c *Controller) removeFinalizer(memberCluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	if !controllerutil.ContainsFinalizer(memberCluster, util.MemberClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
@@ -143,7 +143,7 @@ func (c *Controller) removeFinalizer(memberCluster *v1alpha1.MemberCluster) (con
 	return controllerruntime.Result{}, nil
 }
 
-func (c *Controller) ensureFinalizer(memberCluster *v1alpha1.MemberCluster) (controllerruntime.Result, error) {
+func (c *Controller) ensureFinalizer(memberCluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	if controllerutil.ContainsFinalizer(memberCluster, util.MemberClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
@@ -158,7 +158,7 @@ func (c *Controller) ensureFinalizer(memberCluster *v1alpha1.MemberCluster) (con
 }
 
 // createExecutionSpace create member cluster execution space when member cluster joined
-func (c *Controller) createExecutionSpace(memberCluster *v1alpha1.MemberCluster) error {
+func (c *Controller) createExecutionSpace(memberCluster *v1alpha1.Cluster) error {
 	executionSpace, err := names.GenerateExecutionSpaceName(memberCluster.Name)
 	if err != nil {
 		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", memberCluster.Name, err)
@@ -177,7 +177,7 @@ func (c *Controller) createExecutionSpace(memberCluster *v1alpha1.MemberCluster)
 			}
 			_, err = c.KubeClientSet.CoreV1().Namespaces().Create(context.TODO(), memberClusterES, v1.CreateOptions{})
 			if err != nil {
-				klog.Errorf("Failed to create execution space for membercluster %v", memberCluster.Name)
+				klog.Errorf("Failed to create execution space for cluster %v", memberCluster.Name)
 				return err
 			}
 		} else {

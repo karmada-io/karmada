@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	memclusterapi "github.com/karmada-io/karmada/pkg/apis/membercluster/v1alpha1"
+	memclusterapi "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
@@ -195,42 +195,42 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 }
 
 func (s *Scheduler) addCluster(obj interface{}) {
-	membercluster, ok := obj.(*memclusterapi.MemberCluster)
+	membercluster, ok := obj.(*memclusterapi.Cluster)
 	if !ok {
-		klog.Errorf("cannot convert to MemberCluster: %v", obj)
+		klog.Errorf("cannot convert to Cluster: %v", obj)
 		return
 	}
-	klog.V(3).Infof("add event for membercluster %s", membercluster.Name)
+	klog.V(3).Infof("add event for cluster %s", membercluster.Name)
 
 	s.schedulerCache.AddCluster(membercluster)
 }
 
 func (s *Scheduler) updateCluster(_, newObj interface{}) {
-	newCluster, ok := newObj.(*memclusterapi.MemberCluster)
+	newCluster, ok := newObj.(*memclusterapi.Cluster)
 	if !ok {
-		klog.Errorf("cannot convert newObj to MemberCluster: %v", newObj)
+		klog.Errorf("cannot convert newObj to Cluster: %v", newObj)
 		return
 	}
-	klog.V(3).Infof("update event for membercluster %s", newCluster.Name)
+	klog.V(3).Infof("update event for cluster %s", newCluster.Name)
 	s.schedulerCache.UpdateCluster(newCluster)
 }
 
 func (s *Scheduler) deleteCluster(obj interface{}) {
-	var cluster *memclusterapi.MemberCluster
+	var cluster *memclusterapi.Cluster
 	switch t := obj.(type) {
-	case *memclusterapi.MemberCluster:
+	case *memclusterapi.Cluster:
 		cluster = t
 	case cache.DeletedFinalStateUnknown:
 		var ok bool
-		cluster, ok = t.Obj.(*memclusterapi.MemberCluster)
+		cluster, ok = t.Obj.(*memclusterapi.Cluster)
 		if !ok {
-			klog.Errorf("cannot convert to memclusterapi.MemberCluster: %v", t.Obj)
+			klog.Errorf("cannot convert to memclusterapi.Cluster: %v", t.Obj)
 			return
 		}
 	default:
-		klog.Errorf("cannot convert to memclusterapi.MemberCluster: %v", t)
+		klog.Errorf("cannot convert to memclusterapi.Cluster: %v", t)
 		return
 	}
-	klog.V(3).Infof("delete event for membercluster %s", cluster.Name)
+	klog.V(3).Infof("delete event for cluster %s", cluster.Name)
 	s.schedulerCache.DeleteCluster(cluster)
 }
