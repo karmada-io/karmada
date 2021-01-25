@@ -6,7 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // ResourceMatches tells if the specific resource matches the selector.

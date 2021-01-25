@@ -4,7 +4,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	propagationapi "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
+	propagationapi "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // NewPolicyWithSingleDeployment will build a PropagationPolicy object.

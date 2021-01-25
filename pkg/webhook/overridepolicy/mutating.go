@@ -8,7 +8,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // MutatingAdmission mutates API request if necessary.
