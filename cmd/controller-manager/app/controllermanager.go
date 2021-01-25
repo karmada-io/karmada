@@ -101,7 +101,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		klog.Fatalf("Failed to setup clusterstatus controller: %v", err)
 	}
 
-	policyController := &propagationpolicy.PropagationPolicyController{
+	policyController := &propagationpolicy.Controller{
 		Client:        mgr.GetClient(),
 		DynamicClient: dynamicClientSet,
 		EventRecorder: mgr.GetEventRecorderFor(propagationpolicy.ControllerName),

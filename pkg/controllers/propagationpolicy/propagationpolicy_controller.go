@@ -28,8 +28,8 @@ const ControllerName = "propagation-policy-controller"
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationPolicy")
 
-// PropagationPolicyController is to sync PropagationPolicy.
-type PropagationPolicyController struct {
+// Controller is to sync PropagationPolicy.
+type Controller struct {
 	client.Client                   // used to operate PropagationPolicy resources.
 	DynamicClient dynamic.Interface // used to fetch arbitrary resources.
 	EventRecorder record.EventRecorder
@@ -39,7 +39,7 @@ type PropagationPolicyController struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *PropagationPolicyController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling PropagationPolicy %s.", req.NamespacedName.String())
 
 	policy := &v1alpha1.PropagationPolicy{}
@@ -67,7 +67,7 @@ func (c *PropagationPolicyController) Reconcile(req controllerruntime.Request) (
 }
 
 // syncPolicy will fetch matched resource by policy, then transform them to propagationBindings.
-func (c *PropagationPolicyController) syncPolicy(policy *v1alpha1.PropagationPolicy) (controllerruntime.Result, error) {
+func (c *Controller) syncPolicy(policy *v1alpha1.PropagationPolicy) (controllerruntime.Result, error) {
 	workloads, err := c.fetchWorkloads(policy)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
@@ -87,7 +87,7 @@ func (c *PropagationPolicyController) syncPolicy(policy *v1alpha1.PropagationPol
 }
 
 // fetchWorkloads fetches all matched resources via resource selectors.
-func (c *PropagationPolicyController) fetchWorkloads(policy *v1alpha1.PropagationPolicy) ([]*unstructured.Unstructured, error) {
+func (c *Controller) fetchWorkloads(policy *v1alpha1.PropagationPolicy) ([]*unstructured.Unstructured, error) {
 	var workloads []*unstructured.Unstructured
 
 	for _, resourceSelector := range policy.Spec.ResourceSelectors {
@@ -105,7 +105,7 @@ func (c *PropagationPolicyController) fetchWorkloads(policy *v1alpha1.Propagatio
 }
 
 // deletePropagationBinding will create propagationBinding.
-func (c *PropagationPolicyController) deletePropagationBinding(binding v1alpha1.PropagationBinding) error {
+func (c *Controller) deletePropagationBinding(binding v1alpha1.PropagationBinding) error {
 	err := c.Client.Delete(context.TODO(), &binding)
 	if err != nil && errors.IsNotFound(err) {
 		klog.Infof("PropagationBinding %s/%s is already not exist.", binding.GetNamespace(), binding.GetName())
@@ -119,7 +119,7 @@ func (c *PropagationPolicyController) deletePropagationBinding(binding v1alpha1.
 }
 
 // calculatePropagationBindings will get orphanBindings and workloads that need to update or create.
-func (c *PropagationPolicyController) calculatePropagationBindings(policy *v1alpha1.PropagationPolicy,
+func (c *Controller) calculatePropagationBindings(policy *v1alpha1.PropagationPolicy,
 	workloads []*unstructured.Unstructured) ([]v1alpha1.PropagationBinding, []*unstructured.Unstructured, error) {
 	labelRequirement, err := labels.NewRequirement(util.OwnerLabel, selection.Equals, []string{names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())})
 	if err != nil {
@@ -150,7 +150,7 @@ func (c *PropagationPolicyController) calculatePropagationBindings(policy *v1alp
 }
 
 // buildPropagationBinding will build propagationBinding by matched resources.
-func (c *PropagationPolicyController) buildPropagationBinding(policy *v1alpha1.PropagationPolicy, policyReferenceWorkloads []*unstructured.Unstructured) (controllerruntime.Result, error) {
+func (c *Controller) buildPropagationBinding(policy *v1alpha1.PropagationPolicy, policyReferenceWorkloads []*unstructured.Unstructured) (controllerruntime.Result, error) {
 	orphanBindings, workloads, err := c.calculatePropagationBindings(policy, policyReferenceWorkloads)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
@@ -177,7 +177,7 @@ func (c *PropagationPolicyController) buildPropagationBinding(policy *v1alpha1.P
 }
 
 // claimResources will set ownerLabel in resource that associate with policy.
-func (c *PropagationPolicyController) claimResources(owner string, workloads []*unstructured.Unstructured) error {
+func (c *Controller) claimResources(owner string, workloads []*unstructured.Unstructured) error {
 	for _, workload := range workloads {
 		dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 			schema.FromAPIVersionAndKind(workload.GetAPIVersion(), workload.GetKind()))
@@ -204,7 +204,7 @@ func (c *PropagationPolicyController) claimResources(owner string, workloads []*
 }
 
 // ignoreIrrelevantWorkload will ignore the workloads that owns by other policy and can not be shared.
-func (c *PropagationPolicyController) ignoreIrrelevantWorkload(policy *v1alpha1.PropagationPolicy, workloads []*unstructured.Unstructured) []*unstructured.Unstructured {
+func (c *Controller) ignoreIrrelevantWorkload(policy *v1alpha1.PropagationPolicy, workloads []*unstructured.Unstructured) []*unstructured.Unstructured {
 	var result []*unstructured.Unstructured
 	policyOwnerLabelReference := names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())
 	for _, workload := range workloads {
@@ -220,7 +220,7 @@ func (c *PropagationPolicyController) ignoreIrrelevantWorkload(policy *v1alpha1.
 }
 
 // fetchWorkloadsByResourceSelector query workloads by labelSelector and names
-func (c *PropagationPolicyController) fetchWorkloadsByResourceSelector(resourceSelector v1alpha1.ResourceSelector) ([]*unstructured.Unstructured, error) {
+func (c *Controller) fetchWorkloadsByResourceSelector(resourceSelector v1alpha1.ResourceSelector) ([]*unstructured.Unstructured, error) {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 		schema.FromAPIVersionAndKind(resourceSelector.APIVersion, resourceSelector.Kind))
 	if err != nil {
@@ -254,7 +254,7 @@ func (c *PropagationPolicyController) fetchWorkloadsByResourceSelector(resourceS
 	return workloads, nil
 }
 
-func (c *PropagationPolicyController) fetchWorkload(resourceSelector v1alpha1.ResourceSelector) (*unstructured.Unstructured, error) {
+func (c *Controller) fetchWorkload(resourceSelector v1alpha1.ResourceSelector) (*unstructured.Unstructured, error) {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 		schema.FromAPIVersionAndKind(resourceSelector.APIVersion, resourceSelector.Kind))
 	if err != nil {
@@ -281,7 +281,7 @@ func (c *PropagationPolicyController) fetchWorkload(resourceSelector v1alpha1.Re
 }
 
 // ensurePropagationBinding will ensure propagationBinding are created or updated.
-func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured) error {
+func (c *Controller) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured) error {
 	bindingName := names.GenerateBindingName(workload.GetNamespace(), workload.GetKind(), workload.GetName())
 	propagationBinding := &v1alpha1.PropagationBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -316,6 +316,6 @@ func (c *PropagationPolicyController) ensurePropagationBinding(policy *v1alpha1.
 }
 
 // SetupWithManager creates a controller and register to controller manager.
-func (c *PropagationPolicyController) SetupWithManager(mgr controllerruntime.Manager) error {
+func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.PropagationPolicy{}).Complete(c)
 }
