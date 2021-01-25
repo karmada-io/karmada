@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	propagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/propagationstrategy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -41,15 +41,15 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	case v1alpha1.SchemeGroupVersion.WithResource("clusters"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Cluster().V1alpha1().Clusters().Informer()}, nil
 
-		// Group=propagationstrategy.karmada.io, Version=v1alpha1
-	case propagationstrategyv1alpha1.SchemeGroupVersion.WithResource("overridepolicies"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Propagationstrategy().V1alpha1().OverridePolicies().Informer()}, nil
-	case propagationstrategyv1alpha1.SchemeGroupVersion.WithResource("propagationbindings"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Propagationstrategy().V1alpha1().PropagationBindings().Informer()}, nil
-	case propagationstrategyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Propagationstrategy().V1alpha1().PropagationPolicies().Informer()}, nil
-	case propagationstrategyv1alpha1.SchemeGroupVersion.WithResource("propagationworks"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Propagationstrategy().V1alpha1().PropagationWorks().Informer()}, nil
+		// Group=policy.karmada.io, Version=v1alpha1
+	case policyv1alpha1.SchemeGroupVersion.WithResource("overridepolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().OverridePolicies().Informer()}, nil
+	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationbindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationBindings().Informer()}, nil
+	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationPolicies().Informer()}, nil
+	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationworks"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationWorks().Informer()}, nil
 
 	}
 

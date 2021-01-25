@@ -6,8 +6,8 @@ import (
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1"
 	fakeclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1/fake"
-	propagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1"
-	fakepropagationstrategyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/propagationstrategy/v1alpha1/fake"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	fakepolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -67,7 +67,7 @@ func (c *Clientset) ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface {
 	return &fakeclusterv1alpha1.FakeClusterV1alpha1{Fake: &c.Fake}
 }
 
-// PropagationstrategyV1alpha1 retrieves the PropagationstrategyV1alpha1Client
-func (c *Clientset) PropagationstrategyV1alpha1() propagationstrategyv1alpha1.PropagationstrategyV1alpha1Interface {
-	return &fakepropagationstrategyv1alpha1.FakePropagationstrategyV1alpha1{Fake: &c.Fake}
+// PolicyV1alpha1 retrieves the PolicyV1alpha1Client
+func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
+	return &fakepolicyv1alpha1.FakePolicyV1alpha1{Fake: &c.Fake}
 }
