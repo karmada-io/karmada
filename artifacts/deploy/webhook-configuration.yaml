@@ -8,7 +8,7 @@ webhooks:
   - name: overridepolicy.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
-        apiGroups: ["propagationstrategy.karmada.io"]
+        apiGroups: ["policy.karmada.io"]
         apiVersions: ["*"]
         resources: ["overridepolicies"]
         scope: "Namespaced"
