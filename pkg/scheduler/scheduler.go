@@ -19,7 +19,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
-	lister "github.com/karmada-io/karmada/pkg/generated/listers/propagationstrategy/v1alpha1"
+	lister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
@@ -55,10 +55,10 @@ type Scheduler struct {
 // NewScheduler instantiates a scheduler
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface) *Scheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
-	bindingInformer := factory.Propagationstrategy().V1alpha1().PropagationBindings().Informer()
-	bindingLister := factory.Propagationstrategy().V1alpha1().PropagationBindings().Lister()
-	policyInformer := factory.Propagationstrategy().V1alpha1().PropagationPolicies().Informer()
-	policyLister := factory.Propagationstrategy().V1alpha1().PropagationPolicies().Lister()
+	bindingInformer := factory.Policy().V1alpha1().PropagationBindings().Informer()
+	bindingLister := factory.Policy().V1alpha1().PropagationBindings().Lister()
+	policyInformer := factory.Policy().V1alpha1().PropagationPolicies().Informer()
+	policyLister := factory.Policy().V1alpha1().PropagationPolicies().Lister()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	schedulerCache := schedulercache.NewCache()
 	// TODO: make plugins as a flag
@@ -171,7 +171,7 @@ func (s *Scheduler) scheduleOne(key string) (err error) {
 		targetClusters[i] = v1alpha1.TargetCluster{Name: cluster}
 	}
 	binding.Spec.Clusters = targetClusters
-	_, err = s.KarmadaClient.PropagationstrategyV1alpha1().PropagationBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	_, err = s.KarmadaClient.PolicyV1alpha1().PropagationBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -72,7 +72,7 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 // applyNamespacedOverrides will apply overrides according to OverridePolicy instructions.
 func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) error {
 	// get all namespace-scoped override policies
-	policyList := &propagationstrategy.OverridePolicyList{}
+	policyList := &policyv1alpha1.OverridePolicyList{}
 	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{Namespace: rawObj.GetNamespace()}); err != nil {
 		klog.Errorf("Failed to list override policies from namespace: %s, error: %v", rawObj.GetNamespace(), err)
 		return err
@@ -101,9 +101,9 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 	return nil
 }
 
-func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []propagationstrategy.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []propagationstrategy.OverridePolicy {
+func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []policyv1alpha1.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.OverridePolicy {
 	// select policy in which at least one resource selector matches target resource.
-	resourceMatches := make([]propagationstrategy.OverridePolicy, 0)
+	resourceMatches := make([]policyv1alpha1.OverridePolicy, 0)
 	for _, policy := range policies {
 		if OverridePolicyMatches(resource, &policy) {
 			resourceMatches = append(resourceMatches, policy)
@@ -111,7 +111,7 @@ func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []propagationstr
 	}
 
 	// select policy which cluster selector matches target resource.
-	clusterMatches := make([]propagationstrategy.OverridePolicy, 0)
+	clusterMatches := make([]policyv1alpha1.OverridePolicy, 0)
 	for _, policy := range resourceMatches {
 		if util.ClusterMatches(cluster, policy.Spec.TargetCluster) {
 			clusterMatches = append(clusterMatches, policy)
@@ -126,7 +126,7 @@ func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []propagationstr
 	return clusterMatches
 }
 
-func parseJSONPatch(overriders []propagationstrategy.PlaintextOverrider) []overrideOption {
+func parseJSONPatch(overriders []policyv1alpha1.PlaintextOverrider) []overrideOption {
 	patches := make([]overrideOption, 0, len(overriders))
 	for i := range overriders {
 		patches = append(patches, overrideOption{
@@ -165,7 +165,7 @@ func applyJSONPatch(obj *unstructured.Unstructured, overrides []overrideOption) 
 }
 
 // OverridePolicyMatches tells if the override policy should be applied to the resource.
-func OverridePolicyMatches(resource *unstructured.Unstructured, policy *propagationstrategy.OverridePolicy) bool {
+func OverridePolicyMatches(resource *unstructured.Unstructured, policy *policyv1alpha1.OverridePolicy) bool {
 	for _, rs := range policy.Spec.ResourceSelectors {
 		if util.ResourceMatches(resource, rs) {
 			return true
