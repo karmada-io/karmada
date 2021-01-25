@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	propagationstrategy "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
@@ -44,7 +44,7 @@ type Controller struct {
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling PropagationWork %s", req.NamespacedName.String())
 
-	work := &propagationstrategy.PropagationWork{}
+	work := &policyv1alpha1.PropagationWork{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
@@ -72,12 +72,12 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
-		For(&propagationstrategy.PropagationWork{}).
+		For(&policyv1alpha1.PropagationWork{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(c)
 }
 
-func (c *Controller) syncWork(propagationWork *propagationstrategy.PropagationWork) (controllerruntime.Result, error) {
+func (c *Controller) syncWork(propagationWork *policyv1alpha1.PropagationWork) (controllerruntime.Result, error) {
 	err := c.dispatchPropagationWork(propagationWork)
 	if err != nil {
 		klog.Errorf("Failed to dispatch propagationWork %q, namespace is %v, err is %v", propagationWork.Name, propagationWork.Namespace, err)
@@ -88,7 +88,7 @@ func (c *Controller) syncWork(propagationWork *propagationstrategy.PropagationWo
 }
 
 // isResourceApplied checking weather resource has been dispatched to member cluster or not
-func (c *Controller) isResourceApplied(propagationWorkStatus *propagationstrategy.PropagationWorkStatus) bool {
+func (c *Controller) isResourceApplied(propagationWorkStatus *policyv1alpha1.PropagationWorkStatus) bool {
 	for _, condition := range propagationWorkStatus.Conditions {
 		if condition.Type == "Applied" {
 			if condition.Status == v1.ConditionTrue {
@@ -101,7 +101,7 @@ func (c *Controller) isResourceApplied(propagationWorkStatus *propagationstrateg
 
 // tryDeleteWorkload tries to delete resource in the given member cluster.
 // Abort deleting when the member cluster is unready, otherwise we can't unjoin the member cluster when the member cluster is unready
-func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.PropagationWork) error {
+func (c *Controller) tryDeleteWorkload(propagationWork *policyv1alpha1.PropagationWork) error {
 	clusterName, err := names.GetClusterName(propagationWork.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for propagationWork %s/%s", propagationWork.Namespace, propagationWork.Name)
@@ -138,7 +138,7 @@ func (c *Controller) tryDeleteWorkload(propagationWork *propagationstrategy.Prop
 	return nil
 }
 
-func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrategy.PropagationWork) error {
+func (c *Controller) dispatchPropagationWork(propagationWork *policyv1alpha1.PropagationWork) error {
 	clusterName, err := names.GetClusterName(propagationWork.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for propagationWork %s/%s", propagationWork.Namespace, propagationWork.Name)
@@ -166,7 +166,7 @@ func (c *Controller) dispatchPropagationWork(propagationWork *propagationstrateg
 }
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, propagationWork *propagationstrategy.PropagationWork) error {
+func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, propagationWork *policyv1alpha1.PropagationWork) error {
 	clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, c.KubeClientSet)
 	if err != nil {
 		return err
@@ -220,7 +220,7 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, propagationWork *
 }
 
 // removeFinalizer remove finalizer from the given propagationWork
-func (c *Controller) removeFinalizer(propagationWork *propagationstrategy.PropagationWork) (controllerruntime.Result, error) {
+func (c *Controller) removeFinalizer(propagationWork *policyv1alpha1.PropagationWork) (controllerruntime.Result, error) {
 	if !controllerutil.ContainsFinalizer(propagationWork, util.ExecutionControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
@@ -234,7 +234,7 @@ func (c *Controller) removeFinalizer(propagationWork *propagationstrategy.Propag
 }
 
 // updateAppliedCondition update the Applied condition for the given PropagationWork
-func (c *Controller) updateAppliedCondition(propagationWork *propagationstrategy.PropagationWork) error {
+func (c *Controller) updateAppliedCondition(propagationWork *policyv1alpha1.PropagationWork) error {
 	currentTime := v1.Now()
 	propagationWorkApplied := "Applied"
 	appliedSuccess := "AppliedSuccess"
