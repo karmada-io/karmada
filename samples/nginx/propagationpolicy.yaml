@@ -1,4 +1,4 @@
-apiVersion: propagationstrategy.karmada.io/v1alpha1
+apiVersion: policy.karmada.io/v1alpha1
 kind: PropagationPolicy
 metadata:
   name: nginx-propagation
