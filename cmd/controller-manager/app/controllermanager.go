@@ -16,7 +16,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
-	"github.com/karmada-io/karmada/pkg/controllers/policy"
+	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -101,10 +101,10 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		klog.Fatalf("Failed to setup clusterstatus controller: %v", err)
 	}
 
-	policyController := &policy.PropagationPolicyController{
+	policyController := &propagationpolicy.PropagationPolicyController{
 		Client:        mgr.GetClient(),
 		DynamicClient: dynamicClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(policy.ControllerName),
+		EventRecorder: mgr.GetEventRecorderFor(propagationpolicy.ControllerName),
 		RESTMapper:    mgr.GetRESTMapper(),
 	}
 	if err := policyController.SetupWithManager(mgr); err != nil {

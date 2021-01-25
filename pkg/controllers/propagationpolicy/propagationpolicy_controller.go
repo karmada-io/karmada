@@ -1,4 +1,4 @@
-package policy
+package propagationpolicy
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 )
 
 // ControllerName is the controller name that will be used when reporting events.
-const ControllerName = "policy-controller"
+const ControllerName = "propagation-policy-controller"
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationPolicy")
 
