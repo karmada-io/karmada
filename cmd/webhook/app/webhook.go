@@ -15,6 +15,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/webhook/cluster"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
 )
 
@@ -64,6 +65,7 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 
 	klog.Info("registering webhooks to the webhook server")
 	hookServer := hookManager.GetWebhookServer()
+	hookServer.Register("/validate-cluster", &webhook.Admission{Handler: &cluster.ValidatingAdmission{}})
 	hookServer.Register("/mutate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.MutatingAdmission{}})
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
