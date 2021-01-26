@@ -8,6 +8,7 @@ const (
 	// We can use labelSelector to find who created it quickly.
 	// example1: set it in propagationBinding, the label value is propagationPolicy.
 	// example2: set it in propagationWork, the label value is propagationBinding.
+	// example3: set it in propagationWork, the label value is HPA.
 	OwnerLabel = "karmada.io/created-by"
 	// OverrideClaimKey will set in propagationwork resource, indicates that
 	// the resource is overridden by override policies
