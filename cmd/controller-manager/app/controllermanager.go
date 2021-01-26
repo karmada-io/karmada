@@ -16,6 +16,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -99,6 +100,14 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	}
 	if err := ClusterStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup clusterstatus controller: %v", err)
+	}
+
+	hpaController := &hpa.HorizontalPodAutoscalerController{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(hpa.ControllerName),
+	}
+	if err := hpaController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup hpa controller: %v", err)
 	}
 
 	policyController := &propagationpolicy.Controller{
