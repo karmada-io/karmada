@@ -3,7 +3,9 @@ package karmadactl
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -23,6 +26,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 var (
@@ -70,9 +74,15 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
 		Long:    joinLong,
 		Example: joinExample,
 		Run: func(cmd *cobra.Command, args []string) {
+			// Set default values
 			err := opts.Complete(args)
 			if err != nil {
 				klog.Errorf("Error: %v", err)
+				return
+			}
+
+			if errs := opts.Validate(); len(errs) != 0 {
+				klog.Error(utilerrors.NewAggregate(errs).Error())
 				return
 			}
 
@@ -118,6 +128,16 @@ func (j *CommandJoinOption) Complete(args []string) error {
 	}
 
 	return nil
+}
+
+// Validate checks option and return a slice of found errs.
+func (j *CommandJoinOption) Validate() []error {
+	var errs []error
+	if errMsgs := validation.ValidateClusterName(j.ClusterName); len(errMsgs) != 0 {
+		errs = append(errs, fmt.Errorf("invalid cluster name(%s): %s", j.ClusterName, strings.Join(errMsgs, ";")))
+	}
+
+	return errs
 }
 
 // AddFlags adds flags to the specified FlagSet.
