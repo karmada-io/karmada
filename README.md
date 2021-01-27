@@ -142,7 +142,7 @@ before that, we should set `KUBECONFIG` to karmada apiserver:
 Then, install `karmadactl` command and join the member cluster:
 ```
 # go get github.com/karmada-io/karmada/cmd/karmadactl
-# karmadactl join member1 --member-cluster-kubeconfig=/root/.kube/member1.config
+# karmadactl join member1 --cluster-kubeconfig=/root/.kube/member1.config
 ```
 The `karmadactl join` command will create a `Cluster` object to reflect the member cluster.
 
