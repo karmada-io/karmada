@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
@@ -107,10 +108,12 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		DynamicClient: dynamicClientSet,
 		EventRecorder: mgr.GetEventRecorderFor(hpa.ControllerName),
 		RESTMapper:    mgr.GetRESTMapper(),
+		Interval:      2 * time.Minute,
 	}
 	if err := hpaController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup hpa controller: %v", err)
 	}
+	hpaController.RunWorker(stopChan)
 
 	policyController := &propagationpolicy.Controller{
 		Client:        mgr.GetClient(),

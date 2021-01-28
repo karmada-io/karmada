@@ -2,15 +2,20 @@ package hpa
 
 import (
 	"context"
+	"math"
+	"time"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -32,6 +37,47 @@ type HorizontalPodAutoscalerController struct {
 	DynamicClient dynamic.Interface // used to fetch arbitrary resources.
 	EventRecorder record.EventRecorder
 	RESTMapper    meta.RESTMapper
+	Interval      time.Duration // the interval to process hpa schedule.
+}
+
+// HorizontalPodAutoscalerReplicas records replicas for each member cluster.
+type HorizontalPodAutoscalerReplicas struct {
+	Cluster     string
+	MaxReplicas float64
+	MinReplicas float64
+}
+
+// scheduleHPA change max or min replicas in hpa according to work status.
+func (c *HorizontalPodAutoscalerController) scheduleHPA() {
+	HPAList := &autoscalingv1.HorizontalPodAutoscalerList{}
+	if err := c.Client.List(context.TODO(), HPAList, &client.ListOptions{}); err != nil {
+		klog.Errorf("Failed to list hpa objects. Error: %v.", err)
+		return
+	}
+	for _, HPAObject := range HPAList.Items {
+		HPAWorkList := &v1alpha1.PropagationWorkList{}
+		labelRequirement, err := labels.NewRequirement(util.OwnerLabel, selection.Equals,
+			[]string{names.GenerateOwnerLabelValue(HPAObject.GetNamespace(), HPAObject.GetName())})
+		if err != nil {
+			klog.Errorf("Failed to new a requirement. Error: %v", err)
+			return
+		}
+		selector := labels.NewSelector().Add(*labelRequirement)
+		if err := c.Client.List(context.TODO(), HPAWorkList, &client.ListOptions{LabelSelector: selector}); err != nil {
+			klog.Errorf("Failed to list works by hpa %s/%s. Error: %v.", HPAObject.GetNamespace(),
+				HPAObject.GetName(), err)
+			return
+		}
+		for _, workObject := range HPAWorkList.Items {
+			klog.V(2).Infof("process work %s/%s", workObject.GetNamespace(), workObject.GetName())
+			// TODO: change max or min replicas in hpa according to work status.
+		}
+	}
+}
+
+// RunWorker start a scheduled task to schedule hpa object periodical.
+func (c *HorizontalPodAutoscalerController) RunWorker(stopChan <-chan struct{}) {
+	go wait.Until(c.scheduleHPA, c.Interval, stopChan)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -73,16 +119,72 @@ func (c *HorizontalPodAutoscalerController) syncHPA(hpa *autoscalingv1.Horizonta
 	return controllerruntime.Result{}, nil
 }
 
+// calculateReplicas calculates the replicas for hpa in each member cluster. It will two methods, average or weight.
+// TODO: this function just implements even distribution. Another way to change HPA replicas by cluster weight need to be implemented.
+// Average: If averageReplica is less than 1, averageReplica will be assigned by 1, so the total replicas may more than replica in hpa object.
+// If MaxReplica or MinReplica can't be divisible, the last cluster will get the remaining replicas.
+// Weight: not currently implemented
+func (c *HorizontalPodAutoscalerController) calculateReplicas(hpa *autoscalingv1.HorizontalPodAutoscaler, clusters []string) []HorizontalPodAutoscalerReplicas {
+	clusterLength := len(clusters)
+	maxReplicas := hpa.Spec.MaxReplicas
+	minReplicas := hpa.Spec.MinReplicas
+	if hpa.Spec.MinReplicas == nil {
+		defaultMinReplicas := int32(1)
+		minReplicas = &defaultMinReplicas
+	}
+	averageMaxReplicas := math.Floor(float64(maxReplicas) / float64(clusterLength))
+	averageMinReplicas := math.Floor(float64(*minReplicas) / float64(clusterLength))
+	maxReplicaIsNotEnough := false
+	minReplicaIsNotEnough := false
+	if averageMaxReplicas <= 0 {
+		maxReplicaIsNotEnough = true
+		averageMaxReplicas = 1
+	}
+	if averageMinReplicas <= 0 {
+		minReplicaIsNotEnough = true
+		averageMinReplicas = 1
+	}
+	var clustersReplica []HorizontalPodAutoscalerReplicas
+	for index, cluster := range clusters {
+		hpaReplica := HorizontalPodAutoscalerReplicas{
+			Cluster:     cluster,
+			MaxReplicas: averageMaxReplicas,
+			MinReplicas: averageMinReplicas,
+		}
+		if index == clusterLength-1 {
+			if !maxReplicaIsNotEnough && minReplicaIsNotEnough {
+				hpaReplica.MaxReplicas = float64(maxReplicas) - float64(index)*averageMaxReplicas
+				hpaReplica.MinReplicas = averageMinReplicas
+			}
+			if !maxReplicaIsNotEnough && !minReplicaIsNotEnough {
+				hpaReplica.MaxReplicas = float64(maxReplicas) - float64(index)*averageMaxReplicas
+				hpaReplica.MinReplicas = float64(*minReplicas) - float64(index)*averageMinReplicas
+			}
+			if !minReplicaIsNotEnough && maxReplicaIsNotEnough {
+				hpaReplica.MaxReplicas = averageMaxReplicas
+				hpaReplica.MinReplicas = float64(*minReplicas) - float64(index)*averageMinReplicas
+			}
+		}
+		clustersReplica = append(clustersReplica, hpaReplica)
+	}
+	return clustersReplica
+}
+
 // buildPropagationWorks transforms hpa obj to unstructured, creates or updates propagationWorks in the target execution namespaces.
 func (c *HorizontalPodAutoscalerController) buildPropagationWorks(hpa *autoscalingv1.HorizontalPodAutoscaler, clusters []string) error {
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(hpa)
-	if err != nil {
-		klog.Errorf("Failed to transform hpa %s/%s. Error: %v", hpa.GetNamespace(), hpa.GetName(), err)
-		return nil
-	}
-	hpaObj := &unstructured.Unstructured{Object: uncastObj}
-	util.RemoveIrrelevantField(hpaObj)
-	for _, clusterName := range clusters {
+	clustersReplica := c.calculateReplicas(hpa, clusters)
+	for _, clusterHPA := range clustersReplica {
+		hpaCopy := hpa.DeepCopy()
+		minReplica := int32(clusterHPA.MinReplicas)
+		hpaCopy.Spec.MaxReplicas = int32(clusterHPA.MaxReplicas)
+		hpaCopy.Spec.MinReplicas = &minReplica
+		uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(hpaCopy)
+		if err != nil {
+			klog.Errorf("Failed to transform hpa %s/%s. Error: %v", hpaCopy.GetNamespace(), hpaCopy.GetName(), err)
+			return nil
+		}
+		hpaObj := &unstructured.Unstructured{Object: uncastObj}
+		util.RemoveIrrelevantField(hpaObj)
 		hpaJSON, err := hpaObj.MarshalJSON()
 		if err != nil {
 			klog.Errorf("Failed to marshal hpa %s/%s. Error: %v",
@@ -90,9 +192,9 @@ func (c *HorizontalPodAutoscalerController) buildPropagationWorks(hpa *autoscali
 			return err
 		}
 
-		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
+		executionSpace, err := names.GenerateExecutionSpaceName(clusterHPA.Cluster)
 		if err != nil {
-			klog.Errorf("Failed to ensure PropagationWork for cluster: %s. Error: %v.", clusterName, err)
+			klog.Errorf("Failed to ensure PropagationWork for cluster: %s. Error: %v.", clusterHPA.Cluster, err)
 			return err
 		}
 
