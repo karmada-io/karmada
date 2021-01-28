@@ -44,6 +44,17 @@ func RetainClusterFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 }
 
 func retainServiceFields(desiredObj, clusterObj *unstructured.Unstructured) error {
+	// healthCheckNodePort is allocated by APIServer and unchangeable, so it should be retained while updating
+	healthCheckNodePort, ok, err := unstructured.NestedInt64(clusterObj.Object, "spec", "healthCheckNodePort")
+	if err != nil {
+		return fmt.Errorf("error retrieving healthCheckNodePort from service: %w", err)
+	}
+	if ok && healthCheckNodePort > 0 {
+		if err = unstructured.SetNestedField(desiredObj.Object, healthCheckNodePort, "spec", "healthCheckNodePort"); err != nil {
+			return fmt.Errorf("error setting healthCheckNodePort for service: %w", err)
+		}
+	}
+
 	// ClusterIP and NodePort are allocated to Service by cluster, so retain the same if any while updating
 
 	// Retain clusterip
