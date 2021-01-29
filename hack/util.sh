@@ -225,16 +225,23 @@ function util::kubectl_with_retry() {
 }
 
 # util::create_cluster creates a kubernetes cluster
+# util::create_cluster creates a kind cluster and don't wait for control plane node to be ready.
+# Parmeters:
+#  - $1: cluster name, such as "host"
+#  - $2: KUBECONFIG file, such as "/var/run/host.config"
+#  - $3: node docker image to use for booting the cluster, such as "kindest/node:v1.19.1"
+#  - $4: log file path, such as "/tmp/logs/"
 function util::create_cluster() {
   local cluster_name=${1}
   local kubeconfig=${2}
   local kind_image=${3}
-  local log_file=${4}
+  local log_path=${4}
 
-  rm -rf ${log_file}/${cluster_name}.log
-  mkdir -p ${log_file}
-  nohup kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" > ${log_file}/${cluster_name}.log 2>&1 &
-  echo "create cluster ${cluster_name}"
+  mkdir -p ${log_path}
+  rm -rf "${log_path}/${cluster_name}.log"
+  rm -f "${kubeconfig}"
+  nohup kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" > ${log_path}/${cluster_name}.log 2>&1 &
+  echo "Creating cluster ${cluster_name}"
 }
 
 # util::check_clusters_ready checks if a cluster is ready, if not, wait until timeout
