@@ -104,7 +104,9 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 
 	hpaController := &hpa.HorizontalPodAutoscalerController{
 		Client:        mgr.GetClient(),
+		DynamicClient: dynamicClientSet,
 		EventRecorder: mgr.GetEventRecorderFor(hpa.ControllerName),
+		RESTMapper:    mgr.GetRESTMapper(),
 	}
 	if err := hpaController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup hpa controller: %v", err)
