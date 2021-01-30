@@ -6,6 +6,7 @@ import (
 	cluster "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -33,20 +34,10 @@ func (p *ClusterAffinity) Name() string {
 func (p *ClusterAffinity) Filter(ctx context.Context, placement *v1alpha1.Placement, cluster *cluster.Cluster) *framework.Result {
 	affinity := placement.ClusterAffinity
 	if affinity != nil {
-		for _, clusterName := range affinity.ExcludeClusters {
-			if clusterName == cluster.Name {
-				return framework.NewResult(framework.Unschedulable, "cluster is excluded")
-			}
+		if util.ClusterMatches(cluster, *affinity) {
+			return framework.NewResult(framework.Success)
 		}
-
-		if len(affinity.ClusterNames) > 0 {
-			for _, clusterName := range affinity.ClusterNames {
-				if clusterName == cluster.Name {
-					return framework.NewResult(framework.Success)
-				}
-			}
-			return framework.NewResult(framework.Unschedulable, "cluster is not specified")
-		}
+		return framework.NewResult(framework.Unschedulable, "cluster is not matched the placement cluster affinity constraint")
 	}
 
 	// If no clusters specified and it is not excluded, mark it matched
