@@ -11,6 +11,7 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
@@ -42,6 +43,7 @@ func NewControllerManagerCommand(stopChan <-chan struct{}) *cobra.Command {
 	}
 
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+	opts.AddFlags(cmd.Flags())
 	return cmd
 }
 
@@ -55,12 +57,19 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 		panic(err)
 	}
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Scheme:           gclient.NewSchema(),
-		LeaderElection:   true, // TODO(RainbowMango): Add a flag '--enable-leader-election' for this option.
-		LeaderElectionID: "41db11fa.karmada.io",
+		Scheme:                 gclient.NewSchema(),
+		LeaderElection:         true, // TODO(RainbowMango): Add a flag '--enable-leader-election' for this option.
+		LeaderElectionID:       "41db11fa.karmada.io",
+		HealthProbeBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort),
+		LivenessEndpointName:   "/healthz",
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)
+		return err
+	}
+
+	if err = controllerManager.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		klog.Errorf("failed to add health check endpoint: %v", err)
 		return err
 	}
 
