@@ -5,6 +5,20 @@ metadata:
   labels:
     app: mutating-config
 webhooks:
+  - name: propagationpolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["propagationpolicies"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/mutate-propagationpolicy
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1beta1"]
+    timeoutSeconds: 3
   - name: overridepolicy.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
@@ -36,6 +50,20 @@ webhooks:
         scope: "Cluster"
     clientConfig:
       url: https://karmada-webhook.karmada-system.svc:443/validate-cluster
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1beta1"]
+    timeoutSeconds: 3
+  - name: propagationpolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["propagationpolicies"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-propagationpolicy
       caBundle: {{caBundle}}
     failurePolicy: Fail
     sideEffects: None
