@@ -26,6 +26,8 @@ spec:
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/kubeconfig
+            - --bind-address=0.0.0.0
+            - --secure-port=10357
           volumeMounts:
           - name: kubeconfig
             subPath: kubeconfig
