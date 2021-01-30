@@ -46,13 +46,46 @@ func ResourceMatches(resource *unstructured.Unstructured, rs v1alpha1.ResourceSe
 }
 
 // ClusterMatches tells if specific cluster matches the affinity.
-// TODO(RainbowMango): Now only support ClusterAffinity.ClusterNames. More rules will be implemented later.
+// TODO(RainbowMango): Now support ClusterAffinity.ClusterNames, ClusterAffinity.ExcludeClusters and ClusterAffinity.LabelSelector. More rules will be implemented later.
 func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity v1alpha1.ClusterAffinity) bool {
-	for _, clusterName := range affinity.ClusterNames {
-		if cluster.Name == clusterName {
-			return true
+	for _, clusterName := range affinity.ExcludeClusters {
+		if clusterName == cluster.Name {
+			return false
 		}
 	}
 
+	// match rules:
+	// case LabelSelector   ClusterNames   		Rule
+	// 1    not-empty        not-empty          match selector and name
+	// 2    not-empty        empty              match selector only
+	// 3    empty            not-empty          match name only
+	// 4    empty            empty              match all
+
+	if affinity.LabelSelector != nil {
+		var s labels.Selector
+		var err error
+		if s, err = metav1.LabelSelectorAsSelector(affinity.LabelSelector); err != nil {
+			return false
+		}
+
+		if !s.Matches(labels.Set(cluster.GetLabels())) {
+			return false
+		}
+	}
+
+	return ClusterNamesMatches(cluster, affinity.ClusterNames)
+}
+
+// ClusterNamesMatches tells if specific cluster matches the clusterNames affinity.
+func ClusterNamesMatches(cluster *clusterv1alpha1.Cluster, clusterNames []string) bool {
+	if len(clusterNames) == 0 {
+		return true
+	}
+
+	for _, clusterName := range clusterNames {
+		if clusterName == cluster.Name {
+			return true
+		}
+	}
 	return false
 }

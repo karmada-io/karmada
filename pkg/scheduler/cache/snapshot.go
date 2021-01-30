@@ -1,6 +1,9 @@
 package cache
 
-import "github.com/karmada-io/karmada/pkg/scheduler/framework"
+import (
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
+	"github.com/karmada-io/karmada/pkg/util"
+)
 
 // Snapshot is a snapshot of cache ClusterInfo. The scheduler takes a
 // snapshot at the beginning of each scheduling cycle and uses it for its operations in that cycle.
@@ -22,4 +25,16 @@ func (s *Snapshot) NumOfClusters() int {
 // GetClusters returns all the clusters.
 func (s *Snapshot) GetClusters() []*framework.ClusterInfo {
 	return s.clusterInfoList
+}
+
+// GetReadyClusters returns the clusters in ready status.
+func (s *Snapshot) GetReadyClusters() []*framework.ClusterInfo {
+	var readyClusterInfoList []*framework.ClusterInfo
+	for _, c := range s.clusterInfoList {
+		if util.IsClusterReady(&c.Cluster().Status) {
+			readyClusterInfoList = append(readyClusterInfoList, c)
+		}
+	}
+
+	return readyClusterInfoList
 }
