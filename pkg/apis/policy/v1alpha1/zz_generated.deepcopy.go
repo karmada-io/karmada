@@ -495,6 +495,11 @@ func (in *PropagationSpec) DeepCopyInto(out *PropagationSpec) {
 		}
 	}
 	in.Placement.DeepCopyInto(&out.Placement)
+	if in.DependentOverrides != nil {
+		in, out := &in.DependentOverrides, &out.DependentOverrides
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

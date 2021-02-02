@@ -33,6 +33,18 @@ type PropagationSpec struct {
 	// Placement represents the rule for select clusters to propagate resources.
 	Placement Placement `json:"placement,omitempty"`
 
+	// DependentOverrides represents the list of overrides(OverridePolicy)
+	// which must present before the current PropagationPolicy takes effect.
+	//
+	// It used to explicitly specify overrides which current PropagationPolicy rely on.
+	// A typical scenario is the users create OverridePolicy(ies) and resources at the same time,
+	// they want to ensure the new-created policies would be adopted.
+	//
+	// Note: For the overrides, OverridePolicy(ies) in current namespace and ClusterOverridePolicy(ies),
+	// which not present in this list will still be applied if they matches the resources.
+	// +optional
+	DependentOverrides []string `json:"dependentOverrides,omitempty"`
+
 	// SchedulerName represents which scheduler to proceed the scheduling.
 	// If specified, the policy will be dispatched by specified scheduler.
 	// If not specified, the policy will be dispatched by default scheduler.
