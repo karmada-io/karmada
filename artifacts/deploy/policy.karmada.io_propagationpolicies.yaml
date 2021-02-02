@@ -42,6 +42,18 @@ spec:
                   automatically. e.g. a ConfigMap referred by a Deployment. default
                   false.
                 type: boolean
+              dependentOverrides:
+                description: "DependentOverrides represents the list of overrides(OverridePolicy)
+                  which must present before the current PropagationPolicy takes effect.
+                  \n It used to explicitly specify overrides which current PropagationPolicy
+                  rely on. A typical scenario is the users create OverridePolicy(ies)
+                  and resources at the same time, they want to ensure the new-created
+                  policies would be adopted. \n Note: For the overrides, OverridePolicy(ies)
+                  in current namespace and ClusterOverridePolicy(ies), which not present
+                  in this list will still be applied if they matches the resources."
+                items:
+                  type: string
+                type: array
               placement:
                 description: Placement represents the rule for select clusters to
                   propagate resources.
