@@ -54,6 +54,13 @@ type ClusterSpec struct {
 	// +optional
 	SecretRef *LocalSecretReference `json:"secretRef,omitempty"`
 
+	// InsecureSkipTLSVerification indicates that the karmada control plane should not confirm the validity of the serving
+	// certificate of the cluster it is connecting to. This will make the HTTPS connection between the karmada control
+	// plane and the member cluster insecure.
+	// Defaults to false.
+	// +optional
+	InsecureSkipTLSVerification bool `json:"insecureSkipTLSVerification,omitempty"`
+
 	// Provider represents the cloud provider name of the member cluster.
 	// +optional
 	Provider string `json:"provider,omitempty"`

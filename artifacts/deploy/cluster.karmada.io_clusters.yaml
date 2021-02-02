@@ -58,6 +58,13 @@ spec:
                 description: The API endpoint of the member cluster. This can be a
                   hostname, hostname:port, IP or IP:port.
                 type: string
+              insecureSkipTLSVerification:
+                description: InsecureSkipTLSVerification indicates that the karmada
+                  control plane should not confirm the validity of the serving certificate
+                  of the cluster it is connecting to. This will make the HTTPS connection
+                  between the karmada control plane and the member cluster insecure.
+                  Defaults to false.
+                type: boolean
               manageMode:
                 description: ManageMode specifies the relationship between control
                   plane and member cluster, the mode determines how to reach each
