@@ -2,6 +2,7 @@ package propagationpolicy
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,6 +57,14 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		// Do nothing, just return as we have added owner reference to PropagationBinding.
 		// PropagationBinding will be removed automatically by garbage collector.
 		return controllerruntime.Result{}, nil
+	}
+
+	present, err := c.allDependentOverridesPresent(policy)
+	if err != nil {
+		return controllerruntime.Result{Requeue: true}, err
+	}
+	if !present {
+		return controllerruntime.Result{Requeue: true}, fmt.Errorf("the specific overrides which current PropagationPolicy %v/%v rely on are not all present", policy.GetNamespace(), policy.GetName())
 	}
 
 	result, err := c.syncPolicy(policy)
@@ -313,6 +322,23 @@ func (c *Controller) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy
 	}
 	klog.Errorf("Failed to create propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
 	return err
+}
+
+// allDependentOverridesPresent will ensure the specify overrides which current PropagationPolicy rely on are present
+func (c *Controller) allDependentOverridesPresent(policy *v1alpha1.PropagationPolicy) (bool, error) {
+	for _, override := range policy.Spec.DependentOverrides {
+		overrideObj := &v1alpha1.OverridePolicy{}
+		if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: policy.Namespace, Name: override}, overrideObj); err != nil {
+			if errors.IsNotFound(err) {
+				klog.Warningf("The specific override policy %v/%v which current PropagationPolicy %v/%v rely on is not present", policy.Namespace, override, policy.Namespace, policy.Name)
+				return false, nil
+			}
+			klog.Errorf("Failed to get override policy %v/%v, Error: %v", policy.Namespace, override, err)
+			return false, err
+		}
+	}
+
+	return true, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
