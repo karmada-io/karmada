@@ -53,6 +53,14 @@ karmada-webhook: $(SOURCES)
 clean:
 	rm -rf karmada-controller-manager karmada-scheduler karmadactl karmada-webhook
 
+.PHONY: update
+update:
+	hack/update-all.sh
+
+.PHONY: verify
+verify:
+	hack/verify-all.sh
+
 .PHONY: test
 test:
 	go test --race --v ./pkg/...
