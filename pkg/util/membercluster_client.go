@@ -88,10 +88,16 @@ func buildClusterConfig(cluster *v1alpha1.Cluster, client kubeclientset.Interfac
 	if err != nil {
 		return nil, err
 	}
-	clusterConfig.CAData = secret.Data[cADataKey]
+
 	clusterConfig.BearerToken = string(token)
 	clusterConfig.QPS = kubeAPIQPS
 	clusterConfig.Burst = kubeAPIBurst
+
+	if cluster.Spec.InsecureSkipTLSVerification {
+		clusterConfig.TLSClientConfig.Insecure = true
+	} else {
+		clusterConfig.CAData = secret.Data[cADataKey]
+	}
 
 	return clusterConfig, nil
 }
