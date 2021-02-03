@@ -23,7 +23,7 @@ type karmadaConfig struct {
 	pathOptions *clientcmd.PathOptions
 }
 
-// NewKarmadaConfig creates a karmadaConfig for `kubefedctl` commands.
+// NewKarmadaConfig creates a karmadaConfig for `karmadactl` commands.
 func NewKarmadaConfig(pathOptions *clientcmd.PathOptions) KarmadaConfig {
 	return &karmadaConfig{
 		pathOptions: pathOptions,
