@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/google/uuid"
@@ -42,6 +43,8 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 }
 
 func run(opts *options.Options, stopChan <-chan struct{}) error {
+	go serveHealthz(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
+
 	resetConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
@@ -100,4 +103,13 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	})
 
 	return nil
+}
+
+func serveHealthz(address string) {
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+
+	klog.Fatal(http.ListenAndServe(address, nil))
 }
