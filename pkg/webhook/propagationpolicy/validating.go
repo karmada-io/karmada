@@ -2,6 +2,7 @@ package propagationpolicy
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"k8s.io/klog/v2"
@@ -30,7 +31,21 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 	}
 	klog.V(2).Infof("Validating PropagationPolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
 
-	// Currently do nothing
+	// SpreadByField and SpreadByLabel should not co-exist
+	for _, constraint := range policy.Spec.Placement.SpreadConstraints {
+		if len(constraint.SpreadByField) > 0 && len(constraint.SpreadByLabel) > 0 {
+			errMsg := fmt.Sprintf("invalid constraints: SpreadByLabel(%s) should not co-exist with spreadByField(%s)", constraint.SpreadByLabel, constraint.SpreadByField)
+			klog.Info(errMsg)
+			return admission.Denied(errMsg)
+		}
+
+		// If MaxGroups provided, it should greater or equal than MinGroups.
+		if constraint.MaxGroups > 0 && constraint.MaxGroups < constraint.MinGroups {
+			errMsg := fmt.Sprintf("maxGroups(%d) lower than minGroups(%d) is not allowed", constraint.MaxGroups, constraint.MinGroups)
+			klog.Info(errMsg)
+			return admission.Denied(errMsg)
+		}
+	}
 
 	return admission.Allowed("")
 }
