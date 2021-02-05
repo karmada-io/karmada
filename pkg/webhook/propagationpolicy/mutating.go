@@ -37,6 +37,20 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 		}
 	}
 
+	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
+	spreadConstraints := policy.Spec.Placement.SpreadConstraints
+	for i := range spreadConstraints {
+		if len(spreadConstraints[i].SpreadByLabel) == 0 && len(spreadConstraints[i].SpreadByField) == 0 {
+			klog.Infof("Setting default SpreadByField with %s", policyv1alpha1.SpreadByCluster)
+			spreadConstraints[i].SpreadByField = policyv1alpha1.SpreadByCluster
+		}
+
+		if spreadConstraints[i].MinGroups == 0 {
+			klog.Infof("Setting default MinGroups to 1")
+			spreadConstraints[i].MinGroups = 1
+		}
+	}
+
 	marshaledBytes, err := json.Marshal(policy)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
