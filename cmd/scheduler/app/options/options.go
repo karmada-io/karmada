@@ -9,6 +9,11 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 )
 
+const (
+	defaultBindAddress = "0.0.0.0"
+	defaultPort        = 10351
+)
+
 var (
 	defaultElectionLeaseDuration = metav1.Duration{Duration: 15 * time.Second}
 	defaultElectionRenewDeadline = metav1.Duration{Duration: 10 * time.Second}
@@ -20,6 +25,10 @@ type Options struct {
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 	KubeConfig     string
 	Master         string
+	// BindAddress is the IP address on which to listen for the --secure-port port.
+	BindAddress string
+	// SecurePort is the port that the server serves at.
+	SecurePort int
 }
 
 // NewOptions builds an default scheduler options.
@@ -45,4 +54,6 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.LeaderElection.ResourceNamespace, "lock-namespace", "", "Define the namespace of the lock object.")
 	fs.StringVar(&o.KubeConfig, "kubeconfig", o.KubeConfig, "Path to a KubeConfig. Only required if out-of-cluster.")
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server. Overrides any value in KubeConfig. Only required if out-of-cluster.")
+	fs.StringVar(&o.BindAddress, "bind-address", defaultBindAddress, "The IP address on which to listen for the --secure-port port.")
+	fs.IntVar(&o.SecurePort, "secure-port", defaultPort, "The secure port on which to serve HTTPS.")
 }

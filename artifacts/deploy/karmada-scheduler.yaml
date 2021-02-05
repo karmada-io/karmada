@@ -26,6 +26,8 @@ spec:
           command:
             - /bin/karmada-scheduler
             - --kubeconfig=/etc/kubeconfig
+            - --bind-address=0.0.0.0
+            - --secure-port=10351
           volumeMounts:
             - name: kubeconfig
               subPath: kubeconfig
