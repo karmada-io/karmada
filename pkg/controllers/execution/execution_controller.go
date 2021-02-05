@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -90,8 +90,8 @@ func (c *Controller) syncWork(propagationWork *policyv1alpha1.PropagationWork) (
 // isResourceApplied checking weather resource has been dispatched to member cluster or not
 func (c *Controller) isResourceApplied(propagationWorkStatus *policyv1alpha1.PropagationWorkStatus) bool {
 	for _, condition := range propagationWorkStatus.Conditions {
-		if condition.Type == "Applied" {
-			if condition.Status == v1.ConditionTrue {
+		if condition.Type == policyv1alpha1.WorkApplied {
+			if condition.Status == metav1.ConditionTrue {
 				return true
 			}
 		}
@@ -191,7 +191,7 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, propagationWork *
 				return err
 			}
 
-			clusterObj, err := clusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), v1.GetOptions{})
+			clusterObj, err := clusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), metav1.GetOptions{})
 			if err != nil {
 				klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
 				return err
@@ -235,16 +235,12 @@ func (c *Controller) removeFinalizer(propagationWork *policyv1alpha1.Propagation
 
 // updateAppliedCondition update the Applied condition for the given PropagationWork
 func (c *Controller) updateAppliedCondition(propagationWork *policyv1alpha1.PropagationWork) error {
-	currentTime := v1.Now()
-	propagationWorkApplied := "Applied"
-	appliedSuccess := "AppliedSuccess"
-	resourceApplied := "Success sync resource in member cluster"
-	newPropagationWorkAppliedCondition := v1.Condition{
-		Type:               propagationWorkApplied,
-		Status:             v1.ConditionTrue,
-		Reason:             appliedSuccess,
-		Message:            resourceApplied,
-		LastTransitionTime: currentTime,
+	newPropagationWorkAppliedCondition := metav1.Condition{
+		Type:               policyv1alpha1.WorkApplied,
+		Status:             metav1.ConditionTrue,
+		Reason:             "AppliedSuccessful",
+		Message:            "Manifest has been successfully applied",
+		LastTransitionTime: metav1.Now(),
 	}
 	propagationWork.Status.Conditions = append(propagationWork.Status.Conditions, newPropagationWorkAppliedCondition)
 	err := c.Client.Status().Update(context.TODO(), propagationWork)
