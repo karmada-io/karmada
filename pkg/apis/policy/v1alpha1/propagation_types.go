@@ -95,26 +95,44 @@ type Placement struct {
 	SpreadConstraints []SpreadConstraint `json:"spreadConstraints,omitempty"`
 }
 
+// SpreadFieldValue is the type to define valid values for SpreadConstraint.SpreadByField
+type SpreadFieldValue string
+
+// Available fields for spreading are: cluster, region, zone, and provider.
+const (
+	SpreadByCluster  SpreadFieldValue = "cluster"
+	SpreadByRegion   SpreadFieldValue = "region"
+	SpreadByZone     SpreadFieldValue = "zone"
+	SpreadByProvider SpreadFieldValue = "provider"
+)
+
 // SpreadConstraint represents the spread constraints on resources.
 type SpreadConstraint struct {
-	// SpreadByField represents the field used for grouping member clusters into units.
-	// Resources will be spread among different cluster units.
-	// Available field for spreading are: region, zone, cluster and provider.
+	// SpreadByField represents the fields on Karmada cluster API used for
+	// dynamically grouping member clusters into different groups.
+	// Resources will be spread among different cluster groups.
+	// Available fields for spreading are: cluster, region, zone, and provider.
+	// SpreadByField should not co-exist with SpreadByLabel.
+	// If both SpreadByField and SpreadByLabel are empty, SpreadByField will be set to "cluster" by system.
+	// +kubebuilder:validation:Enum=cluster;region;zone;provider
 	// +optional
-	SpreadByField string `json:"spreadByField,omitempty"`
+	SpreadByField SpreadFieldValue `json:"spreadByField,omitempty"`
 
-	// SpreadByLabel represents the label key used for grouping member clusters into units.
-	// Resources will be spread among different cluster units.
+	// SpreadByLabel represents the label key used for
+	// grouping member clusters into different groups.
+	// Resources will be spread among different cluster groups.
+	// SpreadByLabel should not co-exist with SpreadByField.
 	// +optional
 	SpreadByLabel string `json:"spreadByLabel,omitempty"`
 
-	// Maximum restricts the maximum number of cluster units to be selected.
+	// MaxGroups restricts the maximum number of cluster groups to be selected.
 	// +optional
-	Maximum int `json:"maximum,omitempty"`
+	MaxGroups int `json:"maxGroups,omitempty"`
 
-	// Minimum restricts the minimum number of cluster units to be selected.
+	// MinGroups restricts the minimum number of cluster groups to be selected.
+	// Defaults to 1.
 	// +optional
-	Minimum int `json:"minimum,omitempty"`
+	MinGroups int `json:"minGroups,omitempty"`
 }
 
 // ClusterAffinity represents the filter to select clusters.

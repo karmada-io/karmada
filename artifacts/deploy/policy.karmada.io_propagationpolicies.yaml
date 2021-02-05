@@ -209,24 +209,34 @@ spec:
                       description: SpreadConstraint represents the spread constraints
                         on resources.
                       properties:
-                        maximum:
-                          description: Maximum restricts the maximum number of cluster
-                            units to be selected.
+                        maxGroups:
+                          description: MaxGroups restricts the maximum number of cluster
+                            groups to be selected.
                           type: integer
-                        minimum:
-                          description: Minimum restricts the minimum number of cluster
-                            units to be selected.
+                        minGroups:
+                          description: MinGroups restricts the minimum number of cluster
+                            groups to be selected. Defaults to 1.
                           type: integer
                         spreadByField:
-                          description: 'SpreadByField represents the field used for
-                            grouping member clusters into units. Resources will be
-                            spread among different cluster units. Available field
-                            for spreading are: region, zone, cluster and provider.'
+                          description: 'SpreadByField represents the fields on Karmada
+                            cluster API used for dynamically grouping member clusters
+                            into different groups. Resources will be spread among
+                            different cluster groups. Available fields for spreading
+                            are: cluster, region, zone, and provider. SpreadByField
+                            should not co-exist with SpreadByLabel. If both SpreadByField
+                            and SpreadByLabel are empty, SpreadByField will be set
+                            to "cluster" by system.'
+                          enum:
+                          - cluster
+                          - region
+                          - zone
+                          - provider
                           type: string
                         spreadByLabel:
                           description: SpreadByLabel represents the label key used
-                            for grouping member clusters into units. Resources will
-                            be spread among different cluster units.
+                            for grouping member clusters into different groups. Resources
+                            will be spread among different cluster groups. SpreadByLabel
+                            should not co-exist with SpreadByField.
                           type: string
                       type: object
                     type: array
