@@ -14,7 +14,6 @@ import (
 // IsClusterReady tells whether the cluster status in 'Ready' condition.
 func IsClusterReady(clusterStatus *v1alpha1.ClusterStatus) bool {
 	for _, condition := range clusterStatus.Conditions {
-		// TODO(RainbowMango): Condition type should be defined in API, and after that update this hard code accordingly.
 		if condition.Type == v1alpha1.ClusterConditionReady {
 			if condition.Status == metav1.ConditionTrue {
 				return true

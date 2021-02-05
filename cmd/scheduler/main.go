@@ -12,7 +12,6 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	// TODO: remove dependency on apiserver
 	stopChan := apiserver.SetupSignalHandler()
 
 	if err := app.NewSchedulerCommand(stopChan).Execute(); err != nil {
