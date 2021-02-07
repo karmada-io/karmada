@@ -41,8 +41,8 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 	spreadConstraints := policy.Spec.Placement.SpreadConstraints
 	for i := range spreadConstraints {
 		if len(spreadConstraints[i].SpreadByLabel) == 0 && len(spreadConstraints[i].SpreadByField) == 0 {
-			klog.Infof("Setting default SpreadByField with %s", policyv1alpha1.SpreadByCluster)
-			spreadConstraints[i].SpreadByField = policyv1alpha1.SpreadByCluster
+			klog.Infof("Setting default SpreadByField with %s", policyv1alpha1.SpreadByFieldCluster)
+			spreadConstraints[i].SpreadByField = policyv1alpha1.SpreadByFieldCluster
 		}
 
 		if spreadConstraints[i].MinGroups == 0 {
