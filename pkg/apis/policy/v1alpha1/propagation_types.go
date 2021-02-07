@@ -100,10 +100,10 @@ type SpreadFieldValue string
 
 // Available fields for spreading are: cluster, region, zone, and provider.
 const (
-	SpreadByCluster  SpreadFieldValue = "cluster"
-	SpreadByRegion   SpreadFieldValue = "region"
-	SpreadByZone     SpreadFieldValue = "zone"
-	SpreadByProvider SpreadFieldValue = "provider"
+	SpreadByFieldCluster  SpreadFieldValue = "cluster"
+	SpreadByFieldRegion   SpreadFieldValue = "region"
+	SpreadByFieldZone     SpreadFieldValue = "zone"
+	SpreadByFieldProvider SpreadFieldValue = "provider"
 )
 
 // SpreadConstraint represents the spread constraints on resources.
