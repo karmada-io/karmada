@@ -12,6 +12,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
@@ -81,7 +82,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, binding *v1alpha1.Propa
 	}
 	klog.V(4).Infof("feasible clusters scores for <%s/%s>: %v", binding.Namespace, binding.Name, clustersScore)
 
-	clusters := g.selectClusters(clustersScore)
+	clusters := g.selectClusters(clustersScore, policy.Spec.Placement.SpreadConstraints, feasibleClusters)
 	result.SuggestedClusters = clusters
 
 	return result, nil
@@ -130,11 +131,76 @@ func (g *genericScheduler) prioritizeClusters(
 	return result, nil
 }
 
-// TODO: update the algorithms
-func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList) []string {
+func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, spreadConstraints []v1alpha1.SpreadConstraint, clusters []*clusterapi.Cluster) []string {
+	if len(spreadConstraints) != 0 {
+		return g.matchSpreadConstraints(clusters, spreadConstraints)
+	}
+
 	out := make([]string, len(clustersScore))
 	for i := range clustersScore {
 		out[i] = clustersScore[i].Name
 	}
 	return out
+}
+
+func (g *genericScheduler) matchSpreadConstraints(clusters []*clusterapi.Cluster, spreadConstraints []v1alpha1.SpreadConstraint) []string {
+	state := util.NewSpreadGroup()
+	g.runSpreadConstraintsFilter(clusters, spreadConstraints, state)
+	return g.calSpreadResult(state)
+}
+
+// Now support spread by cluster. More rules will be implemented later.
+func (g *genericScheduler) runSpreadConstraintsFilter(clusters []*clusterapi.Cluster, spreadConstraints []v1alpha1.SpreadConstraint, spreadGroup *util.SpreadGroup) {
+	for _, spreadConstraint := range spreadConstraints {
+		spreadGroup.InitialGroupRecord(spreadConstraint)
+		if spreadConstraint.SpreadByField == v1alpha1.SpreadByFieldCluster {
+			g.groupByFieldCluster(clusters, spreadConstraint, spreadGroup)
+		}
+	}
+}
+
+func (g *genericScheduler) groupByFieldCluster(clusters []*clusterapi.Cluster, spreadConstraint v1alpha1.SpreadConstraint, spreadGroup *util.SpreadGroup) {
+	for _, cluster := range clusters {
+		clusterGroup := cluster.Name
+		spreadGroup.GroupRecord[spreadConstraint][clusterGroup] = append(spreadGroup.GroupRecord[spreadConstraint][clusterGroup], cluster.Name)
+	}
+}
+
+func (g *genericScheduler) calSpreadResult(spreadGroup *util.SpreadGroup) []string {
+	// TODO: now support single spread constraint
+	if len(spreadGroup.GroupRecord) > 1 {
+		return nil
+	}
+
+	return g.chooseSpreadGroup(spreadGroup)
+}
+
+func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []string {
+	var feasibleClusters []string
+	for spreadConstraint, clusterGroups := range spreadGroup.GroupRecord {
+		if spreadConstraint.SpreadByField == v1alpha1.SpreadByFieldCluster {
+			if len(clusterGroups) < spreadConstraint.MinGroups {
+				return nil
+			}
+
+			if len(clusterGroups) <= spreadConstraint.MaxGroups {
+				for _, v := range clusterGroups {
+					feasibleClusters = append(feasibleClusters, v...)
+				}
+				break
+			}
+
+			if spreadConstraint.MaxGroups > 0 && len(clusterGroups) > spreadConstraint.MaxGroups {
+				var groups []string
+				for group := range clusterGroups {
+					groups = append(groups, group)
+				}
+
+				for i := 0; i < spreadConstraint.MaxGroups; i++ {
+					feasibleClusters = append(feasibleClusters, clusterGroups[groups[i]]...)
+				}
+			}
+		}
+	}
+	return feasibleClusters
 }
