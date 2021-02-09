@@ -32,8 +32,8 @@ The Karmada Controller Manager runs the various controllers,  the controllers wa
 1. Cluster Controller: attach kubernetes clusters to Karmada for managing the lifecycle of the clusters by creating cluster object.
 
 2. Policy Controller: the controller watches PropagationPolicy objects. When PropagationPolicy object is added, it selects a group of resources matching the resourceSelector and create PropagationBinding with each single resource object.
-3. Binding Controller: the controller watches PropagationBinding object and create PropagationWork object corresponding to each cluster with single resource manifest.
-4. Execution Controller: the controller watches PropagationWork objects.When PropagationWork objects are created, it will distribute the resources to member clusters.
+3. Binding Controller: the controller watches PropagationBinding object and create Work object corresponding to each cluster with single resource manifest.
+4. Execution Controller: the controller watches Work objects.When Work objects are created, it will distribute the resources to member clusters.
 
 
 ## Concepts

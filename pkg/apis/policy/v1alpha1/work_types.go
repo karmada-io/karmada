@@ -9,21 +9,21 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
 
-// PropagationWork defines a list of resources to be deployed on the member cluster.
-type PropagationWork struct {
+// Work defines a list of resources to be deployed on the member cluster.
+type Work struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec represents the desired behavior of PropagationWork.
-	Spec PropagationWorkSpec `json:"spec"`
+	// Spec represents the desired behavior of Work.
+	Spec WorkSpec `json:"spec"`
 
 	// Status represents the status of PropagationStatus.
 	// +optional
-	Status PropagationWorkStatus `json:"status,omitempty"`
+	Status WorkStatus `json:"status,omitempty"`
 }
 
-// PropagationWorkSpec defines the desired state of PropagationWork.
-type PropagationWorkSpec struct {
+// WorkSpec defines the desired state of Work.
+type WorkSpec struct {
 	// Workload represents the manifest workload to be deployed on managed cluster.
 	Workload WorkloadTemplate `json:"workload,omitempty"`
 }
@@ -41,13 +41,13 @@ type Manifest struct {
 	runtime.RawExtension `json:",inline"`
 }
 
-// PropagationWorkStatus defines the observed state of PropagationWork.
-type PropagationWorkStatus struct {
+// WorkStatus defines the observed state of Work.
+type WorkStatus struct {
 	// Conditions contain the different condition statuses for this work.
 	// Valid condition types are:
-	// 1. Applied represents workload in PropagationWork is applied successfully on a managed cluster.
-	// 2. Progressing represents workload in PropagationWork is being applied on a managed cluster.
-	// 3. Available represents workload in PropagationWork exists on the managed cluster.
+	// 1. Applied represents workload in Work is applied successfully on a managed cluster.
+	// 2. Progressing represents workload in Work is being applied on a managed cluster.
+	// 3. Available represents workload in Work exists on the managed cluster.
 	// 4. Degraded represents the current state of workload does not match the desired
 	// state for a certain period.
 	// +optional
@@ -95,27 +95,27 @@ type ResourceIdentifier struct {
 }
 
 const (
-	// WorkApplied represents that the resource defined in PropagationWork is
+	// WorkApplied represents that the resource defined in Work is
 	// successfully applied on the managed cluster.
 	WorkApplied string = "Applied"
-	// WorkProgressing represents that the resource defined in PropagationWork is
+	// WorkProgressing represents that the resource defined in Work is
 	// in the progress to be applied on the managed cluster.
 	WorkProgressing string = "Progressing"
-	// WorkAvailable represents that all resources of the PropagationWork exists on
+	// WorkAvailable represents that all resources of the Work exists on
 	// the managed cluster.
 	WorkAvailable string = "Available"
-	// WorkDegraded represents that the current state of PropagationWork does not match
+	// WorkDegraded represents that the current state of Work does not match
 	// the desired state for a certain period.
 	WorkDegraded string = "Degraded"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// PropagationWorkList is a collection of PropagationWork.
-type PropagationWorkList struct {
+// WorkList is a collection of Work.
+type WorkList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	// Items holds a list of PropagationWork.
-	Items []PropagationWork `json:"items"`
+	// Items holds a list of Work.
+	Items []Work `json:"items"`
 }

@@ -26,10 +26,10 @@ type PropagationPolicyListerExpansion interface{}
 // PropagationPolicyNamespaceLister.
 type PropagationPolicyNamespaceListerExpansion interface{}
 
-// PropagationWorkListerExpansion allows custom methods to be added to
-// PropagationWorkLister.
-type PropagationWorkListerExpansion interface{}
+// WorkListerExpansion allows custom methods to be added to
+// WorkLister.
+type WorkListerExpansion interface{}
 
-// PropagationWorkNamespaceListerExpansion allows custom methods to be added to
-// PropagationWorkNamespaceLister.
-type PropagationWorkNamespaceListerExpansion interface{}
+// WorkNamespaceListerExpansion allows custom methods to be added to
+// WorkNamespaceLister.
+type WorkNamespaceListerExpansion interface{}

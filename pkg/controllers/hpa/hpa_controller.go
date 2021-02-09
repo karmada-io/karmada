@@ -58,23 +58,23 @@ func (c *HorizontalPodAutoscalerController) Reconcile(req controllerruntime.Requ
 	return c.syncHPA(hpa)
 }
 
-// syncHPA gets placement from propagationBinding according to targetRef in hpa, then builds propagationWorks in target execution namespaces.
+// syncHPA gets placement from propagationBinding according to targetRef in hpa, then builds works in target execution namespaces.
 func (c *HorizontalPodAutoscalerController) syncHPA(hpa *autoscalingv1.HorizontalPodAutoscaler) (controllerruntime.Result, error) {
 	clusters, err := c.getTargetPlacement(hpa.Spec.ScaleTargetRef, hpa.GetNamespace())
 	if err != nil {
 		klog.Errorf("Failed to get target placement by hpa %s/%s. Error: %v.", hpa.GetNamespace(), hpa.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-	err = c.buildPropagationWorks(hpa, clusters)
+	err = c.buildWorks(hpa, clusters)
 	if err != nil {
-		klog.Errorf("Failed to build propagationWork for hpa %s/%s. Error: %v.", hpa.GetNamespace(), hpa.GetName(), err)
+		klog.Errorf("Failed to build work for hpa %s/%s. Error: %v.", hpa.GetNamespace(), hpa.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	return controllerruntime.Result{}, nil
 }
 
-// buildPropagationWorks transforms hpa obj to unstructured, creates or updates propagationWorks in the target execution namespaces.
-func (c *HorizontalPodAutoscalerController) buildPropagationWorks(hpa *autoscalingv1.HorizontalPodAutoscaler, clusters []string) error {
+// buildWorks transforms hpa obj to unstructured, creates or updates Works in the target execution namespaces.
+func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.HorizontalPodAutoscaler, clusters []string) error {
 	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(hpa)
 	if err != nil {
 		klog.Errorf("Failed to transform hpa %s/%s. Error: %v", hpa.GetNamespace(), hpa.GetName(), err)
@@ -92,7 +92,7 @@ func (c *HorizontalPodAutoscalerController) buildPropagationWorks(hpa *autoscali
 
 		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
 		if err != nil {
-			klog.Errorf("Failed to ensure PropagationWork for cluster: %s. Error: %v.", clusterName, err)
+			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
 			return err
 		}
 
@@ -107,7 +107,7 @@ func (c *HorizontalPodAutoscalerController) buildPropagationWorks(hpa *autoscali
 			Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(hpa.GetNamespace(), hpa.GetName())},
 		}
 
-		err = util.CreateOrUpdatePropagationWork(c.Client, objectMeta, hpaJSON)
+		err = util.CreateOrUpdateWork(c.Client, objectMeta, hpaJSON)
 		if err != nil {
 			return err
 		}

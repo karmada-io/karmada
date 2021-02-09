@@ -120,7 +120,7 @@ func RunUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandUnjoin
 	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
 
 	// todo: taint cluster object instead of deleting execution space.
-	//  Once the cluster is tainted, eviction controller will delete all propagationwork in the execution space of the cluster.
+	//  Once the cluster is tainted, eviction controller will delete all Work in the execution space of the cluster.
 	executionSpaceName, err := names.GenerateExecutionSpaceName(opts.ClusterName)
 	if err != nil {
 		return err

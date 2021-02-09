@@ -31,9 +31,9 @@ import (
 // WorkStatusControllerName is the controller name that will be used when reporting events.
 const WorkStatusControllerName = "work-status-controller"
 
-// PropagationWorkStatusController is to sync status of PropagationWork.
-type PropagationWorkStatusController struct {
-	client.Client                     // used to operate PropagationWork resources.
+// WorkStatusController is to sync status of Work.
+type WorkStatusController struct {
+	client.Client                     // used to operate Work resources.
 	DynamicClient   dynamic.Interface // used to fetch arbitrary resources.
 	EventRecorder   record.EventRecorder
 	RESTMapper      meta.RESTMapper
@@ -49,10 +49,10 @@ type PropagationWorkStatusController struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *PropagationWorkStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling status of PropagationWork %s.", req.NamespacedName.String())
+func (c *WorkStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+	klog.V(4).Infof("Reconciling status of Work %s.", req.NamespacedName.String())
 
-	work := &v1alpha1.PropagationWork{}
+	work := &v1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
@@ -70,18 +70,18 @@ func (c *PropagationWorkStatusController) Reconcile(req controllerruntime.Reques
 }
 
 // buildResourceInformers builds informer dynamically for managed resources in member cluster.
-// The created informer watches resource change and then sync to the relevant PropagationWork object.
-func (c *PropagationWorkStatusController) buildResourceInformers(work *v1alpha1.PropagationWork) (controllerruntime.Result, error) {
+// The created informer watches resource change and then sync to the relevant Work object.
+func (c *WorkStatusController) buildResourceInformers(work *v1alpha1.Work) (controllerruntime.Result, error) {
 	err := c.registerInformersAndStart(work)
 	if err != nil {
-		klog.Errorf("Failed to register informer for propagationWork %s/%s. Error: %v.", work.GetNamespace(), work.GetName(), err)
+		klog.Errorf("Failed to register informer for Work %s/%s. Error: %v.", work.GetNamespace(), work.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	return controllerruntime.Result{}, nil
 }
 
 // getEventHandler return callback function that knows how to handle events from the member cluster.
-func (c *PropagationWorkStatusController) getEventHandler() cache.ResourceEventHandler {
+func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 	if c.eventHandler == nil {
 		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.worker.EnqueueRateLimited)
 	}
@@ -89,14 +89,14 @@ func (c *PropagationWorkStatusController) getEventHandler() cache.ResourceEventH
 }
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
-func (c *PropagationWorkStatusController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker(c.syncPropagationWorkStatus, "work-status", time.Second)
+func (c *WorkStatusController) RunWorkQueue() {
+	c.worker = util.NewAsyncWorker(c.syncWorkStatus, "work-status", time.Second)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 
-// syncPropagationWorkStatus will find propagationWork by label in workload, then update resource status to propagationWork status.
+// syncWorkStatus will find work by label in workload, then update resource status to work status.
 // label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
-func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) error {
+func (c *WorkStatusController) syncWorkStatus(key string) error {
 	obj, err := c.getObjectFromCache(key)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -123,14 +123,14 @@ func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) 
 		return err
 	}
 
-	workObject := &v1alpha1.PropagationWork{}
+	workObject := &v1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: ownerNamespace, Name: ownerName}, workObject); err != nil {
 		// Stop processing if resource no longer exist.
 		if errors.IsNotFound(err) {
 			return nil
 		}
 
-		klog.Errorf("Failed to get PropagationWork(%s/%s) from cache: %v", ownerNamespace, ownerName, err)
+		klog.Errorf("Failed to get Work(%s/%s) from cache: %v", ownerNamespace, ownerName, err)
 		return err
 	}
 
@@ -158,11 +158,11 @@ func (c *PropagationWorkStatusController) syncPropagationWorkStatus(key string) 
 		return c.ObjectWatcher.Update(clusterName, desireObj, obj)
 	}
 
-	klog.Infof("reflecting %s(%s/%s) status of to PropagationWork(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), ownerNamespace, ownerName)
+	klog.Infof("reflecting %s(%s/%s) status of to Work(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), ownerNamespace, ownerName)
 	return c.reflectStatus(workObject, obj)
 }
 
-func (c *PropagationWorkStatusController) handleDeleteEvent(key string) error {
+func (c *WorkStatusController) handleDeleteEvent(key string) error {
 	clusterWorkload, err := util.SplitMetaKey(key)
 	if err != nil {
 		klog.Errorf("Couldn't get key for %s. Error: %v.", key, err)
@@ -174,29 +174,29 @@ func (c *PropagationWorkStatusController) handleDeleteEvent(key string) error {
 		return err
 	}
 
-	propagationWorkName := names.GenerateBindingName(clusterWorkload.Namespace, clusterWorkload.GVK.Kind, clusterWorkload.Name)
-	propagationWork := &v1alpha1.PropagationWork{}
-	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: executionSpace, Name: propagationWorkName}, propagationWork); err != nil {
+	workName := names.GenerateBindingName(clusterWorkload.Namespace, clusterWorkload.GVK.Kind, clusterWorkload.Name)
+	work := &v1alpha1.Work{}
+	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: executionSpace, Name: workName}, work); err != nil {
 		// Stop processing if resource no longer exist.
 		if errors.IsNotFound(err) {
-			klog.Infof("workload %v/%v not found", executionSpace, propagationWorkName)
+			klog.Infof("workload %v/%v not found", executionSpace, workName)
 			return nil
 		}
 
-		klog.Errorf("Failed to get PropagationWork from cache: %v", err)
+		klog.Errorf("Failed to get Work from cache: %v", err)
 		return err
 	}
 
-	if !propagationWork.DeletionTimestamp.IsZero() {
+	if !work.DeletionTimestamp.IsZero() {
 		klog.Infof("resource %v/%v/%v in member cluster %v does not need to recreate", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
 		return nil
 	}
 
-	return c.recreateResourceIfNeeded(propagationWork, clusterWorkload)
+	return c.recreateResourceIfNeeded(work, clusterWorkload)
 }
 
-func (c *PropagationWorkStatusController) recreateResourceIfNeeded(propagationWork *v1alpha1.PropagationWork, clusterWorkload util.ClusterWorkload) error {
-	for _, rawManifest := range propagationWork.Spec.Workload.Manifests {
+func (c *WorkStatusController) recreateResourceIfNeeded(work *v1alpha1.Work, clusterWorkload util.ClusterWorkload) error {
+	for _, rawManifest := range work.Spec.Workload.Manifests {
 		manifest := &unstructured.Unstructured{}
 		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
 			return err
@@ -207,7 +207,7 @@ func (c *PropagationWorkStatusController) recreateResourceIfNeeded(propagationWo
 			manifest.GetNamespace() == clusterWorkload.Namespace &&
 			manifest.GetName() == clusterWorkload.Name {
 
-			util.MergeLabel(manifest, util.OwnerLabel, names.GenerateOwnerLabelValue(propagationWork.GetNamespace(), propagationWork.GetName()))
+			util.MergeLabel(manifest, util.OwnerLabel, names.GenerateOwnerLabelValue(work.GetNamespace(), work.GetName()))
 
 			klog.Infof("recreating %s/%s/%s in member cluster %s", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
 			return c.ObjectWatcher.Create(clusterWorkload.Cluster, manifest)
@@ -216,8 +216,8 @@ func (c *PropagationWorkStatusController) recreateResourceIfNeeded(propagationWo
 	return nil
 }
 
-// reflectStatus grabs cluster object's running status then updates to it's owner object(PropagationWork).
-func (c *PropagationWorkStatusController) reflectStatus(work *v1alpha1.PropagationWork, clusterObj *unstructured.Unstructured) error {
+// reflectStatus grabs cluster object's running status then updates to it's owner object(Work).
+func (c *WorkStatusController) reflectStatus(work *v1alpha1.Work, clusterObj *unstructured.Unstructured) error {
 	// Stop processing if resource(such as ConfigMap,Secret,ClusterRole, etc.) doesn't contain 'spec.status' fields.
 	statusMap, exist, err := unstructured.NestedMap(clusterObj.Object, "status")
 	if err != nil {
@@ -249,7 +249,7 @@ func (c *PropagationWorkStatusController) reflectStatus(work *v1alpha1.Propagati
 	return c.Client.Status().Update(context.TODO(), work)
 }
 
-func (c *PropagationWorkStatusController) buildStatusIdentifier(work *v1alpha1.PropagationWork, clusterObj *unstructured.Unstructured) (*v1alpha1.ResourceIdentifier, error) {
+func (c *WorkStatusController) buildStatusIdentifier(work *v1alpha1.Work, clusterObj *unstructured.Unstructured) (*v1alpha1.ResourceIdentifier, error) {
 	ordinal, err := c.getManifestIndex(work.Spec.Workload.Manifests, clusterObj)
 	if err != nil {
 		return nil, err
@@ -262,11 +262,11 @@ func (c *PropagationWorkStatusController) buildStatusIdentifier(work *v1alpha1.P
 
 	identifier := &v1alpha1.ResourceIdentifier{
 		Ordinal: ordinal,
-		// TODO(RainbowMango): Consider merge Group and Version to APIVersion from PropagationWork API.
+		// TODO(RainbowMango): Consider merge Group and Version to APIVersion from Work API.
 		Group:   groupVersion.Group,
 		Version: groupVersion.Version,
 		Kind:    clusterObj.GetKind(),
-		// TODO(RainbowMango): Consider remove Resource from PropagationWork API.
+		// TODO(RainbowMango): Consider remove Resource from Work API.
 		Resource:  "", // we don't need this fields.
 		Namespace: clusterObj.GetNamespace(),
 		Name:      clusterObj.GetName(),
@@ -275,7 +275,7 @@ func (c *PropagationWorkStatusController) buildStatusIdentifier(work *v1alpha1.P
 	return identifier, nil
 }
 
-func (c *PropagationWorkStatusController) buildStatusRawExtension(status map[string]interface{}) (*runtime.RawExtension, error) {
+func (c *WorkStatusController) buildStatusRawExtension(status map[string]interface{}) (*runtime.RawExtension, error) {
 	statusJSON, err := json.Marshal(status)
 	if err != nil {
 		klog.Errorf("Failed to marshal status. Error: %v.", statusJSON)
@@ -287,13 +287,13 @@ func (c *PropagationWorkStatusController) buildStatusRawExtension(status map[str
 	}, nil
 }
 
-func (c *PropagationWorkStatusController) mergeStatus(statuses []v1alpha1.ManifestStatus, newStatus v1alpha1.ManifestStatus) []v1alpha1.ManifestStatus {
+func (c *WorkStatusController) mergeStatus(statuses []v1alpha1.ManifestStatus, newStatus v1alpha1.ManifestStatus) []v1alpha1.ManifestStatus {
 	// TODO(RainbowMango): update 'statuses' if 'newStatus' already exist.
-	// For now, we only have at most one manifest in PropagationWork, so just override current 'statuses'.
+	// For now, we only have at most one manifest in Work, so just override current 'statuses'.
 	return []v1alpha1.ManifestStatus{newStatus}
 }
 
-func (c *PropagationWorkStatusController) getManifestIndex(manifests []v1alpha1.Manifest, clusterObj *unstructured.Unstructured) (int, error) {
+func (c *WorkStatusController) getManifestIndex(manifests []v1alpha1.Manifest, clusterObj *unstructured.Unstructured) (int, error) {
 	for index, rawManifest := range manifests {
 		manifest := &unstructured.Unstructured{}
 		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
@@ -311,7 +311,7 @@ func (c *PropagationWorkStatusController) getManifestIndex(manifests []v1alpha1.
 	return -1, fmt.Errorf("no such manifest exist")
 }
 
-func (c *PropagationWorkStatusController) getRawManifest(manifests []v1alpha1.Manifest, clusterObj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (c *WorkStatusController) getRawManifest(manifests []v1alpha1.Manifest, clusterObj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	for _, rawManifest := range manifests {
 		manifest := &unstructured.Unstructured{}
 		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
@@ -330,7 +330,7 @@ func (c *PropagationWorkStatusController) getRawManifest(manifests []v1alpha1.Ma
 }
 
 // getObjectFromCache gets full object information from cache by key in worker queue.
-func (c *PropagationWorkStatusController) getObjectFromCache(key string) (*unstructured.Unstructured, error) {
+func (c *WorkStatusController) getObjectFromCache(key string) (*unstructured.Unstructured, error) {
 	clusterWorkload, err := util.SplitMetaKey(key)
 	if err != nil {
 		klog.Errorf("Couldn't get key for %s. Error: %v.", key, err)
@@ -361,7 +361,7 @@ func (c *PropagationWorkStatusController) getObjectFromCache(key string) (*unstr
 
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
 // and start it.
-func (c *PropagationWorkStatusController) registerInformersAndStart(work *v1alpha1.PropagationWork) error {
+func (c *WorkStatusController) registerInformersAndStart(work *v1alpha1.Work) error {
 	clusterName, err := names.GetClusterName(work.GetNamespace())
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", work.GetNamespace(), err)
@@ -373,7 +373,7 @@ func (c *PropagationWorkStatusController) registerInformersAndStart(work *v1alph
 		return err
 	}
 
-	gvrTargets, err := c.getGVRsFromPropagationWork(work)
+	gvrTargets, err := c.getGVRsFromWork(work)
 	if err != nil {
 		return err
 	}
@@ -397,8 +397,8 @@ func (c *PropagationWorkStatusController) registerInformersAndStart(work *v1alph
 	return nil
 }
 
-// getGVRsFromPropagationWork traverses the manifests in propagationWork to find groupVersionResource list.
-func (c *PropagationWorkStatusController) getGVRsFromPropagationWork(work *v1alpha1.PropagationWork) (map[schema.GroupVersionResource]bool, error) {
+// getGVRsFromWork traverses the manifests in work to find groupVersionResource list.
+func (c *WorkStatusController) getGVRsFromWork(work *v1alpha1.Work) (map[schema.GroupVersionResource]bool, error) {
 	gvrTargets := map[schema.GroupVersionResource]bool{}
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
@@ -419,7 +419,7 @@ func (c *PropagationWorkStatusController) getGVRsFromPropagationWork(work *v1alp
 
 // getSingleClusterManager gets singleClusterInformerManager with clusterName.
 // If manager is not exist, create it, otherwise gets it from map.
-func (c *PropagationWorkStatusController) getSingleClusterManager(clusterName string) (informermanager.SingleClusterInformerManager, error) {
+func (c *WorkStatusController) getSingleClusterManager(clusterName string) (informermanager.SingleClusterInformerManager, error) {
 	// TODO(chenxianpao): If cluster A is removed, then a new cluster that name also is A joins karmada,
 	//  the cache in informer manager should be updated.
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(clusterName)
@@ -435,6 +435,6 @@ func (c *PropagationWorkStatusController) getSingleClusterManager(clusterName st
 }
 
 // SetupWithManager creates a controller and register to controller manager.
-func (c *PropagationWorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.PropagationWork{}).Complete(c)
+func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
+	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Work{}).Complete(c)
 }

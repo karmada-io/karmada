@@ -13,7 +13,7 @@ type PolicyV1alpha1Interface interface {
 	OverridePoliciesGetter
 	PropagationBindingsGetter
 	PropagationPoliciesGetter
-	PropagationWorksGetter
+	WorksGetter
 }
 
 // PolicyV1alpha1Client is used to interact with features provided by the policy.karmada.io group.
@@ -33,8 +33,8 @@ func (c *PolicyV1alpha1Client) PropagationPolicies(namespace string) Propagation
 	return newPropagationPolicies(c, namespace)
 }
 
-func (c *PolicyV1alpha1Client) PropagationWorks(namespace string) PropagationWorkInterface {
-	return newPropagationWorks(c, namespace)
+func (c *PolicyV1alpha1Client) Works(namespace string) WorkInterface {
+	return newWorks(c, namespace)
 }
 
 // NewForConfig creates a new PolicyV1alpha1Client for the given config.

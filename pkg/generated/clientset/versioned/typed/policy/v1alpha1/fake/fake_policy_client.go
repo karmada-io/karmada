@@ -24,8 +24,8 @@ func (c *FakePolicyV1alpha1) PropagationPolicies(namespace string) v1alpha1.Prop
 	return &FakePropagationPolicies{c, namespace}
 }
 
-func (c *FakePolicyV1alpha1) PropagationWorks(namespace string) v1alpha1.PropagationWorkInterface {
-	return &FakePropagationWorks{c, namespace}
+func (c *FakePolicyV1alpha1) Works(namespace string) v1alpha1.WorkInterface {
+	return &FakeWorks{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
