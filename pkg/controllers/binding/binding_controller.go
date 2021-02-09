@@ -57,8 +57,8 @@ func (c *PropagationBindingController) Reconcile(req controllerruntime.Request) 
 	}
 
 	if !binding.DeletionTimestamp.IsZero() {
-		// Do nothing, just return as we have added owner reference to PropagationWork.
-		// PropagationWork will be removed automatically by garbage collector.
+		// Do nothing, just return as we have added owner reference to Work.
+		// Work will be removed automatically by garbage collector.
 		return controllerruntime.Result{}, nil
 	}
 
@@ -71,68 +71,68 @@ func (c *PropagationBindingController) Reconcile(req controllerruntime.Request) 
 	return c.syncBinding(binding)
 }
 
-// isBindingReady will check if propagationBinding is ready to build propagationWork.
+// isBindingReady will check if propagationBinding is ready to build Work.
 func (c *PropagationBindingController) isBindingReady(binding *v1alpha1.PropagationBinding) bool {
 	return len(binding.Spec.Clusters) != 0
 }
 
-// syncBinding will sync propagationBinding to propagationWorks.
+// syncBinding will sync propagationBinding to Works.
 func (c *PropagationBindingController) syncBinding(binding *v1alpha1.PropagationBinding) (controllerruntime.Result, error) {
 	clusterNames := c.getBindingClusterNames(binding)
 	ownerLabel := names.GenerateOwnerLabelValue(binding.GetNamespace(), binding.GetName())
 	works, err := c.findOrphanWorks(ownerLabel, clusterNames)
 	if err != nil {
-		klog.Errorf("Failed to find orphan propagationWorks by propagationBinding %s/%s. Error: %v.",
+		klog.Errorf("Failed to find orphan works by propagationBinding %s/%s. Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	err = c.removeOrphanWorks(works)
 	if err != nil {
-		klog.Errorf("Failed to remove orphan propagationWorks by propagationBinding %s/%s. Error: %v.",
+		klog.Errorf("Failed to remove orphan works by propagationBinding %s/%s. Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	err = c.transformBindingToWorks(binding, clusterNames)
 	if err != nil {
-		klog.Errorf("Failed to transform propagationBinding %s/%s to propagationWorks. Error: %v.",
+		klog.Errorf("Failed to transform propagationBinding %s/%s to works. Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	return controllerruntime.Result{}, nil
 }
 
-// removeOrphanBindings will remove orphan propagationWorks.
-func (c *PropagationBindingController) removeOrphanWorks(works []v1alpha1.PropagationWork) error {
+// removeOrphanBindings will remove orphan works.
+func (c *PropagationBindingController) removeOrphanWorks(works []v1alpha1.Work) error {
 	for _, work := range works {
 		err := c.Client.Delete(context.TODO(), &work)
 		if err != nil {
 			return err
 		}
-		klog.Infof("Delete orphan propagationWork %s/%s successfully.", work.GetNamespace(), work.GetName())
+		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
 	}
 	return nil
 }
 
-// findOrphanWorks will find orphan propagationWorks that don't match current propagationBinding clusters.
-func (c *PropagationBindingController) findOrphanWorks(ownerLabel string, clusterNames []string) ([]v1alpha1.PropagationWork, error) {
+// findOrphanWorks will find orphan works that don't match current propagationBinding clusters.
+func (c *PropagationBindingController) findOrphanWorks(ownerLabel string, clusterNames []string) ([]v1alpha1.Work, error) {
 	labelRequirement, err := labels.NewRequirement(util.OwnerLabel, selection.Equals, []string{ownerLabel})
 	if err != nil {
 		klog.Errorf("Failed to new a requirement. Error: %v", err)
 		return nil, err
 	}
 	selector := labels.NewSelector().Add(*labelRequirement)
-	propagationWorkList := &v1alpha1.PropagationWorkList{}
-	if err := c.Client.List(context.TODO(), propagationWorkList, &client.ListOptions{LabelSelector: selector}); err != nil {
+	workList := &v1alpha1.WorkList{}
+	if err := c.Client.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
 		return nil, err
 	}
-	var orphanWorks []v1alpha1.PropagationWork
+	var orphanWorks []v1alpha1.Work
 	expectClusters := sets.NewString(clusterNames...)
-	for _, work := range propagationWorkList.Items {
+	for _, work := range workList.Items {
 		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
 		if err != nil {
-			klog.Errorf("Failed to get cluster name which PropagationWork %s/%s belongs to. Error: %v.",
+			klog.Errorf("Failed to get cluster name which Work %s/%s belongs to. Error: %v.",
 				work.GetNamespace(), work.GetName(), err)
 			return nil, err
 		}
@@ -168,7 +168,7 @@ func (c *PropagationBindingController) removeIrrelevantField(workload *unstructu
 	unstructured.RemoveNestedField(workload.Object, "status")
 }
 
-// transformBindingToWorks will transform propagationBinding to propagationWorks
+// transformBindingToWorks will transform propagationBinding to Works
 func (c *PropagationBindingController) transformBindingToWorks(binding *v1alpha1.PropagationBinding, clusterNames []string) error {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 		schema.FromAPIVersionAndKind(binding.Spec.Resource.APIVersion, binding.Spec.Resource.Kind))
@@ -185,15 +185,15 @@ func (c *PropagationBindingController) transformBindingToWorks(binding *v1alpha1
 		return err
 	}
 
-	err = c.ensurePropagationWork(workload, clusterNames, binding)
+	err = c.ensureWork(workload, clusterNames, binding)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// ensurePropagationWork ensure PropagationWork to be created or updated
-func (c *PropagationBindingController) ensurePropagationWork(workload *unstructured.Unstructured, clusterNames []string,
+// ensureWork ensure Work to be created or updated
+func (c *PropagationBindingController) ensureWork(workload *unstructured.Unstructured, clusterNames []string,
 	binding *v1alpha1.PropagationBinding) error {
 	c.removeIrrelevantField(workload)
 
@@ -215,11 +215,11 @@ func (c *PropagationBindingController) ensurePropagationWork(workload *unstructu
 
 		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
 		if err != nil {
-			klog.Errorf("Failed to ensure PropagationWork for cluster: %s. Error: %v.", clusterName, err)
+			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
 			return err
 		}
 
-		propagationWork := &v1alpha1.PropagationWork{
+		work := &v1alpha1.Work{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       binding.Name,
 				Namespace:  executionSpace,
@@ -229,7 +229,7 @@ func (c *PropagationBindingController) ensurePropagationWork(workload *unstructu
 				},
 				Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(binding.GetNamespace(), binding.GetName())},
 			},
-			Spec: v1alpha1.PropagationWorkSpec{
+			Spec: v1alpha1.WorkSpec{
 				Workload: v1alpha1.WorkloadTemplate{
 					Manifests: []v1alpha1.Manifest{
 						{
@@ -242,22 +242,22 @@ func (c *PropagationBindingController) ensurePropagationWork(workload *unstructu
 			},
 		}
 
-		runtimeObject := propagationWork.DeepCopy()
+		runtimeObject := work.DeepCopy()
 		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), c.Client, runtimeObject, func() error {
-			runtimeObject.Spec = propagationWork.Spec
+			runtimeObject.Spec = work.Spec
 			return nil
 		})
 		if err != nil {
-			klog.Errorf("Failed to create/update propagationWork %s/%s. Error: %v", propagationWork.GetNamespace(), propagationWork.GetName(), err)
+			klog.Errorf("Failed to create/update work %s/%s. Error: %v", work.GetNamespace(), work.GetName(), err)
 			return err
 		}
 
 		if operationResult == controllerutil.OperationResultCreated {
-			klog.Infof("Create propagationWork %s/%s successfully.", propagationWork.GetNamespace(), propagationWork.GetName())
+			klog.Infof("Create work %s/%s successfully.", work.GetNamespace(), work.GetName())
 		} else if operationResult == controllerutil.OperationResultUpdated {
-			klog.Infof("Update propagationWork %s/%s successfully.", propagationWork.GetNamespace(), propagationWork.GetName())
+			klog.Infof("Update work %s/%s successfully.", work.GetNamespace(), work.GetName())
 		} else {
-			klog.V(2).Infof("PropagationWork %s/%s is up to date.", propagationWork.GetNamespace(), propagationWork.GetName())
+			klog.V(2).Infof("Work %s/%s is up to date.", work.GetNamespace(), work.GetName())
 		}
 	}
 	return nil

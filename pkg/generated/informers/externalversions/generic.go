@@ -48,8 +48,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationBindings().Informer()}, nil
 	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationPolicies().Informer()}, nil
-	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationworks"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationWorks().Informer()}, nil
+	case policyv1alpha1.SchemeGroupVersion.WithResource("works"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().Works().Informer()}, nil
 
 	}
 
