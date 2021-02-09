@@ -8,4 +8,4 @@ type PropagationBindingExpansion interface{}
 
 type PropagationPolicyExpansion interface{}
 
-type PropagationWorkExpansion interface{}
+type WorkExpansion interface{}

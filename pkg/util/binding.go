@@ -21,11 +21,11 @@ func GetBindingClusterNames(binding *v1alpha1.PropagationBinding) []string {
 	return clusterNames
 }
 
-// CreateOrUpdatePropagationWork creates or updates propagationWork by controllerutil.CreateOrUpdate
-func CreateOrUpdatePropagationWork(client client.Client, objectMeta metav1.ObjectMeta, rawExtension []byte) error {
-	propagationWork := &v1alpha1.PropagationWork{
+// CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
+func CreateOrUpdateWork(client client.Client, objectMeta metav1.ObjectMeta, rawExtension []byte) error {
+	work := &v1alpha1.Work{
 		ObjectMeta: objectMeta,
-		Spec: v1alpha1.PropagationWorkSpec{
+		Spec: v1alpha1.WorkSpec{
 			Workload: v1alpha1.WorkloadTemplate{
 				Manifests: []v1alpha1.Manifest{
 					{
@@ -38,22 +38,22 @@ func CreateOrUpdatePropagationWork(client client.Client, objectMeta metav1.Objec
 		},
 	}
 
-	runtimeObject := propagationWork.DeepCopy()
+	runtimeObject := work.DeepCopy()
 	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
-		runtimeObject.Spec = propagationWork.Spec
+		runtimeObject.Spec = work.Spec
 		return nil
 	})
 	if err != nil {
-		klog.Errorf("Failed to create/update propagationWork %s/%s. Error: %v", propagationWork.GetNamespace(), propagationWork.GetName(), err)
+		klog.Errorf("Failed to create/update work %s/%s. Error: %v", work.GetNamespace(), work.GetName(), err)
 		return err
 	}
 
 	if operationResult == controllerutil.OperationResultCreated {
-		klog.Infof("Create propagationWork %s/%s successfully.", propagationWork.GetNamespace(), propagationWork.GetName())
+		klog.Infof("Create work %s/%s successfully.", work.GetNamespace(), work.GetName())
 	} else if operationResult == controllerutil.OperationResultUpdated {
-		klog.Infof("Update propagationWork %s/%s successfully.", propagationWork.GetNamespace(), propagationWork.GetName())
+		klog.Infof("Update work %s/%s successfully.", work.GetNamespace(), work.GetName())
 	} else {
-		klog.V(2).Infof("PropagationWork %s/%s is up to date.", propagationWork.GetNamespace(), propagationWork.GetName())
+		klog.V(2).Infof("Work %s/%s is up to date.", work.GetNamespace(), work.GetName())
 	}
 	return nil
 }

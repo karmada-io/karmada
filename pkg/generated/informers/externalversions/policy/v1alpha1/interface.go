@@ -14,8 +14,8 @@ type Interface interface {
 	PropagationBindings() PropagationBindingInformer
 	// PropagationPolicies returns a PropagationPolicyInformer.
 	PropagationPolicies() PropagationPolicyInformer
-	// PropagationWorks returns a PropagationWorkInformer.
-	PropagationWorks() PropagationWorkInformer
+	// Works returns a WorkInformer.
+	Works() WorkInformer
 }
 
 type version struct {
@@ -44,7 +44,7 @@ func (v *version) PropagationPolicies() PropagationPolicyInformer {
 	return &propagationPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// PropagationWorks returns a PropagationWorkInformer.
-func (v *version) PropagationWorks() PropagationWorkInformer {
-	return &propagationWorkInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// Works returns a WorkInformer.
+func (v *version) Works() WorkInformer {
+	return &workInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

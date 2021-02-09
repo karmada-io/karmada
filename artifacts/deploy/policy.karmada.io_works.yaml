@@ -6,21 +6,21 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: propagationworks.policy.karmada.io
+  name: works.policy.karmada.io
 spec:
   group: policy.karmada.io
   names:
-    kind: PropagationWork
-    listKind: PropagationWorkList
-    plural: propagationworks
-    singular: propagationwork
+    kind: Work
+    listKind: WorkList
+    plural: works
+    singular: work
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: PropagationWork defines a list of resources to be deployed on
-          the member cluster.
+        description: Work defines a list of resources to be deployed on the member
+          cluster.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,7 +35,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: Spec represents the desired behavior of PropagationWork.
+            description: Spec represents the desired behavior of Work.
             properties:
               workload:
                 description: Workload represents the manifest workload to be deployed
@@ -58,12 +58,11 @@ spec:
               conditions:
                 description: 'Conditions contain the different condition statuses
                   for this work. Valid condition types are: 1. Applied represents
-                  workload in PropagationWork is applied successfully on a managed
-                  cluster. 2. Progressing represents workload in PropagationWork is
-                  being applied on a managed cluster. 3. Available represents workload
-                  in PropagationWork exists on the managed cluster. 4. Degraded represents
-                  the current state of workload does not match the desired state for
-                  a certain period.'
+                  workload in Work is applied successfully on a managed cluster. 2.
+                  Progressing represents workload in Work is being applied on a managed
+                  cluster. 3. Available represents workload in Work exists on the
+                  managed cluster. 4. Degraded represents the current state of workload
+                  does not match the desired state for a certain period.'
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
