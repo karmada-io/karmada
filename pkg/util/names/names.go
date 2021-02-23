@@ -40,9 +40,19 @@ func GenerateBindingName(namespace, kind, name string) string {
 	return strings.ToLower(namespace + "-" + kind + "-" + name)
 }
 
+// GenerateClusterResourceBindingName will generate ClusterResourceBinding name by kind and name
+func GenerateClusterResourceBindingName(kind, name string) string {
+	return strings.ToLower(kind + "-" + name)
+}
+
 // GenerateOwnerLabelValue will get owner label value.
 func GenerateOwnerLabelValue(namespace, name string) string {
 	return namespace + "." + name
+}
+
+// GenerateOwnerLabelValueForClusterResourceBinding will get owner label value for ClusterResourceBinding.
+func GenerateOwnerLabelValueForClusterResourceBinding(name string) string {
+	return name
 }
 
 // GenerateServiceAccountName generates the name of a ServiceAccount.
