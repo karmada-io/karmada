@@ -188,7 +188,7 @@ func (w *asyncWorker) worker() {
 	}
 	defer w.queue.Done(key)
 
-	err := w.reconcileFunc(key.(string))
+	err := w.reconcileFunc(key)
 	w.handleError(err, key)
 }
 
