@@ -108,7 +108,11 @@ func (c *WorkStatusController) syncWorkStatus(key string) error {
 	if errors.IsNotFound(err) {
 		return c.handleDeleteEvent(key)
 	}
-
+	if obj == nil {
+		// Ignore the object which not managed by current karmada.
+		klog.V(2).Infof("Ignore the event key %s which not managed by karmada.", key)
+		return nil
+	}
 	owner := util.GetLabelValue(obj.GetLabels(), util.OwnerLabel)
 	if len(owner) == 0 {
 		// Ignore the object which not managed by karmada.
@@ -342,8 +346,12 @@ func (c *WorkStatusController) getObjectFromCache(key string) (*unstructured.Uns
 		return nil, err
 	}
 
-	lister := c.InformerManager.GetSingleClusterManager(clusterWorkload.Cluster).Lister(gvr)
+	singleClusterManager := c.InformerManager.GetSingleClusterManager(clusterWorkload.Cluster)
+	if singleClusterManager == nil {
+		return nil, nil
+	}
 	var obj runtime.Object
+	lister := singleClusterManager.Lister(gvr)
 	obj, err = lister.Get(clusterWorkload.GetListerKey())
 	if err != nil {
 		if errors.IsNotFound(err) {
