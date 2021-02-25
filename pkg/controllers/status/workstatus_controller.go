@@ -90,23 +90,26 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker(c.syncWorkStatus, "work-status", time.Second)
+	c.worker = util.NewAsyncWorker("work-status", time.Second, util.GenerateKey, c.syncWorkStatus)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 
 // syncWorkStatus will find work by label in workload, then update resource status to work status.
 // label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
-func (c *WorkStatusController) syncWorkStatus(key string) error {
-	obj, err := c.getObjectFromCache(key)
+func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
+	// we know the key is a string.
+	// TODO(RainbowMango): change key type from string to struct making better readability.
+	keyStr := key.(string)
+	obj, err := c.getObjectFromCache(keyStr)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return c.handleDeleteEvent(key)
+			return c.handleDeleteEvent(keyStr)
 		}
 		return err
 	}
 
 	if errors.IsNotFound(err) {
-		return c.handleDeleteEvent(key)
+		return c.handleDeleteEvent(keyStr)
 	}
 	if obj == nil {
 		// Ignore the object which not managed by current karmada.
