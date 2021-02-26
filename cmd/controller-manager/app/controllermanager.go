@@ -18,6 +18,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
+	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -167,5 +168,13 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup work status controller: %v", err)
+	}
+
+	namespaceSyncController := &namespace.Controller{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(namespace.ControllerName),
+	}
+	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
 	}
 }
