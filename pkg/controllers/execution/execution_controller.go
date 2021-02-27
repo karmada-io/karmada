@@ -197,7 +197,7 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *policyv1alp
 				return err
 			}
 
-			err = c.ObjectWatcher.Update(cluster.Name, clusterObj, workload)
+			err = c.ObjectWatcher.Update(cluster.Name, workload, clusterObj)
 			if err != nil {
 				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", cluster.Name, err)
 				return err
