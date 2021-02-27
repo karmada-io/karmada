@@ -5,6 +5,20 @@ import (
 	"strings"
 )
 
+const (
+	// KubernetesReservedNSPrefix is the prefix of namespace which reserved by Kubernetes system, such as:
+	// - kube-system
+	// - kube-public
+	// - kube-node-lease
+	KubernetesReservedNSPrefix = "kube-"
+
+	// KarmadaReservedNSPrefix is the prefix of namespace which reserved by Karmada system, such as:
+	// - karmada-system
+	// - karmada-cluster
+	// - karmada-es-*
+	KarmadaReservedNSPrefix = "karmada-"
+)
+
 // executionSpacePrefix is the prefix of execution space
 const executionSpacePrefix = "karmada-es-"
 

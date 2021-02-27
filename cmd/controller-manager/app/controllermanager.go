@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
@@ -21,6 +22,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/detector"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
@@ -93,6 +96,16 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), kubeClientSet, mgr.GetRESTMapper())
 	overridemanager := overridemanager.New(mgr.GetClient())
+
+	resourceDetector := &detector.ResourceDetector{
+		ClientSet:       kubeClientSet,
+		InformerManager: informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
+	}
+	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
+	resourceDetector.Processor = util.NewAsyncWorker("resource detector", time.Second, detector.ClusterWideKeyFunc, resourceDetector.Reconcile)
+	if err := mgr.Add(resourceDetector); err != nil {
+		klog.Fatalf("Failed to setup resource detector: %v", err)
+	}
 
 	ClusterController := &cluster.Controller{
 		Client:        mgr.GetClient(),
