@@ -12,6 +12,10 @@ type FakePolicyV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakePolicyV1alpha1) ClusterPropagationPolicies() v1alpha1.ClusterPropagationPolicyInterface {
+	return &FakeClusterPropagationPolicies{c}
+}
+
 func (c *FakePolicyV1alpha1) OverridePolicies(namespace string) v1alpha1.OverridePolicyInterface {
 	return &FakeOverridePolicies{c, namespace}
 }
