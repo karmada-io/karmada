@@ -3,7 +3,6 @@ package propagationpolicy
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -72,7 +71,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		return result, err
 	}
 
-	return controllerruntime.Result{Requeue: true, RequeueAfter: 10 * time.Second}, nil
+	return controllerruntime.Result{}, nil
 }
 
 // syncPolicy will fetch matched resource by policy, then transform them to propagationBindings.
@@ -306,7 +305,10 @@ func (c *Controller) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(policy, controllerKind),
 			},
-			Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())},
+			Labels: map[string]string{
+				util.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
+				util.PropagationPolicyNameLabel:      policy.GetName(),
+				util.OwnerLabel:                      names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())},
 		},
 		Spec: v1alpha1.PropagationBindingSpec{
 			Resource: v1alpha1.ObjectReference{
