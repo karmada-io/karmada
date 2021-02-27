@@ -1,9 +1,15 @@
 package util
 
 const (
-	// PolicyClaimLabel will set in kubernetes resource, indicates that
-	// the resource is occupied by propagationPolicy
-	PolicyClaimLabel = "karmada.io/driven-by"
+	// PropagationPolicyNamespaceLabel is added to objects to specify associated PropagationPolicy namespace.
+	PropagationPolicyNamespaceLabel = "propagationpolicy.karmada.io/namespace"
+
+	// PropagationPolicyNameLabel is added to objects to specify associated PropagationPolicy's name.
+	PropagationPolicyNameLabel = "propagationpolicy.karmada.io/name"
+
+	// ClusterPropagationPolicyLabel is added to objects to specify associated ClusterPropagationPolicy.
+	ClusterPropagationPolicyLabel = "clusterpropagationpolicy.karmada.io/name"
+
 	// OwnerLabel will set in karmada CRDs, indicates that who created it.
 	// We can use labelSelector to find who created it quickly.
 	// example1: set it in propagationBinding, the label value is propagationPolicy.

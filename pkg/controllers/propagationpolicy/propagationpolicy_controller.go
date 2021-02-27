@@ -84,9 +84,8 @@ func (c *Controller) syncPolicy(policy *v1alpha1.PropagationPolicy) (controllerr
 	// TODO(RainbowMango): Need to report an event for no resource policy that may be a mistake.
 	// Ignore the workloads that owns by other policy and can not be shared.
 	policyReferenceWorkloads := c.ignoreIrrelevantWorkload(policy, workloads)
-	owner := names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())
 	// Claim the rest workloads that should be owned by current policy.
-	err = c.claimResources(owner, policyReferenceWorkloads)
+	err = c.claimResources(policy.GetNamespace(), policy.GetName(), policyReferenceWorkloads)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
@@ -186,7 +185,7 @@ func (c *Controller) buildPropagationBinding(policy *v1alpha1.PropagationPolicy,
 }
 
 // claimResources will set ownerLabel in resource that associate with policy.
-func (c *Controller) claimResources(owner string, workloads []*unstructured.Unstructured) error {
+func (c *Controller) claimResources(policyNamespace string, policyName string, workloads []*unstructured.Unstructured) error {
 	for _, workload := range workloads {
 		dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 			schema.FromAPIVersionAndKind(workload.GetAPIVersion(), workload.GetKind()))
@@ -194,12 +193,10 @@ func (c *Controller) claimResources(owner string, workloads []*unstructured.Unst
 			klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", workload.GetAPIVersion(), workload.GetKind(), err)
 			return err
 		}
-		workloadLabel := workload.GetLabels()
-		if workloadLabel == nil {
-			workloadLabel = make(map[string]string, 1)
-		}
-		workloadLabel[util.PolicyClaimLabel] = owner
-		workload.SetLabels(workloadLabel)
+
+		util.MergeLabel(workload, util.PropagationPolicyNamespaceLabel, policyNamespace)
+		util.MergeLabel(workload, util.PropagationPolicyNameLabel, policyName)
+
 		_, err = c.DynamicClient.Resource(dynamicResource).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("Failed to update resource, kind: %s, namespace: %s, name: %s. Error: %v.", workload.GetKind(),
@@ -215,14 +212,24 @@ func (c *Controller) claimResources(owner string, workloads []*unstructured.Unst
 // ignoreIrrelevantWorkload will ignore the workloads that owns by other policy and can not be shared.
 func (c *Controller) ignoreIrrelevantWorkload(policy *v1alpha1.PropagationPolicy, workloads []*unstructured.Unstructured) []*unstructured.Unstructured {
 	var result []*unstructured.Unstructured
-	policyOwnerLabelReference := names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())
+
 	for _, workload := range workloads {
 		workloadLabels := workload.GetLabels()
-		owner, exist := workloadLabels[util.PolicyClaimLabel]
-		if exist && owner != policyOwnerLabelReference {
-			// this workload owns by other policy, just ignore
+
+		// ignore objects that already associated with a PropagationPolicy.
+		if policyName, exist := workloadLabels[util.PropagationPolicyNameLabel]; exist {
+			// check if associated PropagationPolicy is current policy.
+			// Don't need to check namespace here.
+			if policyName != policy.Name {
+				continue
+			}
+		}
+
+		// ignore objects that already associated with a ClusterPropagationPolicy.
+		if _, exist := workloadLabels[util.ClusterPropagationPolicyLabel]; exist {
 			continue
 		}
+
 		result = append(result, workload)
 	}
 	return result
