@@ -18,8 +18,18 @@ type ClusterWideKey struct {
 	Name      string
 }
 
+// String returns the key's printable info.
 func (k *ClusterWideKey) String() string {
 	return k.GVK.String() + "/" + k.Namespace + "/" + k.Name
+}
+
+// NamespaceKey returns the traditional key of a object.
+func (k *ClusterWideKey) NamespaceKey() string {
+	if len(k.Namespace) > 0 {
+		return k.Namespace + "/" + k.Name
+	}
+
+	return k.Name
 }
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.

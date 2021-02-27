@@ -99,10 +99,12 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 
 	resourceDetector := &detector.ResourceDetector{
 		ClientSet:       kubeClientSet,
+		Client:          mgr.GetClient(),
 		InformerManager: informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
+		RESTMapper:      mgr.GetRESTMapper(),
 	}
 	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
-	resourceDetector.Processor = util.NewAsyncWorker("resource detector", time.Second, detector.ClusterWideKeyFunc, resourceDetector.Reconcile)
+	resourceDetector.Processor = util.NewAsyncWorker("resource detector", time.Microsecond, detector.ClusterWideKeyFunc, resourceDetector.Reconcile)
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
