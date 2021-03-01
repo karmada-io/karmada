@@ -20,4 +20,5 @@ require (
 	k8s.io/klog/v2 v2.2.0
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73
 	sigs.k8s.io/controller-runtime v0.6.4
+	sigs.k8s.io/kind v0.10.0
 )

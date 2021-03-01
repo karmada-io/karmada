@@ -1,9 +1,13 @@
+# github.com/BurntSushi/toml v0.3.1
+github.com/BurntSushi/toml
 # github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46
 github.com/NYTimes/gziphandler
 # github.com/PuerkitoBio/purell v1.1.1
 github.com/PuerkitoBio/purell
 # github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
 github.com/PuerkitoBio/urlesc
+# github.com/alessio/shellescape v1.2.2
+github.com/alessio/shellescape
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
 # github.com/blang/semver v3.5.0+incompatible
@@ -83,6 +87,8 @@ github.com/json-iterator/go
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mattn/go-isatty v0.0.12
+github.com/mattn/go-isatty
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -138,6 +144,8 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
+# github.com/pelletier/go-toml v1.8.1
+github.com/pelletier/go-toml
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
 # github.com/prometheus/client_golang v1.7.1
@@ -219,7 +227,7 @@ golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4
+# golang.org/x/sys v0.0.0-20200928205150-006507a75852
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -349,6 +357,8 @@ gopkg.in/inf.v0
 gopkg.in/tomb.v1
 # gopkg.in/yaml.v2 v2.3.0
 gopkg.in/yaml.v2
+# gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
+gopkg.in/yaml.v3
 # k8s.io/api v0.19.3
 ## explicit
 k8s.io/api/admission/v1
@@ -446,6 +456,7 @@ k8s.io/apimachinery/pkg/util/strategicpatch
 k8s.io/apimachinery/pkg/util/uuid
 k8s.io/apimachinery/pkg/util/validation
 k8s.io/apimachinery/pkg/util/validation/field
+k8s.io/apimachinery/pkg/util/version
 k8s.io/apimachinery/pkg/util/wait
 k8s.io/apimachinery/pkg/util/waitgroup
 k8s.io/apimachinery/pkg/util/yaml
@@ -849,6 +860,44 @@ sigs.k8s.io/controller-runtime/pkg/webhook/admission
 sigs.k8s.io/controller-runtime/pkg/webhook/conversion
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/certwatcher
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
+# sigs.k8s.io/kind v0.10.0
+## explicit
+sigs.k8s.io/kind/pkg/apis/config/defaults
+sigs.k8s.io/kind/pkg/apis/config/v1alpha4
+sigs.k8s.io/kind/pkg/cluster
+sigs.k8s.io/kind/pkg/cluster/constants
+sigs.k8s.io/kind/pkg/cluster/internal/create
+sigs.k8s.io/kind/pkg/cluster/internal/create/actions
+sigs.k8s.io/kind/pkg/cluster/internal/create/actions/config
+sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcni
+sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installstorage
+sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadminit
+sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadmjoin
+sigs.k8s.io/kind/pkg/cluster/internal/create/actions/loadbalancer
+sigs.k8s.io/kind/pkg/cluster/internal/create/actions/waitforready
+sigs.k8s.io/kind/pkg/cluster/internal/delete
+sigs.k8s.io/kind/pkg/cluster/internal/kubeadm
+sigs.k8s.io/kind/pkg/cluster/internal/kubeconfig
+sigs.k8s.io/kind/pkg/cluster/internal/kubeconfig/internal/kubeconfig
+sigs.k8s.io/kind/pkg/cluster/internal/loadbalancer
+sigs.k8s.io/kind/pkg/cluster/internal/logs
+sigs.k8s.io/kind/pkg/cluster/internal/patch
+sigs.k8s.io/kind/pkg/cluster/internal/providers
+sigs.k8s.io/kind/pkg/cluster/internal/providers/common
+sigs.k8s.io/kind/pkg/cluster/internal/providers/docker
+sigs.k8s.io/kind/pkg/cluster/internal/providers/podman
+sigs.k8s.io/kind/pkg/cluster/nodes
+sigs.k8s.io/kind/pkg/cluster/nodeutils
+sigs.k8s.io/kind/pkg/cmd
+sigs.k8s.io/kind/pkg/cmd/kind/version
+sigs.k8s.io/kind/pkg/errors
+sigs.k8s.io/kind/pkg/exec
+sigs.k8s.io/kind/pkg/fs
+sigs.k8s.io/kind/pkg/internal/apis/config
+sigs.k8s.io/kind/pkg/internal/apis/config/encoding
+sigs.k8s.io/kind/pkg/internal/cli
+sigs.k8s.io/kind/pkg/internal/env
+sigs.k8s.io/kind/pkg/log
 # sigs.k8s.io/structured-merge-diff/v4 v4.0.1
 sigs.k8s.io/structured-merge-diff/v4/fieldpath
 sigs.k8s.io/structured-merge-diff/v4/merge
