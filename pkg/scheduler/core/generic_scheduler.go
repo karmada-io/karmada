@@ -54,15 +54,10 @@ func (g *genericScheduler) Schedule(ctx context.Context, binding *v1alpha1.Propa
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	var policyName string
-	if len(binding.OwnerReferences) > 0 {
-		owner := binding.OwnerReferences[0]
-		if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "PropagationPolicy" {
-			policyName = owner.Name
-		}
-	}
+	policyNamespace := util.GetLabelValue(binding.Labels, util.PropagationPolicyNamespaceLabel)
+	policyName := util.GetLabelValue(binding.Labels, util.PropagationPolicyNameLabel)
 
-	policy, err := g.policyLister.PropagationPolicies(binding.Namespace).Get(policyName)
+	policy, err := g.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
 	if err != nil {
 		return result, fmt.Errorf("no propagation policy found for <%s/%s>: %v", binding.Namespace, binding.Name, err)
 	}
