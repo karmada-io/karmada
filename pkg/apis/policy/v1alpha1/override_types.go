@@ -71,3 +71,29 @@ type OverridePolicyList struct {
 	// Items holds a list of OverridePolicy.
 	Items []OverridePolicy `json:"items"`
 }
+
+// +genclient
+// +genclient:nonNamespaced
+// +kubebuilder:resource:scope="Cluster"
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClusterOverridePolicy represents the cluster-wide policy that overrides a group of resources to one or more clusters.
+type ClusterOverridePolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec represents the desired behavior of ClusterOverridePolicy.
+	Spec OverrideSpec `json:"spec"`
+}
+
+// +kubebuilder:resource:scope="Cluster"
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClusterOverridePolicyList is a collection of ClusterOverridePolicy.
+type ClusterOverridePolicyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// Items holds a list of ClusterOverridePolicy.
+	Items []ClusterOverridePolicy `json:"items"`
+}
