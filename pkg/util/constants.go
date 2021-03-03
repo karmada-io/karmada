@@ -10,11 +10,19 @@ const (
 	// ClusterPropagationPolicyLabel is added to objects to specify associated ClusterPropagationPolicy.
 	ClusterPropagationPolicyLabel = "clusterpropagationpolicy.karmada.io/name"
 
+	// ResourceBindingNamespaceLabel is added to objects to specify associated ResourceBinding's namespace.
+	ResourceBindingNamespaceLabel = "resourcebinding.karmada.io/namespace"
+
+	// ResourceBindingNameLabel is added to objects to specify associated ResourceBinding's name.
+	ResourceBindingNameLabel = "resourcebinding.karmada.io/name"
+
+	// ClusterResourceBindingLabel is added to objects to specify associated ClusterResourceBinding.
+	ClusterResourceBindingLabel = "clusterresourcebinding.karmada.io/name"
+
 	// OwnerLabel will set in karmada CRDs, indicates that who created it.
 	// We can use labelSelector to find who created it quickly.
 	// example1: set it in propagationBinding, the label value is propagationPolicy.
-	// example2: set it in Work, the label value is propagationBinding.
-	// example3: set it in Work, the label value is HPA.
+	// example2: set it in Work, the label value is HPA.
 	OwnerLabel = "karmada.io/created-by"
 	// OverrideClaimKey will set in Work resource, indicates that
 	// the resource is overridden by override policies

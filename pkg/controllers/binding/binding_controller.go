@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -79,8 +78,7 @@ func (c *PropagationBindingController) isBindingReady(binding *v1alpha1.Propagat
 // syncBinding will sync propagationBinding to Works.
 func (c *PropagationBindingController) syncBinding(binding *v1alpha1.PropagationBinding) (controllerruntime.Result, error) {
 	clusterNames := c.getBindingClusterNames(binding)
-	ownerLabel := names.GenerateOwnerLabelValue(binding.GetNamespace(), binding.GetName())
-	works, err := c.findOrphanWorks(ownerLabel, clusterNames)
+	works, err := c.findOrphanWorks(binding.Namespace, binding.Name, clusterNames)
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by propagationBinding %s/%s. Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
@@ -116,13 +114,12 @@ func (c *PropagationBindingController) removeOrphanWorks(works []v1alpha1.Work) 
 }
 
 // findOrphanWorks will find orphan works that don't match current propagationBinding clusters.
-func (c *PropagationBindingController) findOrphanWorks(ownerLabel string, clusterNames []string) ([]v1alpha1.Work, error) {
-	labelRequirement, err := labels.NewRequirement(util.OwnerLabel, selection.Equals, []string{ownerLabel})
-	if err != nil {
-		klog.Errorf("Failed to new a requirement. Error: %v", err)
-		return nil, err
-	}
-	selector := labels.NewSelector().Add(*labelRequirement)
+func (c *PropagationBindingController) findOrphanWorks(bindingNamespace string, bindingName string, clusterNames []string) ([]v1alpha1.Work, error) {
+	selector := labels.SelectorFromSet(labels.Set{
+		util.ResourceBindingNamespaceLabel: bindingNamespace,
+		util.ResourceBindingNameLabel:      bindingName,
+	})
+
 	workList := &v1alpha1.WorkList{}
 	if err := c.Client.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
 		return nil, err
@@ -227,7 +224,10 @@ func (c *PropagationBindingController) ensureWork(workload *unstructured.Unstruc
 				OwnerReferences: []metav1.OwnerReference{
 					*metav1.NewControllerRef(binding, controllerKind),
 				},
-				Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(binding.GetNamespace(), binding.GetName())},
+				Labels: map[string]string{
+					util.ResourceBindingNamespaceLabel: binding.Namespace,
+					util.ResourceBindingNameLabel:      binding.Name,
+				},
 			},
 			Spec: v1alpha1.WorkSpec{
 				Workload: v1alpha1.WorkloadTemplate{
