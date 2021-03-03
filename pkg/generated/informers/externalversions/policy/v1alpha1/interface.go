@@ -8,6 +8,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// ClusterOverridePolicies returns a ClusterOverridePolicyInformer.
+	ClusterOverridePolicies() ClusterOverridePolicyInformer
 	// ClusterPropagationPolicies returns a ClusterPropagationPolicyInformer.
 	ClusterPropagationPolicies() ClusterPropagationPolicyInformer
 	// OverridePolicies returns a OverridePolicyInformer.
@@ -29,6 +31,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// ClusterOverridePolicies returns a ClusterOverridePolicyInformer.
+func (v *version) ClusterOverridePolicies() ClusterOverridePolicyInformer {
+	return &clusterOverridePolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // ClusterPropagationPolicies returns a ClusterPropagationPolicyInformer.
