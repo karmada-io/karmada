@@ -10,6 +10,7 @@ import (
 
 type PolicyV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ClusterOverridePoliciesGetter
 	ClusterPropagationPoliciesGetter
 	OverridePoliciesGetter
 	PropagationBindingsGetter
@@ -20,6 +21,10 @@ type PolicyV1alpha1Interface interface {
 // PolicyV1alpha1Client is used to interact with features provided by the policy.karmada.io group.
 type PolicyV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *PolicyV1alpha1Client) ClusterOverridePolicies() ClusterOverridePolicyInterface {
+	return newClusterOverridePolicies(c)
 }
 
 func (c *PolicyV1alpha1Client) ClusterPropagationPolicies() ClusterPropagationPolicyInterface {
