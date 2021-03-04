@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sigs.k8s.io/kind/pkg/cluster"
+	"sigs.k8s.io/kind/pkg/exec"
 	"testing"
 	"time"
 
@@ -39,14 +41,15 @@ const (
 )
 
 var (
-	kubeconfig     string
-	restConfig     *rest.Config
-	kubeClient     kubernetes.Interface
-	karmadaClient  karmada.Interface
-	clusters       []*clusterapi.Cluster
-	clusterNames   []string
-	clusterClients []*util.ClusterClient
-	testNamespace  = fmt.Sprintf("karmada-e2e-%s", rand.String(3))
+	kubeconfig      string
+	restConfig      *rest.Config
+	kubeClient      kubernetes.Interface
+	karmadaClient   karmada.Interface
+	clusters        []*clusterapi.Cluster
+	clusterNames    []string
+	clusterClients  []*util.ClusterClient
+	testNamespace   = fmt.Sprintf("karmada-e2e-%s", rand.String(3))
+	clusterProvider *cluster.Provider
 )
 
 func TestE2E(t *testing.T) {
@@ -58,6 +61,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	kubeconfig = os.Getenv("KUBECONFIG")
 	gomega.Expect(kubeconfig).ShouldNot(gomega.BeEmpty())
 
+	clusterProvider = cluster.NewProvider()
 	var err error
 	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -173,5 +177,38 @@ func getClusterClient(clusterName string) kubernetes.Interface {
 		}
 	}
 
+	return nil
+}
+
+func createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext string) error {
+	err := clusterProvider.Create(clusterName, cluster.CreateWithKubeconfigPath(kubeConfigPath))
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(
+		"docker", "inspect",
+		"--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+		controlPlane,
+	)
+	lines, err := exec.OutputLines(cmd)
+	if err != nil {
+		return err
+	}
+
+	pathOptions := clientcmd.NewDefaultPathOptions()
+	pathOptions.LoadingRules.ExplicitPath = kubeConfigPath
+	pathOptions.EnvVar = ""
+	config, err := pathOptions.GetStartingConfig()
+	if err != nil {
+		return err
+	}
+
+	serverIP := fmt.Sprintf("https://%s:6443", lines[0])
+	config.Clusters[clusterContext].Server = serverIP
+	err = clientcmd.ModifyConfig(pathOptions, *config, true)
+	if err != nil {
+		return err
+	}
 	return nil
 }
