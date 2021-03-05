@@ -24,12 +24,12 @@ func (c *FakePolicyV1alpha1) OverridePolicies(namespace string) v1alpha1.Overrid
 	return &FakeOverridePolicies{c, namespace}
 }
 
-func (c *FakePolicyV1alpha1) PropagationBindings(namespace string) v1alpha1.PropagationBindingInterface {
-	return &FakePropagationBindings{c, namespace}
-}
-
 func (c *FakePolicyV1alpha1) PropagationPolicies(namespace string) v1alpha1.PropagationPolicyInterface {
 	return &FakePropagationPolicies{c, namespace}
+}
+
+func (c *FakePolicyV1alpha1) ResourceBindings(namespace string) v1alpha1.ResourceBindingInterface {
+	return &FakeResourceBindings{c, namespace}
 }
 
 func (c *FakePolicyV1alpha1) Works(namespace string) v1alpha1.WorkInterface {
