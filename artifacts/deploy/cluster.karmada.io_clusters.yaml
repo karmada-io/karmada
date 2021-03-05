@@ -47,13 +47,6 @@ spec:
             description: Spec represents the specification of the desired behavior
               of member cluster.
             properties:
-              accepted:
-                description: Accepted represents if the member cluster has been accepted
-                  by control plane. Default value is false. If member cluster working
-                  in 'Delegation' mode, this always be true. If member cluster working
-                  in 'SelfManagement' mode, this will turn to true only after administrator
-                  accepted the request from member cluster.
-                type: boolean
               apiEndpoint:
                 description: The API endpoint of the member cluster. This can be a
                   hostname, hostname:port, IP or IP:port.
