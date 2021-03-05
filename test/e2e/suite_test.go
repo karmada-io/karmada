@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sigs.k8s.io/kind/pkg/cluster"
-	"sigs.k8s.io/kind/pkg/exec"
 	"testing"
 	"time"
 
@@ -18,6 +16,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/kind/pkg/cluster"
+	"sigs.k8s.io/kind/pkg/exec"
 
 	clusterapi "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -211,4 +211,8 @@ func createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext str
 		return err
 	}
 	return nil
+}
+
+func deleteCluster(clusterName, kubeConfigPath string) error {
+	return clusterProvider.Delete(clusterName, kubeConfigPath)
 }
