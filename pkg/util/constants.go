@@ -19,6 +19,12 @@ const (
 	// ClusterResourceBindingLabel is added to objects to specify associated ClusterResourceBinding.
 	ClusterResourceBindingLabel = "clusterresourcebinding.karmada.io/name"
 
+	// WorkNamespaceLabel is added to objects to specify associated Work's namespace.
+	WorkNamespaceLabel = "work.karmada.io/namespace"
+
+	// WorkNameLabel is added to objects to specify associated Work's name.
+	WorkNameLabel = "work.karmada.io/name"
+
 	// OwnerLabel will set in karmada CRDs, indicates that who created it.
 	// We can use labelSelector to find who created it quickly.
 	// example1: set it in propagationBinding, the label value is propagationPolicy.

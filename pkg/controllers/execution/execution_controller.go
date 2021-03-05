@@ -180,8 +180,6 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *policyv1alp
 			return err
 		}
 
-		util.MergeLabel(workload, util.OwnerLabel, names.GenerateOwnerLabelValue(work.GetNamespace(), work.GetName()))
-
 		applied := c.isResourceApplied(&work.Status)
 		if applied {
 			// todo: get clusterObj from cache
