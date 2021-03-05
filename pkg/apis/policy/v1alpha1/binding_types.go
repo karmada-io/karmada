@@ -8,21 +8,21 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
 
-// PropagationBinding represents a binding of a kubernetes resource with a propagation policy.
-type PropagationBinding struct {
+// ResourceBinding represents a binding of a kubernetes resource with a propagation policy.
+type ResourceBinding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Spec represents the desired behavior.
-	Spec PropagationBindingSpec `json:"spec"`
+	Spec ResourceBindingSpec `json:"spec"`
 
-	// Status represents the most recently observed status of the PropagationBinding.
+	// Status represents the most recently observed status of the ResourceBinding.
 	// +optional
-	Status PropagationBindingStatus `json:"status,omitempty"`
+	Status ResourceBindingStatus `json:"status,omitempty"`
 }
 
-// PropagationBindingSpec represents the expectation of PropagationBinding.
-type PropagationBindingSpec struct {
+// ResourceBindingSpec represents the expectation of ResourceBinding.
+type ResourceBindingSpec struct {
 	// Resource represents the Kubernetes resource to be propagated.
 	Resource ObjectReference `json:"resource"`
 	// Clusters represents target member clusters where the resource to be deployed.
@@ -60,8 +60,8 @@ type TargetCluster struct {
 	Name string `json:"name"`
 }
 
-// PropagationBindingStatus represents the overall status of the strategy as well as the referenced resources.
-type PropagationBindingStatus struct {
+// ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
+type ResourceBindingStatus struct {
 	// Conditions contain the different condition statuses.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -118,11 +118,11 @@ type DeploymentStatus struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// PropagationBindingList contains a list of PropagationBinding.
-type PropagationBindingList struct {
+// ResourceBindingList contains a list of ResourceBinding.
+type ResourceBindingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	// Items is the list of PropagationBinding.
-	Items []PropagationBinding `json:"items"`
+	// Items is the list of ResourceBinding.
+	Items []ResourceBinding `json:"items"`
 }

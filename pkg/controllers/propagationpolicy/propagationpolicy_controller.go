@@ -53,8 +53,8 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	}
 
 	if !policy.DeletionTimestamp.IsZero() {
-		// Do nothing, just return as we have added owner reference to PropagationBinding.
-		// PropagationBinding will be removed automatically by garbage collector.
+		// Do nothing, just return as we have added owner reference to ResourceBinding.
+		// ResourceBinding will be removed automatically by garbage collector.
 		return controllerruntime.Result{}, nil
 	}
 
@@ -74,7 +74,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	return controllerruntime.Result{}, nil
 }
 
-// syncPolicy will fetch matched resource by policy, then transform them to propagationBindings.
+// syncPolicy will fetch matched resource by policy, then transform them to ResourceBinding objects.
 func (c *Controller) syncPolicy(policy *v1alpha1.PropagationPolicy) (controllerruntime.Result, error) {
 	workloads, err := c.fetchWorkloads(policy)
 	if err != nil {
@@ -90,7 +90,7 @@ func (c *Controller) syncPolicy(policy *v1alpha1.PropagationPolicy) (controllerr
 	}
 
 	// TODO: Remove annotation of workloads owned by current policy, but should not be owned now.
-	return c.buildPropagationBinding(policy, policyReferenceWorkloads)
+	return c.buildResourceBinding(policy, policyReferenceWorkloads)
 }
 
 // fetchWorkloads fetches all matched resources via resource selectors.
@@ -111,35 +111,35 @@ func (c *Controller) fetchWorkloads(policy *v1alpha1.PropagationPolicy) ([]*unst
 	return workloads, nil
 }
 
-// deletePropagationBinding will create propagationBinding.
-func (c *Controller) deletePropagationBinding(binding v1alpha1.PropagationBinding) error {
+// deleteResourceBinding will delete ResourceBinding.
+func (c *Controller) deleteResourceBinding(binding v1alpha1.ResourceBinding) error {
 	err := c.Client.Delete(context.TODO(), &binding)
 	if err != nil && errors.IsNotFound(err) {
-		klog.Infof("PropagationBinding %s/%s is already not exist.", binding.GetNamespace(), binding.GetName())
+		klog.Infof("ResourceBinding %s/%s is already not exist.", binding.GetNamespace(), binding.GetName())
 		return nil
 	} else if err != nil && !errors.IsNotFound(err) {
-		klog.Errorf("Failed to delete propagationBinding %s/%s. Error: %v.", binding.GetNamespace(), binding.GetName(), err)
+		klog.Errorf("Failed to delete ResourceBinding %s/%s. Error: %v.", binding.GetNamespace(), binding.GetName(), err)
 		return err
 	}
-	klog.Infof("Delete propagationBinding %s/%s successfully.", binding.GetNamespace(), binding.GetName())
+	klog.Infof("Delete ResourceBinding %s/%s successfully.", binding.GetNamespace(), binding.GetName())
 	return nil
 }
 
-// calculatePropagationBindings will get orphanBindings and workloads that need to update or create.
-func (c *Controller) calculatePropagationBindings(policy *v1alpha1.PropagationPolicy,
-	workloads []*unstructured.Unstructured) ([]v1alpha1.PropagationBinding, []*unstructured.Unstructured, error) {
+// calculateResourceBindings will get orphanBindings and workloads that need to update or create.
+func (c *Controller) calculateResourceBindings(policy *v1alpha1.PropagationPolicy,
+	workloads []*unstructured.Unstructured) ([]v1alpha1.ResourceBinding, []*unstructured.Unstructured, error) {
 	labelRequirement, err := labels.NewRequirement(util.OwnerLabel, selection.Equals, []string{names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())})
 	if err != nil {
 		klog.Errorf("Failed to new a requirement. Error: %v", err)
 		return nil, nil, err
 	}
 	selector := labels.NewSelector().Add(*labelRequirement)
-	bindingList := &v1alpha1.PropagationBindingList{}
+	bindingList := &v1alpha1.ResourceBindingList{}
 	if err := c.Client.List(context.TODO(), bindingList, &client.ListOptions{LabelSelector: selector}); err != nil {
-		klog.Errorf("Failed to list propagationBindings in namespace %s", policy.GetNamespace())
+		klog.Errorf("Failed to list ResourceBinding in namespace %s", policy.GetNamespace())
 		return nil, nil, err
 	}
-	var orphanBindings []v1alpha1.PropagationBinding
+	var orphanBindings []v1alpha1.ResourceBinding
 	for _, binding := range bindingList.Items {
 		isFind := false
 		for _, workload := range workloads {
@@ -156,16 +156,16 @@ func (c *Controller) calculatePropagationBindings(policy *v1alpha1.PropagationPo
 	return orphanBindings, workloads, nil
 }
 
-// buildPropagationBinding will build propagationBinding by matched resources.
-func (c *Controller) buildPropagationBinding(policy *v1alpha1.PropagationPolicy, policyReferenceWorkloads []*unstructured.Unstructured) (controllerruntime.Result, error) {
-	orphanBindings, workloads, err := c.calculatePropagationBindings(policy, policyReferenceWorkloads)
+// buildResourceBinding will build ResourceBinding by matched resources.
+func (c *Controller) buildResourceBinding(policy *v1alpha1.PropagationPolicy, policyReferenceWorkloads []*unstructured.Unstructured) (controllerruntime.Result, error) {
+	orphanBindings, workloads, err := c.calculateResourceBindings(policy, policyReferenceWorkloads)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	// Remove orphan bindings.
 	for _, binding := range orphanBindings {
-		err := c.deletePropagationBinding(binding)
+		err := c.deleteResourceBinding(binding)
 		if err != nil {
 			return controllerruntime.Result{Requeue: true}, err
 		}
@@ -174,7 +174,7 @@ func (c *Controller) buildPropagationBinding(policy *v1alpha1.PropagationPolicy,
 	// If binding already exist, update if changed.
 	// If binding not exist, create it.
 	for _, workload := range workloads {
-		err := c.ensurePropagationBinding(policy, workload)
+		err := c.ensureResourceBinding(policy, workload)
 		if err != nil {
 			return controllerruntime.Result{Requeue: true}, err
 		}
@@ -295,10 +295,10 @@ func (c *Controller) fetchWorkload(resourceSelector v1alpha1.ResourceSelector) (
 	return workload, nil
 }
 
-// ensurePropagationBinding will ensure propagationBinding are created or updated.
-func (c *Controller) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured) error {
+// ensureResourceBinding will ensure ResourceBindings are created or updated.
+func (c *Controller) ensureResourceBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured) error {
 	bindingName := names.GenerateBindingName(workload.GetNamespace(), workload.GetKind(), workload.GetName())
-	propagationBinding := &v1alpha1.PropagationBinding{
+	binding := &v1alpha1.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: policy.GetNamespace(),
@@ -310,7 +310,7 @@ func (c *Controller) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy
 				util.PropagationPolicyNameLabel:      policy.GetName(),
 				util.OwnerLabel:                      names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())},
 		},
-		Spec: v1alpha1.PropagationBindingSpec{
+		Spec: v1alpha1.ResourceBindingSpec{
 			Resource: v1alpha1.ObjectReference{
 				APIVersion:      workload.GetAPIVersion(),
 				Kind:            workload.GetKind(),
@@ -320,16 +320,16 @@ func (c *Controller) ensurePropagationBinding(policy *v1alpha1.PropagationPolicy
 			},
 		},
 	}
-	err := c.Client.Create(context.TODO(), propagationBinding)
+	err := c.Client.Create(context.TODO(), binding)
 	if err == nil {
-		klog.Infof("Create propagationBinding %s/%s successfully.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+		klog.Infof("Create binding %s/%s successfully.", binding.GetNamespace(), binding.GetName())
 		return nil
 	}
 	if errors.IsAlreadyExists(err) {
-		klog.V(2).Infof("PropagationBinding %s/%s is up to date.", propagationBinding.GetNamespace(), propagationBinding.GetName())
+		klog.V(2).Infof("ResourceBinding %s/%s is up to date.", binding.GetNamespace(), binding.GetName())
 		return nil
 	}
-	klog.Errorf("Failed to create propagationBinding %s/%s. Error: %v", propagationBinding.GetNamespace(), propagationBinding.GetName(), err)
+	klog.Errorf("Failed to create binding %s/%s. Error: %v", binding.GetNamespace(), binding.GetName(), err)
 	return err
 }
 

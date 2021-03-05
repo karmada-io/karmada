@@ -13,7 +13,7 @@ import (
 )
 
 // GetBindingClusterNames will get clusterName list from bind clusters field
-func GetBindingClusterNames(binding *v1alpha1.PropagationBinding) []string {
+func GetBindingClusterNames(binding *v1alpha1.ResourceBinding) []string {
 	var clusterNames []string
 	for _, targetCluster := range binding.Spec.Clusters {
 		clusterNames = append(clusterNames, targetCluster.Name)
