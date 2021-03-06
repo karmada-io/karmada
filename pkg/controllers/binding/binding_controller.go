@@ -203,6 +203,18 @@ func (c *PropagationBindingController) ensureWork(workload *unstructured.Unstruc
 			return err
 		}
 
+		workNamespace, err := names.GenerateExecutionSpaceName(clusterName)
+		if err != nil {
+			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
+			return err
+		}
+		workName := binding.Name
+
+		util.MergeLabel(clonedWorkload, util.ResourceBindingNamespaceLabel, binding.Namespace)
+		util.MergeLabel(clonedWorkload, util.ResourceBindingNameLabel, binding.Name)
+		util.MergeLabel(clonedWorkload, util.WorkNamespaceLabel, workNamespace)
+		util.MergeLabel(clonedWorkload, util.WorkNameLabel, workName)
+
 		workloadJSON, err := clonedWorkload.MarshalJSON()
 		if err != nil {
 			klog.Errorf("Failed to marshal workload, kind: %s, namespace: %s, name: %s. Error: %v",
@@ -210,16 +222,10 @@ func (c *PropagationBindingController) ensureWork(workload *unstructured.Unstruc
 			return err
 		}
 
-		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
-		if err != nil {
-			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
-			return err
-		}
-
 		work := &v1alpha1.Work{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:       binding.Name,
-				Namespace:  executionSpace,
+				Name:       workName,
+				Namespace:  workNamespace,
 				Finalizers: []string{util.ExecutionControllerFinalizer},
 				OwnerReferences: []metav1.OwnerReference{
 					*metav1.NewControllerRef(binding, controllerKind),
