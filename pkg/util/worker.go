@@ -106,26 +106,14 @@ func GenerateKey(obj interface{}) (QueueKey, error) {
 
 // getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
 func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
-	workloadLabels := resource.GetLabels()
-	if workloadLabels == nil {
-		klog.V(2).Infof("Resource %s/%s/%s is not created by karmada.", resource.GetKind(),
-			resource.GetNamespace(), resource.GetName())
-		return "", nil
+	workNamespace := GetLabelValue(resource.GetLabels(), WorkNamespaceLabel)
+	if len(workNamespace) == 0 {
+		klog.Infof("Resource(%s/%s/%s) not created by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
 	}
-	value, exist := workloadLabels[OwnerLabel]
-	if !exist {
-		klog.V(2).Infof("Resource %s/%s/%s is not created by karmada.", resource.GetKind(),
-			resource.GetNamespace(), resource.GetName())
-		return "", nil
-	}
-	executionNamespace, _, err := names.GetNamespaceAndName(value)
+
+	cluster, err := names.GetClusterName(workNamespace)
 	if err != nil {
-		klog.Errorf("Failed to get executionNamespace from label %s", value)
-		return "", err
-	}
-	cluster, err := names.GetClusterName(executionNamespace)
-	if err != nil {
-		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", value, err)
+		klog.Errorf("Failed to get cluster name from work namespace: %s, error: %v.", workNamespace, err)
 		return "", err
 	}
 	return cluster, nil

@@ -116,28 +116,22 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		klog.V(2).Infof("Ignore the event key %s which not managed by karmada.", key)
 		return nil
 	}
-	owner := util.GetLabelValue(obj.GetLabels(), util.OwnerLabel)
-	if len(owner) == 0 {
-		// Ignore the object which not managed by karmada.
-		// TODO(RainbowMango): Consider to add event filter to informer event handler to skip event from enqueue.
-		klog.V(2).Infof("Ignore the event of %s(%s/%s) which not managed by karmada.", obj.GetKind(), obj.GetNamespace(), obj.GetName())
+
+	workNamespace := util.GetLabelValue(obj.GetLabels(), util.WorkNamespaceLabel)
+	workName := util.GetLabelValue(obj.GetLabels(), util.WorkNameLabel)
+	if len(workNamespace) == 0 || len(workName) == 0 {
+		klog.Infof("Ignore object(%s) which not managed by karmada.", keyStr)
 		return nil
 	}
 
-	ownerNamespace, ownerName, err := names.GetNamespaceAndName(owner)
-	if err != nil {
-		klog.Errorf("Failed to parse object(%s/%s) owner by label: %s", obj.GetNamespace(), obj.GetName(), owner)
-		return err
-	}
-
 	workObject := &v1alpha1.Work{}
-	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: ownerNamespace, Name: ownerName}, workObject); err != nil {
+	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: workNamespace, Name: workName}, workObject); err != nil {
 		// Stop processing if resource no longer exist.
 		if errors.IsNotFound(err) {
 			return nil
 		}
 
-		klog.Errorf("Failed to get Work(%s/%s) from cache: %v", ownerNamespace, ownerName, err)
+		klog.Errorf("Failed to get Work(%s/%s) from cache: %v", workNamespace, workName, err)
 		return err
 	}
 
@@ -147,9 +141,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	util.MergeLabel(desireObj, util.OwnerLabel, names.GenerateOwnerLabelValue(workObject.GetNamespace(), workObject.GetName()))
-
-	clusterName, err := names.GetClusterName(ownerNamespace)
+	clusterName, err := names.GetClusterName(workNamespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name: %v", err)
 		return err
@@ -165,7 +157,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return c.ObjectWatcher.Update(clusterName, desireObj, obj)
 	}
 
-	klog.Infof("reflecting %s(%s/%s) status of to Work(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), ownerNamespace, ownerName)
+	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), workNamespace, workName)
 	return c.reflectStatus(workObject, obj)
 }
 
@@ -213,9 +205,6 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *v1alpha1.Work, clu
 		if reflect.DeepEqual(desiredGVK, clusterWorkload.GVK) &&
 			manifest.GetNamespace() == clusterWorkload.Namespace &&
 			manifest.GetName() == clusterWorkload.Name {
-
-			util.MergeLabel(manifest, util.OwnerLabel, names.GenerateOwnerLabelValue(work.GetNamespace(), work.GetName()))
-
 			klog.Infof("recreating %s/%s/%s in member cluster %s", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
 			return c.ObjectWatcher.Create(clusterWorkload.Cluster, manifest)
 		}
