@@ -8,6 +8,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// ClusterResourceBindings returns a ClusterResourceBindingInformer.
+	ClusterResourceBindings() ClusterResourceBindingInformer
 	// ResourceBindings returns a ResourceBindingInformer.
 	ResourceBindings() ResourceBindingInformer
 	// Works returns a WorkInformer.
@@ -23,6 +25,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// ClusterResourceBindings returns a ClusterResourceBindingInformer.
+func (v *version) ClusterResourceBindings() ClusterResourceBindingInformer {
+	return &clusterResourceBindingInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // ResourceBindings returns a ResourceBindingInformer.

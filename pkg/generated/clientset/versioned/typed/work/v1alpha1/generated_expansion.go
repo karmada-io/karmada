@@ -2,6 +2,8 @@
 
 package v1alpha1
 
+type ClusterResourceBindingExpansion interface{}
+
 type ResourceBindingExpansion interface{}
 
 type WorkExpansion interface{}
