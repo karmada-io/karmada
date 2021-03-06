@@ -28,11 +28,11 @@ import (
 // ControllerName is the controller name that will be used when reporting events.
 const ControllerName = "binding-controller"
 
-var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("PropagationBinding")
+var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceBinding")
 
-// PropagationBindingController is to sync PropagationBinding.
-type PropagationBindingController struct {
-	client.Client                     // used to operate PropagationBinding resources.
+// ResourceBindingController is to sync ResourceBinding.
+type ResourceBindingController struct {
+	client.Client                     // used to operate ResourceBinding resources.
 	DynamicClient   dynamic.Interface // used to fetch arbitrary resources.
 	EventRecorder   record.EventRecorder
 	RESTMapper      meta.RESTMapper
@@ -42,10 +42,10 @@ type PropagationBindingController struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *PropagationBindingController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling PropagationBinding %s.", req.NamespacedName.String())
+func (c *ResourceBindingController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
 
-	binding := &v1alpha1.PropagationBinding{}
+	binding := &v1alpha1.ResourceBinding{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
@@ -71,12 +71,12 @@ func (c *PropagationBindingController) Reconcile(req controllerruntime.Request) 
 }
 
 // isBindingReady will check if propagationBinding is ready to build Work.
-func (c *PropagationBindingController) isBindingReady(binding *v1alpha1.PropagationBinding) bool {
+func (c *ResourceBindingController) isBindingReady(binding *v1alpha1.ResourceBinding) bool {
 	return len(binding.Spec.Clusters) != 0
 }
 
 // syncBinding will sync propagationBinding to Works.
-func (c *PropagationBindingController) syncBinding(binding *v1alpha1.PropagationBinding) (controllerruntime.Result, error) {
+func (c *ResourceBindingController) syncBinding(binding *v1alpha1.ResourceBinding) (controllerruntime.Result, error) {
 	clusterNames := c.getBindingClusterNames(binding)
 	works, err := c.findOrphanWorks(binding.Namespace, binding.Name, clusterNames)
 	if err != nil {
@@ -102,7 +102,7 @@ func (c *PropagationBindingController) syncBinding(binding *v1alpha1.Propagation
 }
 
 // removeOrphanBindings will remove orphan works.
-func (c *PropagationBindingController) removeOrphanWorks(works []v1alpha1.Work) error {
+func (c *ResourceBindingController) removeOrphanWorks(works []v1alpha1.Work) error {
 	for _, work := range works {
 		err := c.Client.Delete(context.TODO(), &work)
 		if err != nil {
@@ -114,7 +114,7 @@ func (c *PropagationBindingController) removeOrphanWorks(works []v1alpha1.Work) 
 }
 
 // findOrphanWorks will find orphan works that don't match current propagationBinding clusters.
-func (c *PropagationBindingController) findOrphanWorks(bindingNamespace string, bindingName string, clusterNames []string) ([]v1alpha1.Work, error) {
+func (c *ResourceBindingController) findOrphanWorks(bindingNamespace string, bindingName string, clusterNames []string) ([]v1alpha1.Work, error) {
 	selector := labels.SelectorFromSet(labels.Set{
 		util.ResourceBindingNamespaceLabel: bindingNamespace,
 		util.ResourceBindingNameLabel:      bindingName,
@@ -141,12 +141,12 @@ func (c *PropagationBindingController) findOrphanWorks(bindingNamespace string, 
 }
 
 // SetupWithManager creates a controller and register to controller manager.
-func (c *PropagationBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.PropagationBinding{}).Complete(c)
+func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
+	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.ResourceBinding{}).Complete(c)
 }
 
 // getBindingClusterNames will get clusterName list from bind clusters field
-func (c *PropagationBindingController) getBindingClusterNames(binding *v1alpha1.PropagationBinding) []string {
+func (c *ResourceBindingController) getBindingClusterNames(binding *v1alpha1.ResourceBinding) []string {
 	var clusterNames []string
 	for _, targetCluster := range binding.Spec.Clusters {
 		clusterNames = append(clusterNames, targetCluster.Name)
@@ -155,7 +155,7 @@ func (c *PropagationBindingController) getBindingClusterNames(binding *v1alpha1.
 }
 
 // removeIrrelevantField will delete irrelevant field from workload. such as uid, timestamp, status
-func (c *PropagationBindingController) removeIrrelevantField(workload *unstructured.Unstructured) {
+func (c *ResourceBindingController) removeIrrelevantField(workload *unstructured.Unstructured) {
 	unstructured.RemoveNestedField(workload.Object, "metadata", "creationTimestamp")
 	unstructured.RemoveNestedField(workload.Object, "metadata", "generation")
 	unstructured.RemoveNestedField(workload.Object, "metadata", "resourceVersion")
@@ -166,7 +166,7 @@ func (c *PropagationBindingController) removeIrrelevantField(workload *unstructu
 }
 
 // transformBindingToWorks will transform propagationBinding to Works
-func (c *PropagationBindingController) transformBindingToWorks(binding *v1alpha1.PropagationBinding, clusterNames []string) error {
+func (c *ResourceBindingController) transformBindingToWorks(binding *v1alpha1.ResourceBinding, clusterNames []string) error {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 		schema.FromAPIVersionAndKind(binding.Spec.Resource.APIVersion, binding.Spec.Resource.Kind))
 	if err != nil {
@@ -190,8 +190,8 @@ func (c *PropagationBindingController) transformBindingToWorks(binding *v1alpha1
 }
 
 // ensureWork ensure Work to be created or updated
-func (c *PropagationBindingController) ensureWork(workload *unstructured.Unstructured, clusterNames []string,
-	binding *v1alpha1.PropagationBinding) error {
+func (c *ResourceBindingController) ensureWork(workload *unstructured.Unstructured, clusterNames []string,
+	binding *v1alpha1.ResourceBinding) error {
 	c.removeIrrelevantField(workload)
 
 	for _, clusterName := range clusterNames {

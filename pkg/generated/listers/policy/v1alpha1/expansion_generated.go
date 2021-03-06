@@ -18,14 +18,6 @@ type OverridePolicyListerExpansion interface{}
 // OverridePolicyNamespaceLister.
 type OverridePolicyNamespaceListerExpansion interface{}
 
-// PropagationBindingListerExpansion allows custom methods to be added to
-// PropagationBindingLister.
-type PropagationBindingListerExpansion interface{}
-
-// PropagationBindingNamespaceListerExpansion allows custom methods to be added to
-// PropagationBindingNamespaceLister.
-type PropagationBindingNamespaceListerExpansion interface{}
-
 // PropagationPolicyListerExpansion allows custom methods to be added to
 // PropagationPolicyLister.
 type PropagationPolicyListerExpansion interface{}
@@ -33,6 +25,14 @@ type PropagationPolicyListerExpansion interface{}
 // PropagationPolicyNamespaceListerExpansion allows custom methods to be added to
 // PropagationPolicyNamespaceLister.
 type PropagationPolicyNamespaceListerExpansion interface{}
+
+// ResourceBindingListerExpansion allows custom methods to be added to
+// ResourceBindingLister.
+type ResourceBindingListerExpansion interface{}
+
+// ResourceBindingNamespaceListerExpansion allows custom methods to be added to
+// ResourceBindingNamespaceLister.
+type ResourceBindingNamespaceListerExpansion interface{}
 
 // WorkListerExpansion allows custom methods to be added to
 // WorkLister.

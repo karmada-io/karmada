@@ -13,8 +13,8 @@ type PolicyV1alpha1Interface interface {
 	ClusterOverridePoliciesGetter
 	ClusterPropagationPoliciesGetter
 	OverridePoliciesGetter
-	PropagationBindingsGetter
 	PropagationPoliciesGetter
+	ResourceBindingsGetter
 	WorksGetter
 }
 
@@ -35,12 +35,12 @@ func (c *PolicyV1alpha1Client) OverridePolicies(namespace string) OverridePolicy
 	return newOverridePolicies(c, namespace)
 }
 
-func (c *PolicyV1alpha1Client) PropagationBindings(namespace string) PropagationBindingInterface {
-	return newPropagationBindings(c, namespace)
-}
-
 func (c *PolicyV1alpha1Client) PropagationPolicies(namespace string) PropagationPolicyInterface {
 	return newPropagationPolicies(c, namespace)
+}
+
+func (c *PolicyV1alpha1Client) ResourceBindings(namespace string) ResourceBindingInterface {
+	return newResourceBindings(c, namespace)
 }
 
 func (c *PolicyV1alpha1Client) Works(namespace string) WorkInterface {

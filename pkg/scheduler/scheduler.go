@@ -44,7 +44,7 @@ type Scheduler struct {
 	KarmadaClient   karmadaclientset.Interface
 	KubeClient      kubernetes.Interface
 	bindingInformer cache.SharedIndexInformer
-	bindingLister   lister.PropagationBindingLister
+	bindingLister   lister.ResourceBindingLister
 	policyInformer  cache.SharedIndexInformer
 	policyLister    lister.PropagationPolicyLister
 	informerFactory informerfactory.SharedInformerFactory
@@ -59,8 +59,8 @@ type Scheduler struct {
 // NewScheduler instantiates a scheduler
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface) *Scheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
-	bindingInformer := factory.Policy().V1alpha1().PropagationBindings().Informer()
-	bindingLister := factory.Policy().V1alpha1().PropagationBindings().Lister()
+	bindingInformer := factory.Policy().V1alpha1().ResourceBindings().Informer()
+	bindingLister := factory.Policy().V1alpha1().ResourceBindings().Lister()
 	policyInformer := factory.Policy().V1alpha1().PropagationPolicies().Informer()
 	policyLister := factory.Policy().V1alpha1().PropagationPolicies().Lister()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -82,8 +82,8 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	}
 
 	bindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    sched.onPropagationBindingAdd,
-		UpdateFunc: sched.onPropagationBindingUpdate,
+		AddFunc:    sched.onResourceBindingAdd,
+		UpdateFunc: sched.onResourceBindingUpdate,
 	})
 
 	policyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -117,8 +117,8 @@ func (s *Scheduler) Run(ctx context.Context) {
 	<-stopCh
 }
 
-func (s *Scheduler) onPropagationBindingAdd(obj interface{}) {
-	propagationBinding := obj.(*v1alpha1.PropagationBinding)
+func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
+	propagationBinding := obj.(*v1alpha1.ResourceBinding)
 	if len(propagationBinding.Spec.Clusters) > 0 {
 		return
 	}
@@ -131,8 +131,8 @@ func (s *Scheduler) onPropagationBindingAdd(obj interface{}) {
 	s.queue.Add(key)
 }
 
-func (s *Scheduler) onPropagationBindingUpdate(old, cur interface{}) {
-	s.onPropagationBindingAdd(cur)
+func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
+	s.onResourceBindingAdd(cur)
 }
 
 func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
@@ -150,7 +150,7 @@ func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
 
 	referenceBindings, err := s.bindingLister.List(selector)
 	if err != nil {
-		klog.Errorf("Failed to list PropagationBindings by selector: %s, error: %v", selector.String(), err)
+		klog.Errorf("Failed to list ResourceBinding by selector: %s, error: %v", selector.String(), err)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
 			klog.Errorf("couldn't get key for object %#v: %v", binding, err)
 			return
 		}
-		klog.Infof("Requeue PropagationBinding(%s/%s) as placement changed.", binding.Namespace, binding.Name)
+		klog.Infof("Requeue ResourceBinding(%s/%s) as placement changed.", binding.Namespace, binding.Name)
 		s.queue.Add(key)
 	}
 }
@@ -184,24 +184,24 @@ func (s *Scheduler) scheduleNext() bool {
 }
 
 func (s *Scheduler) scheduleOne(key string) (err error) {
-	klog.V(4).Infof("begin scheduling PropagationBinding %s", key)
-	defer klog.V(4).Infof("end scheduling PropagationBinding %s: %v", key, err)
+	klog.V(4).Infof("begin scheduling ResourceBinding %s", key)
+	defer klog.V(4).Infof("end scheduling ResourceBinding %s: %v", key, err)
 
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
-	propagationBinding, err := s.bindingLister.PropagationBindings(ns).Get(name)
+	propagationBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
 	if errors.IsNotFound(err) {
 		return nil
 	}
 
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), propagationBinding)
 	if err != nil {
-		klog.V(2).Infof("failed scheduling PropagationBinding %s: %v", key, err)
+		klog.V(2).Infof("failed scheduling ResourceBinding %s: %v", key, err)
 		return err
 	}
-	klog.V(4).Infof("PropagationBinding %s scheduled to clusters %v", key, scheduleResult.SuggestedClusters)
+	klog.V(4).Infof("ResourceBinding %s scheduled to clusters %v", key, scheduleResult.SuggestedClusters)
 
 	binding := propagationBinding.DeepCopy()
 	targetClusters := make([]v1alpha1.TargetCluster, len(scheduleResult.SuggestedClusters))
@@ -228,7 +228,7 @@ func (s *Scheduler) scheduleOne(key string) (err error) {
 	}
 	binding.Annotations[util.PolicyPlacementAnnotation] = string(placement)
 
-	_, err = s.KarmadaClient.PolicyV1alpha1().PropagationBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	_, err = s.KarmadaClient.PolicyV1alpha1().ResourceBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,5 @@
 apiVersion: policy.karmada.io/v1alpha1
-kind: PropagationBinding
+kind: ResourceBinding
 metadata:
   name: binding-foo
 spec:

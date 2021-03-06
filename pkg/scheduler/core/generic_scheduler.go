@@ -17,7 +17,7 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *v1alpha1.PropagationBinding) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *v1alpha1.ResourceBinding) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -45,7 +45,7 @@ func NewGenericScheduler(
 	}
 }
 
-func (g *genericScheduler) Schedule(ctx context.Context, binding *v1alpha1.PropagationBinding) (result ScheduleResult, err error) {
+func (g *genericScheduler) Schedule(ctx context.Context, binding *v1alpha1.ResourceBinding) (result ScheduleResult, err error) {
 	klog.V(4).Infof("Scheduling %s/%s", binding.Namespace, binding.Name)
 
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()

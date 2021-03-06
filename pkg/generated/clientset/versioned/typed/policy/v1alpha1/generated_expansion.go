@@ -8,8 +8,8 @@ type ClusterPropagationPolicyExpansion interface{}
 
 type OverridePolicyExpansion interface{}
 
-type PropagationBindingExpansion interface{}
-
 type PropagationPolicyExpansion interface{}
+
+type ResourceBindingExpansion interface{}
 
 type WorkExpansion interface{}

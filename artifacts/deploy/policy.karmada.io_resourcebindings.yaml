@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: propagationbindings.policy.karmada.io
+  name: resourcebindings.policy.karmada.io
 spec:
   group: policy.karmada.io
   names:
-    kind: PropagationBinding
-    listKind: PropagationBindingList
-    plural: propagationbindings
-    singular: propagationbinding
+    kind: ResourceBinding
+    listKind: ResourceBindingList
+    plural: resourcebindings
+    singular: resourcebinding
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: PropagationBinding represents a binding of a kubernetes resource
+        description: ResourceBinding represents a binding of a kubernetes resource
           with a propagation policy.
         properties:
           apiVersion:
@@ -85,7 +85,7 @@ spec:
             type: object
           status:
             description: Status represents the most recently observed status of the
-              PropagationBinding.
+              ResourceBinding.
             properties:
               aggregatedStatus:
                 description: AggregatedStatus represents status list of the resource

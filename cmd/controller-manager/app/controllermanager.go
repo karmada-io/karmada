@@ -147,7 +147,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		klog.Fatalf("Failed to setup policy controller: %v", err)
 	}
 
-	bindingController := &binding.PropagationBindingController{
+	bindingController := &binding.ResourceBindingController{
 		Client:          mgr.GetClient(),
 		DynamicClient:   dynamicClientSet,
 		EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
