@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -102,7 +103,7 @@ func (c *ResourceBindingController) syncBinding(binding *v1alpha1.ResourceBindin
 }
 
 // removeOrphanBindings will remove orphan works.
-func (c *ResourceBindingController) removeOrphanWorks(works []v1alpha1.Work) error {
+func (c *ResourceBindingController) removeOrphanWorks(works []workv1alpha1.Work) error {
 	for _, work := range works {
 		err := c.Client.Delete(context.TODO(), &work)
 		if err != nil {
@@ -114,17 +115,17 @@ func (c *ResourceBindingController) removeOrphanWorks(works []v1alpha1.Work) err
 }
 
 // findOrphanWorks will find orphan works that don't match current propagationBinding clusters.
-func (c *ResourceBindingController) findOrphanWorks(bindingNamespace string, bindingName string, clusterNames []string) ([]v1alpha1.Work, error) {
+func (c *ResourceBindingController) findOrphanWorks(bindingNamespace string, bindingName string, clusterNames []string) ([]workv1alpha1.Work, error) {
 	selector := labels.SelectorFromSet(labels.Set{
 		util.ResourceBindingNamespaceLabel: bindingNamespace,
 		util.ResourceBindingNameLabel:      bindingName,
 	})
 
-	workList := &v1alpha1.WorkList{}
+	workList := &workv1alpha1.WorkList{}
 	if err := c.Client.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
 		return nil, err
 	}
-	var orphanWorks []v1alpha1.Work
+	var orphanWorks []workv1alpha1.Work
 	expectClusters := sets.NewString(clusterNames...)
 	for _, work := range workList.Items {
 		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
@@ -222,7 +223,7 @@ func (c *ResourceBindingController) ensureWork(workload *unstructured.Unstructur
 			return err
 		}
 
-		work := &v1alpha1.Work{
+		work := &workv1alpha1.Work{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       workName,
 				Namespace:  workNamespace,
@@ -235,9 +236,9 @@ func (c *ResourceBindingController) ensureWork(workload *unstructured.Unstructur
 					util.ResourceBindingNameLabel:      binding.Name,
 				},
 			},
-			Spec: v1alpha1.WorkSpec{
-				Workload: v1alpha1.WorkloadTemplate{
-					Manifests: []v1alpha1.Manifest{
+			Spec: workv1alpha1.WorkSpec{
+				Workload: workv1alpha1.WorkloadTemplate{
+					Manifests: []workv1alpha1.Manifest{
 						{
 							RawExtension: runtime.RawExtension{
 								Raw: workloadJSON,

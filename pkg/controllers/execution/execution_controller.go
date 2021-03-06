@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
@@ -44,7 +44,7 @@ type Controller struct {
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
 
-	work := &policyv1alpha1.Work{}
+	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
@@ -72,12 +72,12 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
-		For(&policyv1alpha1.Work{}).
+		For(&workv1alpha1.Work{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(c)
 }
 
-func (c *Controller) syncWork(work *policyv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *Controller) syncWork(work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	err := c.dispatchWork(work)
 	if err != nil {
 		klog.Errorf("Failed to dispatch work %q, namespace is %v, err is %v", work.Name, work.Namespace, err)
@@ -88,9 +88,9 @@ func (c *Controller) syncWork(work *policyv1alpha1.Work) (controllerruntime.Resu
 }
 
 // isResourceApplied checking weather resource has been dispatched to member cluster or not
-func (c *Controller) isResourceApplied(workStatus *policyv1alpha1.WorkStatus) bool {
+func (c *Controller) isResourceApplied(workStatus *workv1alpha1.WorkStatus) bool {
 	for _, condition := range workStatus.Conditions {
-		if condition.Type == policyv1alpha1.WorkApplied {
+		if condition.Type == workv1alpha1.WorkApplied {
 			if condition.Status == metav1.ConditionTrue {
 				return true
 			}
@@ -101,7 +101,7 @@ func (c *Controller) isResourceApplied(workStatus *policyv1alpha1.WorkStatus) bo
 
 // tryDeleteWorkload tries to delete resource in the given member cluster.
 // Abort deleting when the member cluster is unready, otherwise we can't unjoin the member cluster when the member cluster is unready
-func (c *Controller) tryDeleteWorkload(work *policyv1alpha1.Work) error {
+func (c *Controller) tryDeleteWorkload(work *workv1alpha1.Work) error {
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
@@ -138,7 +138,7 @@ func (c *Controller) tryDeleteWorkload(work *policyv1alpha1.Work) error {
 	return nil
 }
 
-func (c *Controller) dispatchWork(work *policyv1alpha1.Work) error {
+func (c *Controller) dispatchWork(work *workv1alpha1.Work) error {
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
@@ -166,7 +166,7 @@ func (c *Controller) dispatchWork(work *policyv1alpha1.Work) error {
 }
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *policyv1alpha1.Work) error {
+func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
 	clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, c.KubeClientSet)
 	if err != nil {
 		return err
@@ -218,7 +218,7 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *policyv1alp
 }
 
 // removeFinalizer remove finalizer from the given Work
-func (c *Controller) removeFinalizer(work *policyv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	if !controllerutil.ContainsFinalizer(work, util.ExecutionControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
@@ -232,9 +232,9 @@ func (c *Controller) removeFinalizer(work *policyv1alpha1.Work) (controllerrunti
 }
 
 // updateAppliedCondition update the Applied condition for the given Work
-func (c *Controller) updateAppliedCondition(work *policyv1alpha1.Work) error {
+func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work) error {
 	newWorkAppliedCondition := metav1.Condition{
-		Type:               policyv1alpha1.WorkApplied,
+		Type:               workv1alpha1.WorkApplied,
 		Status:             metav1.ConditionTrue,
 		Reason:             "AppliedSuccessful",
 		Message:            "Manifest has been successfully applied",
