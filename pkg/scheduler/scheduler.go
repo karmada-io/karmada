@@ -23,7 +23,8 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
-	lister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
+	policylister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
+	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha1"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
@@ -45,9 +46,9 @@ type Scheduler struct {
 	KarmadaClient   karmadaclientset.Interface
 	KubeClient      kubernetes.Interface
 	bindingInformer cache.SharedIndexInformer
-	bindingLister   lister.ResourceBindingLister
+	bindingLister   worklister.ResourceBindingLister
 	policyInformer  cache.SharedIndexInformer
-	policyLister    lister.PropagationPolicyLister
+	policyLister    policylister.PropagationPolicyLister
 	informerFactory informerfactory.SharedInformerFactory
 
 	// TODO: implement a priority scheduling queue
@@ -60,8 +61,8 @@ type Scheduler struct {
 // NewScheduler instantiates a scheduler
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface) *Scheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
-	bindingInformer := factory.Policy().V1alpha1().ResourceBindings().Informer()
-	bindingLister := factory.Policy().V1alpha1().ResourceBindings().Lister()
+	bindingInformer := factory.Work().V1alpha1().ResourceBindings().Informer()
+	bindingLister := factory.Work().V1alpha1().ResourceBindings().Lister()
 	policyInformer := factory.Policy().V1alpha1().PropagationPolicies().Informer()
 	policyLister := factory.Policy().V1alpha1().PropagationPolicies().Lister()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -229,7 +230,7 @@ func (s *Scheduler) scheduleOne(key string) (err error) {
 	}
 	binding.Annotations[util.PolicyPlacementAnnotation] = string(placement)
 
-	_, err = s.KarmadaClient.PolicyV1alpha1().ResourceBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	_, err = s.KarmadaClient.WorkV1alpha1().ResourceBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
