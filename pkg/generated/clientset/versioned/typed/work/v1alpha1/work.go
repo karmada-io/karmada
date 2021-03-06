@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -41,7 +41,7 @@ type works struct {
 }
 
 // newWorks returns a Works
-func newWorks(c *PolicyV1alpha1Client, namespace string) *works {
+func newWorks(c *WorkV1alpha1Client, namespace string) *works {
 	return &works{
 		client: c.RESTClient(),
 		ns:     namespace,

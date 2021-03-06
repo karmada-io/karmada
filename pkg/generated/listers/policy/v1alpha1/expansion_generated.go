@@ -33,11 +33,3 @@ type ResourceBindingListerExpansion interface{}
 // ResourceBindingNamespaceListerExpansion allows custom methods to be added to
 // ResourceBindingNamespaceLister.
 type ResourceBindingNamespaceListerExpansion interface{}
-
-// WorkListerExpansion allows custom methods to be added to
-// WorkLister.
-type WorkListerExpansion interface{}
-
-// WorkNamespaceListerExpansion allows custom methods to be added to
-// WorkNamespaceLister.
-type WorkNamespaceListerExpansion interface{}

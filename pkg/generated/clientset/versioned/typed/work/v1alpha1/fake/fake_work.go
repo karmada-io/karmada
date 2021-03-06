@@ -5,7 +5,7 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,13 +16,13 @@ import (
 
 // FakeWorks implements WorkInterface
 type FakeWorks struct {
-	Fake *FakePolicyV1alpha1
+	Fake *FakeWorkV1alpha1
 	ns   string
 }
 
-var worksResource = schema.GroupVersionResource{Group: "policy.karmada.io", Version: "v1alpha1", Resource: "works"}
+var worksResource = schema.GroupVersionResource{Group: "work.karmada.io", Version: "v1alpha1", Resource: "works"}
 
-var worksKind = schema.GroupVersionKind{Group: "policy.karmada.io", Version: "v1alpha1", Kind: "Work"}
+var worksKind = schema.GroupVersionKind{Group: "work.karmada.io", Version: "v1alpha1", Kind: "Work"}
 
 // Get takes name of the work, and returns the corresponding work object, and an error if there is any.
 func (c *FakeWorks) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Work, err error) {

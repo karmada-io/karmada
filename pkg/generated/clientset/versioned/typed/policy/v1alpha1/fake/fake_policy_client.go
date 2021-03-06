@@ -32,10 +32,6 @@ func (c *FakePolicyV1alpha1) ResourceBindings(namespace string) v1alpha1.Resourc
 	return &FakeResourceBindings{c, namespace}
 }
 
-func (c *FakePolicyV1alpha1) Works(namespace string) v1alpha1.WorkInterface {
-	return &FakeWorks{c, namespace}
-}
-
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakePolicyV1alpha1) RESTClient() rest.Interface {
