@@ -18,8 +18,6 @@ type Interface interface {
 	PropagationPolicies() PropagationPolicyInformer
 	// ResourceBindings returns a ResourceBindingInformer.
 	ResourceBindings() ResourceBindingInformer
-	// Works returns a WorkInformer.
-	Works() WorkInformer
 }
 
 type version struct {
@@ -56,9 +54,4 @@ func (v *version) PropagationPolicies() PropagationPolicyInformer {
 // ResourceBindings returns a ResourceBindingInformer.
 func (v *version) ResourceBindings() ResourceBindingInformer {
 	return &resourceBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// Works returns a WorkInformer.
-func (v *version) Works() WorkInformer {
-	return &workInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

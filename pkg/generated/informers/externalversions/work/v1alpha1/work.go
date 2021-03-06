@@ -6,10 +6,10 @@ import (
 	"context"
 	time "time"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -46,16 +46,16 @@ func NewFilteredWorkInformer(client versioned.Interface, namespace string, resyn
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.PolicyV1alpha1().Works(namespace).List(context.TODO(), options)
+				return client.WorkV1alpha1().Works(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.PolicyV1alpha1().Works(namespace).Watch(context.TODO(), options)
+				return client.WorkV1alpha1().Works(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&policyv1alpha1.Work{},
+		&workv1alpha1.Work{},
 		resyncPeriod,
 		indexers,
 	)
@@ -66,7 +66,7 @@ func (f *workInformer) defaultInformer(client versioned.Interface, resyncPeriod 
 }
 
 func (f *workInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&policyv1alpha1.Work{}, f.defaultInformer)
+	return f.factory.InformerFor(&workv1alpha1.Work{}, f.defaultInformer)
 }
 
 func (f *workInformer) Lister() v1alpha1.WorkLister {

@@ -15,7 +15,6 @@ type PolicyV1alpha1Interface interface {
 	OverridePoliciesGetter
 	PropagationPoliciesGetter
 	ResourceBindingsGetter
-	WorksGetter
 }
 
 // PolicyV1alpha1Client is used to interact with features provided by the policy.karmada.io group.
@@ -41,10 +40,6 @@ func (c *PolicyV1alpha1Client) PropagationPolicies(namespace string) Propagation
 
 func (c *PolicyV1alpha1Client) ResourceBindings(namespace string) ResourceBindingInterface {
 	return newResourceBindings(c, namespace)
-}
-
-func (c *PolicyV1alpha1Client) Works(namespace string) WorkInterface {
-	return newWorks(c, namespace)
 }
 
 // NewForConfig creates a new PolicyV1alpha1Client for the given config.
