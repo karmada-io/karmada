@@ -46,7 +46,7 @@ type ResourceBindingController struct {
 func (c *ResourceBindingController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
 
-	binding := &v1alpha1.ResourceBinding{}
+	binding := &workv1alpha1.ResourceBinding{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
@@ -72,12 +72,12 @@ func (c *ResourceBindingController) Reconcile(req controllerruntime.Request) (co
 }
 
 // isBindingReady will check if propagationBinding is ready to build Work.
-func (c *ResourceBindingController) isBindingReady(binding *v1alpha1.ResourceBinding) bool {
+func (c *ResourceBindingController) isBindingReady(binding *workv1alpha1.ResourceBinding) bool {
 	return len(binding.Spec.Clusters) != 0
 }
 
 // syncBinding will sync propagationBinding to Works.
-func (c *ResourceBindingController) syncBinding(binding *v1alpha1.ResourceBinding) (controllerruntime.Result, error) {
+func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBinding) (controllerruntime.Result, error) {
 	clusterNames := c.getBindingClusterNames(binding)
 	works, err := c.findOrphanWorks(binding.Namespace, binding.Name, clusterNames)
 	if err != nil {
@@ -143,11 +143,11 @@ func (c *ResourceBindingController) findOrphanWorks(bindingNamespace string, bin
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.ResourceBinding{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ResourceBinding{}).Complete(c)
 }
 
 // getBindingClusterNames will get clusterName list from bind clusters field
-func (c *ResourceBindingController) getBindingClusterNames(binding *v1alpha1.ResourceBinding) []string {
+func (c *ResourceBindingController) getBindingClusterNames(binding *workv1alpha1.ResourceBinding) []string {
 	var clusterNames []string
 	for _, targetCluster := range binding.Spec.Clusters {
 		clusterNames = append(clusterNames, targetCluster.Name)
@@ -167,7 +167,7 @@ func (c *ResourceBindingController) removeIrrelevantField(workload *unstructured
 }
 
 // transformBindingToWorks will transform propagationBinding to Works
-func (c *ResourceBindingController) transformBindingToWorks(binding *v1alpha1.ResourceBinding, clusterNames []string) error {
+func (c *ResourceBindingController) transformBindingToWorks(binding *workv1alpha1.ResourceBinding, clusterNames []string) error {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 		schema.FromAPIVersionAndKind(binding.Spec.Resource.APIVersion, binding.Spec.Resource.Kind))
 	if err != nil {
@@ -192,7 +192,7 @@ func (c *ResourceBindingController) transformBindingToWorks(binding *v1alpha1.Re
 
 // ensureWork ensure Work to be created or updated
 func (c *ResourceBindingController) ensureWork(workload *unstructured.Unstructured, clusterNames []string,
-	binding *v1alpha1.ResourceBinding) error {
+	binding *workv1alpha1.ResourceBinding) error {
 	c.removeIrrelevantField(workload)
 
 	for _, clusterName := range clusterNames {

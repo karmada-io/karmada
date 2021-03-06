@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -111,7 +112,7 @@ func (c *Controller) fetchWorkloads(policy *v1alpha1.PropagationPolicy) ([]*unst
 }
 
 // deleteResourceBinding will delete ResourceBinding.
-func (c *Controller) deleteResourceBinding(binding v1alpha1.ResourceBinding) error {
+func (c *Controller) deleteResourceBinding(binding workv1alpha1.ResourceBinding) error {
 	err := c.Client.Delete(context.TODO(), &binding)
 	if err != nil && errors.IsNotFound(err) {
 		klog.Infof("ResourceBinding %s/%s is already not exist.", binding.GetNamespace(), binding.GetName())
@@ -126,18 +127,18 @@ func (c *Controller) deleteResourceBinding(binding v1alpha1.ResourceBinding) err
 
 // calculateResourceBindings will get orphanBindings and workloads that need to update or create.
 func (c *Controller) calculateResourceBindings(policy *v1alpha1.PropagationPolicy,
-	workloads []*unstructured.Unstructured) ([]v1alpha1.ResourceBinding, []*unstructured.Unstructured, error) {
+	workloads []*unstructured.Unstructured) ([]workv1alpha1.ResourceBinding, []*unstructured.Unstructured, error) {
 	selector := labels.SelectorFromSet(labels.Set{
 		util.PropagationPolicyNamespaceLabel: policy.Namespace,
 		util.PropagationPolicyNameLabel:      policy.Name,
 	})
 
-	bindingList := &v1alpha1.ResourceBindingList{}
+	bindingList := &workv1alpha1.ResourceBindingList{}
 	if err := c.Client.List(context.TODO(), bindingList, &client.ListOptions{LabelSelector: selector}); err != nil {
 		klog.Errorf("Failed to list ResourceBinding in namespace %s", policy.GetNamespace())
 		return nil, nil, err
 	}
-	var orphanBindings []v1alpha1.ResourceBinding
+	var orphanBindings []workv1alpha1.ResourceBinding
 	for _, binding := range bindingList.Items {
 		isFind := false
 		for _, workload := range workloads {
@@ -296,7 +297,7 @@ func (c *Controller) fetchWorkload(resourceSelector v1alpha1.ResourceSelector) (
 // ensureResourceBinding will ensure ResourceBindings are created or updated.
 func (c *Controller) ensureResourceBinding(policy *v1alpha1.PropagationPolicy, workload *unstructured.Unstructured) error {
 	bindingName := names.GenerateBindingName(workload.GetNamespace(), workload.GetKind(), workload.GetName())
-	binding := &v1alpha1.ResourceBinding{
+	binding := &workv1alpha1.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: policy.GetNamespace(),
@@ -308,8 +309,8 @@ func (c *Controller) ensureResourceBinding(policy *v1alpha1.PropagationPolicy, w
 				util.PropagationPolicyNameLabel:      policy.GetName(),
 			},
 		},
-		Spec: v1alpha1.ResourceBindingSpec{
-			Resource: v1alpha1.ObjectReference{
+		Spec: workv1alpha1.ResourceBindingSpec{
+			Resource: workv1alpha1.ObjectReference{
 				APIVersion:      workload.GetAPIVersion(),
 				Kind:            workload.GetKind(),
 				Namespace:       workload.GetNamespace(),
