@@ -20,7 +20,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -52,7 +52,7 @@ type WorkStatusController struct {
 func (c *WorkStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling status of Work %s.", req.NamespacedName.String())
 
-	work := &v1alpha1.Work{}
+	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
@@ -71,7 +71,7 @@ func (c *WorkStatusController) Reconcile(req controllerruntime.Request) (control
 
 // buildResourceInformers builds informer dynamically for managed resources in member cluster.
 // The created informer watches resource change and then sync to the relevant Work object.
-func (c *WorkStatusController) buildResourceInformers(work *v1alpha1.Work) (controllerruntime.Result, error) {
+func (c *WorkStatusController) buildResourceInformers(work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	err := c.registerInformersAndStart(work)
 	if err != nil {
 		klog.Errorf("Failed to register informer for Work %s/%s. Error: %v.", work.GetNamespace(), work.GetName(), err)
@@ -124,7 +124,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return nil
 	}
 
-	workObject := &v1alpha1.Work{}
+	workObject := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: workNamespace, Name: workName}, workObject); err != nil {
 		// Stop processing if resource no longer exist.
 		if errors.IsNotFound(err) {
@@ -174,7 +174,7 @@ func (c *WorkStatusController) handleDeleteEvent(key string) error {
 	}
 
 	workName := names.GenerateBindingName(clusterWorkload.Namespace, clusterWorkload.GVK.Kind, clusterWorkload.Name)
-	work := &v1alpha1.Work{}
+	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: executionSpace, Name: workName}, work); err != nil {
 		// Stop processing if resource no longer exist.
 		if errors.IsNotFound(err) {
@@ -194,7 +194,7 @@ func (c *WorkStatusController) handleDeleteEvent(key string) error {
 	return c.recreateResourceIfNeeded(work, clusterWorkload)
 }
 
-func (c *WorkStatusController) recreateResourceIfNeeded(work *v1alpha1.Work, clusterWorkload util.ClusterWorkload) error {
+func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work, clusterWorkload util.ClusterWorkload) error {
 	for _, rawManifest := range work.Spec.Workload.Manifests {
 		manifest := &unstructured.Unstructured{}
 		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
@@ -213,7 +213,7 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *v1alpha1.Work, clu
 }
 
 // reflectStatus grabs cluster object's running status then updates to it's owner object(Work).
-func (c *WorkStatusController) reflectStatus(work *v1alpha1.Work, clusterObj *unstructured.Unstructured) error {
+func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
 	// Stop processing if resource(such as ConfigMap,Secret,ClusterRole, etc.) doesn't contain 'spec.status' fields.
 	statusMap, exist, err := unstructured.NestedMap(clusterObj.Object, "status")
 	if err != nil {
@@ -235,7 +235,7 @@ func (c *WorkStatusController) reflectStatus(work *v1alpha1.Work, clusterObj *un
 		return err
 	}
 
-	manifestStatus := v1alpha1.ManifestStatus{
+	manifestStatus := workv1alpha1.ManifestStatus{
 		Identifier: *identifier,
 		Status:     *rawExtension,
 	}
@@ -245,7 +245,7 @@ func (c *WorkStatusController) reflectStatus(work *v1alpha1.Work, clusterObj *un
 	return c.Client.Status().Update(context.TODO(), work)
 }
 
-func (c *WorkStatusController) buildStatusIdentifier(work *v1alpha1.Work, clusterObj *unstructured.Unstructured) (*v1alpha1.ResourceIdentifier, error) {
+func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {
 	ordinal, err := c.getManifestIndex(work.Spec.Workload.Manifests, clusterObj)
 	if err != nil {
 		return nil, err
@@ -256,7 +256,7 @@ func (c *WorkStatusController) buildStatusIdentifier(work *v1alpha1.Work, cluste
 		return nil, err
 	}
 
-	identifier := &v1alpha1.ResourceIdentifier{
+	identifier := &workv1alpha1.ResourceIdentifier{
 		Ordinal: ordinal,
 		// TODO(RainbowMango): Consider merge Group and Version to APIVersion from Work API.
 		Group:   groupVersion.Group,
@@ -283,13 +283,13 @@ func (c *WorkStatusController) buildStatusRawExtension(status map[string]interfa
 	}, nil
 }
 
-func (c *WorkStatusController) mergeStatus(statuses []v1alpha1.ManifestStatus, newStatus v1alpha1.ManifestStatus) []v1alpha1.ManifestStatus {
+func (c *WorkStatusController) mergeStatus(statuses []workv1alpha1.ManifestStatus, newStatus workv1alpha1.ManifestStatus) []workv1alpha1.ManifestStatus {
 	// TODO(RainbowMango): update 'statuses' if 'newStatus' already exist.
 	// For now, we only have at most one manifest in Work, so just override current 'statuses'.
-	return []v1alpha1.ManifestStatus{newStatus}
+	return []workv1alpha1.ManifestStatus{newStatus}
 }
 
-func (c *WorkStatusController) getManifestIndex(manifests []v1alpha1.Manifest, clusterObj *unstructured.Unstructured) (int, error) {
+func (c *WorkStatusController) getManifestIndex(manifests []workv1alpha1.Manifest, clusterObj *unstructured.Unstructured) (int, error) {
 	for index, rawManifest := range manifests {
 		manifest := &unstructured.Unstructured{}
 		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
@@ -307,7 +307,7 @@ func (c *WorkStatusController) getManifestIndex(manifests []v1alpha1.Manifest, c
 	return -1, fmt.Errorf("no such manifest exist")
 }
 
-func (c *WorkStatusController) getRawManifest(manifests []v1alpha1.Manifest, clusterObj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (c *WorkStatusController) getRawManifest(manifests []workv1alpha1.Manifest, clusterObj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	for _, rawManifest := range manifests {
 		manifest := &unstructured.Unstructured{}
 		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
@@ -361,7 +361,7 @@ func (c *WorkStatusController) getObjectFromCache(key string) (*unstructured.Uns
 
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
 // and start it.
-func (c *WorkStatusController) registerInformersAndStart(work *v1alpha1.Work) error {
+func (c *WorkStatusController) registerInformersAndStart(work *workv1alpha1.Work) error {
 	clusterName, err := names.GetClusterName(work.GetNamespace())
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", work.GetNamespace(), err)
@@ -398,7 +398,7 @@ func (c *WorkStatusController) registerInformersAndStart(work *v1alpha1.Work) er
 }
 
 // getGVRsFromWork traverses the manifests in work to find groupVersionResource list.
-func (c *WorkStatusController) getGVRsFromWork(work *v1alpha1.Work) (map[schema.GroupVersionResource]bool, error) {
+func (c *WorkStatusController) getGVRsFromWork(work *workv1alpha1.Work) (map[schema.GroupVersionResource]bool, error) {
 	gvrTargets := map[schema.GroupVersionResource]bool{}
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
@@ -436,5 +436,5 @@ func (c *WorkStatusController) getSingleClusterManager(clusterName string) (info
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Work{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).Complete(c)
 }
