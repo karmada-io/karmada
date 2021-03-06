@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -128,12 +127,11 @@ func (c *Controller) deleteResourceBinding(binding v1alpha1.ResourceBinding) err
 // calculateResourceBindings will get orphanBindings and workloads that need to update or create.
 func (c *Controller) calculateResourceBindings(policy *v1alpha1.PropagationPolicy,
 	workloads []*unstructured.Unstructured) ([]v1alpha1.ResourceBinding, []*unstructured.Unstructured, error) {
-	labelRequirement, err := labels.NewRequirement(util.OwnerLabel, selection.Equals, []string{names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())})
-	if err != nil {
-		klog.Errorf("Failed to new a requirement. Error: %v", err)
-		return nil, nil, err
-	}
-	selector := labels.NewSelector().Add(*labelRequirement)
+	selector := labels.SelectorFromSet(labels.Set{
+		util.PropagationPolicyNamespaceLabel: policy.Namespace,
+		util.PropagationPolicyNameLabel:      policy.Name,
+	})
+
 	bindingList := &v1alpha1.ResourceBindingList{}
 	if err := c.Client.List(context.TODO(), bindingList, &client.ListOptions{LabelSelector: selector}); err != nil {
 		klog.Errorf("Failed to list ResourceBinding in namespace %s", policy.GetNamespace())
@@ -308,7 +306,7 @@ func (c *Controller) ensureResourceBinding(policy *v1alpha1.PropagationPolicy, w
 			Labels: map[string]string{
 				util.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
 				util.PropagationPolicyNameLabel:      policy.GetName(),
-				util.OwnerLabel:                      names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName())},
+			},
 		},
 		Spec: v1alpha1.ResourceBindingSpec{
 			Resource: v1alpha1.ObjectReference{
