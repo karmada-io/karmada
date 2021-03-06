@@ -272,10 +272,10 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 	return d.Client.Update(context.TODO(), object.DeepCopyObject())
 }
 
-// BuildResourceBinding builds a desired PropagationBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *policyv1alpha1.PropagationBinding {
+// BuildResourceBinding builds a desired ResourceBinding for object.
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *policyv1alpha1.ResourceBinding {
 	bindingName := names.GenerateBindingName(object.GetNamespace(), object.GetKind(), object.GetName())
-	propagationBinding := &policyv1alpha1.PropagationBinding{
+	propagationBinding := &policyv1alpha1.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: object.GetNamespace(),
@@ -289,7 +289,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 				util.OwnerLabel: names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName()),
 			},
 		},
-		Spec: policyv1alpha1.PropagationBindingSpec{
+		Spec: policyv1alpha1.ResourceBindingSpec{
 			Resource: policyv1alpha1.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),

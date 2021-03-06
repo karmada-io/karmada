@@ -14,10 +14,10 @@ type Interface interface {
 	ClusterPropagationPolicies() ClusterPropagationPolicyInformer
 	// OverridePolicies returns a OverridePolicyInformer.
 	OverridePolicies() OverridePolicyInformer
-	// PropagationBindings returns a PropagationBindingInformer.
-	PropagationBindings() PropagationBindingInformer
 	// PropagationPolicies returns a PropagationPolicyInformer.
 	PropagationPolicies() PropagationPolicyInformer
+	// ResourceBindings returns a ResourceBindingInformer.
+	ResourceBindings() ResourceBindingInformer
 	// Works returns a WorkInformer.
 	Works() WorkInformer
 }
@@ -48,14 +48,14 @@ func (v *version) OverridePolicies() OverridePolicyInformer {
 	return &overridePolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// PropagationBindings returns a PropagationBindingInformer.
-func (v *version) PropagationBindings() PropagationBindingInformer {
-	return &propagationBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
 // PropagationPolicies returns a PropagationPolicyInformer.
 func (v *version) PropagationPolicies() PropagationPolicyInformer {
 	return &propagationPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ResourceBindings returns a ResourceBindingInformer.
+func (v *version) ResourceBindings() ResourceBindingInformer {
+	return &resourceBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Works returns a WorkInformer.

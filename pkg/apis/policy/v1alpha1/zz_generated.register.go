@@ -48,10 +48,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterPropagationPolicyList{},
 		&OverridePolicy{},
 		&OverridePolicyList{},
-		&PropagationBinding{},
-		&PropagationBindingList{},
 		&PropagationPolicy{},
 		&PropagationPolicyList{},
+		&ResourceBinding{},
+		&ResourceBindingList{},
 		&Work{},
 		&WorkList{},
 	)

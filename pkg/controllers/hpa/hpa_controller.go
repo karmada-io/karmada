@@ -132,7 +132,7 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 		return nil, err
 	}
 	bindingName := names.GenerateBindingName(unstructuredWorkLoad.GetNamespace(), unstructuredWorkLoad.GetKind(), unstructuredWorkLoad.GetName())
-	binding := &v1alpha1.PropagationBinding{}
+	binding := &v1alpha1.ResourceBinding{}
 	namespacedName := types.NamespacedName{
 		Namespace: namespace,
 		Name:      bindingName,
