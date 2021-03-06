@@ -51,10 +51,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().OverridePolicies().Informer()}, nil
 	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationPolicies().Informer()}, nil
-	case policyv1alpha1.SchemeGroupVersion.WithResource("resourcebindings"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().ResourceBindings().Informer()}, nil
 
 		// Group=work.karmada.io, Version=v1alpha1
+	case workv1alpha1.SchemeGroupVersion.WithResource("resourcebindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha1().ResourceBindings().Informer()}, nil
 	case workv1alpha1.SchemeGroupVersion.WithResource("works"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha1().Works().Informer()}, nil
 

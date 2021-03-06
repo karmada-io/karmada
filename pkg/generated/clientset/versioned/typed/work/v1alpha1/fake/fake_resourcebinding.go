@@ -5,7 +5,7 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,13 +16,13 @@ import (
 
 // FakeResourceBindings implements ResourceBindingInterface
 type FakeResourceBindings struct {
-	Fake *FakePolicyV1alpha1
+	Fake *FakeWorkV1alpha1
 	ns   string
 }
 
-var resourcebindingsResource = schema.GroupVersionResource{Group: "policy.karmada.io", Version: "v1alpha1", Resource: "resourcebindings"}
+var resourcebindingsResource = schema.GroupVersionResource{Group: "work.karmada.io", Version: "v1alpha1", Resource: "resourcebindings"}
 
-var resourcebindingsKind = schema.GroupVersionKind{Group: "policy.karmada.io", Version: "v1alpha1", Kind: "ResourceBinding"}
+var resourcebindingsKind = schema.GroupVersionKind{Group: "work.karmada.io", Version: "v1alpha1", Kind: "ResourceBinding"}
 
 // Get takes name of the resourceBinding, and returns the corresponding resourceBinding object, and an error if there is any.
 func (c *FakeResourceBindings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceBinding, err error) {
