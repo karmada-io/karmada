@@ -126,3 +126,29 @@ type ResourceBindingList struct {
 	// Items is the list of ResourceBinding.
 	Items []ResourceBinding `json:"items"`
 }
+
+// +genclient
+// +genclient:nonNamespaced
+// +kubebuilder:resource:scope="Cluster"
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClusterResourceBinding represents a binding of a kubernetes resource with a ClusterPropagationPolicy.
+type ClusterResourceBinding struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec represents the desired behavior.
+	Spec ResourceBindingSpec `json:"spec"`
+}
+
+// +kubebuilder:resource:scope="Cluster"
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClusterResourceBindingList contains a list of ClusterResourceBinding.
+type ClusterResourceBindingList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// Items is the list of ClusterResourceBinding.
+	Items []ClusterResourceBinding `json:"items"`
+}
