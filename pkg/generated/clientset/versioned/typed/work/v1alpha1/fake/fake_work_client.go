@@ -12,6 +12,10 @@ type FakeWorkV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeWorkV1alpha1) ResourceBindings(namespace string) v1alpha1.ResourceBindingInterface {
+	return &FakeResourceBindings{c, namespace}
+}
+
 func (c *FakeWorkV1alpha1) Works(namespace string) v1alpha1.WorkInterface {
 	return &FakeWorks{c, namespace}
 }

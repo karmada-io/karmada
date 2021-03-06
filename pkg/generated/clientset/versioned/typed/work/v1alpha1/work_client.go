@@ -10,12 +10,17 @@ import (
 
 type WorkV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ResourceBindingsGetter
 	WorksGetter
 }
 
 // WorkV1alpha1Client is used to interact with features provided by the work.karmada.io group.
 type WorkV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *WorkV1alpha1Client) ResourceBindings(namespace string) ResourceBindingInterface {
+	return newResourceBindings(c, namespace)
 }
 
 func (c *WorkV1alpha1Client) Works(namespace string) WorkInterface {

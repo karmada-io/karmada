@@ -28,10 +28,6 @@ func (c *FakePolicyV1alpha1) PropagationPolicies(namespace string) v1alpha1.Prop
 	return &FakePropagationPolicies{c, namespace}
 }
 
-func (c *FakePolicyV1alpha1) ResourceBindings(namespace string) v1alpha1.ResourceBindingInterface {
-	return &FakeResourceBindings{c, namespace}
-}
-
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakePolicyV1alpha1) RESTClient() rest.Interface {
