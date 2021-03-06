@@ -11,5 +11,3 @@ type OverridePolicyExpansion interface{}
 type PropagationPolicyExpansion interface{}
 
 type ResourceBindingExpansion interface{}
-
-type WorkExpansion interface{}

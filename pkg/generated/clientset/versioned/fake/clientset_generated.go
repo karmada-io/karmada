@@ -8,6 +8,8 @@ import (
 	fakeclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1/fake"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	fakepolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1/fake"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
+	fakeworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -70,4 +72,9 @@ func (c *Clientset) ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface {
 // PolicyV1alpha1 retrieves the PolicyV1alpha1Client
 func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
 	return &fakepolicyv1alpha1.FakePolicyV1alpha1{Fake: &c.Fake}
+}
+
+// WorkV1alpha1 retrieves the WorkV1alpha1Client
+func (c *Clientset) WorkV1alpha1() workv1alpha1.WorkV1alpha1Interface {
+	return &fakeworkv1alpha1.FakeWorkV1alpha1{Fake: &c.Fake}
 }
