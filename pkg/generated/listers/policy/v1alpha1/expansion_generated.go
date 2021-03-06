@@ -25,11 +25,3 @@ type PropagationPolicyListerExpansion interface{}
 // PropagationPolicyNamespaceListerExpansion allows custom methods to be added to
 // PropagationPolicyNamespaceLister.
 type PropagationPolicyNamespaceListerExpansion interface{}
-
-// ResourceBindingListerExpansion allows custom methods to be added to
-// ResourceBindingLister.
-type ResourceBindingListerExpansion interface{}
-
-// ResourceBindingNamespaceListerExpansion allows custom methods to be added to
-// ResourceBindingNamespaceLister.
-type ResourceBindingNamespaceListerExpansion interface{}

@@ -16,8 +16,6 @@ type Interface interface {
 	OverridePolicies() OverridePolicyInformer
 	// PropagationPolicies returns a PropagationPolicyInformer.
 	PropagationPolicies() PropagationPolicyInformer
-	// ResourceBindings returns a ResourceBindingInformer.
-	ResourceBindings() ResourceBindingInformer
 }
 
 type version struct {
@@ -49,9 +47,4 @@ func (v *version) OverridePolicies() OverridePolicyInformer {
 // PropagationPolicies returns a PropagationPolicyInformer.
 func (v *version) PropagationPolicies() PropagationPolicyInformer {
 	return &propagationPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// ResourceBindings returns a ResourceBindingInformer.
-func (v *version) ResourceBindings() ResourceBindingInformer {
-	return &resourceBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

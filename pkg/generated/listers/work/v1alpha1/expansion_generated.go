@@ -2,6 +2,14 @@
 
 package v1alpha1
 
+// ResourceBindingListerExpansion allows custom methods to be added to
+// ResourceBindingLister.
+type ResourceBindingListerExpansion interface{}
+
+// ResourceBindingNamespaceListerExpansion allows custom methods to be added to
+// ResourceBindingNamespaceLister.
+type ResourceBindingNamespaceListerExpansion interface{}
+
 // WorkListerExpansion allows custom methods to be added to
 // WorkLister.
 type WorkListerExpansion interface{}

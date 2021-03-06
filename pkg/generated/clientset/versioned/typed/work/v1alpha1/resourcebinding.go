@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -41,7 +41,7 @@ type resourceBindings struct {
 }
 
 // newResourceBindings returns a ResourceBindings
-func newResourceBindings(c *PolicyV1alpha1Client, namespace string) *resourceBindings {
+func newResourceBindings(c *WorkV1alpha1Client, namespace string) *resourceBindings {
 	return &resourceBindings{
 		client: c.RESTClient(),
 		ns:     namespace,
