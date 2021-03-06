@@ -25,11 +25,6 @@ const (
 	// WorkNameLabel is added to objects to specify associated Work's name.
 	WorkNameLabel = "work.karmada.io/name"
 
-	// OwnerLabel will set in karmada CRDs, indicates that who created it.
-	// We can use labelSelector to find who created it quickly.
-	// example1: set it in propagationBinding, the label value is propagationPolicy.
-	// example2: set it in Work, the label value is HPA.
-	OwnerLabel = "karmada.io/created-by"
 	// OverrideClaimKey will set in Work resource, indicates that
 	// the resource is overridden by override policies
 	OverrideClaimKey = "karmada.io/overridden-by"
