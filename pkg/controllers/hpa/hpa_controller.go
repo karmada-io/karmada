@@ -17,7 +17,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -133,7 +133,7 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 		return nil, err
 	}
 	bindingName := names.GenerateBindingName(unstructuredWorkLoad.GetNamespace(), unstructuredWorkLoad.GetKind(), unstructuredWorkLoad.GetName())
-	binding := &v1alpha1.ResourceBinding{}
+	binding := &workv1alpha1.ResourceBinding{}
 	namespacedName := types.NamespacedName{
 		Namespace: namespace,
 		Name:      bindingName,
