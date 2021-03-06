@@ -100,13 +100,7 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 	util.RemoveIrrelevantField(namespaceObj)
 
 	for _, cluster := range clusters {
-		namespaceJSON, err := namespaceObj.MarshalJSON()
-		if err != nil {
-			klog.Errorf("Failed to marshal namespace %s. Error: %v", namespaceObj.GetName(), err)
-			return err
-		}
-
-		executionSpace, err := names.GenerateExecutionSpaceName(cluster.Name)
+		workNamespace, err := names.GenerateExecutionSpaceName(cluster.Name)
 		if err != nil {
 			klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
 			return err
@@ -115,12 +109,20 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 		workName := names.GenerateClusterResourceBindingName(namespaceObj.GetKind(), namespaceObj.GetName())
 		objectMeta := metav1.ObjectMeta{
 			Name:       workName,
-			Namespace:  executionSpace,
+			Namespace:  workNamespace,
 			Finalizers: []string{util.ExecutionControllerFinalizer},
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(namespace, namespace.GroupVersionKind()),
 			},
-			Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValueForClusterResourceBinding(ControllerName + "." + namespace.GetName())},
+		}
+
+		util.MergeLabel(namespaceObj, util.WorkNamespaceLabel, workNamespace)
+		util.MergeLabel(namespaceObj, util.WorkNameLabel, workName)
+
+		namespaceJSON, err := namespaceObj.MarshalJSON()
+		if err != nil {
+			klog.Errorf("Failed to marshal namespace %s. Error: %v", namespaceObj.GetName(), err)
+			return err
 		}
 
 		err = util.CreateOrUpdateWork(c.Client, objectMeta, namespaceJSON)

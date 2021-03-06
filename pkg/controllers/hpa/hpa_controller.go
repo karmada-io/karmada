@@ -83,28 +83,29 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 	hpaObj := &unstructured.Unstructured{Object: uncastObj}
 	util.RemoveIrrelevantField(hpaObj)
 	for _, clusterName := range clusters {
+		workNamespace, err := names.GenerateExecutionSpaceName(clusterName)
+		if err != nil {
+			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
+			return err
+		}
+		workName := names.GenerateBindingName(hpaObj.GetNamespace(), hpaObj.GetKind(), hpaObj.GetName())
+		objectMeta := metav1.ObjectMeta{
+			Name:       workName,
+			Namespace:  workNamespace,
+			Finalizers: []string{util.ExecutionControllerFinalizer},
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(hpa, hpa.GroupVersionKind()),
+			},
+		}
+
+		util.MergeLabel(hpaObj, util.WorkNamespaceLabel, workNamespace)
+		util.MergeLabel(hpaObj, util.WorkNameLabel, workName)
+
 		hpaJSON, err := hpaObj.MarshalJSON()
 		if err != nil {
 			klog.Errorf("Failed to marshal hpa %s/%s. Error: %v",
 				hpaObj.GetNamespace(), hpaObj.GetName(), err)
 			return err
-		}
-
-		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
-		if err != nil {
-			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
-			return err
-		}
-
-		hpaName := names.GenerateBindingName(hpaObj.GetNamespace(), hpaObj.GetKind(), hpaObj.GetName())
-		objectMeta := metav1.ObjectMeta{
-			Name:       hpaName,
-			Namespace:  executionSpace,
-			Finalizers: []string{util.ExecutionControllerFinalizer},
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(hpa, hpa.GroupVersionKind()),
-			},
-			Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(hpa.GetNamespace(), hpa.GetName())},
 		}
 
 		err = util.CreateOrUpdateWork(c.Client, objectMeta, hpaJSON)

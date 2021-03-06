@@ -285,8 +285,6 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			Labels: map[string]string{
 				util.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
 				util.PropagationPolicyNameLabel:      policy.GetName(),
-				// Deprecate util.OwnerLable later
-				util.OwnerLabel: names.GenerateOwnerLabelValue(policy.GetNamespace(), policy.GetName()),
 			},
 		},
 		Spec: policyv1alpha1.ResourceBindingSpec{
