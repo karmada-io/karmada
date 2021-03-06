@@ -9,12 +9,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
 // GetBindingClusterNames will get clusterName list from bind clusters field
-func GetBindingClusterNames(binding *policyv1alpha1.ResourceBinding) []string {
+func GetBindingClusterNames(binding *workv1alpha1.ResourceBinding) []string {
 	var clusterNames []string
 	for _, targetCluster := range binding.Spec.Clusters {
 		clusterNames = append(clusterNames, targetCluster.Name)

@@ -21,6 +21,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -273,9 +274,9 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *policyv1alpha1.ResourceBinding {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *workv1alpha1.ResourceBinding {
 	bindingName := names.GenerateBindingName(object.GetNamespace(), object.GetKind(), object.GetName())
-	propagationBinding := &policyv1alpha1.ResourceBinding{
+	propagationBinding := &workv1alpha1.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: object.GetNamespace(),
@@ -287,8 +288,8 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 				util.PropagationPolicyNameLabel:      policy.GetName(),
 			},
 		},
-		Spec: policyv1alpha1.ResourceBindingSpec{
-			Resource: policyv1alpha1.ObjectReference{
+		Spec: workv1alpha1.ResourceBindingSpec{
+			Resource: workv1alpha1.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
 				Namespace:       object.GetNamespace(),
