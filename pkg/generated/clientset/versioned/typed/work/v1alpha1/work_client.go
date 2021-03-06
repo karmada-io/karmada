@@ -10,6 +10,7 @@ import (
 
 type WorkV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ClusterResourceBindingsGetter
 	ResourceBindingsGetter
 	WorksGetter
 }
@@ -17,6 +18,10 @@ type WorkV1alpha1Interface interface {
 // WorkV1alpha1Client is used to interact with features provided by the work.karmada.io group.
 type WorkV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *WorkV1alpha1Client) ClusterResourceBindings() ClusterResourceBindingInterface {
+	return newClusterResourceBindings(c)
 }
 
 func (c *WorkV1alpha1Client) ResourceBindings(namespace string) ResourceBindingInterface {

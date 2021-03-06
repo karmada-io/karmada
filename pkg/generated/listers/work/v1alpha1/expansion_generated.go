@@ -2,6 +2,10 @@
 
 package v1alpha1
 
+// ClusterResourceBindingListerExpansion allows custom methods to be added to
+// ClusterResourceBindingLister.
+type ClusterResourceBindingListerExpansion interface{}
+
 // ResourceBindingListerExpansion allows custom methods to be added to
 // ResourceBindingLister.
 type ResourceBindingListerExpansion interface{}
