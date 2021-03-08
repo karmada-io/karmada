@@ -1,11 +1,10 @@
-package propagationpolicy
+package clusterpropagationpolicy
 
 import (
 	"context"
 	"encoding/json"
 	"net/http"
 
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -23,19 +22,11 @@ var _ admission.DecoderInjector = &MutatingAdmission{}
 
 // Handle yields a response to an AdmissionRequest.
 func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
-	policy := &policyv1alpha1.PropagationPolicy{}
+	policy := &policyv1alpha1.ClusterPropagationPolicy{}
 
 	err := a.decoder.Decode(req, policy)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
-	}
-
-	// Set default namespace for all resource selector if not set.
-	for i := range policy.Spec.ResourceSelectors {
-		if len(policy.Spec.ResourceSelectors[i].Namespace) == 0 {
-			klog.Infof("Setting resource selector default namespace for policy: %s/%s", policy.Namespace, policy.Name)
-			policy.Spec.ResourceSelectors[i].Namespace = policy.Namespace
-		}
 	}
 
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
