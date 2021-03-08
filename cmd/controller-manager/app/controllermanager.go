@@ -138,10 +138,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	}
 
 	policyController := &propagationpolicy.Controller{
-		Client:        mgr.GetClient(),
-		DynamicClient: dynamicClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(propagationpolicy.ControllerName),
-		RESTMapper:    mgr.GetRESTMapper(),
+		Client: mgr.GetClient(),
 	}
 	if err := policyController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup policy controller: %v", err)
