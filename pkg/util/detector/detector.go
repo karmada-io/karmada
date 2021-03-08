@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,12 +39,19 @@ type ResourceDetector struct {
 	EventHandler    cache.ResourceEventHandler
 	Processor       util.AsyncWorker
 	RESTMapper      meta.RESTMapper
-	stopCh          <-chan struct{}
+
+	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
+	waitingObjects map[ClusterWideKey]struct{}
+	// waitingLock is the lock for waitingObjects operation.
+	waitingLock sync.RWMutex
+
+	stopCh <-chan struct{}
 }
 
 // Start runs the detector, never stop until stopCh closed.
 func (d *ResourceDetector) Start(stopCh <-chan struct{}) error {
 	klog.Infof("Starting resource detector.")
+	d.waitingObjects = make(map[ClusterWideKey]struct{})
 	d.stopCh = stopCh
 
 	d.Processor.Run(1, stopCh)
@@ -110,7 +118,8 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return d.ApplyPolicy(object, clusterWideKey, propagationPolicy)
 	}
 
-	klog.V(2).Infof("No appropriate policy found for object: %s", clusterWideKey.String())
+	d.AddWaiting(clusterWideKey)
+
 	return nil
 }
 
@@ -300,4 +309,13 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 	}
 
 	return propagationBinding
+}
+
+// AddWaiting adds object's key to waiting list.
+func (d *ResourceDetector) AddWaiting(objectKey ClusterWideKey) {
+	d.waitingLock.Lock()
+	defer d.waitingLock.Unlock()
+
+	d.waitingObjects[objectKey] = struct{}{}
+	klog.V(1).Infof("Add object(%s) to waiting list, length of list is: %d", objectKey.String(), len(d.waitingObjects))
 }

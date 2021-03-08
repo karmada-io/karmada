@@ -29,6 +29,9 @@ const (
 
 // AsyncWorker is a worker to process resources periodic with a rateLimitingQueue.
 type AsyncWorker interface {
+	// AddRateLimited adds item to queue.
+	AddRateLimited(item interface{})
+	// EnqueueRateLimited generates the key for objects then adds the key as an item to queue.
 	EnqueueRateLimited(obj runtime.Object)
 	Run(workerNumber int, stopChan <-chan struct{})
 }
@@ -147,11 +150,17 @@ func (w *asyncWorker) EnqueueRateLimited(obj runtime.Object) {
 		klog.Warningf("Failed to generate key for obj: %s", obj.GetObjectKind().GroupVersionKind())
 		return
 	}
-	// it happens when the obj not managed by Karmada.
-	if key == nil {
+
+	w.AddRateLimited(key)
+}
+
+func (w *asyncWorker) AddRateLimited(item interface{}) {
+	if item == nil {
+		klog.Warningf("Ignore nil item from queue")
 		return
 	}
-	w.queue.AddRateLimited(key)
+
+	w.queue.AddRateLimited(item)
 }
 
 func (w *asyncWorker) handleError(err error, key interface{}) {
