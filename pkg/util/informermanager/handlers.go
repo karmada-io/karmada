@@ -38,6 +38,15 @@ func NewHandlerOnAllEvents(fn func(runtime.Object)) cache.ResourceEventHandler {
 	}
 }
 
+// NewHandlerOnEvents builds a ResourceEventHandler.
+func NewHandlerOnEvents(addFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
+	return &cache.ResourceEventHandlerFuncs{
+		AddFunc:    addFunc,
+		UpdateFunc: updateFunc,
+		DeleteFunc: deleteFunc,
+	}
+}
+
 // NewFilteringHandlerOnAllEvents builds a FilteringResourceEventHandler applies the provided filter to all events
 // coming in, ensuring the appropriate nested handler method is invoked.
 //

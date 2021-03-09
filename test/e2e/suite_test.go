@@ -48,7 +48,7 @@ var (
 	clusters        []*clusterapi.Cluster
 	clusterNames    []string
 	clusterClients  []*util.ClusterClient
-	testNamespace   = fmt.Sprintf("karmada-e2e-%s", rand.String(3))
+	testNamespace   = fmt.Sprintf("karmadatest-%s", rand.String(3))
 	clusterProvider *cluster.Provider
 )
 
