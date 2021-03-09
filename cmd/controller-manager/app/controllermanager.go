@@ -155,6 +155,17 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		klog.Fatalf("Failed to setup binding controller: %v", err)
 	}
 
+	clusterResourceBindingController := &binding.ClusterResourceBindingController{
+		Client:          mgr.GetClient(),
+		DynamicClient:   dynamicClientSet,
+		EventRecorder:   mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
+		RESTMapper:      mgr.GetRESTMapper(),
+		OverrideManager: overridemanager,
+	}
+	if err := clusterResourceBindingController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
+	}
+
 	executionController := &execution.Controller{
 		Client:        mgr.GetClient(),
 		KubeClientSet: kubeClientSet,
