@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // Controller is to sync PropagationPolicy.
@@ -39,33 +40,16 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 
 	// TODO(RainbowMango): wait for moving this logic to detector.
 	// Maybe there is another option that introduce status for policy apis.
-	present, err := c.allDependentOverridesPresent(policy)
+	present, err := helper.IsDependentOverridesPresent(c.Client, policy)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	if !present {
 		klog.Infof("waiting for policy(%s) dependent overrides ready.", req.String())
-		return controllerruntime.Result{Requeue: true}, fmt.Errorf("the specific overrides which current PropagationPolicy %v/%v rely on are not all present", policy.GetNamespace(), policy.GetName())
+		return controllerruntime.Result{Requeue: true}, fmt.Errorf("waiting for policy(%s) dependent overrides ready", req.String())
 	}
 
 	return controllerruntime.Result{}, nil
-}
-
-// allDependentOverridesPresent will ensure the specify overrides which current PropagationPolicy rely on are present
-func (c *Controller) allDependentOverridesPresent(policy *v1alpha1.PropagationPolicy) (bool, error) {
-	for _, override := range policy.Spec.DependentOverrides {
-		overrideObj := &v1alpha1.OverridePolicy{}
-		if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: policy.Namespace, Name: override}, overrideObj); err != nil {
-			if errors.IsNotFound(err) {
-				klog.Warningf("The specific override policy %v/%v which current PropagationPolicy %v/%v rely on is not present", policy.Namespace, override, policy.Namespace, policy.Name)
-				return false, nil
-			}
-			klog.Errorf("Failed to get override policy %v/%v, Error: %v", policy.Namespace, override, err)
-			return false, err
-		}
-	}
-
-	return true, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
