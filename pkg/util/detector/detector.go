@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -436,7 +437,28 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 // In addition, the label added to original resource also need to be cleaned up, this gives a chance for
 // original resource to match another policy.
 func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, policyName string) error {
-	// TODO(RainbowMango): Finish it in next iteration.
+	bindings := &workv1alpha1.ResourceBindingList{}
+	selector := labels.SelectorFromSet(labels.Set{
+		util.PropagationPolicyNamespaceLabel: policyNS,
+		util.PropagationPolicyNameLabel:      policyName,
+	})
+	listOpt := &client.ListOptions{LabelSelector: selector}
+
+	if err := d.Client.List(context.TODO(), bindings, listOpt); err != nil {
+		klog.Errorf("Failed to list propagation bindings: %v", err)
+		return err
+	}
+
+	for _, binding := range bindings.Items {
+		klog.V(2).Infof("Removing binding(%s/%s)", binding.Namespace, binding.Name)
+		if err := d.Client.Delete(context.TODO(), &binding); err != nil {
+			klog.Errorf("Failed to delete binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
+			return err
+		}
+	}
+
+	// TODO(RainbowMango): cleanup original resource's label.
+
 	return nil
 }
 
