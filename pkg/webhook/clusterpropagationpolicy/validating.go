@@ -1,4 +1,4 @@
-package propagationpolicy
+package clusterpropagationpolicy
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// ValidatingAdmission validates PropagationPolicy object when creating/updating/deleting.
+// ValidatingAdmission validates ClusterPropagationPolicy object when creating/updating/deleting.
 type ValidatingAdmission struct {
 	decoder *admission.Decoder
 }
@@ -25,16 +25,16 @@ var _ admission.DecoderInjector = &ValidatingAdmission{}
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
-	policy := &policyv1alpha1.PropagationPolicy{}
+	policy := &policyv1alpha1.ClusterPropagationPolicy{}
 
 	err := v.decoder.Decode(req, policy)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	klog.V(2).Infof("Validating PropagationPolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
+	klog.V(2).Infof("Validating ClusterPropagationPolicy(%s) for request: %s", policy.Name, req.Operation)
 
 	if req.Operation == v1beta1.Update {
-		oldPolicy := &policyv1alpha1.PropagationPolicy{}
+		oldPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
 		err := v.decoder.DecodeRaw(req.OldObject, oldPolicy)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
