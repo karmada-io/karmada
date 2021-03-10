@@ -97,7 +97,6 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 		return nil
 	}
 	namespaceObj := &unstructured.Unstructured{Object: uncastObj}
-	util.RemoveIrrelevantField(namespaceObj)
 
 	for _, cluster := range clusters {
 		workNamespace, err := names.GenerateExecutionSpaceName(cluster.Name)
