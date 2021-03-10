@@ -155,17 +155,6 @@ func (c *ResourceBindingController) getBindingClusterNames(binding *workv1alpha1
 	return clusterNames
 }
 
-// removeIrrelevantField will delete irrelevant field from workload. such as uid, timestamp, status
-func (c *ResourceBindingController) removeIrrelevantField(workload *unstructured.Unstructured) {
-	unstructured.RemoveNestedField(workload.Object, "metadata", "creationTimestamp")
-	unstructured.RemoveNestedField(workload.Object, "metadata", "generation")
-	unstructured.RemoveNestedField(workload.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(workload.Object, "metadata", "selfLink")
-	unstructured.RemoveNestedField(workload.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(workload.Object, "metadata", "uid")
-	unstructured.RemoveNestedField(workload.Object, "status")
-}
-
 // transformBindingToWorks will transform propagationBinding to Works
 func (c *ResourceBindingController) transformBindingToWorks(binding *workv1alpha1.ResourceBinding, clusterNames []string) error {
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
@@ -193,7 +182,6 @@ func (c *ResourceBindingController) transformBindingToWorks(binding *workv1alpha
 // ensureWork ensure Work to be created or updated
 func (c *ResourceBindingController) ensureWork(workload *unstructured.Unstructured, clusterNames []string,
 	binding *workv1alpha1.ResourceBinding) error {
-	c.removeIrrelevantField(workload)
 
 	for _, clusterName := range clusterNames {
 		// apply override policies

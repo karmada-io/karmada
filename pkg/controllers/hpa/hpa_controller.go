@@ -81,7 +81,6 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 		return nil
 	}
 	hpaObj := &unstructured.Unstructured{Object: uncastObj}
-	util.RemoveIrrelevantField(hpaObj)
 	for _, clusterName := range clusters {
 		workNamespace, err := names.GenerateExecutionSpaceName(clusterName)
 		if err != nil {
