@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
@@ -40,4 +41,35 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 		}
 	}
 	return nil
+}
+
+// IsDependentOverridesPresent checks if a PropagationPolicy's dependent OverridePolicy all exist.
+func IsDependentOverridesPresent(c client.Client, policy *policyv1alpha1.PropagationPolicy) (bool, error) {
+	ns := policy.Namespace
+	for _, override := range policy.Spec.DependentOverrides {
+		exist, err := IsOverridePolicyExist(c, ns, override)
+		if err != nil {
+			return false, err
+		}
+		if !exist {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// IsDependentClusterOverridesPresent checks if a ClusterPropagationPolicy's dependent ClusterOverridePolicy all exist.
+func IsDependentClusterOverridesPresent(c client.Client, policy *policyv1alpha1.ClusterPropagationPolicy) (bool, error) {
+	for _, override := range policy.Spec.DependentOverrides {
+		exist, err := IsClusterOverridePolicyExist(c, override)
+		if err != nil {
+			return false, err
+		}
+		if !exist {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

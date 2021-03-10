@@ -25,6 +25,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -126,6 +127,12 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return err
 	}
 	if propagationPolicy != nil {
+		// return err when dependents not present, that we can retry at next reconcile.
+		if present, err := helper.IsDependentOverridesPresent(d.Client, propagationPolicy); err != nil || !present {
+			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", propagationPolicy.Namespace, propagationPolicy.Name)
+			return fmt.Errorf("waiting for dependent overrides")
+		}
+
 		return d.ApplyPolicy(object, clusterWideKey, propagationPolicy)
 	}
 
@@ -468,6 +475,16 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 func (d *ResourceDetector) HandlePropagationPolicyCreation(policy *policyv1alpha1.PropagationPolicy) error {
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
 	klog.Infof("Match %d resources by policy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
+
+	// check dependents only when there at least a real match.
+	if len(matchedKeys) > 0 {
+		// return err when dependents not present, that we can retry at next reconcile.
+		if present, err := helper.IsDependentOverridesPresent(d.Client, policy); err != nil || !present {
+			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", policy.Namespace, policy.Name)
+			return fmt.Errorf("waiting for dependent overrides")
+		}
+	}
+
 	for _, key := range matchedKeys {
 		d.RemoveWaiting(key)
 		d.Processor.AddRateLimited(key)
