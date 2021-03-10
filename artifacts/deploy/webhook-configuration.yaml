@@ -19,6 +19,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1beta1"]
     timeoutSeconds: 3
+  - name: clusterpropagationpolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["clusterpropagationpolicies"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/mutate-clusterpropagationpolicy
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1beta1"]
+    timeoutSeconds: 3
   - name: overridepolicy.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
@@ -64,6 +78,20 @@ webhooks:
         scope: "Namespaced"
     clientConfig:
       url: https://karmada-webhook.karmada-system.svc:443/validate-propagationpolicy
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1beta1"]
+    timeoutSeconds: 3
+  - name: clusterpropagationpolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["clusterpropagationpolicies"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-clusterpropagationpolicy
       caBundle: {{caBundle}}
     failurePolicy: Fail
     sideEffects: None
