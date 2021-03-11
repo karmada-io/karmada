@@ -120,7 +120,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return err
 	}
 
-	// for namespace scoped resource, first attempts to match policy in it's namespace.
+	// first attempts to match policy in it's namespace.
 	propagationPolicy, err := d.LookForMatchedPolicy(object, clusterWideKey)
 	if err != nil {
 		klog.Errorf("Failed to retrieve policy for object: %s, error: %v", clusterWideKey.String(), err)
@@ -136,6 +136,17 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return d.ApplyPolicy(object, clusterWideKey, propagationPolicy)
 	}
 
+	// reaching here means there is no appropriate PropagationPolicy, attempts to match a ClusterPropagationPolicy.
+	clusterPolicy, err := d.LookForMatchedClusterPolicy(object, clusterWideKey)
+	if err != nil {
+		klog.Errorf("Failed to retrieve cluster policy for object: %s, error: %v", clusterWideKey.String(), err)
+		return err
+	}
+	if clusterPolicy != nil {
+		return d.ApplyClusterPolicy(object, clusterWideKey, clusterPolicy)
+	}
+
+	// reaching here mean there is no appropriate policy for the object, put it into waiting list.
 	d.AddWaiting(clusterWideKey)
 
 	return nil
@@ -205,14 +216,13 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 		return nil, nil
 	}
 
-	klog.V(2).Infof("attempts to match policy in namespace: %s", objectKey.Namespace)
+	klog.V(2).Infof("attempts to match policy for resource: %s", objectKey)
 	policyList := &policyv1alpha1.PropagationPolicyList{}
 	if err := d.Client.List(context.TODO(), policyList, &client.ListOptions{Namespace: objectKey.Namespace}); err != nil {
 		klog.Errorf("Failed to list propagation policy: %v", err)
 		return nil, err
 	}
 
-	klog.V(2).Infof("found %d policies in namespace: %s", len(policyList.Items), objectKey.Namespace)
 	if len(policyList.Items) == 0 {
 		return nil, nil
 	}
@@ -228,7 +238,31 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 	return nil, nil
 }
 
-// ApplyPolicy starts propagate the object referenced by object key.
+// LookForMatchedClusterPolicy tries to find a ClusterPropagationPolicy for object referenced by object key.
+func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unstructured, objectKey ClusterWideKey) (*policyv1alpha1.ClusterPropagationPolicy, error) {
+	klog.V(2).Infof("attempts to match cluster policy for resource: %s", objectKey)
+	policyList := &policyv1alpha1.ClusterPropagationPolicyList{}
+	if err := d.Client.List(context.TODO(), policyList); err != nil {
+		klog.Errorf("Failed to list cluster propagation policy: %v", err)
+		return nil, err
+	}
+
+	if len(policyList.Items) == 0 {
+		return nil, nil
+	}
+
+	for _, policy := range policyList.Items {
+		for _, rs := range policy.Spec.ResourceSelectors {
+			if util.ResourceMatches(object, rs) {
+				klog.V(2).Infof("Matched cluster policy(%s) for object(%s)", policy.Name, objectKey)
+				return &policy, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+// ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
 func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) error {
 	klog.Infof("Applying policy(%s) for object: %s", policy.Name, objectKey)
 
@@ -257,6 +291,40 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		klog.Infof("Update ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
 	} else {
 		klog.V(2).Infof("ResourceBinding(%s/%s) is up to date.", binding.GetNamespace(), binding.GetName())
+	}
+
+	return nil
+}
+
+// ApplyClusterPolicy starts propagate the object referenced by object key according to ClusterPropagationPolicy.
+func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) error {
+	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
+
+	if err := d.ClaimClusterPolicyForObject(object, policy.Name); err != nil {
+		klog.Errorf("Failed to claim cluster policy(%s) for object: %s", policy.Name, object)
+		return err
+	}
+
+	binding := d.BuildClusterResourceBinding(object, objectKey, policy)
+	bindingCopy := binding.DeepCopy()
+	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+		// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+		bindingCopy.Labels = binding.Labels
+		bindingCopy.OwnerReferences = binding.OwnerReferences
+		bindingCopy.Spec.Resource = binding.Spec.Resource
+		return nil
+	})
+	if err != nil {
+		klog.Errorf("Failed to apply cluster policy(%s) for object: %s. error: %v", policy.Name, objectKey, err)
+		return err
+	}
+
+	if operationResult == controllerutil.OperationResultCreated {
+		klog.Infof("Create ClusterResourceBinding(%s) successfully.", binding.GetName())
+	} else if operationResult == controllerutil.OperationResultUpdated {
+		klog.Infof("Update ClusterResourceBinding(%s) successfully.", binding.GetName())
+	} else {
+		klog.V(2).Infof("ClusterResourceBinding(%s) is up to date.", binding.GetName())
 	}
 
 	return nil
@@ -322,6 +390,19 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 	return d.Client.Update(context.TODO(), object.DeepCopyObject())
 }
 
+// ClaimClusterPolicyForObject set cluster identifier which the object associated with.
+func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policyName string) error {
+	claimedName := util.GetLabelValue(object.GetLabels(), util.ClusterPropagationPolicyLabel)
+
+	// object has been claimed, don't need to claim again
+	if claimedName == policyName {
+		return nil
+	}
+
+	util.MergeLabel(object, util.ClusterPropagationPolicyLabel, policyName)
+	return d.Client.Update(context.TODO(), object.DeepCopyObject())
+}
+
 // BuildResourceBinding builds a desired ResourceBinding for object.
 func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *workv1alpha1.ResourceBinding {
 	bindingName := names.GenerateBindingName(object.GetNamespace(), object.GetKind(), object.GetName())
@@ -349,6 +430,33 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 	}
 
 	return propagationBinding
+}
+
+// BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) *workv1alpha1.ClusterResourceBinding {
+	bindingName := names.GenerateBindingName(object.GetNamespace(), object.GetKind(), object.GetName())
+	binding := &workv1alpha1.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: bindingName,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, objectKey.GVK),
+			},
+			Labels: map[string]string{
+				util.ClusterPropagationPolicyLabel: policy.GetName(),
+			},
+		},
+		Spec: workv1alpha1.ResourceBindingSpec{
+			Resource: workv1alpha1.ObjectReference{
+				APIVersion:      object.GetAPIVersion(),
+				Kind:            object.GetKind(),
+				Namespace:       object.GetNamespace(),
+				Name:            object.GetName(),
+				ResourceVersion: object.GetResourceVersion(),
+			},
+		},
+	}
+
+	return binding
 }
 
 // AddWaiting adds object's key to waiting list.
