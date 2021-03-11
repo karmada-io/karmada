@@ -38,6 +38,9 @@ const (
 
 	// MinimumCluster represents the minimum number of member clusters to run E2E test.
 	MinimumCluster = 2
+
+	// RandomStrLength represents the random string length to combine names.
+	RandomStrLength = 3
 )
 
 var (
@@ -48,7 +51,7 @@ var (
 	clusters        []*clusterapi.Cluster
 	clusterNames    []string
 	clusterClients  []*util.ClusterClient
-	testNamespace   = fmt.Sprintf("karmadatest-%s", rand.String(3))
+	testNamespace   = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	clusterProvider *cluster.Provider
 )
 
