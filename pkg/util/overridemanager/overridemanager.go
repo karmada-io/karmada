@@ -50,8 +50,8 @@ func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstruc
 		return err
 	}
 
-	// Apply namespace scoped override policies
 	if len(rawObj.GetNamespace()) > 0 {
+		// Apply namespace scoped override policies
 		if err := o.applyNamespacedOverrides(rawObj, clusterObj); err != nil {
 			klog.Errorf("Failed to apply namespaced override policies. error: %v", err)
 			return err
@@ -63,8 +63,32 @@ func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstruc
 
 // applyClusterOverrides will apply overrides according to ClusterOverridePolicy instructions.
 func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) error {
+	// get all cluster-scoped override policies
+	policyList := &policyv1alpha1.ClusterOverridePolicyList{}
+	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{}); err != nil {
+		klog.Errorf("Failed to list cluster override policies, error: %v", err)
+		return err
+	}
 
-	// TODO(RainbowMango): implements later after ClusterOverridePolicy get on board.
+	if len(policyList.Items) == 0 {
+		return nil
+	}
+
+	matchedPolicies := o.getMatchedClusterOverridePolicy(policyList.Items, rawObj, cluster)
+	if len(matchedPolicies) == 0 {
+		klog.V(2).Infof("No cluster override policy for resource: %s", rawObj.GetName())
+		return nil
+	}
+
+	var appliedList []string
+	for _, p := range matchedPolicies {
+		klog.Infof("Applying cluster overrides(%s) for %s", p.Name, rawObj.GetName())
+		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
+			return err
+		}
+		appliedList = append(appliedList, p.Name)
+	}
+	util.MergeAnnotation(rawObj, util.AppliedClusterOverrideKey, strings.Join(appliedList, ","))
 
 	return nil
 }
@@ -101,11 +125,36 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 	return nil
 }
 
+func (o *overrideManagerImpl) getMatchedClusterOverridePolicy(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.ClusterOverridePolicy {
+	// select policy in which at least one resource selector matches target resource.
+	resourceMatches := make([]policyv1alpha1.ClusterOverridePolicy, 0)
+	for _, policy := range policies {
+		if OverridePolicyMatches(resource, policy.Spec.ResourceSelectors) {
+			resourceMatches = append(resourceMatches, policy)
+		}
+	}
+
+	// select policy which cluster selector matches target resource.
+	clusterMatches := make([]policyv1alpha1.ClusterOverridePolicy, 0)
+	for _, policy := range resourceMatches {
+		if util.ClusterMatches(cluster, policy.Spec.TargetCluster) {
+			clusterMatches = append(clusterMatches, policy)
+		}
+	}
+
+	// select policy in which at least one PlaintextOverrider matches target resource.
+	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
+
+	// TODO(RainbowMango): Sort by policy names.
+
+	return clusterMatches
+}
+
 func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []policyv1alpha1.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.OverridePolicy {
 	// select policy in which at least one resource selector matches target resource.
 	resourceMatches := make([]policyv1alpha1.OverridePolicy, 0)
 	for _, policy := range policies {
-		if OverridePolicyMatches(resource, &policy) {
+		if OverridePolicyMatches(resource, policy.Spec.ResourceSelectors) {
 			resourceMatches = append(resourceMatches, policy)
 		}
 	}
@@ -165,8 +214,8 @@ func applyJSONPatch(obj *unstructured.Unstructured, overrides []overrideOption) 
 }
 
 // OverridePolicyMatches tells if the override policy should be applied to the resource.
-func OverridePolicyMatches(resource *unstructured.Unstructured, policy *policyv1alpha1.OverridePolicy) bool {
-	for _, rs := range policy.Spec.ResourceSelectors {
+func OverridePolicyMatches(resource *unstructured.Unstructured, resourceSelector []policyv1alpha1.ResourceSelector) bool {
+	for _, rs := range resourceSelector {
 		if util.ResourceMatches(resource, rs) {
 			return true
 		}
