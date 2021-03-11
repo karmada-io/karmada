@@ -41,7 +41,8 @@ func GetBindingClusterNames(targetClusters []workv1alpha1.TargetCluster) []strin
 	return clusterNames
 }
 
-// FindOrphanWorks will find orphan works that don't match current propagationBinding/clusterPropagationBinding clusters.
+// FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
+// then pick the works that not meet current binding declaration.
 func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clusterNames []string, scope apiextensionsv1.ResourceScope) ([]workv1alpha1.Work, error) {
 	workList := &workv1alpha1.WorkList{}
 	if scope == apiextensionsv1.NamespaceScoped {

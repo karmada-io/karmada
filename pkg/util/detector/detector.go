@@ -40,10 +40,13 @@ type ResourceDetector struct {
 	InformerManager informermanager.SingleClusterInformerManager
 	EventHandler    cache.ResourceEventHandler
 	Processor       util.AsyncWorker
-	// policyReconcileWorker maintains a rate limited queue which contains PropagationPolicy keys and
+	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's and
 	// a reconcile function to consume the items in the queue.
 	policyReconcileWorker util.AsyncWorker
-	RESTMapper            meta.RESTMapper
+	// clusterPolicyReconcileWorker maintains a rate limited queue which used to store ClusterPropagationPolicy's key and
+	// a reconcile function to consume the items in the queue.
+	clusterPolicyReconcileWorker util.AsyncWorker
+	RESTMapper                   meta.RESTMapper
 
 	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
 	waitingObjects map[ClusterWideKey]struct{}
@@ -62,9 +65,14 @@ func (d *ResourceDetector) Start(stopCh <-chan struct{}) error {
 	// setup policy reconcile worker
 	d.policyReconcileWorker = util.NewAsyncWorker("propagationpolicy detector", 1*time.Millisecond, ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
 	d.policyReconcileWorker.Run(1, d.stopCh)
+	d.clusterPolicyReconcileWorker = util.NewAsyncWorker("cluster policy reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileClusterPropagationPolicy)
+	d.clusterPolicyReconcileWorker.Run(1, d.stopCh)
 
-	// watch and enqueue PropagationPolicy changes.
-	d.InformerManager.ForResource(policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"), informermanager.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, d.OnPropagationPolicyDelete))
+	// watch and enqueue policy changes.
+	policyHandler := informermanager.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, d.OnPropagationPolicyDelete)
+	d.InformerManager.ForResource(policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"), policyHandler)
+	clusterPolicyHandler := informermanager.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, d.OnClusterPropagationPolicyDelete)
+	d.InformerManager.ForResource(policyv1alpha1.SchemeGroupVersion.WithResource("clusterpropagationpolicies"), clusterPolicyHandler)
 
 	d.Processor.Run(1, stopCh)
 	go d.discoverResources(30 * time.Second)
@@ -525,7 +533,7 @@ func (d *ResourceDetector) OnPropagationPolicyDelete(obj interface{}) {
 // ReconcilePropagationPolicy handles PropagationPolicy resource changes.
 // When adding a PropagationPolicy, the detector will pick the objects in waitingObjects list that matches the policy and
 // put the object to queue.
-// When removing a PropagationPolicy, the relevant PropagationBinding will be removed and
+// When removing a PropagationPolicy, the relevant ResourceBinding will be removed and
 // the relevant objects will be put into queue again to try another policy.
 func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 	ckey, ok := key.(ClusterWideKey)
@@ -545,6 +553,51 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 
 	klog.Infof("Policy(%s) has been added", ckey.NamespaceKey())
 	return d.HandlePropagationPolicyCreation(policy)
+}
+
+// OnClusterPropagationPolicyAdd handles object add event and push the object to queue.
+func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}) {
+	key, err := ClusterWideKeyFunc(obj)
+	if err != nil {
+		return
+	}
+
+	d.clusterPolicyReconcileWorker.AddRateLimited(key)
+}
+
+// OnClusterPropagationPolicyUpdate handles object update event and push the object to queue.
+func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj interface{}) {
+	// currently do nothing, since a policy's resource selector can not be updated.
+}
+
+// OnClusterPropagationPolicyDelete handles object delete event and push the object to queue.
+func (d *ResourceDetector) OnClusterPropagationPolicyDelete(obj interface{}) {
+	d.OnClusterPropagationPolicyAdd(obj)
+}
+
+// ReconcileClusterPropagationPolicy handles ClusterPropagationPolicy resource changes.
+// When adding a ClusterPropagationPolicy, the detector will pick the objects in waitingObjects list that matches the policy and
+// put the object to queue.
+// When removing a ClusterPropagationPolicy, the relevant ClusterResourceBinding will be removed and
+// the relevant objects will be put into queue again to try another policy.
+func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) error {
+	ckey, ok := key.(ClusterWideKey)
+	if !ok { // should not happen
+		klog.Error("Found invalid key when reconciling cluster propagation policy.")
+		return fmt.Errorf("invalid key")
+	}
+
+	policy := &policyv1alpha1.ClusterPropagationPolicy{}
+	if err := d.Client.Get(context.TODO(), client.ObjectKey{Name: ckey.Name}, policy); err != nil {
+		if errors.IsNotFound(err) {
+			klog.Infof("Policy(%s) has been removed", ckey.NamespaceKey())
+			return d.HandlePropagationPolicyDeletion(ckey.Namespace, ckey.Name)
+		}
+		return err
+	}
+
+	klog.Infof("Policy(%s) has been added", ckey.NamespaceKey())
+	return d.HandleClusterPropagationPolicyCreation(policy)
 }
 
 // HandlePropagationPolicyDeletion handles PropagationPolicy delete event.
@@ -577,18 +630,71 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 	return nil
 }
 
+// HandleClusterPropagationPolicyDeletion handles ClusterPropagationPolicy delete event.
+// When policy removing, the associated ClusterResourceBinding objects should be cleaned up.
+// In addition, the label added to original resource also need to be cleaned up, this gives a chance for
+// original resource to match another policy.
+func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName string) error {
+	bindings := &workv1alpha1.ClusterResourceBindingList{}
+	selector := labels.SelectorFromSet(labels.Set{
+		util.ClusterPropagationPolicyLabel: policyName,
+	})
+	listOpt := &client.ListOptions{LabelSelector: selector}
+
+	if err := d.Client.List(context.TODO(), bindings, listOpt); err != nil {
+		klog.Errorf("Failed to list cluster propagation bindings: %v", err)
+		return err
+	}
+
+	for _, binding := range bindings.Items {
+		klog.V(2).Infof("Removing cluster resource binding(%s)", binding.Name)
+		if err := d.Client.Delete(context.TODO(), &binding); err != nil {
+			klog.Errorf("Failed to delete cluster resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
+			return err
+		}
+	}
+
+	// TODO(RainbowMango): cleanup original resource's label.
+
+	return nil
+}
+
 // HandlePropagationPolicyCreation handles PropagationPolicy add event.
 // When a new policy arrives, should check if object in waiting list matches the policy, if yes remove the object
 // from waiting list and throw the object to it's reconcile queue. If not, do nothing.
 func (d *ResourceDetector) HandlePropagationPolicyCreation(policy *policyv1alpha1.PropagationPolicy) error {
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
-	klog.Infof("Match %d resources by policy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
+	klog.Infof("Matched %d resources by policy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
 
 	// check dependents only when there at least a real match.
 	if len(matchedKeys) > 0 {
 		// return err when dependents not present, that we can retry at next reconcile.
 		if present, err := helper.IsDependentOverridesPresent(d.Client, policy); err != nil || !present {
 			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", policy.Namespace, policy.Name)
+			return fmt.Errorf("waiting for dependent overrides")
+		}
+	}
+
+	for _, key := range matchedKeys {
+		d.RemoveWaiting(key)
+		d.Processor.AddRateLimited(key)
+	}
+
+	return nil
+}
+
+// HandleClusterPropagationPolicyCreation handles ClusterPropagationPolicy add event.
+// When a new policy arrives, should check if object in waiting list matches the policy, if yes remove the object
+// from waiting list and throw the object to it's reconcile queue. If not, do nothing.
+func (d *ResourceDetector) HandleClusterPropagationPolicyCreation(policy *policyv1alpha1.ClusterPropagationPolicy) error {
+	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
+	klog.Infof("Matched %d resources by policy(%s)", len(matchedKeys), policy.Name)
+
+	// check dependents only when there at least a real match.
+	if len(matchedKeys) > 0 {
+		// return err when dependents not present, that we can retry at next reconcile.
+		if present, err := helper.IsDependentClusterOverridesPresent(d.Client, policy); err != nil || !present {
+			klog.Infof("Waiting for dependent overrides present for policy(%s)", policy.Name)
 			return fmt.Errorf("waiting for dependent overrides")
 		}
 	}
