@@ -60,6 +60,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		cancel()
 	}()
 
+	scheduler.Failover = opts.Failover
 	sched := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet)
 	if !opts.LeaderElection.LeaderElect {
 		sched.Run(ctx)

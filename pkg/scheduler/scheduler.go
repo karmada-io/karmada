@@ -40,6 +40,10 @@ const (
 	maxRetries = 15
 )
 
+// Failover indicates if the scheduler should performs re-scheduler in case of cluster failure.
+// TODO(RainbowMango): Remove the temporary solution by introducing feature flag
+var Failover bool
+
 // Scheduler is the scheduler schema, which is used to schedule a specific resource to specific clusters
 type Scheduler struct {
 	DynamicClient          dynamic.Interface
@@ -225,6 +229,7 @@ func (s *Scheduler) scheduleNext() bool {
 		return false
 	}
 	defer s.queue.Done(key)
+	klog.Infof("Failover flag is: %v", Failover)
 
 	err := s.scheduleOne(key.(string))
 	s.handleErr(err, key)
