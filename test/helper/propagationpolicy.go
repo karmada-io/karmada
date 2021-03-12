@@ -18,6 +18,11 @@ func NewPolicyWithSingleService(namespace, name string, service *corev1.Service,
 	return newPolicy(namespace, name, service.APIVersion, service.Kind, service.Name, clusters)
 }
 
+// NewPolicyWithSinglePod will build a PropagationPolicy object.
+func NewPolicyWithSinglePod(namespace, name string, pod *corev1.Pod, clusters []string) *propagationapi.PropagationPolicy {
+	return newPolicy(namespace, name, pod.APIVersion, pod.Kind, pod.Name, clusters)
+}
+
 // newPolicy will build a PropagationPolicy object.
 func newPolicy(namespace, policyName, apiVersion, kind, resourceName string, clusters []string) *propagationapi.PropagationPolicy {
 	return &propagationapi.PropagationPolicy{
