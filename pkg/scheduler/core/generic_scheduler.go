@@ -8,7 +8,6 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	lister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
@@ -18,7 +17,7 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *workv1alpha1.ResourceBinding) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *policyv1alpha1.Placement) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -46,39 +45,28 @@ func NewGenericScheduler(
 	}
 }
 
-func (g *genericScheduler) Schedule(ctx context.Context, binding *workv1alpha1.ResourceBinding) (result ScheduleResult, err error) {
-	klog.V(4).Infof("Scheduling %s/%s", binding.Namespace, binding.Name)
-
+func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
-
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	policyNamespace := util.GetLabelValue(binding.Labels, util.PropagationPolicyNamespaceLabel)
-	policyName := util.GetLabelValue(binding.Labels, util.PropagationPolicyNameLabel)
-
-	policy, err := g.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
+	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, clusterInfoSnapshot)
 	if err != nil {
-		return result, fmt.Errorf("no propagation policy found for <%s/%s>: %v", binding.Namespace, binding.Name, err)
-	}
-
-	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, &policy.Spec.Placement, clusterInfoSnapshot)
-	if err != nil {
-		return result, fmt.Errorf("failed findClustersThatFit for <%s/%s>: %v", binding.Namespace, binding.Name, err)
+		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
 	if len(feasibleClusters) == 0 {
 		return result, fmt.Errorf("no clusters fit")
 	}
-	klog.V(4).Infof("feasible clusters found for <%s/%s>: %v", binding.Namespace, binding.Name, feasibleClusters)
+	klog.V(4).Infof("feasible clusters found: %v", feasibleClusters)
 
-	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, &policy.Spec.Placement, feasibleClusters)
+	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, feasibleClusters)
 	if err != nil {
-		return result, fmt.Errorf("failed prioritizeClusters for <%s/%s>: %v", binding.Namespace, binding.Name, err)
+		return result, fmt.Errorf("failed to prioritizeClusters: %v", err)
 	}
-	klog.V(4).Infof("feasible clusters scores for <%s/%s>: %v", binding.Namespace, binding.Name, clustersScore)
+	klog.V(4).Infof("feasible clusters scores: %v", clustersScore)
 
-	clusters := g.selectClusters(clustersScore, policy.Spec.Placement.SpreadConstraints, feasibleClusters)
+	clusters := g.selectClusters(clustersScore, placement.SpreadConstraints, feasibleClusters)
 	result.SuggestedClusters = clusters
 
 	return result, nil
