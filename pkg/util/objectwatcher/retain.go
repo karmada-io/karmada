@@ -15,6 +15,8 @@ For reference: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/contro
 const (
 	// ServiceKind indicates the target resource is a service
 	ServiceKind = "Service"
+	// PodKind indicates the target resource is a pod
+	PodKind = "Pod"
 	// ServiceAccountKind indicates the target resource is a serviceaccount
 	ServiceAccountKind = "ServiceAccount"
 	// SecretsField indicates the 'secrets' field of a service account
@@ -34,11 +36,28 @@ func RetainClusterFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 	desiredObj.SetFinalizers(clusterObj.GetFinalizers())
 	desiredObj.SetAnnotations(clusterObj.GetAnnotations())
 
+	if targetKind == PodKind {
+		return retainPodFields(desiredObj, clusterObj)
+	}
 	if targetKind == ServiceKind {
 		return retainServiceFields(desiredObj, clusterObj)
 	}
 	if targetKind == ServiceAccountKind {
 		return retainServiceAccountFields(desiredObj, clusterObj)
+	}
+	return nil
+}
+
+func retainPodFields(desiredObj, clusterObj *unstructured.Unstructured) error {
+	nodeName, ok, err := unstructured.NestedString(clusterObj.Object, "spec", "nodeName")
+	if err != nil {
+		return fmt.Errorf("error retrieving nodeName from cluster pod: %w", err)
+	}
+	if ok && nodeName != "" {
+		err := unstructured.SetNestedField(desiredObj.Object, nodeName, "spec", "nodeName")
+		if err != nil {
+			return fmt.Errorf("error setting nodeName for pod: %w", err)
+		}
 	}
 	return nil
 }
