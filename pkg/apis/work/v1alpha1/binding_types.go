@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // +genclient
@@ -74,46 +75,10 @@ type ResourceBindingStatus struct {
 type AggregatedStatusItem struct {
 	// ClusterName represents the member cluster name which the resource deployed on.
 	ClusterName string `json:"clusterName"`
-	// ResourceStatus represents the status of the resource.
-	// +optional
-	ResourceStatus ResourceStatus `json:"resourceStatus,omitempty"`
-}
 
-// ResourceStatus represents status of all supported resource type.
-// Each field owns a specific `Kind`, and only one field will be available(non-nil).
-type ResourceStatus struct {
-	// Deployment represents the deployment status in the member cluster,
-	// only available when the resource kind is Deployment.
-	// +optional
-	Deployment *DeploymentStatus `json:"deploymentStatus,omitempty"`
-	// DaemonSet
-	// Job
-	// Secret...
-}
-
-// DeploymentStatus represents a 'Deployment' status.
-type DeploymentStatus struct {
-	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
-	// +optional
-	Replicas int32 `json:"replicas,omitempty"`
-
-	// Total number of non-terminated pods targeted by this deployment that have the desired template spec.
-	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
-
-	// Total number of ready pods targeted by this deployment.
-	// +optional
-	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
-
-	// Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.
-	// +optional
-	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
-
-	// Total number of unavailable pods targeted by this deployment. This is the total number of
-	// pods that are still required for the deployment to have 100% available capacity. They may
-	// either be pods that are running but not yet available or pods that still have not been created.
-	// +optional
-	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
+	// Status reflects running status of current manifest.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Status runtime.RawExtension `json:",inline"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -129,8 +94,9 @@ type ResourceBindingList struct {
 
 // +genclient
 // +genclient:nonNamespaced
-// +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:scope="Cluster"
+// +kubebuilder:subresource:status
 
 // ClusterResourceBinding represents a binding of a kubernetes resource with a ClusterPropagationPolicy.
 type ClusterResourceBinding struct {
@@ -139,6 +105,10 @@ type ClusterResourceBinding struct {
 
 	// Spec represents the desired behavior.
 	Spec ResourceBindingSpec `json:"spec"`
+
+	// Status represents the most recently observed status of the ResourceBinding.
+	// +optional
+	Status ResourceBindingStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:resource:scope="Cluster"
