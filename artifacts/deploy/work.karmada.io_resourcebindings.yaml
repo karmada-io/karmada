@@ -98,49 +98,10 @@ spec:
                       description: ClusterName represents the member cluster name
                         which the resource deployed on.
                       type: string
-                    resourceStatus:
-                      description: ResourceStatus represents the status of the resource.
-                      properties:
-                        deploymentStatus:
-                          description: Deployment represents the deployment status
-                            in the member cluster, only available when the resource
-                            kind is Deployment.
-                          properties:
-                            availableReplicas:
-                              description: Total number of available pods (ready for
-                                at least minReadySeconds) targeted by this deployment.
-                              format: int32
-                              type: integer
-                            readyReplicas:
-                              description: Total number of ready pods targeted by
-                                this deployment.
-                              format: int32
-                              type: integer
-                            replicas:
-                              description: Total number of non-terminated pods targeted
-                                by this deployment (their labels match the selector).
-                              format: int32
-                              type: integer
-                            unavailableReplicas:
-                              description: Total number of unavailable pods targeted
-                                by this deployment. This is the total number of pods
-                                that are still required for the deployment to have
-                                100% available capacity. They may either be pods that
-                                are running but not yet available or pods that still
-                                have not been created.
-                              format: int32
-                              type: integer
-                            updatedReplicas:
-                              description: Total number of non-terminated pods targeted
-                                by this deployment that have the desired template
-                                spec.
-                              format: int32
-                              type: integer
-                          type: object
-                      type: object
                   required:
                   - clusterName
                   type: object
+                  x-kubernetes-preserve-unknown-fields: true
                 type: array
               conditions:
                 description: Conditions contain the different condition statuses.
