@@ -31,11 +31,13 @@ const (
 
 // Controller is to sync Work.
 type Controller struct {
-	client.Client                      // used to operate Work resources.
-	KubeClientSet kubernetes.Interface // used to get kubernetes resources.
-	EventRecorder record.EventRecorder
-	RESTMapper    meta.RESTMapper
-	ObjectWatcher objectwatcher.ObjectWatcher
+	client.Client                             // used to operate Work resources.
+	KubeClientSet        kubernetes.Interface // used to get kubernetes resources.
+	EventRecorder        record.EventRecorder
+	RESTMapper           meta.RESTMapper
+	ObjectWatcher        objectwatcher.ObjectWatcher
+	PredicateFunc        predicate.Predicate
+	ClusterClientSetFunc func(c *v1alpha1.Cluster, client kubernetes.Interface) (*util.DynamicClusterClient, error)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -54,10 +56,22 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
+	clusterName, err := names.GetClusterName(work.Namespace)
+	if err != nil {
+		klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	cluster, err := util.GetCluster(c.Client, clusterName)
+	if err != nil {
+		klog.Errorf("Failed to get the given member cluster %s", clusterName)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
 	if !work.DeletionTimestamp.IsZero() {
 		applied := c.isResourceApplied(&work.Status)
 		if applied {
-			err := c.tryDeleteWorkload(work)
+			err := c.tryDeleteWorkload(cluster, work)
 			if err != nil {
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 				return controllerruntime.Result{Requeue: true}, err
@@ -66,7 +80,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		return c.removeFinalizer(work)
 	}
 
-	return c.syncWork(work)
+	return c.syncWork(cluster, work)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -74,13 +88,19 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&workv1alpha1.Work{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(c.PredicateFunc).
 		Complete(c)
 }
 
-func (c *Controller) syncWork(work *workv1alpha1.Work) (controllerruntime.Result, error) {
-	err := c.dispatchWork(work)
+func (c *Controller) syncWork(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+	if !util.IsClusterReady(&cluster.Status) {
+		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+	}
+
+	err := c.syncToClusters(cluster, work)
 	if err != nil {
-		klog.Errorf("Failed to dispatch work %q, namespace is %v, err is %v", work.Name, work.Namespace, err)
+		klog.Errorf("Failed to sync work(%s) to cluster(%s): %v", work.Name, cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -101,19 +121,7 @@ func (c *Controller) isResourceApplied(workStatus *workv1alpha1.WorkStatus) bool
 
 // tryDeleteWorkload tries to delete resource in the given member cluster.
 // Abort deleting when the member cluster is unready, otherwise we can't unjoin the member cluster when the member cluster is unready
-func (c *Controller) tryDeleteWorkload(work *workv1alpha1.Work) error {
-	clusterName, err := names.GetClusterName(work.Namespace)
-	if err != nil {
-		klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
-		return err
-	}
-
-	cluster, err := util.GetCluster(c.Client, clusterName)
-	if err != nil {
-		klog.Errorf("Failed to get the given member cluster %s", clusterName)
-		return err
-	}
-
+func (c *Controller) tryDeleteWorkload(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
 	// Do not clean up resource in the given member cluster if the status of the given member cluster is unready
 	if !util.IsClusterReady(&cluster.Status) {
 		klog.Infof("Do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", cluster.Name)
@@ -128,92 +136,13 @@ func (c *Controller) tryDeleteWorkload(work *workv1alpha1.Work) error {
 			return err
 		}
 
-		err = c.ObjectWatcher.Delete(clusterName, workload)
+		err = c.ObjectWatcher.Delete(cluster, workload)
 		if err != nil {
 			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", cluster.Name, err)
 			return err
 		}
 	}
 
-	return nil
-}
-
-func (c *Controller) dispatchWork(work *workv1alpha1.Work) error {
-	clusterName, err := names.GetClusterName(work.Namespace)
-	if err != nil {
-		klog.Errorf("Failed to get member cluster name for work %s/%s", work.Namespace, work.Name)
-		return err
-	}
-
-	cluster, err := util.GetCluster(c.Client, clusterName)
-	if err != nil {
-		klog.Errorf("Failed to the get given member cluster %s", clusterName)
-		return err
-	}
-
-	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("The status of the given member cluster %s is unready", cluster.Name)
-		return fmt.Errorf("cluster %s is not ready, requeuing operation until cluster state is ready", cluster.Name)
-	}
-
-	err = c.syncToClusters(cluster, work)
-	if err != nil {
-		klog.Errorf("Failed to dispatch work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
-		return err
-	}
-
-	return nil
-}
-
-// syncToClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
-	clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, c.KubeClientSet)
-	if err != nil {
-		return err
-	}
-
-	for _, manifest := range work.Spec.Workload.Manifests {
-		workload := &unstructured.Unstructured{}
-		err := workload.UnmarshalJSON(manifest.Raw)
-		if err != nil {
-			klog.Errorf("failed to unmarshal workload, error is: %v", err)
-			return err
-		}
-
-		applied := c.isResourceApplied(&work.Status)
-		if applied {
-			// todo: get clusterObj from cache
-			dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
-			if err != nil {
-				klog.Errorf("Failed to get resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
-				return err
-			}
-
-			clusterObj, err := clusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), metav1.GetOptions{})
-			if err != nil {
-				klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
-				return err
-			}
-
-			err = c.ObjectWatcher.Update(cluster.Name, workload, clusterObj)
-			if err != nil {
-				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", cluster.Name, err)
-				return err
-			}
-		} else {
-			err = c.ObjectWatcher.Create(cluster.Name, workload)
-			if err != nil {
-				klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", cluster.Name, err)
-				return err
-			}
-
-			err := c.updateAppliedCondition(work)
-			if err != nil {
-				klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
-				return err
-			}
-		}
-	}
 	return nil
 }
 
@@ -229,6 +158,81 @@ func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	return controllerruntime.Result{}, nil
+}
+
+// syncToClusters ensures that the state of the given object is synchronized to member clusters.
+func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
+	clusterDynamicClient, err := c.ClusterClientSetFunc(cluster, c.KubeClientSet)
+	if err != nil {
+		return err
+	}
+
+	for _, manifest := range work.Spec.Workload.Manifests {
+		workload := &unstructured.Unstructured{}
+		err := workload.UnmarshalJSON(manifest.Raw)
+		if err != nil {
+			klog.Errorf("failed to unmarshal workload, error is: %v", err)
+			return err
+		}
+
+		applied := c.isResourceApplied(&work.Status)
+		if applied {
+			err = c.tryUpdateWorkload(cluster, workload, clusterDynamicClient)
+			if err != nil {
+				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", cluster.Name, err)
+				return err
+			}
+		} else {
+			err = c.tryCreateWorkload(cluster, workload)
+			if err != nil {
+				klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", cluster.Name, err)
+				return err
+			}
+		}
+	}
+
+	err = c.updateAppliedCondition(work)
+	if err != nil {
+		klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+		return err
+	}
+
+	return nil
+}
+
+func (c *Controller) tryUpdateWorkload(cluster *v1alpha1.Cluster, workload *unstructured.Unstructured, clusterDynamicClient *util.DynamicClusterClient) error {
+	// todo: get clusterObj from cache
+	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
+	if err != nil {
+		klog.Errorf("Failed to get resource(%s/%s) as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
+		return err
+	}
+
+	clusterObj, err := clusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), metav1.GetOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
+			return err
+		}
+		return c.tryCreateWorkload(cluster, workload)
+	}
+
+	err = c.ObjectWatcher.Update(cluster, workload, clusterObj)
+	if err != nil {
+		klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", cluster.Name, err)
+		return err
+	}
+	return nil
+}
+
+func (c *Controller) tryCreateWorkload(cluster *v1alpha1.Cluster, workload *unstructured.Unstructured) error {
+	err := c.ObjectWatcher.Create(cluster, workload)
+	if err != nil {
+		klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", cluster.Name, err)
+		return err
+	}
+
+	return nil
 }
 
 // updateAppliedCondition update the Applied condition for the given Work

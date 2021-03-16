@@ -12,9 +12,13 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
+	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
@@ -26,6 +30,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/detector"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
@@ -94,7 +99,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
 	kubeClientSet := kubernetes.NewForConfigOrDie(resetConfig)
 
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), kubeClientSet, mgr.GetRESTMapper())
+	objectWatcher := objectwatcher.NewObjectWatcher(kubeClientSet, mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
 	overridemanager := overridemanager.New(mgr.GetClient())
 
 	resourceDetector := &detector.ResourceDetector{
@@ -109,22 +114,42 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
 
-	ClusterController := &cluster.Controller{
+	clusterController := &cluster.Controller{
 		Client:        mgr.GetClient(),
 		KubeClientSet: kubeClientSet,
 		EventRecorder: mgr.GetEventRecorderFor(cluster.ControllerName),
 	}
-	if err := ClusterController.SetupWithManager(mgr); err != nil {
+	if err := clusterController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster controller: %v", err)
 	}
 
-	ClusterStatusController := &status.ClusterStatusController{
-		Client:        mgr.GetClient(),
-		KubeClientSet: kubeClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(status.ControllerName),
+	clusterPredicateFunc := predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			obj := createEvent.Object.(*v1alpha1.Cluster)
+			return obj.Spec.SyncMode == v1alpha1.Push
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			obj := updateEvent.ObjectNew.(*v1alpha1.Cluster)
+			return obj.Spec.SyncMode == v1alpha1.Push
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			obj := deleteEvent.Object.(*v1alpha1.Cluster)
+			return obj.Spec.SyncMode == v1alpha1.Push
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return false
+		},
 	}
-	if err := ClusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup clusterstatus controller: %v", err)
+
+	clusterStatusController := &status.ClusterStatusController{
+		Client:               mgr.GetClient(),
+		KubeClientSet:        kubeClientSet,
+		EventRecorder:        mgr.GetEventRecorderFor(status.ControllerName),
+		PredicateFunc:        clusterPredicateFunc,
+		ClusterClientSetFunc: util.NewClusterClientSet,
+	}
+	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup cluster status controller: %v", err)
 	}
 
 	hpaController := &hpa.HorizontalPodAutoscalerController{
@@ -166,27 +191,32 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
 	}
 
+	workPredicateFunc := newPredicateFuncsForWork(mgr)
+
 	executionController := &execution.Controller{
-		Client:        mgr.GetClient(),
-		KubeClientSet: kubeClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:    mgr.GetRESTMapper(),
-		ObjectWatcher: objectWatcher,
+		Client:               mgr.GetClient(),
+		KubeClientSet:        kubeClientSet,
+		EventRecorder:        mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:           mgr.GetRESTMapper(),
+		ObjectWatcher:        objectWatcher,
+		PredicateFunc:        workPredicateFunc,
+		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup execution controller: %v", err)
 	}
 
 	workStatusController := &status.WorkStatusController{
-		Client:          mgr.GetClient(),
-		DynamicClient:   dynamicClientSet,
-		EventRecorder:   mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:      mgr.GetRESTMapper(),
-		KubeClientSet:   kubeClientSet,
-		InformerManager: informermanager.NewMultiClusterInformerManager(),
-		StopChan:        stopChan,
-		WorkerNumber:    1,
-		ObjectWatcher:   objectWatcher,
+		Client:               mgr.GetClient(),
+		EventRecorder:        mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:           mgr.GetRESTMapper(),
+		KubeClientSet:        kubeClientSet,
+		InformerManager:      informermanager.NewMultiClusterInformerManager(),
+		StopChan:             stopChan,
+		WorkerNumber:         1,
+		ObjectWatcher:        objectWatcher,
+		PredicateFunc:        workPredicateFunc,
+		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
@@ -199,5 +229,58 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	}
 	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
+	}
+}
+
+func newPredicateFuncsForWork(mgr controllerruntime.Manager) predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			obj := createEvent.Object.(*workv1alpha1.Work)
+			clusterName, err := names.GetClusterName(obj.Namespace)
+			if err != nil {
+				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
+				return false
+			}
+
+			cluster, err := util.GetCluster(mgr.GetClient(), clusterName)
+			if err != nil {
+				klog.Errorf("Failed to get the given member cluster %s", clusterName)
+				return false
+			}
+			return cluster.Spec.SyncMode == v1alpha1.Push
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
+			clusterName, err := names.GetClusterName(obj.Namespace)
+			if err != nil {
+				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
+				return false
+			}
+
+			cluster, err := util.GetCluster(mgr.GetClient(), clusterName)
+			if err != nil {
+				klog.Errorf("Failed to get the given member cluster %s", clusterName)
+				return false
+			}
+			return cluster.Spec.SyncMode == v1alpha1.Push
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			obj := deleteEvent.Object.(*workv1alpha1.Work)
+			clusterName, err := names.GetClusterName(obj.Namespace)
+			if err != nil {
+				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
+				return false
+			}
+
+			cluster, err := util.GetCluster(mgr.GetClient(), clusterName)
+			if err != nil {
+				klog.Errorf("Failed to get the given member cluster %s", clusterName)
+				return false
+			}
+			return cluster.Spec.SyncMode == v1alpha1.Push
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return false
+		},
 	}
 }
