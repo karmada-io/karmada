@@ -178,3 +178,13 @@ and then check if the deployment exist:
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
 nginx   1/1     1            1           43s
 ```
+
+## Contributing
+
+If you're interested in being a contributor and want to get involved in
+developing the Karmada code, please see [CONTRIBUTING](CONTRIBUTING.md) for
+details on submitting patches and the contribution workflow.
+
+## License
+
+Karmada is under the Apache 2.0 license. See the [LICENSE](LICENSE) file for details.
