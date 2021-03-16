@@ -1,4 +1,4 @@
-# Welcome
+# Contributing
 
 Welcome to Karmada!
 
