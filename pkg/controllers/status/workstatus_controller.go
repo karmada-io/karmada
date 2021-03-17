@@ -22,6 +22,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
@@ -246,7 +247,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 }
 
 func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {
-	ordinal, err := c.getManifestIndex(work.Spec.Workload.Manifests, clusterObj)
+	ordinal, err := helper.GetManifestIndex(work.Spec.Workload.Manifests, clusterObj)
 	if err != nil {
 		return nil, err
 	}
@@ -287,24 +288,6 @@ func (c *WorkStatusController) mergeStatus(statuses []workv1alpha1.ManifestStatu
 	// TODO(RainbowMango): update 'statuses' if 'newStatus' already exist.
 	// For now, we only have at most one manifest in Work, so just override current 'statuses'.
 	return []workv1alpha1.ManifestStatus{newStatus}
-}
-
-func (c *WorkStatusController) getManifestIndex(manifests []workv1alpha1.Manifest, clusterObj *unstructured.Unstructured) (int, error) {
-	for index, rawManifest := range manifests {
-		manifest := &unstructured.Unstructured{}
-		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
-			return -1, err
-		}
-
-		if manifest.GetAPIVersion() == clusterObj.GetAPIVersion() &&
-			manifest.GetKind() == clusterObj.GetKind() &&
-			manifest.GetNamespace() == clusterObj.GetNamespace() &&
-			manifest.GetName() == clusterObj.GetName() {
-			return index, nil
-		}
-	}
-
-	return -1, fmt.Errorf("no such manifest exist")
 }
 
 func (c *WorkStatusController) getRawManifest(manifests []workv1alpha1.Manifest, clusterObj *unstructured.Unstructured) (*unstructured.Unstructured, error) {

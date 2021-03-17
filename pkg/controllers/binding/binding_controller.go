@@ -2,17 +2,26 @@ package binding
 
 import (
 	"context"
+	"reflect"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
@@ -53,7 +62,7 @@ func (c *ResourceBindingController) Reconcile(req controllerruntime.Request) (co
 
 	isReady := helper.IsBindingReady(binding.Spec.Clusters)
 	if !isReady {
-		klog.Infof("ResourceBinding %s/%s is not ready to sync", binding.GetNamespace(), binding.GetName())
+		klog.Infof("ResourceBinding(%s/%s) is not ready to sync", binding.GetNamespace(), binding.GetName())
 		return controllerruntime.Result{}, nil
 	}
 
@@ -65,28 +74,35 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBi
 	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters)
 	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name, clusterNames, apiextensionsv1.NamespaceScoped)
 	if err != nil {
-		klog.Errorf("Failed to find orphan works by resourceBinding %s/%s. Error: %v.",
+		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	err = helper.RemoveOrphanWorks(c.Client, works)
 	if err != nil {
-		klog.Errorf("Failed to remove orphan works by resourceBinding %s/%s. Error: %v.",
+		klog.Errorf("Failed to remove orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
-		klog.Errorf("Failed to fetch workload for resourceBinding %s/%s. Error: %v.",
+		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	err = helper.EnsureWork(c.Client, workload, clusterNames, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
 	if err != nil {
-		klog.Errorf("Failed to transform resourceBinding %s/%s to works. Error: %v.",
+		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
+			binding.GetNamespace(), binding.GetName(), err)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload)
+	if err != nil {
+		klog.Errorf("Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
@@ -96,5 +112,52 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBi
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ResourceBinding{}).Complete(c)
+	workFn := handler.ToRequestsFunc(
+		func(a handler.MapObject) []reconcile.Request {
+			var requests []reconcile.Request
+
+			labels := a.Meta.GetLabels()
+			namespacesName := types.NamespacedName{
+				Namespace: labels[util.ResourceBindingNamespaceLabel],
+				Name:      labels[util.ResourceBindingNameLabel],
+			}
+
+			requests = append(requests, reconcile.Request{NamespacedName: namespacesName})
+			return requests
+		})
+
+	predicateFn := builder.WithPredicates(predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			var statusesOld, statusesNew []workv1alpha1.ManifestStatus
+
+			switch oldWork := e.ObjectOld.(type) {
+			case *workv1alpha1.Work:
+				statusesOld = oldWork.Status.ManifestStatuses
+			default:
+				return false
+			}
+
+			switch newWork := e.ObjectNew.(type) {
+			case *workv1alpha1.Work:
+				statusesNew = newWork.Status.ManifestStatuses
+			default:
+				return false
+			}
+
+			return !reflect.DeepEqual(statusesOld, statusesNew)
+		},
+		DeleteFunc: func(event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(event.GenericEvent) bool {
+			return false
+		},
+	})
+
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ResourceBinding{}).
+		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: workFn}, predicateFn).
+		Complete(c)
 }
