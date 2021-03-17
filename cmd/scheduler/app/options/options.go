@@ -29,6 +29,9 @@ type Options struct {
 	BindAddress string
 	// SecurePort is the port that the server serves at.
 	SecurePort int
+
+	// Failover indicates if scheduler should reschedule on cluster failure.
+	Failover bool
 }
 
 // NewOptions builds an default scheduler options.
@@ -56,4 +59,5 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server. Overrides any value in KubeConfig. Only required if out-of-cluster.")
 	fs.StringVar(&o.BindAddress, "bind-address", defaultBindAddress, "The IP address on which to listen for the --secure-port port.")
 	fs.IntVar(&o.SecurePort, "secure-port", defaultPort, "The secure port on which to serve HTTPS.")
+	fs.BoolVar(&o.Failover, "failover", false, "Reschedule on cluster failure.")
 }

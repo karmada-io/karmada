@@ -10,10 +10,10 @@ import (
 
 type PolicyV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ClusterOverridePoliciesGetter
+	ClusterPropagationPoliciesGetter
 	OverridePoliciesGetter
-	PropagationBindingsGetter
 	PropagationPoliciesGetter
-	WorksGetter
 }
 
 // PolicyV1alpha1Client is used to interact with features provided by the policy.karmada.io group.
@@ -21,20 +21,20 @@ type PolicyV1alpha1Client struct {
 	restClient rest.Interface
 }
 
+func (c *PolicyV1alpha1Client) ClusterOverridePolicies() ClusterOverridePolicyInterface {
+	return newClusterOverridePolicies(c)
+}
+
+func (c *PolicyV1alpha1Client) ClusterPropagationPolicies() ClusterPropagationPolicyInterface {
+	return newClusterPropagationPolicies(c)
+}
+
 func (c *PolicyV1alpha1Client) OverridePolicies(namespace string) OverridePolicyInterface {
 	return newOverridePolicies(c, namespace)
 }
 
-func (c *PolicyV1alpha1Client) PropagationBindings(namespace string) PropagationBindingInterface {
-	return newPropagationBindings(c, namespace)
-}
-
 func (c *PolicyV1alpha1Client) PropagationPolicies(namespace string) PropagationPolicyInterface {
 	return newPropagationPolicies(c, namespace)
-}
-
-func (c *PolicyV1alpha1Client) Works(namespace string) WorkInterface {
-	return newWorks(c, namespace)
 }
 
 // NewForConfig creates a new PolicyV1alpha1Client for the given config.

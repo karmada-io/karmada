@@ -16,8 +16,10 @@ import (
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/webhook/cluster"
+	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/propagationpolicy"
+	"github.com/karmada-io/karmada/pkg/webhook/work"
 )
 
 // NewWebhookCommand creates a *cobra.Command object with default parameters
@@ -69,7 +71,10 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 	hookServer.Register("/validate-cluster", &webhook.Admission{Handler: &cluster.ValidatingAdmission{}})
 	hookServer.Register("/mutate-propagationpolicy", &webhook.Admission{Handler: &propagationpolicy.MutatingAdmission{}})
 	hookServer.Register("/validate-propagationpolicy", &webhook.Admission{Handler: &propagationpolicy.ValidatingAdmission{}})
+	hookServer.Register("/mutate-clusterpropagationpolicy", &webhook.Admission{Handler: &clusterpropagationpolicy.MutatingAdmission{}})
+	hookServer.Register("/validate-clusterpropagationpolicy", &webhook.Admission{Handler: &clusterpropagationpolicy.ValidatingAdmission{}})
 	hookServer.Register("/mutate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.MutatingAdmission{}})
+	hookServer.Register("/mutate-work", &webhook.Admission{Handler: &work.MutatingAdmission{}})
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the stop channel is closed.

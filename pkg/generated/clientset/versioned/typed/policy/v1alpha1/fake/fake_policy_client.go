@@ -12,20 +12,20 @@ type FakePolicyV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakePolicyV1alpha1) ClusterOverridePolicies() v1alpha1.ClusterOverridePolicyInterface {
+	return &FakeClusterOverridePolicies{c}
+}
+
+func (c *FakePolicyV1alpha1) ClusterPropagationPolicies() v1alpha1.ClusterPropagationPolicyInterface {
+	return &FakeClusterPropagationPolicies{c}
+}
+
 func (c *FakePolicyV1alpha1) OverridePolicies(namespace string) v1alpha1.OverridePolicyInterface {
 	return &FakeOverridePolicies{c, namespace}
 }
 
-func (c *FakePolicyV1alpha1) PropagationBindings(namespace string) v1alpha1.PropagationBindingInterface {
-	return &FakePropagationBindings{c, namespace}
-}
-
 func (c *FakePolicyV1alpha1) PropagationPolicies(namespace string) v1alpha1.PropagationPolicyInterface {
 	return &FakePropagationPolicies{c, namespace}
-}
-
-func (c *FakePolicyV1alpha1) Works(namespace string) v1alpha1.WorkInterface {
-	return &FakeWorks{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

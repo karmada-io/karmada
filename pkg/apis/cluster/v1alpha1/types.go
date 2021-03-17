@@ -34,14 +34,6 @@ type ClusterSpec struct {
 	// +optional
 	ManageMode ClusterManageMode `json:"manageMode,omitempty"`
 
-	// Accepted represents if the member cluster has been accepted by control plane.
-	// Default value is false.
-	// If member cluster working in 'Delegation' mode, this always be true.
-	// If member cluster working in 'SelfManagement' mode, this will turn to true only after administrator
-	// accepted the request from member cluster.
-	// +optional
-	Accepted bool `json:"accepted,omitempty"`
-
 	// The API endpoint of the member cluster. This can be a hostname,
 	// hostname:port, IP or IP:port.
 	// +optional

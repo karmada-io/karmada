@@ -29,16 +29,32 @@ const (
 
 // AsyncWorker is a worker to process resources periodic with a rateLimitingQueue.
 type AsyncWorker interface {
+	// AddRateLimited adds item to queue.
+	AddRateLimited(item interface{})
+	// EnqueueRateLimited generates the key for objects then adds the key as an item to queue.
 	EnqueueRateLimited(obj runtime.Object)
 	Run(workerNumber int, stopChan <-chan struct{})
 }
 
-// ReconcileHandler is a callback function for process resources.
-type ReconcileHandler func(key string) error
+// QueueKey is the item key that stores in queue.
+// The key could be arbitrary types.
+//
+// In some cases, people would like store different resources in a same queue, the traditional full-qualified key,
+// such as '<namespace>/<name>', can't distinguish which resource the key belongs to, the key might carry more information
+// of a resource, such as GVK(Group Version Kind), in that cases people need to use self-defined key, e.g. a struct.
+type QueueKey interface{}
+
+// KeyFunc knows how to make a key from an object. Implementations should be deterministic.
+type KeyFunc func(obj interface{}) (QueueKey, error)
+
+// ReconcileFunc knows how to consume items(key) from the queue.
+type ReconcileFunc func(key QueueKey) error
 
 type asyncWorker struct {
-	// reconcile is callback function to process object in the queue.
-	reconcile ReconcileHandler
+	// keyFunc is the function that make keys for API objects.
+	keyFunc KeyFunc
+	// reconcileFunc is the function that process keys from the queue.
+	reconcileFunc ReconcileFunc
 	// queue allowing parallel processing of resources.
 	queue workqueue.RateLimitingInterface
 	// interval is the interval for process object in the queue.
@@ -46,11 +62,12 @@ type asyncWorker struct {
 }
 
 // NewAsyncWorker returns a asyncWorker which can process resource periodic.
-func NewAsyncWorker(reconcile ReconcileHandler, name string, interval time.Duration) AsyncWorker {
+func NewAsyncWorker(name string, interval time.Duration, keyFunc KeyFunc, reconcileFunc ReconcileFunc) AsyncWorker {
 	return &asyncWorker{
-		reconcile: reconcile,
-		queue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
-		interval:  interval,
+		keyFunc:       keyFunc,
+		reconcileFunc: reconcileFunc,
+		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
+		interval:      interval,
 	}
 }
 
@@ -71,7 +88,7 @@ func (w *ClusterWorkload) GetListerKey() string {
 }
 
 // GenerateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
-func GenerateKey(obj runtime.Object) (string, error) {
+func GenerateKey(obj interface{}) (QueueKey, error) {
 	resource := obj.(*unstructured.Unstructured)
 	gvk := schema.FromAPIVersionAndKind(resource.GetAPIVersion(), resource.GetKind())
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
@@ -83,34 +100,23 @@ func GenerateKey(obj runtime.Object) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// it happens when the obj not managed by Karmada.
 	if cluster == "" {
-		return "", nil
+		return nil, nil
 	}
 	return cluster + "/" + gvk.Group + "/" + gvk.Version + "/" + gvk.Kind + "/" + key, nil
 }
 
 // getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
 func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
-	workloadLabels := resource.GetLabels()
-	if workloadLabels == nil {
-		klog.V(2).Infof("Resource %s/%s/%s is not created by karmada.", resource.GetKind(),
-			resource.GetNamespace(), resource.GetName())
-		return "", nil
+	workNamespace := GetLabelValue(resource.GetLabels(), WorkNamespaceLabel)
+	if len(workNamespace) == 0 {
+		klog.Infof("Resource(%s/%s/%s) not created by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
 	}
-	value, exist := workloadLabels[OwnerLabel]
-	if !exist {
-		klog.V(2).Infof("Resource %s/%s/%s is not created by karmada.", resource.GetKind(),
-			resource.GetNamespace(), resource.GetName())
-		return "", nil
-	}
-	executionNamespace, _, err := names.GetNamespaceAndName(value)
+
+	cluster, err := names.GetClusterName(workNamespace)
 	if err != nil {
-		klog.Errorf("Failed to get executionNamespace from label %s", value)
-		return "", err
-	}
-	cluster, err := names.GetClusterName(executionNamespace)
-	if err != nil {
-		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", value, err)
+		klog.Errorf("Failed to get cluster name from work namespace: %s, error: %v.", workNamespace, err)
 		return "", err
 	}
 	return cluster, nil
@@ -138,36 +144,29 @@ func SplitMetaKey(key string) (ClusterWorkload, error) {
 	return clusterWorkload, nil
 }
 
-func (w *asyncWorker) processKey(obj runtime.Object) string {
-	key, err := GenerateKey(obj)
-	if err != nil {
-		klog.Errorf("Couldn't get key for object %#v: %v.", obj, err)
-		return ""
-	}
-	if key == "" {
-		klog.V(2).Infof("The key is empty, object is not created by karmada.")
-		return ""
-	}
-	return key
-}
-
 func (w *asyncWorker) EnqueueRateLimited(obj runtime.Object) {
-	key := w.processKey(obj)
-	if key == "" {
+	key, err := w.keyFunc(obj)
+	if err != nil {
+		klog.Warningf("Failed to generate key for obj: %s", obj.GetObjectKind().GroupVersionKind())
 		return
 	}
-	w.queue.AddRateLimited(key)
+
+	w.AddRateLimited(key)
+}
+
+func (w *asyncWorker) AddRateLimited(item interface{}) {
+	if item == nil {
+		klog.Warningf("Ignore nil item from queue")
+		return
+	}
+
+	w.queue.AddRateLimited(item)
 }
 
 func (w *asyncWorker) handleError(err error, key interface{}) {
 	if err == nil || errors.HasStatusCause(err, v1.NamespaceTerminatingCause) {
 		w.queue.Forget(key)
 		return
-	}
-
-	_, keyErr := SplitMetaKey(key.(string))
-	if keyErr != nil {
-		klog.ErrorS(err, "Failed to split meta namespace cache key", "key", key)
 	}
 
 	if w.queue.NumRequeues(key) < maxRetries {
@@ -186,7 +185,7 @@ func (w *asyncWorker) worker() {
 	}
 	defer w.queue.Done(key)
 
-	err := w.reconcile(key.(string))
+	err := w.reconcileFunc(key)
 	w.handleError(err, key)
 }
 

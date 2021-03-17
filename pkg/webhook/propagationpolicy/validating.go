@@ -2,13 +2,15 @@ package propagationpolicy
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
+	"k8s.io/api/admission/v1beta1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // ValidatingAdmission validates PropagationPolicy object when creating/updating/deleting.
@@ -31,20 +33,21 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 	}
 	klog.V(2).Infof("Validating PropagationPolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
 
-	// SpreadByField and SpreadByLabel should not co-exist
-	for _, constraint := range policy.Spec.Placement.SpreadConstraints {
-		if len(constraint.SpreadByField) > 0 && len(constraint.SpreadByLabel) > 0 {
-			errMsg := fmt.Sprintf("invalid constraints: SpreadByLabel(%s) should not co-exist with spreadByField(%s)", constraint.SpreadByLabel, constraint.SpreadByField)
-			klog.Info(errMsg)
-			return admission.Denied(errMsg)
+	if req.Operation == v1beta1.Update {
+		oldPolicy := &policyv1alpha1.PropagationPolicy{}
+		err := v.decoder.DecodeRaw(req.OldObject, oldPolicy)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
 		}
+		if !equality.Semantic.DeepEqual(policy.Spec.ResourceSelectors, oldPolicy.Spec.ResourceSelectors) {
+			klog.Info(helper.DenyReasonResourceSelectorsModify)
+			return admission.Denied(helper.DenyReasonResourceSelectorsModify)
+		}
+	}
 
-		// If MaxGroups provided, it should greater or equal than MinGroups.
-		if constraint.MaxGroups > 0 && constraint.MaxGroups < constraint.MinGroups {
-			errMsg := fmt.Sprintf("maxGroups(%d) lower than minGroups(%d) is not allowed", constraint.MaxGroups, constraint.MinGroups)
-			klog.Info(errMsg)
-			return admission.Denied(errMsg)
-		}
+	if err := helper.ValidateSpreadConstraint(policy.Spec.Placement.SpreadConstraints); err != nil {
+		klog.Info(err)
+		return admission.Denied(err.Error())
 	}
 
 	return admission.Allowed("")

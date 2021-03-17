@@ -17,7 +17,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -81,30 +81,30 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 		return nil
 	}
 	hpaObj := &unstructured.Unstructured{Object: uncastObj}
-	util.RemoveIrrelevantField(hpaObj)
 	for _, clusterName := range clusters {
+		workNamespace, err := names.GenerateExecutionSpaceName(clusterName)
+		if err != nil {
+			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
+			return err
+		}
+		workName := names.GenerateBindingName(hpaObj.GetNamespace(), hpaObj.GetKind(), hpaObj.GetName())
+		objectMeta := metav1.ObjectMeta{
+			Name:       workName,
+			Namespace:  workNamespace,
+			Finalizers: []string{util.ExecutionControllerFinalizer},
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(hpa, hpa.GroupVersionKind()),
+			},
+		}
+
+		util.MergeLabel(hpaObj, util.WorkNamespaceLabel, workNamespace)
+		util.MergeLabel(hpaObj, util.WorkNameLabel, workName)
+
 		hpaJSON, err := hpaObj.MarshalJSON()
 		if err != nil {
 			klog.Errorf("Failed to marshal hpa %s/%s. Error: %v",
 				hpaObj.GetNamespace(), hpaObj.GetName(), err)
 			return err
-		}
-
-		executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
-		if err != nil {
-			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
-			return err
-		}
-
-		hpaName := names.GenerateBindingName(hpaObj.GetNamespace(), hpaObj.GetKind(), hpaObj.GetName())
-		objectMeta := metav1.ObjectMeta{
-			Name:       hpaName,
-			Namespace:  executionSpace,
-			Finalizers: []string{util.ExecutionControllerFinalizer},
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(hpa, hpa.GroupVersionKind()),
-			},
-			Labels: map[string]string{util.OwnerLabel: names.GenerateOwnerLabelValue(hpa.GetNamespace(), hpa.GetName())},
 		}
 
 		err = util.CreateOrUpdateWork(c.Client, objectMeta, hpaJSON)
@@ -132,7 +132,7 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 		return nil, err
 	}
 	bindingName := names.GenerateBindingName(unstructuredWorkLoad.GetNamespace(), unstructuredWorkLoad.GetKind(), unstructuredWorkLoad.GetName())
-	binding := &v1alpha1.PropagationBinding{}
+	binding := &workv1alpha1.ResourceBinding{}
 	namespacedName := types.NamespacedName{
 		Namespace: namespace,
 		Name:      bindingName,

@@ -2,10 +2,10 @@
 
 package v1alpha1
 
+type ClusterOverridePolicyExpansion interface{}
+
+type ClusterPropagationPolicyExpansion interface{}
+
 type OverridePolicyExpansion interface{}
 
-type PropagationBindingExpansion interface{}
-
 type PropagationPolicyExpansion interface{}
-
-type WorkExpansion interface{}

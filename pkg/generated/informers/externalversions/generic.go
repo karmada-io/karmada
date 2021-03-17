@@ -7,6 +7,7 @@ import (
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -42,14 +43,22 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Cluster().V1alpha1().Clusters().Informer()}, nil
 
 		// Group=policy.karmada.io, Version=v1alpha1
+	case policyv1alpha1.SchemeGroupVersion.WithResource("clusteroverridepolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().ClusterOverridePolicies().Informer()}, nil
+	case policyv1alpha1.SchemeGroupVersion.WithResource("clusterpropagationpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().ClusterPropagationPolicies().Informer()}, nil
 	case policyv1alpha1.SchemeGroupVersion.WithResource("overridepolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().OverridePolicies().Informer()}, nil
-	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationbindings"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationBindings().Informer()}, nil
 	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationPolicies().Informer()}, nil
-	case policyv1alpha1.SchemeGroupVersion.WithResource("works"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().Works().Informer()}, nil
+
+		// Group=work.karmada.io, Version=v1alpha1
+	case workv1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha1().ClusterResourceBindings().Informer()}, nil
+	case workv1alpha1.SchemeGroupVersion.WithResource("resourcebindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha1().ResourceBindings().Informer()}, nil
+	case workv1alpha1.SchemeGroupVersion.WithResource("works"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha1().Works().Informer()}, nil
 
 	}
 

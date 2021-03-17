@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
@@ -18,8 +19,11 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
+	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/detector"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
@@ -93,6 +97,18 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), kubeClientSet, mgr.GetRESTMapper())
 	overridemanager := overridemanager.New(mgr.GetClient())
 
+	resourceDetector := &detector.ResourceDetector{
+		ClientSet:       kubeClientSet,
+		Client:          mgr.GetClient(),
+		InformerManager: informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
+		RESTMapper:      mgr.GetRESTMapper(),
+	}
+	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
+	resourceDetector.Processor = util.NewAsyncWorker("resource detector", time.Microsecond, detector.ClusterWideKeyFunc, resourceDetector.Reconcile)
+	if err := mgr.Add(resourceDetector); err != nil {
+		klog.Fatalf("Failed to setup resource detector: %v", err)
+	}
+
 	ClusterController := &cluster.Controller{
 		Client:        mgr.GetClient(),
 		KubeClientSet: kubeClientSet,
@@ -122,16 +138,13 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	}
 
 	policyController := &propagationpolicy.Controller{
-		Client:        mgr.GetClient(),
-		DynamicClient: dynamicClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(propagationpolicy.ControllerName),
-		RESTMapper:    mgr.GetRESTMapper(),
+		Client: mgr.GetClient(),
 	}
 	if err := policyController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup policy controller: %v", err)
 	}
 
-	bindingController := &binding.PropagationBindingController{
+	bindingController := &binding.ResourceBindingController{
 		Client:          mgr.GetClient(),
 		DynamicClient:   dynamicClientSet,
 		EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
@@ -140,6 +153,17 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	}
 	if err := bindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup binding controller: %v", err)
+	}
+
+	clusterResourceBindingController := &binding.ClusterResourceBindingController{
+		Client:          mgr.GetClient(),
+		DynamicClient:   dynamicClientSet,
+		EventRecorder:   mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
+		RESTMapper:      mgr.GetRESTMapper(),
+		OverrideManager: overridemanager,
+	}
+	if err := clusterResourceBindingController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
 	}
 
 	executionController := &execution.Controller{
@@ -167,5 +191,13 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup work status controller: %v", err)
+	}
+
+	namespaceSyncController := &namespace.Controller{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(namespace.ControllerName),
+	}
+	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
 	}
 }

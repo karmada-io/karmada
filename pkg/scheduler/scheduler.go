@@ -2,12 +2,18 @@ package scheduler
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -15,14 +21,18 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	memclusterapi "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
-	lister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
+	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	policylister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
+	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha1"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -34,16 +44,45 @@ const (
 	maxRetries = 15
 )
 
+// ScheduleType defines the schedule type of a binding object should be performed.
+type ScheduleType string
+
+const (
+	// FirstSchedule means the binding object hasn't been scheduled.
+	FirstSchedule ScheduleType = "FirstSchedule"
+
+	// ReconcileSchedule means the binding object associated policy has been changed.
+	ReconcileSchedule ScheduleType = "ReconcileSchedule"
+
+	// FailoverSchedule means one of the cluster a binding object associated with becomes failure.
+	FailoverSchedule ScheduleType = "FailoverSchedule"
+
+	// AvoidSchedule means don't need to trigger scheduler.
+	AvoidSchedule ScheduleType = "AvoidSchedule"
+
+	// Unknown means can't detect the schedule type
+	Unknown ScheduleType = "Unknown"
+)
+
+// Failover indicates if the scheduler should performs re-scheduler in case of cluster failure.
+// TODO(RainbowMango): Remove the temporary solution by introducing feature flag
+var Failover bool
+
 // Scheduler is the scheduler schema, which is used to schedule a specific resource to specific clusters
 type Scheduler struct {
-	DynamicClient   dynamic.Interface
-	KarmadaClient   karmadaclientset.Interface
-	KubeClient      kubernetes.Interface
-	bindingInformer cache.SharedIndexInformer
-	bindingLister   lister.PropagationBindingLister
-	policyInformer  cache.SharedIndexInformer
-	policyLister    lister.PropagationPolicyLister
-	informerFactory informerfactory.SharedInformerFactory
+	DynamicClient          dynamic.Interface
+	KarmadaClient          karmadaclientset.Interface
+	KubeClient             kubernetes.Interface
+	bindingInformer        cache.SharedIndexInformer
+	bindingLister          worklister.ResourceBindingLister
+	policyInformer         cache.SharedIndexInformer
+	policyLister           policylister.PropagationPolicyLister
+	clusterBindingInformer cache.SharedIndexInformer
+	clusterBindingLister   worklister.ClusterResourceBindingLister
+	clusterPolicyInformer  cache.SharedIndexInformer
+	clusterPolicyLister    policylister.ClusterPropagationPolicyLister
+	clusterLister          clusterlister.ClusterLister
+	informerFactory        informerfactory.SharedInformerFactory
 
 	// TODO: implement a priority scheduling queue
 	queue workqueue.RateLimitingInterface
@@ -55,31 +94,54 @@ type Scheduler struct {
 // NewScheduler instantiates a scheduler
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface) *Scheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
-	bindingInformer := factory.Policy().V1alpha1().PropagationBindings().Informer()
-	bindingLister := factory.Policy().V1alpha1().PropagationBindings().Lister()
+	bindingInformer := factory.Work().V1alpha1().ResourceBindings().Informer()
+	bindingLister := factory.Work().V1alpha1().ResourceBindings().Lister()
 	policyInformer := factory.Policy().V1alpha1().PropagationPolicies().Informer()
 	policyLister := factory.Policy().V1alpha1().PropagationPolicies().Lister()
+	clusterBindingInformer := factory.Work().V1alpha1().ClusterResourceBindings().Informer()
+	clusterBindingLister := factory.Work().V1alpha1().ClusterResourceBindings().Lister()
+	clusterPolicyInformer := factory.Policy().V1alpha1().ClusterPropagationPolicies().Informer()
+	clusterPolicyLister := factory.Policy().V1alpha1().ClusterPropagationPolicies().Lister()
+	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	schedulerCache := schedulercache.NewCache()
 	// TODO: make plugins as a flag
 	algorithm := core.NewGenericScheduler(schedulerCache, policyLister, []string{clusteraffinity.Name})
 	sched := &Scheduler{
-		DynamicClient:   dynamicClient,
-		KarmadaClient:   karmadaClient,
-		KubeClient:      kubeClient,
-		bindingInformer: bindingInformer,
-		bindingLister:   bindingLister,
-		policyInformer:  policyInformer,
-		policyLister:    policyLister,
-		informerFactory: factory,
-		queue:           queue,
-		Algorithm:       algorithm,
-		schedulerCache:  schedulerCache,
+		DynamicClient:          dynamicClient,
+		KarmadaClient:          karmadaClient,
+		KubeClient:             kubeClient,
+		bindingInformer:        bindingInformer,
+		bindingLister:          bindingLister,
+		policyInformer:         policyInformer,
+		policyLister:           policyLister,
+		clusterBindingInformer: clusterBindingInformer,
+		clusterBindingLister:   clusterBindingLister,
+		clusterPolicyInformer:  clusterPolicyInformer,
+		clusterPolicyLister:    clusterPolicyLister,
+		clusterLister:          clusterLister,
+		informerFactory:        factory,
+		queue:                  queue,
+		Algorithm:              algorithm,
+		schedulerCache:         schedulerCache,
 	}
 
 	bindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    sched.onPropagationBindingAdd,
-		UpdateFunc: sched.onPropagationBindingUpdate,
+		AddFunc:    sched.onResourceBindingAdd,
+		UpdateFunc: sched.onResourceBindingUpdate,
+	})
+
+	policyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: sched.onPropagationPolicyUpdate,
+	})
+
+	clusterBindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    sched.onResourceBindingAdd,
+		UpdateFunc: sched.onResourceBindingUpdate,
+	})
+
+	clusterPolicyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: sched.onClusterPropagationPolicyUpdate,
 	})
 
 	memclusterInformer := factory.Cluster().V1alpha1().Clusters().Informer()
@@ -109,11 +171,7 @@ func (s *Scheduler) Run(ctx context.Context) {
 	<-stopCh
 }
 
-func (s *Scheduler) onPropagationBindingAdd(obj interface{}) {
-	propagationBinding := obj.(*v1alpha1.PropagationBinding)
-	if len(propagationBinding.Spec.Clusters) > 0 {
-		return
-	}
+func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("couldn't get key for object %#v: %v", obj, err)
@@ -123,13 +181,128 @@ func (s *Scheduler) onPropagationBindingAdd(obj interface{}) {
 	s.queue.Add(key)
 }
 
-func (s *Scheduler) onPropagationBindingUpdate(old, cur interface{}) {
-	s.onPropagationBindingAdd(cur)
+func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
+	s.onResourceBindingAdd(cur)
+}
+
+func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
+	oldPropagationPolicy := old.(*policyv1alpha1.PropagationPolicy)
+	curPropagationPolicy := cur.(*policyv1alpha1.PropagationPolicy)
+	if equality.Semantic.DeepEqual(oldPropagationPolicy.Spec.Placement, curPropagationPolicy.Spec.Placement) {
+		klog.V(2).Infof("Ignore PropagationPolicy(%s/%s) which placement unchanged.", oldPropagationPolicy.Namespace, oldPropagationPolicy.Name)
+		return
+	}
+
+	selector := labels.SelectorFromSet(labels.Set{
+		util.PropagationPolicyNamespaceLabel: oldPropagationPolicy.Namespace,
+		util.PropagationPolicyNameLabel:      oldPropagationPolicy.Name,
+	})
+
+	referenceBindings, err := s.bindingLister.List(selector)
+	if err != nil {
+		klog.Errorf("Failed to list ResourceBinding by selector: %s, error: %v", selector.String(), err)
+		return
+	}
+
+	for _, binding := range referenceBindings {
+		key, err := cache.MetaNamespaceKeyFunc(binding)
+		if err != nil {
+			klog.Errorf("couldn't get key for object %#v: %v", binding, err)
+			return
+		}
+		klog.Infof("Requeue ResourceBinding(%s/%s) as placement changed.", binding.Namespace, binding.Name)
+		s.queue.Add(key)
+	}
+}
+
+func (s *Scheduler) onClusterPropagationPolicyUpdate(old, cur interface{}) {
+	oldClusterPropagationPolicy := old.(*policyv1alpha1.ClusterPropagationPolicy)
+	curClusterPropagationPolicy := cur.(*policyv1alpha1.ClusterPropagationPolicy)
+	if equality.Semantic.DeepEqual(oldClusterPropagationPolicy.Spec.Placement, curClusterPropagationPolicy.Spec.Placement) {
+		klog.V(2).Infof("Ignore ClusterPropagationPolicy(%s) which placement unchanged.", oldClusterPropagationPolicy.Name)
+		return
+	}
+
+	selector := labels.SelectorFromSet(labels.Set{
+		util.ClusterPropagationPolicyLabel: oldClusterPropagationPolicy.Name,
+	})
+
+	referenceClusterResourceBindings, err := s.clusterBindingLister.List(selector)
+	if err != nil {
+		klog.Errorf("Failed to list ClusterResourceBinding by selector: %s, error: %v", selector.String(), err)
+		return
+	}
+
+	for _, clusterResourceBinding := range referenceClusterResourceBindings {
+		key, err := cache.MetaNamespaceKeyFunc(clusterResourceBinding)
+		if err != nil {
+			klog.Errorf("couldn't get key for object %#v: %v", clusterResourceBinding, err)
+			return
+		}
+		klog.Infof("Requeue ClusterResourceBinding(%s) as placement changed.", clusterResourceBinding.Name)
+		s.queue.Add(key)
+	}
 }
 
 func (s *Scheduler) worker() {
 	for s.scheduleNext() {
 	}
+}
+
+func (s *Scheduler) getScheduleType(key string) ScheduleType {
+	ns, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return Unknown
+	}
+
+	// ResourceBinding object
+	if len(ns) > 0 {
+		resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
+		if errors.IsNotFound(err) {
+			return Unknown
+		}
+
+		if len(resourceBinding.Spec.Clusters) == 0 {
+			return FirstSchedule
+		}
+
+		policyNamespace := util.GetLabelValue(resourceBinding.Labels, util.PropagationPolicyNamespaceLabel)
+		policyName := util.GetLabelValue(resourceBinding.Labels, util.PropagationPolicyNameLabel)
+
+		policy, err := s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
+		if err != nil {
+			return Unknown
+		}
+		placement, err := json.Marshal(policy.Spec.Placement)
+		if err != nil {
+			klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+			return Unknown
+		}
+		policyPlacementStr := string(placement)
+
+		appliedPlacement := util.GetLabelValue(resourceBinding.Annotations, util.PolicyPlacementAnnotation)
+
+		if policyPlacementStr != appliedPlacement {
+			return ReconcileSchedule
+		}
+
+		clusters := s.schedulerCache.Snapshot().GetClusters()
+		for _, tc := range resourceBinding.Spec.Clusters {
+			bindedCluster := tc.Name
+			for _, c := range clusters {
+				if c.Cluster().Name == bindedCluster {
+					if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+						return FailoverSchedule
+					}
+				}
+			}
+		}
+	} else { // ClusterResourceBinding
+		// TODO:
+		return Unknown
+	}
+
+	return AvoidSchedule
 }
 
 func (s *Scheduler) scheduleNext() bool {
@@ -140,38 +313,127 @@ func (s *Scheduler) scheduleNext() bool {
 	}
 	defer s.queue.Done(key)
 
-	err := s.scheduleOne(key.(string))
+	var err error
+	switch s.getScheduleType(key.(string)) {
+	case FirstSchedule:
+		err = s.scheduleOne(key.(string))
+		klog.Infof("Start scheduling binding(%s)", key.(string))
+	case ReconcileSchedule: // share same logic with first schedule
+		err = s.scheduleOne(key.(string))
+		klog.Infof("Reschedule binding(%s) as placement changed", key.(string))
+	case FailoverSchedule:
+		if Failover {
+			err = s.rescheduleOne(key.(string))
+			klog.Infof("Reschedule binding(%s) as cluster failure", key.(string))
+		}
+	case AvoidSchedule:
+		klog.Infof("Don't need to schedule binding(%s)", key.(string))
+	default:
+		err = fmt.Errorf("unknow schedule type")
+		klog.Warningf("Failed to identify scheduler type for binding(%s)", key.(string))
+	}
+
 	s.handleErr(err, key)
 	return true
 }
 
 func (s *Scheduler) scheduleOne(key string) (err error) {
-	klog.V(4).Infof("begin scheduling PropagationBinding %s", key)
-	defer klog.V(4).Infof("end scheduling PropagationBinding %s: %v", key, err)
+	klog.V(4).Infof("begin scheduling ResourceBinding %s", key)
+	defer klog.V(4).Infof("end scheduling ResourceBinding %s: %v", key, err)
 
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
-	propagationBinding, err := s.bindingLister.PropagationBindings(ns).Get(name)
+
+	if ns == "" {
+		clusterResourceBinding, err := s.clusterBindingLister.Get(name)
+		if errors.IsNotFound(err) {
+			return nil
+		}
+
+		clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, util.ClusterPropagationPolicyLabel)
+
+		clusterPolicy, err := s.clusterPolicyLister.Get(clusterPolicyName)
+		if err != nil {
+			return err
+		}
+
+		return s.scheduleClusterResourceBinding(clusterResourceBinding, clusterPolicy)
+	}
+	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
 	if errors.IsNotFound(err) {
 		return nil
 	}
+	policyNamespace := util.GetLabelValue(resourceBinding.Labels, util.PropagationPolicyNamespaceLabel)
+	policyName := util.GetLabelValue(resourceBinding.Labels, util.PropagationPolicyNameLabel)
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), propagationBinding)
+	policy, err := s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
 	if err != nil {
-		klog.V(2).Infof("failed scheduling PropagationBinding %s: %v", key, err)
 		return err
 	}
-	klog.V(4).Infof("PropagationBinding %s scheduled to clusters %v", key, scheduleResult.SuggestedClusters)
 
-	binding := propagationBinding.DeepCopy()
-	targetClusters := make([]v1alpha1.TargetCluster, len(scheduleResult.SuggestedClusters))
+	return s.scheduleResourceBinding(resourceBinding, policy)
+}
+
+func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha1.ResourceBinding, policy *policyv1alpha1.PropagationPolicy) (err error) {
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement)
+	if err != nil {
+		klog.V(2).Infof("failed scheduling ResourceBinding %s/%s: %v", resourceBinding.Namespace, resourceBinding.Name, err)
+		return err
+	}
+	klog.V(4).Infof("ResourceBinding %s/%s scheduled to clusters %v", resourceBinding.Namespace, resourceBinding.Name, scheduleResult.SuggestedClusters)
+
+	binding := resourceBinding.DeepCopy()
+	targetClusters := make([]workv1alpha1.TargetCluster, len(scheduleResult.SuggestedClusters))
 	for i, cluster := range scheduleResult.SuggestedClusters {
-		targetClusters[i] = v1alpha1.TargetCluster{Name: cluster}
+		targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster}
 	}
 	binding.Spec.Clusters = targetClusters
-	_, err = s.KarmadaClient.PolicyV1alpha1().PropagationBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
+
+	placement, err := json.Marshal(policy.Spec.Placement)
+	if err != nil {
+		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+	}
+
+	if binding.Annotations == nil {
+		binding.Annotations = make(map[string]string)
+	}
+	binding.Annotations[util.PolicyPlacementAnnotation] = string(placement)
+
+	_, err = s.KarmadaClient.WorkV1alpha1().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha1.ClusterResourceBinding, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement)
+	if err != nil {
+		klog.V(2).Infof("failed scheduling ClusterResourceBinding %s: %v", clusterResourceBinding.Name, err)
+		return err
+	}
+	klog.V(4).Infof("ClusterResourceBinding %s scheduled to clusters %v", clusterResourceBinding.Name, scheduleResult.SuggestedClusters)
+
+	binding := clusterResourceBinding.DeepCopy()
+	targetClusters := make([]workv1alpha1.TargetCluster, len(scheduleResult.SuggestedClusters))
+	for i, cluster := range scheduleResult.SuggestedClusters {
+		targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster}
+	}
+	binding.Spec.Clusters = targetClusters
+
+	placement, err := json.Marshal(policy.Spec.Placement)
+	if err != nil {
+		klog.Errorf("Failed to marshal placement of clusterPropagationPolicy %s, error: %v", policy.Name, err)
+	}
+
+	if binding.Annotations == nil {
+		binding.Annotations = make(map[string]string)
+	}
+	binding.Annotations[util.PolicyPlacementAnnotation] = string(placement)
+
+	_, err = s.KarmadaClient.WorkV1alpha1().ClusterResourceBindings().Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -190,12 +452,12 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 	}
 
 	utilruntime.HandleError(err)
-	klog.V(2).Infof("Dropping propagationbinding %q out of the queue: %v", key, err)
+	klog.V(2).Infof("Dropping ResourceBinding %q out of the queue: %v", key, err)
 	s.queue.Forget(key)
 }
 
 func (s *Scheduler) addCluster(obj interface{}) {
-	cluster, ok := obj.(*memclusterapi.Cluster)
+	cluster, ok := obj.(*clusterv1alpha1.Cluster)
 	if !ok {
 		klog.Errorf("cannot convert to Cluster: %v", obj)
 		return
@@ -206,31 +468,141 @@ func (s *Scheduler) addCluster(obj interface{}) {
 }
 
 func (s *Scheduler) updateCluster(_, newObj interface{}) {
-	newCluster, ok := newObj.(*memclusterapi.Cluster)
+	newCluster, ok := newObj.(*clusterv1alpha1.Cluster)
 	if !ok {
 		klog.Errorf("cannot convert newObj to Cluster: %v", newObj)
 		return
 	}
 	klog.V(3).Infof("update event for cluster %s", newCluster.Name)
 	s.schedulerCache.UpdateCluster(newCluster)
+
+	// Check if cluster becomes failure
+	if meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+		klog.Infof("Found cluster(%s) failure and failover flag is %v", newCluster.Name, Failover)
+
+		if Failover { // Trigger reschedule on cluster failure only when flag is true.
+			s.expiredBindingInQueue(newCluster.Name)
+			return
+		}
+	}
 }
 
 func (s *Scheduler) deleteCluster(obj interface{}) {
-	var cluster *memclusterapi.Cluster
+	var cluster *clusterv1alpha1.Cluster
 	switch t := obj.(type) {
-	case *memclusterapi.Cluster:
+	case *clusterv1alpha1.Cluster:
 		cluster = t
 	case cache.DeletedFinalStateUnknown:
 		var ok bool
-		cluster, ok = t.Obj.(*memclusterapi.Cluster)
+		cluster, ok = t.Obj.(*clusterv1alpha1.Cluster)
 		if !ok {
-			klog.Errorf("cannot convert to memclusterapi.Cluster: %v", t.Obj)
+			klog.Errorf("cannot convert to clusterv1alpha1.Cluster: %v", t.Obj)
 			return
 		}
 	default:
-		klog.Errorf("cannot convert to memclusterapi.Cluster: %v", t)
+		klog.Errorf("cannot convert to clusterv1alpha1.Cluster: %v", t)
 		return
 	}
 	klog.V(3).Infof("delete event for cluster %s", cluster.Name)
 	s.schedulerCache.DeleteCluster(cluster)
+}
+
+// expiredBindingInQueue will find all ResourceBindings which are related to the current NotReady cluster and add them in queue.
+func (s *Scheduler) expiredBindingInQueue(notReadyClusterName string) {
+	bindings, _ := s.bindingLister.List(labels.Everything())
+	klog.Infof("Start traveling all ResourceBindings")
+	for _, binding := range bindings {
+		clusters := binding.Spec.Clusters
+		for _, bindingCluster := range clusters {
+			if bindingCluster.Name == notReadyClusterName {
+				rescheduleKey, err := cache.MetaNamespaceKeyFunc(binding)
+				if err != nil {
+					klog.Errorf("couldn't get rescheduleKey for ResourceBinding %#v: %v", bindingCluster.Name, err)
+					return
+				}
+				s.queue.Add(rescheduleKey)
+				klog.Infof("Add expired ResourceBinding in queue successfully")
+			}
+		}
+	}
+}
+
+func (s Scheduler) failoverCandidateCluster(binding *workv1alpha1.ResourceBinding) (reserved sets.String, candidates sets.String) {
+	bindedCluster := sets.NewString()
+	for _, cluster := range binding.Spec.Clusters {
+		bindedCluster.Insert(cluster.Name)
+	}
+
+	availableCluster := sets.NewString()
+	for _, cluster := range s.schedulerCache.Snapshot().GetReadyClusters() {
+		availableCluster.Insert(cluster.Cluster().Name)
+	}
+
+	return bindedCluster.Difference(bindedCluster.Difference(availableCluster)), availableCluster.Difference(bindedCluster)
+}
+
+// rescheduleOne.
+func (s *Scheduler) rescheduleOne(key string) (err error) {
+	ns, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+
+	klog.Infof("begin rescheduling ResourceBinding %s %s", ns, name)
+	defer klog.Infof("end rescheduling ResourceBinding %s: %s", ns, name)
+
+	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+
+	binding := resourceBinding.DeepCopy()
+	reservedClusters, candidateClusters := s.failoverCandidateCluster(resourceBinding)
+	klog.Infof("Reserved clusters : %v", reservedClusters.List())
+	klog.Infof("Candidate clusters: %v", candidateClusters.List())
+	deltaLen := len(binding.Spec.Clusters) - len(reservedClusters)
+
+	klog.Infof("binding(%s/%s) has %d failure clusters, and got %d candidates", ns, name, deltaLen, len(candidateClusters))
+
+	// TODO: should schedule as much as possible?
+	if len(candidateClusters) < deltaLen {
+		klog.Warningf("ignore reschedule binding(%s/%s) as insufficient available cluster", ns, name)
+		return nil
+	}
+
+	targetClusters := reservedClusters
+
+	for i := 0; i < deltaLen; i++ {
+		for clusterName := range candidateClusters {
+			curCluster, _ := s.clusterLister.Get(clusterName)
+			policyNamespace := util.GetLabelValue(binding.Labels, util.PropagationPolicyNamespaceLabel)
+			policyName := util.GetLabelValue(binding.Labels, util.PropagationPolicyNameLabel)
+			policy, _ := s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
+
+			if !util.ClusterMatches(curCluster, *policy.Spec.Placement.ClusterAffinity) {
+				continue
+			}
+
+			klog.Infof("Rescheduling %s/ %s to member cluster %s", binding.Namespace, binding.Name, clusterName)
+			targetClusters.Insert(clusterName)
+			candidateClusters.Delete(clusterName)
+
+			// break as soon as find a result
+			break
+		}
+	}
+
+	// TODO(tinyma123) Check if the final result meets the spread constraints.
+
+	binding.Spec.Clusters = nil
+	for cluster := range targetClusters {
+		binding.Spec.Clusters = append(binding.Spec.Clusters, workv1alpha1.TargetCluster{Name: cluster})
+	}
+	klog.Infof("The final binding.Spec.Cluster values are: %v\n", binding.Spec.Clusters)
+
+	_, err = s.KarmadaClient.WorkV1alpha1().ResourceBindings(ns).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -1,0 +1,14 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: example-policy
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      namespace: default
+      name: nginx
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1

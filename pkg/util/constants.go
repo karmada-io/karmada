@@ -1,15 +1,30 @@
 package util
 
 const (
-	// PolicyClaimLabel will set in kubernetes resource, indicates that
-	// the resource is occupied by propagationPolicy
-	PolicyClaimLabel = "karmada.io/driven-by"
-	// OwnerLabel will set in karmada CRDs, indicates that who created it.
-	// We can use labelSelector to find who created it quickly.
-	// example1: set it in propagationBinding, the label value is propagationPolicy.
-	// example2: set it in Work, the label value is propagationBinding.
-	// example3: set it in Work, the label value is HPA.
-	OwnerLabel = "karmada.io/created-by"
+	// PropagationPolicyNamespaceLabel is added to objects to specify associated PropagationPolicy namespace.
+	PropagationPolicyNamespaceLabel = "propagationpolicy.karmada.io/namespace"
+
+	// PropagationPolicyNameLabel is added to objects to specify associated PropagationPolicy's name.
+	PropagationPolicyNameLabel = "propagationpolicy.karmada.io/name"
+
+	// ClusterPropagationPolicyLabel is added to objects to specify associated ClusterPropagationPolicy.
+	ClusterPropagationPolicyLabel = "clusterpropagationpolicy.karmada.io/name"
+
+	// ResourceBindingNamespaceLabel is added to objects to specify associated ResourceBinding's namespace.
+	ResourceBindingNamespaceLabel = "resourcebinding.karmada.io/namespace"
+
+	// ResourceBindingNameLabel is added to objects to specify associated ResourceBinding's name.
+	ResourceBindingNameLabel = "resourcebinding.karmada.io/name"
+
+	// ClusterResourceBindingLabel is added to objects to specify associated ClusterResourceBinding.
+	ClusterResourceBindingLabel = "clusterresourcebinding.karmada.io/name"
+
+	// WorkNamespaceLabel is added to objects to specify associated Work's namespace.
+	WorkNamespaceLabel = "work.karmada.io/namespace"
+
+	// WorkNameLabel is added to objects to specify associated Work's name.
+	WorkNameLabel = "work.karmada.io/name"
+
 	// OverrideClaimKey will set in Work resource, indicates that
 	// the resource is overridden by override policies
 	OverrideClaimKey = "karmada.io/overridden-by"
@@ -23,6 +38,14 @@ const (
 	// it is used to annotates what cluster override policies have been applied for a specific manifest.
 	// The value is a comma-separated list of cluster override policy names.
 	AppliedClusterOverrideKey = "karmada.io/cluster-override"
+)
+
+// Define annotations used by karmada system.
+const (
+	// PolicyPlacementAnnotation is the annotation of a policy's placement.
+	// It is intended to set on ResourceBinding or ClusterResourceBinding objects to record applied placement declaration.
+	// The placement could be either PropagationPolicy's or ClusterPropagationPolicy's.
+	PolicyPlacementAnnotation = "policy.karmada.io/applied-placement"
 )
 
 // Define finalizers used by karmada system.

@@ -8,14 +8,14 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// ClusterOverridePolicies returns a ClusterOverridePolicyInformer.
+	ClusterOverridePolicies() ClusterOverridePolicyInformer
+	// ClusterPropagationPolicies returns a ClusterPropagationPolicyInformer.
+	ClusterPropagationPolicies() ClusterPropagationPolicyInformer
 	// OverridePolicies returns a OverridePolicyInformer.
 	OverridePolicies() OverridePolicyInformer
-	// PropagationBindings returns a PropagationBindingInformer.
-	PropagationBindings() PropagationBindingInformer
 	// PropagationPolicies returns a PropagationPolicyInformer.
 	PropagationPolicies() PropagationPolicyInformer
-	// Works returns a WorkInformer.
-	Works() WorkInformer
 }
 
 type version struct {
@@ -29,22 +29,22 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
+// ClusterOverridePolicies returns a ClusterOverridePolicyInformer.
+func (v *version) ClusterOverridePolicies() ClusterOverridePolicyInformer {
+	return &clusterOverridePolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// ClusterPropagationPolicies returns a ClusterPropagationPolicyInformer.
+func (v *version) ClusterPropagationPolicies() ClusterPropagationPolicyInformer {
+	return &clusterPropagationPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
 // OverridePolicies returns a OverridePolicyInformer.
 func (v *version) OverridePolicies() OverridePolicyInformer {
 	return &overridePolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// PropagationBindings returns a PropagationBindingInformer.
-func (v *version) PropagationBindings() PropagationBindingInformer {
-	return &propagationBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
 // PropagationPolicies returns a PropagationPolicyInformer.
 func (v *version) PropagationPolicies() PropagationPolicyInformer {
 	return &propagationPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// Works returns a WorkInformer.
-func (v *version) Works() WorkInformer {
-	return &workInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

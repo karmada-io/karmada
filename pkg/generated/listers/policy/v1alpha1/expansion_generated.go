@@ -2,6 +2,14 @@
 
 package v1alpha1
 
+// ClusterOverridePolicyListerExpansion allows custom methods to be added to
+// ClusterOverridePolicyLister.
+type ClusterOverridePolicyListerExpansion interface{}
+
+// ClusterPropagationPolicyListerExpansion allows custom methods to be added to
+// ClusterPropagationPolicyLister.
+type ClusterPropagationPolicyListerExpansion interface{}
+
 // OverridePolicyListerExpansion allows custom methods to be added to
 // OverridePolicyLister.
 type OverridePolicyListerExpansion interface{}
@@ -10,14 +18,6 @@ type OverridePolicyListerExpansion interface{}
 // OverridePolicyNamespaceLister.
 type OverridePolicyNamespaceListerExpansion interface{}
 
-// PropagationBindingListerExpansion allows custom methods to be added to
-// PropagationBindingLister.
-type PropagationBindingListerExpansion interface{}
-
-// PropagationBindingNamespaceListerExpansion allows custom methods to be added to
-// PropagationBindingNamespaceLister.
-type PropagationBindingNamespaceListerExpansion interface{}
-
 // PropagationPolicyListerExpansion allows custom methods to be added to
 // PropagationPolicyLister.
 type PropagationPolicyListerExpansion interface{}
@@ -25,11 +25,3 @@ type PropagationPolicyListerExpansion interface{}
 // PropagationPolicyNamespaceListerExpansion allows custom methods to be added to
 // PropagationPolicyNamespaceLister.
 type PropagationPolicyNamespaceListerExpansion interface{}
-
-// WorkListerExpansion allows custom methods to be added to
-// WorkLister.
-type WorkListerExpansion interface{}
-
-// WorkNamespaceListerExpansion allows custom methods to be added to
-// WorkNamespaceLister.
-type WorkNamespaceListerExpansion interface{}

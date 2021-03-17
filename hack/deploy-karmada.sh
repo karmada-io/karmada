@@ -68,9 +68,12 @@ function installCRDs() {
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/cluster.karmada.io_clusters.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_propagationpolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_propagationbindings.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_works.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_clusterpropagationpolicies.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_overridepolicies.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_clusteroverridepolicies.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_works.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_resourcebindings.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_clusterresourcebindings.yaml"
 }
 
 #generate cert

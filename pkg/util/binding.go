@@ -9,11 +9,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
 // GetBindingClusterNames will get clusterName list from bind clusters field
-func GetBindingClusterNames(binding *v1alpha1.PropagationBinding) []string {
+func GetBindingClusterNames(binding *workv1alpha1.ResourceBinding) []string {
 	var clusterNames []string
 	for _, targetCluster := range binding.Spec.Clusters {
 		clusterNames = append(clusterNames, targetCluster.Name)
@@ -23,11 +23,11 @@ func GetBindingClusterNames(binding *v1alpha1.PropagationBinding) []string {
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
 func CreateOrUpdateWork(client client.Client, objectMeta metav1.ObjectMeta, rawExtension []byte) error {
-	work := &v1alpha1.Work{
+	work := &workv1alpha1.Work{
 		ObjectMeta: objectMeta,
-		Spec: v1alpha1.WorkSpec{
-			Workload: v1alpha1.WorkloadTemplate{
-				Manifests: []v1alpha1.Manifest{
+		Spec: workv1alpha1.WorkSpec{
+			Workload: workv1alpha1.WorkloadTemplate{
+				Manifests: []workv1alpha1.Manifest{
 					{
 						RawExtension: runtime.RawExtension{
 							Raw: rawExtension,
