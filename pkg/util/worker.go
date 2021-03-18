@@ -111,7 +111,8 @@ func GenerateKey(obj interface{}) (QueueKey, error) {
 func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
 	workNamespace := GetLabelValue(resource.GetLabels(), WorkNamespaceLabel)
 	if len(workNamespace) == 0 {
-		klog.Infof("Resource(%s/%s/%s) not created by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
+		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
+		return "", nil
 	}
 
 	cluster, err := names.GetClusterName(workNamespace)
