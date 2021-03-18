@@ -298,8 +298,45 @@ func (s *Scheduler) getScheduleType(key string) ScheduleType {
 			}
 		}
 	} else { // ClusterResourceBinding
-		// TODO:
-		return Unknown
+		binding, err := s.clusterBindingLister.Get(name)
+		if errors.IsNotFound(err) {
+			return Unknown
+		}
+
+		if len(binding.Spec.Clusters) == 0 {
+			return FirstSchedule
+		}
+
+		policyName := util.GetLabelValue(binding.Labels, util.ClusterPropagationPolicyLabel)
+
+		policy, err := s.clusterPolicyLister.Get(policyName)
+		if err != nil {
+			return Unknown
+		}
+		placement, err := json.Marshal(policy.Spec.Placement)
+		if err != nil {
+			klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+			return Unknown
+		}
+		policyPlacementStr := string(placement)
+
+		appliedPlacement := util.GetLabelValue(binding.Annotations, util.PolicyPlacementAnnotation)
+
+		if policyPlacementStr != appliedPlacement {
+			return ReconcileSchedule
+		}
+
+		clusters := s.schedulerCache.Snapshot().GetClusters()
+		for _, tc := range binding.Spec.Clusters {
+			bindedCluster := tc.Name
+			for _, c := range clusters {
+				if c.Cluster().Name == bindedCluster {
+					if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+						return FailoverSchedule
+					}
+				}
+			}
+		}
 	}
 
 	return AvoidSchedule
