@@ -442,7 +442,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
 func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) *workv1alpha1.ClusterResourceBinding {
-	bindingName := names.GenerateBindingName(object.GetNamespace(), object.GetKind(), object.GetName())
+	bindingName := names.GenerateClusterResourceBindingName(object.GetKind(), object.GetName())
 	binding := &workv1alpha1.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
