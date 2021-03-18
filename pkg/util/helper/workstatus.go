@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -20,7 +19,10 @@ import (
 // AggregateResourceBindingWorkStatus will collect all work statuses with current ResourceBinding objects,
 // then aggregate status info to current ResourceBinding status.
 func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.ResourceBinding, workload *unstructured.Unstructured) error {
-	aggregatedStatuses, err := assembleWorkStatus(c, binding.Namespace, binding.Name, workload, apiextensionsv1.NamespaceScoped)
+	aggregatedStatuses, err := assembleWorkStatus(c, labels.SelectorFromSet(labels.Set{
+		util.ResourceBindingNamespaceLabel: binding.Namespace,
+		util.ResourceBindingNameLabel:      binding.Name,
+	}), workload)
 	if err != nil {
 		return err
 	}
@@ -42,20 +44,37 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.R
 	return nil
 }
 
-func assembleWorkStatus(c client.Client, bindingNamespace, bindingName string, workload *unstructured.Unstructured,
-	scope apiextensionsv1.ResourceScope) ([]workv1alpha1.AggregatedStatusItem, error) {
+// AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
+// then aggregate status info to current ClusterResourceBinding status.
+func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.ClusterResourceBinding, workload *unstructured.Unstructured) error {
+	aggregatedStatuses, err := assembleWorkStatus(c, labels.SelectorFromSet(labels.Set{
+		util.ClusterResourceBindingLabel: binding.Name,
+	}), workload)
+	if err != nil {
+		return err
+	}
 
+	if reflect.DeepEqual(binding.Status.AggregatedStatus, aggregatedStatuses) {
+		klog.Infof("New aggregatedStatuses are equal with old clusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
+		return nil
+	}
+
+	binding.Status.AggregatedStatus = aggregatedStatuses
+	err = c.Status().Update(context.TODO(), binding)
+	if err != nil {
+		klog.Errorf("Failed update clusterResourceBinding(%s). Error: %v.", binding.Name, err)
+		return err
+	}
+	klog.Infof("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
+
+	return nil
+}
+
+// assemble workStatuses from workList which list by selector and match with workload.
+func assembleWorkStatus(c client.Client, selector labels.Selector, workload *unstructured.Unstructured) ([]workv1alpha1.AggregatedStatusItem, error) {
 	workList := &workv1alpha1.WorkList{}
-	switch scope {
-	case apiextensionsv1.NamespaceScoped:
-		selector := labels.SelectorFromSet(labels.Set{
-			util.ResourceBindingNamespaceLabel: bindingNamespace,
-			util.ResourceBindingNameLabel:      bindingName,
-		})
-
-		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
-			return nil, err
-		}
+	if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
+		return nil, err
 	}
 
 	statuses := make([]workv1alpha1.AggregatedStatusItem, 0)

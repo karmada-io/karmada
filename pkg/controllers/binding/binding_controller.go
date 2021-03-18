@@ -2,7 +2,6 @@ package binding
 
 import (
 	"context"
-	"reflect"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -12,11 +11,8 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -126,38 +122,7 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 			return requests
 		})
 
-	predicateFn := builder.WithPredicates(predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return false
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			var statusesOld, statusesNew []workv1alpha1.ManifestStatus
-
-			switch oldWork := e.ObjectOld.(type) {
-			case *workv1alpha1.Work:
-				statusesOld = oldWork.Status.ManifestStatuses
-			default:
-				return false
-			}
-
-			switch newWork := e.ObjectNew.(type) {
-			case *workv1alpha1.Work:
-				statusesNew = newWork.Status.ManifestStatuses
-			default:
-				return false
-			}
-
-			return !reflect.DeepEqual(statusesOld, statusesNew)
-		},
-		DeleteFunc: func(event.DeleteEvent) bool {
-			return false
-		},
-		GenericFunc: func(event.GenericEvent) bool {
-			return false
-		},
-	})
-
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ResourceBinding{}).
-		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: workFn}, predicateFn).
+		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: workFn}, workPredicateFn).
 		Complete(c)
 }
