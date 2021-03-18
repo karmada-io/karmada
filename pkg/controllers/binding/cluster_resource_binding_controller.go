@@ -6,13 +6,18 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
@@ -65,25 +70,31 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha1.Clu
 	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters)
 	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, clusterNames, apiextensionsv1.ClusterScoped)
 	if err != nil {
-		klog.Errorf("Failed to find orphan works by ClusterResourceBinding %s. Error: %v.", binding.GetName(), err)
+		klog.Errorf("Failed to find orphan works by ClusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	err = helper.RemoveOrphanWorks(c.Client, works)
 	if err != nil {
-		klog.Errorf("Failed to remove orphan works by clusterResourceBinding %s. Error: %v.", binding.GetName(), err)
+		klog.Errorf("Failed to remove orphan works by clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
-		klog.Errorf("Failed to fetch workload for clusterResourceBinding %s. Error: %v.", binding.GetName(), err)
+		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	err = helper.EnsureWork(c.Client, workload, clusterNames, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	if err != nil {
-		klog.Errorf("Failed to transform clusterResourceBinding %s to works. Error: %v.", binding.GetName(), err)
+		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, workload)
+	if err != nil {
+		klog.Errorf("Failed to aggregate workStatuses to clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -92,5 +103,20 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha1.Clu
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ClusterResourceBinding{}).Complete(c)
+	workFn := handler.ToRequestsFunc(
+		func(a handler.MapObject) []reconcile.Request {
+			var requests []reconcile.Request
+
+			labels := a.Meta.GetLabels()
+			namespacesName := types.NamespacedName{
+				Name: labels[util.ClusterResourceBindingLabel],
+			}
+
+			requests = append(requests, reconcile.Request{NamespacedName: namespacesName})
+			return requests
+		})
+
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ClusterResourceBinding{}).
+		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: workFn}, workPredicateFn).
+		Complete(c)
 }
