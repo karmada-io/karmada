@@ -9,3 +9,5 @@ type ClusterPropagationPolicyExpansion interface{}
 type OverridePolicyExpansion interface{}
 
 type PropagationPolicyExpansion interface{}
+
+type ReplicaSchedulingPolicyExpansion interface{}
