@@ -52,7 +52,6 @@ func NewObjectWatcher(client client.Client, kubeClientSet kubernetes.Interface, 
 }
 
 func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.Unstructured) error {
-	klog.Infof("Start to create resource %v/%v", desireObj.GetNamespace(), desireObj.GetName())
 	dynamicClusterClient, err := util.BuildDynamicClusterClient(o.Client, o.KubeClientSet, clusterName)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
@@ -73,6 +72,7 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 		klog.Errorf("Failed to create resource %v, err is %v ", desireObj.GetName(), err)
 		return err
 	}
+	klog.Infof("Created resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
 
 	// record version
 	o.recordVersion(clusterObj, dynamicClusterClient.ClusterName)
@@ -80,7 +80,6 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 }
 
 func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured) error {
-	klog.Infof("Start to update resource %v/%v", desireObj.GetNamespace(), desireObj.GetName())
 	dynamicClusterClient, err := util.BuildDynamicClusterClient(o.Client, o.KubeClientSet, clusterName)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
@@ -105,13 +104,14 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 		return err
 	}
 
+	klog.Infof("Updated resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
+
 	// record version
 	o.recordVersion(resource, clusterName)
 	return nil
 }
 
 func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.Unstructured) error {
-	klog.Infof("Start to delete resource %v/%v", desireObj.GetNamespace(), desireObj.GetName())
 	dynamicClusterClient, err := util.BuildDynamicClusterClient(o.Client, o.KubeClientSet, clusterName)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
@@ -132,6 +132,7 @@ func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.U
 		klog.Errorf("Failed to delete resource %v, err is %v ", desireObj.GetName(), err)
 		return err
 	}
+	klog.Infof("Deleted resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
 
 	objectKey := o.genObjectKey(desireObj)
 	o.deleteVersionRecord(dynamicClusterClient.ClusterName, objectKey)

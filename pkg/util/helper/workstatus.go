@@ -28,7 +28,7 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.R
 	}
 
 	if reflect.DeepEqual(binding.Status.AggregatedStatus, aggregatedStatuses) {
-		klog.Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
+		klog.V(4).Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
 			binding.Namespace, binding.Name)
 		return nil
 	}
