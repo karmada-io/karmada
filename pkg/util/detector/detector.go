@@ -2,11 +2,13 @@ package detector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,13 +42,24 @@ type ResourceDetector struct {
 	InformerManager informermanager.SingleClusterInformerManager
 	EventHandler    cache.ResourceEventHandler
 	Processor       util.AsyncWorker
-	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's and
-	// a reconcile function to consume the items in the queue.
+
+	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
+	// a reconcile function to consume the items in queue.
 	policyReconcileWorker util.AsyncWorker
+
 	// clusterPolicyReconcileWorker maintains a rate limited queue which used to store ClusterPropagationPolicy's key and
-	// a reconcile function to consume the items in the queue.
+	// a reconcile function to consume the items in queue.
 	clusterPolicyReconcileWorker util.AsyncWorker
-	RESTMapper                   meta.RESTMapper
+
+	// bindingReconcileWorker maintains a rate limited queue which used to store ResourceBinding's key and
+	// a reconcile function to consume the items in queue.
+	bindingReconcileWorker util.AsyncWorker
+
+	// clusterBindingReconcileWorker maintains a rate limited queue which used to store ClusterResourceBinding's key and
+	// a reconcile function to consume the items in queue.
+	clusterBindingReconcileWorker util.AsyncWorker
+
+	RESTMapper meta.RESTMapper
 
 	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
 	waitingObjects map[ClusterWideKey]struct{}
@@ -73,6 +86,18 @@ func (d *ResourceDetector) Start(stopCh <-chan struct{}) error {
 	d.InformerManager.ForResource(policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"), policyHandler)
 	clusterPolicyHandler := informermanager.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, d.OnClusterPropagationPolicyDelete)
 	d.InformerManager.ForResource(policyv1alpha1.SchemeGroupVersion.WithResource("clusterpropagationpolicies"), clusterPolicyHandler)
+
+	// setup binding reconcile worker
+	d.bindingReconcileWorker = util.NewAsyncWorker("binding reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileResourceBinding)
+	d.bindingReconcileWorker.Run(1, d.stopCh)
+	d.clusterBindingReconcileWorker = util.NewAsyncWorker("cluster binding reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileClusterResourceBinding)
+	d.clusterBindingReconcileWorker.Run(1, d.stopCh)
+
+	// watch and enqueue binding changes.
+	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
+	d.InformerManager.ForResource(workv1alpha1.SchemeGroupVersion.WithResource("resourcebindings"), bindingHandler)
+	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, d.OnClusterResourceBindingDelete)
+	d.InformerManager.ForResource(workv1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"), clusterBindingHandler)
 
 	d.Processor.Run(1, stopCh)
 	go d.discoverResources(30 * time.Second)
@@ -702,6 +727,157 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreation(policy *policy
 	for _, key := range matchedKeys {
 		d.RemoveWaiting(key)
 		d.Processor.AddRateLimited(key)
+	}
+
+	return nil
+}
+
+// OnResourceBindingAdd handles object add event.
+func (d *ResourceDetector) OnResourceBindingAdd(obj interface{}) {
+	key, err := ClusterWideKeyFunc(obj)
+	if err != nil {
+		return
+	}
+
+	d.bindingReconcileWorker.AddRateLimited(key)
+}
+
+// OnResourceBindingUpdate handles object update event and push the object to queue.
+func (d *ResourceDetector) OnResourceBindingUpdate(_, newObj interface{}) {
+	d.OnResourceBindingAdd(newObj)
+}
+
+// OnClusterResourceBindingDelete handles object delete event.
+func (d *ResourceDetector) OnClusterResourceBindingDelete(obj interface{}) {
+	// TODO(RainbowMango): cleanup status in resource template that current binding object refers to.
+}
+
+// ReconcileResourceBinding handles ResourceBinding object changes.
+// For each ResourceBinding changes, we will try to calculate the summary status and update to original object
+// that the ResourceBinding refer to.
+func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
+	ckey, ok := key.(ClusterWideKey)
+	if !ok { // should not happen
+		klog.Error("Found invalid key when reconciling resource binding.")
+		return fmt.Errorf("invalid key")
+	}
+
+	binding := &workv1alpha1.ResourceBinding{}
+	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: ckey.Namespace, Name: ckey.Name}, binding); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	klog.Infof("Reconciling resource binding(%s/%s)", binding.Namespace, binding.Name)
+	switch binding.Spec.Resource.Kind {
+	case "Deployment":
+		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
+	default:
+		// Unsupported resource type.
+		return nil
+	}
+}
+
+// OnClusterResourceBindingAdd handles object add event.
+func (d *ResourceDetector) OnClusterResourceBindingAdd(obj interface{}) {
+	key, err := ClusterWideKeyFunc(obj)
+	if err != nil {
+		return
+	}
+
+	d.clusterBindingReconcileWorker.AddRateLimited(key)
+}
+
+// OnClusterResourceBindingUpdate handles object update event and push the object to queue.
+func (d *ResourceDetector) OnClusterResourceBindingUpdate(oldObj, newObj interface{}) {
+	d.OnClusterResourceBindingAdd(newObj)
+}
+
+// OnResourceBindingDelete handles object delete event.
+func (d *ResourceDetector) OnResourceBindingDelete(obj interface{}) {
+	// TODO(RainbowMango): cleanup status in resource template that current binding object refers to.
+}
+
+// ReconcileClusterResourceBinding handles ResourceBinding object changes.
+// For each ClusterResourceBinding changes, we will try to calculate the summary status and update to original object
+// that the ClusterResourceBinding refer to.
+func (d *ResourceDetector) ReconcileClusterResourceBinding(key util.QueueKey) error {
+	ckey, ok := key.(ClusterWideKey)
+	if !ok { // should not happen
+		klog.Error("Found invalid key when reconciling cluster resource binding.")
+		return fmt.Errorf("invalid key")
+	}
+
+	binding := &workv1alpha1.ClusterResourceBinding{}
+	if err := d.Client.Get(context.TODO(), client.ObjectKey{Name: ckey.Name}, binding); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	klog.Infof("Reconciling cluster resource binding(%s)", binding.Name)
+	switch binding.Spec.Resource.Kind {
+	case "Deployment":
+		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
+	default:
+		// Unsupported resource type.
+		return nil
+	}
+}
+
+// AggregateDeploymentStatus summarize deployment status and update to original objects.
+func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectReference, status []workv1alpha1.AggregatedStatusItem) error {
+	if objRef.APIVersion != "apps/v1" {
+		return nil
+	}
+
+	obj := &appsv1.Deployment{}
+	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: objRef.Namespace, Name: objRef.Name}, obj); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		klog.Errorf("Failed to get deployment(%s/%s): %v", objRef.Namespace, objRef.Name, err)
+		return err
+	}
+
+	oldStatus := &obj.Status
+	newStatus := &appsv1.DeploymentStatus{}
+	for _, item := range status {
+		temp := &appsv1.DeploymentStatus{}
+		if err := json.Unmarshal(item.Status.Raw, temp); err != nil {
+			klog.Errorf("Failed to unmarshal status")
+			return err
+		}
+		klog.V(3).Infof("Scrub deployment(%s/%s) status from cluster(%s), replicas: %d, ready: %d, updated: %d, available: %d, unavailable: %d",
+			obj.Namespace, obj.Name, item.ClusterName, temp.Replicas, temp.ReadyReplicas, temp.UpdatedReplicas, temp.AvailableReplicas, temp.UnavailableReplicas)
+		newStatus.Replicas += temp.Replicas
+		newStatus.ReadyReplicas += temp.ReadyReplicas
+		newStatus.UpdatedReplicas += temp.UpdatedReplicas
+		newStatus.AvailableReplicas += temp.AvailableReplicas
+		newStatus.UnavailableReplicas += temp.UnavailableReplicas
+	}
+
+	if oldStatus.Replicas == newStatus.Replicas &&
+		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
+		oldStatus.UpdatedReplicas == newStatus.UpdatedReplicas &&
+		oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
+		oldStatus.UnavailableReplicas == newStatus.UnavailableReplicas {
+		klog.V(3).Infof("ignore update deployment(%s/%s) status as up to date", obj.Namespace, obj.Name)
+		return nil
+	}
+
+	oldStatus.Replicas = newStatus.Replicas
+	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
+	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
+	oldStatus.AvailableReplicas = newStatus.AvailableReplicas
+	oldStatus.UnavailableReplicas = newStatus.UnavailableReplicas
+
+	if err := d.Client.Status().Update(context.TODO(), obj); err != nil {
+		klog.Errorf("Failed to update deployment(%s/%s) status: %v", objRef.Namespace, objRef.Name, err)
+		return err
 	}
 
 	return nil
