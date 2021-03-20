@@ -26,7 +26,6 @@ if [[ -z "${KUBECONFIG}" ]]; then
   exit 1
 fi
 
-# TODO(RainbowMango): pin kind version(v0.9.0) and install automatically.
 kind create cluster --name "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}" --wait=120s
 
 # Kind cluster's context name contains a "kind-" prefix by default.
