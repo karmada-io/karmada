@@ -9,9 +9,9 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -44,15 +44,17 @@ const (
 )
 
 var (
-	kubeconfig      string
-	restConfig      *rest.Config
-	kubeClient      kubernetes.Interface
-	karmadaClient   karmada.Interface
-	clusters        []*clusterapi.Cluster
-	clusterNames    []string
-	clusterClients  []*util.ClusterClient
-	testNamespace   = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
-	clusterProvider *cluster.Provider
+	kubeconfig            string
+	restConfig            *rest.Config
+	kubeClient            kubernetes.Interface
+	karmadaClient         karmada.Interface
+	dynamicClient         dynamic.Interface
+	clusters              []*clusterapi.Cluster
+	clusterNames          []string
+	clusterClients        []*util.ClusterClient
+	clusterDynamicClients []*util.DynamicClusterClient
+	testNamespace         = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+	clusterProvider       *cluster.Provider
 )
 
 func TestE2E(t *testing.T) {
@@ -75,6 +77,9 @@ var _ = ginkgo.BeforeSuite(func() {
 	karmadaClient, err = karmada.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	dynamicClient, err = dynamic.NewForConfig(restConfig)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	clusters, err = fetchClusters(karmadaClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -89,6 +94,10 @@ var _ = ginkgo.BeforeSuite(func() {
 		clusterClient, err := util.NewClusterClientSet(cluster, kubeClient)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		clusterClients = append(clusterClients, clusterClient)
+
+		clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, kubeClient)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		clusterDynamicClients = append(clusterDynamicClients, clusterDynamicClient)
 	}
 	gomega.Expect(clusterNames).Should(gomega.HaveLen(len(clusters)))
 
@@ -105,7 +114,7 @@ var _ = ginkgo.AfterSuite(func() {
 
 // fetchClusters will fetch all member clusters we have.
 func fetchClusters(client karmada.Interface) ([]*clusterapi.Cluster, error) {
-	clusterList, err := client.ClusterV1alpha1().Clusters().List(context.TODO(), v1.ListOptions{})
+	clusterList, err := client.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +186,16 @@ func getClusterClient(clusterName string) kubernetes.Interface {
 	for _, client := range clusterClients {
 		if client.ClusterName == clusterName {
 			return client.KubeClient
+		}
+	}
+
+	return nil
+}
+
+func getClusterDynamicClient(clusterName string) dynamic.Interface {
+	for _, client := range clusterDynamicClients {
+		if client.ClusterName == clusterName {
+			return client.DynamicClientSet
 		}
 	}
 
