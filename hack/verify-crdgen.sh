@@ -20,7 +20,7 @@ cleanup
 mkdir -p "${TMP_DIFFROOT}"
 cp -a "${DIFFROOT}"/* "${TMP_DIFFROOT}"
 
-"${SCRIPT_ROOT}/hack/update-crdgen.sh"
+bash "${SCRIPT_ROOT}/hack/update-crdgen.sh"
 echo "diffing ${DIFFROOT} against freshly generated files"
 ret=0
 diff -Naupr "${DIFFROOT}" "${TMP_DIFFROOT}" || ret=$?

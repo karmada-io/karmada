@@ -83,6 +83,9 @@ function installCRDs() {
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_clusterresourcebindings.yaml"
 }
 
+#step0: prepare
+# install kind
+util::install_tools sigs.k8s.io/kind v0.10.0
 
 #step1. create host cluster and member clusters in parallel
 util::create_cluster ${HOST_CLUSTER_NAME} ${HOST_CLUSTER_KUBECONFIG} ${CLUSTER_VERSION} ${KIND_LOG_FILE}
