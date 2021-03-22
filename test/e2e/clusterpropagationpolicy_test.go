@@ -85,12 +85,12 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation tes
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By("check if crd not present on member clusters", func() {
+			ginkgo.By("check if crd disappeared from member clusters", func() {
 				for _, cluster := range clusters {
 					clusterDynamicClient := getClusterDynamicClient(cluster.Name)
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
-					klog.Infof("Waiting for crd(%s) present on cluster(%s)", crdName, cluster.Name)
+					klog.Infof("Waiting for crd(%s) disappeared on cluster(%s)", crdName, cluster.Name)
 					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
 						if err != nil {
