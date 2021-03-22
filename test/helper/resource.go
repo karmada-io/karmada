@@ -5,6 +5,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 )
@@ -173,6 +174,32 @@ func NewCustomResourceDefinition(scope apiextensionsv1.ResourceScope) *apiextens
 			},
 			Conditions:     []apiextensionsv1.CustomResourceDefinitionCondition{},
 			StoredVersions: []string{},
+		},
+	}
+}
+
+// NewCustomResource will build a CR object with CRD Foo.
+func NewCustomResource(namespace, name string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "example.karmada.io/v1alpha1",
+			"kind":       "Foo",
+			"metadata": map[string]string{
+				"namespace": namespace,
+				"name":      name,
+			},
+			"spec": map[string]interface{}{
+				"resource": map[string]string{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"name":       "nginx",
+					"namespace":  "default",
+				},
+				"clusters": []map[string]string{
+					{"name": "cluster1"},
+					{"name": "cluster2"},
+				},
+			},
 		},
 	}
 }
