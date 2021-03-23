@@ -26,7 +26,7 @@ const (
 	deploymentNamePrefix = "deploy-"
 	serviceNamePrefix    = "service-"
 	podNamePrefix        = "pod-"
-	crdNamePrefix        = "cr-foo-"
+	crdNamePrefix        = "cr-"
 
 	updateDeploymentReplicas = 6
 	updateServicePort        = 81
@@ -377,18 +377,25 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 	})
 
 	ginkgo.Context("NamespaceScoped CustomResource propagation testing", func() {
-		crd := helper.NewCustomResourceDefinition(apiextensionsv1.NamespaceScoped)
-		crdPolicy := helper.NewPolicyWithSingleCRD("foos.example.karmada.io", crd, clusterNames)
+		crdGroup := fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
+		randStr := rand.String(RandomStrLength)
+		crdSpecNames := apiextensionsv1.CustomResourceDefinitionNames{
+			Kind:     fmt.Sprintf("Foo%s", randStr),
+			ListKind: fmt.Sprintf("Foo%sList", randStr),
+			Plural:   fmt.Sprintf("foo%ss", randStr),
+			Singular: fmt.Sprintf("foo%s", randStr),
+		}
+		crd := helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+		crdPolicy := helper.NewPolicyWithSingleCRD(crd.Name, crd, clusterNames)
 		crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
 		crNamespace := testNamespace
-		policyNamespace := crNamespace
 		crName := crdNamePrefix + rand.String(RandomStrLength)
-		policyName := crName
-		crGVR := schema.GroupVersionResource{Group: "example.karmada.io", Version: "v1alpha1", Resource: "foos"}
+		crGVR := schema.GroupVersionResource{Group: crd.Spec.Group, Version: "v1alpha1", Resource: crd.Spec.Names.Plural}
 
-		cr := helper.NewCustomResource(crNamespace, crName)
-		crPolicy := helper.NewPolicyWithSingleCR(policyNamespace, policyName, "example.karmada.io/v1alpha1", "Foo", crName, clusterNames)
+		crAPIVersion := fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
+		cr := helper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
+		crPolicy := helper.NewPolicyWithSingleCR(crNamespace, crName, crAPIVersion, crd.Spec.Names.Kind, crName, clusterNames)
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating crdPolicy(%s)", crdPolicy.Name), func() {
@@ -430,7 +437,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By(fmt.Sprintf("removing crd(%s)", crdPolicy.Name), func() {
+			ginkgo.By(fmt.Sprintf("removing crd(%s)", crd.Name), func() {
 				err := dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Delete(context.TODO(), crd.Name, metav1.DeleteOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
