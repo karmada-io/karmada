@@ -20,7 +20,7 @@ import (
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	clusterapi "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -254,10 +254,11 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 		return nil
 	}
 
-	clusterObj := &clusterapi.Cluster{}
+	clusterObj := &clusterv1alpha1.Cluster{}
 	clusterObj.Name = opts.ClusterName
+	clusterObj.Spec.SyncMode = clusterv1alpha1.Push
 	clusterObj.Spec.APIEndpoint = clusterConfig.Host
-	clusterObj.Spec.SecretRef = &clusterapi.LocalSecretReference{
+	clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
 		Namespace: secretNamespace,
 		Name:      secretName,
 	}
@@ -397,7 +398,7 @@ func ensureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 	return createdObj, nil
 }
 
-func createClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterapi.Cluster, errorOnExisting bool) (*clusterapi.Cluster, error) {
+func createClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster, errorOnExisting bool) (*clusterv1alpha1.Cluster, error) {
 	cluster, exist, err := GetCluster(controlPlaneClient, clusterObj.Namespace, clusterObj.Name)
 	if err != nil {
 		klog.Errorf("failed to create cluster object. cluster: %s/%s, error: %v", clusterObj.Namespace, clusterObj.Name, err)
@@ -423,7 +424,7 @@ func createClusterObject(controlPlaneClient *karmadaclientset.Clientset, cluster
 }
 
 // GetCluster tells if a cluster (namespace/name) already joined to control plane.
-func GetCluster(client karmadaclientset.Interface, namespace string, name string) (*clusterapi.Cluster, bool, error) {
+func GetCluster(client karmadaclientset.Interface, namespace string, name string) (*clusterv1alpha1.Cluster, bool, error) {
 	cluster, err := client.ClusterV1alpha1().Clusters().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -438,7 +439,7 @@ func GetCluster(client karmadaclientset.Interface, namespace string, name string
 }
 
 // CreateCluster creates a new cluster object in control plane.
-func CreateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterapi.Cluster) (*clusterapi.Cluster, error) {
+func CreateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
 	cluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create cluster. cluster: %s/%s, error: %v", cluster.Namespace, cluster.Name, err)
