@@ -20,6 +20,9 @@ spec:
     - jsonPath: .status.kubernetesVersion
       name: Version
       type: string
+    - jsonPath: .spec.syncMode
+      name: Mode
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
@@ -58,11 +61,6 @@ spec:
                   between the karmada control plane and the member cluster insecure.
                   Defaults to false.
                 type: boolean
-              manageMode:
-                description: ManageMode specifies the relationship between control
-                  plane and member cluster, the mode determines how to reach each
-                  other.
-                type: string
               provider:
                 description: Provider represents the cloud provider name of the member
                   cluster.
@@ -87,6 +85,13 @@ spec:
                 - name
                 - namespace
                 type: object
+              syncMode:
+                description: SyncMode describes how a cluster sync resources from
+                  karmada control plane.
+                enum:
+                - Push
+                - Pull
+                type: string
               taints:
                 description: Taints attached to the member cluster. Taints on the
                   cluster have the "effect" on any resource that does not tolerate
@@ -120,6 +125,8 @@ spec:
                 description: Zone represents the zone of the member cluster locate
                   in.
                 type: string
+            required:
+            - syncMode
             type: object
           status:
             description: Status represents the status of member cluster.
