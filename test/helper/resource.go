@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -98,23 +100,18 @@ func NewPod(namespace string, name string) *corev1.Pod {
 }
 
 // NewCustomResourceDefinition will build a CRD object.
-func NewCustomResourceDefinition(scope apiextensionsv1.ResourceScope) *apiextensionsv1.CustomResourceDefinition {
+func NewCustomResourceDefinition(group string, specNames apiextensionsv1.CustomResourceDefinitionNames, scope apiextensionsv1.ResourceScope) *apiextensionsv1.CustomResourceDefinition {
 	return &apiextensionsv1.CustomResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apiextensions.k8s.io/v1",
 			Kind:       "CustomResourceDefinition",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foos.example.karmada.io",
+			Name: fmt.Sprintf("%s.%s", specNames.Plural, group),
 		},
 		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
-			Group: "example.karmada.io",
-			Names: apiextensionsv1.CustomResourceDefinitionNames{
-				Kind:     "Foo",
-				ListKind: "FooList",
-				Plural:   "foos",
-				Singular: "foo",
-			},
+			Group: group,
+			Names: specNames,
 			Scope: scope,
 			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
 				{
@@ -179,11 +176,11 @@ func NewCustomResourceDefinition(scope apiextensionsv1.ResourceScope) *apiextens
 }
 
 // NewCustomResource will build a CR object with CRD Foo.
-func NewCustomResource(namespace, name string) *unstructured.Unstructured {
+func NewCustomResource(apiVersion, kind, namespace, name string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "example.karmada.io/v1alpha1",
-			"kind":       "Foo",
+			"apiVersion": apiVersion,
+			"kind":       kind,
 			"metadata": map[string]string{
 				"namespace": namespace,
 				"name":      name,
