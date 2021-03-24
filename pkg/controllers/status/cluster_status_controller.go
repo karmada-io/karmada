@@ -16,6 +16,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -34,9 +35,11 @@ const (
 
 // ClusterStatusController is to sync status of Cluster.
 type ClusterStatusController struct {
-	client.Client                      // used to operate Cluster resources.
-	KubeClientSet kubernetes.Interface // used to get kubernetes resources.
-	EventRecorder record.EventRecorder
+	client.Client                             // used to operate Cluster resources.
+	KubeClientSet        kubernetes.Interface // used to get kubernetes resources.
+	EventRecorder        record.EventRecorder
+	PredicateFunc        predicate.Predicate
+	ClusterClientSetFunc func(c *v1alpha1.Cluster, client kubernetes.Interface) (*util.ClusterClient, error)
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -71,12 +74,12 @@ func (c *ClusterStatusController) Reconcile(req controllerruntime.Request) (cont
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).WithEventFilter(c.PredicateFunc).Complete(c)
 }
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create a ClusterClient for the given member cluster
-	clusterClient, err := util.NewClusterClientSet(cluster, c.KubeClientSet)
+	clusterClient, err := c.ClusterClientSetFunc(cluster, c.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err

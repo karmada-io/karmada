@@ -100,15 +100,16 @@ function util::create_certkey {
 EOF
 }
 
-# util::write_client_kubeconfig creates a self-contained kubeconfig: args are sudo, dest-dir, ca file, host, port, client id, token(optional)
+# util::write_client_kubeconfig creates a self-contained kubeconfig: args are sudo, dest-dir, client certificate data, client key data, host, port, client id, token(optional)
 function util::write_client_kubeconfig {
     local sudo=$1
     local dest_dir=$2
-    local ca_file=$3
-    local api_host=$4
-    local api_port=$5
-    local client_id=$6
-    local token=${7:-}
+    local client_certificate_data=$3
+    local client_key_data=$4
+    local api_host=$5
+    local api_port=$6
+    local client_id=$7
+    local token=${8:-}
     cat <<EOF | ${sudo} tee "${dest_dir}"/"${client_id}".config > /dev/null
 apiVersion: v1
 kind: Config
@@ -120,8 +121,8 @@ clusters:
 users:
   - user:
       token: ${token}
-      client-certificate: ${dest_dir}/karmada.crt
-      client-key: ${dest_dir}/karmada.key
+      client-certificate-data: ${client_certificate_data}
+      client-key-data: ${client_key_data}
     name: karmada-apiserver
 contexts:
   - context:

@@ -267,7 +267,7 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 		clusterObj.Spec.InsecureSkipTLSVerification = true
 	}
 
-	cluster, err := createClusterObject(controlPlaneKarmadaClient, clusterObj, false)
+	cluster, err := CreateClusterObject(controlPlaneKarmadaClient, clusterObj, false)
 	if err != nil {
 		klog.Errorf("failed to create cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
 		return err
@@ -398,7 +398,8 @@ func ensureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 	return createdObj, nil
 }
 
-func createClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster, errorOnExisting bool) (*clusterv1alpha1.Cluster, error) {
+// CreateClusterObject create cluster object in karmada control plane
+func CreateClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster, errorOnExisting bool) (*clusterv1alpha1.Cluster, error) {
 	cluster, exist, err := GetCluster(controlPlaneClient, clusterObj.Namespace, clusterObj.Name)
 	if err != nil {
 		klog.Errorf("failed to create cluster object. cluster: %s/%s, error: %v", clusterObj.Namespace, clusterObj.Name, err)

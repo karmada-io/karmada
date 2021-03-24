@@ -24,7 +24,7 @@ ifeq ($(VERSION), "")
     endif
 endif
 
-all: karmada-controller-manager karmada-scheduler karmadactl karmada-webhook
+all: karmada-controller-manager karmada-scheduler karmadactl karmada-webhook karmada-agent
 
 karmada-controller-manager: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
@@ -50,8 +50,14 @@ karmada-webhook: $(SOURCES)
 		-o karmada-webhook \
 		cmd/webhook/main.go
 
+karmada-agent: $(SOURCES)
+	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+		-ldflags $(LDFLAGS) \
+		-o karmada-agent \
+		cmd/agent/main.go
+
 clean:
-	rm -rf karmada-controller-manager karmada-scheduler karmadactl karmada-webhook
+	rm -rf karmada-controller-manager karmada-scheduler karmadactl karmada-webhook karmada-agent
 
 .PHONY: update
 update:
@@ -65,7 +71,7 @@ verify:
 test:
 	go test --race --v ./pkg/...
 
-images: image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook
+images: image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook image-karmada-agent
 
 image-karmada-controller-manager: karmada-controller-manager
 	cp karmada-controller-manager cluster/images/karmada-controller-manager && \
@@ -81,6 +87,11 @@ image-karmada-webhook: karmada-webhook
 	cp karmada-webhook cluster/images/karmada-webhook && \
 	docker build -t $(REGISTRY)/karmada-webhook:$(VERSION) cluster/images/karmada-webhook && \
 	rm cluster/images/karmada-webhook/karmada-webhook
+
+image-karmada-agent: karmada-agent
+	cp karmada-agent cluster/images/karmada-agent && \
+	docker build -t $(REGISTRY)/karmada-agent:$(VERSION) cluster/images/karmada-agent && \
+	rm cluster/images/karmada-agent/karmada-agent
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"

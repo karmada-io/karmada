@@ -9,6 +9,7 @@ import (
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
@@ -48,11 +49,39 @@ func NewClusterClientSet(c *v1alpha1.Cluster, client kubeclientset.Interface) (*
 	return &clusterClientSet, nil
 }
 
+// NewClusterClientSetForAgent returns a ClusterClient for the given member cluster which will be used in karmada agent.
+func NewClusterClientSetForAgent(c *v1alpha1.Cluster, client kubeclientset.Interface) (*ClusterClient, error) {
+	clusterConfig, err := controllerruntime.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
+	}
+	var clusterClientSet = ClusterClient{ClusterName: c.Name}
+
+	if clusterConfig != nil {
+		clusterClientSet.KubeClient = kubeclientset.NewForConfigOrDie(clusterConfig)
+	}
+	return &clusterClientSet, nil
+}
+
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
 func NewClusterDynamicClientSet(c *v1alpha1.Cluster, client kubeclientset.Interface) (*DynamicClusterClient, error) {
 	clusterConfig, err := buildClusterConfig(c, client)
 	if err != nil {
 		return nil, err
+	}
+	var clusterClientSet = DynamicClusterClient{ClusterName: c.Name}
+
+	if clusterConfig != nil {
+		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
+	}
+	return &clusterClientSet, nil
+}
+
+// NewClusterDynamicClientSetForAgent returns a dynamic client for the given member cluster which will be used in karmada agent.
+func NewClusterDynamicClientSetForAgent(c *v1alpha1.Cluster, client kubeclientset.Interface) (*DynamicClusterClient, error) {
+	clusterConfig, err := controllerruntime.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
 	}
 	var clusterClientSet = DynamicClusterClient{ClusterName: c.Name}
 

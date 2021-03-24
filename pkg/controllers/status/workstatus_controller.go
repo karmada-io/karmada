@@ -12,14 +12,15 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -34,17 +35,18 @@ const WorkStatusControllerName = "work-status-controller"
 
 // WorkStatusController is to sync status of Work.
 type WorkStatusController struct {
-	client.Client                     // used to operate Work resources.
-	DynamicClient   dynamic.Interface // used to fetch arbitrary resources.
-	EventRecorder   record.EventRecorder
-	RESTMapper      meta.RESTMapper
-	KubeClientSet   kubernetes.Interface // used to get kubernetes resources.
-	InformerManager informermanager.MultiClusterInformerManager
-	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
-	StopChan        <-chan struct{}
-	WorkerNumber    int              // WorkerNumber is the number of worker goroutines
-	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
-	ObjectWatcher   objectwatcher.ObjectWatcher
+	client.Client        // used to operate Work resources.
+	EventRecorder        record.EventRecorder
+	RESTMapper           meta.RESTMapper
+	KubeClientSet        kubernetes.Interface // used to get kubernetes resources.
+	InformerManager      informermanager.MultiClusterInformerManager
+	eventHandler         cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
+	StopChan             <-chan struct{}
+	WorkerNumber         int              // WorkerNumber is the number of worker goroutines
+	worker               util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+	ObjectWatcher        objectwatcher.ObjectWatcher
+	PredicateFunc        predicate.Predicate
+	ClusterClientSetFunc func(c *v1alpha1.Cluster, client kubernetes.Interface) (*util.DynamicClusterClient, error)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -67,13 +69,25 @@ func (c *WorkStatusController) Reconcile(req controllerruntime.Request) (control
 		return controllerruntime.Result{}, nil
 	}
 
-	return c.buildResourceInformers(work)
+	clusterName, err := names.GetClusterName(work.GetNamespace())
+	if err != nil {
+		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", work.GetNamespace(), err)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	cluster, err := util.GetCluster(c.Client, clusterName)
+	if err != nil {
+		klog.Errorf("Failed to the get given member cluster %s", clusterName)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	return c.buildResourceInformers(cluster, work)
 }
 
 // buildResourceInformers builds informer dynamically for managed resources in member cluster.
 // The created informer watches resource change and then sync to the relevant Work object.
-func (c *WorkStatusController) buildResourceInformers(work *workv1alpha1.Work) (controllerruntime.Result, error) {
-	err := c.registerInformersAndStart(work)
+func (c *WorkStatusController) buildResourceInformers(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+	err := c.registerInformersAndStart(cluster, work)
 	if err != nil {
 		klog.Errorf("Failed to register informer for Work %s/%s. Error: %v.", work.GetNamespace(), work.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
@@ -148,14 +162,20 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
+	cluster, err := util.GetCluster(c.Client, clusterName)
+	if err != nil {
+		klog.Errorf("Failed to the get given member cluster %s", clusterName)
+		return err
+	}
+
 	// compare version to determine if need to update resource
-	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desireObj, obj)
+	needUpdate, err := c.ObjectWatcher.NeedsUpdate(cluster, desireObj, obj)
 	if err != nil {
 		return err
 	}
 
 	if needUpdate {
-		return c.ObjectWatcher.Update(clusterName, desireObj, obj)
+		return c.ObjectWatcher.Update(cluster, desireObj, obj)
 	}
 
 	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), workNamespace, workName)
@@ -207,7 +227,12 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 			manifest.GetNamespace() == clusterWorkload.Namespace &&
 			manifest.GetName() == clusterWorkload.Name {
 			klog.Infof("recreating %s/%s/%s in member cluster %s", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
-			return c.ObjectWatcher.Create(clusterWorkload.Cluster, manifest)
+			cluster, err := util.GetCluster(c.Client, clusterWorkload.Cluster)
+			if err != nil {
+				klog.Errorf("Failed to the get given member cluster %s", clusterWorkload.Cluster)
+				return err
+			}
+			return c.ObjectWatcher.Create(cluster, manifest)
 		}
 	}
 	return nil
@@ -344,14 +369,8 @@ func (c *WorkStatusController) getObjectFromCache(key string) (*unstructured.Uns
 
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
 // and start it.
-func (c *WorkStatusController) registerInformersAndStart(work *workv1alpha1.Work) error {
-	clusterName, err := names.GetClusterName(work.GetNamespace())
-	if err != nil {
-		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", work.GetNamespace(), err)
-		return err
-	}
-
-	singleClusterInformerManager, err := c.getSingleClusterManager(clusterName)
+func (c *WorkStatusController) registerInformersAndStart(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
+	singleClusterInformerManager, err := c.getSingleClusterManager(cluster)
 	if err != nil {
 		return err
 	}
@@ -365,11 +384,11 @@ func (c *WorkStatusController) registerInformersAndStart(work *workv1alpha1.Work
 		singleClusterInformerManager.ForResource(gvr, c.getEventHandler())
 	}
 
-	c.InformerManager.Start(clusterName, c.StopChan)
-	synced := c.InformerManager.WaitForCacheSync(clusterName, c.StopChan)
+	c.InformerManager.Start(cluster.Name, c.StopChan)
+	synced := c.InformerManager.WaitForCacheSync(cluster.Name, c.StopChan)
 	if synced == nil {
-		klog.Errorf("No informerFactory for cluster %s exist.", clusterName)
-		return fmt.Errorf("no informerFactory for cluster %s exist", clusterName)
+		klog.Errorf("No informerFactory for cluster %s exist.", cluster.Name)
+		return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
 	}
 	for gvr := range gvrTargets {
 		if !synced[gvr] {
@@ -402,14 +421,14 @@ func (c *WorkStatusController) getGVRsFromWork(work *workv1alpha1.Work) (map[sch
 
 // getSingleClusterManager gets singleClusterInformerManager with clusterName.
 // If manager is not exist, create it, otherwise gets it from map.
-func (c *WorkStatusController) getSingleClusterManager(clusterName string) (informermanager.SingleClusterInformerManager, error) {
+func (c *WorkStatusController) getSingleClusterManager(cluster *v1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
 	// TODO(chenxianpao): If cluster A is removed, then a new cluster that name also is A joins karmada,
 	//  the cache in informer manager should be updated.
-	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(clusterName)
+	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := util.BuildDynamicClusterClient(c.Client, c.KubeClientSet, clusterName)
+		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster, c.KubeClientSet)
 		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
+			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
 			return nil, err
 		}
 		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)
@@ -419,5 +438,5 @@ func (c *WorkStatusController) getSingleClusterManager(clusterName string) (info
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).Complete(c)
 }
