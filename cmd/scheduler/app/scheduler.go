@@ -45,14 +45,14 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 func run(opts *options.Options, stopChan <-chan struct{}) error {
 	go serveHealthz(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
 
-	resetConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
 
-	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
-	karmadaClient := karmadaclientset.NewForConfigOrDie(resetConfig)
-	kubeClientSet := kubernetes.NewForConfigOrDie(resetConfig)
+	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
+	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
+	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -67,7 +67,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		return fmt.Errorf("scheduler exited")
 	}
 
-	leaderElectionClient, err := kubernetes.NewForConfig(rest.AddUserAgent(resetConfig, "leader-election"))
+	leaderElectionClient, err := kubernetes.NewForConfig(rest.AddUserAgent(restConfig, "leader-election"))
 	if err != nil {
 		return err
 	}

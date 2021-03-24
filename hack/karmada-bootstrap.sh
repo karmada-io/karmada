@@ -33,15 +33,7 @@ KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 # generate a secret to store the certificates
 function generate_cert_secret {
-    local karmada_crt_file=${CERT_DIR}/karmada.crt
-    local karmada_key_file=${CERT_DIR}/karmada.key
-
-    sudo chmod 0644 ${karmada_crt_file}
-    sudo chmod 0644 ${karmada_key_file}
-
     local karmada_ca=$(sudo cat ${ROOT_CA_FILE} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
-    local karmada_crt=$(sudo cat ${karmada_crt_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
-    local karmada_key=$(sudo cat ${karmada_key_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
 
     local TEMP_PATH=$(mktemp -d)
     cp -rf ${REPO_ROOT}/artifacts/deploy/karmada-cert-secret.yaml ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
@@ -49,15 +41,15 @@ function generate_cert_secret {
     cp -rf ${REPO_ROOT}/artifacts/deploy/karmada-webhook-cert-secret.yaml ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
 
     sed -i "s/{{ca_crt}}/${karmada_ca}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
-    sed -i "s/{{client_cer}}/${karmada_crt}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
-    sed -i "s/{{client_key}}/${karmada_key}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
+    sed -i "s/{{client_cer}}/${KARMADA_CRT}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
+    sed -i "s/{{client_key}}/${KARMADA_KEY}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
 
     sed -i "s/{{ca_crt}}/${karmada_ca}/g" ${TEMP_PATH}/secret-tmp.yaml
-    sed -i "s/{{client_cer}}/${karmada_crt}/g" ${TEMP_PATH}/secret-tmp.yaml
-    sed -i "s/{{client_key}}/${karmada_key}/g" ${TEMP_PATH}/secret-tmp.yaml
+    sed -i "s/{{client_cer}}/${KARMADA_CRT}/g" ${TEMP_PATH}/secret-tmp.yaml
+    sed -i "s/{{client_key}}/${KARMADA_KEY}/g" ${TEMP_PATH}/secret-tmp.yaml
 
-    sed -i "s/{{server_key}}/${karmada_key}/g" ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
-    sed -i "s/{{server_certificate}}/${karmada_crt}/g" ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
+    sed -i "s/{{server_key}}/${KARMADA_KEY}/g" ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
+    sed -i "s/{{server_certificate}}/${KARMADA_CRT}/g" ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
 
     kubectl apply -f ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
     kubectl apply -f ${TEMP_PATH}/secret-tmp.yaml
@@ -120,7 +112,9 @@ kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_C
 
 #step6. generate kubeconfig and cert secret
 KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
-util::write_client_kubeconfig "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "${ROOT_CA_FILE}" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
+KARMADA_CRT=$(sudo base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
+KARMADA_KEY=$(sudo base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
+util::write_client_kubeconfig "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "${KARMADA_CRT}" "${KARMADA_KEY}" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
 
 #step7. install karmada control plane components
 export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
