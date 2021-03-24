@@ -11,6 +11,7 @@ import (
 // +kubebuilder:resource:scope="Cluster"
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=`.status.kubernetesVersion`,name="Version",type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.syncMode`,name="Mode",type=string
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].status`,name="Ready",type=string
 // +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
@@ -29,10 +30,10 @@ type Cluster struct {
 
 // ClusterSpec defines the desired state of a member cluster.
 type ClusterSpec struct {
-	// ManageMode specifies the relationship between control plane and member cluster,
-	// the mode determines how to reach each other.
-	// +optional
-	ManageMode ClusterManageMode `json:"manageMode,omitempty"`
+	// SyncMode describes how a cluster sync resources from karmada control plane.
+	// +kubebuilder:validation:Enum=Push;Pull
+	// +required
+	SyncMode ClusterSyncMode `json:"syncMode"`
 
 	// The API endpoint of the member cluster. This can be a hostname,
 	// hostname:port, IP or IP:port.
@@ -72,14 +73,18 @@ type ClusterSpec struct {
 	Taints []corev1.Taint `json:"taints,omitempty"`
 }
 
-// ClusterManageMode presents member clusters working mode.
-type ClusterManageMode string
+// ClusterSyncMode describes the mode of synchronization between member cluster and karmada control plane.
+type ClusterSyncMode string
 
 const (
-	// Delegation represents a member cluster will be managed directly by control plane.
-	Delegation ClusterManageMode = "Delegation"
-	// SelfManagement represents a member cluster will be managed by itself.
-	SelfManagement ClusterManageMode = "SelfManagement"
+	// Push means that the controller on the karmada control plane will in charge of synchronization.
+	// The controller watches resources change on karmada control plane then pushes them to member cluster.
+	Push ClusterSyncMode = "Push"
+
+	// Pull means that the controller running on the member cluster will in charge of synchronization.
+	// The controller, as well known as 'agent', watches resources change on karmada control plane then fetches them
+	// and applies locally on the member cluster.
+	Pull ClusterSyncMode = "Pull"
 )
 
 // LocalSecretReference is a reference to a secret within the enclosing
