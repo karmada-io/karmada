@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -34,18 +34,18 @@ type ObjectWatcher interface {
 }
 
 // ClientSetFunc is used to generate client set of member cluster
-type ClientSetFunc func(c *v1alpha1.Cluster, client kubernetes.Interface) (*util.DynamicClusterClient, error)
+type ClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
 
 type objectWatcherImpl struct {
 	Lock                 sync.RWMutex
 	RESTMapper           meta.RESTMapper
-	KubeClientSet        kubernetes.Interface
+	KubeClientSet        client.Client
 	VersionRecord        map[string]map[string]string
 	ClusterClientSetFunc ClientSetFunc
 }
 
 // NewObjectWatcher returns a instance of ObjectWatcher
-func NewObjectWatcher(kubeClientSet kubernetes.Interface, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc) ObjectWatcher {
+func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc) ObjectWatcher {
 	return &objectWatcherImpl{
 		KubeClientSet:        kubeClientSet,
 		VersionRecord:        make(map[string]map[string]string),

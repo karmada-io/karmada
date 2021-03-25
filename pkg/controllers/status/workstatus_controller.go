@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -38,7 +37,6 @@ type WorkStatusController struct {
 	client.Client        // used to operate Work resources.
 	EventRecorder        record.EventRecorder
 	RESTMapper           meta.RESTMapper
-	KubeClientSet        kubernetes.Interface // used to get kubernetes resources.
 	InformerManager      informermanager.MultiClusterInformerManager
 	eventHandler         cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
 	StopChan             <-chan struct{}
@@ -46,7 +44,7 @@ type WorkStatusController struct {
 	worker               util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
 	ObjectWatcher        objectwatcher.ObjectWatcher
 	PredicateFunc        predicate.Predicate
-	ClusterClientSetFunc func(c *v1alpha1.Cluster, client kubernetes.Interface) (*util.DynamicClusterClient, error)
+	ClusterClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -442,7 +440,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *v1alpha1.Cluster
 	//  the cache in informer manager should be updated.
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster, c.KubeClientSet)
+		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster, c.Client)
 		if err != nil {
 			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
 			return nil, err

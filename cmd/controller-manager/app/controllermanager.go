@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime"
@@ -97,16 +97,16 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 	resetConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
-	kubeClientSet := kubernetes.NewForConfigOrDie(resetConfig)
+	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(resetConfig)
 
-	objectWatcher := objectwatcher.NewObjectWatcher(kubeClientSet, mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
-	overridemanager := overridemanager.New(mgr.GetClient())
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
+	overrideManager := overridemanager.New(mgr.GetClient())
 
 	resourceDetector := &detector.ResourceDetector{
-		ClientSet:       kubeClientSet,
-		Client:          mgr.GetClient(),
-		InformerManager: informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
-		RESTMapper:      mgr.GetRESTMapper(),
+		DiscoveryClientSet: discoverClientSet,
+		Client:             mgr.GetClient(),
+		InformerManager:    informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
+		RESTMapper:         mgr.GetRESTMapper(),
 	}
 	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
 	resourceDetector.Processor = util.NewAsyncWorker("resource detector", time.Microsecond, detector.ClusterWideKeyFunc, resourceDetector.Reconcile)
@@ -116,7 +116,6 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 
 	clusterController := &cluster.Controller{
 		Client:        mgr.GetClient(),
-		KubeClientSet: kubeClientSet,
 		EventRecorder: mgr.GetEventRecorderFor(cluster.ControllerName),
 	}
 	if err := clusterController.SetupWithManager(mgr); err != nil {
@@ -143,7 +142,6 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 
 	clusterStatusController := &status.ClusterStatusController{
 		Client:               mgr.GetClient(),
-		KubeClientSet:        kubeClientSet,
 		EventRecorder:        mgr.GetEventRecorderFor(status.ControllerName),
 		PredicateFunc:        clusterPredicateFunc,
 		ClusterClientSetFunc: util.NewClusterClientSet,
@@ -174,7 +172,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		DynamicClient:   dynamicClientSet,
 		EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
 		RESTMapper:      mgr.GetRESTMapper(),
-		OverrideManager: overridemanager,
+		OverrideManager: overrideManager,
 	}
 	if err := bindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup binding controller: %v", err)
@@ -185,7 +183,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		DynamicClient:   dynamicClientSet,
 		EventRecorder:   mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
 		RESTMapper:      mgr.GetRESTMapper(),
-		OverrideManager: overridemanager,
+		OverrideManager: overrideManager,
 	}
 	if err := clusterResourceBindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
@@ -195,7 +193,6 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 
 	executionController := &execution.Controller{
 		Client:               mgr.GetClient(),
-		KubeClientSet:        kubeClientSet,
 		EventRecorder:        mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:           mgr.GetRESTMapper(),
 		ObjectWatcher:        objectWatcher,
@@ -210,7 +207,6 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		Client:               mgr.GetClient(),
 		EventRecorder:        mgr.GetEventRecorderFor(status.WorkStatusControllerName),
 		RESTMapper:           mgr.GetRESTMapper(),
-		KubeClientSet:        kubeClientSet,
 		InformerManager:      informermanager.NewMultiClusterInformerManager(),
 		StopChan:             stopChan,
 		WorkerNumber:         1,
@@ -242,12 +238,12 @@ func newPredicateFuncsForWork(mgr controllerruntime.Manager) predicate.Funcs {
 				return false
 			}
 
-			cluster, err := util.GetCluster(mgr.GetClient(), clusterName)
+			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
 			if err != nil {
 				klog.Errorf("Failed to get the given member cluster %s", clusterName)
 				return false
 			}
-			return cluster.Spec.SyncMode == v1alpha1.Push
+			return clusterObj.Spec.SyncMode == v1alpha1.Push
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
@@ -257,12 +253,12 @@ func newPredicateFuncsForWork(mgr controllerruntime.Manager) predicate.Funcs {
 				return false
 			}
 
-			cluster, err := util.GetCluster(mgr.GetClient(), clusterName)
+			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
 			if err != nil {
 				klog.Errorf("Failed to get the given member cluster %s", clusterName)
 				return false
 			}
-			return cluster.Spec.SyncMode == v1alpha1.Push
+			return clusterObj.Spec.SyncMode == v1alpha1.Push
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*workv1alpha1.Work)
@@ -272,12 +268,12 @@ func newPredicateFuncsForWork(mgr controllerruntime.Manager) predicate.Funcs {
 				return false
 			}
 
-			cluster, err := util.GetCluster(mgr.GetClient(), clusterName)
+			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
 			if err != nil {
 				klog.Errorf("Failed to get the given member cluster %s", clusterName)
 				return false
 			}
-			return cluster.Spec.SyncMode == v1alpha1.Push
+			return clusterObj.Spec.SyncMode == v1alpha1.Push
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false

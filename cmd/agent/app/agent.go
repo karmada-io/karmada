@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -87,8 +86,6 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 }
 
 func setupControllers(mgr controllerruntime.Manager, controlPlaneRestConfig *restclient.Config, clusterName string, stopChan <-chan struct{}) {
-	kubeClientSet := kubernetes.NewForConfigOrDie(controlPlaneRestConfig)
-
 	predicateFun := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			return createEvent.Meta.GetName() == clusterName
@@ -106,7 +103,6 @@ func setupControllers(mgr controllerruntime.Manager, controlPlaneRestConfig *res
 
 	clusterStatusController := &status.ClusterStatusController{
 		Client:               mgr.GetClient(),
-		KubeClientSet:        kubeClientSet,
 		EventRecorder:        mgr.GetEventRecorderFor(status.ControllerName),
 		PredicateFunc:        predicateFun,
 		ClusterClientSetFunc: util.NewClusterClientSetForAgent,
@@ -115,10 +111,9 @@ func setupControllers(mgr controllerruntime.Manager, controlPlaneRestConfig *res
 		klog.Fatalf("Failed to setup cluster status controller: %v", err)
 	}
 
-	objectWatcher := objectwatcher.NewObjectWatcher(kubeClientSet, mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent)
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent)
 	executionController := &execution.Controller{
 		Client:               mgr.GetClient(),
-		KubeClientSet:        kubeClientSet,
 		EventRecorder:        mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:           mgr.GetRESTMapper(),
 		ObjectWatcher:        objectWatcher,
@@ -133,7 +128,6 @@ func setupControllers(mgr controllerruntime.Manager, controlPlaneRestConfig *res
 		Client:               mgr.GetClient(),
 		EventRecorder:        mgr.GetEventRecorderFor(status.WorkStatusControllerName),
 		RESTMapper:           mgr.GetRESTMapper(),
-		KubeClientSet:        kubeClientSet,
 		InformerManager:      informermanager.NewMultiClusterInformerManager(),
 		StopChan:             stopChan,
 		WorkerNumber:         1,

@@ -190,7 +190,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 			ginkgo.By(fmt.Sprintf("waiting namespace(%s) present on cluster: %s", namespaceName, clusterName), func() {
 				clusterJoined, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				clusterClient, err := util.NewClusterClientSet(clusterJoined, kubeClient)
+				clusterClient, err := util.NewClusterClientSet(clusterJoined, controlPlaneClient)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				err = wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
 					_, err = clusterClient.KubeClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
