@@ -10,7 +10,6 @@ KARMADA_APISERVER_KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG:-"/var/run/karmada/k
 MEMBER_CLUSTER_NAME=${MEMBER_CLUSTER_NAME:-"member3"}
 MEMBER_CLUSTER_KUBECONFIG=${MEMBER_CLUSTER_KUBECONFIG:-"${HOME}/.kube/member3.config"}
 
-AGENT_POD_LABEL="karmada-agent"
 source ${REPO_ROOT}/hack/util.sh
 function usage() {
   echo "This script will deploy karmada agent to a cluster."
@@ -46,5 +45,5 @@ kubectl apply -f "${REPO_ROOT}/artifacts/agent/karmada-agent.yaml"
 mv "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml.tmp "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml
 
 # Wait for karmada-etcd to come up before launching the rest of the components.
-util::wait_pod_ready ${AGENT_POD_LABEL} "karmada-system"
+util::wait_pod_ready "${AGENT_POD_LABEL}" "karmada-system"
 

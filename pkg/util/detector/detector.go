@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,8 +36,8 @@ import (
 
 // ResourceDetector is a resource watcher which watches all resources and reconcile the events.
 type ResourceDetector struct {
-	// ClientSet is used to resource discovery.
-	ClientSet kubernetes.Interface
+	// DiscoveryClientSet is used to resource discovery.
+	DiscoveryClientSet *discovery.DiscoveryClient
 	// Client is used to retrieve objects, it is often more convenient than lister.
 	Client          client.Client
 	InformerManager informermanager.SingleClusterInformerManager
@@ -114,7 +114,7 @@ var _ manager.LeaderElectionRunnable = &ResourceDetector{}
 
 func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
-		newResources := GetDeletableResources(d.ClientSet.Discovery())
+		newResources := GetDeletableResources(d.DiscoveryClientSet)
 		for r := range newResources {
 			if d.InformerManager.IsHandlerExist(r, d.EventHandler) {
 				continue
