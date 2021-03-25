@@ -175,7 +175,17 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 	}
 
 	if needUpdate {
-		return c.ObjectWatcher.Update(cluster, desireObj, obj)
+		if err := c.ObjectWatcher.Update(cluster, desireObj, obj); err != nil {
+			klog.Errorf("Update %s failed: %v", keyStr, err)
+			return err
+		}
+		// We can't return even after a success updates, because that might lose the chance to collect status.
+		// Not all updates are real, they might be no change, in that case there will be no more event for this update,
+		// this usually happens with those resources not enables 'metadata.generation', like 'Service'.
+		// When a Service's status changes, it's 'metadata.resourceVersion' will be increased, but 'metadata.generation'
+		// not increased(defaults to 0), the ObjectWatcher can't easily tell what happened to the object, so ObjectWatcher
+		// also needs to update again. The update operation will be a non-operation if the event triggered by Service's
+		// status changes.
 	}
 
 	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), workNamespace, workName)
