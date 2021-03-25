@@ -35,11 +35,10 @@ const (
 
 // ClusterStatusController is to sync status of Cluster.
 type ClusterStatusController struct {
-	client.Client                             // used to operate Cluster resources.
-	KubeClientSet        kubernetes.Interface // used to get kubernetes resources.
+	client.Client        // used to operate Cluster resources.
 	EventRecorder        record.EventRecorder
 	PredicateFunc        predicate.Predicate
-	ClusterClientSetFunc func(c *v1alpha1.Cluster, client kubernetes.Interface) (*util.ClusterClient, error)
+	ClusterClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.ClusterClient, error)
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -79,7 +78,7 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create a ClusterClient for the given member cluster
-	clusterClient, err := c.ClusterClientSetFunc(cluster, c.KubeClientSet)
+	clusterClient, err := c.ClusterClientSetFunc(cluster, c.Client)
 	if err != nil {
 		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err

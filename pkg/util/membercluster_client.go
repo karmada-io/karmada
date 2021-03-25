@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
@@ -36,7 +38,7 @@ type DynamicClusterClient struct {
 }
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
-func NewClusterClientSet(c *v1alpha1.Cluster, client kubeclientset.Interface) (*ClusterClient, error) {
+func NewClusterClientSet(c *v1alpha1.Cluster, client client.Client) (*ClusterClient, error) {
 	clusterConfig, err := buildClusterConfig(c, client)
 	if err != nil {
 		return nil, err
@@ -50,7 +52,7 @@ func NewClusterClientSet(c *v1alpha1.Cluster, client kubeclientset.Interface) (*
 }
 
 // NewClusterClientSetForAgent returns a ClusterClient for the given member cluster which will be used in karmada agent.
-func NewClusterClientSetForAgent(c *v1alpha1.Cluster, client kubeclientset.Interface) (*ClusterClient, error) {
+func NewClusterClientSetForAgent(c *v1alpha1.Cluster, client client.Client) (*ClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
@@ -64,7 +66,7 @@ func NewClusterClientSetForAgent(c *v1alpha1.Cluster, client kubeclientset.Inter
 }
 
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
-func NewClusterDynamicClientSet(c *v1alpha1.Cluster, client kubeclientset.Interface) (*DynamicClusterClient, error) {
+func NewClusterDynamicClientSet(c *v1alpha1.Cluster, client client.Client) (*DynamicClusterClient, error) {
 	clusterConfig, err := buildClusterConfig(c, client)
 	if err != nil {
 		return nil, err
@@ -78,7 +80,7 @@ func NewClusterDynamicClientSet(c *v1alpha1.Cluster, client kubeclientset.Interf
 }
 
 // NewClusterDynamicClientSetForAgent returns a dynamic client for the given member cluster which will be used in karmada agent.
-func NewClusterDynamicClientSetForAgent(c *v1alpha1.Cluster, client kubeclientset.Interface) (*DynamicClusterClient, error) {
+func NewClusterDynamicClientSetForAgent(c *v1alpha1.Cluster, client client.Client) (*DynamicClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
@@ -91,20 +93,21 @@ func NewClusterDynamicClientSetForAgent(c *v1alpha1.Cluster, client kubeclientse
 	return &clusterClientSet, nil
 }
 
-func buildClusterConfig(cluster *v1alpha1.Cluster, client kubeclientset.Interface) (*rest.Config, error) {
+func buildClusterConfig(cluster *v1alpha1.Cluster, client client.Client) (*rest.Config, error) {
 	clusterName := cluster.Name
 	apiEndpoint := cluster.Spec.APIEndpoint
 	if apiEndpoint == "" {
 		return nil, fmt.Errorf("the api endpoint of cluster %s is empty", clusterName)
 	}
 
+	secretNamespace := cluster.Spec.SecretRef.Namespace
 	secretName := cluster.Spec.SecretRef.Name
 	if secretName == "" {
 		return nil, fmt.Errorf("cluster %s does not have a secret name", clusterName)
 	}
 
-	secret, err := client.CoreV1().Secrets(cluster.Spec.SecretRef.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
-	if err != nil {
+	secret := &v1.Secret{}
+	if err := client.Get(context.TODO(), types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret); err != nil {
 		return nil, err
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kind/pkg/cluster"
 	"sigs.k8s.io/kind/pkg/exec"
 
@@ -49,12 +51,14 @@ var (
 	kubeClient            kubernetes.Interface
 	karmadaClient         karmada.Interface
 	dynamicClient         dynamic.Interface
+	controlPlaneClient    client.Client
 	clusters              []*clusterapi.Cluster
 	clusterNames          []string
 	clusterClients        []*util.ClusterClient
 	clusterDynamicClients []*util.DynamicClusterClient
 	testNamespace         = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	clusterProvider       *cluster.Provider
+	pullModeClusters      map[string]string
 )
 
 func TestE2E(t *testing.T) {
@@ -80,6 +84,12 @@ var _ = ginkgo.BeforeSuite(func() {
 	dynamicClient, err = dynamic.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	controlPlaneClient, err = client.New(restConfig, client.Options{})
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	pullModeClusters, err = fetchPullBasedClusters()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	clusters, err = fetchClusters(karmadaClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -89,16 +99,13 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(meetRequirement).Should(gomega.BeTrue())
 
 	for _, cluster := range clusters {
+		clusterClient, clusterDynamicClient, err := newClusterClientSet(cluster)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		clusterNames = append(clusterNames, cluster.Name)
-
-		clusterClient, err := util.NewClusterClientSet(cluster, kubeClient)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		clusterClients = append(clusterClients, clusterClient)
-
-		clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, kubeClient)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		clusterDynamicClients = append(clusterDynamicClients, clusterDynamicClient)
 	}
+
 	gomega.Expect(clusterNames).Should(gomega.HaveLen(len(clusters)))
 
 	err = setupTestNamespace(testNamespace, kubeClient, clusterClients)
@@ -112,6 +119,25 @@ var _ = ginkgo.AfterSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }, TestSuiteTeardownTimeOut.Seconds())
 
+func fetchPullBasedClusters() (map[string]string, error) {
+	pullBasedClusters := os.Getenv("PULL_BASED_CLUSTERS")
+	if pullBasedClusters == "" {
+		return nil, nil
+	}
+
+	pullBasedClustersMap := make(map[string]string)
+	pullBasedClusters = strings.TrimSuffix(pullBasedClusters, ";")
+	clusterInfo := strings.Split(pullBasedClusters, ";")
+	for _, cluster := range clusterInfo {
+		clusterNameAndConfigPath := strings.Split(cluster, ":")
+		if len(clusterNameAndConfigPath) != 2 {
+			return nil, fmt.Errorf("failed to parse config path for cluster: %s", cluster)
+		}
+		pullBasedClustersMap[clusterNameAndConfigPath[0]] = clusterNameAndConfigPath[1]
+	}
+	return pullBasedClustersMap, nil
+}
+
 // fetchClusters will fetch all member clusters we have.
 func fetchClusters(client karmada.Interface) ([]*clusterapi.Cluster, error) {
 	clusterList, err := client.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
@@ -122,6 +148,11 @@ func fetchClusters(client karmada.Interface) ([]*clusterapi.Cluster, error) {
 	clusters := make([]*clusterapi.Cluster, 0, len(clusterList.Items))
 	for _, cluster := range clusterList.Items {
 		pinedCluster := cluster
+		if pinedCluster.Spec.SyncMode == clusterapi.Pull {
+			if _, exist := pullModeClusters[cluster.Name]; !exist {
+				continue
+			}
+		}
 		clusters = append(clusters, &pinedCluster)
 	}
 
@@ -237,4 +268,31 @@ func createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext str
 
 func deleteCluster(clusterName, kubeConfigPath string) error {
 	return clusterProvider.Delete(clusterName, kubeConfigPath)
+}
+
+func newClusterClientSet(c *clusterapi.Cluster) (*util.ClusterClient, *util.DynamicClusterClient, error) {
+	if c.Spec.SyncMode == clusterapi.Push {
+		clusterClient, err := util.NewClusterClientSet(c, controlPlaneClient)
+		if err != nil {
+			return nil, nil, err
+		}
+		clusterDynamicClient, err := util.NewClusterDynamicClientSet(c, controlPlaneClient)
+		if err != nil {
+			return nil, nil, err
+		}
+		return clusterClient, clusterDynamicClient, nil
+	}
+
+	clusterConfigPath := pullModeClusters[c.Name]
+	clusterConfig, err := clientcmd.BuildConfigFromFlags("", clusterConfigPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	clusterClientSet := util.ClusterClient{ClusterName: c.Name}
+	clusterDynamicClientSet := util.DynamicClusterClient{ClusterName: c.Name}
+	clusterClientSet.KubeClient = kubernetes.NewForConfigOrDie(clusterConfig)
+	clusterDynamicClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
+
+	return &clusterClientSet, &clusterDynamicClientSet, nil
 }

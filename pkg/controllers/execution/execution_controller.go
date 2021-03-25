@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -31,13 +30,12 @@ const (
 
 // Controller is to sync Work.
 type Controller struct {
-	client.Client                             // used to operate Work resources.
-	KubeClientSet        kubernetes.Interface // used to get kubernetes resources.
+	client.Client        // used to operate Work resources.
 	EventRecorder        record.EventRecorder
 	RESTMapper           meta.RESTMapper
 	ObjectWatcher        objectwatcher.ObjectWatcher
 	PredicateFunc        predicate.Predicate
-	ClusterClientSetFunc func(c *v1alpha1.Cluster, client kubernetes.Interface) (*util.DynamicClusterClient, error)
+	ClusterClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -162,7 +160,7 @@ func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
 func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
-	clusterDynamicClient, err := c.ClusterClientSetFunc(cluster, c.KubeClientSet)
+	clusterDynamicClient, err := c.ClusterClientSetFunc(cluster, c.Client)
 	if err != nil {
 		return err
 	}

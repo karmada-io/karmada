@@ -6,12 +6,14 @@ set -o pipefail
 
 # This script holds common bash variables and utility functions.
 
+KARMADA_SYSTEM_NAMESPACE="karmada-system"
 ETCD_POD_LABEL="etcd"
 APISERVER_POD_LABEL="karmada-apiserver"
 KUBE_CONTROLLER_POD_LABEL="kube-controller-manager"
 KARMADA_CONTROLLER_LABEL="karmada-controller-manager"
 KARMADA_SCHEDULER_LABEL="karmada-scheduler"
 KARMADA_WEBHOOK_LABEL="karmada-webhook"
+AGENT_POD_LABEL="karmada-agent"
 
 # This function installs a Go tools by 'go get' command.
 # Parameters:
@@ -241,7 +243,7 @@ function util::create_cluster() {
   mkdir -p ${log_path}
   rm -rf "${log_path}/${cluster_name}.log"
   rm -f "${kubeconfig}"
-  nohup kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" > ${log_path}/${cluster_name}.log 2>&1 &
+  nohup kind delete cluster --name="${cluster_name}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
   echo "Creating cluster ${cluster_name}"
 }
 

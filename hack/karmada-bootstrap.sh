@@ -19,6 +19,8 @@ HOST_CLUSTER_KUBECONFIG=${HOST_CLUSTER_KUBECONFIG:-"${KUBECONFIG_PATH}/karmada-h
 MEMBER_CLUSTER_1_KUBECONFIG=${MEMBER_CLUSTER_1_KUBECONFIG:-"${KUBECONFIG_PATH}/member1.config"}
 MEMBER_CLUSTER_2_KUBECONFIG=${MEMBER_CLUSTER_2_KUBECONFIG:-"${KUBECONFIG_PATH}/member2.config"}
 CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.19.1"}
+PULL_MODE_CLUSTER_NAME=${PULL_MODE_CLUSTER_NAME:-"member3"}
+PULL_MODE_CLUSTER_KUBECONFIG=${PULL_MODE_CLUSTER_KUBECONFIG:-"${KUBECONFIG_PATH}/member3.config"}
 
 CERT_DIR=${CERT_DIR:-"/var/run/karmada"}
 mkdir -p "${CERT_DIR}" &>/dev/null || sudo mkdir -p "${CERT_DIR}"
@@ -33,7 +35,7 @@ KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 # generate a secret to store the certificates
 function generate_cert_secret {
-    local karmada_ca=$(sudo cat ${ROOT_CA_FILE} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+    local karmada_ca=$(base64 "${ROOT_CA_FILE}" | tr -d '\r\n')
 
     local TEMP_PATH=$(mktemp -d)
     cp -rf ${REPO_ROOT}/artifacts/deploy/karmada-cert-secret.yaml ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
@@ -57,6 +59,7 @@ function generate_cert_secret {
     rm -rf "${TEMP_PATH}"
 }
 
+# installCRDs installs crd APIs of karmada in host cluster
 function installCRDs() {
     if [[ ! -f ${KARMADA_APISERVER_CONFIG} ]]; then
         echo "Please provide kubeconfig to connect karmada apiserver"
@@ -75,6 +78,35 @@ function installCRDs() {
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_clusterresourcebindings.yaml"
 }
 
+# deploy karmada agent in pull mode member clusters
+function deploy_karmada_agent() {
+    export KUBECONFIG="${PULL_MODE_CLUSTER_KUBECONFIG}"
+
+    # create namespace for karmada agent
+    kubectl apply -f "${REPO_ROOT}/artifacts/agent/namespace.yaml"
+
+    # create service account, cluster role for karmada agent
+    kubectl apply -f "${REPO_ROOT}/artifacts/agent/serviceaccount.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrole.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
+
+    # create secret
+    kubectl create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig="$KARMADA_APISERVER_CONFIG" -n "${KARMADA_SYSTEM_NAMESPACE}"
+
+    # deploy karmada agent
+    cp "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml.tmp
+    sed -i "s/{{member_cluster_name}}/${PULL_MODE_CLUSTER_NAME}/g" "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml
+    kubectl apply -f "${REPO_ROOT}/artifacts/agent/karmada-agent.yaml"
+    mv "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml.tmp "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml
+
+    # Wait for karmada-etcd to come up before launching the rest of the components.
+    util::wait_pod_ready "${AGENT_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+    if [[ $? -ne 0 ]]; then
+       echo "failed to deploy karmada agent in pull mode cluster"
+       return 1
+    fi
+}
+
 #step0: prepare
 # install kind
 util::install_tools sigs.k8s.io/kind v0.10.0
@@ -83,6 +115,7 @@ util::install_tools sigs.k8s.io/kind v0.10.0
 util::create_cluster ${HOST_CLUSTER_NAME} ${HOST_CLUSTER_KUBECONFIG} ${CLUSTER_VERSION} ${KIND_LOG_FILE}
 util::create_cluster ${MEMBER_CLUSTER_1_NAME} ${MEMBER_CLUSTER_1_KUBECONFIG} ${CLUSTER_VERSION} ${KIND_LOG_FILE}
 util::create_cluster ${MEMBER_CLUSTER_2_NAME} ${MEMBER_CLUSTER_2_KUBECONFIG} ${CLUSTER_VERSION} ${KIND_LOG_FILE}
+util::create_cluster ${PULL_MODE_CLUSTER_NAME} ${PULL_MODE_CLUSTER_KUBECONFIG} ${CLUSTER_VERSION} ${KIND_LOG_FILE}
 
 #step2. make images and get karmadactl
 export VERSION="latest"
@@ -130,7 +163,7 @@ generate_cert_secret
 # deploy karmada etcd
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-etcd.yaml"
 # Wait for karmada-etcd to come up before launching the rest of the components.
-util::wait_pod_ready ${ETCD_POD_LABEL} "karmada-system"
+util::wait_pod_ready ${ETCD_POD_LABEL} "${KARMADA_SYSTEM_NAMESPACE}"
 
 # deploy karmada apiserver
 TEMP_PATH=$(mktemp -d)
@@ -140,7 +173,7 @@ kubectl apply -f "${TEMP_PATH}/karmada-apiserver-tmp.yaml"
 rm -rf "${TEMP_PATH}"
 
 # wait for karmada-apiserver to come up before launching the rest of the components.
-util::wait_pod_ready ${APISERVER_POD_LABEL} "karmada-system"
+util::wait_pod_ready ${APISERVER_POD_LABEL} "${KARMADA_SYSTEM_NAMESPACE}"
 
 # deploy kube controller manager
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
@@ -161,19 +194,26 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-scheduler.yaml"
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-webhook.yaml"
 
 # make sure all karmada control plane components are ready
-util::wait_pod_ready ${KARMADA_CONTROLLER_LABEL} "karmada-system"
-util::wait_pod_ready ${KARMADA_SCHEDULER_LABEL} "karmada-system"
-util::wait_pod_ready ${KUBE_CONTROLLER_POD_LABEL} "karmada-system"
-util::wait_pod_ready ${KARMADA_WEBHOOK_LABEL} "karmada-system"
+util::wait_pod_ready "${KARMADA_CONTROLLER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${KARMADA_SCHEDULER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${KUBE_CONTROLLER_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${KARMADA_WEBHOOK_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # wait until the member cluster ready
-util::check_clusters_ready ${MEMBER_CLUSTER_1_KUBECONFIG} "member1"
-util::check_clusters_ready ${MEMBER_CLUSTER_2_KUBECONFIG} "member2"
+util::check_clusters_ready "${MEMBER_CLUSTER_1_KUBECONFIG}" "$MEMBER_CLUSTER_1_NAME"
+util::check_clusters_ready "${MEMBER_CLUSTER_2_KUBECONFIG}" "$MEMBER_CLUSTER_2_NAME"
 
-# join member clusters
+#step8. join push mode member clusters
 export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
 ${KARMADACTL_BIN} join member1 --cluster-kubeconfig="${MEMBER_CLUSTER_1_KUBECONFIG}"
 ${KARMADACTL_BIN} join member2 --cluster-kubeconfig="${MEMBER_CLUSTER_2_KUBECONFIG}"
+
+# wait until the pull mode cluster ready
+util::check_clusters_ready ${PULL_MODE_CLUSTER_KUBECONFIG} "$PULL_MODE_CLUSTER_NAME"
+kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="$PULL_MODE_CLUSTER_NAME"
+
+#step9. deploy karmada agent in pull mode member clusters
+deploy_karmada_agent
 
 function print_success() {
   echo
