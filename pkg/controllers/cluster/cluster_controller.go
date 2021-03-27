@@ -173,7 +173,7 @@ func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 
 	// create member cluster execution space when member cluster joined
 	executionSpaceObj := &corev1.Namespace{}
-	err = c.Client.Get(context.TODO(), types.NamespacedName{Namespace: executionSpaceName}, executionSpaceObj)
+	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			executionSpace := &corev1.Namespace{
@@ -184,7 +184,7 @@ func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 			}
 			err := c.Client.Create(context.TODO(), executionSpace)
 			if err != nil {
-				klog.Errorf("Failed to create execution space for cluster %v", cluster.Name)
+				klog.Errorf("Failed to create execution space for cluster %v: %v", cluster.Name, err)
 				return err
 			}
 		} else {
