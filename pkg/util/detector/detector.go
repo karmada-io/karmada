@@ -29,6 +29,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -62,7 +63,7 @@ type ResourceDetector struct {
 	RESTMapper meta.RESTMapper
 
 	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
-	waitingObjects map[ClusterWideKey]struct{}
+	waitingObjects map[keys.ClusterWideKey]struct{}
 	// waitingLock is the lock for waitingObjects operation.
 	waitingLock sync.RWMutex
 
@@ -72,7 +73,7 @@ type ResourceDetector struct {
 // Start runs the detector, never stop until stopCh closed.
 func (d *ResourceDetector) Start(stopCh <-chan struct{}) error {
 	klog.Infof("Starting resource detector.")
-	d.waitingObjects = make(map[ClusterWideKey]struct{})
+	d.waitingObjects = make(map[keys.ClusterWideKey]struct{})
 	d.stopCh = stopCh
 
 	// setup policy reconcile worker
@@ -134,7 +135,7 @@ func (d *ResourceDetector) NeedLeaderElection() bool {
 // Reconcile performs a full reconciliation for the object referred to by the key.
 // The key will be re-queued if an error is non-nil.
 func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
-	clusterWideKey, ok := key.(ClusterWideKey)
+	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Error("invalid key")
 		return fmt.Errorf("invalid key")
@@ -204,7 +205,7 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 		return false
 	}
 
-	clusterWideKey, ok := key.(ClusterWideKey)
+	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Errorf("Invalid key")
 		return false
@@ -244,7 +245,7 @@ func (d *ResourceDetector) OnDelete(obj interface{}) {
 }
 
 // LookForMatchedPolicy tries to find a policy for object referenced by object key.
-func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructured, objectKey ClusterWideKey) (*policyv1alpha1.PropagationPolicy, error) {
+func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) (*policyv1alpha1.PropagationPolicy, error) {
 	if len(objectKey.Namespace) == 0 {
 		return nil, nil
 	}
@@ -272,7 +273,7 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 }
 
 // LookForMatchedClusterPolicy tries to find a ClusterPropagationPolicy for object referenced by object key.
-func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unstructured, objectKey ClusterWideKey) (*policyv1alpha1.ClusterPropagationPolicy, error) {
+func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) (*policyv1alpha1.ClusterPropagationPolicy, error) {
 	klog.V(2).Infof("attempts to match cluster policy for resource: %s", objectKey)
 	policyList := &policyv1alpha1.ClusterPropagationPolicyList{}
 	if err := d.Client.List(context.TODO(), policyList); err != nil {
@@ -296,7 +297,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 }
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
-func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) error {
+func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) error {
 	klog.Infof("Applying policy(%s) for object: %s", policy.Name, objectKey)
 
 	if err := d.ClaimPolicyForObject(object, policy.Namespace, policy.Name); err != nil {
@@ -330,7 +331,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 }
 
 // ApplyClusterPolicy starts propagate the object referenced by object key according to ClusterPropagationPolicy.
-func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) error {
+func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) error {
 	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
 
 	if err := d.ClaimClusterPolicyForObject(object, policy.Name); err != nil {
@@ -364,7 +365,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 }
 
 // GetUnstructuredObject retrieves object by key and returned its unstructured.
-func (d *ResourceDetector) GetUnstructuredObject(objectKey ClusterWideKey) (*unstructured.Unstructured, error) {
+func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (*unstructured.Unstructured, error) {
 	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to get GVK of object: %s, error: %v", objectKey, err)
@@ -389,7 +390,7 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey ClusterWideKey) (*uns
 }
 
 // GetObject retrieves object from local cache.
-func (d *ResourceDetector) GetObject(objectKey ClusterWideKey) (runtime.Object, error) {
+func (d *ResourceDetector) GetObject(objectKey keys.ClusterWideKey) (runtime.Object, error) {
 	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to get GVK of object: %s, error: %v", objectKey, err)
@@ -437,7 +438,7 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *workv1alpha1.ResourceBinding {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *workv1alpha1.ResourceBinding {
 	bindingName := names.GenerateBindingName(object.GetNamespace(), object.GetKind(), object.GetName())
 	propagationBinding := &workv1alpha1.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -466,7 +467,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
-func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) *workv1alpha1.ClusterResourceBinding {
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) *workv1alpha1.ClusterResourceBinding {
 	bindingName := names.GenerateClusterResourceBindingName(object.GetKind(), object.GetName())
 	binding := &workv1alpha1.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -493,7 +494,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 }
 
 // AddWaiting adds object's key to waiting list.
-func (d *ResourceDetector) AddWaiting(objectKey ClusterWideKey) {
+func (d *ResourceDetector) AddWaiting(objectKey keys.ClusterWideKey) {
 	d.waitingLock.Lock()
 	defer d.waitingLock.Unlock()
 
@@ -502,7 +503,7 @@ func (d *ResourceDetector) AddWaiting(objectKey ClusterWideKey) {
 }
 
 // RemoveWaiting removes object's key from waiting list.
-func (d *ResourceDetector) RemoveWaiting(objectKey ClusterWideKey) {
+func (d *ResourceDetector) RemoveWaiting(objectKey keys.ClusterWideKey) {
 	d.waitingLock.Lock()
 	defer d.waitingLock.Unlock()
 
@@ -510,11 +511,11 @@ func (d *ResourceDetector) RemoveWaiting(objectKey ClusterWideKey) {
 }
 
 // GetMatching gets objects keys in waiting list that matches one of resource selectors.
-func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.ResourceSelector) []ClusterWideKey {
+func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.ResourceSelector) []keys.ClusterWideKey {
 	d.waitingLock.RLock()
 	defer d.waitingLock.RUnlock()
 
-	var matchedResult []ClusterWideKey
+	var matchedResult []keys.ClusterWideKey
 
 	for waitKey := range d.waitingObjects {
 		waitObj, err := d.GetUnstructuredObject(waitKey)
@@ -561,7 +562,7 @@ func (d *ResourceDetector) OnPropagationPolicyDelete(obj interface{}) {
 // When removing a PropagationPolicy, the relevant ResourceBinding will be removed and
 // the relevant objects will be put into queue again to try another policy.
 func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
-	ckey, ok := key.(ClusterWideKey)
+	ckey, ok := key.(keys.ClusterWideKey)
 	if !ok { // should not happen
 		klog.Error("Found invalid key when reconciling propagation policy.")
 		return fmt.Errorf("invalid key")
@@ -606,7 +607,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyDelete(obj interface{}) {
 // When removing a ClusterPropagationPolicy, the relevant ClusterResourceBinding will be removed and
 // the relevant objects will be put into queue again to try another policy.
 func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) error {
-	ckey, ok := key.(ClusterWideKey)
+	ckey, ok := key.(keys.ClusterWideKey)
 	if !ok { // should not happen
 		klog.Error("Found invalid key when reconciling cluster propagation policy.")
 		return fmt.Errorf("invalid key")
@@ -756,7 +757,7 @@ func (d *ResourceDetector) OnClusterResourceBindingDelete(obj interface{}) {
 // For each ResourceBinding changes, we will try to calculate the summary status and update to original object
 // that the ResourceBinding refer to.
 func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
-	ckey, ok := key.(ClusterWideKey)
+	ckey, ok := key.(keys.ClusterWideKey)
 	if !ok { // should not happen
 		klog.Error("Found invalid key when reconciling resource binding.")
 		return fmt.Errorf("invalid key")
@@ -804,7 +805,7 @@ func (d *ResourceDetector) OnResourceBindingDelete(obj interface{}) {
 // For each ClusterResourceBinding changes, we will try to calculate the summary status and update to original object
 // that the ClusterResourceBinding refer to.
 func (d *ResourceDetector) ReconcileClusterResourceBinding(key util.QueueKey) error {
-	ckey, ok := key.(ClusterWideKey)
+	ckey, ok := key.(keys.ClusterWideKey)
 	if !ok { // should not happen
 		klog.Error("Found invalid key when reconciling cluster resource binding.")
 		return fmt.Errorf("invalid key")
