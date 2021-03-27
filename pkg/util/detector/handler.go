@@ -13,14 +13,26 @@ import (
 
 // ClusterWideKey is the object key which is a unique identifier under a cluster, across all resources.
 type ClusterWideKey struct {
-	GVK       schema.GroupVersionKind
+	// Group is the API Group of resource being referenced.
+	Group string
+
+	// Version is the API Version of the resource being referenced.
+	Version string
+
+	// Kind is the type of resource being referenced.
+	Kind string
+
+	// Namespace is the name of a namespace.
 	Namespace string
-	Name      string
+
+	// Name is the name of resource being referenced.
+	Name string
 }
 
-// String returns the key's printable info.
+// String returns the key's printable info with format:
+// "<GroupVersion>, kind=<Kind>, <NamespaceKey>"
 func (k *ClusterWideKey) String() string {
-	return k.GVK.String() + "/" + k.Namespace + "/" + k.Name
+	return fmt.Sprintf("%s, kind=%s, %s", k.GroupVersion().String(), k.Kind, k.NamespaceKey())
 }
 
 // NamespaceKey returns the traditional key of a object.
@@ -30,6 +42,23 @@ func (k *ClusterWideKey) NamespaceKey() string {
 	}
 
 	return k.Name
+}
+
+// GroupVersionKind returns the group, version, and kind of resource being referenced.
+func (k *ClusterWideKey) GroupVersionKind() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   k.Group,
+		Version: k.Version,
+		Kind:    k.Kind,
+	}
+}
+
+// GroupVersion returns the group and version of resource being referenced.
+func (k *ClusterWideKey) GroupVersion() schema.GroupVersion {
+	return schema.GroupVersion{
+		Group:   k.Group,
+		Version: k.Version,
+	}
 }
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.
@@ -45,8 +74,11 @@ func ClusterWideKeyFunc(obj interface{}) (util.QueueKey, error) {
 		return nil, fmt.Errorf("object has no meta: %v", err)
 	}
 
+	gvk := runtimeObject.GetObjectKind().GroupVersionKind()
 	key := ClusterWideKey{
-		GVK:       runtimeObject.GetObjectKind().GroupVersionKind(),
+		Group:     gvk.Group,
+		Version:   gvk.Version,
+		Kind:      gvk.Kind,
 		Namespace: metaInfo.GetNamespace(),
 		Name:      metaInfo.GetName(),
 	}
