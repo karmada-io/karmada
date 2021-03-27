@@ -215,9 +215,9 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 		return false
 	}
 
-	if clusterWideKey.GVK.Group == clusterv1alpha1.GroupName ||
-		clusterWideKey.GVK.Group == policyv1alpha1.GroupName ||
-		clusterWideKey.GVK.Group == workv1alpha1.GroupName {
+	if clusterWideKey.Group == clusterv1alpha1.GroupName ||
+		clusterWideKey.Group == policyv1alpha1.GroupName ||
+		clusterWideKey.Group == workv1alpha1.GroupName {
 		return false
 	}
 
@@ -365,7 +365,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 
 // GetUnstructuredObject retrieves object by key and returned its unstructured.
 func (d *ResourceDetector) GetUnstructuredObject(objectKey ClusterWideKey) (*unstructured.Unstructured, error) {
-	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GVK)
+	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to get GVK of object: %s, error: %v", objectKey, err)
 		return nil, err
@@ -390,7 +390,7 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey ClusterWideKey) (*uns
 
 // GetObject retrieves object from local cache.
 func (d *ResourceDetector) GetObject(objectKey ClusterWideKey) (runtime.Object, error) {
-	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GVK)
+	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to get GVK of object: %s, error: %v", objectKey, err)
 		return nil, err
@@ -444,7 +444,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			Name:      bindingName,
 			Namespace: object.GetNamespace(),
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(object, objectKey.GVK),
+				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
 			Labels: map[string]string{
 				util.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
@@ -472,7 +472,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(object, objectKey.GVK),
+				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
 			Labels: map[string]string{
 				util.ClusterPropagationPolicyLabel: policy.GetName(),
