@@ -24,20 +24,6 @@ const (
 
 	// WorkNameLabel is added to objects to specify associated Work's name.
 	WorkNameLabel = "work.karmada.io/name"
-
-	// OverrideClaimKey will set in Work resource, indicates that
-	// the resource is overridden by override policies
-	OverrideClaimKey = "karmada.io/overridden-by"
-
-	// AppliedOverrideKey is the key of a OverridePolicy list.
-	// It is used to annotates what override policies have been applied for a specific manifest.
-	// The value is a comma-separated list of override policy names, the namespace is omitted.
-	AppliedOverrideKey = "karmada.io/override"
-
-	// AppliedClusterOverrideKey is the key of a ClusterOverridePolicy list.
-	// it is used to annotates what cluster override policies have been applied for a specific manifest.
-	// The value is a comma-separated list of cluster override policy names.
-	AppliedClusterOverrideKey = "karmada.io/cluster-override"
 )
 
 // Define annotations used by karmada system.
