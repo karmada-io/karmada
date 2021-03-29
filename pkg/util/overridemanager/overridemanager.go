@@ -3,7 +3,6 @@ package overridemanager
 import (
 	"context"
 	"encoding/json"
-	"strings"
 
 	"github.com/evanphx/json-patch/v5"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -94,19 +93,16 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 		return nil, nil
 	}
 
-	var appliedList []string
-	appliedOverrides := &AppliedOverrides{}
+	appliedList := &AppliedOverrides{}
 	for _, p := range matchedPolicies {
 		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
 			return nil, err
 		}
 		klog.V(2).Infof("Applied cluster overrides(%s) for %s/%s", p.Name, rawObj.GetNamespace(), rawObj.GetName())
-		appliedList = append(appliedList, p.Name)
-		appliedOverrides.Add(p.Name, p.Spec.Overriders)
+		appliedList.Add(p.Name, p.Spec.Overriders)
 	}
-	util.MergeAnnotation(rawObj, util.AppliedClusterOverrideKey, strings.Join(appliedList, ","))
 
-	return appliedOverrides, nil
+	return appliedList, nil
 }
 
 // applyNamespacedOverrides will apply overrides according to OverridePolicy instructions.
@@ -128,19 +124,16 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 		return nil, nil
 	}
 
-	var appliedList []string
-	appliedOverrides := &AppliedOverrides{}
+	appliedList := &AppliedOverrides{}
 	for _, p := range matchedPolicies {
 		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
 			return nil, err
 		}
 		klog.V(2).Infof("Applied overrides(%s/%s) for %s/%s", p.Namespace, p.Name, rawObj.GetNamespace(), rawObj.GetName())
-		appliedList = append(appliedList, p.Name)
-		appliedOverrides.Add(p.Name, p.Spec.Overriders)
+		appliedList.Add(p.Name, p.Spec.Overriders)
 	}
-	util.MergeAnnotation(rawObj, util.AppliedOverrideKey, strings.Join(appliedList, ","))
 
-	return appliedOverrides, nil
+	return appliedList, nil
 }
 
 func (o *overrideManagerImpl) getMatchedClusterOverridePolicy(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.ClusterOverridePolicy {
