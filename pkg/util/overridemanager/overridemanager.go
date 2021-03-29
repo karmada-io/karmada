@@ -17,7 +17,13 @@ import (
 
 // OverrideManager managers override policies operation
 type OverrideManager interface {
-	ApplyOverridePolicies(rawObj *unstructured.Unstructured, cluster string) error
+	// ApplyOverridePolicies overrides the object if one or more override policies exist and matches the target cluster.
+	// For cluster scoped resource:
+	// - Apply ClusterOverridePolicy by policies name in ascending
+	// For namespaced scoped resource, apply order is:
+	// - First apply ClusterOverridePolicy;
+	// - Then apply OverridePolicy;
+	ApplyOverridePolicies(rawObj *unstructured.Unstructured, cluster string) (appliedClusterPolicies *AppliedOverrides, appliedNamespacedPolicies *AppliedOverrides, err error)
 }
 
 type overrideOption struct {
@@ -37,92 +43,104 @@ func New(client client.Client) OverrideManager {
 	}
 }
 
-func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstructured, clusterName string) error {
+func (o *overrideManagerImpl) ApplyOverridePolicies(rawObj *unstructured.Unstructured, clusterName string) (*AppliedOverrides, *AppliedOverrides, error) {
 	clusterObj := &clusterv1alpha1.Cluster{}
 	if err := o.Client.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 		klog.Errorf("Failed to get member cluster: %s, error: %v", clusterName, err)
-		return err
+		return nil, nil, err
 	}
+
+	var appliedClusterOverrides *AppliedOverrides
+	var appliedNamespacedOverrides *AppliedOverrides
+	var err error
 
 	// Apply cluster scoped override policies
-	if err := o.applyClusterOverrides(rawObj, clusterObj); err != nil {
+	appliedClusterOverrides, err = o.applyClusterOverrides(rawObj, clusterObj)
+	if err != nil {
 		klog.Errorf("Failed to apply cluster override policies. error: %v", err)
-		return err
+		return nil, nil, err
 	}
 
+	// For namespace scoped resources, should apply override policies under the same namespace.
+	// No matter the resources propagated by ClusterPropagationPolicy or PropagationPolicy.
 	if len(rawObj.GetNamespace()) > 0 {
 		// Apply namespace scoped override policies
-		if err := o.applyNamespacedOverrides(rawObj, clusterObj); err != nil {
+		appliedNamespacedOverrides, err = o.applyNamespacedOverrides(rawObj, clusterObj)
+		if err != nil {
 			klog.Errorf("Failed to apply namespaced override policies. error: %v", err)
-			return err
+			return nil, nil, err
 		}
 	}
 
-	return nil
+	return appliedClusterOverrides, appliedNamespacedOverrides, nil
 }
 
 // applyClusterOverrides will apply overrides according to ClusterOverridePolicy instructions.
-func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) error {
+func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) (*AppliedOverrides, error) {
 	// get all cluster-scoped override policies
 	policyList := &policyv1alpha1.ClusterOverridePolicyList{}
 	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{}); err != nil {
 		klog.Errorf("Failed to list cluster override policies, error: %v", err)
-		return err
+		return nil, err
 	}
 
 	if len(policyList.Items) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	matchedPolicies := o.getMatchedClusterOverridePolicy(policyList.Items, rawObj, cluster)
 	if len(matchedPolicies) == 0 {
 		klog.V(2).Infof("No cluster override policy for resource: %s", rawObj.GetName())
-		return nil
+		return nil, nil
 	}
 
 	var appliedList []string
+	appliedOverrides := &AppliedOverrides{}
 	for _, p := range matchedPolicies {
-		klog.Infof("Applying cluster overrides(%s) for %s", p.Name, rawObj.GetName())
 		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
-			return err
+			return nil, err
 		}
+		klog.V(2).Infof("Applied cluster overrides(%s) for %s/%s", p.Name, rawObj.GetNamespace(), rawObj.GetName())
 		appliedList = append(appliedList, p.Name)
+		appliedOverrides.Add(p.Name, p.Spec.Overriders)
 	}
 	util.MergeAnnotation(rawObj, util.AppliedClusterOverrideKey, strings.Join(appliedList, ","))
 
-	return nil
+	return appliedOverrides, nil
 }
 
 // applyNamespacedOverrides will apply overrides according to OverridePolicy instructions.
-func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) error {
+func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) (*AppliedOverrides, error) {
 	// get all namespace-scoped override policies
 	policyList := &policyv1alpha1.OverridePolicyList{}
 	if err := o.Client.List(context.TODO(), policyList, &client.ListOptions{Namespace: rawObj.GetNamespace()}); err != nil {
 		klog.Errorf("Failed to list override policies from namespace: %s, error: %v", rawObj.GetNamespace(), err)
-		return err
+		return nil, err
 	}
 
 	if len(policyList.Items) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	matchedPolicies := o.getMatchedOverridePolicy(policyList.Items, rawObj, cluster)
 	if len(matchedPolicies) == 0 {
 		klog.V(2).Infof("No override policy for resource: %s/%s", rawObj.GetNamespace(), rawObj.GetName())
-		return nil
+		return nil, nil
 	}
 
 	var appliedList []string
+	appliedOverrides := &AppliedOverrides{}
 	for _, p := range matchedPolicies {
-		klog.Infof("Applying overrides(%s/%s) for %s/%s", p.Namespace, p.Name, rawObj.GetNamespace(), rawObj.GetName())
 		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
-			return err
+			return nil, err
 		}
+		klog.V(2).Infof("Applied overrides(%s/%s) for %s/%s", p.Namespace, p.Name, rawObj.GetNamespace(), rawObj.GetName())
 		appliedList = append(appliedList, p.Name)
+		appliedOverrides.Add(p.Name, p.Spec.Overriders)
 	}
 	util.MergeAnnotation(rawObj, util.AppliedOverrideKey, strings.Join(appliedList, ","))
 
-	return nil
+	return appliedOverrides, nil
 }
 
 func (o *overrideManagerImpl) getMatchedClusterOverridePolicy(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.ClusterOverridePolicy {
