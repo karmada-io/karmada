@@ -46,6 +46,16 @@ const (
 	// It is intended to set on ResourceBinding or ClusterResourceBinding objects to record applied placement declaration.
 	// The placement could be either PropagationPolicy's or ClusterPropagationPolicy's.
 	PolicyPlacementAnnotation = "policy.karmada.io/applied-placement"
+
+	// AppliedOverrides is the annotation which used to record override items an object applied.
+	// It is intended to set on Work objects to record applied overrides.
+	// The overrides items should be sorted alphabetically in ascending order by OverridePolicy's name.
+	AppliedOverrides = "policy.karmada.io/applied-overrides"
+
+	// AppliedClusterOverrides is the annotation which used to record override items an object applied.
+	// It is intended to set on Work objects to record applied overrides.
+	// The overrides items should be sorted alphabetically in ascending order by ClusterOverridePolicy's name.
+	AppliedClusterOverrides = "policy.karmada.io/applied-cluster-overrides"
 )
 
 // Define finalizers used by karmada system.

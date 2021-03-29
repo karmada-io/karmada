@@ -123,7 +123,7 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 	for _, clusterName := range clusterNames {
 		// apply override policies
 		clonedWorkload := workload.DeepCopy()
-		err := overrideManager.ApplyOverridePolicies(clonedWorkload, clusterName)
+		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, clusterName)
 		if err != nil {
 			klog.Errorf("failed to apply overrides for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
 			return err
@@ -181,8 +181,37 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 			},
 		}
 
+		// set applied override policies if needed.
+		var appliedBytes []byte
+		if cops != nil {
+			appliedBytes, err = cops.MarshalJSON()
+			if err != nil {
+				return err
+			}
+			if appliedBytes != nil {
+				if work.Annotations == nil {
+					work.Annotations = make(map[string]string, 1)
+				}
+				work.Annotations[util.AppliedClusterOverrides] = string(appliedBytes)
+			}
+		}
+		if ops != nil {
+			appliedBytes, err = ops.MarshalJSON()
+			if err != nil {
+				return err
+			}
+			if appliedBytes != nil {
+				if work.Annotations == nil {
+					work.Annotations = make(map[string]string, 1)
+				}
+				work.Annotations[util.AppliedOverrides] = string(appliedBytes)
+			}
+		}
+
 		runtimeObject := work.DeepCopy()
 		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), c, runtimeObject, func() error {
+			runtimeObject.Annotations = work.Annotations
+			runtimeObject.Labels = work.Labels
 			runtimeObject.Spec = work.Spec
 			return nil
 		})
