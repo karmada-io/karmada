@@ -113,6 +113,11 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 			var requests []reconcile.Request
 
 			labels := a.Meta.GetLabels()
+			_, namespaceExist := labels[util.ResourceBindingNamespaceLabel]
+			_, nameExist := labels[util.ResourceBindingNameLabel]
+			if !namespaceExist || !nameExist {
+				return nil
+			}
 			namespacesName := types.NamespacedName{
 				Namespace: labels[util.ResourceBindingNamespaceLabel],
 				Name:      labels[util.ResourceBindingNameLabel],
