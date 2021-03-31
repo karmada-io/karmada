@@ -8,6 +8,9 @@ import (
 
 const clusterNameMaxLength int = 48
 
+// LabelValueMaxLength is a label's max length
+const LabelValueMaxLength int = 63
+
 // ValidateClusterName tests whether the cluster name passed is valid.
 // If the cluster name is not valid, a list of error strings is returned. Otherwise an empty list (or nil) is returned.
 // Rules of a valid cluster name:

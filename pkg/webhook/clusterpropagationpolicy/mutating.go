@@ -3,12 +3,14 @@ package clusterpropagationpolicy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -31,6 +33,10 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
+
+	if len(policy.Name) > validation.LabelValueMaxLength {
+		return admission.Errored(http.StatusBadRequest, fmt.Errorf("ClusterPropagationPolicy's name should be no more than %d characters", validation.LabelValueMaxLength))
+	}
 
 	marshaledBytes, err := json.Marshal(policy)
 	if err != nil {
