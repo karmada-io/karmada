@@ -87,7 +87,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
 			return err
 		}
-		workName := names.GenerateBindingName(hpaObj.GetNamespace(), hpaObj.GetKind(), hpaObj.GetName())
+		workName := names.GenerateBindingName(hpaObj.GetKind(), hpaObj.GetName())
 		objectMeta := metav1.ObjectMeta{
 			Name:       workName,
 			Namespace:  workNamespace,
@@ -131,7 +131,7 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 	if err != nil {
 		return nil, err
 	}
-	bindingName := names.GenerateBindingName(unstructuredWorkLoad.GetNamespace(), unstructuredWorkLoad.GetKind(), unstructuredWorkLoad.GetName())
+	bindingName := names.GenerateBindingName(unstructuredWorkLoad.GetKind(), unstructuredWorkLoad.GetName())
 	binding := &workv1alpha1.ResourceBinding{}
 	namespacedName := types.NamespacedName{
 		Namespace: namespace,

@@ -105,7 +105,7 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 			return err
 		}
 
-		workName := names.GenerateClusterResourceBindingName(namespaceObj.GetKind(), namespaceObj.GetName())
+		workName := names.GenerateBindingName(namespaceObj.GetKind(), namespaceObj.GetName())
 		objectMeta := metav1.ObjectMeta{
 			Name:       workName,
 			Namespace:  workNamespace,
