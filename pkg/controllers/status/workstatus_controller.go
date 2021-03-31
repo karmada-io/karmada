@@ -201,14 +201,7 @@ func (c *WorkStatusController) handleDeleteEvent(key string) error {
 	if err != nil {
 		return err
 	}
-
-	var workName string
-	if clusterWorkload.Namespace == "" {
-		workName = names.GenerateClusterResourceBindingName(clusterWorkload.GVK.Kind, clusterWorkload.Name)
-	} else {
-		workName = names.GenerateBindingName(clusterWorkload.Namespace, clusterWorkload.GVK.Kind, clusterWorkload.Name)
-	}
-
+	workName := names.GenerateBindingName(clusterWorkload.GVK.Kind, clusterWorkload.Name)
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: executionSpace, Name: workName}, work); err != nil {
 		// Stop processing if resource no longer exist.

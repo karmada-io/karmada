@@ -40,13 +40,8 @@ func GetClusterName(executionSpaceName string) (string, error) {
 }
 
 // GenerateBindingName will generate binding name by namespace, kind and name
-func GenerateBindingName(namespace, kind, name string) string {
-	return strings.ToLower(namespace + "-" + kind + "-" + name)
-}
-
-// GenerateClusterResourceBindingName will generate ClusterResourceBinding name by kind and name
-func GenerateClusterResourceBindingName(kind, name string) string {
-	return strings.ToLower(kind + "-" + name)
+func GenerateBindingName(kind, name string) string {
+	return strings.ToLower(name + "-" + kind)
 }
 
 // GenerateServiceAccountName generates the name of a ServiceAccount.
