@@ -108,6 +108,10 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 			var requests []reconcile.Request
 
 			labels := a.Meta.GetLabels()
+			_, nameExist := labels[util.ClusterResourceBindingLabel]
+			if !nameExist {
+				return nil
+			}
 			namespacesName := types.NamespacedName{
 				Name: labels[util.ClusterResourceBindingLabel],
 			}
