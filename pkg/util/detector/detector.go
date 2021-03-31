@@ -439,7 +439,7 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
 func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *workv1alpha1.ResourceBinding {
-	bindingName := names.GenerateBindingName(object.GetNamespace(), object.GetKind(), object.GetName())
+	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	propagationBinding := &workv1alpha1.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
@@ -468,7 +468,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
 func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) *workv1alpha1.ClusterResourceBinding {
-	bindingName := names.GenerateClusterResourceBindingName(object.GetKind(), object.GetName())
+	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	binding := &workv1alpha1.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
