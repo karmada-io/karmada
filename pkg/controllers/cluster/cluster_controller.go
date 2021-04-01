@@ -22,9 +22,7 @@ import (
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName           = "cluster-controller"
-	executionSpaceLabelKey   = "karmada.io/executionspace"
-	executionSpaceLabelValue = ""
+	ControllerName = "cluster-controller"
 )
 
 // Controller is to sync Cluster.
@@ -175,22 +173,24 @@ func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 	executionSpaceObj := &corev1.Namespace{}
 	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			executionSpace := &corev1.Namespace{
-				ObjectMeta: v1.ObjectMeta{
-					Name:   executionSpaceName,
-					Labels: map[string]string{executionSpaceLabelKey: executionSpaceLabelValue},
-				},
-			}
-			err := c.Client.Create(context.TODO(), executionSpace)
-			if err != nil {
-				klog.Errorf("Failed to create execution space for cluster %v: %v", cluster.Name, err)
-				return err
-			}
-		} else {
-			klog.Errorf("Could not get %s namespace: %v", executionSpaceName, err)
+		if !apierrors.IsNotFound(err) {
+			klog.Errorf("Failed to get namespace(%s): %v", executionSpaceName, err)
 			return err
 		}
+
+		// create only when not exist
+		executionSpace := &corev1.Namespace{
+			ObjectMeta: v1.ObjectMeta{
+				Name: executionSpaceName,
+			},
+		}
+		err := c.Client.Create(context.TODO(), executionSpace)
+		if err != nil {
+			klog.Errorf("Failed to create execution space for cluster(%s): %v", cluster.Name, err)
+			return err
+		}
+		klog.V(2).Infof("Created execution space(%s) for cluster(%s).", executionSpace, cluster.Name)
 	}
+
 	return nil
 }
