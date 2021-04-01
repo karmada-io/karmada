@@ -124,8 +124,9 @@ func (c *Controller) ensureRemoveExecutionSpace(cluster *v1alpha1.Cluster) (bool
 	}
 
 	executionSpaceObj := &corev1.Namespace{}
-	err = c.Client.Get(context.TODO(), types.NamespacedName{Namespace: executionSpaceName}, executionSpaceObj)
+	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if apierrors.IsNotFound(err) {
+		klog.V(2).Infof("Removed execution space(%s)", executionSpaceName)
 		return false, nil
 	}
 	if err != nil {
