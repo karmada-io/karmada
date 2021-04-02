@@ -45,6 +45,18 @@ const (
 	RandomStrLength = 3
 )
 
+const (
+	deploymentNamePrefix = "deploy-"
+	serviceNamePrefix    = "service-"
+	podNamePrefix        = "pod-"
+	crdNamePrefix        = "cr-"
+
+	updateDeploymentReplicas = 6
+	updateServicePort        = 81
+	updatePodImage           = "nginx:latest"
+	updateCRnamespace        = "e2e-test"
+)
+
 var (
 	kubeconfig            string
 	restConfig            *rest.Config
