@@ -30,11 +30,86 @@ type OverrideSpec struct {
 	Overriders Overriders `json:"overriders,omitempty"`
 }
 
-// Overriders represents the override rules that would apply on resources
+// Overriders offers various alternatives to represent the override rules.
+//
+// If more than one alternatives exist, they will be applied with following order:
+// - ImageOverrider
+// - Plaintext
 type Overriders struct {
 	// Plaintext represents override rules defined with plaintext overriders.
+	// +optional
 	Plaintext []PlaintextOverrider `json:"plaintext,omitempty"`
+
+	// ImageOverrider represents the rules dedicated to handling image overrides.
+	// +optional
+	ImageOverrider []ImageOverrider `json:"imageOverrider,omitempty"`
 }
+
+// ImageOverrider represents the rules dedicated to handling image overrides.
+type ImageOverrider struct {
+	// Predicate filters images before applying the rule.
+	//
+	// Defaults to nil, in that case, the system will automatically detect image fields if the resource type is
+	// Pod, ReplicaSet, Deployment or StatefulSet by following rule:
+	//   - Pod: spec/containers/<N>/image
+	//   - ReplicaSet: spec/template/spec/<N>/image
+	//   - Deployment: spec/template/spec/<N>/image
+	//   - StatefulSet: spec/template/spec/<N>/image
+	// In addition, all images will be processed if the resource object has more than one containers.
+	//
+	// If not nil, only images matches the filters will be processed.
+	// +optional
+	Predicate *ImagePredicate `json:"predicate,omitempty"`
+
+	// Component is part of image name.
+	// Basically we presume an image can be make of '[registry/]repository[:tag]'.
+	// The registry could be:
+	// - k8s.gcr.io
+	// - fictional.registry.example:10443
+	// The repository could be:
+	// - kube-apiserver
+	// - fictional/nginx
+	// The tag cloud be:
+	// - latest
+	// - v1.19.1
+	// - @sha256:dbcc1c35ac38df41fd2f5e4130b32ffdb93ebae8b3dbe638c23575912276fc9c
+	//
+	// +kubebuilder:validation:Enum=Registry;Repository;Tag
+	// +required
+	Component ImageComponent `json:"component"`
+
+	// Operator represents the operator which will apply on the image.
+	// +kubebuilder:validation:Enum=add;remove;replace
+	// +required
+	Operator OverriderOperator `json:"operator"`
+
+	// Value to be applied to image.
+	// Must not be empty when operator is 'add' or 'replace'.
+	// Defaults to empty and ignored when operator is 'remove'.
+	// +optional
+	Value string `json:"value,omitempty"`
+}
+
+// ImagePredicate describes images filter.
+type ImagePredicate struct {
+	// Path indicates the path of target field
+	// +required
+	Path string `json:"path"`
+}
+
+// ImageComponent indicates the components for image.
+type ImageComponent string
+
+const (
+	// Registry is the registry component of an image with format '[registry/]repository[:tag]'.
+	Registry ImageComponent = "Registry"
+
+	// Repository is the repository component of an image with format '[registry/]repository[:tag]'.
+	Repository ImageComponent = "Repository"
+
+	// Tag is the tag component of an image with format '[registry/]repository[:tag]'.
+	Tag ImageComponent = "Tag"
+)
 
 // PlaintextOverrider is a simple overrider that overrides target fields
 // according to path, operator and value.
