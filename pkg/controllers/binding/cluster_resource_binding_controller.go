@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -108,12 +109,12 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 			var requests []reconcile.Request
 
 			labels := a.Meta.GetLabels()
-			_, nameExist := labels[util.ClusterResourceBindingLabel]
+			clusterResourcebindingName, nameExist := labels[util.ClusterResourceBindingLabel]
 			if !nameExist {
 				return nil
 			}
 			namespacesName := types.NamespacedName{
-				Name: labels[util.ClusterResourceBindingLabel],
+				Name: clusterResourcebindingName,
 			}
 
 			requests = append(requests, reconcile.Request{NamespacedName: namespacesName})
@@ -122,5 +123,46 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ClusterResourceBinding{}).
 		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: workFn}, workPredicateFn).
+		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: c.newOverridePolicyFunc()}).
+		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: c.newOverridePolicyFunc()}).
 		Complete(c)
+}
+
+func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.ToRequestsFunc {
+	return func(a handler.MapObject) []reconcile.Request {
+		var overrideRS []policyv1alpha1.ResourceSelector
+		switch t := a.Object.(type) {
+		case *policyv1alpha1.ClusterOverridePolicy:
+			overrideRS = t.Spec.ResourceSelectors
+		case *policyv1alpha1.OverridePolicy:
+			overrideRS = t.Spec.ResourceSelectors
+		default:
+			return nil
+		}
+
+		bindingList := &workv1alpha1.ClusterResourceBindingList{}
+		if err := c.Client.List(context.TODO(), bindingList); err != nil {
+			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
+			return nil
+		}
+
+		var requests []reconcile.Request
+		for _, binding := range bindingList.Items {
+			workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
+			if err != nil {
+				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
+				return nil
+			}
+
+			for _, rs := range overrideRS {
+				if util.ResourceMatches(workload, rs) {
+					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as override policy(%s/%s) changes.", binding.Name, a.Meta.GetNamespace(), a.Meta.GetName())
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
+					break
+				}
+			}
+
+		}
+		return requests
+	}
 }

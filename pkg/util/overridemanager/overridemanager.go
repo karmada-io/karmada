@@ -89,7 +89,7 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 
 	matchedPolicies := o.getMatchedClusterOverridePolicy(policyList.Items, rawObj, cluster)
 	if len(matchedPolicies) == 0 {
-		klog.V(2).Infof("No cluster override policy for resource: %s", rawObj.GetName())
+		klog.V(2).Infof("No cluster override policy for resource: %s/%s", rawObj.GetNamespace(), rawObj.GetName())
 		return nil, nil
 	}
 
