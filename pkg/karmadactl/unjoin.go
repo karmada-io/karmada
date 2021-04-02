@@ -117,18 +117,11 @@ func RunUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandUnjoin
 	}
 
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
-	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
 
-	// todo: taint cluster object instead of deleting execution space.
-	//  Once the cluster is tainted, eviction controller will delete all Work in the execution space of the cluster.
-	executionSpaceName, err := names.GenerateExecutionSpaceName(opts.ClusterName)
+	// delete the cluster object in host cluster that associates the unjoining cluster
+	err = deleteClusterObject(controlPlaneKarmadaClient, opts.ClusterName, opts.DryRun)
 	if err != nil {
-		return err
-	}
-
-	err = deleteExecutionSpace(controlPlaneKubeClient, executionSpaceName, opts.DryRun)
-	if err != nil {
-		klog.Errorf("Failed to delete execution space %s, error: %v", executionSpaceName, err)
+		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
 		return err
 	}
 
@@ -165,13 +158,6 @@ func RunUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandUnjoin
 			klog.Errorf("Failed to delete namespace in unjoining cluster %q: %v", opts.ClusterName, err)
 			return err
 		}
-	}
-
-	// delete the cluster object in host cluster that associates the unjoining cluster
-	err = deleteClusterObject(controlPlaneKarmadaClient, opts.ClusterName, opts.DryRun)
-	if err != nil {
-		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
-		return err
 	}
 
 	return nil
@@ -236,37 +222,6 @@ func deleteNamespaceFromUnjoinCluster(clusterKubeClient kubeclient.Interface, na
 			return err
 		}
 		klog.Errorf("Force deletion. Could not delete namespace %q in unjoining cluster %q: %v.", namespace, unjoiningClusterName, err)
-	}
-
-	return nil
-}
-
-func deleteExecutionSpace(hostClient kubeclient.Interface, namespace string, dryRun bool) error {
-	if dryRun {
-		return nil
-	}
-
-	err := util.DeleteNamespace(hostClient, namespace)
-	if err != nil {
-		return err
-	}
-
-	// make sure the execution space has been deleted
-	err = wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
-		exist, err := util.IsNamespaceExist(hostClient, namespace)
-		if err != nil {
-			klog.Errorf("Failed to get execution space %s. err: %v", namespace, err)
-			return false, err
-		}
-		if !exist {
-			return true, nil
-		}
-		klog.Infof("Waiting for the execution space %s to be deleted", namespace)
-		return false, nil
-	})
-	if err != nil {
-		klog.Errorf("Failed to delete execution space %s, error: %v", namespace, err)
-		return err
 	}
 
 	return nil
