@@ -107,6 +107,7 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		Client:             mgr.GetClient(),
 		InformerManager:    informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
 		RESTMapper:         mgr.GetRESTMapper(),
+		DynamicClient:      dynamicClientSet,
 	}
 	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
 	resourceDetector.Processor = util.NewAsyncWorker("resource detector", time.Microsecond, detector.ClusterWideKeyFunc, resourceDetector.Reconcile)

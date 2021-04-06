@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,7 +40,9 @@ type ResourceDetector struct {
 	// DiscoveryClientSet is used to resource discovery.
 	DiscoveryClientSet *discovery.DiscoveryClient
 	// Client is used to retrieve objects, it is often more convenient than lister.
-	Client          client.Client
+	Client client.Client
+	// DynamicClient used to fetch arbitrary resources.
+	DynamicClient   dynamic.Interface
 	InformerManager informermanager.SingleClusterInformerManager
 	EventHandler    cache.ResourceEventHandler
 	Processor       util.AsyncWorker
@@ -644,15 +647,19 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 	}
 
 	for _, binding := range bindings.Items {
+		// Cleanup the labels from the object referencing by binding.
+		// In addition, this will give the object a chance to match another policy.
+		if err := d.CleanupLabels(binding.Spec.Resource, util.PropagationPolicyNameLabel, util.PropagationPolicyNameLabel); err != nil {
+			klog.Errorf("Failed to cleanup labels(%s/%s), error: %v", binding.Namespace, binding.Name, err)
+			return err
+		}
+
 		klog.V(2).Infof("Removing binding(%s/%s)", binding.Namespace, binding.Name)
 		if err := d.Client.Delete(context.TODO(), &binding); err != nil {
 			klog.Errorf("Failed to delete binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
 			return err
 		}
 	}
-
-	// TODO(RainbowMango): cleanup original resource's label.
-
 	return nil
 }
 
@@ -673,15 +680,19 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 	}
 
 	for _, binding := range bindings.Items {
+		// Cleanup the labels from the object referencing by binding.
+		// In addition, this will give the object a chance to match another policy.
+		if err := d.CleanupLabels(binding.Spec.Resource, util.ClusterPropagationPolicyLabel); err != nil {
+			klog.Errorf("Failed to cleanup labels(%s/%s), error: %v", binding.Namespace, binding.Name, err)
+			return err
+		}
+
 		klog.V(2).Infof("Removing cluster resource binding(%s)", binding.Name)
 		if err := d.Client.Delete(context.TODO(), &binding); err != nil {
 			klog.Errorf("Failed to delete cluster resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
 			return err
 		}
 	}
-
-	// TODO(RainbowMango): cleanup original resource's label.
-
 	return nil
 }
 
@@ -881,5 +892,38 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 		return err
 	}
 
+	return nil
+}
+
+// CleanupLabels removes labels from object referencing by objRef.
+func (d *ResourceDetector) CleanupLabels(objRef workv1alpha1.ObjectReference, labels ...string) error {
+	workload, err := helper.FetchWorkload(d.DynamicClient, d.RESTMapper, objRef)
+	if err != nil {
+		// do nothing if resource template not exist, it might has been removed.
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		klog.Errorf("Failed to fetch resource(kind=%s, %s/%s): %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
+		return err
+	}
+
+	workloadLabels := workload.GetLabels()
+	for _, l := range labels {
+		delete(workloadLabels, l)
+	}
+	workload.SetLabels(workloadLabels)
+
+	gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, workload.GroupVersionKind())
+	if err != nil {
+		klog.Errorf("Failed to delete resource(%s/%s) labels as mapping GVK to GVR failed: %v", workload.GetNamespace(), workload.GetName(), err)
+		return err
+	}
+
+	newWorkload, err := d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Failed to update resource %v/%v, err is %v ", workload.GetNamespace(), workload.GetName(), err)
+		return err
+	}
+	klog.V(2).Infof("Updated resource(kind=%s, %s/%s) on cluster: %s", newWorkload.GetKind(), newWorkload.GetNamespace(), newWorkload.GetName(), newWorkload.GetClusterName())
 	return nil
 }
