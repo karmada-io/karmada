@@ -22,18 +22,6 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
-const (
-	deploymentNamePrefix = "deploy-"
-	serviceNamePrefix    = "service-"
-	podNamePrefix        = "pod-"
-	crdNamePrefix        = "cr-"
-
-	updateDeploymentReplicas = 6
-	updateServicePort        = 81
-	updatePodImage           = "nginx:latest"
-	updateCRnamespace        = "e2e-test"
-)
-
 // BasicPropagation focus on basic propagation functionality testing.
 var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
