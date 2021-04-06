@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -761,7 +762,24 @@ func (d *ResourceDetector) OnResourceBindingUpdate(_, newObj interface{}) {
 
 // OnClusterResourceBindingDelete handles object delete event.
 func (d *ResourceDetector) OnClusterResourceBindingDelete(obj interface{}) {
-	// TODO(RainbowMango): cleanup status in resource template that current binding object refers to.
+	unstructuredObj, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		klog.Errorf("Invalid object type: %v", reflect.TypeOf(obj))
+		return
+	}
+
+	binding := &workv1alpha1.ClusterResourceBinding{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.UnstructuredContent(), binding); err != nil {
+		klog.Errorf("Failed to convert unstructured to typed object: %v", err)
+		return
+	}
+
+	objRef := binding.Spec.Resource
+	err := d.CleanupResourceTemplateStatus(binding.Spec.Resource)
+	if err != nil {
+		// Just log when error happened as there is no queue for delete event.
+		klog.Warningf("Failed to cleanup resource(kind=%s, %s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
+	}
 }
 
 // ReconcileResourceBinding handles ResourceBinding object changes.
@@ -809,7 +827,24 @@ func (d *ResourceDetector) OnClusterResourceBindingUpdate(oldObj, newObj interfa
 
 // OnResourceBindingDelete handles object delete event.
 func (d *ResourceDetector) OnResourceBindingDelete(obj interface{}) {
-	// TODO(RainbowMango): cleanup status in resource template that current binding object refers to.
+	unstructuredObj, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		klog.Errorf("Invalid object type: %v", reflect.TypeOf(obj))
+		return
+	}
+
+	binding := &workv1alpha1.ResourceBinding{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.UnstructuredContent(), binding); err != nil {
+		klog.Errorf("Failed to convert unstructured to typed object: %v", err)
+		return
+	}
+
+	objRef := binding.Spec.Resource
+	err := d.CleanupResourceTemplateStatus(binding.Spec.Resource)
+	if err != nil {
+		// Just log when error happened as there is no queue for delete event.
+		klog.Warningf("Failed to cleanup resource(kind=%s, %s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
+	}
 }
 
 // ReconcileClusterResourceBinding handles ResourceBinding object changes.
@@ -891,6 +926,44 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 		klog.Errorf("Failed to update deployment(%s/%s) status: %v", objRef.Namespace, objRef.Name, err)
 		return err
 	}
+
+	return nil
+}
+
+// CleanupResourceTemplateStatus cleanup the status from resource template.
+// Note: Only limited resource type supported.
+func (d *ResourceDetector) CleanupResourceTemplateStatus(objRef workv1alpha1.ObjectReference) error {
+	switch objRef.Kind {
+	case "Deployment":
+		return d.CleanupDeploymentStatus(objRef)
+	}
+
+	// Unsupported resource type.
+	return nil
+}
+
+// CleanupDeploymentStatus reinitialize Deployment status.
+func (d *ResourceDetector) CleanupDeploymentStatus(objRef workv1alpha1.ObjectReference) error {
+	if objRef.APIVersion != "apps/v1" {
+		return nil
+	}
+
+	obj := &appsv1.Deployment{}
+	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: objRef.Namespace, Name: objRef.Name}, obj); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		klog.Errorf("Failed to get deployment(%s/%s): %v", objRef.Namespace, objRef.Name, err)
+		return err
+	}
+
+	obj.Status = appsv1.DeploymentStatus{}
+
+	if err := d.Client.Status().Update(context.TODO(), obj); err != nil {
+		klog.Errorf("Failed to update deployment(%s/%s) status: %v", objRef.Namespace, objRef.Name, err)
+		return err
+	}
+	klog.V(2).Infof("Reinitialized deployment(%s/%s) status.", objRef.Namespace, objRef.Name)
 
 	return nil
 }
