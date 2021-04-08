@@ -10,8 +10,10 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -21,9 +23,10 @@ import (
 	"sigs.k8s.io/kind/pkg/cluster"
 	"sigs.k8s.io/kind/pkg/exec"
 
-	clusterapi "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -64,13 +67,14 @@ var (
 	karmadaClient         karmada.Interface
 	dynamicClient         dynamic.Interface
 	controlPlaneClient    client.Client
-	clusters              []*clusterapi.Cluster
+	clusters              []*clusterv1alpha1.Cluster
 	clusterNames          []string
 	clusterClients        []*util.ClusterClient
 	clusterDynamicClients []*util.DynamicClusterClient
 	testNamespace         = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	clusterProvider       *cluster.Provider
 	pullModeClusters      map[string]string
+	clusterLabels         = map[string]string{"location": "CHN"}
 )
 
 func TestE2E(t *testing.T) {
@@ -96,7 +100,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	dynamicClient, err = dynamic.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	controlPlaneClient, err = client.New(restConfig, client.Options{})
+	controlPlaneClient = gclient.NewForConfigOrDie(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	pullModeClusters, err = fetchPullBasedClusters()
@@ -116,15 +120,28 @@ var _ = ginkgo.BeforeSuite(func() {
 		clusterNames = append(clusterNames, cluster.Name)
 		clusterClients = append(clusterClients, clusterClient)
 		clusterDynamicClients = append(clusterDynamicClients, clusterDynamicClient)
-	}
 
+		err = SetClusterLabel(controlPlaneClient, cluster.Name)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	}
 	gomega.Expect(clusterNames).Should(gomega.HaveLen(len(clusters)))
+
+	clusters, err = fetchClusters(karmadaClient)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	fmt.Printf("There are %d clusters\n", len(clusters))
 
 	err = setupTestNamespace(testNamespace, kubeClient, clusterClients)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }, TestSuiteSetupTimeOut.Seconds())
 
 var _ = ginkgo.AfterSuite(func() {
+	// cleanup clusterLabels set by the E2E test
+	for _, cluster := range clusters {
+		err := DeleteClusterLabel(controlPlaneClient, cluster.Name)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	}
+
 	// cleanup all namespaces we created both in control plane and member clusters.
 	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
 	err := cleanupTestNamespace(testNamespace, kubeClient, clusterClients)
@@ -151,16 +168,16 @@ func fetchPullBasedClusters() (map[string]string, error) {
 }
 
 // fetchClusters will fetch all member clusters we have.
-func fetchClusters(client karmada.Interface) ([]*clusterapi.Cluster, error) {
+func fetchClusters(client karmada.Interface) ([]*clusterv1alpha1.Cluster, error) {
 	clusterList, err := client.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	clusters := make([]*clusterapi.Cluster, 0, len(clusterList.Items))
+	clusters := make([]*clusterv1alpha1.Cluster, 0, len(clusterList.Items))
 	for _, cluster := range clusterList.Items {
 		pinedCluster := cluster
-		if pinedCluster.Spec.SyncMode == clusterapi.Pull {
+		if pinedCluster.Spec.SyncMode == clusterv1alpha1.Pull {
 			if _, exist := pullModeClusters[cluster.Name]; !exist {
 				continue
 			}
@@ -172,7 +189,7 @@ func fetchClusters(client karmada.Interface) ([]*clusterapi.Cluster, error) {
 }
 
 // isClusterMeetRequirements checks if current environment meet the requirements of E2E.
-func isClusterMeetRequirements(clusters []*clusterapi.Cluster) (bool, error) {
+func isClusterMeetRequirements(clusters []*clusterv1alpha1.Cluster) (bool, error) {
 	// check if member cluster number meets requirements
 	if len(clusters) < MinimumCluster {
 		return false, fmt.Errorf("needs at lease %d member cluster to run, but got: %d", MinimumCluster, len(clusters))
@@ -282,8 +299,8 @@ func deleteCluster(clusterName, kubeConfigPath string) error {
 	return clusterProvider.Delete(clusterName, kubeConfigPath)
 }
 
-func newClusterClientSet(c *clusterapi.Cluster) (*util.ClusterClient, *util.DynamicClusterClient, error) {
-	if c.Spec.SyncMode == clusterapi.Push {
+func newClusterClientSet(c *clusterv1alpha1.Cluster) (*util.ClusterClient, *util.DynamicClusterClient, error) {
+	if c.Spec.SyncMode == clusterv1alpha1.Push {
 		clusterClient, err := util.NewClusterClientSet(c, controlPlaneClient)
 		if err != nil {
 			return nil, nil, err
@@ -307,4 +324,51 @@ func newClusterClientSet(c *clusterapi.Cluster) (*util.ClusterClient, *util.Dyna
 	clusterDynamicClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
 
 	return &clusterClientSet, &clusterDynamicClientSet, nil
+}
+
+// set cluster label of E2E
+func SetClusterLabel(c client.Client, clusterName string) error {
+	err := wait.Poll(2*time.Second, 10*time.Second, func() (done bool, err error) {
+		clusterObj := &clusterv1alpha1.Cluster{}
+		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+			if errors.IsConflict(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		if clusterObj.Labels == nil {
+			clusterObj.Labels = make(map[string]string)
+		}
+		clusterObj.Labels["location"] = "CHN"
+		if err := c.Update(context.TODO(), clusterObj); err != nil {
+			if errors.IsConflict(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
+	return err
+}
+
+// delete cluster label of E2E
+func DeleteClusterLabel(c client.Client, clusterName string) error {
+	err := wait.Poll(2*time.Second, 10*time.Second, func() (done bool, err error) {
+		clusterObj := &clusterv1alpha1.Cluster{}
+		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+			if errors.IsConflict(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		delete(clusterObj.Labels, "location")
+		if err := c.Update(context.TODO(), clusterObj); err != nil {
+			if errors.IsConflict(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
+	return err
 }
