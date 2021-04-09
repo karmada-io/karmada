@@ -22,6 +22,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -88,28 +89,25 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 
 			ginkgo.By("check if deployment present on right clusters", func() {
-				for _, cluster := range clusters {
-					for _, targetClusterName := range targetClusterNames {
-						if cluster.Name == targetClusterName {
-							clusterClient := getClusterClient(cluster.Name)
-							gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+				for _, targetClusterName := range targetClusterNames {
+					clusterClient := getClusterClient(targetClusterName)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-							klog.Infof("Check whether deployment(%s/%s) is present on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-							err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-								_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-								if err != nil {
-									if errors.IsNotFound(err) {
-										return false, nil
-									}
-									return false, err
-								}
-								groupMatchedClusters = append(groupMatchedClusters, cluster)
-								fmt.Printf("Deployment(%s/%s) is present on cluster(%s).\n", deploymentNamespace, deploymentName, cluster.Name)
-								return true, nil
-							})
-							gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					klog.Infof("Check whether deployment(%s/%s) is present on cluster(%s)", deploymentNamespace, deploymentName, targetClusterName)
+					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						if err != nil {
+							if errors.IsNotFound(err) {
+								return false, nil
+							}
+							return false, err
 						}
-					}
+						targetCluster, _ := util.GetCluster(controlPlaneClient, targetClusterName)
+						groupMatchedClusters = append(groupMatchedClusters, targetCluster)
+						fmt.Printf("Deployment(%s/%s) is present on cluster(%s).\n", deploymentNamespace, deploymentName, targetClusterName)
+						return true, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 				fmt.Printf("there are %d target clusters\n", len(groupMatchedClusters))
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
@@ -250,28 +248,25 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 
 			ginkgo.By("check if crd present on right clusters", func() {
-				for _, cluster := range clusters {
-					for _, targetClusterName := range targetClusterNames {
-						if cluster.Name == targetClusterName {
-							clusterDynamicClient := getClusterDynamicClient(cluster.Name)
-							gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
+				for _, targetClusterName := range targetClusterNames {
+					clusterDynamicClient := getClusterDynamicClient(targetClusterName)
+					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
-							klog.Infof("Waiting for crd(%s) present on cluster(%s)", crd.Name, cluster.Name)
-							err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-								_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
-								if err != nil {
-									if errors.IsNotFound(err) {
-										return false, nil
-									}
-									return false, err
-								}
-								groupMatchedClusters = append(groupMatchedClusters, cluster)
-								fmt.Printf("Crd(%s) is present on cluster(%s).\n", crd.Name, cluster.Name)
-								return true, nil
-							})
-							gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					klog.Infof("Waiting for crd(%s) present on cluster(%s)", crd.Name, targetClusterName)
+					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
+						if err != nil {
+							if errors.IsNotFound(err) {
+								return false, nil
+							}
+							return false, err
 						}
-					}
+						targetCluster, _ := util.GetCluster(controlPlaneClient, targetClusterName)
+						groupMatchedClusters = append(groupMatchedClusters, targetCluster)
+						fmt.Printf("Crd(%s) is present on cluster(%s).\n", crd.Name, targetClusterName)
+						return true, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 				fmt.Printf("there are %d target clusters\n", len(groupMatchedClusters))
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())

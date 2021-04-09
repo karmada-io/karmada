@@ -101,7 +101,6 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	controlPlaneClient = gclient.NewForConfigOrDie(restConfig)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	pullModeClusters, err = fetchPullBasedClusters()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
