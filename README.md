@@ -101,25 +101,6 @@ The two `KUBECONFIG` files after the script run are:
 
 The `karmada-apiserver.config` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host.config` is only used for debuging karmada installation with host cluster.
 
-
-#### 4. Verify the karmada components:
-
-Now, we are going to checking karmada control plane components running status on `host cluster`, make sure set the 
-`KUBECONFIG` environment variable with `host cluster` config file:
-```
-# export KUBECONFIG="/root/.kube/karmada-host.config"
-``` 
-
-The karmada control plane components are expecting to be installed in `karmada-system` namespaces: 
-```
-# kubectl get deployments.apps -n karmada-system 
-NAME                              READY   UP-TO-DATE   AVAILABLE   AGE
-karmada-apiserver                 1/1     1            1           16m
-karmada-controller-manager        1/1     1            1           14m
-karmada-kube-controller-manager   1/1     1            1           16m
-```
-(Note: `karmada-scheduler` is still under development.)
-
 ### Join member cluster
 In the following steps, we are going to create a member cluster and then join the cluster to 
 karmada control plane.
@@ -149,9 +130,9 @@ The `karmadactl join` command will create a `Cluster` object to reflect the memb
 ### 3. Check member cluster status
 Now, check the member clusters from karmada control plane by following command:
 ```
-# kubectl get cluster
-NAME      VERSION   READY   AGE
-member1   v1.19.1   True    66s
+# kubectl get clusters
+NAME      VERSION   MODE   READY   AGE
+member1   v1.20.2   Push   True    66s
 ```
 
 ### Propagate application
@@ -169,11 +150,9 @@ Then, we need create a policy to drive the deployment to our member cluster.
 # kubectl create -f samples/nginx/propagationpolicy.yaml
 ``` 
 
-#### 3. Verify the nginx is deployed successfully in member cluster
-Start another window, set `KUBECONFIG` with the file we specified in `hack/create-cluster.sh` command,
-and then check if the deployment exist:
+#### 3. Check the deployment status from karmada
+You can check deployment status from karmadda, don't need to access member cluster:
 ```
-# export KUBECONFIG=/root/.kube/member1.config
 # kubectl get deployment
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
 nginx   1/1     1            1           43s
