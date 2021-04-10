@@ -83,3 +83,36 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 
 	return key, nil
 }
+
+// FederatedKey is the object key which is a unique identifier across all clusters in federation.
+type FederatedKey struct {
+	// Cluster is the cluster name of the referencing object.
+	Cluster string
+	ClusterWideKey
+}
+
+// String returns the key's printable info with format:
+// "cluster=<Cluster>, <GroupVersion>, kind=<Kind>, <NamespaceKey>"
+func (f *FederatedKey) String() string {
+	return fmt.Sprintf("cluster=%s, %s, kind=%s, %s", f.Cluster, f.GroupVersion().String(), f.Kind, f.NamespaceKey())
+}
+
+// FederatedKeyFunc generates a FederatedKey for object.
+func FederatedKeyFunc(cluster string, obj interface{}) (FederatedKey, error) {
+	key := FederatedKey{}
+
+	if len(cluster) == 0 {
+		return key, fmt.Errorf("empty cluster name is not allowed")
+	}
+
+	cwk, err := ClusterWideKeyFunc(obj)
+	if err != nil {
+		klog.Errorf("Invalid object")
+		return key, err
+	}
+
+	key.Cluster = cluster
+	key.ClusterWideKey = cwk
+
+	return key, nil
+}
