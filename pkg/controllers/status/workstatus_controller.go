@@ -24,6 +24,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -107,23 +108,22 @@ func (c *WorkStatusController) RunWorkQueue() {
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 
-// syncWorkStatus will find work by label in workload, then update resource status to work status.
-// label example: "karmada.io/created-by: karmada-es-member-cluster-1.default-deployment-nginx"
+// syncWorkStatus will collect status of object referencing by key and update to work which holds the object.
 func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
-	// we know the key is a string.
-	// TODO(RainbowMango): change key type from string to struct making better readability.
-	keyStr := key.(string)
-	obj, err := c.getObjectFromCache(keyStr)
+	fedKey, ok := key.(keys.FederatedKey)
+	if !ok {
+		klog.Errorf("Failed to sync status as invalid key: %v", key)
+		return fmt.Errorf("invalid key")
+	}
+
+	obj, err := c.getObjectFromCache(fedKey)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return c.handleDeleteEvent(keyStr)
+			return c.handleDeleteEvent(fedKey)
 		}
 		return err
 	}
 
-	if errors.IsNotFound(err) {
-		return c.handleDeleteEvent(keyStr)
-	}
 	if obj == nil {
 		// Ignore the object which not managed by current karmada.
 		klog.V(2).Infof("Ignore the event key %s which not managed by karmada.", key)
@@ -133,7 +133,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 	workNamespace := util.GetLabelValue(obj.GetLabels(), util.WorkNamespaceLabel)
 	workName := util.GetLabelValue(obj.GetLabels(), util.WorkNameLabel)
 	if len(workNamespace) == 0 || len(workName) == 0 {
-		klog.Infof("Ignore object(%s) which not managed by karmada.", keyStr)
+		klog.Infof("Ignore object(%s) which not managed by karmada.", fedKey.String())
 		return nil
 	}
 
@@ -174,7 +174,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 
 	if needUpdate {
 		if err := c.ObjectWatcher.Update(cluster, desireObj, obj); err != nil {
-			klog.Errorf("Update %s failed: %v", keyStr, err)
+			klog.Errorf("Update %s failed: %v", fedKey.String(), err)
 			return err
 		}
 		// We can't return even after a success updates, because that might lose the chance to collect status.
@@ -190,23 +190,19 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 	return c.reflectStatus(workObject, obj)
 }
 
-func (c *WorkStatusController) handleDeleteEvent(key string) error {
-	clusterWorkload, err := util.SplitMetaKey(key)
+func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
+	executionSpace, err := names.GenerateExecutionSpaceName(key.Cluster)
 	if err != nil {
-		klog.Errorf("Couldn't get key for %s. Error: %v.", key, err)
 		return err
 	}
 
-	executionSpace, err := names.GenerateExecutionSpaceName(clusterWorkload.Cluster)
-	if err != nil {
-		return err
-	}
-	workName := names.GenerateBindingName(clusterWorkload.GVK.Kind, clusterWorkload.Name)
+	// Given the workload might has been deleted from informer cache, so that we can't get work object by it's label,
+	// we have to get work by naming rule as work's name also is binding's name and binding's name consist of workload's name and kind.
+	workName := names.GenerateBindingName(key.Kind, key.Name)
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: executionSpace, Name: workName}, work); err != nil {
-		// Stop processing if resource no longer exist.
+		// stop processing as the work object has been removed, assume it's a normal delete operation.
 		if errors.IsNotFound(err) {
-			klog.Infof("workload %v/%v not found", executionSpace, workName)
 			return nil
 		}
 
@@ -214,15 +210,15 @@ func (c *WorkStatusController) handleDeleteEvent(key string) error {
 		return err
 	}
 
+	// stop processing as the work object being deleting.
 	if !work.DeletionTimestamp.IsZero() {
-		klog.Infof("resource %v/%v/%v in member cluster %v does not need to recreate", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
 		return nil
 	}
 
-	return c.recreateResourceIfNeeded(work, clusterWorkload)
+	return c.recreateResourceIfNeeded(work, key)
 }
 
-func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work, clusterWorkload util.ClusterWorkload) error {
+func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work, workloadKey keys.FederatedKey) error {
 	for _, rawManifest := range work.Spec.Workload.Manifests {
 		manifest := &unstructured.Unstructured{}
 		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
@@ -230,13 +226,13 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 		}
 
 		desiredGVK := schema.FromAPIVersionAndKind(manifest.GetAPIVersion(), manifest.GetKind())
-		if reflect.DeepEqual(desiredGVK, clusterWorkload.GVK) &&
-			manifest.GetNamespace() == clusterWorkload.Namespace &&
-			manifest.GetName() == clusterWorkload.Name {
-			klog.Infof("recreating %s/%s/%s in member cluster %s", clusterWorkload.GVK.Kind, clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster)
-			cluster, err := util.GetCluster(c.Client, clusterWorkload.Cluster)
+		if reflect.DeepEqual(desiredGVK, workloadKey.GroupVersionKind()) &&
+			manifest.GetNamespace() == workloadKey.Namespace &&
+			manifest.GetName() == workloadKey.Name {
+			klog.Infof("recreating %s", workloadKey.String())
+			cluster, err := util.GetCluster(c.Client, workloadKey.Cluster)
 			if err != nil {
-				klog.Errorf("Failed to the get given member cluster %s", clusterWorkload.Cluster)
+				klog.Errorf("Failed to the get given member cluster %s", workloadKey.Cluster)
 				return err
 			}
 			return c.ObjectWatcher.Create(cluster, manifest)
@@ -341,33 +337,27 @@ func (c *WorkStatusController) getRawManifest(manifests []workv1alpha1.Manifest,
 }
 
 // getObjectFromCache gets full object information from cache by key in worker queue.
-func (c *WorkStatusController) getObjectFromCache(key string) (*unstructured.Unstructured, error) {
-	clusterWorkload, err := util.SplitMetaKey(key)
+func (c *WorkStatusController) getObjectFromCache(key keys.FederatedKey) (*unstructured.Unstructured, error) {
+	gvr, err := restmapper.GetGroupVersionResource(c.RESTMapper, key.GroupVersionKind())
 	if err != nil {
-		klog.Errorf("Couldn't get key for %s. Error: %v.", key, err)
-		return nil, err
-	}
-	gvr, err := restmapper.GetGroupVersionResource(c.RESTMapper, clusterWorkload.GVK)
-	if err != nil {
-		klog.Errorf("Failed to get GVR from GVK %s. Error: %v", clusterWorkload.GVK, err)
+		klog.Errorf("Failed to get GVR from GVK %s. Error: %v", key.GroupVersionKind(), err)
 		return nil, err
 	}
 
-	singleClusterManager := c.InformerManager.GetSingleClusterManager(clusterWorkload.Cluster)
+	singleClusterManager := c.InformerManager.GetSingleClusterManager(key.Cluster)
 	if singleClusterManager == nil {
 		return nil, nil
 	}
 	var obj runtime.Object
 	lister := singleClusterManager.Lister(gvr)
-	obj, err = lister.Get(clusterWorkload.GetListerKey())
+	obj, err = lister.Get(key.NamespaceKey())
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, err
 		}
 
 		// print logs only for real error.
-		klog.Errorf("Failed to get obj %s/%s/%s from cache in cluster %s. error: %v.", clusterWorkload.GVK.Kind,
-			clusterWorkload.Namespace, clusterWorkload.Name, clusterWorkload.Cluster, err)
+		klog.Errorf("Failed to get obj %s. error: %v.", key.String(), err)
 
 		return nil, err
 	}

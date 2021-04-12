@@ -1,20 +1,17 @@
 package util
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -71,31 +68,10 @@ func NewAsyncWorker(name string, interval time.Duration, keyFunc KeyFunc, reconc
 	}
 }
 
-// ClusterWorkload is the thumbnail of cluster workload, it contains GVK, cluster, namespace and name.
-type ClusterWorkload struct {
-	GVK       schema.GroupVersionKind
-	Cluster   string
-	Namespace string
-	Name      string
-}
-
-// GetListerKey returns the key that can be used to query full object information by GenericLister
-func (w *ClusterWorkload) GetListerKey() string {
-	if w.Namespace == "" {
-		return w.Name
-	}
-	return w.Namespace + "/" + w.Name
-}
-
 // GenerateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
+// TODO(RainbowMango): Move this function out of this file, to it's user.
 func GenerateKey(obj interface{}) (QueueKey, error) {
 	resource := obj.(*unstructured.Unstructured)
-	gvk := schema.FromAPIVersionAndKind(resource.GetAPIVersion(), resource.GetKind())
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-	if err != nil {
-		klog.Errorf("Couldn't get key for object %#v: %v.", obj, err)
-		return "", err
-	}
 	cluster, err := getClusterNameFromLabel(resource)
 	if err != nil {
 		return "", err
@@ -104,7 +80,8 @@ func GenerateKey(obj interface{}) (QueueKey, error) {
 	if cluster == "" {
 		return nil, nil
 	}
-	return cluster + "/" + gvk.Group + "/" + gvk.Version + "/" + gvk.Kind + "/" + key, nil
+
+	return keys.FederatedKeyFunc(cluster, obj)
 }
 
 // getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
@@ -121,28 +98,6 @@ func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error
 		return "", err
 	}
 	return cluster, nil
-}
-
-// SplitMetaKey transforms key to struct ClusterWorkload, struct ClusterWorkload contains cluster, GVK, namespace and name.
-func SplitMetaKey(key string) (ClusterWorkload, error) {
-	var clusterWorkload ClusterWorkload
-	parts := strings.Split(key, "/")
-	switch len(parts) {
-	case 5:
-		// name only, no namespace
-		clusterWorkload.Name = parts[4]
-	case 6:
-		// namespace and name
-		clusterWorkload.Namespace = parts[4]
-		clusterWorkload.Name = parts[5]
-	default:
-		return clusterWorkload, fmt.Errorf("unexpected key format: %q", key)
-	}
-	clusterWorkload.Cluster = parts[0]
-	clusterWorkload.GVK.Group = parts[1]
-	clusterWorkload.GVK.Version = parts[2]
-	clusterWorkload.GVK.Kind = parts[3]
-	return clusterWorkload, nil
 }
 
 func (w *asyncWorker) EnqueueRateLimited(obj runtime.Object) {

@@ -56,6 +56,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					currentDeployment, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+					klog.Infof("deployment(%s/%s) readyReplicas: %d, wanted replicas: %d", deploymentNamespace, deploymentName, currentDeployment.Status.ReadyReplicas, wantedReplicas)
 					if currentDeployment.Status.ReadyReplicas == wantedReplicas &&
 						currentDeployment.Status.AvailableReplicas == wantedReplicas &&
 						currentDeployment.Status.UpdatedReplicas == wantedReplicas &&
