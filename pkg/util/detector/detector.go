@@ -525,7 +525,7 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 		waitObj, err := d.GetUnstructuredObject(waitKey)
 		if err != nil {
 			// all object in waiting list should exist. Just print a log to trace.
-			klog.Errorf("Failed to get object(%s), error: %v", waitKey, err)
+			klog.Errorf("Failed to get object(%s), error: %v", waitKey.String(), err)
 			continue
 		}
 
