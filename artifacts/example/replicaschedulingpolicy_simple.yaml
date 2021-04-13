@@ -1,0 +1,20 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: ReplicaSchedulingPolicy
+metadata:
+  name: foo
+  namespace: foons
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      namespace: foons
+      name: deployment-1
+  totalReplicas: 100
+  preferences:
+    staticWeightList:
+      - targetCluster:
+          clusterNames: [cluster1]
+        weight: 1
+      - targetCluster:
+          clusterNames: [cluster2]
+        weight: 2
