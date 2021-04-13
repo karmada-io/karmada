@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"sort"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -16,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -26,6 +28,44 @@ import (
 
 var resourceBindingKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceBinding")
 var clusterResourceBindingKind = v1alpha1.SchemeGroupVersion.WithKind("ClusterResourceBinding")
+
+const (
+	// DeploymentKind indicates the target resource is a deployment
+	DeploymentKind = "Deployment"
+	// SpecField indicates the 'spec' field of a deployment
+	SpecField = "spec"
+	// ReplicasField indicates the 'replicas' field of a deployment
+	ReplicasField = "replicas"
+)
+
+// ClusterWeightInfo records the weight of a cluster
+type ClusterWeightInfo struct {
+	ClusterName string
+	Weight      int64
+}
+
+// ClusterWeightInfoList is a slice of ClusterWeightInfo that implements sort.Interface to sort by Value.
+type ClusterWeightInfoList []ClusterWeightInfo
+
+func (p ClusterWeightInfoList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p ClusterWeightInfoList) Len() int      { return len(p) }
+func (p ClusterWeightInfoList) Less(i, j int) bool {
+	if p[i].Weight != p[j].Weight {
+		return p[i].Weight > p[j].Weight
+	}
+	return p[i].ClusterName < p[j].ClusterName
+}
+
+func sortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
+	p := make(ClusterWeightInfoList, len(m))
+	i := 0
+	for k, v := range m {
+		p[i] = ClusterWeightInfo{k, v}
+		i++
+	}
+	sort.Sort(p)
+	return p
+}
 
 // IsBindingReady will check if resourceBinding/clusterResourceBinding is ready to build Work.
 func IsBindingReady(targetClusters []workv1alpha1.TargetCluster) bool {
@@ -117,6 +157,12 @@ func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, 
 func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNames []string, overrideManager overridemanager.OverrideManager,
 	binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
 
+	referenceRSP, desireReplicaInfos, err := calculateReplicasIfNeeded(c, workload, clusterNames)
+	if err != nil {
+		klog.Errorf("Failed to get ReplicaSchedulingPolicy for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+		return err
+	}
+
 	var bindingGVK schema.GroupVersionKind
 	var workLabel = make(map[string]string)
 
@@ -125,7 +171,7 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 		clonedWorkload := workload.DeepCopy()
 		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, clusterName)
 		if err != nil {
-			klog.Errorf("failed to apply overrides for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
 			return err
 		}
 
@@ -149,6 +195,15 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 			bindingGVK = clusterResourceBindingKind
 			util.MergeLabel(clonedWorkload, util.ClusterResourceBindingLabel, binding.GetName())
 			workLabel[util.ClusterResourceBindingLabel] = binding.GetName()
+		}
+
+		if clonedWorkload.GetKind() == DeploymentKind && referenceRSP != nil {
+			err = applyReplicaSchedulingPolicy(clonedWorkload, desireReplicaInfos[clusterName])
+			if err != nil {
+				klog.Errorf("failed to apply ReplicaSchedulingPolicy for %s/%s/%s in cluster %s, err is: %v",
+					clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), clusterName, err)
+				return err
+			}
 		}
 
 		workloadJSON, err := clonedWorkload.MarshalJSON()
@@ -226,6 +281,127 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 			klog.Infof("Update work %s/%s successfully.", work.GetNamespace(), work.GetName())
 		} else {
 			klog.V(2).Infof("Work %s/%s is up to date.", work.GetNamespace(), work.GetName())
+		}
+	}
+	return nil
+}
+
+func calculateReplicasIfNeeded(c client.Client, workload *unstructured.Unstructured, clusterNames []string) (*v1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
+	var err error
+	var referenceRSP *v1alpha1.ReplicaSchedulingPolicy
+	var desireReplicaInfos = make(map[string]int64)
+
+	if workload.GetKind() == DeploymentKind {
+		referenceRSP, err = matchReplicaSchedulingPolicy(c, workload)
+		if err != nil {
+			return nil, nil, err
+		}
+		if referenceRSP != nil {
+			desireReplicaInfos, err = calculateReplicas(c, referenceRSP, clusterNames)
+			if err != nil {
+				klog.Errorf("Failed to get desire replicas for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+				return nil, nil, err
+			}
+			klog.V(4).Infof("DesireReplicaInfos with replica scheduling policies(%s/%s) is %v", referenceRSP.Namespace, referenceRSP.Name, desireReplicaInfos)
+		}
+	}
+	return referenceRSP, desireReplicaInfos, nil
+}
+
+func matchReplicaSchedulingPolicy(c client.Client, workload *unstructured.Unstructured) (*v1alpha1.ReplicaSchedulingPolicy, error) {
+	// get all namespace-scoped replica scheduling policies
+	policyList := &v1alpha1.ReplicaSchedulingPolicyList{}
+	if err := c.List(context.TODO(), policyList, &client.ListOptions{Namespace: workload.GetNamespace()}); err != nil {
+		klog.Errorf("Failed to list replica scheduling policies from namespace: %s, error: %v", workload.GetNamespace(), err)
+		return nil, err
+	}
+
+	if len(policyList.Items) == 0 {
+		return nil, nil
+	}
+
+	matchedPolicies := getMatchedReplicaSchedulingPolicy(policyList.Items, workload)
+	if len(matchedPolicies) == 0 {
+		klog.V(2).Infof("No replica scheduling policy for resource: %s/%s", workload.GetNamespace(), workload.GetName())
+		return nil, nil
+	}
+
+	return &matchedPolicies[0], nil
+}
+
+func getMatchedReplicaSchedulingPolicy(policies []v1alpha1.ReplicaSchedulingPolicy, resource *unstructured.Unstructured) []v1alpha1.ReplicaSchedulingPolicy {
+	// select policy in which at least one resource selector matches target resource.
+	resourceMatches := make([]v1alpha1.ReplicaSchedulingPolicy, 0)
+	for _, policy := range policies {
+		if util.ResourceMatchSelectors(resource, policy.Spec.ResourceSelectors...) {
+			resourceMatches = append(resourceMatches, policy)
+		}
+	}
+
+	// Sort by policy names.
+	sort.Slice(resourceMatches, func(i, j int) bool {
+		return resourceMatches[i].Name < resourceMatches[j].Name
+	})
+
+	return resourceMatches
+}
+
+func calculateReplicas(c client.Client, policy *v1alpha1.ReplicaSchedulingPolicy, clusterNames []string) (map[string]int64, error) {
+	weightSum := int64(0)
+	matchClusters := make(map[string]int64)
+	desireReplicaInfos := make(map[string]int64)
+
+	// found out clusters matched the given ReplicaSchedulingPolicy
+	for _, clusterName := range clusterNames {
+		clusterObj := &clusterv1alpha1.Cluster{}
+		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+			klog.Errorf("Failed to get member cluster: %s, error: %v", clusterName, err)
+			return nil, err
+		}
+		for _, staticWeightRule := range policy.Spec.Preferences.StaticWeightList {
+			if util.ClusterMatches(clusterObj, staticWeightRule.TargetCluster) {
+				weightSum += staticWeightRule.Weight
+				matchClusters[clusterName] = staticWeightRule.Weight
+				break
+			}
+		}
+	}
+
+	allocatedReplicas := int32(0)
+	for clusterName, weight := range matchClusters {
+		desireReplicaInfos[clusterName] = weight * int64(policy.Spec.TotalReplicas) / weightSum
+		allocatedReplicas += int32(desireReplicaInfos[clusterName])
+	}
+
+	if remainReplicas := policy.Spec.TotalReplicas - allocatedReplicas; remainReplicas > 0 {
+		sortedClusters := sortClusterByWeight(matchClusters)
+		for i := 0; remainReplicas > 0; i++ {
+			desireReplicaInfos[sortedClusters[i].ClusterName]++
+			remainReplicas--
+			if i == len(desireReplicaInfos) {
+				i = 0
+			}
+		}
+	}
+
+	for _, clusterName := range clusterNames {
+		if _, exist := matchClusters[clusterName]; !exist {
+			desireReplicaInfos[clusterName] = 0
+		}
+	}
+
+	return desireReplicaInfos, nil
+}
+
+func applyReplicaSchedulingPolicy(workload *unstructured.Unstructured, desireReplica int64) error {
+	_, ok, err := unstructured.NestedInt64(workload.Object, SpecField, ReplicasField)
+	if err != nil {
+		return err
+	}
+	if ok {
+		err := unstructured.SetNestedField(workload.Object, desireReplica, SpecField, ReplicasField)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

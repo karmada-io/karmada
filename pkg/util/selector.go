@@ -89,3 +89,13 @@ func ClusterNamesMatches(cluster *clusterv1alpha1.Cluster, clusterNames []string
 	}
 	return false
 }
+
+// ResourceMatchSelectors tells if the specific resource matches the selectors.
+func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...v1alpha1.ResourceSelector) bool {
+	for _, rs := range selectors {
+		if ResourceMatches(resource, rs) {
+			return true
+		}
+	}
+	return false
+}
