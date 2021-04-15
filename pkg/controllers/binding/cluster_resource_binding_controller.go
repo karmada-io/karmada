@@ -125,6 +125,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: workFn}, workPredicateFn).
 		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: c.newOverridePolicyFunc()}).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: c.newOverridePolicyFunc()}).
+		Watches(&source.Kind{Type: &policyv1alpha1.ReplicaSchedulingPolicy{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: c.newReplicaSchedulingPolicyFunc()}).
 		Complete(c)
 }
 
@@ -161,7 +162,35 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.ToReq
 					break
 				}
 			}
+		}
+		return requests
+	}
+}
 
+func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() handler.ToRequestsFunc {
+	return func(a handler.MapObject) []reconcile.Request {
+		rspResourceSelectors := a.Object.(*policyv1alpha1.ReplicaSchedulingPolicy).Spec.ResourceSelectors
+		bindingList := &workv1alpha1.ClusterResourceBindingList{}
+		if err := c.Client.List(context.TODO(), bindingList); err != nil {
+			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
+			return nil
+		}
+
+		var requests []reconcile.Request
+		for _, binding := range bindingList.Items {
+			workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
+			if err != nil {
+				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
+				return nil
+			}
+
+			for _, rs := range rspResourceSelectors {
+				if util.ResourceMatches(workload, rs) {
+					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as replica scheduling policy(%s/%s) changes.", binding.Name, a.Meta.GetNamespace(), a.Meta.GetName())
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
+					break
+				}
+			}
 		}
 		return requests
 	}

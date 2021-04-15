@@ -73,6 +73,7 @@ function installCRDs() {
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_clusterpropagationpolicies.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_overridepolicies.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_clusteroverridepolicies.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_replicaschedulingpolicies.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_works.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_resourcebindings.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_clusterresourcebindings.yaml"
