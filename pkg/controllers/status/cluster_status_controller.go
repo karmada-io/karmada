@@ -3,13 +3,12 @@ package status
 import (
 	"context"
 	"net/http"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -39,6 +38,11 @@ type ClusterStatusController struct {
 	EventRecorder        record.EventRecorder
 	PredicateFunc        predicate.Predicate
 	ClusterClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.ClusterClient, error)
+
+	// ClusterStatusUpdateFrequency is the frequency that controller computes cluster status.
+	// If cluster lease feature is not enabled, it is also the frequency that controller posts cluster status
+	// to karmada-apiserver.
+	ClusterStatusUpdateFrequency metav1.Duration
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -137,7 +141,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *v1alpha1.Cluster
 		}
 	}
 
-	return controllerruntime.Result{RequeueAfter: 10 * time.Second}, nil
+	return controllerruntime.Result{RequeueAfter: c.ClusterStatusUpdateFrequency.Duration}, nil
 }
 
 func getClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy bool) {
@@ -166,29 +170,29 @@ func healthEndpointCheck(client *kubernetes.Clientset, path string) (int, error)
 	return healthStatus, resp.Error()
 }
 
-func generateReadyCondition(online, healthy bool) []v1.Condition {
-	var conditions []v1.Condition
-	currentTime := v1.Now()
+func generateReadyCondition(online, healthy bool) []metav1.Condition {
+	var conditions []metav1.Condition
+	currentTime := metav1.Now()
 
-	newClusterOfflineCondition := v1.Condition{
+	newClusterOfflineCondition := metav1.Condition{
 		Type:               v1alpha1.ClusterConditionReady,
-		Status:             v1.ConditionFalse,
+		Status:             metav1.ConditionFalse,
 		Reason:             clusterNotReachableReason,
 		Message:            clusterNotReachableMsg,
 		LastTransitionTime: currentTime,
 	}
 
-	newClusterReadyCondition := v1.Condition{
+	newClusterReadyCondition := metav1.Condition{
 		Type:               v1alpha1.ClusterConditionReady,
-		Status:             v1.ConditionTrue,
+		Status:             metav1.ConditionTrue,
 		Reason:             clusterReady,
 		Message:            clusterHealthy,
 		LastTransitionTime: currentTime,
 	}
 
-	newClusterNotReadyCondition := v1.Condition{
+	newClusterNotReadyCondition := metav1.Condition{
 		Type:               v1alpha1.ClusterConditionReady,
-		Status:             v1.ConditionFalse,
+		Status:             metav1.ConditionFalse,
 		Reason:             clusterNotReady,
 		Message:            clusterUnhealthy,
 		LastTransitionTime: currentTime,
@@ -248,7 +252,7 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]v1alpha1.APIEnablem
 
 func getNodeSummary(clusterClient *util.ClusterClient) (v1alpha1.NodeSummary, error) {
 	var nodeSummary = v1alpha1.NodeSummary{}
-	nodeList, err := clusterClient.KubeClient.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
+	nodeList, err := clusterClient.KubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nodeSummary, err
 	}
@@ -264,7 +268,7 @@ func getNodeSummary(clusterClient *util.ClusterClient) (v1alpha1.NodeSummary, er
 
 	allocatable := getClusterAllocatable(nodeList)
 
-	podList, err := clusterClient.KubeClient.CoreV1().Pods("").List(context.TODO(), v1.ListOptions{})
+	podList, err := clusterClient.KubeClient.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nodeSummary, err
 	}
