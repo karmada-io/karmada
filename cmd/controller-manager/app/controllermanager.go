@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/component-base/logs"
@@ -146,6 +147,8 @@ func setupControllers(mgr controllerruntime.Manager, stopChan <-chan struct{}) {
 		EventRecorder:        mgr.GetEventRecorderFor(status.ControllerName),
 		PredicateFunc:        clusterPredicateFunc,
 		ClusterClientSetFunc: util.NewClusterClientSet,
+		// TODO(RainbowMango): Temporarily hard code the duration until we add flags for this.
+		ClusterStatusUpdateFrequency: metav1.Duration{Duration: 10 * time.Second},
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster status controller: %v", err)
