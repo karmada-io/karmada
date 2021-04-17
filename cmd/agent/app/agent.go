@@ -74,7 +74,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		return err
 	}
 
-	setupControllers(controllerManager, controlPlaneRestConfig, opts.ClusterName, stopChan)
+	setupControllers(controllerManager, opts, stopChan)
 
 	// blocks until the stop channel is closed.
 	if err := controllerManager.Start(stopChan); err != nil {
@@ -85,16 +85,16 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	return nil
 }
 
-func setupControllers(mgr controllerruntime.Manager, controlPlaneRestConfig *restclient.Config, clusterName string, stopChan <-chan struct{}) {
+func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	predicateFun := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
-			return createEvent.Meta.GetName() == clusterName
+			return createEvent.Meta.GetName() == opts.ClusterName
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return updateEvent.MetaOld.GetName() == clusterName
+			return updateEvent.MetaOld.GetName() == opts.ClusterName
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return deleteEvent.Meta.GetName() == clusterName
+			return deleteEvent.Meta.GetName() == opts.ClusterName
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
@@ -102,10 +102,11 @@ func setupControllers(mgr controllerruntime.Manager, controlPlaneRestConfig *res
 	}
 
 	clusterStatusController := &status.ClusterStatusController{
-		Client:               mgr.GetClient(),
-		EventRecorder:        mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:        predicateFun,
-		ClusterClientSetFunc: util.NewClusterClientSetForAgent,
+		Client:                       mgr.GetClient(),
+		EventRecorder:                mgr.GetEventRecorderFor(status.ControllerName),
+		PredicateFunc:                predicateFun,
+		ClusterClientSetFunc:         util.NewClusterClientSetForAgent,
+		ClusterStatusUpdateFrequency: opts.ClusterStatusUpdateFrequency,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster status controller: %v", err)

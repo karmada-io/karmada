@@ -27,6 +27,8 @@ spec:
             - /bin/karmada-agent
             - --karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig
             - --cluster-name={{member_cluster_name}}
+            - --cluster-status-update-frequency=10s
+            - --v=4
           volumeMounts:
             - name: kubeconfig
               mountPath: /etc/kubeconfig
