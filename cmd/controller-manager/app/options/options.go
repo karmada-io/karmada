@@ -30,6 +30,11 @@ type Options struct {
 	// SecurePort is the port that the the server serves at.
 	// Note: We hope support https in the future once controller-runtime provides the functionality.
 	SecurePort int
+	// ClusterStatusUpdateFrequency is the frequency that karmada-controller-manager computes cluster status.
+	// If cluster lease feature is not enabled, it is also the frequency that karmada-agent posts cluster status
+	// to karmada-apiserver. In that case, be cautious when changing the constant, it must work with
+	// ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
+	ClusterStatusUpdateFrequency metav1.Duration
 }
 
 // NewOptions builds an empty options.
@@ -71,4 +76,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		"The IP address on which to listen for the --secure-port port.")
 	flags.IntVar(&o.SecurePort, "secure-port", defaultPort,
 		"The secure port on which to serve HTTPS.")
+	flags.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second,
+		"Specifies how often karmada-controller-manager posts cluster status to karmada-apiserver.")
 }
