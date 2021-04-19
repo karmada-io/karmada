@@ -3,12 +3,14 @@ package status
 import (
 	"context"
 	"net/http"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -30,6 +32,10 @@ const (
 	clusterUnhealthy          = "cluster is reachable but health endpoint responded without ok"
 	clusterNotReachableReason = "ClusterNotReachable"
 	clusterNotReachableMsg    = "cluster is not reachable"
+	// clusterStatusRetryInterval specifies the interval between two retries.
+	clusterStatusRetryInterval = 500 * time.Millisecond
+	// clusterStatusRetryTimeout specifies the maximum time to wait for cluster status.
+	clusterStatusRetryTimeout = 2 * time.Second
 )
 
 // ClusterStatusController is to sync status of Cluster.
@@ -93,11 +99,23 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (
 	// get the health status of member cluster
 	online, healthy := getClusterHealthStatus(clusterClient)
 
-	if !online || !healthy {
-		// generate conditions according to the health status of member cluster
-		currentClusterStatus.Conditions = generateReadyCondition(online, healthy)
-		setTransitionTime(&cluster.Status, &currentClusterStatus)
-		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
+	// in case of cluster offline, retry a few times to avoid network unstable problems.
+	// Note: retry timeout should not be too long, otherwise will block other cluster reconcile.
+	if !online {
+		err := wait.Poll(clusterStatusRetryInterval, clusterStatusRetryTimeout, func() (done bool, err error) {
+			online, healthy = getClusterHealthStatus(clusterClient)
+			if !online {
+				return false, nil
+			}
+			klog.V(2).Infof("Cluster(%s) back to online after retry.", cluster.Name)
+			return true, nil
+		})
+		// error indicates that retry timeout, update cluster status immediately and return.
+		if err != nil {
+			currentClusterStatus.Conditions = generateReadyCondition(false, false)
+			setTransitionTime(&cluster.Status, &currentClusterStatus)
+			return c.updateStatusIfNeeded(cluster, currentClusterStatus)
+		}
 	}
 
 	clusterVersion, err := getKubernetesVersion(clusterClient)
