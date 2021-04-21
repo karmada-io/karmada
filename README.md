@@ -1,14 +1,41 @@
 # Karmada
 
-Karmada (Kubernetes Armada) is a multi-cluster management system speaks Kubernetes native API.
-Karmada aims to provide turnkey automation for multi-cluster application management in multi-cloud and hybrid cloud scenarios, and intended to realize multi-cloud centralized management, high availability, failure recovery and traffic scheduling.
+![Karmada-logo](docs/images/Karmada-logo-horizontal-color.png)
 
-Its key capabilities include:
+## Karmada: Open, Multi-Cloud, Multi-Cluster Kubernetes Orchestration
 
-- Cross-cluster applications managements based on K8s native API, allow user migrate apps from single cluser to multi-cluster conveniently and quickly.
-- Support provisioning or attaching Kubernetes clusters for centralized operations and management.
-- Cross-cluster applications auto-scaling, failover and load-balancing on multi-cluster.
-- Advanced scheduling strategy: region, available zone, cloud provider, cluster affinity/anti-affinity.
+Karmada (Kubernetes Armada) is a Kubernetes management system that enables you to run your cloud-native applications across multiple Kubernetes clusters and clouds, with no changes to your applications. By speaking Kubernetes-native APIs and providing advanced scheduling capabilities, Karmada enables truly open, multi-cloud Kubernetes.
+
+Karmada aims to provide turnkey automation for multi-cluster application management in multi-cloud and hybrid cloud scenarios,
+with key features such as centralized multi-cloud management, high availability, failure recovery, and traffic scheduling.
+
+
+## Why Karmada:
+- __K8s Native API Compatible__
+    - Zero change upgrade, from single-cluster to multi-cluster
+    - Seamless integration of existing K8s tool chain
+
+- __Out of the Box__
+    - Built-in policy sets for scenarios, including: Active-active, Remote DR, Geo Redundant, etc.
+    - Cross-cluster applications auto-scaling, failover and load-balancing on multi-cluster.
+
+- __Avoid Vendor Lock-in__
+    - Integration with mainstream cloud providers
+    - Automatic allocation, migration across clusters
+    - Not tied to proprietary vendor orchestration
+
+- __Centralized Management__
+    - Location agnostic cluster management
+    - Support clusters in Public cloud, on-prem or edge
+
+- __Fruitful Multi-Cluster Scheduling Policies__
+    - Cluster Affinity, Multi Cluster Splitting/Rebalancing,
+    - Multi-Dimension HA: Region/AZ/Cluster/Provider
+
+- __Open and Neutral__
+    - Jointly initiated by Internet, finance, manufacturing, teleco, cloud providers, etc.
+    - Target for open governance with CNCF
+
 
 
 **Notice: this project is developed in continuation of Kubernetes [Federation v1](https://github.com/kubernetes-retired/federation) and [v2](https://github.com/kubernetes-sigs/kubefed). Some basic concepts are inherited from these two versions.**
@@ -20,7 +47,6 @@ Its key capabilities include:
 
 The Karmada Control Plane consists of the following components:
 
-- ETCD for storing the karmada API objects
 - Karmada API Server
 - Karmada Controller Manager
 - Karmada Scheduler
@@ -40,11 +66,11 @@ The Karmada Controller Manager runs the various controllers,  the controllers wa
 
 **Resource template**: Karmada uses Kubernetes Native API definition for federated resource template, to make it easy to integrate with existing tools that already adopt on Kubernetes
 
-**Propagation Policy**: Karmada offers standalone (placement) policy API to define spreading requirements.
+**Propagation Policy**: Karmada offers standalone Propagation(placement) Policy API to define multi-cluster scheduling and spreading requirements.
 - Support 1:n mapping of Policy: workload, users don't need to indicate scheduling constraints every time creating federated applications.
 - With default policies, users can just interact with K8s API
 
-**Override Policy**: Karmada provides standalone override API for specializing cluster relevant configuration automation. E.g.:
+**Override Policy**: Karmada provides standalone Override Policy API for specializing cluster relevant configuration automation. E.g.:
 - Override image prefix according to member cluster region
 - Override StorageClass according to cloud provider
 
