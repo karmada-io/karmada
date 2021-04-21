@@ -7,9 +7,13 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -139,6 +143,130 @@ var _ = ginkgo.Describe("failover testing", func() {
 			})
 		})
 	})
+
+	ginkgo.Context("Deployment propagation testing", func() {
+		var disabledClusters []*clusterv1alpha1.Cluster
+
+		crdGroup := fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
+		randStr := rand.String(RandomStrLength)
+		crdSpecNames := apiextensionsv1.CustomResourceDefinitionNames{
+			Kind:     fmt.Sprintf("Foo%s", randStr),
+			ListKind: fmt.Sprintf("Foo%sList", randStr),
+			Plural:   fmt.Sprintf("foo%ss", randStr),
+			Singular: fmt.Sprintf("foo%s", randStr),
+		}
+		crd := helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+		maxGroups := 1
+		minGroups := 1
+		numOfFailedClusters := 1
+
+		// targetClusterNames is a slice of cluster names in cluster resource binding
+		var targetClusterNames []string
+
+		// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
+		crdPolicy := helper.NewConstraintsPolicyWithSingleCRD(crd.Name, crd, maxGroups, minGroups, clusterLabels)
+		crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating crdPolicy(%s)", crdPolicy.Name), func() {
+				_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), crdPolicy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing crdPolicy(%s)", crdPolicy.Name), func() {
+				err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Delete(context.TODO(), crdPolicy.Name, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.It("crd failover testing", func() {
+			ginkgo.By(fmt.Sprintf("creating crd(%s)", crd.Name), func() {
+				fmt.Printf("MaxGroups= %v, MinGroups= %v\n", maxGroups, minGroups)
+				unstructObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(crd)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				_, err = dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Create(context.TODO(), &unstructured.Unstructured{Object: unstructObj}, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				fmt.Printf("View the results of the initial scheduling")
+				targetClusterNames, _ = allCRBindingClusterNames(crd)
+				for _, clusterName := range targetClusterNames {
+					fmt.Printf("%s is the target cluster\n", clusterName)
+				}
+			})
+
+			ginkgo.By("set one cluster condition status to false", func() {
+				temp := numOfFailedClusters
+				for _, targetClusterName := range targetClusterNames {
+					if temp > 0 {
+						err := disableCluster(controlPlaneClient, targetClusterName)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						fmt.Printf("cluster %s is false\n", targetClusterName)
+						currentCluster, _ := util.GetCluster(controlPlaneClient, targetClusterName)
+
+						// wait for the current cluster status changing to false
+						_ = wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+							if !meta.IsStatusConditionPresentAndEqual(currentCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+								fmt.Printf("current cluster %s is false\n", targetClusterName)
+								disabledClusters = append(disabledClusters, currentCluster)
+								return true, nil
+							}
+							return false, nil
+						})
+						temp--
+					}
+				}
+			})
+
+			ginkgo.By("check whether crd of failed cluster is rescheduled to other available cluster", func() {
+				totalNum := 0
+
+				// Since labels are added to all clusters, clusters are used here instead of written as clusters which have label.
+				targetClusterNames, err := allCRBindingClusterNames(crd)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				for _, targetClusterName := range targetClusterNames {
+					clusterDynamicClient := getClusterDynamicClient(targetClusterName)
+					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
+
+					klog.Infof("Check whether crd(%s) is present on cluster(%s)", crd.Name, targetClusterName)
+					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
+						if err != nil {
+							if errors.IsNotFound(err) {
+								return false, nil
+							}
+							return false, err
+						}
+						fmt.Printf("crd(%s) is present on cluster(%s).\n", crd.Name, targetClusterName)
+						return true, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					totalNum++
+					gomega.Expect(totalNum == minGroups).Should(gomega.BeTrue())
+				}
+				fmt.Printf("reschedule in %d target cluster\n", totalNum)
+			})
+
+			ginkgo.By("recover not ready cluster", func() {
+				for _, disabledCluster := range disabledClusters {
+					fmt.Printf("cluster %s is waiting for recovering\n", disabledCluster.Name)
+					originalAPIEndpoint := getClusterAPIEndpoint(disabledCluster.Name)
+
+					err := recoverCluster(controlPlaneClient, disabledCluster.Name, originalAPIEndpoint)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("removing crd(%s)", crd.Name), func() {
+				err := dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Delete(context.TODO(), crd.Name, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+	})
 })
 
 // invalidateCluster will set wrong API endpoint of current cluster
@@ -209,6 +337,33 @@ func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []
 		targetClusterNames = append(targetClusterNames, cluster.Name)
 	}
 	fmt.Printf("target clusters in resource binding are %s\n", targetClusterNames)
+	return targetClusterNames, nil
+}
+
+//  get the target cluster names from cluster resource binding information
+func allCRBindingClusterNames(crd *apiextensionsv1.CustomResourceDefinition) (targetClusterNames []string, err error) {
+	bindingName := names.GenerateBindingName(crd.Kind, crd.Name)
+	fmt.Printf("crd kind is %s, name is %s\n", crd.Kind, crd.Name)
+	crbinding := &workv1alpha1.ClusterResourceBinding{}
+
+	fmt.Printf("collect the target clusters in resource binding\n")
+	err = wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+		err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: crd.Namespace, Name: bindingName}, crbinding)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, cluster := range crbinding.Spec.Clusters {
+		targetClusterNames = append(targetClusterNames, cluster.Name)
+	}
+	fmt.Printf("target clusters in cluster resource binding are %s\n", targetClusterNames)
 	return targetClusterNames, nil
 }
 
