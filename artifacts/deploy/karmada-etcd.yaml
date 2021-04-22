@@ -33,7 +33,7 @@ spec:
       containers:
         - name: etcd
           image: k8s.gcr.io/etcd:3.4.13-0
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
               command:
