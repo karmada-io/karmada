@@ -60,7 +60,7 @@ spec:
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
           name: karmada-apiserver
           image: k8s.gcr.io/kube-apiserver:v1.19.1
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 8
             httpGet:
