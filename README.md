@@ -2,6 +2,13 @@
 
 ![Karmada-logo](docs/images/Karmada-logo-horizontal-color.png)
 
+
+![build](https://github.com/karmada-io/karmada/actions/workflows/ci.yml/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/karmada-io/karmada)](https://goreportcard.com/report/github.com/karmada-io/karmada)
+[![LICENSE](https://img.shields.io/github/license/karmada-io/karmada.svg)](/LICENSE)
+[![Releases](https://img.shields.io/github/release/karmada-io/karmada/all.svg)](https://github.com/karmada-io/karmada/releases)
+[![Slack](https://img.shields.io/badge/slack-join-brightgreen)](https://join.slack.com/t/karmada-io/shared_invite/zt-omhy1wfa-LmAkCLfpDMnBjVXp3_U~0w)
+
 ## Karmada: Open, Multi-Cloud, Multi-Cluster Kubernetes Orchestration
 
 Karmada (Kubernetes Armada) is a Kubernetes management system that enables you to run your cloud-native applications across multiple Kubernetes clusters and clouds, with no changes to your applications. By speaking Kubernetes-native APIs and providing advanced scheduling capabilities, Karmada enables truly open, multi-cloud Kubernetes.
