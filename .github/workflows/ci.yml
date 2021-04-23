@@ -7,7 +7,7 @@ on:
 jobs:
   golangci:
     name: lint
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: golangci-lint
@@ -20,7 +20,7 @@ jobs:
           only-new-issues: false
   codegen:
     name: codegen
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -29,13 +29,13 @@ jobs:
         with:
           go-version: 1.14.x
       - name: verify codegen
-        run: bash hack/verify-codegen.sh
+        run: hack/verify-codegen.sh
       - name: verify crdgen
-        run: bash hack/verify-crdgen.sh
+        run: hack/verify-crdgen.sh
   build:
     name: compile
     needs: codegen # rely on codegen successful completion
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -52,7 +52,7 @@ jobs:
   test:
     name: unit test
     needs: build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -65,7 +65,7 @@ jobs:
   e2e:
     name: e2e test
     needs: build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -74,8 +74,6 @@ jobs:
         with:
           go-version: 1.14.x
       - name: setup e2e test environment
-        run: bash hack/karmada-bootstrap.sh
+        run: hack/karmada-bootstrap.sh
       - name: run e2e
-        run: bash hack/run-e2e.sh
-      - name: cleanup
-        run: kind delete clusters --all
+        run: hack/run-e2e.sh
