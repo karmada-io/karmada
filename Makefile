@@ -1,6 +1,20 @@
 GOOS ?= $(shell go env GOOS)
 SOURCES := $(shell find . -type f  -name '*.go')
-LDFLAGS := ""
+
+# Git information
+GIT_VERSION ?= $(shell git describe --always --dirty)
+GIT_COMMIT_HASH ?= $(shell git rev-parse HEAD)
+GIT_TREESTATE = "clean"
+GIT_DIFF = $(shell git diff --quiet >/dev/null 2>&1; if [ $$? -eq 1 ]; then echo "1"; fi)
+ifeq ($(GIT_DIFF), 1)
+    GIT_TREESTATE = "dirty"
+endif
+BUILDDATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+LDFLAGS := "-X github.com/karmada-io/karmada/pkg/version.gitVersion=$(GIT_VERSION) \
+                      -X github.com/karmada-io/karmada/pkg/version.gitCommit=$(GIT_COMMIT_HASH) \
+                      -X github.com/karmada-io/karmada/pkg/version.gitTreeState=$(GIT_TREESTATE) \
+                      -X github.com/karmada-io/karmada/pkg/version.buildDate=$(BUILDDATE)"
 
 # Images management
 REGISTRY_REGION?="ap-southeast-1"
