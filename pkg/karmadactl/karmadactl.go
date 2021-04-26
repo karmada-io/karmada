@@ -36,7 +36,7 @@ func NewKarmadaCtlCommand(out io.Writer) *cobra.Command {
 	karmadaConfig := NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 	rootCmd.AddCommand(NewCmdJoin(out, karmadaConfig))
 	rootCmd.AddCommand(NewCmdUnjoin(out, karmadaConfig))
-
+	rootCmd.AddCommand(NewCmdVersion(out))
 	return rootCmd
 }
 
