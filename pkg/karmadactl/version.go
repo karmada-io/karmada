@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/spf13/cobra"
+
+	"github.com/karmada-io/karmada/pkg/version"
 )
 
 var (
