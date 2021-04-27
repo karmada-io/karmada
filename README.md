@@ -184,7 +184,7 @@ Then, we need create a policy to drive the deployment to our member cluster.
 ``` 
 
 #### 3. Check the deployment status from karmada
-You can check deployment status from karmadda, don't need to access member cluster:
+You can check deployment status from karmada, don't need to access member cluster:
 ```
 # kubectl get deployment
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
