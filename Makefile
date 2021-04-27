@@ -2,7 +2,7 @@ GOOS ?= $(shell go env GOOS)
 SOURCES := $(shell find . -type f  -name '*.go')
 
 # Git information
-GIT_VERSION ?= $(shell git describe --always --dirty)
+GIT_VERSION ?= $(shell git describe --tags --dirty)
 GIT_COMMIT_HASH ?= $(shell git rev-parse HEAD)
 GIT_TREESTATE = "clean"
 GIT_DIFF = $(shell git diff --quiet >/dev/null 2>&1; if [ $$? -eq 1 ]; then echo "1"; fi)
