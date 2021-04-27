@@ -140,7 +140,7 @@ karmada control plane.
 
 #### 1. Create member cluster
 We are going to create a cluster named `member1` and we want the `KUBECONFIG` file 
-in `/root/.kube/member1.config`. Run following comand:
+in `/root/.kube/member1.config`. Run following command:
 ```
 # hack/create-cluster.sh member1 /root/.kube/member1.config
 ```
