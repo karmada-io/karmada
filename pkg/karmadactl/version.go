@@ -12,9 +12,8 @@ import (
 var (
 	versionLong = `Version prints the version info of this command.`
 
-	versionExample = `
-		# Print karmadactl command version
-		karmadactl version`
+	versionExample = `  # Print karmadactl command version
+  karmadactl version`
 )
 
 // NewCmdVersion prints out the release version info for this command binary.
