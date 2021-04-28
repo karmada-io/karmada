@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -23,7 +24,7 @@ import (
 )
 
 // NewWebhookCommand creates a *cobra.Command object with default parameters
-func NewWebhookCommand(stopChan <-chan struct{}) *cobra.Command {
+func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
@@ -31,7 +32,7 @@ func NewWebhookCommand(stopChan <-chan struct{}) *cobra.Command {
 		Long: `Start a webhook server`,
 		Run: func(cmd *cobra.Command, args []string) {
 			opts.Complete()
-			if err := Run(opts, stopChan); err != nil {
+			if err := Run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
@@ -45,7 +46,7 @@ func NewWebhookCommand(stopChan <-chan struct{}) *cobra.Command {
 }
 
 // Run runs the webhook server with options. This should never exit.
-func Run(opts *options.Options, stopChan <-chan struct{}) error {
+func Run(ctx context.Context, opts *options.Options) error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
@@ -78,7 +79,7 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the stop channel is closed.
-	if err := hookManager.Start(stopChan); err != nil {
+	if err := hookManager.Start(ctx); err != nil {
 		klog.Errorf("webhook server exits unexpectedly: %v", err)
 		return err
 	}

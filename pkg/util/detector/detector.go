@@ -75,10 +75,10 @@ type ResourceDetector struct {
 }
 
 // Start runs the detector, never stop until stopCh closed.
-func (d *ResourceDetector) Start(stopCh <-chan struct{}) error {
+func (d *ResourceDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting resource detector.")
 	d.waitingObjects = make(map[keys.ClusterWideKey]struct{})
-	d.stopCh = stopCh
+	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
 	d.policyReconcileWorker = util.NewAsyncWorker("propagationpolicy detector", 1*time.Millisecond, ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
@@ -104,10 +104,10 @@ func (d *ResourceDetector) Start(stopCh <-chan struct{}) error {
 	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, d.OnClusterResourceBindingDelete)
 	d.InformerManager.ForResource(workv1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"), clusterBindingHandler)
 
-	d.Processor.Run(1, stopCh)
+	d.Processor.Run(1, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
-	<-stopCh
+	<-d.stopCh
 	klog.Infof("Stopped as stopCh closed.")
 	return nil
 }
@@ -425,7 +425,7 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 	util.MergeLabel(object, util.PropagationPolicyNamespaceLabel, policyNamespace)
 	util.MergeLabel(object, util.PropagationPolicyNameLabel, policyName)
 
-	return d.Client.Update(context.TODO(), object.DeepCopyObject())
+	return d.Client.Update(context.TODO(), object)
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with.
@@ -438,7 +438,7 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 	}
 
 	util.MergeLabel(object, util.ClusterPropagationPolicyLabel, policyName)
-	return d.Client.Update(context.TODO(), object.DeepCopyObject())
+	return d.Client.Update(context.TODO(), object)
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.

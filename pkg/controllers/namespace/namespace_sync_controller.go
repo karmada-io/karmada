@@ -45,7 +45,7 @@ type Controller struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Namespaces sync controller reconciling %s", req.NamespacedName.String())
 	if !c.namespaceShouldBeSynced(req.Name) {
 		return controllerruntime.Result{}, nil
@@ -134,8 +134,8 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-	namespaceFn := handler.ToRequestsFunc(
-		func(a handler.MapObject) []reconcile.Request {
+	namespaceFn := handler.MapFunc(
+		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			namespaceList := &v1.NamespaceList{}
 			if err := c.Client.List(context.TODO(), namespaceList); err != nil {
@@ -153,10 +153,6 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 
 	predicate := builder.WithPredicates(predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			if e.Meta == nil {
-				klog.Errorf("CreateEvent received with no metadata, event: %v", e)
-				return false
-			}
 			return true
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -171,7 +167,6 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	})
 
 	return controllerruntime.NewControllerManagedBy(mgr).
-		For(&v1.Namespace{}).Watches(&source.Kind{Type: &v1alpha1.Cluster{}}, &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: namespaceFn},
+		For(&v1.Namespace{}).Watches(&source.Kind{Type: &v1alpha1.Cluster{}}, handler.EnqueueRequestsFromMapFunc(namespaceFn),
 		predicate).Complete(c)
 }

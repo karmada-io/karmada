@@ -38,7 +38,7 @@ type ClusterResourceBindingController struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *ClusterResourceBindingController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
 
 	clusterResourceBinding := &workv1alpha1.ClusterResourceBinding{}
@@ -104,11 +104,11 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha1.Clu
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	workFn := handler.ToRequestsFunc(
-		func(a handler.MapObject) []reconcile.Request {
+	workFn := handler.MapFunc(
+		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
-			labels := a.Meta.GetLabels()
+			labels := a.GetLabels()
 			clusterResourcebindingName, nameExist := labels[util.ClusterResourceBindingLabel]
 			if !nameExist {
 				return nil
@@ -122,17 +122,17 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 		})
 
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ClusterResourceBinding{}).
-		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: workFn}, workPredicateFn).
-		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: c.newOverridePolicyFunc()}).
-		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: c.newOverridePolicyFunc()}).
-		Watches(&source.Kind{Type: &policyv1alpha1.ReplicaSchedulingPolicy{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: c.newReplicaSchedulingPolicyFunc()}).
+		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
+		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
+		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
+		Watches(&source.Kind{Type: &policyv1alpha1.ReplicaSchedulingPolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newReplicaSchedulingPolicyFunc())).
 		Complete(c)
 }
 
-func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.ToRequestsFunc {
-	return func(a handler.MapObject) []reconcile.Request {
+func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
+	return func(a client.Object) []reconcile.Request {
 		var overrideRS []policyv1alpha1.ResourceSelector
-		switch t := a.Object.(type) {
+		switch t := a.(type) {
 		case *policyv1alpha1.ClusterOverridePolicy:
 			overrideRS = t.Spec.ResourceSelectors
 		case *policyv1alpha1.OverridePolicy:
@@ -157,7 +157,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.ToReq
 
 			for _, rs := range overrideRS {
 				if util.ResourceMatches(workload, rs) {
-					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as override policy(%s/%s) changes.", binding.Name, a.Meta.GetNamespace(), a.Meta.GetName())
+					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as override policy(%s/%s) changes.", binding.Name, a.GetNamespace(), a.GetName())
 					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
 					break
 				}
@@ -167,9 +167,9 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.ToReq
 	}
 }
 
-func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() handler.ToRequestsFunc {
-	return func(a handler.MapObject) []reconcile.Request {
-		rspResourceSelectors := a.Object.(*policyv1alpha1.ReplicaSchedulingPolicy).Spec.ResourceSelectors
+func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() handler.MapFunc {
+	return func(a client.Object) []reconcile.Request {
+		rspResourceSelectors := a.(*policyv1alpha1.ReplicaSchedulingPolicy).Spec.ResourceSelectors
 		bindingList := &workv1alpha1.ClusterResourceBindingList{}
 		if err := c.Client.List(context.TODO(), bindingList); err != nil {
 			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
@@ -186,7 +186,7 @@ func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() hand
 
 			for _, rs := range rspResourceSelectors {
 				if util.ResourceMatches(workload, rs) {
-					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as replica scheduling policy(%s/%s) changes.", binding.Name, a.Meta.GetNamespace(), a.Meta.GetName())
+					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as replica scheduling policy(%s/%s) changes.", binding.Name, a.GetNamespace(), a.GetName())
 					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
 					break
 				}

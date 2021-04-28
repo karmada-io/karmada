@@ -37,7 +37,7 @@ type HorizontalPodAutoscalerController struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *HorizontalPodAutoscalerController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *HorizontalPodAutoscalerController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling HorizontalPodAutoscaler %s.", req.NamespacedName.String())
 
 	hpa := &autoscalingv1.HorizontalPodAutoscaler{}
