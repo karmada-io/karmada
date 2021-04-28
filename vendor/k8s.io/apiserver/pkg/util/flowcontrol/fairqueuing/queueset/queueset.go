@@ -285,6 +285,11 @@ func (qs *queueSet) StartRequest(ctx context.Context, hashValue uint64, flowDist
 	// request's context's Done channel gets closed by the time
 	// the request is done being processed.
 	doneCh := ctx.Done()
+
+	// Retrieve the queueset configuration name while we have the lock
+	// and use it in the goroutine below.
+	configName := qs.qCfg.Name
+
 	if doneCh != nil {
 		qs.preCreateOrUnblockGoroutine()
 		go func() {
@@ -297,7 +302,7 @@ func (qs *queueSet) StartRequest(ctx context.Context, hashValue uint64, flowDist
 			// known that the count does not need to be accurate.
 			// BTW, the count only needs to be accurate in a test that
 			// uses FakeEventClock::Run().
-			klog.V(6).Infof("QS(%s): Context of request %q %#+v %#+v is Done", qs.qCfg.Name, fsName, descr1, descr2)
+			klog.V(6).Infof("QS(%s): Context of request %q %#+v %#+v is Done", configName, fsName, descr1, descr2)
 			qs.cancelWait(req)
 			qs.goroutineDoneOrBlocked()
 		}()
@@ -316,8 +321,15 @@ func (req *request) Finish(execFn func()) bool {
 	if !exec {
 		return idle
 	}
-	execFn()
-	return req.qs.finishRequestAndDispatchAsMuchAsPossible(req)
+	func() {
+		defer func() {
+			idle = req.qs.finishRequestAndDispatchAsMuchAsPossible(req)
+		}()
+
+		execFn()
+	}()
+
+	return idle
 }
 
 func (req *request) wait() (bool, bool) {
@@ -645,6 +657,7 @@ func (qs *queueSet) selectQueueLocked() *queue {
 		qs.robinIndex = (qs.robinIndex + 1) % nq
 		queue := qs.queues[qs.robinIndex]
 		if len(queue.requests) != 0 {
+
 			currentVirtualFinish := queue.GetVirtualFinish(0, qs.estimatedServiceTime)
 			if currentVirtualFinish < minVirtualFinish {
 				minVirtualFinish = currentVirtualFinish
@@ -657,6 +670,23 @@ func (qs *queueSet) selectQueueLocked() *queue {
 	// for the next round.  This way the non-selected queues
 	// win in the case that the virtual finish times are the same
 	qs.robinIndex = minIndex
+	// according to the original FQ formula:
+	//
+	//   Si = MAX(R(t), Fi-1)
+	//
+	// the virtual start (excluding the estimated cost) of the chose
+	// queue should always be greater or equal to the global virtual
+	// time.
+	//
+	// hence we're refreshing the per-queue virtual time for the chosen
+	// queue here. if the last virtual start time (excluded estimated cost)
+	// falls behind the global virtual time, we update the latest virtual
+	// start by: <latest global virtual time> + <previously estimated cost>
+	previouslyEstimatedServiceTime := float64(minQueue.requestsExecuting) * qs.estimatedServiceTime
+	if qs.virtualTime > minQueue.virtualStart-previouslyEstimatedServiceTime {
+		// per-queue virtual time should not fall behind the global
+		minQueue.virtualStart = qs.virtualTime + previouslyEstimatedServiceTime
+	}
 	return minQueue
 }
 

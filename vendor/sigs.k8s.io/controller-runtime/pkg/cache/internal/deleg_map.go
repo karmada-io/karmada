@@ -60,30 +60,31 @@ func NewInformersMap(config *rest.Config,
 	}
 }
 
-// Start calls Run on each of the informers and sets started to true.  Blocks on the stop channel.
-func (m *InformersMap) Start(stop <-chan struct{}) error {
-	go m.structured.Start(stop)
-	go m.unstructured.Start(stop)
-	go m.metadata.Start(stop)
-	<-stop
+// Start calls Run on each of the informers and sets started to true.  Blocks on the context.
+func (m *InformersMap) Start(ctx context.Context) error {
+	go m.structured.Start(ctx)
+	go m.unstructured.Start(ctx)
+	go m.metadata.Start(ctx)
+	<-ctx.Done()
 	return nil
 }
 
 // WaitForCacheSync waits until all the caches have been started and synced.
-func (m *InformersMap) WaitForCacheSync(stop <-chan struct{}) bool {
+func (m *InformersMap) WaitForCacheSync(ctx context.Context) bool {
 	syncedFuncs := append([]cache.InformerSynced(nil), m.structured.HasSyncedFuncs()...)
 	syncedFuncs = append(syncedFuncs, m.unstructured.HasSyncedFuncs()...)
+	syncedFuncs = append(syncedFuncs, m.metadata.HasSyncedFuncs()...)
 
-	if !m.structured.waitForStarted(stop) {
+	if !m.structured.waitForStarted(ctx) {
 		return false
 	}
-	if !m.unstructured.waitForStarted(stop) {
+	if !m.unstructured.waitForStarted(ctx) {
 		return false
 	}
-	if !m.metadata.waitForStarted(stop) {
+	if !m.metadata.waitForStarted(ctx) {
 		return false
 	}
-	return cache.WaitForCacheSync(stop, syncedFuncs...)
+	return cache.WaitForCacheSync(ctx.Done(), syncedFuncs...)
 }
 
 // Get will create a new Informer and add it to the map of InformersMap if none exists.  Returns

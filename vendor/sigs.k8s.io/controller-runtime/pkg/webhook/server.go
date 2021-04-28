@@ -37,7 +37,7 @@ import (
 )
 
 // DefaultPort is the default port that the webhook server serves.
-var DefaultPort = 443
+var DefaultPort = 9443
 
 // Server is an admission webhook server that can serve traffic and
 // generates related k8s resources for deploying.
@@ -47,7 +47,7 @@ type Server struct {
 	Host string
 
 	// Port is the port number that the server will serve.
-	// It will be defaulted to 443 if unspecified.
+	// It will be defaulted to 9443 if unspecified.
 	Port int
 
 	// CertDir is the directory that contains the server key and certificate. The
@@ -172,7 +172,7 @@ func instrumentedHook(path string, hookRaw http.Handler) http.Handler {
 
 // Start runs the server.
 // It will install the webhook related resources depend on the server configuration.
-func (s *Server) Start(stop <-chan struct{}) error {
+func (s *Server) Start(ctx context.Context) error {
 	s.defaultingOnce.Do(s.setDefaults)
 
 	baseHookLog := log.WithName("webhooks")
@@ -187,7 +187,7 @@ func (s *Server) Start(stop <-chan struct{}) error {
 	}
 
 	go func() {
-		if err := certWatcher.Start(stop); err != nil {
+		if err := certWatcher.Start(ctx); err != nil {
 			log.Error(err, "certificate watcher error")
 		}
 	}()
@@ -227,7 +227,7 @@ func (s *Server) Start(stop <-chan struct{}) error {
 
 	idleConnsClosed := make(chan struct{})
 	go func() {
-		<-stop
+		<-ctx.Done()
 		log.Info("shutting down webhook server")
 
 		// TODO: use a context with reasonable timeout
@@ -238,8 +238,7 @@ func (s *Server) Start(stop <-chan struct{}) error {
 		close(idleConnsClosed)
 	}()
 
-	err = srv.Serve(listener)
-	if err != nil && err != http.ErrServerClosed {
+	if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 		return err
 	}
 
