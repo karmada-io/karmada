@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -33,7 +33,7 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 	}
 	klog.V(2).Infof("Validating ClusterPropagationPolicy(%s) for request: %s", policy.Name, req.Operation)
 
-	if req.Operation == v1beta1.Update {
+	if req.Operation == admissionv1.Update {
 		oldPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
 		err := v.decoder.DecodeRaw(req.OldObject, oldPolicy)
 		if err != nil {

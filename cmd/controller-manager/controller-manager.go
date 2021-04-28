@@ -15,9 +15,9 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	stopChan := apiserver.SetupSignalHandler()
+	ctx := apiserver.SetupSignalContext()
 
-	if err := app.NewControllerManagerCommand(stopChan).Execute(); err != nil {
+	if err := app.NewControllerManagerCommand(ctx).Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}

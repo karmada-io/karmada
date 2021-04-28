@@ -51,7 +51,7 @@ type WorkStatusController struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *WorkStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling status of Work %s.", req.NamespacedName.String())
 
 	work := &workv1alpha1.Work{}

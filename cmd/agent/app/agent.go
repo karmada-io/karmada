@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -27,14 +28,14 @@ import (
 )
 
 // NewAgentCommand creates a *cobra.Command object with default parameters
-func NewAgentCommand(stopChan <-chan struct{}) *cobra.Command {
+func NewAgentCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
 		Use:  "karmada-agent",
 		Long: `The karmada agent runs the cluster registration agent`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := run(opts, stopChan); err != nil {
+			if err := run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
@@ -46,7 +47,7 @@ func NewAgentCommand(stopChan <-chan struct{}) *cobra.Command {
 	return cmd
 }
 
-func run(opts *options.Options, stopChan <-chan struct{}) error {
+func run(ctx context.Context, opts *options.Options) error {
 	controlPlaneRestConfig, err := clientcmd.BuildConfigFromFlags("", opts.KarmadaKubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of karmada control plane: %s", err.Error())
@@ -74,10 +75,10 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		return err
 	}
 
-	setupControllers(controllerManager, opts, stopChan)
+	setupControllers(controllerManager, opts, ctx.Done())
 
 	// blocks until the stop channel is closed.
-	if err := controllerManager.Start(stopChan); err != nil {
+	if err := controllerManager.Start(ctx); err != nil {
 		klog.Errorf("controller manager exits unexpectedly: %v", err)
 		return err
 	}
@@ -88,13 +89,13 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	predicateFun := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
-			return createEvent.Meta.GetName() == opts.ClusterName
+			return createEvent.Object.GetName() == opts.ClusterName
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return updateEvent.MetaOld.GetName() == opts.ClusterName
+			return updateEvent.ObjectOld.GetName() == opts.ClusterName
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return deleteEvent.Meta.GetName() == opts.ClusterName
+			return deleteEvent.Object.GetName() == opts.ClusterName
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
