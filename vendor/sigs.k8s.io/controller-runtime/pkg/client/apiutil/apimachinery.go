@@ -21,6 +21,7 @@ package apiutil
 
 import (
 	"fmt"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,9 +29,32 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/discovery"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 )
+
+var (
+	protobufScheme     = runtime.NewScheme()
+	protobufSchemeLock sync.RWMutex
+)
+
+func init() {
+	// Currently only enabled for built-in resources which are guaranteed to implement Protocol Buffers.
+	// For custom resources, CRDs can not support Protocol Buffers but Aggregated API can.
+	// See doc: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#advanced-features-and-flexibility
+	if err := clientgoscheme.AddToScheme(protobufScheme); err != nil {
+		panic(err)
+	}
+}
+
+// AddToProtobufScheme add the given SchemeBuilder into protobufScheme, which should
+// be additional types that do support protobuf.
+func AddToProtobufScheme(addToScheme func(*runtime.Scheme) error) error {
+	protobufSchemeLock.Lock()
+	defer protobufSchemeLock.Unlock()
+	return addToScheme(protobufScheme)
+}
 
 // NewDiscoveryRESTMapper constructs a new RESTMapper based on discovery
 // information fetched by a new client with the given config.
@@ -93,8 +117,8 @@ func GVKForObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupVersi
 // RESTClientForGVK constructs a new rest.Interface capable of accessing the resource associated
 // with the given GroupVersionKind. The REST client will be configured to use the negotiated serializer from
 // baseConfig, if set, otherwise a default serializer will be set.
-func RESTClientForGVK(gvk schema.GroupVersionKind, baseConfig *rest.Config, codecs serializer.CodecFactory) (rest.Interface, error) {
-	cfg := createRestConfig(gvk, baseConfig)
+func RESTClientForGVK(gvk schema.GroupVersionKind, isUnstructured bool, baseConfig *rest.Config, codecs serializer.CodecFactory) (rest.Interface, error) {
+	cfg := createRestConfig(gvk, isUnstructured, baseConfig)
 	if cfg.NegotiatedSerializer == nil {
 		cfg.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
 	}
@@ -102,7 +126,7 @@ func RESTClientForGVK(gvk schema.GroupVersionKind, baseConfig *rest.Config, code
 }
 
 //createRestConfig copies the base config and updates needed fields for a new rest config
-func createRestConfig(gvk schema.GroupVersionKind, baseConfig *rest.Config) *rest.Config {
+func createRestConfig(gvk schema.GroupVersionKind, isUnstructured bool, baseConfig *rest.Config) *rest.Config {
 	gv := gvk.GroupVersion()
 
 	cfg := rest.CopyConfig(baseConfig)
@@ -114,6 +138,14 @@ func createRestConfig(gvk schema.GroupVersionKind, baseConfig *rest.Config) *res
 	}
 	if cfg.UserAgent == "" {
 		cfg.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+	// TODO(FillZpp): In the long run, we want to check discovery or something to make sure that this is actually true.
+	if cfg.ContentType == "" && !isUnstructured {
+		protobufSchemeLock.RLock()
+		if protobufScheme.Recognizes(gvk) {
+			cfg.ContentType = runtime.ContentTypeProtobuf
+		}
+		protobufSchemeLock.RUnlock()
 	}
 	return cfg
 }
