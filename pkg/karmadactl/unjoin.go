@@ -103,7 +103,6 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 }
 
 // RunUnjoin is the implementation of the 'unjoin' command.
-// TODO(RainbowMango): consider to remove the 'KarmadaConfig'.
 func RunUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandUnjoinOption) error {
 	klog.V(1).Infof("unjoining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("unjoining cluster. cluster namespace: %s", opts.ClusterNamespace)
