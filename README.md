@@ -97,7 +97,7 @@ This guide will cover:
 
 There are several demonstrations of common cases.
 
-[![asciicast](https://asciinema.org/a/407612.svg)](https://asciinema.org/a/407612)
+![Demo](docs/images/demo-3in1.svg)
 
 ### Prerequisites
 - Go version v1.14+
