@@ -93,6 +93,12 @@ This guide will cover:
 - Join a member cluster to `karmada` control plane.
 - Propagate an application by `karmada`.
 
+### Demo
+
+There are several demonstrations of common cases.
+
+[![asciicast](https://asciinema.org/a/407612.svg)](https://asciinema.org/a/407612)
+
 ### Prerequisites
 - Go version v1.14+
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
