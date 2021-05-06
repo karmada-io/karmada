@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"net/url"
 
 	kubevalidation "k8s.io/apimachinery/pkg/util/validation"
 )
@@ -25,4 +26,21 @@ func ValidateClusterName(name string) []string {
 	}
 
 	return kubevalidation.IsDNS1123Label(name)
+}
+
+// ValidateClusterProxyURL tests whether the proxyURL is valid.
+// If not valid, a list of error string is returned. Otherwise an empty list (or nil) is returned.
+func ValidateClusterProxyURL(proxyURL string) []string {
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		return []string{fmt.Sprintf("cloud not parse: %s, %v", proxyURL, err)}
+	}
+
+	switch u.Scheme {
+	case "http", "https", "socks5":
+	default:
+		return []string{fmt.Sprintf("unsupported scheme %q, must be http, https, or socks5", u.Scheme)}
+	}
+
+	return nil
 }
