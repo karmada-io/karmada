@@ -65,6 +65,11 @@ spec:
                 description: Provider represents the cloud provider name of the member
                   cluster.
                 type: string
+              proxyURL:
+                description: 'ProxyURL is the proxy URL for the cluster. If not empty,
+                  the karmada control plane will use this proxy to talk to the cluster.
+                  More details please refer to: https://github.com/kubernetes/client-go/issues/351'
+                type: string
               region:
                 description: Region represents the region of the member cluster locate
                   in.

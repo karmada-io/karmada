@@ -39,6 +39,14 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		return admission.Denied(errMsg)
 	}
 
+	if len(cluster.Spec.ProxyURL) > 0 {
+		if errs := validation.ValidateClusterProxyURL(cluster.Spec.ProxyURL); len(errs) != 0 {
+			errMsg := fmt.Sprintf("invalid proxy URL(%s): %s", cluster.Spec.ProxyURL, strings.Join(errs, ";"))
+			klog.Info(errMsg)
+			return admission.Denied(errMsg)
+		}
+	}
+
 	return admission.Allowed("")
 }
 
