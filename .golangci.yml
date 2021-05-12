@@ -28,6 +28,7 @@ linters:
   enable:
   # linters maintained by golang.org
   - gofmt
+  - goimports
   - golint
   - govet
   # linters default enabled by golangci-lint .
@@ -40,7 +41,9 @@ linters:
   - typecheck
   - unused
   - varcheck
-
+linters-settings:
+  goimports:
+    local-prefixes: github.com/karmada-io/karmada
 issues:
   # The list of ids of default excludes to include or disable. By default it's empty.
   include:
