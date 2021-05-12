@@ -68,8 +68,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	}
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:                 gclient.NewSchema(),
-		LeaderElection:         true, // TODO(RainbowMango): Add a flag '--enable-leader-election' for this option.
-		LeaderElectionID:       "41db11fa.karmada.io",
+		LeaderElection:         opts.LeaderElection.LeaderElect,
+		LeaderElectionID:       "karmada-controller-manager",
 		HealthProbeBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort),
 		LivenessEndpointName:   "/healthz",
 	})
