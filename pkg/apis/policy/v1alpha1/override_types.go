@@ -20,14 +20,19 @@ type OverridePolicy struct {
 // OverrideSpec defines the desired behavior of OverridePolicy.
 type OverrideSpec struct {
 	// ResourceSelectors restricts resource types that this override policy applies to.
+	// nil means matching all resources.
+	// +optional
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors,omitempty"`
 
 	// TargetCluster defines restrictions on this override policy
-	// that only applies to resources propagated to the matching clusters
-	TargetCluster ClusterAffinity `json:"targetCluster,omitempty"`
+	// that only applies to resources propagated to the matching clusters.
+	// nil means matching all clusters.
+	// +optional
+	TargetCluster *ClusterAffinity `json:"targetCluster,omitempty"`
 
 	// Overriders represents the override rules that would apply on resources
-	Overriders Overriders `json:"overriders,omitempty"`
+	// +required
+	Overriders Overriders `json:"overriders"`
 }
 
 // Overriders offers various alternatives to represent the override rules.
@@ -62,7 +67,7 @@ type ImageOverrider struct {
 	Predicate *ImagePredicate `json:"predicate,omitempty"`
 
 	// Component is part of image name.
-	// Basically we presume an image can be make of '[registry/]repository[:tag]'.
+	// Basically we presume an image can be made of '[registry/]repository[:tag]'.
 	// The registry could be:
 	// - k8s.gcr.io
 	// - fictional.registry.example:10443

@@ -148,7 +148,12 @@ func (o *overrideManagerImpl) getMatchedClusterOverridePolicy(policies []policyv
 	// select policy which cluster selector matches target resource.
 	clusterMatches := make([]policyv1alpha1.ClusterOverridePolicy, 0)
 	for _, policy := range resourceMatches {
-		if util.ClusterMatches(cluster, policy.Spec.TargetCluster) {
+		if policy.Spec.TargetCluster == nil {
+			clusterMatches = append(clusterMatches, policy)
+			continue
+		}
+
+		if util.ClusterMatches(cluster, *policy.Spec.TargetCluster) {
 			clusterMatches = append(clusterMatches, policy)
 		}
 	}
@@ -173,7 +178,12 @@ func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []policyv1alpha1
 	// select policy which cluster selector matches target resource.
 	clusterMatches := make([]policyv1alpha1.OverridePolicy, 0)
 	for _, policy := range resourceMatches {
-		if util.ClusterMatches(cluster, policy.Spec.TargetCluster) {
+		if policy.Spec.TargetCluster == nil {
+			clusterMatches = append(clusterMatches, policy)
+			continue
+		}
+
+		if util.ClusterMatches(cluster, *policy.Spec.TargetCluster) {
 			clusterMatches = append(clusterMatches, policy)
 		}
 	}
