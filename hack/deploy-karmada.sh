@@ -11,7 +11,7 @@ KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 
 # The host cluster name which used to install karmada control plane components.
 HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
-HOST_CLUSTER_KUBECONFIG=${HOST_CLUSTER_KUBECONFIG:-"${HOME}/.kube/karmada-host.config"}
+HOST_CLUSTER_KUBECONFIG=${1:-"${HOME}/.kube/karmada-host.config"}
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
 CFSSL_VERSION="v1.5.0"
 CONTROLPLANE_SUDO=$(test -w "${CERT_DIR}" || echo "sudo -E")
@@ -19,10 +19,40 @@ CONTROLPLANE_SUDO=$(test -w "${CERT_DIR}" || echo "sudo -E")
 source ${REPO_ROOT}/hack/util.sh
 
 function usage() {
-  echo "This script will deploy karmada control plane to a cluster."
-  echo "Usage: hack/deploy-karmada.sh"
-  echo "Example: hack/deploy-karmada.sh"
+  echo "This script will deploy karmada control plane to a given cluster."
+  echo "Usage: hack/deploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME> <SERVER_IP>"
+  echo "Example: hack/deploy-karmada.sh ~/.kube/config karmada-host 127.0.0.1"
+  export KUBECONFIG=$KUBECONFIG_SAVED # recovery
 }
+
+if [[ $# -ne 3 ]]; then
+  usage
+  exit 1
+fi
+
+# check config file existence
+HOST_CLUSTER_KUBECONFIG=$1
+if [[ ! -f "${HOST_CLUSTER_KUBECONFIG}" ]]; then
+  echo -e "Failed to get kubernetes config file: '${HOST_CLUSTER_KUBECONFIG}', not existed.\n"
+  usage
+  exit 1
+fi
+
+# check context existence
+export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
+HOST_CLUSTER_NAME=$2
+if ! kubectl config get-contexts "${HOST_CLUSTER_NAME}" > /dev/null 2>&1;
+then
+  echo -e "Failed to get context: '${HOST_CLUSTER_NAME}' not in ${HOST_CLUSTER_KUBECONFIG}. \n"
+  usage
+  exit 1
+fi
+
+KARMADA_APISERVER_IP=$3
+
+
+echo -e "${1}\nthe end"
+exit
 
 # generate a secret to store the certificates
 function generate_cert_secret {
@@ -77,12 +107,12 @@ util::create_signing_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" server '"clien
 # signs a certificate
 util::create_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
-KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
-KARMADA_CRT=$(sudo base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
-KARMADA_KEY=$(sudo base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
-util::write_client_kubeconfig "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "${KARMADA_CRT}" "${KARMADA_KEY}" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
+#KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
+#KARMADA_CRT=$(sudo base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
+#KARMADA_KEY=$(sudo base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
+util::append_client_kubeconfig "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
 
-export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
+#export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
 
 # create namespace for control plane components
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
@@ -112,7 +142,7 @@ util::wait_pod_ready ${APISERVER_POD_LABEL} "karmada-system"
 
 # deploy kube controller manager
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
-
+exit
 # install CRD APIs on karmada apiserver.
 export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
 installCRDs
