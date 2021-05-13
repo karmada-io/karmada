@@ -22,7 +22,7 @@ function usage() {
   echo "This script will deploy karmada control plane to a given cluster."
   echo "Usage: hack/deploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME> <SERVER_IP>"
   echo "Example: hack/deploy-karmada.sh ~/.kube/config karmada-host 127.0.0.1"
-  export KUBECONFIG=$KUBECONFIG_SAVED # recovery
+  unset KUBECONFIG
 }
 
 if [[ $# -ne 3 ]]; then
@@ -49,10 +49,6 @@ then
 fi
 
 KARMADA_APISERVER_IP=$3
-
-
-echo -e "${1}\nthe end"
-exit
 
 # generate a secret to store the certificates
 function generate_cert_secret {
@@ -108,8 +104,7 @@ util::create_signing_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" server '"clien
 util::create_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
 #KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
-#KARMADA_CRT=$(sudo base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
-#KARMADA_KEY=$(sudo base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
+
 util::append_client_kubeconfig "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
 
 #export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
@@ -122,6 +117,8 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/serviceaccount.yaml"
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/clusterrole.yaml"
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/clusterrolebinding.yaml"
 
+KARMADA_CRT=$(sudo base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
+KARMADA_KEY=$(sudo base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
 generate_cert_secret
 
 # deploy karmada etcd
@@ -142,6 +139,7 @@ util::wait_pod_ready ${APISERVER_POD_LABEL} "karmada-system"
 
 # deploy kube controller manager
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
+echo "here stop"
 exit
 # install CRD APIs on karmada apiserver.
 export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
