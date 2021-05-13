@@ -3,6 +3,7 @@ package overridemanager
 import (
 	"context"
 	"encoding/json"
+	"sort"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -87,14 +88,14 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 		return nil, nil
 	}
 
-	matchedPolicies := o.getMatchedClusterOverridePolicy(policyList.Items, rawObj, cluster)
-	if len(matchedPolicies) == 0 {
+	matchingPolicies := o.getMatchingClusterOverridePolicies(policyList.Items, rawObj, cluster)
+	if len(matchingPolicies) == 0 {
 		klog.V(2).Infof("No cluster override policy for resource: %s/%s", rawObj.GetNamespace(), rawObj.GetName())
 		return nil, nil
 	}
 
 	appliedList := &AppliedOverrides{}
-	for _, p := range matchedPolicies {
+	for _, p := range matchingPolicies {
 		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
 			return nil, err
 		}
@@ -118,14 +119,14 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 		return nil, nil
 	}
 
-	matchedPolicies := o.getMatchedOverridePolicy(policyList.Items, rawObj, cluster)
-	if len(matchedPolicies) == 0 {
+	matchingPolicies := o.getMatchingOverridePolicies(policyList.Items, rawObj, cluster)
+	if len(matchingPolicies) == 0 {
 		klog.V(2).Infof("No override policy for resource: %s/%s", rawObj.GetNamespace(), rawObj.GetName())
 		return nil, nil
 	}
 
 	appliedList := &AppliedOverrides{}
-	for _, p := range matchedPolicies {
+	for _, p := range matchingPolicies {
 		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
 			return nil, err
 		}
@@ -136,64 +137,74 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 	return appliedList, nil
 }
 
-func (o *overrideManagerImpl) getMatchedClusterOverridePolicy(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.ClusterOverridePolicy {
-	// select policy in which at least one resource selector matches target resource.
-	resourceMatches := make([]policyv1alpha1.ClusterOverridePolicy, 0)
+func (o *overrideManagerImpl) getMatchingClusterOverridePolicies(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.ClusterOverridePolicy {
+	resourceMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0)
 	for _, policy := range policies {
-		if OverridePolicyMatches(resource, policy.Spec.ResourceSelectors) {
-			resourceMatches = append(resourceMatches, policy)
+		if policy.Spec.ResourceSelectors == nil {
+			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
+			continue
+		}
+
+		if util.ResourceMatchSelectors(resource, policy.Spec.ResourceSelectors...) {
+			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
 		}
 	}
 
-	// select policy which cluster selector matches target resource.
-	clusterMatches := make([]policyv1alpha1.ClusterOverridePolicy, 0)
-	for _, policy := range resourceMatches {
+	clusterMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0)
+	for _, policy := range resourceMatchingPolicies {
 		if policy.Spec.TargetCluster == nil {
-			clusterMatches = append(clusterMatches, policy)
+			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
 			continue
 		}
 
 		if util.ClusterMatches(cluster, *policy.Spec.TargetCluster) {
-			clusterMatches = append(clusterMatches, policy)
+			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
 		}
 	}
 
 	// select policy in which at least one PlaintextOverrider matches target resource.
 	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
 
-	// TODO(RainbowMango): Sort by policy names.
+	sort.Slice(clusterMatchingPolicies, func(i, j int) bool {
+		return clusterMatchingPolicies[i].Name < clusterMatchingPolicies[j].Name
+	})
 
-	return clusterMatches
+	return clusterMatchingPolicies
 }
 
-func (o *overrideManagerImpl) getMatchedOverridePolicy(policies []policyv1alpha1.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.OverridePolicy {
-	// select policy in which at least one resource selector matches target resource.
-	resourceMatches := make([]policyv1alpha1.OverridePolicy, 0)
+func (o *overrideManagerImpl) getMatchingOverridePolicies(policies []policyv1alpha1.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.OverridePolicy {
+	resourceMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0)
 	for _, policy := range policies {
-		if OverridePolicyMatches(resource, policy.Spec.ResourceSelectors) {
-			resourceMatches = append(resourceMatches, policy)
+		if policy.Spec.ResourceSelectors == nil {
+			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
+			continue
+		}
+
+		if util.ResourceMatchSelectors(resource, policy.Spec.ResourceSelectors...) {
+			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
 		}
 	}
 
-	// select policy which cluster selector matches target resource.
-	clusterMatches := make([]policyv1alpha1.OverridePolicy, 0)
-	for _, policy := range resourceMatches {
+	clusterMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0)
+	for _, policy := range resourceMatchingPolicies {
 		if policy.Spec.TargetCluster == nil {
-			clusterMatches = append(clusterMatches, policy)
+			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
 			continue
 		}
 
 		if util.ClusterMatches(cluster, *policy.Spec.TargetCluster) {
-			clusterMatches = append(clusterMatches, policy)
+			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
 		}
 	}
 
 	// select policy in which at least one PlaintextOverrider matches target resource.
 	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
 
-	// TODO(RainbowMango): Sort by policy names.
+	sort.Slice(clusterMatchingPolicies, func(i, j int) bool {
+		return clusterMatchingPolicies[i].Name < clusterMatchingPolicies[j].Name
+	})
 
-	return clusterMatches
+	return clusterMatchingPolicies
 }
 
 func parseJSONPatch(overriders []policyv1alpha1.PlaintextOverrider) []overrideOption {
@@ -232,15 +243,4 @@ func applyJSONPatch(obj *unstructured.Unstructured, overrides []overrideOption) 
 
 	err = obj.UnmarshalJSON(patchedObjectJSONBytes)
 	return err
-}
-
-// OverridePolicyMatches tells if the override policy should be applied to the resource.
-func OverridePolicyMatches(resource *unstructured.Unstructured, resourceSelector []policyv1alpha1.ResourceSelector) bool {
-	for _, rs := range resourceSelector {
-		if util.ResourceMatches(resource, rs) {
-			return true
-		}
-	}
-
-	return false
 }

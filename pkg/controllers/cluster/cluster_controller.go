@@ -6,7 +6,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -72,7 +71,7 @@ func (c *Controller) syncCluster(cluster *v1alpha1.Cluster) (controllerruntime.R
 
 func (c *Controller) removeCluster(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	err := c.removeExecutionSpace(cluster)
-	if apierrors.IsNotFound(err) {
+	if errors.IsNotFound(err) {
 		return c.removeFinalizer(cluster)
 	}
 	if err != nil {
@@ -123,7 +122,7 @@ func (c *Controller) ensureRemoveExecutionSpace(cluster *v1alpha1.Cluster) (bool
 
 	executionSpaceObj := &corev1.Namespace{}
 	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
-	if apierrors.IsNotFound(err) {
+	if errors.IsNotFound(err) {
 		klog.V(2).Infof("Removed execution space(%s)", executionSpaceName)
 		return false, nil
 	}
@@ -174,7 +173,7 @@ func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 	executionSpaceObj := &corev1.Namespace{}
 	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
+		if !errors.IsNotFound(err) {
 			klog.Errorf("Failed to get namespace(%s): %v", executionSpaceName, err)
 			return err
 		}

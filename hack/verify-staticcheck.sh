@@ -13,7 +13,7 @@ source "hack/util.sh"
 
 util::install_tools ${GOLANGCI_LINT_PKG} ${GOLANGCI_LINT_VER}
 
-if golangci-lint run; then
+if golangci-lint run -v; then
   echo 'Congratulations!  All Go source files have passed staticcheck.'
 else
   echo # print one empty line, separate from warning messages.

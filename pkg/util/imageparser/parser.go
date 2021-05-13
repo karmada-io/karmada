@@ -1,8 +1,10 @@
 package imageparser
 
 import (
-	_ "crypto/sha256" // initialize crypto/sha256 to enable sha256 algorithm
-	_ "crypto/sha512" // initialize crypto/sha512 to enable sha512 algorithm
+	// initialize crypto/sha256 to enable sha256 algorithm
+	_ "crypto/sha256"
+	// initialize crypto/sha512 to enable sha512 algorithm
+	_ "crypto/sha512"
 	"strings"
 
 	"github.com/distribution/distribution/v3/reference"

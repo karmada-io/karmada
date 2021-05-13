@@ -25,7 +25,7 @@ Please make sure to read and observe our [Code of Conduct](/CODE_OF_CONDUCT.md).
 ## Community Expectations
 
 Karmada is a community project driven by its community which strives to promote a healthy, friendly and productive environment.
-Karmada aims to provide turnkey automation for multi-cluster application management in multi-cloud and hybrid cloud scenarios, 
+Karmada aims to provide turnkey automation for multi-cluster application management in multi-cloud and hybrid cloud scenarios,
 and intended to realize multi-cloud centralized management, high availability, failure recovery and traffic scheduling.
 
 # Getting started
@@ -37,10 +37,10 @@ and intended to realize multi-cloud centralized management, high availability, f
 
 # Your First Contribution
 
-We will help you to contribute in different areas like filing issues, developing features, fixing critical bugs and 
+We will help you to contribute in different areas like filing issues, developing features, fixing critical bugs and
 getting your work reviewed and merged.
 
-If you have questions about the development process, 
+If you have questions about the development process,
 feel free to [file an issue](https://github.com/karmada-io/karmada/issues/new/choose).
 
 ## Find something to work on
@@ -53,13 +53,13 @@ Here is how you get started.
 
 There are [multiple repositories](https://github.com/karmada-io/) within the Karmada organization.
 Each repository has beginner-friendly issues that provide a good first issue.
-For example, [karmada-io/karmada](https://github.com/karmada-io/karmada) has 
-[help wanted](https://github.com/karmada-io/karmada/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) and 
-[good first issue](https://github.com/karmada-io/karmada/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22) 
+For example, [karmada-io/karmada](https://github.com/karmada-io/karmada) has
+[help wanted](https://github.com/karmada-io/karmada/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) and
+[good first issue](https://github.com/karmada-io/karmada/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 labels for issues that should not need deep knowledge of the system.
 We can help new contributors who wish to work on such issues.
 
-Another good way to contribute is to find a documentation improvement, such as a missing/broken link. 
+Another good way to contribute is to find a documentation improvement, such as a missing/broken link.
 Please see [Contributing](#contributing) below for the workflow.
 
 #### Work on an issue
