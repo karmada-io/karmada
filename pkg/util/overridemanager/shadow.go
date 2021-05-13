@@ -9,7 +9,7 @@ import (
 
 // OverridePolicyShadow is the condensed version of a OverridePolicy or ClusterOverridePolicy.
 type OverridePolicyShadow struct {
-	// OverridePolicy is the name of the referencing policy.
+	// PolicyName is the name of the referencing policy.
 	PolicyName string `json:"policyName"`
 
 	// Overriders is the overrider list of the referencing policy.
