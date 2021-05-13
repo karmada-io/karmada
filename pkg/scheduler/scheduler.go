@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -478,7 +478,7 @@ func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv
 }
 
 func (s *Scheduler) handleErr(err error, key interface{}) {
-	if err == nil || errors.HasStatusCause(err, v1.NamespaceTerminatingCause) {
+	if err == nil || errors.HasStatusCause(err, corev1.NamespaceTerminatingCause) {
 		s.queue.Forget(key)
 		return
 	}
@@ -655,7 +655,7 @@ func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *wor
 			policyName := util.GetLabelValue(clusterResourceBinding.Labels, util.ClusterPropagationPolicyLabel)
 			policy, _ := s.clusterPolicyLister.Get(policyName)
 
-			if !util.ClusterMatches(curCluster, *policy.Spec.Placement.ClusterAffinity) {
+			if policy.Spec.Placement.ClusterAffinity != nil && !util.ClusterMatches(curCluster, *policy.Spec.Placement.ClusterAffinity) {
 				continue
 			}
 
@@ -703,7 +703,7 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha1.Reso
 			policyName := util.GetLabelValue(resourceBinding.Labels, util.PropagationPolicyNameLabel)
 			policy, _ := s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
 
-			if !util.ClusterMatches(curCluster, *policy.Spec.Placement.ClusterAffinity) {
+			if policy.Spec.Placement.ClusterAffinity != nil && !util.ClusterMatches(curCluster, *policy.Spec.Placement.ClusterAffinity) {
 				continue
 			}
 			klog.Infof("Rescheduling %s/ %s to member cluster %s", resourceBinding.Namespace, resourceBinding.Name, clusterName)
