@@ -30,7 +30,7 @@ if [ -f "${KUBECONFIG}" ];then
   echo "kubeconfig file is existed, new config context will append to it."
   if kubectl config get-contexts "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}"> /dev/null 2>&1;
   then
-    echo "ERROR: failed to create new cluster for '${CLUSTER_NAME}' is exists in ${KUBECONFIG}. please remove it if your want to recover it."
+    echo "ERROR: failed to create new cluster for context '${CLUSTER_NAME}' exists in ${KUBECONFIG}. please remove it (use 'kubectl config delete-context') if your want to recover it."
     exit 1
   fi
 fi
