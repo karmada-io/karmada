@@ -15,7 +15,7 @@ HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # The KUBECONFIG path for the 'host cluster'.
-HOST_CLUSTER_KUBECONFIG="${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config"
+HOST_CLUSTER_KUBECONFIG="${KUBECONFIG_PATH}/karmada.config"
 
 # Make sure KUBECONFIG path exists.
 if [ ! -d "$KUBECONFIG_PATH" ]; then
@@ -41,7 +41,7 @@ kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_C
 
 # deploy karmada control plane
 KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
-"${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "kind-${HOST_CLUSTER_NAME}" "${KARMADA_APISERVER_IP}"
+"${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${KARMADA_APISERVER_IP}"
 
 function print_success() {
   echo

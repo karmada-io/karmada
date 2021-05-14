@@ -84,11 +84,6 @@ function generate_cert_secret {
 }
 
 function installCRDs() {
-    if [ ! -f "${KARMADA_APISERVER_CONFIG}" ]; then
-        echo "Please provide kubeconfig to connect karmada apiserver"
-        return 1
-    fi
-
     # install APIs
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/cluster.karmada.io_clusters.yaml"
@@ -154,7 +149,6 @@ then
   exit 1
 fi
 kubectl config use-context karmada-apiserver
-#export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
 installCRDs
 
 # deploy webhook configurations on karmada apiserver
