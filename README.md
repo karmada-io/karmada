@@ -141,11 +141,11 @@ The two `KUBECONFIG` files after the script run are:
 The `karmada-apiserver.config` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host.config` is only used for debuging karmada installation with host cluster.
 
 ### Join member cluster
-In the following steps, we are going to create a member cluster and then join the cluster to 
+In the following steps, we are going to create a member cluster and then join the cluster to
 karmada control plane.
 
 #### 1. Create member cluster
-We are going to create a cluster named `member1` and we want the `KUBECONFIG` file 
+We are going to create a cluster named `member1` and we want the `KUBECONFIG` file
 in `/root/.kube/member1.config`. Run following command:
 ```
 # hack/create-cluster.sh member1 /root/.kube/member1.config
@@ -153,7 +153,7 @@ in `/root/.kube/member1.config`. Run following command:
 The script `hack/create-cluster.sh` will create a standalone cluster.
 
 #### 2. Join member cluster to karmada control plane
-The command `karmadactl` will help to join the member cluster to karmada control plane, 
+The command `karmadactl` will help to join the member cluster to karmada control plane,
 before that, we should set `KUBECONFIG` to karmada apiserver:
 ```
 # export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
@@ -187,7 +187,7 @@ First, create a [deployment](samples/nginx/deployment.yaml) named `nginx`:
 Then, we need create a policy to drive the deployment to our member cluster.
 ```
 # kubectl create -f samples/nginx/propagationpolicy.yaml
-``` 
+```
 
 #### 3. Check the deployment status from karmada
 You can check deployment status from karmada, don't need to access member cluster:
