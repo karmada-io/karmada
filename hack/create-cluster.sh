@@ -7,7 +7,7 @@ set -o pipefail
 function usage() {
   echo "This script starts a kube cluster by kind."
   echo "Usage: hack/create-cluster.sh <CLUSTER_NAME> <KUBECONFIG>"
-  echo "Example: hack/create-cluster.sh host /root/.kube/host.config"
+  echo "Example: hack/create-cluster.sh host /root/.kube/karmada.config"
 }
 
 if [[ $# -ne 2 ]]; then
@@ -27,10 +27,10 @@ if [[ -z "${KUBECONFIG}" ]]; then
 fi
 
 if [ -f "${KUBECONFIG}" ];then
-  echo "kubeconfig file is existed, new config context will append to it."
+  echo "kubeconfig file is existed, new config will append to it."
   if kubectl config get-contexts "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}"> /dev/null 2>&1;
   then
-    echo "ERROR: failed to create new cluster for context '${CLUSTER_NAME}' exists in ${KUBECONFIG}. please remove it (use 'kubectl config delete-context') if your want to recover it."
+    echo "ERROR: failed to create new cluster for context '${CLUSTER_NAME}' existed in ${KUBECONFIG}. please remove it (use 'kubectl config delete-context') if your want to recover it."
     exit 1
   fi
 fi

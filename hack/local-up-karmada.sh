@@ -46,20 +46,21 @@ KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Network
 function print_success() {
   echo
   echo "Local Karmada is running."
-  echo "Kubeconfig about karmada in file: ${HOST_CLUSTER_KUBECONFIG}, so you can run:"
+  echo
+  echo "Kubeconfig for karmada in file: ${HOST_CLUSTER_KUBECONFIG}, so you can run:"
 cat <<EOF
   export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
 EOF
   echo "Or use kubectl with --kubeconfig=${HOST_CLUSTER_KUBECONFIG}"
-  echo "Please use 'kubectl config use-context <Context_Name>' to switch cluster to operate, the following is context name:"
+  echo "Please use 'kubectl config use-context <Context_Name>' to switch cluster to operate, the following is context intro:"
 cat <<EOF
-  -----------------------------------------------------|
+  ------------------------------------------------------
   |    Context Name   |          Purpose               |
-  -----------------------------------------------------|
+  |----------------------------------------------------|
   | karmada-host      | the cluster karmada install in |
-  -----------------------------------------------------|
+  |----------------------------------------------------|
   | karmada-apiserver | karmada control plane          |
-  -----------------------------------------------------|
+  ------------------------------------------------------
 EOF
 }
 
