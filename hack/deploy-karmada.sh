@@ -37,7 +37,7 @@ fi
 # check config file existence
 HOST_CLUSTER_KUBECONFIG=$1
 if [[ ! -f "${HOST_CLUSTER_KUBECONFIG}" ]]; then
-  echo -e "Failed to get kubernetes config file: '${HOST_CLUSTER_KUBECONFIG}', not existed.\n"
+  echo -e "ERROR: failed to get kubernetes config file: '${HOST_CLUSTER_KUBECONFIG}', not existed.\n"
   usage
   exit 1
 fi
@@ -47,7 +47,7 @@ export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
 HOST_CLUSTER_NAME=$2
 if ! kubectl config get-contexts "${HOST_CLUSTER_NAME}" > /dev/null 2>&1;
 then
-  echo -e "Failed to get context: '${HOST_CLUSTER_NAME}' not in ${HOST_CLUSTER_KUBECONFIG}. \n"
+  echo -e "ERROR: failed to get context: '${HOST_CLUSTER_NAME}' not in ${HOST_CLUSTER_KUBECONFIG}. \n"
   usage
   exit 1
 fi
@@ -145,7 +145,7 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
 # install CRD APIs on karmada apiserver.
 if ! kubectl config get-contexts karmada-apiserver > /dev/null 2>&1;
 then
-  echo -e "\nerror: failed to get context: karmada-apiserver not in ${HOST_CLUSTER_KUBECONFIG}."
+  echo -e "ERROR: failed to get context: karmada-apiserver not in ${HOST_CLUSTER_KUBECONFIG}."
   exit 1
 fi
 kubectl config use-context karmada-apiserver
