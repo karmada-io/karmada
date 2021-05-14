@@ -27,8 +27,7 @@ if [[ -z "${KUBECONFIG}" ]]; then
 fi
 
 if [ -f "${KUBECONFIG}" ];then
-  echo "Removing old kubeconfig file."
-  rm -f ${KUBECONFIG}
+  echo "kubeconfig file is existed, new config context will append to it."
 fi
 
 kind create cluster --name "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}" --wait=120s
