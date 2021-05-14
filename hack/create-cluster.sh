@@ -28,6 +28,11 @@ fi
 
 if [ -f "${KUBECONFIG}" ];then
   echo "kubeconfig file is existed, new config context will append to it."
+  if kubectl config get-contexts "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}"> /dev/null 2>&1;
+  then
+    echo "Failed to create new cluster for '${CLUSTER_NAME}' is exists in ${KUBECONFIG}. please remove it if your want to recover it."
+    exit 1
+  fi
 fi
 
 kind create cluster --name "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}" --wait=120s
