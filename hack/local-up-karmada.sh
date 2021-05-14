@@ -40,7 +40,8 @@ kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST
 kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 # deploy karmada control plane
-"${SCRIPT_ROOT}"/hack/deploy-karmada.sh
+KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
+"${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "kind-${HOST_CLUSTER_NAME}" "${KARMADA_APISERVER_IP}"
 
 function print_success() {
   echo

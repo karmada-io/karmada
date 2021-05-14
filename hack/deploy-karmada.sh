@@ -3,6 +3,9 @@
 set -o errexit
 set -o nounset
 
+# This script deploy karmada control plane to any cluster you want.	REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+# This script intended used in following scenarios:	source ${REPO_ROOT}/hack/util.sh
+
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CERT_DIR=${CERT_DIR:-"/var/run/karmada"}
 mkdir -p "${CERT_DIR}" &>/dev/null || sudo mkdir -p "${CERT_DIR}"
@@ -16,11 +19,12 @@ ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
 CFSSL_VERSION="v1.5.0"
 CONTROLPLANE_SUDO=$(test -w "${CERT_DIR}" || echo "sudo -E")
 
-source ${REPO_ROOT}/hack/util.sh
+# shellcheck source=util.sh
+source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
   echo "This script will deploy karmada control plane to a given cluster."
-  echo "Usage: hack/deploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME> <SERVER_IP>"
+  echo "Usage: hack/deploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME> <API_SERVER_IP>"
   echo "Example: hack/deploy-karmada.sh ~/.kube/config karmada-host 127.0.0.1"
   unset KUBECONFIG
 }
@@ -52,32 +56,35 @@ KARMADA_APISERVER_IP=$3
 
 # generate a secret to store the certificates
 function generate_cert_secret {
-    local karmada_ca=$(base64 "${ROOT_CA_FILE}" | tr -d '\r\n')
+    local karmada_ca
+    karmada_ca=$(base64 "${ROOT_CA_FILE}" | tr -d '\r\n')
 
-    local TEMP_PATH=$(mktemp -d)
-    cp -rf ${REPO_ROOT}/artifacts/deploy/karmada-cert-secret.yaml ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
-    cp -rf ${REPO_ROOT}/artifacts/deploy/secret.yaml ${TEMP_PATH}/secret-tmp.yaml
-    cp -rf ${REPO_ROOT}/artifacts/deploy/karmada-webhook-cert-secret.yaml ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
+    local TEMP_PATH
+    TEMP_PATH=$(mktemp -d)
 
-    sed -i "s/{{ca_crt}}/${karmada_ca}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
-    sed -i "s/{{client_cer}}/${KARMADA_CRT}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
-    sed -i "s/{{client_key}}/${KARMADA_KEY}/g" ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
+    cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-cert-secret.yaml "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+    cp -rf "${REPO_ROOT}"/artifacts/deploy/secret.yaml "${TEMP_PATH}"/secret-tmp.yaml
+    cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-webhook-cert-secret.yaml "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
 
-    sed -i "s/{{ca_crt}}/${karmada_ca}/g" ${TEMP_PATH}/secret-tmp.yaml
-    sed -i "s/{{client_cer}}/${KARMADA_CRT}/g" ${TEMP_PATH}/secret-tmp.yaml
-    sed -i "s/{{client_key}}/${KARMADA_KEY}/g" ${TEMP_PATH}/secret-tmp.yaml
+    sed -i "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+    sed -i "s/{{client_cer}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+    sed -i "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
 
-    sed -i "s/{{server_key}}/${KARMADA_KEY}/g" ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
-    sed -i "s/{{server_certificate}}/${KARMADA_CRT}/g" ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
+    sed -i "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH}"/secret-tmp.yaml
+    sed -i "s/{{client_cer}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/secret-tmp.yaml
+    sed -i "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/secret-tmp.yaml
 
-    kubectl apply -f ${TEMP_PATH}/karmada-cert-secret-tmp.yaml
-    kubectl apply -f ${TEMP_PATH}/secret-tmp.yaml
-    kubectl apply -f ${TEMP_PATH}/karmada-webhook-cert-secret-tmp.yaml
+    sed -i "s/{{server_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
+    sed -i "s/{{server_certificate}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
+
+    kubectl apply -f "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+    kubectl apply -f "${TEMP_PATH}"/secret-tmp.yaml
+    kubectl apply -f "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
     rm -rf "${TEMP_PATH}"
 }
 
 function installCRDs() {
-    if [ ! -f ${KARMADA_APISERVER_CONFIG} ]; then
+    if [ ! -f "${KARMADA_APISERVER_CONFIG}" ]; then
         echo "Please provide kubeconfig to connect karmada apiserver"
         return 1
     fi
@@ -105,7 +112,7 @@ util::create_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "server-ca" karmada sy
 
 #KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
 
-util::append_client_kubeconfig "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
+util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
 
 #export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
 
@@ -125,30 +132,36 @@ generate_cert_secret
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-etcd.yaml"
 
 # Wait for karmada-etcd to come up before launching the rest of the components.
-util::wait_pod_ready ${ETCD_POD_LABEL} "karmada-system"
+util::wait_pod_ready "${ETCD_POD_LABEL}" "karmada-system"
 
 # deploy karmada apiserver
 TEMP_PATH=$(mktemp -d)
-cp -rf ${REPO_ROOT}/artifacts/deploy/karmada-apiserver.yaml ${TEMP_PATH}/karmada-apiserver-tmp.yaml
-sed -i "s/{{api_addr}}/${KARMADA_APISERVER_IP}/g" ${TEMP_PATH}/karmada-apiserver-tmp.yaml
+cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH}"/karmada-apiserver-tmp.yaml
+sed -i "s/{{api_addr}}/${KARMADA_APISERVER_IP}/g" "${TEMP_PATH}"/karmada-apiserver-tmp.yaml
 kubectl apply -f "${TEMP_PATH}/karmada-apiserver-tmp.yaml"
 rm -rf "${TEMP_PATH}"
 
 # Wait for karmada-apiserver to come up before launching the rest of the components.
-util::wait_pod_ready ${APISERVER_POD_LABEL} "karmada-system"
+util::wait_pod_ready "${APISERVER_POD_LABEL}" "karmada-system"
 
 # deploy kube controller manager
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
-echo "here stop"
-exit
+
 # install CRD APIs on karmada apiserver.
-export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
+if ! kubectl config get-contexts karmada-apiserver > /dev/null 2>&1;
+then
+  echo -e "\nerror: failed to get context: karmada-apiserver not in ${HOST_CLUSTER_KUBECONFIG}."
+  exit 1
+fi
+kubectl config use-context karmada-apiserver
+#export KUBECONFIG=${KARMADA_APISERVER_CONFIG}
 installCRDs
 
 # deploy webhook configurations on karmada apiserver
-util::deploy_webhook_configuration ${ROOT_CA_FILE} "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
+util::deploy_webhook_configuration "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
 
-export KUBECONFIG=${HOST_CLUSTER_KUBECONFIG}
+kubectl config use-context "${HOST_CLUSTER_NAME}"
+#export KUBECONFIG=${HOST_CLUSTER_KUBECONFIG}
 # deploy controller-manager on host cluster
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/controller-manager.yaml"
 # deploy scheduler on host cluster
@@ -157,7 +170,7 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-scheduler.yaml"
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-webhook.yaml"
 
 # make sure all karmada control plane components are ready
-util::wait_pod_ready ${KARMADA_CONTROLLER_LABEL} "karmada-system"
-util::wait_pod_ready ${KARMADA_SCHEDULER_LABEL} "karmada-system"
-util::wait_pod_ready ${KUBE_CONTROLLER_POD_LABEL} "karmada-system"
-util::wait_pod_ready ${KARMADA_WEBHOOK_LABEL} "karmada-system"
+util::wait_pod_ready "${KARMADA_CONTROLLER_LABEL}" "karmada-system"
+util::wait_pod_ready "${KARMADA_SCHEDULER_LABEL}" "karmada-system"
+util::wait_pod_ready "${KUBE_CONTROLLER_POD_LABEL}" "karmada-system"
+util::wait_pod_ready "${KARMADA_WEBHOOK_LABEL}" "karmada-system"
