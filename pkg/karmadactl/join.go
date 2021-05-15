@@ -377,7 +377,6 @@ func ensureClusterRoleExist(client kubeclient.Interface, clusterRole *rbacv1.Clu
 	}
 
 	return createdObj, nil
-
 }
 
 // ensureClusterRoleBindingExist makes sure that the specific ClusterRoleBinding exist in cluster.

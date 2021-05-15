@@ -403,7 +403,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		} else {
 			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())
 		}
-
 	} else {
 		binding := d.BuildClusterResourceBinding(object, objectKey, policyLabels)
 		bindingCopy := binding.DeepCopy()
