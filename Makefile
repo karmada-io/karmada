@@ -1,5 +1,4 @@
 GOOS ?= $(shell go env GOOS)
-SOURCES := $(shell find . -type f  -name '*.go')
 
 # Git information
 GIT_VERSION ?= $(shell git describe --tags --dirty)
@@ -40,31 +39,31 @@ endif
 
 all: karmada-controller-manager karmada-scheduler karmadactl karmada-webhook karmada-agent
 
-karmada-controller-manager: $(SOURCES)
+karmada-controller-manager:
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-controller-manager \
 		cmd/controller-manager/controller-manager.go
 
-karmada-scheduler: $(SOURCES)
+karmada-scheduler:
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-scheduler \
 		cmd/scheduler/main.go
 
-karmadactl: $(SOURCES)
+karmadactl:
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmadactl \
 		cmd/karmadactl/karmadactl.go
 
-karmada-webhook: $(SOURCES)
+karmada-webhook:
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-webhook \
 		cmd/webhook/main.go
 
-karmada-agent: $(SOURCES)
+karmada-agent:
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-agent \
