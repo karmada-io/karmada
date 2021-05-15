@@ -146,9 +146,9 @@ karmada control plane.
 
 #### 1. Create member cluster
 We are going to create a cluster named `member1` and we want the `KUBECONFIG` file
-in `/root/.kube/member1.config`. Run following command:
+in `$HOME/.kube/member1.config`. Run following command:
 ```
-# hack/create-cluster.sh member1 /root/.kube/member1.config
+# hack/create-cluster.sh member1 $HOME/.kube/member1.config
 ```
 The script `hack/create-cluster.sh` will create a standalone cluster.
 
@@ -162,7 +162,7 @@ before that, we should set `KUBECONFIG` to karmada apiserver:
 Then, install `karmadactl` command and join the member cluster:
 ```
 # go get github.com/karmada-io/karmada/cmd/karmadactl
-# karmadactl join member1 --cluster-kubeconfig=/root/.kube/member1.config
+# karmadactl join member1 --cluster-kubeconfig=$HOME/.kube/member1.config
 ```
 The `karmadactl join` command will create a `Cluster` object to reflect the member cluster.
 
