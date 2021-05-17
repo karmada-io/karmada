@@ -41,7 +41,7 @@ func (p *ClusterAffinity) Filter(ctx context.Context, placement *v1alpha1.Placem
 	}
 
 	// If no clusters specified and it is not excluded, mark it matched
-	return nil
+	return framework.NewResult(framework.Success)
 }
 
 // Score calculates the score on the candidate cluster.
