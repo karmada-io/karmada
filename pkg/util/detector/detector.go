@@ -861,7 +861,7 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 
 	klog.Infof("Reconciling resource binding(%s/%s)", binding.Namespace, binding.Name)
 	switch binding.Spec.Resource.Kind {
-	case "Deployment":
+	case helper.DeploymentKind:
 		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
 	default:
 		// Unsupported resource type.
@@ -926,7 +926,7 @@ func (d *ResourceDetector) ReconcileClusterResourceBinding(key util.QueueKey) er
 
 	klog.Infof("Reconciling cluster resource binding(%s)", binding.Name)
 	switch binding.Spec.Resource.Kind {
-	case "Deployment":
+	case helper.DeploymentKind:
 		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
 	default:
 		// Unsupported resource type.
@@ -993,7 +993,7 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 // Note: Only limited resource type supported.
 func (d *ResourceDetector) CleanupResourceTemplateStatus(objRef workv1alpha1.ObjectReference) error {
 	switch objRef.Kind {
-	case "Deployment":
+	case helper.DeploymentKind:
 		return d.CleanupDeploymentStatus(objRef)
 	}
 
