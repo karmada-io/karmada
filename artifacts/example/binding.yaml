@@ -1,4 +1,4 @@
-apiVersion: policy.karmada.io/v1alpha1
+apiVersion: work.karmada.io/v1alpha1
 kind: ResourceBinding
 metadata:
   name: binding-foo
