@@ -431,6 +431,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha1.Resour
 	placement, err := json.Marshal(policy.Spec.Placement)
 	if err != nil {
 		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+		return err
 	}
 
 	if binding.Annotations == nil {
@@ -463,6 +464,7 @@ func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv
 	placement, err := json.Marshal(policy.Spec.Placement)
 	if err != nil {
 		klog.Errorf("Failed to marshal placement of clusterPropagationPolicy %s, error: %v", policy.Name, err)
+		return err
 	}
 
 	if binding.Annotations == nil {
