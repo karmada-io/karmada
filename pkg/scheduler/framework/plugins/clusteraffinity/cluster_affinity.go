@@ -46,5 +46,5 @@ func (p *ClusterAffinity) Filter(ctx context.Context, placement *v1alpha1.Placem
 
 // Score calculates the score on the candidate cluster.
 func (p *ClusterAffinity) Score(ctx context.Context, placement *v1alpha1.Placement, cluster *cluster.Cluster) (float64, *framework.Result) {
-	return 0, nil
+	return 0, framework.NewResult(framework.Success)
 }
