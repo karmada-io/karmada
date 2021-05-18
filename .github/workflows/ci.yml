@@ -68,6 +68,8 @@ jobs:
     steps:
       - name: checkout code
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: install Go
         uses: actions/setup-go@v2
         with:
