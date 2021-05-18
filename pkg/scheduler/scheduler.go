@@ -208,7 +208,7 @@ func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
 		key, err := cache.MetaNamespaceKeyFunc(binding)
 		if err != nil {
 			klog.Errorf("couldn't get key for object %#v: %v", binding, err)
-			return
+			continue
 		}
 		klog.Infof("Requeue ResourceBinding(%s/%s) as placement changed.", binding.Namespace, binding.Name)
 		s.queue.Add(key)
@@ -237,7 +237,7 @@ func (s *Scheduler) onClusterPropagationPolicyUpdate(old, cur interface{}) {
 		key, err := cache.MetaNamespaceKeyFunc(clusterResourceBinding)
 		if err != nil {
 			klog.Errorf("couldn't get key for object %#v: %v", clusterResourceBinding, err)
-			return
+			continue
 		}
 		klog.Infof("Requeue ClusterResourceBinding(%s) as placement changed.", clusterResourceBinding.Name)
 		s.queue.Add(key)
