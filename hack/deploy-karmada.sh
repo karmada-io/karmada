@@ -7,7 +7,7 @@ set -o nounset
 # This script intended used in following scenarios:	source ${REPO_ROOT}/hack/util.sh
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-CERT_DIR=${CERT_DIR:-"/var/run/karmada"}
+CERT_DIR=${CERT_DIR:-"${HOME}/.kube/karmada"}
 mkdir -p "${CERT_DIR}" &>/dev/null || sudo mkdir -p "${CERT_DIR}"
 KARMADA_APISERVER_CONFIG="${CERT_DIR}/karmada-apiserver.config"
 KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
@@ -105,11 +105,7 @@ util::create_signing_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" server '"clien
 # signs a certificate
 util::create_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
-#KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
-
 util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
-
-#export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
 
 # create namespace for control plane components
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
