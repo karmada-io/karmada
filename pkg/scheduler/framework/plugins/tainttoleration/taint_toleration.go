@@ -33,10 +33,11 @@ func (p *TaintToleration) Name() string {
 	return Name
 }
 
-// Filter checks if the propagation policy tolerates a cluster's taints.
+// Filter checks if the given tolerations in placement tolerate cluster's taints.
 func (p *TaintToleration) Filter(ctx context.Context, placement *v1alpha1.Placement, cluster *cluster.Cluster) *framework.Result {
 	filterPredicate := func(t *v1.Taint) bool {
-		// only interested in NoSchedule taints.
+		// now only interested in NoSchedule taint which means do not allow new resource to schedule onto the cluster unless they tolerate the taint
+		// todo: supprot NoExecute taint
 		return t.Effect == v1.TaintEffectNoSchedule
 	}
 

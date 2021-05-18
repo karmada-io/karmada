@@ -141,7 +141,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 	})
 })
 
-// invalidateCluster will set wrong API endpoint of current cluster
+// disableCluster will set wrong API endpoint of current cluster
 func disableCluster(c client.Client, clusterName string) error {
 	err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
