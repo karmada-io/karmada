@@ -34,7 +34,7 @@ then
 fi
 
 # deploy karmada control plane
-
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 KARMADA_APISERVER_IP=$(kubectl cluster-info --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" | head -1 | sed -n 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\).*/\n\1/;s/^.*\n//p')
 "${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${KARMADA_APISERVER_IP}"
 
