@@ -33,6 +33,10 @@ if [[ -z "${KUBECONFIG}" ]]; then
   exit 1
 fi
 
+# check kind
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+# shellcheck source=util.sh
+source "${REPO_ROOT}"/hack/util.sh
 util::cmd_must_exist "kind"
 
 if [ -f "${KUBECONFIG}" ];then
