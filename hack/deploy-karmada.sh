@@ -7,7 +7,7 @@ set -o nounset
 # This script intended used in following scenarios:	source ${REPO_ROOT}/hack/util.sh
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-CERT_DIR=${CERT_DIR:-"${HOME}/.kube/karmada"}
+CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
 mkdir -p "${CERT_DIR}" &>/dev/null || sudo mkdir -p "${CERT_DIR}"
 KARMADA_APISERVER_CONFIG="${CERT_DIR}/karmada-apiserver.config"
 KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
