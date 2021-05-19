@@ -132,7 +132,7 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-apiserver.yaml"
 # Wait for karmada-apiserver to come up before launching the rest of the components.
 util::wait_pod_ready "${APISERVER_POD_LABEL}" "karmada-system"
 
-if [[ -z "$3" ]]; then
+if [[ -z "${3-}" ]]; then
   KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n karmada-system -o jsonpath='{.spec.clusterIP}')
 else
   KARMADA_APISERVER_IP=$3
