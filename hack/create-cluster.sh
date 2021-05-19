@@ -10,12 +10,12 @@ function usage() {
   echo "Example: hack/create-cluster.sh host /root/.kube/karmada.config"
 }
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -lt 1 ]]; then
   usage
   exit 1
 fi
 
-if [[ -z "$1" ]]; then
+if [[ -z "${1}" ]]; then
   CLUSTER_NAME=$KUBECONFIG
 else
   CLUSTER_NAME=$1
@@ -25,7 +25,7 @@ if [[ -z "${CLUSTER_NAME}" ]]; then
   usage
   exit 1
 fi
-KUBECONFIG=$2
+KUBECONFIG=${2-}
 if [[ -z "${KUBECONFIG}" ]]; then
   usage
   exit 1
