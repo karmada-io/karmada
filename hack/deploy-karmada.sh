@@ -123,11 +123,6 @@ util::wait_pod_ready "${ETCD_POD_LABEL}" "karmada-system"
 
 # deploy karmada apiserver
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-apiserver.yaml"
-#TEMP_PATH=$(mktemp -d)
-#cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH}"/karmada-apiserver-tmp.yaml
-#sed -i "s/{{api_addr}}/${KARMADA_APISERVER_IP}/g" "${TEMP_PATH}"/karmada-apiserver-tmp.yaml
-#kubectl apply -f "${TEMP_PATH}/karmada-apiserver-tmp.yaml"
-#rm -rf "${TEMP_PATH}"
 
 # Wait for karmada-apiserver to come up before launching the rest of the components.
 util::wait_pod_ready "${APISERVER_POD_LABEL}" "karmada-system"
@@ -162,7 +157,7 @@ installCRDs
 util::deploy_webhook_configuration "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
 
 kubectl config use-context "${HOST_CLUSTER_NAME}"
-#export KUBECONFIG=${HOST_CLUSTER_KUBECONFIG}
+
 # deploy controller-manager on host cluster
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/controller-manager.yaml"
 # deploy scheduler on host cluster
