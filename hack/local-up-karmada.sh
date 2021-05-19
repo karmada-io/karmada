@@ -42,6 +42,7 @@ kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_C
 # deploy karmada control plane
 KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
 "${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${KARMADA_APISERVER_IP}"
+kubectl config use-context karmada-apiserver
 
 function print_success() {
   echo
