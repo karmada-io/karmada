@@ -110,9 +110,9 @@ function util::append_client_kubeconfig {
     local api_port=$5
     local client_id=$6
     local token=${7:-}
-    kubectl config set-cluster "${client_id}-cluster" --server=https://"${api_host}:${api_port}" --insecure-skip-tls-verify=true --kubeconfig="${kubeconfig_path}"
-    kubectl config set-credentials "${client_id}-user" --token="${token}" --client-certificate="${client_certificate_file}" --client-key="${client_key_file}" --kubeconfig="${kubeconfig_path}"
-    kubectl config set-context "${client_id}" --cluster="${client_id}-cluster" --user="${client_id}-user" --kubeconfig="${kubeconfig_path}"
+    kubectl config set-cluster "${client_id}" --server=https://"${api_host}:${api_port}" --insecure-skip-tls-verify=true --kubeconfig="${kubeconfig_path}"
+    kubectl config set-credentials "${client_id}" --token="${token}" --client-certificate="${client_certificate_file}" --client-key="${client_key_file}" --kubeconfig="${kubeconfig_path}"
+    kubectl config set-context "${client_id}" --cluster="${client_id}" --user="${client_id}" --kubeconfig="${kubeconfig_path}"
 }
 
 # util::write_client_kubeconfig creates a self-contained kubeconfig: args are sudo, dest-dir, client certificate data, client key data, host, port, client id, token(optional)
