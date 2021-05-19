@@ -24,12 +24,12 @@ source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
   echo "This script will deploy karmada control plane to a given cluster."
-  echo "Usage: hack/deploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME> <API_SERVER_IP>"
-  echo "Example: hack/deploy-karmada.sh ~/.kube/config karmada-host 127.0.0.1"
+  echo "Usage: hack/deploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME>"
+  echo "Example: hack/deploy-karmada.sh ~/.kube/config karmada-host"
   unset KUBECONFIG
 }
 
-if [[ $# -ne 3 ]]; then
+if [[ $# -ne 2 ]]; then
   usage
   exit 1
 fi
@@ -51,8 +51,6 @@ then
   usage
   exit 1
 fi
-
-KARMADA_APISERVER_IP=$3
 
 # generate a secret to store the certificates
 function generate_cert_secret {
@@ -105,8 +103,6 @@ util::create_signing_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" server '"clien
 # signs a certificate
 util::create_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
-util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
-
 # create namespace for control plane components
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
@@ -126,14 +122,24 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-etcd.yaml"
 util::wait_pod_ready "${ETCD_POD_LABEL}" "karmada-system"
 
 # deploy karmada apiserver
-TEMP_PATH=$(mktemp -d)
-cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH}"/karmada-apiserver-tmp.yaml
-sed -i "s/{{api_addr}}/${KARMADA_APISERVER_IP}/g" "${TEMP_PATH}"/karmada-apiserver-tmp.yaml
-kubectl apply -f "${TEMP_PATH}/karmada-apiserver-tmp.yaml"
-rm -rf "${TEMP_PATH}"
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-apiserver.yaml"
+#TEMP_PATH=$(mktemp -d)
+#cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH}"/karmada-apiserver-tmp.yaml
+#sed -i "s/{{api_addr}}/${KARMADA_APISERVER_IP}/g" "${TEMP_PATH}"/karmada-apiserver-tmp.yaml
+#kubectl apply -f "${TEMP_PATH}/karmada-apiserver-tmp.yaml"
+#rm -rf "${TEMP_PATH}"
 
 # Wait for karmada-apiserver to come up before launching the rest of the components.
 util::wait_pod_ready "${APISERVER_POD_LABEL}" "karmada-system"
+
+KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n karmada-system -o jsonpath='{.spec.clusterIP}')
+if [[ -z "${KARMADA_APISERVER_IP}" ]]; then
+  echo -e "ERROR: failed to create service 'karmada-apiserver', please verify.\n"
+  exit 1
+fi
+
+# write karmada api server config to kubeconfig file
+util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/karmada.crt" "${CERT_DIR}/karmada.key" "${KARMADA_APISERVER_IP}" "${KARMADA_APISERVER_SECURE_PORT}" karmada-apiserver
 
 # deploy kube controller manager
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
