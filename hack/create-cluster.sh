@@ -6,7 +6,7 @@ set -o pipefail
 
 function usage() {
   echo "This script starts a kube cluster by kind."
-  echo "Usage: hack/create-cluster.sh <CLUSTER_NAME> <KUBECONFIG>"
+  echo "Usage: hack/create-cluster.sh <CLUSTER_NAME> [KUBECONFIG]"
   echo "Example: hack/create-cluster.sh host /root/.kube/karmada.config"
 }
 
@@ -15,7 +15,12 @@ if [[ $# -ne 2 ]]; then
   exit 1
 fi
 
-CLUSTER_NAME=$1
+if [[ -z "$1" ]]; then
+  CLUSTER_NAME=$KUBECONFIG
+else
+  CLUSTER_NAME=$1
+fi
+
 if [[ -z "${CLUSTER_NAME}" ]]; then
   usage
   exit 1
