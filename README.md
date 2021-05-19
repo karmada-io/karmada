@@ -181,10 +181,11 @@ And use 'kubectl config use-context your-host' for debugging karmada installatio
 - Install script will download golang package, if your server is in the mainland, you need set go proxy like this `export GOPROXY=https://goproxy.cn`
 
 ### Join member cluster
-In the following steps, we are going to create a member cluster and then join the cluster to 
+In the following steps, we are going to create a member cluster and then join the cluster to
 karmada control plane.
 
 #### 1. Create member cluster
+
 We are going to create a cluster named `member1` and we want the `KUBECONFIG` file 
 in `/root/.kube/karmada.config`. Run following command:
 ```
@@ -195,6 +196,7 @@ The script `hack/create-cluster.sh` will create a standalone cluster by kind.
 #### 2. Join member cluster to karmada control plane
 The command `karmadactl` will help to join the member cluster to karmada control plane, 
 before that, we should switch to karmada apiserver:
+
 ```
 # kubectl config use-context karmada-apiserver
 ```
@@ -227,7 +229,7 @@ First, create a [deployment](samples/nginx/deployment.yaml) named `nginx`:
 Then, we need create a policy to drive the deployment to our member cluster.
 ```
 # kubectl create -f samples/nginx/propagationpolicy.yaml
-``` 
+```
 
 #### 3. Check the deployment status from karmada
 You can check deployment status from karmada, don't need to access member cluster:
@@ -236,6 +238,23 @@ You can check deployment status from karmada, don't need to access member cluste
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
 nginx   1/1     1            1           43s
 ```
+
+## Meeting
+
+Regular Community Meeting:
+* Tuesday at 14:30 CST(China Standard Time)(biweekly). [Convert to your timezone.](https://www.thetimezoneconverter.com/?t=14%3A30&tz=GMT%2B8&)
+
+Resources:
+- [Meeting notes and agenda](https://docs.google.com/document/d/1y6YLVC-v7cmVAdbjedoyR5WL0-q45DBRXTvz5_I7bkA/edit)
+- [Meeting Calendar](https://calendar.google.com/calendar/embed?src=karmadaoss%40gmail.com&ctz=Asia%2FShanghai) | [Subscribe](https://calendar.google.com/calendar/u/1?cid=a2FybWFkYW9zc0BnbWFpbC5jb20)
+
+## Contact
+
+If you have questions, feel free to reach out to us in the following ways:
+
+- [mailing list](https://groups.google.com/forum/#!forum/karmada)
+- [slack](https://join.slack.com/t/karmada-io/shared_invite/zt-omhy1wfa-LmAkCLfpDMnBjVXp3_U~0w)
+- [twitter](https://twitter.com/karmada_io)
 
 ## Contributing
 
