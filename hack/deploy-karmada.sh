@@ -14,7 +14,6 @@ KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 
 # The host cluster name which used to install karmada control plane components.
 HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
-HOST_CLUSTER_KUBECONFIG=${1:-"${HOME}/.kube/karmada-host.config"}
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
 CFSSL_VERSION="v1.5.0"
 CONTROLPLANE_SUDO=$(test -w "${CERT_DIR}" || echo "sudo -E")

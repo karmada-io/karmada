@@ -36,6 +36,7 @@ fi
 # deploy karmada control plane
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 "${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME}"
+kubectl config use-context karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
 function print_success() {
   echo
