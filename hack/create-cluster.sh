@@ -15,17 +15,19 @@ if [[ $# -lt 1 ]]; then
   exit 1
 fi
 
-if [[ -z "${1}" ]]; then
-  CLUSTER_NAME=$KUBECONFIG
-else
-  CLUSTER_NAME=$1
-fi
+CLUSTER_NAME=$1
 
 if [[ -z "${CLUSTER_NAME}" ]]; then
   usage
   exit 1
 fi
-KUBECONFIG=${2-}
+
+if [[ -z "${2-}" ]]; then
+  KUBECONFIG=$KUBECONFIG
+else
+  KUBECONFIG=$2
+fi
+
 if [[ -z "${KUBECONFIG}" ]]; then
   usage
   exit 1
