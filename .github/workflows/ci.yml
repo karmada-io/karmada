@@ -18,8 +18,8 @@ jobs:
 
           # show only new issues if it's a pull request.
           only-new-issues: false
-  codegen:
-    name: codegen
+  gen:
+    name: codegen, crdgen
     runs-on: ubuntu-latest
     steps:
       - name: checkout code
@@ -34,7 +34,7 @@ jobs:
         run: hack/verify-crdgen.sh
   build:
     name: compile
-    needs: codegen # rely on codegen successful completion
+    needs: gen # rely on codegen successful completion
     runs-on: ubuntu-latest
     steps:
       - name: checkout code
