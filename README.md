@@ -188,7 +188,7 @@ karmada control plane.
 We are going to create a cluster named `member1` and we want the `KUBECONFIG` file
 in `/root/.kube/karmada.config`. Run following command:
 ```
-# hack/create-cluster.sh member1 /root/.kube/karmada.config
+# hack/create-cluster.sh member1 /${HOME}/.kube/karmada.config
 ```
 The script `hack/create-cluster.sh` will create a standalone cluster by kind.
 
