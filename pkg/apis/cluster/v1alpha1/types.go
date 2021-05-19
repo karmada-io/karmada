@@ -54,6 +54,12 @@ type ClusterSpec struct {
 	// +optional
 	InsecureSkipTLSVerification bool `json:"insecureSkipTLSVerification,omitempty"`
 
+	// ProxyURL is the proxy URL for the cluster.
+	// If not empty, the karmada control plane will use this proxy to talk to the cluster.
+	// More details please refer to: https://github.com/kubernetes/client-go/issues/351
+	// +optional
+	ProxyURL string `json:"proxyURL,omitempty"`
+
 	// Provider represents the cloud provider name of the member cluster.
 	// +optional
 	Provider string `json:"provider,omitempty"`

@@ -14,9 +14,9 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	stopChan := apiserver.SetupSignalHandler()
+	ctx := apiserver.SetupSignalContext()
 
-	if err := app.NewWebhookCommand(stopChan).Execute(); err != nil {
+	if err := app.NewWebhookCommand(ctx).Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}

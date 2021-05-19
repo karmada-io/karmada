@@ -266,6 +266,15 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 		clusterObj.Spec.InsecureSkipTLSVerification = true
 	}
 
+	if clusterConfig.Proxy != nil {
+		url, err := clusterConfig.Proxy(nil)
+		if err != nil {
+			klog.Errorf("clusterConfig.Proxy error, %v", err)
+			return err
+		}
+		clusterObj.Spec.ProxyURL = url.String()
+	}
+
 	cluster, err := CreateClusterObject(controlPlaneKarmadaClient, clusterObj, false)
 	if err != nil {
 		klog.Errorf("failed to create cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
@@ -368,7 +377,6 @@ func ensureClusterRoleExist(client kubeclient.Interface, clusterRole *rbacv1.Clu
 	}
 
 	return createdObj, nil
-
 }
 
 // ensureClusterRoleBindingExist makes sure that the specific ClusterRoleBinding exist in cluster.
@@ -399,39 +407,38 @@ func ensureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 
 // CreateClusterObject create cluster object in karmada control plane
 func CreateClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster, errorOnExisting bool) (*clusterv1alpha1.Cluster, error) {
-	cluster, exist, err := GetCluster(controlPlaneClient, clusterObj.Namespace, clusterObj.Name)
+	cluster, exist, err := GetCluster(controlPlaneClient, clusterObj.Name)
 	if err != nil {
-		klog.Errorf("failed to create cluster object. cluster: %s/%s, error: %v", clusterObj.Namespace, clusterObj.Name, err)
+		klog.Errorf("failed to create cluster(%s), error: %v", clusterObj.Name, err)
 		return nil, err
 	}
 
 	if exist {
 		if errorOnExisting {
-			klog.Errorf("failed to create cluster object. cluster: %s/%s, error: %v", clusterObj.Namespace, clusterObj.Name, err)
-			return cluster, err
+			klog.Errorf("failed to create cluster(%s) as it's already exist.", clusterObj.Name)
+			return cluster, fmt.Errorf("cluster already exist")
 		}
-
-		klog.V(1).Infof("create cluster succeed as already exist. cluster: %s/%s", clusterObj.Namespace, clusterObj.Name)
+		klog.V(1).Infof("create cluster(%s) succeed as already exist.", clusterObj.Name)
 		return cluster, nil
 	}
 
 	if cluster, err = CreateCluster(controlPlaneClient, clusterObj); err != nil {
-		klog.Warningf("failed to create cluster. cluster: %s/%s, error: %v", clusterObj.Namespace, clusterObj.Name, err)
+		klog.Warningf("failed to create cluster(%s). error: %v", clusterObj.Name, err)
 		return nil, err
 	}
 
 	return cluster, nil
 }
 
-// GetCluster tells if a cluster (namespace/name) already joined to control plane.
-func GetCluster(client karmadaclientset.Interface, namespace string, name string) (*clusterv1alpha1.Cluster, bool, error) {
+// GetCluster tells if a cluster already joined to control plane.
+func GetCluster(client karmadaclientset.Interface, name string) (*clusterv1alpha1.Cluster, bool, error) {
 	cluster, err := client.ClusterV1alpha1().Clusters().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, false, nil
 		}
 
-		klog.Warningf("failed to retrieve cluster. cluster: %s/%s, error: %v", namespace, name, err)
+		klog.Warningf("failed to retrieve cluster(%s). error: %v", cluster.Name, err)
 		return nil, false, err
 	}
 
@@ -442,7 +449,7 @@ func GetCluster(client karmadaclientset.Interface, namespace string, name string
 func CreateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
 	cluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
-		klog.Warningf("failed to create cluster. cluster: %s/%s, error: %v", cluster.Namespace, cluster.Name, err)
+		klog.Warningf("failed to create cluster(%s). error: %v", cluster.Name, err)
 		return cluster, err
 	}
 

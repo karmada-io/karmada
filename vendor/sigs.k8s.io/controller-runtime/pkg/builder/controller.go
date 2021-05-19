@@ -22,9 +22,10 @@ import (
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -59,7 +60,6 @@ type Builder struct {
 	config           *rest.Config
 	ctrl             controller.Controller
 	ctrlOptions      controller.Options
-	log              logr.Logger
 	name             string
 }
 
@@ -68,28 +68,23 @@ func ControllerManagedBy(m manager.Manager) *Builder {
 	return &Builder{mgr: m}
 }
 
-// ForType defines the type of Object being *reconciled*, and configures the ControllerManagedBy to respond to create / delete /
-// update events by *reconciling the object*.
-// This is the equivalent of calling
-// Watches(&source.Kind{Type: apiType}, &handler.EnqueueRequestForObject{})
-//
-// Deprecated: Use For
-func (blder *Builder) ForType(apiType runtime.Object) *Builder {
-	return blder.For(apiType)
-}
-
 // ForInput represents the information set by For method.
 type ForInput struct {
-	object           runtime.Object
+	object           client.Object
 	predicates       []predicate.Predicate
 	objectProjection objectProjection
+	err              error
 }
 
 // For defines the type of Object being *reconciled*, and configures the ControllerManagedBy to respond to create / delete /
 // update events by *reconciling the object*.
 // This is the equivalent of calling
 // Watches(&source.Kind{Type: apiType}, &handler.EnqueueRequestForObject{})
-func (blder *Builder) For(object runtime.Object, opts ...ForOption) *Builder {
+func (blder *Builder) For(object client.Object, opts ...ForOption) *Builder {
+	if blder.forInput.object != nil {
+		blder.forInput.err = fmt.Errorf("For(...) should only be called once, could not assign multiple objects for reconciliation")
+		return blder
+	}
 	input := ForInput{object: object}
 	for _, opt := range opts {
 		opt.ApplyToFor(&input)
@@ -101,7 +96,7 @@ func (blder *Builder) For(object runtime.Object, opts ...ForOption) *Builder {
 
 // OwnsInput represents the information set by Owns method.
 type OwnsInput struct {
-	object           runtime.Object
+	object           client.Object
 	predicates       []predicate.Predicate
 	objectProjection objectProjection
 }
@@ -109,7 +104,7 @@ type OwnsInput struct {
 // Owns defines types of Objects being *generated* by the ControllerManagedBy, and configures the ControllerManagedBy to respond to
 // create / delete / update events by *reconciling the owner object*.  This is the equivalent of calling
 // Watches(&source.Kind{Type: <ForType-forInput>}, &handler.EnqueueRequestForOwner{OwnerType: apiType, IsController: true})
-func (blder *Builder) Owns(object runtime.Object, opts ...OwnsOption) *Builder {
+func (blder *Builder) Owns(object client.Object, opts ...OwnsOption) *Builder {
 	input := OwnsInput{object: object}
 	for _, opt := range opts {
 		opt.ApplyToOwns(&input)
@@ -140,14 +135,6 @@ func (blder *Builder) Watches(src source.Source, eventhandler handler.EventHandl
 	return blder
 }
 
-// WithConfig sets the Config to use for configuring clients.  Defaults to the in-cluster config or to ~/.kube/config.
-//
-// Deprecated: Use ControllerManagedBy(Manager) and this isn't needed.
-func (blder *Builder) WithConfig(config *rest.Config) *Builder {
-	blder.config = config
-	return blder
-}
-
 // WithEventFilter sets the event filters, to filter which create/update/delete/generic events eventually
 // trigger reconciliations.  For example, filtering on whether the resource version has changed.
 // Given predicate is added for all watched objects.
@@ -163,6 +150,12 @@ func (blder *Builder) WithOptions(options controller.Options) *Builder {
 	return blder
 }
 
+// WithLogger overrides the controller options's logger used.
+func (blder *Builder) WithLogger(log logr.Logger) *Builder {
+	blder.ctrlOptions.Log = log
+	return blder
+}
+
 // Named sets the name of the controller to the given name.  The name shows up
 // in metrics, among other things, and thus should be a prometheus compatible name
 // (underscores and alphanumeric characters only).
@@ -170,12 +163,6 @@ func (blder *Builder) WithOptions(options controller.Options) *Builder {
 // By default, controllers are named using the lowercase version of their kind.
 func (blder *Builder) Named(name string) *Builder {
 	blder.name = name
-	return blder
-}
-
-// WithLogger overrides the controller options's logger used.
-func (blder *Builder) WithLogger(log logr.Logger) *Builder {
-	blder.log = log
 	return blder
 }
 
@@ -192,6 +179,13 @@ func (blder *Builder) Build(r reconcile.Reconciler) (controller.Controller, erro
 	}
 	if blder.mgr == nil {
 		return nil, fmt.Errorf("must provide a non-nil Manager")
+	}
+	if blder.forInput.err != nil {
+		return nil, blder.forInput.err
+	}
+	// Checking the reconcile type exist or not
+	if blder.forInput.object == nil {
+		return nil, fmt.Errorf("must provide an object for reconciliation")
 	}
 
 	// Set the Config
@@ -210,7 +204,7 @@ func (blder *Builder) Build(r reconcile.Reconciler) (controller.Controller, erro
 	return blder.ctrl, nil
 }
 
-func (blder *Builder) project(obj runtime.Object, proj objectProjection) (runtime.Object, error) {
+func (blder *Builder) project(obj client.Object, proj objectProjection) (client.Object, error) {
 	switch proj {
 	case projectAsNormal:
 		return obj, nil
@@ -309,7 +303,7 @@ func (blder *Builder) doController(r reconcile.Reconciler) error {
 	if ctrlOptions.Log == nil {
 		ctrlOptions.Log = blder.mgr.GetLogger()
 	}
-	ctrlOptions.Log = ctrlOptions.Log.WithValues("reconcilerGroup", gvk.Group, "reconcilerKind", gvk.Kind)
+	ctrlOptions.Log = ctrlOptions.Log.WithValues("reconciler group", gvk.Group, "reconciler kind", gvk.Kind)
 
 	// Build the controller and return.
 	blder.ctrl, err = newController(blder.getControllerName(gvk), blder.mgr, ctrlOptions)

@@ -50,7 +50,7 @@ spec:
                       properties:
                         component:
                           description: 'Component is part of image name. Basically
-                            we presume an image can be make of ''[registry/]repository[:tag]''.
+                            we presume an image can be made of ''[registry/]repository[:tag]''.
                             The registry could be: - k8s.gcr.io - fictional.registry.example:10443
                             The repository could be: - kube-apiserver - fictional/nginx
                             The tag cloud be: - latest - v1.19.1 - @sha256:dbcc1c35ac38df41fd2f5e4130b32ffdb93ebae8b3dbe638c23575912276fc9c'
@@ -125,7 +125,7 @@ spec:
                 type: object
               resourceSelectors:
                 description: ResourceSelectors restricts resource types that this
-                  override policy applies to.
+                  override policy applies to. nil means matching all resources.
                 items:
                   description: ResourceSelector the resources will be selected.
                   properties:
@@ -196,7 +196,8 @@ spec:
                 type: array
               targetCluster:
                 description: TargetCluster defines restrictions on this override policy
-                  that only applies to resources propagated to the matching clusters
+                  that only applies to resources propagated to the matching clusters.
+                  nil means matching all clusters.
                 properties:
                   clusterNames:
                     description: ClusterNames is the list of clusters to be selected.
@@ -293,6 +294,8 @@ spec:
                         type: object
                     type: object
                 type: object
+            required:
+            - overriders
             type: object
         required:
         - spec

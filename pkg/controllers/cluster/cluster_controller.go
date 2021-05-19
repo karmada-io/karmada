@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,13 +33,13 @@ type Controller struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling cluster %s", req.NamespacedName.Name)
 
 	cluster := &v1alpha1.Cluster{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
 

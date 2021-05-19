@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -36,7 +37,7 @@ import (
 )
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
-func NewControllerManagerCommand(stopChan <-chan struct{}) *cobra.Command {
+func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
@@ -44,7 +45,7 @@ func NewControllerManagerCommand(stopChan <-chan struct{}) *cobra.Command {
 		Long: `The controller manager runs a bunch of controllers`,
 		Run: func(cmd *cobra.Command, args []string) {
 			opts.Complete()
-			if err := Run(opts, stopChan); err != nil {
+			if err := Run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
@@ -57,7 +58,7 @@ func NewControllerManagerCommand(stopChan <-chan struct{}) *cobra.Command {
 }
 
 // Run runs the controller-manager with options. This should never exit.
-func Run(opts *options.Options, stopChan <-chan struct{}) error {
+func Run(ctx context.Context, opts *options.Options) error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
@@ -67,8 +68,8 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 	}
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:                 gclient.NewSchema(),
-		LeaderElection:         true, // TODO(RainbowMango): Add a flag '--enable-leader-election' for this option.
-		LeaderElectionID:       "41db11fa.karmada.io",
+		LeaderElection:         opts.LeaderElection.LeaderElect,
+		LeaderElectionID:       "karmada-controller-manager",
 		HealthProbeBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort),
 		LivenessEndpointName:   "/healthz",
 	})
@@ -82,10 +83,10 @@ func Run(opts *options.Options, stopChan <-chan struct{}) error {
 		return err
 	}
 
-	setupControllers(controllerManager, opts, stopChan)
+	setupControllers(controllerManager, opts, ctx.Done())
 
 	// blocks until the stop channel is closed.
-	if err := controllerManager.Start(stopChan); err != nil {
+	if err := controllerManager.Start(ctx); err != nil {
 		klog.Errorf("controller manager exits unexpectedly: %v", err)
 		return err
 	}

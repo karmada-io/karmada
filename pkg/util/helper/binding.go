@@ -156,7 +156,6 @@ func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, 
 // EnsureWork ensure Work to be created or updated.
 func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNames []string, overrideManager overridemanager.OverrideManager,
 	binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
-
 	referenceRSP, desireReplicaInfos, err := calculateReplicasIfNeeded(c, workload, clusterNames)
 	if err != nil {
 		klog.Errorf("Failed to get ReplicaSchedulingPolicy for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)

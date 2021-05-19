@@ -3,6 +3,8 @@ package util
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -10,6 +12,7 @@ import (
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -129,6 +132,15 @@ func buildClusterConfig(cluster *v1alpha1.Cluster, client client.Client) (*rest.
 		clusterConfig.TLSClientConfig.Insecure = true
 	} else {
 		clusterConfig.CAData = secret.Data[cADataKey]
+	}
+
+	if cluster.Spec.ProxyURL != "" {
+		proxy, err := url.Parse(cluster.Spec.ProxyURL)
+		if err != nil {
+			klog.Errorf("parse proxy error. %v", err)
+			return nil, err
+		}
+		clusterConfig.Proxy = http.ProxyURL(proxy)
 	}
 
 	return clusterConfig, nil

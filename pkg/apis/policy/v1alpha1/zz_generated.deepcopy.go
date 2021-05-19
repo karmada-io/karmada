@@ -319,7 +319,11 @@ func (in *OverrideSpec) DeepCopyInto(out *OverrideSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.TargetCluster.DeepCopyInto(&out.TargetCluster)
+	if in.TargetCluster != nil {
+		in, out := &in.TargetCluster, &out.TargetCluster
+		*out = new(ClusterAffinity)
+		(*in).DeepCopyInto(*out)
+	}
 	in.Overriders.DeepCopyInto(&out.Overriders)
 	return
 }

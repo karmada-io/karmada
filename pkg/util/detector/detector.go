@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -75,10 +76,10 @@ type ResourceDetector struct {
 }
 
 // Start runs the detector, never stop until stopCh closed.
-func (d *ResourceDetector) Start(stopCh <-chan struct{}) error {
+func (d *ResourceDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting resource detector.")
 	d.waitingObjects = make(map[keys.ClusterWideKey]struct{})
-	d.stopCh = stopCh
+	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
 	d.policyReconcileWorker = util.NewAsyncWorker("propagationpolicy detector", 1*time.Millisecond, ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
@@ -104,10 +105,10 @@ func (d *ResourceDetector) Start(stopCh <-chan struct{}) error {
 	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, d.OnClusterResourceBindingDelete)
 	d.InformerManager.ForResource(workv1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"), clusterBindingHandler)
 
-	d.Processor.Run(1, stopCh)
+	d.Processor.Run(1, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
-	<-stopCh
+	<-d.stopCh
 	klog.Infof("Stopped as stopCh closed.")
 	return nil
 }
@@ -254,7 +255,7 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 		return nil, nil
 	}
 
-	klog.V(2).Infof("attempts to match policy for resource: %s", objectKey)
+	klog.V(2).Infof("attempts to match policy for resource(%s)", objectKey)
 	policyList := &policyv1alpha1.PropagationPolicyList{}
 	if err := d.Client.List(context.TODO(), policyList, &client.ListOptions{Namespace: objectKey.Namespace}); err != nil {
 		klog.Errorf("Failed to list propagation policy: %v", err)
@@ -265,20 +266,32 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 		return nil, nil
 	}
 
+	matchedPolicies := make([]policyv1alpha1.PropagationPolicy, 0)
 	for _, policy := range policyList.Items {
-		for _, rs := range policy.Spec.ResourceSelectors {
-			if util.ResourceMatches(object, rs) {
-				return &policy, nil
-			}
+		if policy.Spec.ResourceSelectors == nil {
+			matchedPolicies = append(matchedPolicies, policy)
+			continue
+		}
+
+		if util.ResourceMatchSelectors(object, policy.Spec.ResourceSelectors...) {
+			matchedPolicies = append(matchedPolicies, policy)
 		}
 	}
 
-	return nil, nil
+	sort.Slice(matchedPolicies, func(i, j int) bool {
+		return matchedPolicies[i].Name < matchedPolicies[j].Name
+	})
+
+	if len(matchedPolicies) == 0 {
+		return nil, nil
+	}
+	klog.V(2).Infof("Matched policy(%s/%s) for resource(%s)", matchedPolicies[0].Namespace, matchedPolicies[0].Name, objectKey)
+	return &matchedPolicies[0], nil
 }
 
 // LookForMatchedClusterPolicy tries to find a ClusterPropagationPolicy for object referenced by object key.
 func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) (*policyv1alpha1.ClusterPropagationPolicy, error) {
-	klog.V(2).Infof("attempts to match cluster policy for resource: %s", objectKey)
+	klog.V(2).Infof("attempts to match cluster policy for resource(%s)", objectKey)
 	policyList := &policyv1alpha1.ClusterPropagationPolicyList{}
 	if err := d.Client.List(context.TODO(), policyList); err != nil {
 		klog.Errorf("Failed to list cluster propagation policy: %v", err)
@@ -289,15 +302,27 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 		return nil, nil
 	}
 
+	matchedClusterPolicies := make([]policyv1alpha1.ClusterPropagationPolicy, 0)
 	for _, policy := range policyList.Items {
-		for _, rs := range policy.Spec.ResourceSelectors {
-			if util.ResourceMatches(object, rs) {
-				klog.V(2).Infof("Matched cluster policy(%s) for object(%s)", policy.Name, objectKey)
-				return &policy, nil
-			}
+		if policy.Spec.ResourceSelectors == nil {
+			matchedClusterPolicies = append(matchedClusterPolicies, policy)
+			continue
+		}
+
+		if util.ResourceMatchSelectors(object, policy.Spec.ResourceSelectors...) {
+			matchedClusterPolicies = append(matchedClusterPolicies, policy)
 		}
 	}
-	return nil, nil
+
+	sort.Slice(matchedClusterPolicies, func(i, j int) bool {
+		return matchedClusterPolicies[i].Name < matchedClusterPolicies[j].Name
+	})
+
+	if len(matchedClusterPolicies) == 0 {
+		return nil, nil
+	}
+	klog.V(2).Infof("Matched cluster policy(%s) for resource(%s)", matchedClusterPolicies[0].Name, objectKey)
+	return &matchedClusterPolicies[0], nil
 }
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
@@ -309,7 +334,12 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return err
 	}
 
-	binding := d.BuildResourceBinding(object, objectKey, policy)
+	policyLabels := map[string]string{
+		util.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
+		util.PropagationPolicyNameLabel:      policy.GetName(),
+	}
+
+	binding := d.BuildResourceBinding(object, objectKey, policyLabels)
 	bindingCopy := binding.DeepCopy()
 	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 		// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
@@ -343,26 +373,59 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		return err
 	}
 
-	binding := d.BuildClusterResourceBinding(object, objectKey, policy)
-	bindingCopy := binding.DeepCopy()
-	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-		// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-		bindingCopy.Labels = binding.Labels
-		bindingCopy.OwnerReferences = binding.OwnerReferences
-		bindingCopy.Spec.Resource = binding.Spec.Resource
-		return nil
-	})
-	if err != nil {
-		klog.Errorf("Failed to apply cluster policy(%s) for object: %s. error: %v", policy.Name, objectKey, err)
-		return err
+	policyLabels := map[string]string{
+		util.ClusterPropagationPolicyLabel: policy.GetName(),
 	}
 
-	if operationResult == controllerutil.OperationResultCreated {
-		klog.Infof("Create ClusterResourceBinding(%s) successfully.", binding.GetName())
-	} else if operationResult == controllerutil.OperationResultUpdated {
-		klog.Infof("Update ClusterResourceBinding(%s) successfully.", binding.GetName())
+	// Build `ResourceBinding` or `ClusterResourceBinding` according to the resource template's scope.
+	// For namespace-scoped resources, which namespace is not empty, building `ResourceBinding`.
+	// For cluster-scoped resources, which namespace is empty, building `ClusterResourceBinding`.
+	if object.GetNamespace() != "" {
+		binding := d.BuildResourceBinding(object, objectKey, policyLabels)
+		bindingCopy := binding.DeepCopy()
+		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			bindingCopy.Labels = binding.Labels
+			bindingCopy.OwnerReferences = binding.OwnerReferences
+			bindingCopy.Spec.Resource = binding.Spec.Resource
+			return nil
+		})
+
+		if err != nil {
+			klog.Errorf("Failed to apply cluster policy(%s) for object: %s. error: %v", policy.Name, objectKey, err)
+			return err
+		}
+
+		if operationResult == controllerutil.OperationResultCreated {
+			klog.Infof("Create ResourceBinding(%s) successfully.", binding.GetName())
+		} else if operationResult == controllerutil.OperationResultUpdated {
+			klog.Infof("Update ResourceBinding(%s) successfully.", binding.GetName())
+		} else {
+			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())
+		}
 	} else {
-		klog.V(2).Infof("ClusterResourceBinding(%s) is up to date.", binding.GetName())
+		binding := d.BuildClusterResourceBinding(object, objectKey, policyLabels)
+		bindingCopy := binding.DeepCopy()
+		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			bindingCopy.Labels = binding.Labels
+			bindingCopy.OwnerReferences = binding.OwnerReferences
+			bindingCopy.Spec.Resource = binding.Spec.Resource
+			return nil
+		})
+
+		if err != nil {
+			klog.Errorf("Failed to apply cluster policy(%s) for object: %s. error: %v", policy.Name, objectKey, err)
+			return err
+		}
+
+		if operationResult == controllerutil.OperationResultCreated {
+			klog.Infof("Create ClusterResourceBinding(%s) successfully.", binding.GetName())
+		} else if operationResult == controllerutil.OperationResultUpdated {
+			klog.Infof("Update ClusterResourceBinding(%s) successfully.", binding.GetName())
+		} else {
+			klog.V(2).Infof("ClusterResourceBinding(%s) is up to date.", binding.GetName())
+		}
 	}
 
 	return nil
@@ -425,7 +488,7 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 	util.MergeLabel(object, util.PropagationPolicyNamespaceLabel, policyNamespace)
 	util.MergeLabel(object, util.PropagationPolicyNameLabel, policyName)
 
-	return d.Client.Update(context.TODO(), object.DeepCopyObject())
+	return d.Client.Update(context.TODO(), object)
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with.
@@ -438,11 +501,11 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 	}
 
 	util.MergeLabel(object, util.ClusterPropagationPolicyLabel, policyName)
-	return d.Client.Update(context.TODO(), object.DeepCopyObject())
+	return d.Client.Update(context.TODO(), object)
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) *workv1alpha1.ResourceBinding {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) *workv1alpha1.ResourceBinding {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	propagationBinding := &workv1alpha1.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -451,10 +514,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
-			Labels: map[string]string{
-				util.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
-				util.PropagationPolicyNameLabel:      policy.GetName(),
-			},
+			Labels: labels,
 		},
 		Spec: workv1alpha1.ResourceBindingSpec{
 			Resource: workv1alpha1.ObjectReference{
@@ -471,7 +531,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
-func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) *workv1alpha1.ClusterResourceBinding {
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) *workv1alpha1.ClusterResourceBinding {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	binding := &workv1alpha1.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -479,9 +539,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
-			Labels: map[string]string{
-				util.ClusterPropagationPolicyLabel: policy.GetName(),
-			},
+			Labels: labels,
 		},
 		Spec: workv1alpha1.ResourceBindingSpec{
 			Resource: workv1alpha1.ObjectReference{
@@ -802,7 +860,7 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 
 	klog.Infof("Reconciling resource binding(%s/%s)", binding.Namespace, binding.Name)
 	switch binding.Spec.Resource.Kind {
-	case "Deployment":
+	case helper.DeploymentKind:
 		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
 	default:
 		// Unsupported resource type.
@@ -867,7 +925,7 @@ func (d *ResourceDetector) ReconcileClusterResourceBinding(key util.QueueKey) er
 
 	klog.Infof("Reconciling cluster resource binding(%s)", binding.Name)
 	switch binding.Spec.Resource.Kind {
-	case "Deployment":
+	case helper.DeploymentKind:
 		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
 	default:
 		// Unsupported resource type.
@@ -934,7 +992,7 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 // Note: Only limited resource type supported.
 func (d *ResourceDetector) CleanupResourceTemplateStatus(objRef workv1alpha1.ObjectReference) error {
 	switch objRef.Kind {
-	case "Deployment":
+	case helper.DeploymentKind:
 		return d.CleanupDeploymentStatus(objRef)
 	}
 

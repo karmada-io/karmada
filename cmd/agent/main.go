@@ -12,9 +12,9 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	stopChan := apiserver.SetupSignalHandler()
+	ctx := apiserver.SetupSignalContext()
 
-	if err := app.NewAgentCommand(stopChan).Execute(); err != nil {
+	if err := app.NewAgentCommand(ctx).Execute(); err != nil {
 		klog.Fatal(err.Error())
 	}
 }

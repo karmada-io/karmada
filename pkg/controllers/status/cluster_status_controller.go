@@ -54,7 +54,7 @@ type ClusterStatusController struct {
 // Reconcile syncs status of the given member cluster.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will requeue the reconcile key after the duration.
-func (c *ClusterStatusController) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Syncing cluster status: %s", req.NamespacedName.String())
 
 	cluster := &v1alpha1.Cluster{}
