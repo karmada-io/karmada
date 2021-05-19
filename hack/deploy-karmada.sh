@@ -24,12 +24,12 @@ source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
   echo "This script will deploy karmada control plane to a given cluster."
-  echo "Usage: hack/deploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME>"
+  echo "Usage: hack/deploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME> [KARMADA_API_SERVER_IP]"
   echo "Example: hack/deploy-karmada.sh ~/.kube/config karmada-host"
   unset KUBECONFIG
 }
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -lt 2 ]]; then
   usage
   exit 1
 fi
@@ -132,7 +132,12 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-apiserver.yaml"
 # Wait for karmada-apiserver to come up before launching the rest of the components.
 util::wait_pod_ready "${APISERVER_POD_LABEL}" "karmada-system"
 
-KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n karmada-system -o jsonpath='{.spec.clusterIP}')
+if [[ -z "$3" ]]; then
+  KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n karmada-system -o jsonpath='{.spec.clusterIP}')
+else
+  KARMADA_APISERVER_IP=$3
+fi
+
 if [[ -z "${KARMADA_APISERVER_IP}" ]]; then
   echo -e "ERROR: failed to create service 'karmada-apiserver', please verify.\n"
   exit 1
