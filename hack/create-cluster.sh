@@ -33,6 +33,8 @@ if [[ -z "${KUBECONFIG}" ]]; then
   exit 1
 fi
 
+util::cmd_must_exist "kind"
+
 if [ -f "${KUBECONFIG}" ];then
   echo "kubeconfig file is existed, new config will append to it."
   if kubectl config get-contexts "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}"> /dev/null 2>&1;
