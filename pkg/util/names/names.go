@@ -44,6 +44,14 @@ func GenerateBindingName(kind, name string) string {
 	return strings.ToLower(name + "-" + kind)
 }
 
+// GenerateWorkName will generate work name by namespace, kind and name
+func GenerateWorkName(kind, name, namespace string) string {
+	if len(namespace) == 0 {
+		return strings.ToLower(name + "-" + kind)
+	}
+	return strings.ToLower(namespace + "-" + name + "-" + kind)
+}
+
 // GenerateServiceAccountName generates the name of a ServiceAccount.
 func GenerateServiceAccountName(clusterName string) string {
 	return fmt.Sprintf("%s-%s", "karmada", clusterName)
