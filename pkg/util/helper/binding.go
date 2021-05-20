@@ -174,7 +174,7 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 			return err
 		}
 
-		workName := binding.GetName()
+		workName := names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace())
 		workNamespace, err := names.GenerateExecutionSpaceName(clusterName)
 		if err != nil {
 			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
