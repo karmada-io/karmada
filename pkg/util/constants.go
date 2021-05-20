@@ -54,3 +54,12 @@ const (
 	// is deleted before Work itself is deleted.
 	ExecutionControllerFinalizer = "karmada.io/execution-controller"
 )
+
+const (
+	// ProviderField indicates the 'provider' field of a cluster
+	ProviderField = "provider"
+	// RegionField indicates the 'region' field of a cluster
+	RegionField = "region"
+	// ZoneField indicates the 'zone' field of a cluster
+	ZoneField = "zone"
+)

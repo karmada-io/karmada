@@ -1,9 +1,13 @@
 package util
 
 import (
+	"fmt"
+
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -46,7 +50,6 @@ func ResourceMatches(resource *unstructured.Unstructured, rs v1alpha1.ResourceSe
 }
 
 // ClusterMatches tells if specific cluster matches the affinity.
-// TODO(RainbowMango): Now support ClusterAffinity.ClusterNames, ClusterAffinity.ExcludeClusters and ClusterAffinity.LabelSelector. More rules will be implemented later.
 func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity v1alpha1.ClusterAffinity) bool {
 	for _, clusterName := range affinity.ExcludeClusters {
 		if clusterName == cluster.Name {
@@ -55,11 +58,15 @@ func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity v1alpha1.ClusterA
 	}
 
 	// match rules:
-	// case LabelSelector   ClusterNames   		Rule
-	// 1    not-empty        not-empty          match selector and name
-	// 2    not-empty        empty              match selector only
-	// 3    empty            not-empty          match name only
-	// 4    empty            empty              match all
+	// case LabelSelector   ClusterNames   	FieldSelector       Rule
+	// 1    not-empty        not-empty       not-empty          match selector, name and field
+	// 2    not-empty        empty           empty              match selector only
+	// 3    not-empty        not-empty       empty              match selector, name
+	// 4    not-empty        empty       	 not-empty          match selector, filed
+	// 5    empty            not-empty       not-empty          match name, filed
+	// 6    empty            not-empty       empty              match name only
+	// 7    empty            empty       	 not-empty          match field only
+	// 8    empty            empty           empty              match all
 
 	if affinity.LabelSelector != nil {
 		var s labels.Selector
@@ -69,6 +76,18 @@ func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity v1alpha1.ClusterA
 		}
 
 		if !s.Matches(labels.Set(cluster.GetLabels())) {
+			return false
+		}
+	}
+
+	if affinity.FieldSelector != nil {
+		var matchFields labels.Selector
+		var err error
+		if matchFields, err = nodeSelectorRequirementsAsSelector(affinity.FieldSelector.MatchExpressions); err != nil {
+			return false
+		}
+		clusterFields := extractClusterFields(cluster)
+		if matchFields != nil && !matchFields.Matches(clusterFields) {
 			return false
 		}
 	}
@@ -98,4 +117,61 @@ func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...v1
 		}
 	}
 	return false
+}
+
+// This code is directly lifted from the Kubernetes codebase.
+// For reference: https://github.com/kubernetes/kubernetes/blob/release-1.20/staging/src/k8s.io/component-helpers/scheduling/corev1/nodeaffinity/nodeaffinity.go#L193-L225
+// nodeSelectorRequirementsAsSelector converts the []NodeSelectorRequirement api type into a struct that implements
+// labels.Selector.
+func nodeSelectorRequirementsAsSelector(nsm []v1.NodeSelectorRequirement) (labels.Selector, error) {
+	if len(nsm) == 0 {
+		return labels.Nothing(), nil
+	}
+	selector := labels.NewSelector()
+	for _, expr := range nsm {
+		var op selection.Operator
+		switch expr.Operator {
+		case v1.NodeSelectorOpIn:
+			op = selection.In
+		case v1.NodeSelectorOpNotIn:
+			op = selection.NotIn
+		case v1.NodeSelectorOpExists:
+			op = selection.Exists
+		case v1.NodeSelectorOpDoesNotExist:
+			op = selection.DoesNotExist
+		case v1.NodeSelectorOpGt:
+			op = selection.GreaterThan
+		case v1.NodeSelectorOpLt:
+			op = selection.LessThan
+		default:
+			return nil, fmt.Errorf("%q is not a valid node selector operator", expr.Operator)
+		}
+		r, err := labels.NewRequirement(expr.Key, op, expr.Values)
+		if err != nil {
+			return nil, err
+		}
+		selector = selector.Add(*r)
+	}
+	return selector, nil
+}
+
+func extractClusterFields(cluster *clusterv1alpha1.Cluster) labels.Set {
+	clusterFieldsMap := make(labels.Set)
+	if cluster.Name != "" {
+		clusterFieldsMap["metadata.name"] = cluster.Name
+	}
+
+	if cluster.Spec.Provider != "" {
+		clusterFieldsMap[ProviderField] = cluster.Spec.Provider
+	}
+
+	if cluster.Spec.Region != "" {
+		clusterFieldsMap[RegionField] = cluster.Spec.Region
+	}
+
+	if cluster.Spec.Zone != "" {
+		clusterFieldsMap[ZoneField] = cluster.Spec.Zone
+	}
+
+	return clusterFieldsMap
 }

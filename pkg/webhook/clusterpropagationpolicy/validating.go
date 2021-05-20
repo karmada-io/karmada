@@ -50,6 +50,11 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		return admission.Denied(err.Error())
 	}
 
+	if err := helper.ValidateFieldSelector(policy.Spec.Placement.ClusterAffinity.FieldSelector); err != nil {
+		klog.Error(err)
+		return admission.Denied(err.Error())
+	}
+
 	return admission.Allowed("")
 }
 

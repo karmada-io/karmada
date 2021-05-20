@@ -3,10 +3,12 @@ package helper
 import (
 	"fmt"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // DenyReasonResourceSelectorsModify constructs a reason indicating that modify ResourceSelectors is not allowed.
@@ -72,4 +74,27 @@ func IsDependentClusterOverridesPresent(c client.Client, policy *policyv1alpha1.
 	}
 
 	return true, nil
+}
+
+// ValidateFieldSelector tests if the fieldSelector is valid.
+func ValidateFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) error {
+	if fieldSelector == nil {
+		return nil
+	}
+
+	for _, matchExpression := range fieldSelector.MatchExpressions {
+		switch matchExpression.Key {
+		case util.ProviderField, util.RegionField, util.ZoneField:
+		default:
+			return fmt.Errorf("unsupported key %q, must be provider, region, or zone", matchExpression.Key)
+		}
+
+		switch matchExpression.Operator {
+		case v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn:
+		default:
+			return fmt.Errorf("unsupported operator %q, must be In or NotIn", matchExpression.Operator)
+		}
+	}
+
+	return nil
 }
