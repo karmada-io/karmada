@@ -87,7 +87,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
 			return err
 		}
-		workName := names.GenerateBindingName(hpaObj.GetKind(), hpaObj.GetName())
+		workName := names.GenerateWorkName(hpaObj.GetKind(), hpaObj.GetName(), hpa.GetNamespace())
 		objectMeta := metav1.ObjectMeta{
 			Name:       workName,
 			Namespace:  workNamespace,
