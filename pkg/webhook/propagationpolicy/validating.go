@@ -46,7 +46,12 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 	}
 
 	if err := helper.ValidateSpreadConstraint(policy.Spec.Placement.SpreadConstraints); err != nil {
-		klog.Info(err)
+		klog.Error(err)
+		return admission.Denied(err.Error())
+	}
+
+	if err := helper.ValidateFieldSelector(policy.Spec.Placement.ClusterAffinity.FieldSelector); err != nil {
+		klog.Error(err)
 		return admission.Denied(err.Error())
 	}
 
