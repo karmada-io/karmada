@@ -88,24 +88,16 @@ test:
 images: image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook image-karmada-agent
 
 image-karmada-controller-manager: karmada-controller-manager
-	cp karmada-controller-manager cluster/images/karmada-controller-manager && \
-	docker build -t $(REGISTRY)/karmada-controller-manager:$(VERSION) cluster/images/karmada-controller-manager && \
-	rm cluster/images/karmada-controller-manager/karmada-controller-manager
+	VERSION=$(VERSION) hack/docker.sh karmada-controller-manager
 
 image-karmada-scheduler: karmada-scheduler
-	cp karmada-scheduler cluster/images/karmada-scheduler && \
-	docker build -t $(REGISTRY)/karmada-scheduler:$(VERSION) cluster/images/karmada-scheduler && \
-	rm cluster/images/karmada-scheduler/karmada-scheduler
+	VERSION=$(VERSION) hack/docker.sh karmada-scheduler
 
 image-karmada-webhook: karmada-webhook
-	cp karmada-webhook cluster/images/karmada-webhook && \
-	docker build -t $(REGISTRY)/karmada-webhook:$(VERSION) cluster/images/karmada-webhook && \
-	rm cluster/images/karmada-webhook/karmada-webhook
+	VERSION=$(VERSION) hack/docker.sh karmada-webhook
 
 image-karmada-agent: karmada-agent
-	cp karmada-agent cluster/images/karmada-agent && \
-	docker build -t $(REGISTRY)/karmada-agent:$(VERSION) cluster/images/karmada-agent && \
-	rm cluster/images/karmada-agent/karmada-agent
+	VERSION=$(VERSION) hack/docker.sh karmada-agent
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
