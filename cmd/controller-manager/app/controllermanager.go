@@ -78,7 +78,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		return err
 	}
 
-	if err = controllerManager.AddHealthzCheck("ping", healthz.Ping); err != nil {
+	if err := controllerManager.AddHealthzCheck("ping", healthz.Ping); err != nil {
 		klog.Errorf("failed to add health check endpoint: %v", err)
 		return err
 	}
