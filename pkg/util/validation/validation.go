@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"net/url"
 
+	v1 "k8s.io/api/core/v1"
 	kubevalidation "k8s.io/apimachinery/pkg/util/validation"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const clusterNameMaxLength int = 48
@@ -40,6 +44,29 @@ func ValidateClusterProxyURL(proxyURL string) []string {
 	case "http", "https", "socks5":
 	default:
 		return []string{fmt.Sprintf("unsupported scheme %q, must be http, https, or socks5", u.Scheme)}
+	}
+
+	return nil
+}
+
+// ValidatePolicyFieldSelector tests if the fieldSelector of propagation policy is valid.
+func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) error {
+	if fieldSelector == nil {
+		return nil
+	}
+
+	for _, matchExpression := range fieldSelector.MatchExpressions {
+		switch matchExpression.Key {
+		case util.ProviderField, util.RegionField, util.ZoneField:
+		default:
+			return fmt.Errorf("unsupported key %q, must be provider, region, or zone", matchExpression.Key)
+		}
+
+		switch matchExpression.Operator {
+		case v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn:
+		default:
+			return fmt.Errorf("unsupported operator %q, must be In or NotIn", matchExpression.Operator)
+		}
 	}
 
 	return nil
