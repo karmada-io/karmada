@@ -15,7 +15,7 @@ HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # The KUBECONFIG path for the 'host cluster'.
-HOST_CLUSTER_KUBECONFIG="${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config"
+HOST_CLUSTER_KUBECONFIG="${KUBECONFIG_PATH}/karmada.config"
 
 # Make sure KUBECONFIG path exists.
 if [ ! -d "$KUBECONFIG_PATH" ]; then
@@ -40,18 +40,28 @@ kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST
 kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 # deploy karmada control plane
-"${SCRIPT_ROOT}"/hack/deploy-karmada.sh
+KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
+"${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${KARMADA_APISERVER_IP}"
+kubectl config use-context karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
 function print_success() {
   echo
   echo "Local Karmada is running."
-  echo "To start using your karmada, run:"
-cat <<EOF
-  export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
-EOF
-  echo "To start checking karmada components running status on the host cluster, please run:"
+  echo
+  echo "Kubeconfig for karmada in file: ${HOST_CLUSTER_KUBECONFIG}, so you can run:"
 cat <<EOF
   export KUBECONFIG="${HOST_CLUSTER_KUBECONFIG}"
+EOF
+  echo "Or use kubectl with --kubeconfig=${HOST_CLUSTER_KUBECONFIG}"
+  echo "Please use 'kubectl config use-context <Context_Name>' to switch cluster to operate, the following is context intro:"
+cat <<EOF
+  ------------------------------------------------------
+  |    Context Name   |          Purpose               |
+  |----------------------------------------------------|
+  | karmada-host      | the cluster karmada install in |
+  |----------------------------------------------------|
+  | karmada-apiserver | karmada control plane          |
+  ------------------------------------------------------
 EOF
 }
 

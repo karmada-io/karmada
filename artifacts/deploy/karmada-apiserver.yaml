@@ -42,6 +42,7 @@ spec:
             - --etcd-certfile=/etc/kubernetes/pki/karmada.crt
             - --etcd-keyfile=/etc/kubernetes/pki/karmada.key
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
+            - --bind-address=0.0.0.0
             - --insecure-port=8080
             - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
             - --kubelet-client-key=/etc/kubernetes/pki/karmada.key
@@ -64,7 +65,6 @@ spec:
           livenessProbe:
             failureThreshold: 8
             httpGet:
-              host: {{api_addr}}
               path: /livez
               port: 5443
               scheme: HTTPS
@@ -75,7 +75,6 @@ spec:
           readinessProbe:
             failureThreshold: 3
             httpGet:
-              host: {{api_addr}}
               path: /readyz
               port: 5443
               scheme: HTTPS
