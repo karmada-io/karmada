@@ -117,28 +117,70 @@ There are several demonstrations of common cases.
 ```
 
 #### 3. Deploy and run karmada control plane:
+
+Choose a way:
+- [I have not any cluster](#31-i-have-not-any-cluster)
+- [I have present cluster for installing](#32-i-have-present-cluster-for-installing)
+
+
+##### 3.1. I have not any cluster
+
+run the following script: (It will create a host cluster by kind)
+
 ```
 # hack/local-up-karmada.sh
 ```
 The script `hack/local-up-karmada.sh` will do following tasks for you:
 - Start a Kubernetes cluster to run the karmada control plane, aka. the `host cluster`.
-- Build karmada control plane components based on current codebase.
+- Build karmada control plane components based on a current codebase.
 - Deploy karmada control plane components on `host cluster`.
 
 If everything goes well, at the end of the script output, you will see similar messages as follows:
 ```
 Local Karmada is running.
-To start using your karmada, run:
-  export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
-To start checking karmada components running status on the host cluster, please run:
-  export KUBECONFIG="/root/.kube/karmada-host.config"
+
+Kubeconfig for karmada in file: /root/.kube/karmada.config, so you can run:
+  export KUBECONFIG="/root/.kube/karmada.config"
+Or use kubectl with --kubeconfig=/root/.kube/karmada.config
+Please use 'kubectl config use-context <Context_Name>' to switch cluster to operate,
+the following is context intro:
+  ------------------------------------------------------
+  |    Context Name   |          Purpose               |
+  |----------------------------------------------------|
+  | karmada-host      | the cluster karmada install in |
+  |----------------------------------------------------|
+  | karmada-apiserver | karmada control plane          |
+  ------------------------------------------------------
 ```
 
-The two `KUBECONFIG` files after the script run are:
-- karmada-apiserver.config
-- karmada-host.config
+There are two contexts you can switch after the script run are:
+- karmada-apiserver `kubectl config use-context karmada-apiserver`
+- karmada-host `kubectl config use-context karmada-host`
 
-The `karmada-apiserver.config` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host.config` is only used for debuging karmada installation with host cluster.
+The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host` is only used for debugging karmada installation with host cluster, you can check all clusters at any time by run: `kubectl config view` and switch by `kubectl config use-context [CONTEXT_NAME]`
+
+##### 3.2. I have present cluster for installing
+Before run the following script, please make sure you are in the node or master of the cluster to install:
+```
+# hack/remote-up-karmada.sh <kubeconfig> <context_name>
+```
+`kubeconfig` is your cluster's kubeconfig that you want to install to
+
+`context_name` is the name of context in 'kubeconfig'
+
+If everything goes well, at the end of the script output, you will see similar messages as follows:
+```
+Karmada is installed.
+
+Kubeconfig for karmada in file: /root/.kube/karmada.config, so you can run:
+  export KUBECONFIG="/root/.kube/karmada.config"
+Or use kubectl with --kubeconfig=/root/.kube/karmada.config
+Please use 'kubectl config use-context karmada-apiserver' to switch the cluster of karmada control plane
+And use 'kubectl config use-context your-host' for debugging karmada installation
+```
+#### Tips
+- Please make sure you can access google cloud registry: k8s.gcr.io
+- Install script will download golang package, if your server is in the mainland, you need set go proxy like this `export GOPROXY=https://goproxy.cn`
 
 ### Join member cluster
 In the following steps, we are going to create a member cluster and then join the cluster to
@@ -146,23 +188,23 @@ karmada control plane.
 
 #### 1. Create member cluster
 We are going to create a cluster named `member1` and we want the `KUBECONFIG` file
-in `$HOME/.kube/member1.config`. Run following command:
+in `$HOME/.kube/karmada.config`. Run following command:
 ```
-# hack/create-cluster.sh member1 $HOME/.kube/member1.config
+# hack/create-cluster.sh member1 $HOME/.kube/karmada.config
 ```
-The script `hack/create-cluster.sh` will create a standalone cluster.
+The script `hack/create-cluster.sh` will create a standalone cluster by kind.
 
 #### 2. Join member cluster to karmada control plane
 The command `karmadactl` will help to join the member cluster to karmada control plane,
-before that, we should set `KUBECONFIG` to karmada apiserver:
+before that, we should switch to karmada apiserver:
 ```
-# export KUBECONFIG=/var/run/karmada/karmada-apiserver.config
+# kubectl config use-context karmada-apiserver
 ```
 
 Then, install `karmadactl` command and join the member cluster:
 ```
 # go get github.com/karmada-io/karmada/cmd/karmadactl
-# karmadactl join member1 --cluster-kubeconfig=$HOME/.kube/member1.config
+# karmadactl join member1 --cluster-kubeconfig=$HOME/.kube/karmada.config
 ```
 The `karmadactl join` command will create a `Cluster` object to reflect the member cluster.
 

@@ -7,7 +7,7 @@ set -o pipefail
 function usage() {
   echo "This script delete a kube cluster by kind."
   echo "Usage: hack/delete-cluster.sh <CLUSTER_NAME> <KUBECONFIG>"
-  echo "Example: hack/delete-cluster.sh host /root/.kube/host.config"
+  echo "Example: hack/delete-cluster.sh host /root/.kube/karmada.config"
 }
 
 if [[ $# -ne 2 ]]; then
