@@ -11,6 +11,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
 // ValidatingAdmission validates PropagationPolicy object when creating/updating/deleting.
@@ -50,9 +51,12 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		return admission.Denied(err.Error())
 	}
 
-	if err := helper.ValidateFieldSelector(policy.Spec.Placement.ClusterAffinity.FieldSelector); err != nil {
-		klog.Error(err)
-		return admission.Denied(err.Error())
+	if policy.Spec.Placement.ClusterAffinity != nil && policy.Spec.Placement.ClusterAffinity.FieldSelector != nil {
+		err := validation.ValidatePolicyFieldSelector(policy.Spec.Placement.ClusterAffinity.FieldSelector)
+		if err != nil {
+			klog.Error(err)
+			return admission.Denied(err.Error())
+		}
 	}
 
 	return admission.Allowed("")

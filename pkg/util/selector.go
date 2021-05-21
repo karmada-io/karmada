@@ -157,9 +157,6 @@ func nodeSelectorRequirementsAsSelector(nsm []v1.NodeSelectorRequirement) (label
 
 func extractClusterFields(cluster *clusterv1alpha1.Cluster) labels.Set {
 	clusterFieldsMap := make(labels.Set)
-	if cluster.Name != "" {
-		clusterFieldsMap["metadata.name"] = cluster.Name
-	}
 
 	if cluster.Spec.Provider != "" {
 		clusterFieldsMap[ProviderField] = cluster.Spec.Provider

@@ -38,6 +38,11 @@ func NewPolicyWithClusterToleration(namespace, name string, deployment *appsv1.D
 	return newPolicyWithClusterToleration(namespace, name, deployment.APIVersion, deployment.Kind, deployment.Name, clusters, clusterTolerations)
 }
 
+// NewPolicyWithFieldSelector will build a PropagationPolicy object.
+func NewPolicyWithFieldSelector(namespace, name string, deployment *appsv1.Deployment, clusters []string, filedSelector *policyv1alpha1.FieldSelector) *policyv1alpha1.PropagationPolicy {
+	return newPolicyWithFieldSelector(namespace, name, deployment.APIVersion, deployment.Kind, deployment.Name, clusters, filedSelector)
+}
+
 // newPolicy will build a PropagationPolicy object.
 func newPolicy(namespace, policyName, apiVersion, kind, resourceName string, clusters []string) *policyv1alpha1.PropagationPolicy {
 	return &policyv1alpha1.PropagationPolicy{
@@ -115,6 +120,31 @@ func newPolicyWithClusterToleration(namespace, policyName, apiVersion, kind, res
 					ClusterNames: clusters,
 				},
 				ClusterTolerations: clusterTolerations,
+			},
+		},
+	}
+}
+
+// newPolicyWithFieldSelector will build a PropagationPolicy object with fieldSelector.
+func newPolicyWithFieldSelector(namespace, policyName, apiVersion, kind, resourceName string, clusters []string, filedSelector *policyv1alpha1.FieldSelector) *policyv1alpha1.PropagationPolicy {
+	return &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      policyName,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: apiVersion,
+					Kind:       kind,
+					Name:       resourceName,
+				},
+			},
+			Placement: policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames:  clusters,
+					FieldSelector: filedSelector,
+				},
 			},
 		},
 	}
