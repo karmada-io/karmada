@@ -9,15 +9,14 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+      - name: checkout code
+        uses: actions/checkout@v2
+      - name: install Go
+        uses: actions/setup-go@v2
         with:
-          # the version of golangci-lint.
-          version: v1.32.2
-
-          # show only new issues if it's a pull request.
-          only-new-issues: false
+          go-version: 1.14.x
+      - name: lint
+        run: hack/verify-staticcheck.sh
   codegen:
     name: codegen
     runs-on: ubuntu-latest
