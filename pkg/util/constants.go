@@ -63,3 +63,19 @@ const (
 	// ZoneField indicates the 'zone' field of a cluster
 	ZoneField = "zone"
 )
+
+// Define resource kind.
+const (
+	// DeploymentKind indicates the target resource is a deployment
+	DeploymentKind = "Deployment"
+	// ServiceKind indicates the target resource is a service
+	ServiceKind = "Service"
+	// PodKind indicates the target resource is a pod
+	PodKind = "Pod"
+	// ServiceAccountKind indicates the target resource is a serviceaccount
+	ServiceAccountKind = "ServiceAccount"
+	// ReplicaSetKind indicates the target resource is a replicaset
+	ReplicaSetKind = "ReplicaSet"
+	// StatefulSetKind indicates the target resource is a statefulset
+	StatefulSetKind = "StatefulSet"
+)

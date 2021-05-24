@@ -121,11 +121,13 @@ func (c *Components) TagOrDigest() string {
 func (c *Components) SetTagOrDigest(input string) {
 	if anchoredTagRegexp.MatchString(input) {
 		c.SetTag(input)
+		c.RemoveDigest()
 		return
 	}
 
 	if anchoredDigestRegexp.MatchString(input) {
 		c.SetDigest(input)
+		c.RemoveTag()
 	}
 }
 
