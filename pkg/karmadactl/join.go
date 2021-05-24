@@ -210,6 +210,10 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 		return err
 	}
 
+	if opts.DryRun {
+		return nil
+	}
+
 	var clusterSecret *corev1.Secret
 	// It will take a short time to create service account secret for cluster.
 	err = wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
@@ -247,10 +251,6 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 	if err != nil {
 		klog.Errorf("Failed to create secret in control plane. error: %v", err)
 		return err
-	}
-
-	if opts.DryRun {
-		return nil
 	}
 
 	clusterObj := &clusterv1alpha1.Cluster{}
