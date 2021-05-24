@@ -30,8 +30,6 @@ var resourceBindingKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceBinding"
 var clusterResourceBindingKind = v1alpha1.SchemeGroupVersion.WithKind("ClusterResourceBinding")
 
 const (
-	// DeploymentKind indicates the target resource is a deployment
-	DeploymentKind = "Deployment"
 	// SpecField indicates the 'spec' field of a deployment
 	SpecField = "spec"
 	// ReplicasField indicates the 'replicas' field of a deployment
@@ -196,7 +194,7 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 			workLabel[util.ClusterResourceBindingLabel] = binding.GetName()
 		}
 
-		if clonedWorkload.GetKind() == DeploymentKind && referenceRSP != nil {
+		if clonedWorkload.GetKind() == util.DeploymentKind && referenceRSP != nil {
 			err = applyReplicaSchedulingPolicy(clonedWorkload, desireReplicaInfos[clusterName])
 			if err != nil {
 				klog.Errorf("failed to apply ReplicaSchedulingPolicy for %s/%s/%s in cluster %s, err is: %v",
@@ -290,7 +288,7 @@ func calculateReplicasIfNeeded(c client.Client, workload *unstructured.Unstructu
 	var referenceRSP *v1alpha1.ReplicaSchedulingPolicy
 	var desireReplicaInfos = make(map[string]int64)
 
-	if workload.GetKind() == DeploymentKind {
+	if workload.GetKind() == util.DeploymentKind {
 		referenceRSP, err = matchReplicaSchedulingPolicy(c, workload)
 		if err != nil {
 			return nil, nil, err

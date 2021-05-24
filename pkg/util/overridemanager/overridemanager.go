@@ -26,6 +26,7 @@ type OverrideManager interface {
 	ApplyOverridePolicies(rawObj *unstructured.Unstructured, cluster string) (appliedClusterPolicies *AppliedOverrides, appliedNamespacedPolicies *AppliedOverrides, err error)
 }
 
+// overrideOption define the JSONPatch operator
 type overrideOption struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
@@ -96,7 +97,8 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 
 	appliedList := &AppliedOverrides{}
 	for _, p := range matchingPolicies {
-		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
+		if err := applyPolicyOverriders(rawObj, p.Spec.Overriders); err != nil {
+			klog.Errorf("Failed to apply cluster overrides(%s) for resource(%s/%s), error: %v", p.Name, rawObj.GetNamespace(), rawObj.GetName(), err)
 			return nil, err
 		}
 		klog.V(2).Infof("Applied cluster overrides(%s) for %s/%s", p.Name, rawObj.GetNamespace(), rawObj.GetName())
@@ -121,16 +123,17 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 
 	matchingPolicies := o.getMatchingOverridePolicies(policyList.Items, rawObj, cluster)
 	if len(matchingPolicies) == 0 {
-		klog.V(2).Infof("No override policy for resource: %s/%s", rawObj.GetNamespace(), rawObj.GetName())
+		klog.V(2).Infof("No override policy for resource(%s/%s)", rawObj.GetNamespace(), rawObj.GetName())
 		return nil, nil
 	}
 
 	appliedList := &AppliedOverrides{}
 	for _, p := range matchingPolicies {
-		if err := applyJSONPatch(rawObj, parseJSONPatch(p.Spec.Overriders.Plaintext)); err != nil {
+		if err := applyPolicyOverriders(rawObj, p.Spec.Overriders); err != nil {
+			klog.Errorf("Failed to apply overrides(%s/%s) for resource(%s/%s), error: %v", p.Namespace, p.Name, rawObj.GetNamespace(), rawObj.GetName(), err)
 			return nil, err
 		}
-		klog.V(2).Infof("Applied overrides(%s/%s) for %s/%s", p.Namespace, p.Name, rawObj.GetNamespace(), rawObj.GetName())
+		klog.V(2).Infof("Applied overrides(%s/%s) for resource(%s/%s)", p.Namespace, p.Name, rawObj.GetNamespace(), rawObj.GetName())
 		appliedList.Add(p.Name, p.Spec.Overriders)
 	}
 
@@ -207,18 +210,6 @@ func (o *overrideManagerImpl) getMatchingOverridePolicies(policies []policyv1alp
 	return clusterMatchingPolicies
 }
 
-func parseJSONPatch(overriders []policyv1alpha1.PlaintextOverrider) []overrideOption {
-	patches := make([]overrideOption, 0, len(overriders))
-	for i := range overriders {
-		patches = append(patches, overrideOption{
-			Op:    string(overriders[i].Operator),
-			Path:  overriders[i].Path,
-			Value: overriders[i].Value,
-		})
-	}
-	return patches
-}
-
 // applyJSONPatch applies the override on to the given unstructured object.
 func applyJSONPatch(obj *unstructured.Unstructured, overrides []overrideOption) error {
 	jsonPatchBytes, err := json.Marshal(overrides)
@@ -243,4 +234,42 @@ func applyJSONPatch(obj *unstructured.Unstructured, overrides []overrideOption) 
 
 	err = obj.UnmarshalJSON(patchedObjectJSONBytes)
 	return err
+}
+
+// applyPolicyOverriders applies OverridePolicy/ClusterOverridePolicy overriders to target object
+func applyPolicyOverriders(rawObj *unstructured.Unstructured, overriders policyv1alpha1.Overriders) error {
+	err := applyImageOverriders(rawObj, overriders.ImageOverrider)
+	if err != nil {
+		return err
+	}
+
+	return applyJSONPatch(rawObj, parseJSONPatchesByPlaintext(overriders.Plaintext))
+}
+
+func applyImageOverriders(rawObj *unstructured.Unstructured, imageOverriders []policyv1alpha1.ImageOverrider) error {
+	for index := range imageOverriders {
+		patches, err := buildPatches(rawObj, &imageOverriders[index])
+		if err != nil {
+			return err
+		}
+
+		klog.V(4).Infof("Parsed JSON patches by imageOverriders(%+v): %+v", imageOverriders[index], patches)
+		if err = applyJSONPatch(rawObj, patches); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func parseJSONPatchesByPlaintext(overriders []policyv1alpha1.PlaintextOverrider) []overrideOption {
+	patches := make([]overrideOption, 0, len(overriders))
+	for i := range overriders {
+		patches = append(patches, overrideOption{
+			Op:    string(overriders[i].Operator),
+			Path:  overriders[i].Path,
+			Value: overriders[i].Value,
+		})
+	}
+	return patches
 }
