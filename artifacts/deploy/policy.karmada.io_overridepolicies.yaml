@@ -13,6 +13,8 @@ spec:
     kind: OverridePolicy
     listKind: OverridePolicyList
     plural: overridepolicies
+    shortNames:
+    - op
     singular: overridepolicy
   scope: Namespaced
   versions:

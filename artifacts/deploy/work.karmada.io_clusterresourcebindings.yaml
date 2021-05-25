@@ -13,6 +13,8 @@ spec:
     kind: ClusterResourceBinding
     listKind: ClusterResourceBindingList
     plural: clusterresourcebindings
+    shortNames:
+    - crb
     singular: clusterresourcebinding
   scope: Cluster
   versions:
