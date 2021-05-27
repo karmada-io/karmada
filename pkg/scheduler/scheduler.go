@@ -199,20 +199,10 @@ func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
 		util.PropagationPolicyNameLabel:      oldPropagationPolicy.Name,
 	})
 
-	referenceBindings, err := s.bindingLister.List(selector)
+	err := s.requeueResourceBindings(selector)
 	if err != nil {
-		klog.Errorf("Failed to list ResourceBinding by selector: %s, error: %v", selector.String(), err)
+		klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
 		return
-	}
-
-	for _, binding := range referenceBindings {
-		key, err := cache.MetaNamespaceKeyFunc(binding)
-		if err != nil {
-			klog.Errorf("couldn't get key for object %#v: %v", binding, err)
-			continue
-		}
-		klog.Infof("Requeue ResourceBinding(%s/%s) as placement changed.", binding.Namespace, binding.Name)
-		s.queue.Add(key)
 	}
 }
 
@@ -228,26 +218,60 @@ func (s *Scheduler) onClusterPropagationPolicyUpdate(old, cur interface{}) {
 		util.ClusterPropagationPolicyLabel: oldClusterPropagationPolicy.Name,
 	})
 
-	referenceClusterResourceBindings, err := s.clusterBindingLister.List(selector)
+	err := s.requeueClusterResourceBindings(selector)
 	if err != nil {
-		klog.Errorf("Failed to list ClusterResourceBinding by selector: %s, error: %v", selector.String(), err)
-		return
+		klog.Errorf("Failed to requeue ClusterResourceBinding, error: %v", err)
 	}
 
-	for _, clusterResourceBinding := range referenceClusterResourceBindings {
-		key, err := cache.MetaNamespaceKeyFunc(clusterResourceBinding)
-		if err != nil {
-			klog.Errorf("couldn't get key for object %#v: %v", clusterResourceBinding, err)
-			continue
-		}
-		klog.Infof("Requeue ClusterResourceBinding(%s) as placement changed.", clusterResourceBinding.Name)
-		s.queue.Add(key)
+	err = s.requeueResourceBindings(selector)
+	if err != nil {
+		klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
 	}
 }
 
 func (s *Scheduler) worker() {
 	for s.scheduleNext() {
 	}
+}
+
+// requeueResourceBindings will retrieve all ResourceBinding objects by the label selector and put them to queue.
+func (s *Scheduler) requeueResourceBindings(selector labels.Selector) error {
+	referenceBindings, err := s.bindingLister.List(selector)
+	if err != nil {
+		klog.Errorf("Failed to list ResourceBinding by selector: %s, error: %v", selector.String(), err)
+		return err
+	}
+
+	for _, binding := range referenceBindings {
+		key, err := cache.MetaNamespaceKeyFunc(binding)
+		if err != nil {
+			klog.Errorf("couldn't get key for ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
+			continue
+		}
+		klog.Infof("Requeue ResourceBinding(%s/%s) as placement changed.", binding.Namespace, binding.Name)
+		s.queue.Add(key)
+	}
+	return nil
+}
+
+// requeueClusterResourceBindings will retrieve all ClusterResourceBinding objects by the label selector and put them to queue.
+func (s *Scheduler) requeueClusterResourceBindings(selector labels.Selector) error {
+	referenceClusterResourceBindings, err := s.clusterBindingLister.List(selector)
+	if err != nil {
+		klog.Errorf("Failed to list ClusterResourceBinding by selector: %s, error: %v", selector.String(), err)
+		return err
+	}
+
+	for _, clusterResourceBinding := range referenceClusterResourceBindings {
+		key, err := cache.MetaNamespaceKeyFunc(clusterResourceBinding)
+		if err != nil {
+			klog.Errorf("couldn't get key for ClusterResourceBinding(%s): %v", clusterResourceBinding.Name, err)
+			continue
+		}
+		klog.Infof("Requeue ClusterResourceBinding(%s) as placement changed.", clusterResourceBinding.Name)
+		s.queue.Add(key)
+	}
+	return nil
 }
 
 func (s *Scheduler) getPlacement(resourceBinding *workv1alpha1.ResourceBinding) (policyv1alpha1.Placement, string, error) {
