@@ -11,12 +11,13 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	errors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -149,7 +150,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 
 	object, err := d.GetUnstructuredObject(clusterWideKey)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// The resource may no longer exist, in which case we stop processing.
 			// Once resource be deleted, the derived ResourceBinding or ClusterResourceBinding also need to be cleaned up,
 			// currently we do that by setting owner reference to derived objects.
@@ -441,7 +442,7 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 
 	object, err := d.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get object(%s), error: %v", objectKey, err)
 		}
 		return nil, err
@@ -466,7 +467,7 @@ func (d *ResourceDetector) GetObject(objectKey keys.ClusterWideKey) (runtime.Obj
 
 	object, err := d.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get object(%s), error: %v", objectKey, err)
 		}
 		return nil, err
@@ -632,7 +633,7 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 
 	policy := &policyv1alpha1.PropagationPolicy{}
 	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: ckey.Namespace, Name: ckey.Name}, policy); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			klog.Infof("Policy(%s) has been removed", ckey.NamespaceKey())
 			return d.HandlePropagationPolicyDeletion(ckey.Namespace, ckey.Name)
 		}
@@ -677,9 +678,9 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 
 	policy := &policyv1alpha1.ClusterPropagationPolicy{}
 	if err := d.Client.Get(context.TODO(), client.ObjectKey{Name: ckey.Name}, policy); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			klog.Infof("Policy(%s) has been removed", ckey.NamespaceKey())
-			return d.HandlePropagationPolicyDeletion(ckey.Namespace, ckey.Name)
+			return d.HandleClusterPropagationPolicyDeletion(ckey.Name)
 		}
 		return err
 	}
@@ -693,23 +694,23 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 // In addition, the label added to original resource also need to be cleaned up, this gives a chance for
 // original resource to match another policy.
 func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, policyName string) error {
-	bindings := &workv1alpha1.ResourceBindingList{}
-	selector := labels.SelectorFromSet(labels.Set{
+	labelSet := labels.Set{
 		util.PropagationPolicyNamespaceLabel: policyNS,
 		util.PropagationPolicyNameLabel:      policyName,
-	})
-	listOpt := &client.ListOptions{LabelSelector: selector}
+	}
 
-	if err := d.Client.List(context.TODO(), bindings, listOpt); err != nil {
+	rbs, err := helper.GetResourceBindings(d.Client, labelSet)
+	if err != nil {
 		klog.Errorf("Failed to list propagation bindings: %v", err)
 		return err
 	}
 
-	for _, binding := range bindings.Items {
+	for _, binding := range rbs.Items {
 		// Cleanup the labels from the object referencing by binding.
 		// In addition, this will give the object a chance to match another policy.
 		if err := d.CleanupLabels(binding.Spec.Resource, util.PropagationPolicyNameLabel, util.PropagationPolicyNameLabel); err != nil {
-			klog.Errorf("Failed to cleanup labels(%s/%s), error: %v", binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when resource binding(%s/%s) removing, error: %v",
+				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Namespace, binding.Name, err)
 			return err
 		}
 
@@ -723,35 +724,64 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 }
 
 // HandleClusterPropagationPolicyDeletion handles ClusterPropagationPolicy delete event.
-// When policy removing, the associated ClusterResourceBinding objects should be cleaned up.
-// In addition, the label added to original resource also need to be cleaned up, this gives a chance for
+// When policy removing, the associated ClusterResourceBinding or ResourceBinding objects will be cleaned up.
+// In addition, the label added to original resource also should be cleaned up, this gives a chance for
 // original resource to match another policy.
 func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName string) error {
-	bindings := &workv1alpha1.ClusterResourceBindingList{}
-	selector := labels.SelectorFromSet(labels.Set{
+	var errs []error
+	labelSet := labels.Set{
 		util.ClusterPropagationPolicyLabel: policyName,
-	})
-	listOpt := &client.ListOptions{LabelSelector: selector}
-
-	if err := d.Client.List(context.TODO(), bindings, listOpt); err != nil {
-		klog.Errorf("Failed to list cluster propagation bindings: %v", err)
-		return err
 	}
 
-	for _, binding := range bindings.Items {
-		// Cleanup the labels from the object referencing by binding.
-		// In addition, this will give the object a chance to match another policy.
-		if err := d.CleanupLabels(binding.Spec.Resource, util.ClusterPropagationPolicyLabel); err != nil {
-			klog.Errorf("Failed to cleanup labels(%s/%s), error: %v", binding.Namespace, binding.Name, err)
-			return err
-		}
+	// load and remove the ClusterResourceBindings which labeled with current policy
+	crbs, err := helper.GetClusterResourceBindings(d.Client, labelSet)
+	if err != nil {
+		klog.Errorf("Failed to load cluster resource binding by policy(%s), error: %v", policyName, err)
+		errs = append(errs, err)
+	} else if len(crbs.Items) > 0 {
+		for _, binding := range crbs.Items {
+			// Cleanup the labels from the object referencing by binding.
+			// In addition, this will give the object a chance to match another policy.
+			if err := d.CleanupLabels(binding.Spec.Resource, util.ClusterPropagationPolicyLabel); err != nil {
+				klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when cluster resource binding(%s) removing, error: %v",
+					binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Name, err)
+				errs = append(errs, err)
+			}
 
-		klog.V(2).Infof("Removing cluster resource binding(%s)", binding.Name)
-		if err := d.Client.Delete(context.TODO(), &binding); err != nil {
-			klog.Errorf("Failed to delete cluster resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
-			return err
+			klog.V(2).Infof("Removing cluster resource binding(%s)", binding.Name)
+			if err := d.Client.Delete(context.TODO(), &binding); err != nil {
+				klog.Errorf("Failed to delete cluster resource binding(%s), error: %v", binding.Name, err)
+				errs = append(errs, err)
+			}
 		}
 	}
+
+	// load and remove the ResourceBindings which labeled with current policy
+	rbs, err := helper.GetResourceBindings(d.Client, labelSet)
+	if err != nil {
+		klog.Errorf("Failed to load resource binding by policy(%s), error: %v", policyName, err)
+		errs = append(errs, err)
+	} else if len(rbs.Items) > 0 {
+		for _, binding := range rbs.Items {
+			// Cleanup the labels from the object referencing by binding.
+			// In addition, this will give the object a chance to match another policy.
+			if err := d.CleanupLabels(binding.Spec.Resource, util.ClusterPropagationPolicyLabel); err != nil {
+				klog.Errorf("Failed to cleanup label from resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
+				errs = append(errs, err)
+			}
+
+			klog.V(2).Infof("Removing resource binding(%s)", binding.Name)
+			if err := d.Client.Delete(context.TODO(), &binding); err != nil {
+				klog.Errorf("Failed to delete resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
+
 	return nil
 }
 
@@ -852,7 +882,7 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 
 	binding := &workv1alpha1.ResourceBinding{}
 	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: ckey.Namespace, Name: ckey.Name}, binding); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		return err
@@ -917,7 +947,7 @@ func (d *ResourceDetector) ReconcileClusterResourceBinding(key util.QueueKey) er
 
 	binding := &workv1alpha1.ClusterResourceBinding{}
 	if err := d.Client.Get(context.TODO(), client.ObjectKey{Name: ckey.Name}, binding); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		return err
@@ -941,7 +971,7 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 
 	obj := &appsv1.Deployment{}
 	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: objRef.Namespace, Name: objRef.Name}, obj); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		klog.Errorf("Failed to get deployment(%s/%s): %v", objRef.Namespace, objRef.Name, err)
@@ -1008,7 +1038,7 @@ func (d *ResourceDetector) CleanupDeploymentStatus(objRef workv1alpha1.ObjectRef
 
 	obj := &appsv1.Deployment{}
 	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: objRef.Namespace, Name: objRef.Name}, obj); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		klog.Errorf("Failed to get deployment(%s/%s): %v", objRef.Namespace, objRef.Name, err)
@@ -1031,7 +1061,7 @@ func (d *ResourceDetector) CleanupLabels(objRef workv1alpha1.ObjectReference, la
 	workload, err := helper.FetchWorkload(d.DynamicClient, d.RESTMapper, objRef)
 	if err != nil {
 		// do nothing if resource template not exist, it might has been removed.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		klog.Errorf("Failed to fetch resource(kind=%s, %s/%s): %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
