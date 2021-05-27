@@ -403,3 +403,19 @@ func applyReplicaSchedulingPolicy(workload *unstructured.Unstructured, desireRep
 	}
 	return nil
 }
+
+// GetClusterResourceBindings returns a ClusterResourceBindingList by labels.
+func GetClusterResourceBindings(c client.Client, ls labels.Set) (*workv1alpha1.ClusterResourceBindingList, error) {
+	bindings := &workv1alpha1.ClusterResourceBindingList{}
+	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
+
+	return bindings, c.List(context.TODO(), bindings, listOpt)
+}
+
+// GetResourceBindings returns a ResourceBindingList by labels
+func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha1.ResourceBindingList, error) {
+	bindings := &workv1alpha1.ResourceBindingList{}
+	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
+
+	return bindings, c.List(context.TODO(), bindings, listOpt)
+}
