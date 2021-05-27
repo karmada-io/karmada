@@ -180,7 +180,7 @@ And use 'kubectl config use-context your-host' for debugging karmada installatio
 ```
 #### Tips
 - Please make sure you can access google cloud registry: k8s.gcr.io
-- Install script will download golang package, if your server is in the mainland, you need set go proxy like this `export GOPROXY=https://goproxy.cn`
+- Install script will download golang package, if your server is in the mainland China, you may set go proxy like this `export GOPROXY=https://goproxy.cn`
 
 ### Join member cluster
 In the following steps, we are going to create a member cluster and then join the cluster to
