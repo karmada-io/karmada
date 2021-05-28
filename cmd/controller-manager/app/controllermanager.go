@@ -100,17 +100,20 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	resetConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(resetConfig)
-
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
 	overrideManager := overridemanager.New(mgr.GetClient())
-
+	skippedResourceConfig := util.NewSkippedResourceConfig()
+	// TODO(pigletfly): add SkippedPropagatingAPIs validation
+	skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs)
 	resourceDetector := &detector.ResourceDetector{
-		DiscoveryClientSet: discoverClientSet,
-		Client:             mgr.GetClient(),
-		InformerManager:    informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
-		RESTMapper:         mgr.GetRESTMapper(),
-		DynamicClient:      dynamicClientSet,
+		DiscoveryClientSet:    discoverClientSet,
+		Client:                mgr.GetClient(),
+		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
+		RESTMapper:            mgr.GetRESTMapper(),
+		DynamicClient:         dynamicClientSet,
+		SkippedResourceConfig: skippedResourceConfig,
 	}
+
 	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
 	resourceDetector.Processor = util.NewAsyncWorker("resource detector", time.Microsecond, detector.ClusterWideKeyFunc, resourceDetector.Reconcile)
 	if err := mgr.Add(resourceDetector); err != nil {

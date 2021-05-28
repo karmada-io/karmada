@@ -49,6 +49,8 @@ type Options struct {
 	ClusterMonitorGracePeriod metav1.Duration
 	// When cluster is just created, e.g. agent bootstrap or cluster join, we give a longer grace period.
 	ClusterStartupGracePeriod metav1.Duration
+	// SkippedPropagatingAPIs indicates comma separated resources that should be skipped for propagating.
+	SkippedPropagatingAPIs string
 }
 
 // NewOptions builds an empty options.
@@ -103,4 +105,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		"Specifies the grace period of allowing a running cluster to be unresponsive before marking it unhealthy.")
 	flags.DurationVar(&o.ClusterStartupGracePeriod.Duration, "cluster-startup-grace-period", 60*time.Second,
 		"Specifies the grace period of allowing a cluster to be unresponsive during startup before marking it unhealthy.")
+	flags.StringVar(&o.SkippedPropagatingAPIs, "skipped-propagating-apis", "", "Semicolon separated resources that should be skipped from propagating in addition to the default skip list(cluster.karmada.io;policy.karmada.io;work.karmada.io). Supported formats are:\n"+
+		"<group> for skip resources with a specific API group(e.g. networking.k8s.io),\n"+
+		"<group>/<version> for skip resources with a specific API version(e.g. networking.k8s.io/v1beta1),\n"+
+		"<group>/<version>/<kind>,<kind> for skip one or more specific resource(e.g. networking.k8s.io/v1beta1/Ingress,IngressClass) where the kinds are case-insensitive.")
 }
