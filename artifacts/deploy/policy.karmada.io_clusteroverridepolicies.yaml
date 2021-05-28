@@ -13,6 +13,8 @@ spec:
     kind: ClusterOverridePolicy
     listKind: ClusterOverridePolicyList
     plural: clusteroverridepolicies
+    shortNames:
+    - cop
     singular: clusteroverridepolicy
   scope: Cluster
   versions:

@@ -13,6 +13,8 @@ spec:
     kind: ClusterPropagationPolicy
     listKind: ClusterPropagationPolicyList
     plural: clusterpropagationpolicies
+    shortNames:
+    - cpp
     singular: clusterpropagationpolicy
   scope: Cluster
   versions:

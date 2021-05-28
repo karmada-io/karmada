@@ -8,6 +8,7 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=rb
 
 // ResourceBinding represents a binding of a kubernetes resource with a propagation policy.
 type ResourceBinding struct {
@@ -95,7 +96,7 @@ type ResourceBindingList struct {
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:scope="Cluster"
+// +kubebuilder:resource:scope="Cluster",shortName=crb
 // +kubebuilder:subresource:status
 
 // ClusterResourceBinding represents a binding of a kubernetes resource with a ClusterPropagationPolicy.
