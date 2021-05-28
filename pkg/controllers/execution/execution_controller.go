@@ -67,10 +67,8 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		applied := c.isResourceApplied(&work.Status)
-		if applied {
-			err := c.tryDeleteWorkload(cluster, work)
-			if err != nil {
+		if applied := c.isResourceApplied(&work.Status); applied {
+			if err := c.tryDeleteWorkload(cluster, work); err != nil {
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 				return controllerruntime.Result{Requeue: true}, err
 			}
@@ -123,7 +121,7 @@ func (c *Controller) tryDeleteWorkload(cluster *v1alpha1.Cluster, work *workv1al
 	// Do not clean up resource in the given member cluster if the status of the given member cluster is unready
 	if !util.IsClusterReady(&cluster.Status) {
 		klog.Infof("Do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", cluster.Name)
-		return nil
+		return fmt.Errorf("do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", cluster.Name)
 	}
 
 	for _, manifest := range work.Spec.Workload.Manifests {
