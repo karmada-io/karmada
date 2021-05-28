@@ -62,10 +62,6 @@ type ResourceDetector struct {
 	// a reconcile function to consume the items in queue.
 	bindingReconcileWorker util.AsyncWorker
 
-	// clusterBindingReconcileWorker maintains a rate limited queue which used to store ClusterResourceBinding's key and
-	// a reconcile function to consume the items in queue.
-	clusterBindingReconcileWorker util.AsyncWorker
-
 	RESTMapper meta.RESTMapper
 
 	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
@@ -97,8 +93,6 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	// setup binding reconcile worker
 	d.bindingReconcileWorker = util.NewAsyncWorker("binding reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileResourceBinding)
 	d.bindingReconcileWorker.Run(1, d.stopCh)
-	d.clusterBindingReconcileWorker = util.NewAsyncWorker("cluster binding reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileClusterResourceBinding)
-	d.clusterBindingReconcileWorker.Run(1, d.stopCh)
 
 	// watch and enqueue binding changes.
 	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
@@ -546,7 +540,6 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			Resource: workv1alpha1.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
-				Namespace:       object.GetNamespace(),
 				Name:            object.GetName(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
@@ -900,12 +893,7 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 
 // OnClusterResourceBindingAdd handles object add event.
 func (d *ResourceDetector) OnClusterResourceBindingAdd(obj interface{}) {
-	key, err := ClusterWideKeyFunc(obj)
-	if err != nil {
-		return
-	}
 
-	d.clusterBindingReconcileWorker.AddRateLimited(key)
 }
 
 // OnClusterResourceBindingUpdate handles object update event and push the object to queue.
@@ -932,34 +920,6 @@ func (d *ResourceDetector) OnResourceBindingDelete(obj interface{}) {
 	if err != nil {
 		// Just log when error happened as there is no queue for delete event.
 		klog.Warningf("Failed to cleanup resource(kind=%s, %s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-	}
-}
-
-// ReconcileClusterResourceBinding handles ResourceBinding object changes.
-// For each ClusterResourceBinding changes, we will try to calculate the summary status and update to original object
-// that the ClusterResourceBinding refer to.
-func (d *ResourceDetector) ReconcileClusterResourceBinding(key util.QueueKey) error {
-	ckey, ok := key.(keys.ClusterWideKey)
-	if !ok { // should not happen
-		klog.Error("Found invalid key when reconciling cluster resource binding.")
-		return fmt.Errorf("invalid key")
-	}
-
-	binding := &workv1alpha1.ClusterResourceBinding{}
-	if err := d.Client.Get(context.TODO(), client.ObjectKey{Name: ckey.Name}, binding); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-
-	klog.Infof("Reconciling cluster resource binding(%s)", binding.Name)
-	switch binding.Spec.Resource.Kind {
-	case util.DeploymentKind:
-		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
-	default:
-		// Unsupported resource type.
-		return nil
 	}
 }
 
