@@ -42,6 +42,7 @@ linters:
   - unused
   - varcheck
   # other linters supported by golangci-lint.
+  - gosec
   - whitespace
 
 linters-settings:

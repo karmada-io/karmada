@@ -331,11 +331,11 @@ func getClusterAllocatable(nodeList *corev1.NodeList) (allocatable corev1.Resour
 
 func getUsedResource(podList *corev1.PodList) corev1.ResourceList {
 	var requestCPU, requestMem int64
-	for _, pod := range podList.Items {
+	for podIndex, pod := range podList.Items {
 		if pod.Status.Phase == "Running" {
 			for _, c := range pod.Status.Conditions {
 				if c.Type == "Ready" && c.Status == "True" {
-					podRes := addPodRequestResource(&pod)
+					podRes := addPodRequestResource(&podList.Items[podIndex])
 					requestCPU += podRes.MilliCPU
 					requestMem += podRes.Memory
 				}
