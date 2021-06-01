@@ -17,6 +17,10 @@ SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # The KUBECONFIG path for the 'host cluster'.
 HOST_CLUSTER_KUBECONFIG="${KUBECONFIG_PATH}/karmada.config"
 
+# Make sure go exists
+source "${SCRIPT_ROOT}"/hack/util.sh
+util::cmd_must_exist "go"
+
 # Make sure KUBECONFIG path exists.
 if [ ! -d "$KUBECONFIG_PATH" ]; then
   mkdir -p "$KUBECONFIG_PATH"
@@ -28,7 +32,7 @@ fi
 # make controller-manager image
 export VERSION="latest"
 export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
-make images
+make images --directory="${SCRIPT_ROOT}"
 
 # load controller-manager image
 kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
