@@ -13,8 +13,8 @@ set -o pipefail
 # Example 2: export KARMADA_APISERVER_KUBECONFIG=<KUBECONFIG PATH> hack/run-e2e.sh (run e2e with your KUBECONFIG)
 
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
-KARMADA_APISERVER_KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG:-"/var/run/karmada/karmada-apiserver.config"}
-PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS:-"member3:$KUBECONFIG_PATH/member3.config"}
+KARMADA_APISERVER_KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG:-"$KUBECONFIG_PATH/karmada.config"}
+PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS:-"member3:$KUBECONFIG_PATH/members.config"}
 
 # Install ginkgo
 GO111MODULE=on go install github.com/onsi/ginkgo/ginkgo
