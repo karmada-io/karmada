@@ -705,7 +705,7 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 		return err
 	}
 
-	for _, binding := range rbs.Items {
+	for itemIndex, binding := range rbs.Items {
 		// Cleanup the labels from the object referencing by binding.
 		// In addition, this will give the object a chance to match another policy.
 		if err := d.CleanupLabels(binding.Spec.Resource, util.PropagationPolicyNameLabel, util.PropagationPolicyNameLabel); err != nil {
@@ -715,7 +715,7 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 		}
 
 		klog.V(2).Infof("Removing binding(%s/%s)", binding.Namespace, binding.Name)
-		if err := d.Client.Delete(context.TODO(), &binding); err != nil {
+		if err := d.Client.Delete(context.TODO(), &rbs.Items[itemIndex]); err != nil {
 			klog.Errorf("Failed to delete binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
 			return err
 		}
@@ -739,7 +739,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		klog.Errorf("Failed to load cluster resource binding by policy(%s), error: %v", policyName, err)
 		errs = append(errs, err)
 	} else if len(crbs.Items) > 0 {
-		for _, binding := range crbs.Items {
+		for itemIndex, binding := range crbs.Items {
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
 			if err := d.CleanupLabels(binding.Spec.Resource, util.ClusterPropagationPolicyLabel); err != nil {
@@ -749,7 +749,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 			}
 
 			klog.V(2).Infof("Removing cluster resource binding(%s)", binding.Name)
-			if err := d.Client.Delete(context.TODO(), &binding); err != nil {
+			if err := d.Client.Delete(context.TODO(), &crbs.Items[itemIndex]); err != nil {
 				klog.Errorf("Failed to delete cluster resource binding(%s), error: %v", binding.Name, err)
 				errs = append(errs, err)
 			}
@@ -762,7 +762,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		klog.Errorf("Failed to load resource binding by policy(%s), error: %v", policyName, err)
 		errs = append(errs, err)
 	} else if len(rbs.Items) > 0 {
-		for _, binding := range rbs.Items {
+		for itemIndex, binding := range rbs.Items {
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
 			if err := d.CleanupLabels(binding.Spec.Resource, util.ClusterPropagationPolicyLabel); err != nil {
@@ -771,7 +771,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 			}
 
 			klog.V(2).Infof("Removing resource binding(%s)", binding.Name)
-			if err := d.Client.Delete(context.TODO(), &binding); err != nil {
+			if err := d.Client.Delete(context.TODO(), &rbs.Items[itemIndex]); err != nil {
 				klog.Errorf("Failed to delete resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
 				errs = append(errs, err)
 			}

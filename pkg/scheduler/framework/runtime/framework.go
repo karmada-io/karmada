@@ -62,7 +62,7 @@ func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *v1alp
 	return result
 }
 
-// RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
+// RunScorePlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
 func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *v1alpha1.Placement, clusters []*cluster.Cluster) (framework.PluginToClusterScores, error) {
 	result := make(framework.PluginToClusterScores, len(frw.filterPlugins))

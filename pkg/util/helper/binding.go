@@ -120,8 +120,8 @@ func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clus
 
 // RemoveOrphanWorks will remove orphan works.
 func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
-	for _, work := range works {
-		err := c.Delete(context.TODO(), &work)
+	for workIndex, work := range works {
+		err := c.Delete(context.TODO(), &works[workIndex])
 		if err != nil {
 			return err
 		}
