@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -35,7 +36,18 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 			},
 		}
 
-		policy := helper.NewPolicyWithClusterToleration(policyNamespace, policyName, deployment, clusterNames, clusterTolerations)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+			ClusterTolerations: clusterTolerations,
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {

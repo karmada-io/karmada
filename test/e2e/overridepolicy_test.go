@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -27,8 +28,44 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		overridePolicyName := deploymentName
 
 		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		propagationPolicy := helper.NewPolicyWithSingleDeployment(propagationPolicyNamespace, propagationPolicyName, deployment, clusterNames)
-		overridePolicy := helper.NewOverridePolicyWithDeployment(overridePolicyNamespace, overridePolicyName, deployment, clusterNames, helper.NewImageOverriderWithEmptyPredicate())
+		propagationPolicy := helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
+		overridePolicy := helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.ClusterAffinity{
+			ClusterNames: clusterNames,
+		}, policyv1alpha1.Overriders{
+			ImageOverrider: []policyv1alpha1.ImageOverrider{
+				{
+					Component: "Registry",
+					Operator:  "replace",
+					Value:     "fictional.registry.us",
+				},
+				{
+					Component: "Repository",
+					Operator:  "replace",
+					Value:     "busybox",
+				},
+				{
+					Component: "Tag",
+					Operator:  "replace",
+					Value:     "1.0",
+				},
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
@@ -107,8 +144,44 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		overridePolicyName := podName
 
 		pod := helper.NewPod(podNamespace, podName)
-		propagationPolicy := helper.NewPolicyWithSinglePod(propagationPolicyNamespace, propagationPolicyName, pod, clusterNames)
-		overridePolicy := helper.NewOverridePolicyWithPod(overridePolicyNamespace, overridePolicyName, pod, clusterNames, helper.NewImageOverriderWithEmptyPredicate())
+		propagationPolicy := helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: pod.APIVersion,
+				Kind:       pod.Kind,
+				Name:       pod.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
+		overridePolicy := helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: pod.APIVersion,
+				Kind:       pod.Kind,
+				Name:       pod.Name,
+			},
+		}, policyv1alpha1.ClusterAffinity{
+			ClusterNames: clusterNames,
+		}, policyv1alpha1.Overriders{
+			ImageOverrider: []policyv1alpha1.ImageOverrider{
+				{
+					Component: "Registry",
+					Operator:  "replace",
+					Value:     "fictional.registry.us",
+				},
+				{
+					Component: "Repository",
+					Operator:  "replace",
+					Value:     "busybox",
+				},
+				{
+					Component: "Tag",
+					Operator:  "replace",
+					Value:     "1.0",
+				},
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
@@ -188,8 +261,37 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		overridePolicyName := deploymentName
 
 		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		propagationPolicy := helper.NewPolicyWithSingleDeployment(propagationPolicyNamespace, propagationPolicyName, deployment, clusterNames)
-		overridePolicy := helper.NewOverridePolicyWithDeployment(overridePolicyNamespace, overridePolicyName, deployment, clusterNames, helper.NewImageOverriderWithPredicate())
+		propagationPolicy := helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
+		overridePolicy := helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.ClusterAffinity{
+			ClusterNames: clusterNames,
+		}, policyv1alpha1.Overriders{
+			ImageOverrider: []policyv1alpha1.ImageOverrider{
+				{
+					Predicate: &policyv1alpha1.ImagePredicate{
+						Path: "/spec/template/spec/containers/0/image",
+					},
+					Component: "Registry",
+					Operator:  "replace",
+					Value:     "fictional.registry.us",
+				},
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {

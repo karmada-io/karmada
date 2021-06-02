@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -30,7 +31,17 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation tes
 			Singular: fmt.Sprintf("foo%s", randStr),
 		}
 		crd := helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-		crdPolicy := helper.NewPolicyWithSingleCRD(crd.Name, crd, clusterNames)
+		crdPolicy := helper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: crd.APIVersion,
+				Kind:       crd.Kind,
+				Name:       crd.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
 		crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
 		ginkgo.BeforeEach(func() {

@@ -47,7 +47,18 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 			},
 		}
 
-		policy := helper.NewPolicyWithFieldSelector(policyNamespace, policyName, deployment, clusterNames, filedSelector)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames:  clusterNames,
+				FieldSelector: filedSelector,
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
