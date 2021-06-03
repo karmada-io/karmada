@@ -79,6 +79,9 @@ func assembleWorkStatus(c client.Client, selector labels.Selector, workload *uns
 
 	statuses := make([]workv1alpha1.AggregatedStatusItem, 0)
 	for _, work := range workList.Items {
+		if work.ObjectMeta.DeletionTimestamp != nil {
+			continue
+		}
 		identifierIndex, err := GetManifestIndex(work.Spec.Workload.Manifests, workload)
 		if err != nil {
 			klog.Errorf("Failed to get manifestIndex of workload in work.Spec.Workload.Manifests. Error: %v.", err)
