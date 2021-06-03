@@ -17,7 +17,7 @@ import (
 func ResourceMatches(resource *unstructured.Unstructured, rs v1alpha1.ResourceSelector) bool {
 	if resource.GetAPIVersion() != rs.APIVersion ||
 		resource.GetKind() != rs.Kind ||
-		resource.GetNamespace() != rs.Namespace {
+		(len(rs.Namespace) > 0 && resource.GetNamespace() != rs.Namespace) {
 		return false
 	}
 
