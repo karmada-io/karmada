@@ -14,7 +14,7 @@ source ${REPO_ROOT}/hack/util.sh
 function usage() {
   echo "This script will deploy karmada agent to a cluster."
   echo "Usage: hack/deploy-karmada-agent.sh"
-  echo "Example: hack/deploy-karmada.sh"
+  echo "Example: hack/deploy-karmada-agent.sh"
 }
 
 export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
