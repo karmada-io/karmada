@@ -359,3 +359,106 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 
 	})
 })
+
+var _ = ginkgo.Describe("OverridePolicy with nil resourceSelectors", func() {
+	ginkgo.Context("Deployment override testing", func() {
+		deploymentNamespace := testNamespace
+		deploymentName := deploymentNamePrefix + rand.String(RandomStrLength)
+		propagationPolicyNamespace := testNamespace
+		propagationPolicyName := deploymentName
+		overridePolicyNamespace := testNamespace
+		overridePolicyName := deploymentName
+
+		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
+		propagationPolicy := helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
+		overridePolicy := helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, nil, policyv1alpha1.ClusterAffinity{
+			ClusterNames: clusterNames,
+		}, policyv1alpha1.Overriders{
+			ImageOverrider: []policyv1alpha1.ImageOverrider{
+				{
+					Predicate: &policyv1alpha1.ImagePredicate{
+						Path: "/spec/template/spec/containers/0/image",
+					},
+					Component: "Registry",
+					Operator:  "replace",
+					Value:     "fictional.registry.us",
+				},
+			},
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
+				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Create(context.TODO(), propagationPolicy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating overridePolicy(%s/%s)", overridePolicyNamespace, overridePolicyName), func() {
+				_, err := karmadaClient.PolicyV1alpha1().OverridePolicies(overridePolicyNamespace).Create(context.TODO(), overridePolicy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing overridePolicy(%s/%s)", overridePolicyNamespace, overridePolicyName), func() {
+				err := karmadaClient.PolicyV1alpha1().OverridePolicies(overridePolicyNamespace).Delete(context.TODO(), overridePolicyName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
+				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Delete(context.TODO(), propagationPolicyName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.It("deployment imageOverride testing", func() {
+			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if deployment present on member clusters have correct image value", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					var deploymentInCluster *appsv1.Deployment
+
+					klog.Infof("Waiting for deployment(%s/%s) present on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
+					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+						deploymentInCluster, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						if err != nil {
+							if errors.IsNotFound(err) {
+								return false, nil
+							}
+							return false, err
+						}
+						return true, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					gomega.Expect(deploymentInCluster.Spec.Template.Spec.Containers[0].Image).Should(gomega.Equal("fictional.registry.us/nginx:1.19.0"))
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+	})
+})
