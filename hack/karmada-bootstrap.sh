@@ -124,7 +124,7 @@ export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 make images
 
 GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl"
-GOPATH=$(go env | grep GOPATH | awk -F '=' '{print $2}'| sed 's/\"//g')
+GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 KARMADACTL_BIN="${GOPATH}/bin/karmadactl"
 
 #step3. generate cert

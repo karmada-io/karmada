@@ -53,7 +53,7 @@ function util::cmd_must_exist_cfssl {
 
     util::install_tools "github.com/cloudflare/cfssl/cmd/..." ${CFSSL_VERSION}
 
-    GOPATH=$(go env | grep GOPATH | awk -F '=' '{print $2}'| sed 's/\"//g')
+    GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
     CFSSL_BIN="${GOPATH}/bin/cfssl"
     CFSSLJSON_BIN="${GOPATH}/bin/cfssljson"
     if [[ ! -x ${CFSSL_BIN} || ! -x ${CFSSLJSON_BIN} ]]; then
