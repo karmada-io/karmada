@@ -106,7 +106,10 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		Client:                       mgr.GetClient(),
 		EventRecorder:                mgr.GetEventRecorderFor(status.ControllerName),
 		PredicateFunc:                predicateFun,
+		InformerManager:              informermanager.NewMultiClusterInformerManager(),
+		StopChan:                     stopChan,
 		ClusterClientSetFunc:         util.NewClusterClientSetForAgent,
+		ClusterDynamicClientSetFunc:  util.NewClusterDynamicClientSetForAgent,
 		ClusterStatusUpdateFrequency: opts.ClusterStatusUpdateFrequency,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
