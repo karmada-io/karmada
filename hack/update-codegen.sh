@@ -10,6 +10,9 @@ cd "${REPO_ROOT}"
 
 echo "Generating with deepcopy-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/deepcopy-gen
+GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
+export PATH=$PATH:$GOPATH/bin
+
 deepcopy-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --input-dirs=github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1 \
