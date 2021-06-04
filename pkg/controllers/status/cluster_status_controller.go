@@ -402,7 +402,7 @@ func convertObjectsToPods(podList []runtime.Object) ([]*corev1.Pod, error) {
 
 func getReadyStatusForNode(nodeStatus corev1.NodeStatus) bool {
 	for _, condition := range nodeStatus.Conditions {
-		if condition.Type == "Ready" {
+		if condition.Type == corev1.NodeReady {
 			if condition.Status == corev1.ConditionTrue {
 				return true
 			}
@@ -431,9 +431,9 @@ func getClusterAllocatable(nodeList []*corev1.Node) (allocatable corev1.Resource
 func getUsedResource(podList []*corev1.Pod) corev1.ResourceList {
 	var requestCPU, requestMem int64
 	for _, pod := range podList {
-		if pod.Status.Phase == "Running" {
+		if pod.Status.Phase == corev1.PodRunning {
 			for _, c := range pod.Status.Conditions {
-				if c.Type == "Ready" && c.Status == "True" {
+				if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
 					podRes := addPodRequestResource(pod)
 					requestCPU += podRes.MilliCPU
 					requestMem += podRes.Memory
