@@ -14,6 +14,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -26,7 +27,17 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 		deploymentName := policyName
 
 		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPolicyWithSingleDeployment(policyNamespace, policyName, deployment, clusterNames)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {

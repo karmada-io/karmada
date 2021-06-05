@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -41,7 +42,26 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 		minGroups := maxGroups
 
 		// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
-		policy := helper.NewPolicyWithGroupsDeployment(policyNamespace, policyName, deployment, maxGroups, minGroups, clusterLabels)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: clusterLabels,
+				},
+			},
+			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+				{
+					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+					MaxGroups:     maxGroups,
+					MinGroups:     minGroups,
+				},
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
@@ -191,7 +211,26 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 		minGroups := maxGroups
 
 		// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
-		crdPolicy := helper.NewConstraintsPolicyWithSingleCRD(crd.Name, crd, maxGroups, minGroups, clusterLabels)
+		crdPolicy := helper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: crd.APIVersion,
+				Kind:       crd.Kind,
+				Name:       crd.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: clusterLabels,
+				},
+			},
+			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+				{
+					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+					MaxGroups:     maxGroups,
+					MinGroups:     minGroups,
+				},
+			},
+		})
 		crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
 		ginkgo.BeforeEach(func() {

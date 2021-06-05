@@ -19,6 +19,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -31,7 +32,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		deploymentName := policyName
 
 		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPolicyWithSingleDeployment(policyNamespace, policyName, deployment, clusterNames)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
@@ -143,7 +154,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		serviceName := policyName
 
 		service := helper.NewService(serviceNamespace, serviceName)
-		policy := helper.NewPolicyWithSingleService(policyNamespace, policyName, service, clusterNames)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: service.APIVersion,
+				Kind:       service.Kind,
+				Name:       service.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
@@ -257,7 +278,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		podName := policyName
 
 		pod := helper.NewPod(podNamespace, podName)
-		policy := helper.NewPolicyWithSinglePod(policyNamespace, policyName, pod, clusterNames)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: pod.APIVersion,
+				Kind:       pod.Kind,
+				Name:       pod.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
@@ -374,7 +405,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			Singular: fmt.Sprintf("foo%s", randStr),
 		}
 		crd := helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-		crdPolicy := helper.NewPolicyWithSingleCRD(crd.Name, crd, clusterNames)
+		crdPolicy := helper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: crd.APIVersion,
+				Kind:       crd.Kind,
+				Name:       crd.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
 		crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
 		crNamespace := testNamespace
@@ -383,7 +424,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 
 		crAPIVersion := fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
 		cr := helper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
-		crPolicy := helper.NewPolicyWithSingleCR(crNamespace, crName, crAPIVersion, crd.Spec.Names.Kind, crName, clusterNames)
+		crPolicy := helper.NewPropagationPolicy(crNamespace, crName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: crAPIVersion,
+				Kind:       crd.Spec.Names.Kind,
+				Name:       crName,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("creating crdPolicy(%s)", crdPolicy.Name), func() {
@@ -522,6 +573,68 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
+			})
+		})
+	})
+})
+
+var _ = ginkgo.Describe("PropagationPolicy with nil resourceSelectors", func() {
+	ginkgo.Context("Deployment propagation testing", func() {
+		policyNamespace := testNamespace
+		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+		deploymentNamespace := testNamespace
+		deploymentName := policyName
+
+		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, nil, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
+				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
+				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.It("deployment propagation", func() {
+			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if deployment present on member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					klog.Infof("Waiting for deployment(%s/%s) present on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
+					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						if err != nil {
+							if errors.IsNotFound(err) {
+								return false, nil
+							}
+							return false, err
+						}
+						return true, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 	})
