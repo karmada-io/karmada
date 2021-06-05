@@ -807,6 +807,9 @@ k8s.io/component-base/metrics/legacyregistry
 k8s.io/component-base/metrics/prometheus/workqueue
 k8s.io/component-base/metrics/testutil
 k8s.io/component-base/version
+# k8s.io/component-helpers v0.20.6 => k8s.io/component-helpers v0.20.6
+## explicit
+k8s.io/component-helpers/apimachinery/lease
 # k8s.io/gengo v0.0.0-20201113003025-83324d819ded
 k8s.io/gengo/args
 k8s.io/gengo/examples/deepcopy-gen/generators
