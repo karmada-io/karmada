@@ -189,3 +189,25 @@ func ExampleComponents_SetTagOrDigest() {
 	// gcr.io/kube-apiserver@sha256:50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c
 	// gcr.io/kube-apiserver
 }
+
+func ExampleComponents_String() {
+	key := Components{
+		hostname:   "fictional.registry.example",
+		repository: "karmada-scheduler",
+		tag:        "v1.0.0",
+	}
+	pKey := &key
+	fmt.Printf("%s\n", key)
+	fmt.Printf("%v\n", key)
+	fmt.Printf("%s\n", key.String())
+	fmt.Printf("%s\n", pKey)
+	fmt.Printf("%v\n", pKey)
+	fmt.Printf("%s\n", pKey.String())
+	// Output:
+	// fictional.registry.example/karmada-scheduler:v1.0.0
+	// fictional.registry.example/karmada-scheduler:v1.0.0
+	// fictional.registry.example/karmada-scheduler:v1.0.0
+	// fictional.registry.example/karmada-scheduler:v1.0.0
+	// fictional.registry.example/karmada-scheduler:v1.0.0
+	// fictional.registry.example/karmada-scheduler:v1.0.0
+}

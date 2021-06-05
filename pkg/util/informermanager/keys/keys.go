@@ -29,7 +29,7 @@ type ClusterWideKey struct {
 
 // String returns the key's printable info with format:
 // "<GroupVersion>, kind=<Kind>, <NamespaceKey>"
-func (k *ClusterWideKey) String() string {
+func (k ClusterWideKey) String() string {
 	return fmt.Sprintf("%s, kind=%s, %s", k.GroupVersion().String(), k.Kind, k.NamespaceKey())
 }
 
@@ -93,7 +93,7 @@ type FederatedKey struct {
 
 // String returns the key's printable info with format:
 // "cluster=<Cluster>, <GroupVersion>, kind=<Kind>, <NamespaceKey>"
-func (f *FederatedKey) String() string {
+func (f FederatedKey) String() string {
 	return fmt.Sprintf("cluster=%s, %s, kind=%s, %s", f.Cluster, f.GroupVersion().String(), f.Kind, f.NamespaceKey())
 }
 

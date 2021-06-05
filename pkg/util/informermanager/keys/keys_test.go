@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"fmt"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -185,4 +186,54 @@ func TestFederatedKeyFunc(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ExampleClusterWideKey_String() {
+	key := ClusterWideKey{
+		Group:     "apps",
+		Version:   "v1",
+		Kind:      "Namespace",
+		Namespace: "default",
+		Name:      "foo",
+	}
+	pKey := &key
+	fmt.Printf("%s\n", key)
+	fmt.Printf("%v\n", key)
+	fmt.Printf("%s\n", key.String())
+	fmt.Printf("%s\n", pKey)
+	fmt.Printf("%v\n", pKey)
+	fmt.Printf("%s\n", pKey.String())
+	// Output:
+	// apps/v1, kind=Namespace, default/foo
+	// apps/v1, kind=Namespace, default/foo
+	// apps/v1, kind=Namespace, default/foo
+	// apps/v1, kind=Namespace, default/foo
+	// apps/v1, kind=Namespace, default/foo
+	// apps/v1, kind=Namespace, default/foo
+}
+
+func ExampleFederatedKey_String() {
+	key := FederatedKey{
+		Cluster: "karamda",
+		ClusterWideKey: ClusterWideKey{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "Namespace",
+			Namespace: "default",
+			Name:      "foo"},
+	}
+	pKey := &key
+	fmt.Printf("%s\n", key)
+	fmt.Printf("%v\n", key)
+	fmt.Printf("%s\n", key.String())
+	fmt.Printf("%s\n", pKey)
+	fmt.Printf("%v\n", pKey)
+	fmt.Printf("%s\n", pKey.String())
+	// Output:
+	// cluster=karamda, apps/v1, kind=Namespace, default/foo
+	// cluster=karamda, apps/v1, kind=Namespace, default/foo
+	// cluster=karamda, apps/v1, kind=Namespace, default/foo
+	// cluster=karamda, apps/v1, kind=Namespace, default/foo
+	// cluster=karamda, apps/v1, kind=Namespace, default/foo
+	// cluster=karamda, apps/v1, kind=Namespace, default/foo
 }

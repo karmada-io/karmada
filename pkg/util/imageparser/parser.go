@@ -68,7 +68,7 @@ func (c *Components) FullRepository() string {
 }
 
 // String returns the full name of the image, including repository and tag(or digest).
-func (c *Components) String() string {
+func (c Components) String() string {
 	if c.tag != "" {
 		return c.FullRepository() + ":" + c.tag
 	} else if c.digest != "" {
