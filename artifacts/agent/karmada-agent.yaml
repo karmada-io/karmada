@@ -26,6 +26,7 @@ spec:
           command:
             - /bin/karmada-agent
             - --karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig
+            - --karmada-context=karmada-apiserver
             - --cluster-name={{member_cluster_name}}
             - --cluster-status-update-frequency=10s
             - --v=4

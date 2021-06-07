@@ -30,12 +30,13 @@ import (
 // NewAgentCommand creates a *cobra.Command object with default parameters
 func NewAgentCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
+	karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 
 	cmd := &cobra.Command{
 		Use:  "karmada-agent",
 		Long: `The karmada agent runs the cluster registration agent`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := run(ctx, opts); err != nil {
+			if err := run(ctx, karmadaConfig, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
@@ -47,8 +48,8 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, opts *options.Options) error {
-	controlPlaneRestConfig, err := clientcmd.BuildConfigFromFlags("", opts.KarmadaKubeConfig)
+func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *options.Options) error {
+	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KarmadaKubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of karmada control plane: %s", err.Error())
 	}
