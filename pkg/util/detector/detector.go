@@ -574,6 +574,11 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 	var matchedResult []keys.ClusterWideKey
 
 	for waitKey := range d.waitingObjects {
+		if resourceSelectors == nil {
+			matchedResult = append(matchedResult, waitKey)
+			continue
+		}
+
 		waitObj, err := d.GetUnstructuredObject(waitKey)
 		if err != nil {
 			// all object in waiting list should exist. Just print a log to trace.
