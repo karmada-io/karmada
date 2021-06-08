@@ -1,0 +1,46 @@
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: read-pods
+rules:
+  - apiGroups: ['']
+    resources: ['pods']
+    verbs: ["get"]
+
+---
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: example-clusterresource-policy
+spec:
+  resourceSelectors:
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      name: read-pods
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+
+---
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterOverridePolicy
+metadata:
+  name: example-clusterresource-override
+spec:
+  resourceSelectors:
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      name: read-pods
+  targetCluster:
+    clusterNames:
+      - member1
+  overriders:
+    plaintext:
+      - path: "/metadata/annotations"
+        operator: add
+        value:
+          foo: bar
