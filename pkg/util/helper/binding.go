@@ -11,9 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -25,9 +27,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
-
-var resourceBindingKind = v1alpha1.SchemeGroupVersion.WithKind("ResourceBinding")
-var clusterResourceBindingKind = v1alpha1.SchemeGroupVersion.WithKind("ClusterResourceBinding")
 
 const (
 	// SpecField indicates the 'spec' field of a deployment
@@ -160,7 +159,6 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 		return err
 	}
 
-	var bindingGVK schema.GroupVersionKind
 	var workLabel = make(map[string]string)
 
 	for _, clusterName := range clusterNames {
@@ -183,13 +181,11 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 		util.MergeLabel(clonedWorkload, util.WorkNameLabel, workName)
 
 		if scope == apiextensionsv1.NamespaceScoped {
-			bindingGVK = resourceBindingKind
 			util.MergeLabel(clonedWorkload, util.ResourceBindingNamespaceLabel, binding.GetNamespace())
 			util.MergeLabel(clonedWorkload, util.ResourceBindingNameLabel, binding.GetName())
 			workLabel[util.ResourceBindingNamespaceLabel] = binding.GetNamespace()
 			workLabel[util.ResourceBindingNameLabel] = binding.GetName()
 		} else {
-			bindingGVK = clusterResourceBindingKind
 			util.MergeLabel(clonedWorkload, util.ClusterResourceBindingLabel, binding.GetName())
 			workLabel[util.ClusterResourceBindingLabel] = binding.GetName()
 		}
@@ -215,10 +211,7 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 				Name:       workName,
 				Namespace:  workNamespace,
 				Finalizers: []string{util.ExecutionControllerFinalizer},
-				OwnerReferences: []metav1.OwnerReference{
-					*metav1.NewControllerRef(binding, bindingGVK),
-				},
-				Labels: workLabel,
+				Labels:     workLabel,
 			},
 			Spec: workv1alpha1.WorkSpec{
 				Workload: workv1alpha1.WorkloadTemplate{
@@ -418,4 +411,35 @@ func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha1.Resource
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
 	return bindings, c.List(context.TODO(), bindings, listOpt)
+}
+
+// GetWorks returns a WorkList by labels
+func GetWorks(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
+	works := &workv1alpha1.WorkList{}
+	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
+
+	return works, c.List(context.TODO(), works, listOpt)
+}
+
+// DeleteWorks will delete all Work objects by labels.
+func DeleteWorks(c client.Client, selector labels.Set) (controllerruntime.Result, error) {
+	workList, err := GetWorks(c, selector)
+	if err != nil {
+		klog.Errorf("Failed to get works by label %v: %v", selector, err)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	var errs []error
+	for index, work := range workList.Items {
+		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
+			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
+	}
+
+	return controllerruntime.Result{}, nil
 }

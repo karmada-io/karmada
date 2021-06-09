@@ -6,6 +6,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -43,17 +44,17 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 
 	clusterResourceBinding := &workv1alpha1.ClusterResourceBinding{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, clusterResourceBinding); err != nil {
-		// The resource may no longer exist, in which case we stop processing.
+		// The resource no longer exist, clean up derived Work objects.
 		if errors.IsNotFound(err) {
-			return controllerruntime.Result{}, nil
+			return helper.DeleteWorks(c.Client, labels.Set{
+				util.ClusterResourceBindingLabel: req.Name,
+			})
 		}
 
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
-		// Do nothing, just return as we have added owner reference to Work.
-		// Work will be removed automatically by garbage collector.
 		return controllerruntime.Result{}, nil
 	}
 
