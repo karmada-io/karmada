@@ -263,11 +263,6 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 
 	matchedPolicies := make([]policyv1alpha1.PropagationPolicy, 0)
 	for _, policy := range policyList.Items {
-		if policy.Spec.ResourceSelectors == nil {
-			matchedPolicies = append(matchedPolicies, policy)
-			continue
-		}
-
 		if util.ResourceMatchSelectors(object, policy.Spec.ResourceSelectors...) {
 			matchedPolicies = append(matchedPolicies, policy)
 		}
@@ -299,11 +294,6 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 
 	matchedClusterPolicies := make([]policyv1alpha1.ClusterPropagationPolicy, 0)
 	for _, policy := range policyList.Items {
-		if policy.Spec.ResourceSelectors == nil {
-			matchedClusterPolicies = append(matchedClusterPolicies, policy)
-			continue
-		}
-
 		if util.ResourceMatchSelectors(object, policy.Spec.ResourceSelectors...) {
 			matchedClusterPolicies = append(matchedClusterPolicies, policy)
 		}
