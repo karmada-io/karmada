@@ -248,8 +248,7 @@ spec:
                     type: array
                 type: object
               resourceSelectors:
-                description: ResourceSelectors used to select resources. nil represents
-                  all resources.
+                description: ResourceSelectors used to select resources.
                 items:
                   description: ResourceSelector the resources will be selected.
                   properties:
@@ -324,6 +323,8 @@ spec:
                   scheduler. If not specified, the policy will be dispatched by default
                   scheduler.
                 type: string
+            required:
+            - resourceSelectors
             type: object
         required:
         - spec
