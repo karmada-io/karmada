@@ -235,6 +235,19 @@ spec:
                 description: NodeSummary represents the summary of nodes status in
                   the member cluster.
                 properties:
+                  readyNum:
+                    description: ReadyNum is the number of ready nodes in the cluster.
+                    format: int32
+                    type: integer
+                  totalNum:
+                    description: TotalNum is the total number of nodes in the cluster.
+                    format: int32
+                    type: integer
+                type: object
+              resourceSummary:
+                description: ResourceSummary represents the summary of resources in
+                  the member cluster.
+                properties:
                   allocatable:
                     additionalProperties:
                       anyOf:
@@ -242,24 +255,31 @@ spec:
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: Allocatable represents the allocatable resources
-                      across all nodes.
+                    description: Allocatable represents the resources of a cluster
+                      that are available for scheduling. Total amount of allocatable
+                      resources on all nodes.
                     type: object
-                  readyNum:
-                    description: ReadyNum is the number of ready nodes in the cluster.
-                    type: integer
-                  totalNum:
-                    description: TotalNum is the total number of nodes in the cluster.
-                    type: integer
-                  used:
+                  allocated:
                     additionalProperties:
                       anyOf:
                       - type: integer
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: Used represents the resources have been used across
-                      all nodes.
+                    description: Allocated represents the resources of a cluster that
+                      have been scheduled. Total amount of required resources of all
+                      Pods that have been scheduled to nodes.
+                    type: object
+                  allocating:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: Allocating represents the resources of a cluster
+                      that are pending for scheduling. Total amount of required resources
+                      of all Pods that are waiting for scheduling.
                     type: object
                 type: object
             type: object
