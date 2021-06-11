@@ -116,13 +116,13 @@ generate_cert_secret
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-etcd.yaml"
 
 # Wait for karmada-etcd to come up before launching the rest of the components.
-util::wait_pod_ready "${ETCD_POD_LABEL}" "karmada-system"
+util::wait_pod_ready "${ETCD_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # deploy karmada apiserver
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-apiserver.yaml"
 
 # Wait for karmada-apiserver to come up before launching the rest of the components.
-util::wait_pod_ready "${APISERVER_POD_LABEL}" "karmada-system"
+util::wait_pod_ready "${APISERVER_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 if [[ -z "${3-}" ]]; then
   KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n karmada-system -o jsonpath='{.spec.clusterIP}')
@@ -163,7 +163,7 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-scheduler.yaml"
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-webhook.yaml"
 
 # make sure all karmada control plane components are ready
-util::wait_pod_ready "${KARMADA_CONTROLLER_LABEL}" "karmada-system"
-util::wait_pod_ready "${KARMADA_SCHEDULER_LABEL}" "karmada-system"
-util::wait_pod_ready "${KUBE_CONTROLLER_POD_LABEL}" "karmada-system"
-util::wait_pod_ready "${KARMADA_WEBHOOK_LABEL}" "karmada-system"
+util::wait_pod_ready "${KARMADA_CONTROLLER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${KARMADA_SCHEDULER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${KUBE_CONTROLLER_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${KARMADA_WEBHOOK_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
