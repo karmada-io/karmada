@@ -153,9 +153,15 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	nodes, pods, err := listNodesAndPods(clusterInformerManager)
+	nodes, err := listNodes(clusterInformerManager)
 	if err != nil {
-		klog.Errorf("Failed to list all nodes and pods in the member cluster: %v, err is : %v", cluster.Name, err)
+		klog.Errorf("Failed to list nodes of cluster(%s), err: %v", cluster.Name, err)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	pods, err := listPods(clusterInformerManager)
+	if err != nil {
+		klog.Errorf("Failed to list pods of cluster(%s), err: %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -330,28 +336,36 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]v1alpha1.APIEnablem
 	return apiEnablements, nil
 }
 
-func listNodesAndPods(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Node, []*corev1.Pod, error) {
-	nodeLister, podLister := informerManager.Lister(nodeGVR), informerManager.Lister(podGVR)
-
-	nodeList, err := nodeLister.List(labels.Everything())
-	if err != nil {
-		return nil, nil, err
-	}
-	nodes, err := convertObjectsToNodes(nodeList)
-	if err != nil {
-		return nil, nil, err
-	}
+// listPods returns the Pod list from the informerManager cache.
+func listPods(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Pod, error) {
+	podLister := informerManager.Lister(podGVR)
 
 	podList, err := podLister.List(labels.Everything())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	pods, err := convertObjectsToPods(podList)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return nodes, pods, nil
+	return pods, nil
+}
+
+// listNodes returns the Node list from the informerManager cache.
+func listNodes(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Node, error) {
+	nodeLister := informerManager.Lister(nodeGVR)
+
+	nodeList, err := nodeLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	nodes, err := convertObjectsToNodes(nodeList)
+	if err != nil {
+		return nil, err
+	}
+
+	return nodes, nil
 }
 
 func getNodeSummary(nodes []*corev1.Node) *v1alpha1.NodeSummary {
