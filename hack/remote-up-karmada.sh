@@ -6,11 +6,16 @@ set -o pipefail
 
 function usage() {
   echo "This script will deploy karmada control plane to a given cluster."
-  echo "Usage: hack/remote-up-karmada.sh <KUBECONFIG> <CONTEXT_NAME>"
+  echo "Usage: hack/remote-up-karmada.sh <KUBECONFIG> <CONTEXT_NAME> [CLUSTER_IP_ONLY]"
   echo "Example: hack/remote-up-karmada.sh ~/.kube/config karmada-host"
+  echo -e "Parameters:\n\tKUBECONFIG\tYour cluster's kubeconfig that you want to install to"
+  echo -e "\tCONTEXT_NAME\tThe name of context in 'kubeconfig'"
+  echo -e "\tCLUSTER_IP_ONLY\tThis option default is 'false', and there will create a 'LoadBalancer' type service
+  \t\t\tfor karmada apiserver so that it can easy communicate outside the karmada-host cluster,
+  \t\t\tif you want only a 'ClusterIP' type service for karmada apiserver, set as 'true'."
 }
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -lt 2 ]]; then
   usage
   exit 1
 fi
@@ -31,6 +36,11 @@ then
   echo -e "ERROR: failed to get context: '${HOST_CLUSTER_NAME}' not in ${HOST_CLUSTER_KUBECONFIG}. \n"
   usage
   exit 1
+fi
+
+if [ "${3:-false}" = true ]; then
+  CLUSTER_IP_ONLY=true
+  export CLUSTER_IP_ONLY
 fi
 
 # deploy karmada control plane

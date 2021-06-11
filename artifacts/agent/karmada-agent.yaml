@@ -22,7 +22,7 @@ spec:
       containers:
         - name: karmada-agent
           image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-agent:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: {{image_pull_policy}}
           command:
             - /bin/karmada-agent
             - --karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig

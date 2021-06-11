@@ -57,12 +57,16 @@ CURR_KUBECONFIG=$KUBECONFIG # backup current kubeconfig
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}" # switch to member cluster
 kubectl config use-context "${MEMBER_CLUSTER_NAME}"
 
+AGENT_IMAGE_PULL_POLICY="Always" # default is 'always' for standalone member cluster to try to use the latest version
 # load image if member cluster created by kind (if kubeconfig clusters' name contains kind-xxx)
 if kubectl config get-clusters | grep "kind-${MEMBER_CLUSTER_NAME}"
 then
-  export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+  # make agent image
   export VERSION="latest"
+  export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+  make image-karmada-agent --directory="${REPO_ROOT}"
   kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${MEMBER_CLUSTER_NAME}"
+  AGENT_IMAGE_PULL_POLICY="IfNotPresent" # It must not reload the image when member cluster created by kind
 fi
 
 # create namespace for karmada agent
@@ -81,6 +85,7 @@ TEMP_PATH=$(mktemp -d)
 cp "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml "${TEMP_PATH}"/karmada-agent.yaml
 sed -i "s/{{karmada_context}}/${KARMADA_APISERVER_CONTEXT_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
 sed -i "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
+sed -i "s/{{image_pull_policy}}/${AGENT_IMAGE_PULL_POLICY}/g" "${TEMP_PATH}"/karmada-agent.yaml
 echo -e "Apply dynamic rendered deployment in ${TEMP_PATH}/karmada-agent.yaml.\n"
 kubectl apply -f "${TEMP_PATH}"/karmada-agent.yaml
 

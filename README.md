@@ -160,7 +160,7 @@ There are two contexts you can switch after the script run are:
 The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host` is only used for debugging karmada installation with host cluster, you can check all clusters at any time by run: `kubectl config view` and switch by `kubectl config use-context [CONTEXT_NAME]`
 
 ##### 3.2. I have present cluster for installing
-Before run the following script, please make sure you are in the node or master of the cluster to install:
+Before running the following script, please make sure your cluster could provide `LoadBalancer` type service.
 ```
 # hack/remote-up-karmada.sh <kubeconfig> <context_name>
 ```
@@ -192,9 +192,15 @@ in `$HOME/.kube/karmada.config`. Run following command:
 ```
 # hack/create-cluster.sh member1 $HOME/.kube/karmada.config
 ```
-The script `hack/create-cluster.sh` will create a standalone cluster by kind.
+The script `hack/create-cluster.sh` will create a cluster by kind.
 
 #### 2. Join member cluster to karmada control plane
+
+You can choose one of mode: [push](#21-push-mode-karmada-controls-the-member-cluster-initiative-by-using-karmadactl) or
+[pull](#22-pull-mode-installing-karmada-agent-in-the-member-cluster), either will help you join a member cluster.
+
+##### 2.1. Push Mode: Karmada controls the member cluster initiative by using `karmadactl`
+
 The command `karmadactl` will help to join the member cluster to karmada control plane,
 before that, we should switch to karmada apiserver:
 ```
@@ -208,7 +214,14 @@ Then, install `karmadactl` command and join the member cluster:
 ```
 The `karmadactl join` command will create a `Cluster` object to reflect the member cluster.
 
-### 3. Check member cluster status
+##### 2.2. Pull Mode: Installing karmada-agent in the member cluster
+
+The following script will install the `karamda-agent` to your member cluster, you need to specify the kubeconfig and the cluster context of the karmada control plane and member cluster.
+```
+# hack/deploy-karmada-agent.sh <karmada_apiserver_kubeconfig> <karmada_apiserver_context_name> <member_cluster_kubeconfig> <member_cluster_context_name>
+```
+
+#### 3. Check member cluster status
 Now, check the member clusters from karmada control plane by following command:
 ```
 # kubectl get clusters
