@@ -19,12 +19,13 @@ function lint() {
 
   golangci-lint run || ret=1
 
+  # to test with specified build tags in hack, default skip them
   golangci-lint run --build-tags=tools ./hack || ret=1
 
   return $ret
 }
 
-if [[ $ret -eq 0 ]] ; then
+if [[ lint -eq 0 ]] ; then
   echo 'Congratulations!  All Go source files have passed staticcheck.'
 else
   echo # print one empty line, separate from warning messages.
