@@ -126,7 +126,11 @@ type ClusterStatus struct {
 
 	// NodeSummary represents the summary of nodes status in the member cluster.
 	// +optional
-	NodeSummary NodeSummary `json:"nodeSummary,omitempty"`
+	NodeSummary *NodeSummary `json:"nodeSummary,omitempty"`
+
+	// ResourceSummary represents the summary of resources in the member cluster.
+	// +optional
+	ResourceSummary *ResourceSummary `json:"resourceSummary,omitempty"`
 }
 
 // APIEnablement is a list of API resource, it is used to expose the name of the
@@ -141,13 +145,27 @@ type APIEnablement struct {
 // NodeSummary represents the summary of nodes status in a specific cluster.
 type NodeSummary struct {
 	// TotalNum is the total number of nodes in the cluster.
-	TotalNum int `json:"totalNum,omitempty"`
+	// +optional
+	TotalNum int32 `json:"totalNum,omitempty"`
 	// ReadyNum is the number of ready nodes in the cluster.
-	ReadyNum int `json:"readyNum,omitempty"`
-	// Allocatable represents the allocatable resources across all nodes.
+	// +optional
+	ReadyNum int32 `json:"readyNum,omitempty"`
+}
+
+// ResourceSummary represents the summary of resources in the member cluster.
+type ResourceSummary struct {
+	// Allocatable represents the resources of a cluster that are available for scheduling.
+	// Total amount of allocatable resources on all nodes.
+	// +optional
 	Allocatable corev1.ResourceList `json:"allocatable,omitempty"`
-	// Used represents the resources have been used across all nodes.
-	Used corev1.ResourceList `json:"used,omitempty"`
+	// Allocating represents the resources of a cluster that are pending for scheduling.
+	// Total amount of required resources of all Pods that are waiting for scheduling.
+	// +optional
+	Allocating corev1.ResourceList `json:"allocating,omitempty"`
+	// Allocated represents the resources of a cluster that have been scheduled.
+	// Total amount of required resources of all Pods that have been scheduled to nodes.
+	// +optional
+	Allocated corev1.ResourceList `json:"allocated,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -109,8 +109,8 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	// get or create listers for pods and nodes in member cluster
-	clusterListerManager, err := c.buildInformerForCluster(cluster)
+	// get or create informer for pods and nodes in member cluster
+	clusterInformerManager, err := c.buildInformerForCluster(cluster)
 	if err != nil {
 		klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
@@ -153,10 +153,9 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	// get the summary of nodes status in the member cluster
-	nodeSummary, err := getNodeSummary(clusterListerManager)
+	nodes, pods, err := listNodesAndPods(clusterInformerManager)
 	if err != nil {
-		klog.Errorf("Failed to get summary of nodes status in the member cluster: %v, err is : %v", cluster.Name, err)
+		klog.Errorf("Failed to list all nodes and pods in the member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -164,7 +163,8 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (
 	setTransitionTime(&cluster.Status, &currentClusterStatus)
 	currentClusterStatus.KubernetesVersion = clusterVersion
 	currentClusterStatus.APIEnablements = apiEnables
-	currentClusterStatus.NodeSummary = nodeSummary
+	currentClusterStatus.NodeSummary = getNodeSummary(nodes)
+	currentClusterStatus.ResourceSummary = getResourceSummary(nodes, pods)
 
 	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 }
@@ -330,20 +330,31 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]v1alpha1.APIEnablem
 	return apiEnablements, nil
 }
 
-func getNodeSummary(informerManager informermanager.SingleClusterInformerManager) (v1alpha1.NodeSummary, error) {
-	var nodeSummary = v1alpha1.NodeSummary{}
+func listNodesAndPods(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Node, []*corev1.Pod, error) {
 	nodeLister, podLister := informerManager.Lister(nodeGVR), informerManager.Lister(podGVR)
 
 	nodeList, err := nodeLister.List(labels.Everything())
 	if err != nil {
-		return nodeSummary, err
+		return nil, nil, err
 	}
-
 	nodes, err := convertObjectsToNodes(nodeList)
 	if err != nil {
-		return nodeSummary, err
+		return nil, nil, err
 	}
 
+	podList, err := podLister.List(labels.Everything())
+	if err != nil {
+		return nil, nil, err
+	}
+	pods, err := convertObjectsToPods(podList)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return nodes, pods, nil
+}
+
+func getNodeSummary(nodes []*corev1.Node) *v1alpha1.NodeSummary {
 	totalNum := len(nodes)
 	readyNum := 0
 
@@ -352,26 +363,24 @@ func getNodeSummary(informerManager informermanager.SingleClusterInformerManager
 			readyNum++
 		}
 	}
+
+	var nodeSummary = &v1alpha1.NodeSummary{}
+	nodeSummary.TotalNum = int32(totalNum)
+	nodeSummary.ReadyNum = int32(readyNum)
+
+	return nodeSummary
+}
+
+func getResourceSummary(nodes []*corev1.Node, pods []*corev1.Pod) *v1alpha1.ResourceSummary {
 	allocatable := getClusterAllocatable(nodes)
-
-	podList, err := podLister.List(labels.Everything())
-	if err != nil {
-		return nodeSummary, err
-	}
-
-	pods, err := convertObjectsToPods(podList)
-	if err != nil {
-		return nodeSummary, err
-	}
-
 	usedResource := getUsedResource(pods)
 
-	nodeSummary.TotalNum = totalNum
-	nodeSummary.ReadyNum = readyNum
-	nodeSummary.Allocatable = allocatable
-	nodeSummary.Used = usedResource
+	// TODO(Garrybest): calculate the resource summary precisely in the next PR
+	var resourceSummary = &v1alpha1.ResourceSummary{}
+	resourceSummary.Allocatable = allocatable
+	resourceSummary.Allocated = usedResource
 
-	return nodeSummary, nil
+	return resourceSummary
 }
 
 func convertObjectsToNodes(nodeList []runtime.Object) ([]*corev1.Node, error) {
