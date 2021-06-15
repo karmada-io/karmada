@@ -387,12 +387,13 @@ func getNodeSummary(nodes []*corev1.Node) *v1alpha1.NodeSummary {
 
 func getResourceSummary(nodes []*corev1.Node, pods []*corev1.Pod) *v1alpha1.ResourceSummary {
 	allocatable := getClusterAllocatable(nodes)
-	usedResource := getUsedResource(pods)
+	allocating := getAllocatingResource(pods)
+	allocated := getAllocatedResource(pods)
 
-	// TODO(Garrybest): calculate the resource summary precisely in the next PR
 	var resourceSummary = &v1alpha1.ResourceSummary{}
 	resourceSummary.Allocatable = allocatable
-	resourceSummary.Allocated = usedResource
+	resourceSummary.Allocating = allocating
+	resourceSummary.Allocated = allocated
 
 	return resourceSummary
 }
@@ -451,26 +452,43 @@ func getClusterAllocatable(nodeList []*corev1.Node) (allocatable corev1.Resource
 	return allocatable
 }
 
-func getUsedResource(podList []*corev1.Pod) corev1.ResourceList {
+func getAllocatingResource(podList []*corev1.Pod) corev1.ResourceList {
 	var requestCPU, requestMem int64
 	for _, pod := range podList {
-		if pod.Status.Phase == corev1.PodRunning {
-			for _, c := range pod.Status.Conditions {
-				if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
-					podRes := addPodRequestResource(pod)
-					requestCPU += podRes.MilliCPU
-					requestMem += podRes.Memory
-				}
-			}
+		if len(pod.Spec.NodeName) == 0 {
+			// TODO(Garrybest): calculate the init container resource when pod is not scheduled
+			podRes := addPodRequestResource(pod)
+			requestCPU += podRes.MilliCPU
+			requestMem += podRes.Memory
 		}
 	}
 
-	usedResource := corev1.ResourceList{
+	allocating := corev1.ResourceList{
 		corev1.ResourceCPU:    *resource.NewMilliQuantity(requestCPU, resource.DecimalSI),
 		corev1.ResourceMemory: *resource.NewQuantity(requestMem, resource.BinarySI),
 	}
 
-	return usedResource
+	return allocating
+}
+
+func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
+	var requestCPU, requestMem int64
+	for _, pod := range podList {
+		// When the phase of a pod is Succeeded or Failed, kube-scheduler would not consider its resource occupation.
+		if len(pod.Spec.NodeName) != 0 && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
+			// TODO(Garrybest): calculate the init container resource when pod is not scheduled
+			podRes := addPodRequestResource(pod)
+			requestCPU += podRes.MilliCPU
+			requestMem += podRes.Memory
+		}
+	}
+
+	allocated := corev1.ResourceList{
+		corev1.ResourceCPU:    *resource.NewMilliQuantity(requestCPU, resource.DecimalSI),
+		corev1.ResourceMemory: *resource.NewQuantity(requestMem, resource.BinarySI),
+	}
+
+	return allocated
 }
 
 func addPodRequestResource(pod *corev1.Pod) requestResource {
