@@ -14,17 +14,15 @@ labels: good first issue
 
 **Who can join or take the task**:
 
-Good first issue is intended for `first-time contributors` to get started on his/her contributor journey.
+The good first issue is intended for `first-time contributors` to get started on his/her contributor journey.
 
-After a contributor has successfully completed 1-2 good first issue's, 
-they should be ready to move on to `help wanted` items, saving remaining `good first issue`'s for other new contributors.
+After a contributor has successfully completed 1-2 good first issue's,
+they should be ready to move on to `help wanted` items, saving the remaining `good first issue` for other new contributors.
 
 **How to join or take the task**:
 
-Just reply on the issue with following message:
-```
-/assign
-```
+Just reply on the issue with the message `/assign` in a separate line.
+
 Then, the issue will be assigned to you.
 
 **How to ask for help**:
