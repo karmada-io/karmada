@@ -456,8 +456,7 @@ func getAllocatingResource(podList []*corev1.Pod) corev1.ResourceList {
 	var requestCPU, requestMem int64
 	for _, pod := range podList {
 		if len(pod.Spec.NodeName) == 0 {
-			// TODO(Garrybest): calculate the init container resource when pod is not scheduled
-			podRes := util.GetPodResourceWithoutInitContainers(pod)
+			podRes := util.CalculateRequestResource(pod)
 			requestCPU += podRes.MilliCPU
 			requestMem += podRes.Memory
 		}
@@ -476,8 +475,7 @@ func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
 	for _, pod := range podList {
 		// When the phase of a pod is Succeeded or Failed, kube-scheduler would not consider its resource occupation.
 		if len(pod.Spec.NodeName) != 0 && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
-			// TODO(Garrybest): calculate the init container resource when pod is not scheduled
-			podRes := util.GetPodResourceWithoutInitContainers(pod)
+			podRes := util.CalculateRequestResource(pod)
 			requestCPU += podRes.MilliCPU
 			requestMem += podRes.Memory
 		}
