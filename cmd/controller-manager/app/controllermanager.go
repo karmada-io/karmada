@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -143,14 +144,17 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	clusterStatusController := &status.ClusterStatusController{
-		Client:                       mgr.GetClient(),
-		EventRecorder:                mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:                clusterPredicateFunc,
-		InformerManager:              informermanager.NewMultiClusterInformerManager(),
-		StopChan:                     stopChan,
-		ClusterClientSetFunc:         util.NewClusterClientSet,
-		ClusterDynamicClientSetFunc:  util.NewClusterDynamicClientSet,
-		ClusterStatusUpdateFrequency: opts.ClusterStatusUpdateFrequency,
+		Client:                            mgr.GetClient(),
+		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
+		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
+		PredicateFunc:                     clusterPredicateFunc,
+		InformerManager:                   informermanager.NewMultiClusterInformerManager(),
+		StopChan:                          stopChan,
+		ClusterClientSetFunc:              util.NewClusterClientSet,
+		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
+		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
+		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
+		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster status controller: %v", err)

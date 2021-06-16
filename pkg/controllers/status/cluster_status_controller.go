@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,9 +16,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/component-helpers/apimachinery/lease"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,6 +56,7 @@ var (
 // ClusterStatusController is to sync status of Cluster.
 type ClusterStatusController struct {
 	client.Client               // used to operate Cluster resources.
+	KubeClient                  clientset.Interface
 	EventRecorder               record.EventRecorder
 	PredicateFunc               predicate.Predicate
 	InformerManager             informermanager.MultiClusterInformerManager
@@ -59,10 +64,16 @@ type ClusterStatusController struct {
 	ClusterClientSetFunc        func(c *v1alpha1.Cluster, client client.Client) (*util.ClusterClient, error)
 	ClusterDynamicClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
 
-	// ClusterStatusUpdateFrequency is the frequency that controller computes cluster status.
-	// If cluster lease feature is not enabled, it is also the frequency that controller posts cluster status
-	// to karmada-apiserver.
+	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
 	ClusterStatusUpdateFrequency metav1.Duration
+	// ClusterLeaseDuration is a duration that candidates for a lease need to wait to force acquire it.
+	// This is measure against time of last observed lease RenewTime.
+	ClusterLeaseDuration metav1.Duration
+	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
+	// how long the current holder of a lease has last updated the lease.
+	ClusterLeaseRenewIntervalFraction float64
+	// ClusterLeaseControllers store clusters and their corresponding lease controllers.
+	ClusterLeaseControllers sync.Map
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -115,6 +126,9 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (
 		klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
+
+	// init the lease controller for every cluster
+	c.initLeaseController(cluster)
 
 	var currentClusterStatus = v1alpha1.ClusterStatus{}
 
@@ -222,6 +236,36 @@ func (c *ClusterStatusController) buildInformerForCluster(cluster *v1alpha1.Clus
 		}
 	}
 	return singleClusterInformerManager, nil
+}
+
+func (c *ClusterStatusController) initLeaseController(cluster *v1alpha1.Cluster) {
+	// If lease controller has been registered, we skip this function.
+	if _, exists := c.ClusterLeaseControllers.Load(cluster.Name); exists {
+		return
+	}
+
+	// renewInterval is how often the lease renew time is updated.
+	renewInterval := time.Duration(float64(c.ClusterLeaseDuration.Nanoseconds()) * c.ClusterLeaseRenewIntervalFraction)
+
+	nodeLeaseController := lease.NewController(
+		clock.RealClock{},
+		c.KubeClient,
+		cluster.Name,
+		int32(c.ClusterLeaseDuration.Seconds()),
+		nil,
+		renewInterval,
+		util.NamespaceClusterLease,
+		util.SetLeaseOwnerFunc(c.Client, cluster.Name))
+
+	c.ClusterLeaseControllers.Store(cluster.Name, nodeLeaseController)
+
+	// start syncing lease
+	// todo(garryfang): stop the lease controller when cluster does not exist according to #384
+	go func() {
+		nodeLeaseController.Run(c.StopChan)
+		<-c.StopChan
+		c.ClusterLeaseControllers.Delete(cluster.Name)
+	}()
 }
 
 func getClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy bool) {
