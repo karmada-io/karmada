@@ -189,7 +189,7 @@ func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 			klog.Errorf("Failed to create execution space for cluster(%s): %v", cluster.Name, err)
 			return err
 		}
-		klog.V(2).Infof("Created execution space(%s) for cluster(%s).", executionSpace, cluster.Name)
+		klog.V(2).Infof("Created execution space(%s) for cluster(%s).", executionSpaceName, cluster.Name)
 	}
 
 	return nil
