@@ -456,8 +456,7 @@ func getAllocatingResource(podList []*corev1.Pod) corev1.ResourceList {
 	var requestCPU, requestMem int64
 	for _, pod := range podList {
 		if len(pod.Spec.NodeName) == 0 {
-			// TODO(Garrybest): calculate the init container resource when pod is not scheduled
-			podRes := addPodRequestResource(pod)
+			podRes := util.CalculateRequestResource(pod)
 			requestCPU += podRes.MilliCPU
 			requestMem += podRes.Memory
 		}
@@ -476,8 +475,7 @@ func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
 	for _, pod := range podList {
 		// When the phase of a pod is Succeeded or Failed, kube-scheduler would not consider its resource occupation.
 		if len(pod.Spec.NodeName) != 0 && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
-			// TODO(Garrybest): calculate the init container resource when pod is not scheduled
-			podRes := addPodRequestResource(pod)
+			podRes := util.CalculateRequestResource(pod)
 			requestCPU += podRes.MilliCPU
 			requestMem += podRes.Memory
 		}
@@ -489,40 +487,4 @@ func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
 	}
 
 	return allocated
-}
-
-func addPodRequestResource(pod *corev1.Pod) requestResource {
-	res := calculateResource(pod)
-	return res
-}
-
-func calculateResource(pod *corev1.Pod) (res requestResource) {
-	resPtr := &res
-	for _, c := range pod.Spec.Containers {
-		resPtr.addResource(c.Resources.Requests)
-	}
-	return
-}
-
-// requestResource is a collection of compute resource.
-type requestResource struct {
-	MilliCPU int64
-	Memory   int64
-}
-
-func (r *requestResource) addResource(rl corev1.ResourceList) {
-	if r == nil {
-		return
-	}
-
-	for rName, rQuant := range rl {
-		switch rName {
-		case corev1.ResourceCPU:
-			r.MilliCPU += rQuant.MilliValue()
-		case corev1.ResourceMemory:
-			r.Memory += rQuant.Value()
-		default:
-			continue
-		}
-	}
 }
