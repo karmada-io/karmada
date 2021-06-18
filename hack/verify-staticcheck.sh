@@ -11,7 +11,7 @@ cd "${REPO_ROOT}"
 source "hack/util.sh"
 
 # directly download binary, details refer to https://golangci-lint.run/usage/install
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VER}
+command -v golangci-lint &>/dev/null || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VER}
 
 function lint() {
   local ret=0
