@@ -19,6 +19,8 @@ function lint() {
   golangci-lint run || ret=1
 
   # to test with specified build tags in hack, default skip them
+  # typecheck works bad with build-tags, so skip it
+  sed -i "/typecheck/d" ./.golangci.yml
   golangci-lint run --build-tags=tools --disable=typecheck ./hack/... || ret=1
 
   return $ret
