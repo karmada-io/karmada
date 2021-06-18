@@ -68,6 +68,10 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 		return controllerruntime.Result{}, nil
 	}
 
+	if !helper.IsResourceApplied(&work.Status) {
+		return controllerruntime.Result{}, nil
+	}
+
 	clusterName, err := names.GetClusterName(work.GetNamespace())
 	if err != nil {
 		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", work.GetNamespace(), err)

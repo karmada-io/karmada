@@ -18,6 +18,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -67,7 +68,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		applied := c.isResourceApplied(&work.Status)
+		applied := helper.IsResourceApplied(&work.Status)
 		if applied {
 			err := c.tryDeleteWorkload(cluster, work)
 			if err != nil {
@@ -103,18 +104,6 @@ func (c *Controller) syncWork(cluster *v1alpha1.Cluster, work *workv1alpha1.Work
 	}
 
 	return controllerruntime.Result{}, nil
-}
-
-// isResourceApplied checking weather resource has been dispatched to member cluster or not
-func (c *Controller) isResourceApplied(workStatus *workv1alpha1.WorkStatus) bool {
-	for _, condition := range workStatus.Conditions {
-		if condition.Type == workv1alpha1.WorkApplied {
-			if condition.Status == metav1.ConditionTrue {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // tryDeleteWorkload tries to delete resource in the given member cluster.
@@ -173,7 +162,7 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha
 			return err
 		}
 
-		applied := c.isResourceApplied(&work.Status)
+		applied := helper.IsResourceApplied(&work.Status)
 		if applied {
 			err = c.tryUpdateWorkload(cluster, workload, clusterDynamicClient)
 			if err != nil {
