@@ -15,11 +15,15 @@ type Options struct {
 	KarmadaContext string
 	ClusterName    string
 
-	// ClusterStatusUpdateFrequency is the frequency that karmada-agent computes cluster status.
-	// If cluster lease feature is not enabled, it is also the frequency that karmada-agent posts cluster status
-	// to karmada-apiserver. In that case, be cautious when changing the constant, it must work with
-	// ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
+	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
+	// It must work with ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
 	ClusterStatusUpdateFrequency metav1.Duration
+	// ClusterLeaseDuration is a duration that candidates for a lease need to wait to force acquire it.
+	// This is measure against time of last observed RenewTime.
+	ClusterLeaseDuration metav1.Duration
+	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
+	// how long the current holder of a lease has last updated the lease.
+	ClusterLeaseRenewIntervalFraction float64
 }
 
 // NewOptions builds an default scheduler options.
@@ -37,4 +41,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in karmada control plane kubeconfig file.")
 	fs.StringVar(&o.ClusterName, "cluster-name", o.ClusterName, "Name of member cluster that the agent serves for.")
 	fs.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second, "Specifies how often karmada-agent posts cluster status to karmada-apiserver. Note: be cautious when changing the constant, it must work with ClusterMonitorGracePeriod in karmada-controller-manager.")
+	fs.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", 40*time.Second,
+		"Specifies the expiration period of a cluster lease.")
+	fs.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
+		"Specifies the cluster lease renew interval fraction.")
 }

@@ -10,6 +10,11 @@ import (
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
+const (
+	// NamespaceClusterLease is the namespace which cluster lease are stored.
+	NamespaceClusterLease = "karmada-cluster"
+)
+
 // IsClusterReady tells whether the cluster status in 'Ready' condition.
 func IsClusterReady(clusterStatus *v1alpha1.ClusterStatus) bool {
 	for _, condition := range clusterStatus.Conditions {

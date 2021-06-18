@@ -30,11 +30,15 @@ type Options struct {
 	// SecurePort is the port that the the server serves at.
 	// Note: We hope support https in the future once controller-runtime provides the functionality.
 	SecurePort int
-	// ClusterStatusUpdateFrequency is the frequency that karmada-controller-manager computes cluster status.
-	// If cluster lease feature is not enabled, it is also the frequency that karmada-agent posts cluster status
-	// to karmada-apiserver. In that case, be cautious when changing the constant, it must work with
-	// ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
+	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
+	// It must work with ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
 	ClusterStatusUpdateFrequency metav1.Duration
+	// ClusterLeaseDuration is a duration that candidates for a lease need to wait to force acquire it.
+	// This is measure against time of last observed lease RenewTime.
+	ClusterLeaseDuration metav1.Duration
+	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
+	// how long the current holder of a lease has last updated the lease.
+	ClusterLeaseRenewIntervalFraction float64
 }
 
 // NewOptions builds an empty options.
@@ -79,4 +83,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second,
 		"Specifies how often karmada-controller-manager posts cluster status to karmada-apiserver.")
 	flags.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
+	flags.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", 40*time.Second,
+		"Specifies the expiration period of a cluster lease.")
+	flags.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
+		"Specifies the cluster lease renew interval fraction.")
 }
