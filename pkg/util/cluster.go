@@ -3,7 +3,7 @@ package util
 import (
 	"context"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -17,14 +17,7 @@ const (
 
 // IsClusterReady tells whether the cluster status in 'Ready' condition.
 func IsClusterReady(clusterStatus *v1alpha1.ClusterStatus) bool {
-	for _, condition := range clusterStatus.Conditions {
-		if condition.Type == v1alpha1.ClusterConditionReady {
-			if condition.Status == metav1.ConditionTrue {
-				return true
-			}
-		}
-	}
-	return false
+	return meta.IsStatusConditionTrue(clusterStatus.Conditions, v1alpha1.ClusterConditionReady)
 }
 
 // GetCluster returns the given Cluster resource
