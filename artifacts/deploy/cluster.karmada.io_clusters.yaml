@@ -155,7 +155,6 @@ spec:
                       type: array
                   required:
                   - groupVersion
-                  - resources
                   type: object
                 type: array
               conditions:
