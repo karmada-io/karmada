@@ -810,6 +810,8 @@ k8s.io/component-base/version
 # k8s.io/component-helpers v0.20.6 => k8s.io/component-helpers v0.20.6
 ## explicit
 k8s.io/component-helpers/apimachinery/lease
+k8s.io/component-helpers/scheduling/corev1
+k8s.io/component-helpers/scheduling/corev1/nodeaffinity
 # k8s.io/gengo v0.0.0-20201113003025-83324d819ded
 k8s.io/gengo/args
 k8s.io/gengo/examples/deepcopy-gen/generators
@@ -835,11 +837,15 @@ k8s.io/kube-openapi/pkg/schemaconv
 k8s.io/kube-openapi/pkg/util
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/sets
+# k8s.io/kube-scheduler v0.0.0 => k8s.io/kube-scheduler v0.20.6
+k8s.io/kube-scheduler/extender/v1
 # k8s.io/kubernetes v1.20.6
 ## explicit
 k8s.io/kubernetes/pkg/apis/core
 k8s.io/kubernetes/pkg/apis/core/helper
 k8s.io/kubernetes/pkg/apis/core/v1/helper
+k8s.io/kubernetes/pkg/features
+k8s.io/kubernetes/pkg/scheduler/util
 # k8s.io/utils v0.0.0-20210111153108-fddb29f9d009
 ## explicit
 k8s.io/utils/buffer
