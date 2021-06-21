@@ -139,7 +139,8 @@ type APIEnablement struct {
 	// GroupVersion is the group and version this APIEnablement is for.
 	GroupVersion string `json:"groupVersion"`
 	// Resources contains the name of the resources.
-	Resources []string `json:"resources"`
+	// +optional
+	Resources []string `json:"resources,omitempty"`
 }
 
 // NodeSummary represents the summary of nodes status in a specific cluster.
