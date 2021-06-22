@@ -151,6 +151,8 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 }
 
 // RunJoin is the implementation of the 'join' command.
+//nolint:gocyclo
+// Note: ignore the cyclomatic complexity issue to get gocyclo on board. Tracked by: https://github.com/karmada-io/karmada/issues/460
 func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
 	klog.V(1).Infof("joining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("joining cluster. cluster namespace: %s", opts.ClusterNamespace)

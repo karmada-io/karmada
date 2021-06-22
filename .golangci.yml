@@ -42,12 +42,16 @@ linters:
   - unused
   - varcheck
   # other linters supported by golangci-lint.
+  - gocyclo
   - gosec
   - whitespace
 
 linters-settings:
   goimports:
     local-prefixes: github.com/karmada-io/karmada
+  gocyclo:
+    # minimal cyclomatic complexity to report
+    min-complexity: 15
 
 issues:
   # The list of ids of default excludes to include or disable. By default it's empty.
