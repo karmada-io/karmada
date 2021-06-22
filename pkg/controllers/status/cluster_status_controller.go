@@ -370,11 +370,16 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]v1alpha1.APIEnablem
 	var apiEnablements []v1alpha1.APIEnablement
 
 	for _, list := range apiResourceList {
-		var apiResource []string
+		var apiResources []v1alpha1.APIResource
 		for _, resource := range list.APIResources {
-			apiResource = append(apiResource, resource.Name)
+			apiResource := v1alpha1.APIResource{
+				Name: resource.Name,
+				Kind: resource.Kind,
+			}
+
+			apiResources = append(apiResources, apiResource)
 		}
-		apiEnablements = append(apiEnablements, v1alpha1.APIEnablement{GroupVersion: list.GroupVersion, Resources: apiResource})
+		apiEnablements = append(apiEnablements, v1alpha1.APIEnablement{GroupVersion: list.GroupVersion, Resources: apiResources})
 	}
 
 	return apiEnablements, nil

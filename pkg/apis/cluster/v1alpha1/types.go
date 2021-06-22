@@ -138,9 +138,19 @@ type ClusterStatus struct {
 type APIEnablement struct {
 	// GroupVersion is the group and version this APIEnablement is for.
 	GroupVersion string `json:"groupVersion"`
-	// Resources contains the name of the resources.
+	// Resources is a list of APIResource.
 	// +optional
-	Resources []string `json:"resources,omitempty"`
+	Resources []APIResource `json:"resources,omitempty"`
+}
+
+// APIResource specifies the name and kind names for the resource.
+type APIResource struct {
+	// Name is the plural name of the resource.
+	// +required
+	Name string `json:"name"`
+	// Kind is the kind for the resource (e.g. 'Deployment' is the kind for resource 'deployments')
+	// +required
+	Kind string `json:"kind"`
 }
 
 // NodeSummary represents the summary of nodes status in a specific cluster.

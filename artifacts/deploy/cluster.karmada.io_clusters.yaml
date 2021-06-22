@@ -149,9 +149,22 @@ spec:
                         is for.
                       type: string
                     resources:
-                      description: Resources contains the name of the resources.
+                      description: Resources is a list of APIResource.
                       items:
-                        type: string
+                        description: APIResource specifies the name and kind names
+                          for the resource.
+                        properties:
+                          kind:
+                            description: Kind is the kind for the resource (e.g. 'Deployment'
+                              is the kind for resource 'deployments')
+                            type: string
+                          name:
+                            description: Name is the plural name of the resource.
+                            type: string
+                        required:
+                        - kind
+                        - name
+                        type: object
                       type: array
                   required:
                   - groupVersion
