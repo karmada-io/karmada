@@ -1,11 +1,19 @@
 package util
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
+	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
+)
 
 // Resource is a collection of compute resource.
 type Resource struct {
 	MilliCPU int64
 	Memory   int64
+
+	// ScalarResources
+	ScalarResources map[corev1.ResourceName]int64
 }
 
 // EmptyResource creates a empty resource object and returns.
@@ -26,7 +34,9 @@ func (r *Resource) Add(rl corev1.ResourceList) {
 		case corev1.ResourceMemory:
 			r.Memory += rQuant.Value()
 		default:
-			continue
+			if schedutil.IsScalarResourceName(rName) {
+				r.AddScalar(rName, rQuant.Value())
+			}
 		}
 	}
 }
@@ -48,32 +58,55 @@ func (r *Resource) SetMaxResource(rl corev1.ResourceList) {
 				r.Memory = mem
 			}
 		default:
-			continue
+			if schedutil.IsScalarResourceName(rName) {
+				if value := rQuant.Value(); value > r.ScalarResources[rName] {
+					r.SetScalar(rName, value)
+				}
+			}
 		}
 	}
 }
 
-// CalculateRequestResourceWithoutInitContainers returns Pod's resource request, it does not contain
-// init containers' resource request.
-func CalculateRequestResourceWithoutInitContainers(pod *corev1.Pod) *Resource {
-	result := EmptyResource()
-	for _, container := range pod.Spec.Containers {
-		result.Add(container.Resources.Requests)
-	}
+// AddScalar adds a resource by a scalar value of this resource.
+func (r *Resource) AddScalar(name corev1.ResourceName, quantity int64) {
+	r.SetScalar(name, r.ScalarResources[name]+quantity)
+}
 
+// SetScalar sets a resource by a scalar value of this resource.
+func (r *Resource) SetScalar(name corev1.ResourceName, quantity int64) {
+	// Lazily allocate scalar resource map.
+	if r.ScalarResources == nil {
+		r.ScalarResources = map[corev1.ResourceName]int64{}
+	}
+	r.ScalarResources[name] = quantity
+}
+
+// ResourceList returns a resource list of this resource.
+func (r *Resource) ResourceList() corev1.ResourceList {
+	result := corev1.ResourceList{
+		corev1.ResourceCPU:    *resource.NewMilliQuantity(r.MilliCPU, resource.DecimalSI),
+		corev1.ResourceMemory: *resource.NewQuantity(r.Memory, resource.BinarySI),
+	}
+	for rName, rQuant := range r.ScalarResources {
+		if v1helper.IsHugePageResourceName(rName) {
+			result[rName] = *resource.NewQuantity(rQuant, resource.BinarySI)
+		} else {
+			result[rName] = *resource.NewQuantity(rQuant, resource.DecimalSI)
+		}
+	}
 	return result
 }
 
-// CalculateRequestResource calculates the resource required for pod, that is the higher of:
+// AddPodRequest add the effective request resource of a pod to the origin resource.
+// The Pod's effective request is the higher of:
 // - the sum of all app containers(spec.Containers) request for a resource.
 // - the effective init containers(spec.InitContainers) request for a resource.
 // The effective init containers request is the highest request on all init containers.
-func CalculateRequestResource(pod *corev1.Pod) *Resource {
-	result := CalculateRequestResourceWithoutInitContainers(pod)
-
-	for _, container := range pod.Spec.InitContainers {
-		result.SetMaxResource(container.Resources.Requests)
+func (r *Resource) AddPodRequest(pod *corev1.Pod) {
+	for _, container := range pod.Spec.Containers {
+		r.Add(container.Resources.Requests)
 	}
-
-	return result
+	for _, container := range pod.Spec.InitContainers {
+		r.SetMaxResource(container.Resources.Requests)
+	}
 }

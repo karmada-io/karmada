@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -497,38 +496,24 @@ func getClusterAllocatable(nodeList []*corev1.Node) (allocatable corev1.Resource
 }
 
 func getAllocatingResource(podList []*corev1.Pod) corev1.ResourceList {
-	var requestCPU, requestMem int64
+	allocating := util.EmptyResource()
 	for _, pod := range podList {
 		if len(pod.Spec.NodeName) == 0 {
-			podRes := util.CalculateRequestResource(pod)
-			requestCPU += podRes.MilliCPU
-			requestMem += podRes.Memory
+			allocating.AddPodRequest(pod)
 		}
 	}
 
-	allocating := corev1.ResourceList{
-		corev1.ResourceCPU:    *resource.NewMilliQuantity(requestCPU, resource.DecimalSI),
-		corev1.ResourceMemory: *resource.NewQuantity(requestMem, resource.BinarySI),
-	}
-
-	return allocating
+	return allocating.ResourceList()
 }
 
 func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
-	var requestCPU, requestMem int64
+	allocated := util.EmptyResource()
 	for _, pod := range podList {
 		// When the phase of a pod is Succeeded or Failed, kube-scheduler would not consider its resource occupation.
 		if len(pod.Spec.NodeName) != 0 && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
-			podRes := util.CalculateRequestResource(pod)
-			requestCPU += podRes.MilliCPU
-			requestMem += podRes.Memory
+			allocated.AddPodRequest(pod)
 		}
 	}
 
-	allocated := corev1.ResourceList{
-		corev1.ResourceCPU:    *resource.NewMilliQuantity(requestCPU, resource.DecimalSI),
-		corev1.ResourceMemory: *resource.NewQuantity(requestMem, resource.BinarySI),
-	}
-
-	return allocated
+	return allocated.ResourceList()
 }
