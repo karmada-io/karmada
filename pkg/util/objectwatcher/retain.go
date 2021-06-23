@@ -58,6 +58,9 @@ func retainPodFields(desiredObj, clusterObj *unstructured.Unstructured) error {
 	return nil
 }
 
+// retainServiceFields updates the desired service object with values retained from the cluster object.
+//nolint:gocyclo
+// Note: ignore the cyclomatic complexity issue to get gocyclo on board. Tracked by: https://github.com/karmada-io/karmada/issues/460
 func retainServiceFields(desiredObj, clusterObj *unstructured.Unstructured) error {
 	// healthCheckNodePort is allocated by APIServer and unchangeable, so it should be retained while updating
 	healthCheckNodePort, ok, err := unstructured.NestedInt64(clusterObj.Object, "spec", "healthCheckNodePort")
