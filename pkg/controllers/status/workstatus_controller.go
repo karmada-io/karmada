@@ -247,15 +247,10 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 
 // reflectStatus grabs cluster object's running status then updates to it's owner object(Work).
 func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
-	// Stop processing if resource(such as ConfigMap,Secret,ClusterRole, etc.) doesn't contain 'spec.status' fields.
-	statusMap, exist, err := unstructured.NestedMap(clusterObj.Object, "status")
+	statusMap, _, err := unstructured.NestedMap(clusterObj.Object, "status")
 	if err != nil {
 		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
 		return err
-	}
-	if !exist || statusMap == nil {
-		klog.V(2).Infof("Ignore resources(%s) without status.", clusterObj.GetKind())
-		return nil
 	}
 
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)
