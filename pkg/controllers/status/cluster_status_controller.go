@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -371,6 +372,11 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]v1alpha1.APIEnablem
 	for _, list := range apiResourceList {
 		var apiResources []v1alpha1.APIResource
 		for _, resource := range list.APIResources {
+			// skip subresources such as "/status", "/scale" and etc because these are not real APIResources that we are caring about.
+			if strings.Contains(resource.Name, "/") {
+				continue
+			}
+
 			apiResource := v1alpha1.APIResource{
 				Name: resource.Name,
 				Kind: resource.Kind,
