@@ -8,6 +8,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	lister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
@@ -17,7 +18,7 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *policyv1alpha1.Placement) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ObjectReference) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -45,13 +46,13 @@ func NewGenericScheduler(
 	}
 }
 
-func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement) (result ScheduleResult, err error) {
+func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha1.ObjectReference) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, clusterInfoSnapshot)
+	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, resource, clusterInfoSnapshot)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
@@ -77,11 +78,12 @@ func (g *genericScheduler) findClustersThatFit(
 	ctx context.Context,
 	fwk framework.Framework,
 	placement *policyv1alpha1.Placement,
+	resource *workv1alpha1.ObjectReference,
 	clusterInfo *cache.Snapshot) ([]*clusterv1alpha1.Cluster, error) {
 	var out []*clusterv1alpha1.Cluster
 	clusters := clusterInfo.GetReadyClusters()
 	for _, c := range clusters {
-		resMap := fwk.RunFilterPlugins(ctx, placement, c.Cluster())
+		resMap := fwk.RunFilterPlugins(ctx, placement, resource, c.Cluster())
 		res := resMap.Merge()
 		if !res.IsSuccess() {
 			klog.V(4).Infof("cluster %q is not fit", c.Cluster().Name)

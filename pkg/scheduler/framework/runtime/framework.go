@@ -7,8 +7,9 @@ import (
 
 	"k8s.io/klog/v2"
 
-	cluster "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	plugins2 "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
 )
@@ -52,10 +53,10 @@ func NewFramework(plugins []string) framework.Framework {
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *v1alpha1.Placement, cluster *cluster.Cluster) framework.PluginToResult {
+func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha1.ObjectReference, cluster *clusterv1alpha1.Cluster) framework.PluginToResult {
 	result := make(framework.PluginToResult, len(frw.filterPlugins))
 	for _, p := range frw.filterPlugins {
-		pluginResult := p.Filter(ctx, placement, cluster)
+		pluginResult := p.Filter(ctx, placement, resource, cluster)
 		result[p.Name()] = pluginResult
 	}
 
@@ -64,7 +65,7 @@ func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *v1alp
 
 // RunScorePlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *v1alpha1.Placement, clusters []*cluster.Cluster) (framework.PluginToClusterScores, error) {
+func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, clusters []*clusterv1alpha1.Cluster) (framework.PluginToClusterScores, error) {
 	result := make(framework.PluginToClusterScores, len(frw.filterPlugins))
 	for _, p := range frw.scorePlugins {
 		for i, cluster := range clusters {
