@@ -54,6 +54,13 @@ linters-settings:
     min-complexity: 15
 
 issues:
+  exclude-rules:
+    # Ignore issues when use import with `_`, like
+    # _ "k8s.io/code-generator/cmd/client-gen"
+    - linters:
+        - typecheck
+      text: "is a program"
+
   # The list of ids of default excludes to include or disable. By default it's empty.
   include:
     - EXC0002 # disable excluding of issues about comments from golint
