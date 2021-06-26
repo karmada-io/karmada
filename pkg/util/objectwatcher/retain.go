@@ -59,10 +59,25 @@ func retainPodFields(desiredObj, clusterObj *unstructured.Unstructured) error {
 }
 
 // retainServiceFields updates the desired service object with values retained from the cluster object.
-//nolint:gocyclo
-// Note: ignore the cyclomatic complexity issue to get gocyclo on board. Tracked by: https://github.com/karmada-io/karmada/issues/460
 func retainServiceFields(desiredObj, clusterObj *unstructured.Unstructured) error {
 	// healthCheckNodePort is allocated by APIServer and unchangeable, so it should be retained while updating
+	if err := retainServiceHealthCheckNodePort(desiredObj, clusterObj); err != nil {
+		return err
+	}
+
+	// ClusterIP and NodePort are allocated to Service by cluster, so retain the same if any while updating
+	if err := retainServiceClusterIP(desiredObj, clusterObj); err != nil {
+		return err
+	}
+
+	if err := retainServiceNodePort(desiredObj, clusterObj); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func retainServiceHealthCheckNodePort(desiredObj, clusterObj *unstructured.Unstructured) error {
 	healthCheckNodePort, ok, err := unstructured.NestedInt64(clusterObj.Object, "spec", "healthCheckNodePort")
 	if err != nil {
 		return fmt.Errorf("error retrieving healthCheckNodePort from service: %w", err)
@@ -72,23 +87,25 @@ func retainServiceFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 			return fmt.Errorf("error setting healthCheckNodePort for service: %w", err)
 		}
 	}
+	return nil
+}
 
-	// ClusterIP and NodePort are allocated to Service by cluster, so retain the same if any while updating
-
-	// Retain clusterip
+func retainServiceClusterIP(desiredObj, clusterObj *unstructured.Unstructured) error {
 	clusterIP, ok, err := unstructured.NestedString(clusterObj.Object, "spec", "clusterIP")
 	if err != nil {
 		return fmt.Errorf("error retrieving clusterIP from cluster service: %w", err)
 	}
 	// !ok could indicate that a cluster ip was not assigned
 	if ok && clusterIP != "" {
-		err := unstructured.SetNestedField(desiredObj.Object, clusterIP, "spec", "clusterIP")
+		err = unstructured.SetNestedField(desiredObj.Object, clusterIP, "spec", "clusterIP")
 		if err != nil {
 			return fmt.Errorf("error setting clusterIP for service: %w", err)
 		}
 	}
+	return nil
+}
 
-	// Retain nodeports
+func retainServiceNodePort(desiredObj, clusterObj *unstructured.Unstructured) error {
 	clusterPorts, ok, err := unstructured.NestedSlice(clusterObj.Object, "spec", "ports")
 	if err != nil {
 		return fmt.Errorf("error retrieving ports from cluster service: %w", err)
@@ -96,6 +113,7 @@ func retainServiceFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 	if !ok {
 		return nil
 	}
+
 	var desiredPorts []interface{}
 	desiredPorts, ok, err = unstructured.NestedSlice(desiredObj.Object, "spec", "ports")
 	if err != nil {
