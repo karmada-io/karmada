@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -48,7 +49,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
 
@@ -154,31 +155,48 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha
 		return err
 	}
 
+	var errs []error
+	syncSucceedNum := 0
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
 		if err != nil {
 			klog.Errorf("failed to unmarshal workload, error is: %v", err)
-			return err
+			errs = append(errs, err)
+			continue
 		}
 
 		applied := helper.IsResourceApplied(&work.Status)
 		if applied {
 			err = c.tryUpdateWorkload(cluster, workload, clusterDynamicClient)
 			if err != nil {
-				klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", cluster.Name, err)
-				return err
+				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+				errs = append(errs, err)
+				continue
 			}
 		} else {
 			err = c.tryCreateWorkload(cluster, workload)
 			if err != nil {
-				klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", cluster.Name, err)
-				return err
+				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+				errs = append(errs, err)
+				continue
 			}
 		}
+		syncSucceedNum++
 	}
 
-	err = c.updateAppliedCondition(work)
+	if len(errs) > 0 {
+		total := len(work.Spec.Workload.Manifests)
+		message := fmt.Sprintf("Failed to apply all manifests (%v/%v): %v", syncSucceedNum, total, errors.NewAggregate(errs).Error())
+		err = c.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message)
+		if err != nil {
+			klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+			errs = append(errs, err)
+		}
+		return errors.NewAggregate(errs)
+	}
+
+	err = c.updateAppliedCondition(work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
 	if err != nil {
 		klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 		return err
@@ -197,7 +215,7 @@ func (c *Controller) tryUpdateWorkload(cluster *v1alpha1.Cluster, workload *unst
 
 	clusterObj, err := clusterDynamicClient.DynamicClientSet.Resource(dynamicResource).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), metav1.GetOptions{})
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
 			return err
 		}
@@ -223,15 +241,16 @@ func (c *Controller) tryCreateWorkload(cluster *v1alpha1.Cluster, workload *unst
 }
 
 // updateAppliedCondition update the Applied condition for the given Work
-func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work) error {
+func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
 	newWorkAppliedCondition := metav1.Condition{
 		Type:               workv1alpha1.WorkApplied,
-		Status:             metav1.ConditionTrue,
-		Reason:             "AppliedSuccessful",
-		Message:            "Manifest has been successfully applied",
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
 		LastTransitionTime: metav1.Now(),
 	}
-	work.Status.Conditions = append(work.Status.Conditions, newWorkAppliedCondition)
+
+	meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
 	err := c.Client.Status().Update(context.TODO(), work)
 	return err
 }
