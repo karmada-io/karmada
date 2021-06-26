@@ -66,11 +66,10 @@ func (o *objectWatcherImpl) Create(cluster *v1alpha1.Cluster, desireObj *unstruc
 		return err
 	}
 
+	// Karmada will adopt creating resource due to an existing resource in member cluster, because we don't want to force update or delete the resource created by users.
+	// users should resolve the conflict in person.
 	clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(context.TODO(), desireObj, metav1.CreateOptions{})
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return nil
-		}
 		klog.Errorf("Failed to create resource %v, err is %v ", desireObj.GetName(), err)
 		return err
 	}
