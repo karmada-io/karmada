@@ -39,6 +39,16 @@ type Options struct {
 	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
 	// how long the current holder of a lease has last updated the lease.
 	ClusterLeaseRenewIntervalFraction float64
+	// ClusterMonitorPeriod represents cluster-controller monitoring period, i.e. how often does
+	// cluster-controller check cluster health signal posted from cluster-status-controller.
+	// This value should be lower than ClusterMonitorGracePeriod.
+	ClusterMonitorPeriod metav1.Duration
+	// ClusterMonitorGracePeriod represents the grace period after last cluster health probe time.
+	// If it doesn't receive update for this amount of time, it will start posting
+	// "ClusterReady==ConditionUnknown".
+	ClusterMonitorGracePeriod metav1.Duration
+	// When cluster is just created, e.g. agent bootstrap or cluster join, we give a longer grace period.
+	ClusterStartupGracePeriod metav1.Duration
 }
 
 // NewOptions builds an empty options.
@@ -87,4 +97,10 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		"Specifies the expiration period of a cluster lease.")
 	flags.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
 		"Specifies the cluster lease renew interval fraction.")
+	flags.DurationVar(&o.ClusterMonitorPeriod.Duration, "cluster-monitor-period", 5*time.Second,
+		"Specifies how often karmada-controller-manager monitors cluster health status.")
+	flags.DurationVar(&o.ClusterMonitorGracePeriod.Duration, "cluster-monitor-grace-period", 40*time.Second,
+		"Specifies the grace period of allowing a running cluster to be unresponsive before marking it unhealthy.")
+	flags.DurationVar(&o.ClusterStartupGracePeriod.Duration, "cluster-startup-grace-period", 60*time.Second,
+		"Specifies the grace period of allowing a cluster to be unresponsive during startup before marking it unhealthy.")
 }

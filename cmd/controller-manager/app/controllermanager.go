@@ -118,8 +118,11 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	clusterController := &cluster.Controller{
-		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(cluster.ControllerName),
+		Client:                    mgr.GetClient(),
+		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
+		ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
+		ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
+		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
 	}
 	if err := clusterController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster controller: %v", err)
