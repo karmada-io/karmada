@@ -100,6 +100,11 @@ type Placement struct {
 	// SpreadConstraints represents a list of the scheduling constraints.
 	// +optional
 	SpreadConstraints []SpreadConstraint `json:"spreadConstraints,omitempty"`
+
+	// ReplicaScheduling represents the scheduling policy on dealing with the number of replicas
+	// when propagating resources that have replicas in spec (e.g. deployments, statefulsets) to member clusters.
+	// +optional
+	ReplicaScheduling *ReplicaSchedulingPolicy `json:"replicaScheduling,omitempty"`
 }
 
 // SpreadFieldValue is the type to define valid values for SpreadConstraint.SpreadByField
@@ -161,6 +166,53 @@ type ClusterAffinity struct {
 	// ExcludedClusters is the list of clusters to be ignored.
 	// +optional
 	ExcludeClusters []string `json:"exclude,omitempty"`
+}
+
+// ReplicaSchedulingType describes scheduling methods for the "replicas" in a resouce.
+type ReplicaSchedulingType string
+
+const (
+	// ReplicaSchedulingTypeDuplicated means when propagating a resource,
+	// each candidate member cluster will directly apply the original replicas.
+	ReplicaSchedulingTypeDuplicated ReplicaSchedulingType = "Duplicated"
+	// ReplicaSchedulingTypeDivided means when propagating a resource,
+	// each candidate member cluster will get only a part of original replicas.
+	ReplicaSchedulingTypeDivided ReplicaSchedulingType = "Divided"
+)
+
+// ReplicaDivisionPreference describes options of how replicas can be scheduled.
+type ReplicaDivisionPreference string
+
+const (
+	// ReplicaDivisionPreferenceAggregated divides replicas into clusters as few as possible,
+	// while respecting clusters' resource availabilities during the division.
+	ReplicaDivisionPreferenceAggregated ReplicaDivisionPreference = "Aggregated"
+	// ReplicaDivisionPreferenceWeighted divides replicas by weight according to WeightPreference.
+	ReplicaDivisionPreferenceWeighted ReplicaDivisionPreference = "Weighted"
+)
+
+// ReplicaSchedulingStrategy represents the assignment strategy of replicas.
+type ReplicaSchedulingStrategy struct {
+	// ReplicaSchedulingType determines how the replicas is scheduled when karmada propagating
+	// a resource. Valid options are Duplicated and Divided.
+	// "Duplicated" duplicates the same replicas to each candidate member cluster from resource.
+	// "Divided" divides replicas into parts according to number of valid candidate member
+	// clusters, and exact replicas for each cluster are determined by ReplicaDivisionPreference.
+	// +optional
+	ReplicaSchedulingType ReplicaSchedulingType `json:"replicaSchedulingType,omitempty"`
+
+	// ReplicaDivisionPreference determines how the replicas is divided
+	// when ReplicaSchedulingType is "Divided". Valid options are Aggregated and Weighted.
+	// "Aggregated" divides replicas into clusters as few as possible,
+	// while respecting clusters' resource availabilities during the division.
+	// "Weighted" divides replicas by weight according to WeightPreference.
+	// +optional
+	ReplicaDivisionPreference ReplicaDivisionPreference `json:"replicaDivisionPreference,omitempty"`
+
+	// WeightPreference describes weight for each cluster or for each group of cluster
+	// If ReplicaDivisionPreference is set to "Weighted", and WeightPreference is not set, scheduler will weight all clusters the same.
+	// +optional
+	WeightPreference *ClusterPreferences `json:"weightPreference,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
