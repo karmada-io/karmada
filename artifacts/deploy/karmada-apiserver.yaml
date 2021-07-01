@@ -47,6 +47,7 @@ spec:
             - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
             - --kubelet-client-key=/etc/kubernetes/pki/karmada.key
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+            - --disable-admission-plugins=StorageObjectInUseProtection
             - --runtime-config=
             - --secure-port=5443
             - --service-cluster-ip-range=10.96.0.0/12
