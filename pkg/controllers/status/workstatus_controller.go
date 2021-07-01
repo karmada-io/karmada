@@ -120,7 +120,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	obj, err := c.getObjectFromCache(fedKey)
+	obj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return c.handleDeleteEvent(fedKey)
@@ -333,34 +333,6 @@ func (c *WorkStatusController) getRawManifest(manifests []workv1alpha1.Manifest,
 	}
 
 	return nil, fmt.Errorf("no such manifest exist")
-}
-
-// getObjectFromCache gets full object information from cache by key in worker queue.
-func (c *WorkStatusController) getObjectFromCache(key keys.FederatedKey) (*unstructured.Unstructured, error) {
-	gvr, err := restmapper.GetGroupVersionResource(c.RESTMapper, key.GroupVersionKind())
-	if err != nil {
-		klog.Errorf("Failed to get GVR from GVK %s. Error: %v", key.GroupVersionKind(), err)
-		return nil, err
-	}
-
-	singleClusterManager := c.InformerManager.GetSingleClusterManager(key.Cluster)
-	if singleClusterManager == nil {
-		return nil, nil
-	}
-	var obj runtime.Object
-	lister := singleClusterManager.Lister(gvr)
-	obj, err = lister.Get(key.NamespaceKey())
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, err
-		}
-
-		// print logs only for real error.
-		klog.Errorf("Failed to get obj %s. error: %v.", key.String(), err)
-
-		return nil, err
-	}
-	return obj.(*unstructured.Unstructured), nil
 }
 
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr

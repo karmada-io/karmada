@@ -24,6 +24,12 @@ const (
 
 	// WorkNameLabel is added to objects to specify associated Work's name.
 	WorkNameLabel = "work.karmada.io/name"
+
+	// ServiceNamespaceLabel is added to work object, which is report by member cluster, to specify service namespace associated with EndpointSlice.
+	ServiceNamespaceLabel = "endpointslice.karmada.io/namespace"
+
+	// ServiceNameLabel is added to work object, which is report by member cluster, to specify service name associated with EndpointSlice.
+	ServiceNameLabel = "endpointslice.karmada.io/name"
 )
 
 // Define annotations used by karmada system.
@@ -78,4 +84,8 @@ const (
 	ReplicaSetKind = "ReplicaSet"
 	// StatefulSetKind indicates the target resource is a statefulset
 	StatefulSetKind = "StatefulSet"
+	// ServiceExportKind indicates the target resource is a serviceexport
+	ServiceExportKind = "ServiceExport"
+	// EndpointSliceKind indicates the target resource is a endpointslice
+	EndpointSliceKind = "EndpointSlice"
 )

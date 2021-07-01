@@ -124,6 +124,7 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 			return err
 		}
 
+		// TODO(@XiShanYongYe-Chang): refactor util.CreateOrUpdateWork with pkg/util/helper/work.go
 		err = util.CreateOrUpdateWork(c.Client, objectMeta, namespaceJSON)
 		if err != nil {
 			return err

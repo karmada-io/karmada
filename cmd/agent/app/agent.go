@@ -12,17 +12,18 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
-	clusterapi "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
@@ -79,7 +80,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 
 	setupControllers(controllerManager, opts, ctx.Done())
 
-	// blocks until the stop channel is closed.
+	// blocks until the context is done.
 	if err := controllerManager.Start(ctx); err != nil {
 		klog.Errorf("controller manager exits unexpectedly: %v", err)
 		return err
@@ -89,26 +90,11 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 }
 
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
-	predicateFun := predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
-			return createEvent.Object.GetName() == opts.ClusterName
-		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return updateEvent.ObjectOld.GetName() == opts.ClusterName
-		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return deleteEvent.Object.GetName() == opts.ClusterName
-		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return false
-		},
-	}
-
 	clusterStatusController := &status.ClusterStatusController{
 		Client:                            mgr.GetClient(),
 		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
 		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:                     predicateFun,
+		PredicateFunc:                     helper.NewClusterPredicateByAgent(opts.ClusterName),
 		InformerManager:                   informermanager.NewMultiClusterInformerManager(),
 		StopChan:                          stopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
@@ -149,14 +135,29 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup work status controller: %v", err)
 	}
+
+	serviceExportController := &mcs.ServiceExportController{
+		Client:                      mgr.GetClient(),
+		EventRecorder:               mgr.GetEventRecorderFor(mcs.ControllerName),
+		RESTMapper:                  mgr.GetRESTMapper(),
+		InformerManager:             informermanager.NewMultiClusterInformerManager(),
+		StopChan:                    stopChan,
+		WorkerNumber:                1,
+		PredicateFunc:               helper.NewPredicateForServiceExportControllerByAgent(opts.ClusterName),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+	}
+	serviceExportController.RunWorkQueue()
+	if err := serviceExportController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+	}
 }
 
 func registerWithControlPlaneAPIServer(controlPlaneRestConfig *restclient.Config, memberClusterName string) error {
 	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
-	clusterObj := &clusterapi.Cluster{}
+	clusterObj := &clusterv1alpha1.Cluster{}
 	clusterObj.Name = memberClusterName
-	clusterObj.Spec.SyncMode = clusterapi.Pull
+	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
 
 	_, err := karmadactl.CreateClusterObject(karmadaClient, clusterObj, false)
 	if err != nil {

@@ -107,6 +107,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 			return err
 		}
 
+		// TODO(@XiShanYongYe-Chang): refactor util.CreateOrUpdateWork with pkg/util/helper/work.go
 		err = util.CreateOrUpdateWork(c.Client, objectMeta, hpaJSON)
 		if err != nil {
 			return err

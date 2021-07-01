@@ -78,7 +78,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-work", &webhook.Admission{Handler: &work.MutatingAdmission{}})
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
-	// blocks until the stop channel is closed.
+	// blocks until the context is done.
 	if err := hookManager.Start(ctx); err != nil {
 		klog.Errorf("webhook server exits unexpectedly: %v", err)
 		return err

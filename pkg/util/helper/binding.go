@@ -201,6 +201,7 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 			}
 		}
 
+		// TODO(@XiShanYongYe-Chang): refactor util.CreateOrUpdateWork with pkg/util/helper/work.go
 		workloadJSON, err := clonedWorkload.MarshalJSON()
 		if err != nil {
 			klog.Errorf("Failed to marshal workload, kind: %s, namespace: %s, name: %s. Error: %v",
