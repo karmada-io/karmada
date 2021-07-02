@@ -31,6 +31,7 @@ import (
 	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha1"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/apiinstalled"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -107,7 +108,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	schedulerCache := schedulercache.NewCache()
 	// TODO: make plugins as a flag
-	algorithm := core.NewGenericScheduler(schedulerCache, policyLister, []string{clusteraffinity.Name, tainttoleration.Name})
+	algorithm := core.NewGenericScheduler(schedulerCache, policyLister, []string{clusteraffinity.Name, tainttoleration.Name, apiinstalled.Name})
 	sched := &Scheduler{
 		DynamicClient:          dynamicClient,
 		KarmadaClient:          karmadaClient,
@@ -476,7 +477,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha1.Resour
 		return err
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement)
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec.Resource)
 	if err != nil {
 		klog.V(2).Infof("failed scheduling ResourceBinding %s/%s: %v", resourceBinding.Namespace, resourceBinding.Name, err)
 		return err
@@ -503,7 +504,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha1.Resour
 }
 
 func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha1.ClusterResourceBinding, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement)
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec.Resource)
 	if err != nil {
 		klog.V(2).Infof("failed scheduling ClusterResourceBinding %s: %v", clusterResourceBinding.Name, err)
 		return err
