@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	errors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -1035,6 +1035,6 @@ func (d *ResourceDetector) CleanupLabels(objRef workv1alpha1.ObjectReference, la
 		klog.Errorf("Failed to update resource %v/%v, err is %v ", workload.GetNamespace(), workload.GetName(), err)
 		return err
 	}
-	klog.V(2).Infof("Updated resource(kind=%s, %s/%s) on cluster: %s", newWorkload.GetKind(), newWorkload.GetNamespace(), newWorkload.GetName(), newWorkload.GetClusterName())
+	klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", newWorkload.GetKind(), newWorkload.GetNamespace(), newWorkload.GetName())
 	return nil
 }
