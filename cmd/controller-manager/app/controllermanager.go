@@ -19,20 +19,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
+	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/detector"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
@@ -86,7 +86,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 
 	setupControllers(controllerManager, opts, ctx.Done())
 
-	// blocks until the stop channel is closed.
+	// blocks until the context is done.
 	if err := controllerManager.Start(ctx); err != nil {
 		klog.Errorf("controller manager exits unexpectedly: %v", err)
 		return err
@@ -130,16 +130,16 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	clusterPredicateFunc := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
-			obj := createEvent.Object.(*v1alpha1.Cluster)
-			return obj.Spec.SyncMode == v1alpha1.Push
+			obj := createEvent.Object.(*clusterv1alpha1.Cluster)
+			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			obj := updateEvent.ObjectNew.(*v1alpha1.Cluster)
-			return obj.Spec.SyncMode == v1alpha1.Push
+			obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
+			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			obj := deleteEvent.Object.(*v1alpha1.Cluster)
-			return obj.Spec.SyncMode == v1alpha1.Push
+			obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
+			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
@@ -202,14 +202,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
 	}
 
-	workPredicateFunc := newPredicateFuncsForWork(mgr)
-
 	executionController := &execution.Controller{
 		Client:               mgr.GetClient(),
 		EventRecorder:        mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:           mgr.GetRESTMapper(),
 		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        workPredicateFunc,
+		PredicateFunc:        helper.NewWorkPredicate(mgr),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
@@ -224,7 +222,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		StopChan:             stopChan,
 		WorkerNumber:         1,
 		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        workPredicateFunc,
+		PredicateFunc:        helper.NewWorkPredicate(mgr),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
 	}
 	workStatusController.RunWorkQueue()
@@ -239,57 +237,19 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
 	}
-}
 
-func newPredicateFuncsForWork(mgr controllerruntime.Manager) predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
-			obj := createEvent.Object.(*workv1alpha1.Work)
-			clusterName, err := names.GetClusterName(obj.Namespace)
-			if err != nil {
-				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
-				return false
-			}
-
-			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
-			if err != nil {
-				klog.Errorf("Failed to get the given member cluster %s", clusterName)
-				return false
-			}
-			return clusterObj.Spec.SyncMode == v1alpha1.Push
-		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
-			clusterName, err := names.GetClusterName(obj.Namespace)
-			if err != nil {
-				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
-				return false
-			}
-
-			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
-			if err != nil {
-				klog.Errorf("Failed to get the given member cluster %s", clusterName)
-				return false
-			}
-			return clusterObj.Spec.SyncMode == v1alpha1.Push
-		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			obj := deleteEvent.Object.(*workv1alpha1.Work)
-			clusterName, err := names.GetClusterName(obj.Namespace)
-			if err != nil {
-				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
-				return false
-			}
-
-			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
-			if err != nil {
-				klog.Errorf("Failed to get the given member cluster %s", clusterName)
-				return false
-			}
-			return clusterObj.Spec.SyncMode == v1alpha1.Push
-		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return false
-		},
+	serviceExportController := &mcs.ServiceExportController{
+		Client:                      mgr.GetClient(),
+		EventRecorder:               mgr.GetEventRecorderFor(mcs.ControllerName),
+		RESTMapper:                  mgr.GetRESTMapper(),
+		InformerManager:             informermanager.NewMultiClusterInformerManager(),
+		StopChan:                    stopChan,
+		WorkerNumber:                1,
+		PredicateFunc:               helper.NewPredicateForServiceExportController(mgr),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+	}
+	serviceExportController.RunWorkQueue()
+	if err := serviceExportController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
 	}
 }
