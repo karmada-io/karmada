@@ -7,7 +7,7 @@ on:
 jobs:
   golangci:
     name: lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -19,7 +19,7 @@ jobs:
         run: hack/verify-staticcheck.sh
   codegen:
     name: codegen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -34,7 +34,7 @@ jobs:
   build:
     name: compile
     needs: codegen # rely on codegen successful completion
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -51,7 +51,7 @@ jobs:
   test:
     name: unit test
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -63,10 +63,8 @@ jobs:
         run: make test
   e2e:
     name: e2e test
-    if: ${{ github.repository == 'karmada-io/karmada' }}
     needs: build
-    # switch back to GitHub Action after https://github.com/karmada-io/karmada/issues/481 get fixed.
-    runs-on: self-hosted
+    runs-on: ubuntu-18.04
     steps:
       - name: checkout code
         uses: actions/checkout@v2
