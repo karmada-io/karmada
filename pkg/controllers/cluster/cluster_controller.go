@@ -96,6 +96,7 @@ func (c *Controller) Start(ctx context.Context) error {
 			klog.Errorf("Error monitoring cluster health: %v", err)
 		}
 	}, c.ClusterMonitorPeriod)
+	<-ctx.Done()
 
 	return nil
 }
