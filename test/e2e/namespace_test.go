@@ -43,7 +43,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					clusterClient := getClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
@@ -74,9 +74,12 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					clusterClient := getClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 						if err != nil {
+							if errors.IsNotFound(err) {
+								return false, nil
+							}
 							return false, err
 						}
 						return true, nil
@@ -98,7 +101,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					clusterClient := getClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
@@ -191,7 +194,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				clusterClient, err := util.NewClusterClientSet(clusterJoined, controlPlaneClient)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+				err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 					_, err = clusterClient.KubeClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 					if err != nil {
 						if errors.IsNotFound(err) {

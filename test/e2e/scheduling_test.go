@@ -88,7 +88,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				fmt.Printf("deploy kind is %s, name is %s\n", deployment.Kind, deployment.Name)
 				binding := &workv1alpha1.ResourceBinding{}
 
-				err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 					err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: deployment.Namespace, Name: bindingName}, binding)
 					if err != nil {
 						if errors.IsNotFound(err) {
@@ -114,7 +114,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Check whether deployment(%s/%s) is present on cluster(%s)", deploymentNamespace, deploymentName, targetClusterName)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
@@ -152,7 +152,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for deployment(%s/%s) synced on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						dep, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
 							return false, err
@@ -179,7 +179,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for deployment(%s/%s) disappear on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
@@ -267,7 +267,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				binding := &workv1alpha1.ClusterResourceBinding{}
 
 				fmt.Printf("MaxGroups= %v, MinGroups= %v\n", maxGroups, minGroups)
-				err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 					err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: bindingName}, binding)
 					if err != nil {
 						if errors.IsNotFound(err) {
@@ -292,7 +292,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for crd(%s) present on cluster(%s)", crd.Name, targetClusterName)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
@@ -322,7 +322,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for crd(%s) disappeared on cluster(%s)\n", crd.Name, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {

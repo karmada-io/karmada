@@ -100,7 +100,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 						currentCluster, _ := util.GetCluster(controlPlaneClient, targetClusterName)
 
 						// wait for the current cluster status changing to false
-						_ = wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+						_ = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 							if !meta.IsStatusConditionPresentAndEqual(currentCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
 								fmt.Printf("current cluster %s is false\n", targetClusterName)
 								disabledClusters = append(disabledClusters, currentCluster)
@@ -125,7 +125,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Check whether deployment(%s/%s) is present on cluster(%s)", deploymentNamespace, deploymentName, targetClusterName)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
@@ -163,7 +163,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 
 // disableCluster will set wrong API endpoint of current cluster
 func disableCluster(c client.Client, clusterName string) error {
-	err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if errors.IsConflict(err) {
@@ -187,7 +187,7 @@ func disableCluster(c client.Client, clusterName string) error {
 
 // recoverCluster will recover API endpoint of the disable cluster
 func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint string) error {
-	err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			return false, err
@@ -212,7 +212,7 @@ func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []
 	binding := &workv1alpha1.ResourceBinding{}
 
 	fmt.Printf("collect the target clusters in resource binding\n")
-	err = wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+	err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 		err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: deployment.Namespace, Name: bindingName}, binding)
 		if err != nil {
 			if errors.IsNotFound(err) {
