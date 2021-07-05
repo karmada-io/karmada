@@ -34,8 +34,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// ControllerName is the controller name that will be used when reporting events.
-const ControllerName = "service-export-controller"
+// ServiceExportControllerName is the controller name that will be used when reporting events.
+const ServiceExportControllerName = "service-export-controller"
 
 // ServiceExportController is to sync ServiceExport and report EndpointSlices of exported service to control-plane.
 type ServiceExportController struct {

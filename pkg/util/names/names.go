@@ -22,6 +22,12 @@ const (
 // executionSpacePrefix is the prefix of execution space
 const executionSpacePrefix = "karmada-es-"
 
+// endpointSlicePrefix is the prefix of collected EndpointSlice from member clusters.
+const endpointSlicePrefix = "imported"
+
+// endpointSlicePrefix is the prefix of service derived from ServiceImport.
+const derivedServicePrefix = "derived"
+
 // GenerateExecutionSpaceName generates execution space name for the given member cluster
 func GenerateExecutionSpaceName(clusterName string) (string, error) {
 	if clusterName == "" {
@@ -60,4 +66,14 @@ func GenerateServiceAccountName(clusterName string) string {
 // GenerateRoleName generates the name of a Role or ClusterRole.
 func GenerateRoleName(serviceAccountName string) string {
 	return fmt.Sprintf("karmada-controller-manager:%s", serviceAccountName)
+}
+
+// GenerateEndpointSliceName generates the name of collected EndpointSlice.
+func GenerateEndpointSliceName(endpointSliceName string, cluster string) string {
+	return fmt.Sprintf("%s-%s-%s", endpointSlicePrefix, cluster, endpointSliceName)
+}
+
+// GenerateDerivedServiceName generates the service name derived from ServiceImport.
+func GenerateDerivedServiceName(serviceName string) string {
+	return fmt.Sprintf("%s-%s", derivedServicePrefix, serviceName)
 }
