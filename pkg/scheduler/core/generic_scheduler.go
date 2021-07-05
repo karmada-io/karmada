@@ -23,7 +23,7 @@ type ScheduleAlgorithm interface {
 
 // ScheduleResult includes the clusters selected.
 type ScheduleResult struct {
-	SuggestedClusters []string
+	SuggestedClusters []workv1alpha1.TargetCluster
 }
 
 type genericScheduler struct {
@@ -68,7 +68,12 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	klog.V(4).Infof("feasible clusters scores: %v", clustersScore)
 
 	clusters := g.selectClusters(clustersScore, placement.SpreadConstraints, feasibleClusters)
-	result.SuggestedClusters = clusters
+
+	clustersWithReplicase, err := g.assignReplicas(clusters, placement.ReplicaScheduling, resource)
+	if err != nil {
+		return result, fmt.Errorf("failed to assignReplicas: %v", err)
+	}
+	result.SuggestedClusters = clustersWithReplicase
 
 	return result, nil
 }
@@ -117,19 +122,15 @@ func (g *genericScheduler) prioritizeClusters(
 	return result, nil
 }
 
-func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, spreadConstraints []policyv1alpha1.SpreadConstraint, clusters []*clusterv1alpha1.Cluster) []string {
+func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, spreadConstraints []policyv1alpha1.SpreadConstraint, clusters []*clusterv1alpha1.Cluster) []*clusterv1alpha1.Cluster {
 	if len(spreadConstraints) != 0 {
 		return g.matchSpreadConstraints(clusters, spreadConstraints)
 	}
 
-	out := make([]string, len(clustersScore))
-	for i := range clustersScore {
-		out[i] = clustersScore[i].Name
-	}
-	return out
+	return clusters
 }
 
-func (g *genericScheduler) matchSpreadConstraints(clusters []*clusterv1alpha1.Cluster, spreadConstraints []policyv1alpha1.SpreadConstraint) []string {
+func (g *genericScheduler) matchSpreadConstraints(clusters []*clusterv1alpha1.Cluster, spreadConstraints []policyv1alpha1.SpreadConstraint) []*clusterv1alpha1.Cluster {
 	state := util.NewSpreadGroup()
 	g.runSpreadConstraintsFilter(clusters, spreadConstraints, state)
 	return g.calSpreadResult(state)
@@ -148,11 +149,11 @@ func (g *genericScheduler) runSpreadConstraintsFilter(clusters []*clusterv1alpha
 func (g *genericScheduler) groupByFieldCluster(clusters []*clusterv1alpha1.Cluster, spreadConstraint policyv1alpha1.SpreadConstraint, spreadGroup *util.SpreadGroup) {
 	for _, cluster := range clusters {
 		clusterGroup := cluster.Name
-		spreadGroup.GroupRecord[spreadConstraint][clusterGroup] = append(spreadGroup.GroupRecord[spreadConstraint][clusterGroup], cluster.Name)
+		spreadGroup.GroupRecord[spreadConstraint][clusterGroup] = append(spreadGroup.GroupRecord[spreadConstraint][clusterGroup], cluster)
 	}
 }
 
-func (g *genericScheduler) calSpreadResult(spreadGroup *util.SpreadGroup) []string {
+func (g *genericScheduler) calSpreadResult(spreadGroup *util.SpreadGroup) []*clusterv1alpha1.Cluster {
 	// TODO: now support single spread constraint
 	if len(spreadGroup.GroupRecord) > 1 {
 		return nil
@@ -161,8 +162,8 @@ func (g *genericScheduler) calSpreadResult(spreadGroup *util.SpreadGroup) []stri
 	return g.chooseSpreadGroup(spreadGroup)
 }
 
-func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []string {
-	var feasibleClusters []string
+func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*clusterv1alpha1.Cluster {
+	var feasibleClusters []*clusterv1alpha1.Cluster
 	for spreadConstraint, clusterGroups := range spreadGroup.GroupRecord {
 		if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster {
 			if len(clusterGroups) < spreadConstraint.MinGroups {
@@ -189,4 +190,22 @@ func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []st
 		}
 	}
 	return feasibleClusters
+}
+
+func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy, object *workv1alpha1.ObjectReference) ([]workv1alpha1.TargetCluster, error) {
+	if len(clusters) == 0 {
+		return nil, fmt.Errorf("no clusters available to schedule")
+	}
+	if object.Replicas == 0 {
+		targetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
+		for i, cluster := range clusters {
+			targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name}
+		}
+		return targetClusters, nil
+	}
+	targetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
+	for i, cluster := range clusters {
+		targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
+	}
+	return targetClusters, nil
 }
