@@ -126,3 +126,4 @@ spec:
       targetPort: 5443
   selector:
     app: karmada-apiserver
+  type: {{service_type}}

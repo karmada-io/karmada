@@ -9,6 +9,7 @@ set -o nounset
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
 mkdir -p "${CERT_DIR}" &>/dev/null || sudo mkdir -p "${CERT_DIR}"
+rm -f "${CERT_DIR:-${HOME}/.karmada}/*"
 KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 
 # The host cluster name which used to install karmada control plane components.
@@ -16,7 +17,7 @@ HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
 CFSSL_VERSION="v1.5.0"
 CONTROLPLANE_SUDO=$(test -w "${CERT_DIR}" || echo "sudo -E")
-
+CLUSTER_IP_ONLY=${CLUSTER_IP_ONLY:-false} # whether create a 'ClusterIP' type service for karmada apiserver
 source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
@@ -48,6 +49,8 @@ then
   usage
   exit 1
 fi
+
+KARMADA_APISERVER_IP=${3:-}
 
 # generate a secret to store the certificates
 function generate_cert_secret {
@@ -118,20 +121,37 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-etcd.yaml"
 # Wait for karmada-etcd to come up before launching the rest of the components.
 util::wait_pod_ready "${ETCD_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
+# If it provided a karmada API Server IP we can access karmada API Server (cluster by kind), we will create a ClusterIP type Service
+# Or we need to create a LoadBalancer service($CLUSTER_IP_ONLY=false) so that we can access karmada API Server outside the karmada-host cluster
+KARMADA_APISERVER_SERVICE_TYPE="ClusterIP"
+if [[ -z "${KARMADA_APISERVER_IP}" ]] && [ "${CLUSTER_IP_ONLY}" = false ]; then
+  KARMADA_APISERVER_SERVICE_TYPE="LoadBalancer"
+fi
+
 # deploy karmada apiserver
-kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-apiserver.yaml"
+TEMP_PATH_APISERVER=$(mktemp -d)
+cp "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
+sed -i "s/{{service_type}}/${KARMADA_APISERVER_SERVICE_TYPE}/g" "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
+echo -e "\nApply dynamic rendered apiserver service in ${TEMP_PATH_APISERVER}/karmada-apiserver.yaml."
+kubectl apply -f "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 
 # Wait for karmada-apiserver to come up before launching the rest of the components.
 util::wait_pod_ready "${APISERVER_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
-if [[ -z "${3-}" ]]; then
-  KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n karmada-system -o jsonpath='{.spec.clusterIP}')
-else
-  KARMADA_APISERVER_IP=$3
+# get Karmada apiserver IP
+if [[ -z "${KARMADA_APISERVER_IP}" ]]; then
+  case $KARMADA_APISERVER_SERVICE_TYPE in
+    ClusterIP)  KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n "${KARMADA_SYSTEM_NAMESPACE}" -o=jsonpath='{.spec.clusterIP}')
+    ;;
+    LoadBalancer)  if util::wait_service_external_ip "karmada-apiserver" "${KARMADA_SYSTEM_NAMESPACE}"; then
+      KARMADA_APISERVER_IP=$(util::get_load_balancer_ip)
+      fi
+    ;;
+  esac
 fi
 
 if [[ -z "${KARMADA_APISERVER_IP}" ]]; then
-  echo -e "ERROR: failed to create service 'karmada-apiserver', please verify.\n"
+  echo -e "ERROR: failed to get Karmada API server IP after creating service 'karmada-apiserver', please verify.\n"
   exit 1
 fi
 

@@ -295,3 +295,54 @@ function util::deploy_webhook_configuration() {
   kubectl apply -f "${temp_path}/temp.yaml"
   rm -rf "${temp_path}"
 }
+
+# util::wait_service_external_ip give a service external ip when it is ready, if not, wait until timeout
+# Parameters:
+#  - $1: service name in k8s
+#  - $2: namespace
+SERVICE_EXTERNAL_IP=''
+function util::wait_service_external_ip() {
+  local service_name=$1
+  local namespace=$2
+  local external_ip
+  local tmp
+  for tmp in {1..30}; do
+    set +e
+    external_ip=$(kubectl get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.ip}} {{end}}" | xargs)
+    set -e
+    if [[ -z "$external_ip" ]]; then
+      echo "wait the external ip of ${service_name} ready..."
+      sleep 6
+      continue
+    else
+      SERVICE_EXTERNAL_IP="${external_ip}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# util::get_load_balancer_ip get a valid load balancer ip from k8s service's 'loadBalancer' , if not, wait until timeout
+# call 'util::wait_service_external_ip' before using this function
+function util::get_load_balancer_ip() {
+  local tmp
+  local first_ip
+  if [[ -n "${SERVICE_EXTERNAL_IP}" ]]; then
+    first_ip=$(echo "${SERVICE_EXTERNAL_IP}" | awk '{print $1}') #temporarily choose the first one
+    for tmp in {1..10}; do
+      set +e
+      connect_test=$(curl -s -k -m 5 https://"${first_ip}":5443/readyz)
+      set -e
+      if [[ "${connect_test}" = "ok" ]]; then
+        echo "${first_ip}"
+        return 0
+      else
+        sleep 3
+        continue
+      fi
+    done
+  fi
+  return 1
+}
+
+
