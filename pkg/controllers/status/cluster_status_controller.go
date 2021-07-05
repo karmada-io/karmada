@@ -208,25 +208,27 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *v1alpha1.Cluster
 // and pod and start it. If the informer manager exist, return it.
 func (c *ClusterStatusController) buildInformerForCluster(cluster *v1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
-	if singleClusterInformerManager != nil {
-		return singleClusterInformerManager, nil
+	if singleClusterInformerManager == nil {
+		clusterClient, err := c.ClusterDynamicClientSetFunc(cluster, c.Client)
+		if err != nil {
+			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
+			return nil, err
+		}
+		singleClusterInformerManager = c.InformerManager.ForCluster(clusterClient.ClusterName, clusterClient.DynamicClientSet, 0)
 	}
 
-	clusterClient, err := c.ClusterDynamicClientSetFunc(cluster, c.Client)
-	if err != nil {
-		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
-		return nil, err
-	}
-	singleClusterInformerManager = c.InformerManager.ForCluster(clusterClient.ClusterName, clusterClient.DynamicClientSet, 0)
-
-	gvrs := []schema.GroupVersionResource{
-		nodeGVR,
-		podGVR,
-	}
+	gvrs := []schema.GroupVersionResource{nodeGVR, podGVR}
 
 	// create the informer for pods and nodes
+	allSynced := true
 	for _, gvr := range gvrs {
-		singleClusterInformerManager.Lister(gvr)
+		if !singleClusterInformerManager.IsInformerSynced(gvr) {
+			allSynced = false
+			singleClusterInformerManager.Lister(gvr)
+		}
+	}
+	if allSynced {
+		return singleClusterInformerManager, nil
 	}
 
 	c.InformerManager.Start(cluster.Name, c.StopChan)

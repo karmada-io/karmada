@@ -8,6 +8,19 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+var (
+	instance MultiClusterInformerManager
+	once     sync.Once
+)
+
+// GetInstance returns a shared MultiClusterInformerManager instance.
+func GetInstance() MultiClusterInformerManager {
+	once.Do(func() {
+		instance = NewMultiClusterInformerManager()
+	})
+	return instance
+}
+
 // MultiClusterInformerManager manages dynamic shared informer for all resources, include Kubernetes resource and
 // custom resources defined by CustomResourceDefinition, across multi-cluster.
 type MultiClusterInformerManager interface {
