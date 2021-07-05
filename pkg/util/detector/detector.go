@@ -11,6 +11,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -324,7 +325,11 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		util.PropagationPolicyNameLabel:      policy.GetName(),
 	}
 
-	binding := d.BuildResourceBinding(object, objectKey, policyLabels)
+	binding, err := d.BuildResourceBinding(object, objectKey, policyLabels)
+	if err != nil {
+		klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
+		return err
+	}
 	bindingCopy := binding.DeepCopy()
 	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 		// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
@@ -366,7 +371,11 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 	// For namespace-scoped resources, which namespace is not empty, building `ResourceBinding`.
 	// For cluster-scoped resources, which namespace is empty, building `ClusterResourceBinding`.
 	if object.GetNamespace() != "" {
-		binding := d.BuildResourceBinding(object, objectKey, policyLabels)
+		binding, err := d.BuildResourceBinding(object, objectKey, policyLabels)
+		if err != nil {
+			klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
+			return err
+		}
 		bindingCopy := binding.DeepCopy()
 		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
@@ -389,7 +398,11 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())
 		}
 	} else {
-		binding := d.BuildClusterResourceBinding(object, objectKey, policyLabels)
+		binding, err := d.BuildClusterResourceBinding(object, objectKey, policyLabels)
+		if err != nil {
+			klog.Errorf("Failed to build clusterResourceBinding for object: %s. error: %v", objectKey, err)
+			return err
+		}
 		bindingCopy := binding.DeepCopy()
 		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
@@ -490,8 +503,12 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) *workv1alpha1.ResourceBinding {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha1.ResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
+	replicaResourceRequirements, replicas, err := d.GetReplicaDeclaration(object)
+	if err != nil {
+		return nil, err
+	}
 	propagationBinding := &workv1alpha1.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
@@ -503,21 +520,27 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 		},
 		Spec: workv1alpha1.ResourceBindingSpec{
 			Resource: workv1alpha1.ObjectReference{
-				APIVersion:      object.GetAPIVersion(),
-				Kind:            object.GetKind(),
-				Namespace:       object.GetNamespace(),
-				Name:            object.GetName(),
-				ResourceVersion: object.GetResourceVersion(),
+				APIVersion:                  object.GetAPIVersion(),
+				Kind:                        object.GetKind(),
+				Namespace:                   object.GetNamespace(),
+				Name:                        object.GetName(),
+				ResourceVersion:             object.GetResourceVersion(),
+				ReplicaResourceRequirements: replicaResourceRequirements,
+				Replicas:                    replicas,
 			},
 		},
 	}
 
-	return propagationBinding
+	return propagationBinding, nil
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
-func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) *workv1alpha1.ClusterResourceBinding {
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha1.ClusterResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
+	replicaResourceRequirements, replicas, err := d.GetReplicaDeclaration(object)
+	if err != nil {
+		return nil, err
+	}
 	binding := &workv1alpha1.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
@@ -528,15 +551,59 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		},
 		Spec: workv1alpha1.ResourceBindingSpec{
 			Resource: workv1alpha1.ObjectReference{
-				APIVersion:      object.GetAPIVersion(),
-				Kind:            object.GetKind(),
-				Name:            object.GetName(),
-				ResourceVersion: object.GetResourceVersion(),
+				APIVersion:                  object.GetAPIVersion(),
+				Kind:                        object.GetKind(),
+				Name:                        object.GetName(),
+				ResourceVersion:             object.GetResourceVersion(),
+				ReplicaResourceRequirements: replicaResourceRequirements,
+				Replicas:                    replicas,
 			},
 		},
 	}
 
-	return binding
+	return binding, nil
+}
+
+// GetReplicaDeclaration get the replicas and resource requirements of a Deployment object
+func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (corev1.ResourceList, int32, error) {
+	if object.GetKind() == util.DeploymentKind {
+		replicas, ok, err := unstructured.NestedInt64(object.Object, util.SpecField, util.ReplicasField)
+		if !ok || err != nil {
+			return nil, 0, err
+		}
+		podTemplate, ok, err := unstructured.NestedMap(object.Object, util.SpecField, util.TemplateField)
+		if !ok || err != nil {
+			return nil, 0, err
+		}
+		replicaResourceRequirements, err := d.getReplicaResourceRequirements(podTemplate)
+		if err != nil {
+			return nil, 0, err
+		}
+		return replicaResourceRequirements, int32(replicas), nil
+	}
+	return nil, 0, nil
+}
+
+func (d *ResourceDetector) getReplicaResourceRequirements(object map[string]interface{}) (corev1.ResourceList, error) {
+	var podTemplateSpec *corev1.PodTemplateSpec
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &podTemplateSpec)
+	if err != nil {
+		return nil, err
+	}
+	resPtr := d.calculateResource(&podTemplateSpec.Spec)
+	replicaResourceRequirements := resPtr.ResourceList()
+	return replicaResourceRequirements, nil
+}
+
+func (d *ResourceDetector) calculateResource(podSpec *corev1.PodSpec) (res util.Resource) {
+	resPtr := &res
+	for _, c := range podSpec.Containers {
+		resPtr.Add(c.Resources.Requests)
+	}
+	for _, c := range podSpec.InitContainers {
+		resPtr.SetMaxResource(c.Resources.Requests)
+	}
+	return
 }
 
 // AddWaiting adds object's key to waiting list.
