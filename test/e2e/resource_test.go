@@ -63,7 +63,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				wantedReplicas := *deployment.Spec.Replicas * int32(len(clusters))
 
 				klog.Infof("Waiting for deployment(%s/%s) collecting correctly status", deploymentNamespace, deploymentName)
-				err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 					currentDeployment, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -97,7 +97,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				wantedReplicas := updateDeploymentReplicas * int32(len(clusters))
 
 				klog.Infof("Waiting for deployment(%s/%s) collecting correctly status", deploymentNamespace, deploymentName)
-				err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 					currentDeployment, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 

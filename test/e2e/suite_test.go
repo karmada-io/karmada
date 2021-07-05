@@ -327,7 +327,7 @@ func newClusterClientSet(c *clusterv1alpha1.Cluster) (*util.ClusterClient, *util
 
 // set cluster label of E2E
 func SetClusterLabel(c client.Client, clusterName string) error {
-	err := wait.Poll(2*time.Second, 10*time.Second, func() (done bool, err error) {
+	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if errors.IsConflict(err) {
@@ -352,7 +352,7 @@ func SetClusterLabel(c client.Client, clusterName string) error {
 
 // delete cluster label of E2E
 func DeleteClusterLabel(c client.Client, clusterName string) error {
-	err := wait.Poll(2*time.Second, 10*time.Second, func() (done bool, err error) {
+	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
 			if errors.IsConflict(err) {

@@ -109,7 +109,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 					var deploymentInCluster *appsv1.Deployment
 
 					klog.Infof("Waiting for deployment(%s/%s) present on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						deploymentInCluster, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
@@ -225,7 +225,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 					var podInClusters *corev1.Pod
 
 					klog.Infof("Waiting for pod(%s/%s) present on cluster(%s)", podNamespace, podName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						podInClusters, err = clusterClient.CoreV1().Pods(podNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
 
 						if err != nil {
@@ -335,7 +335,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 					var deploymentInCluster *appsv1.Deployment
 
 					klog.Infof("Waiting for deployment(%s/%s) present on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						deploymentInCluster, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
@@ -438,7 +438,7 @@ var _ = ginkgo.Describe("OverridePolicy with nil resourceSelectors", func() {
 					var deploymentInCluster *appsv1.Deployment
 
 					klog.Infof("Waiting for deployment(%s/%s) present on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						deploymentInCluster, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
 							if errors.IsNotFound(err) {
