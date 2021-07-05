@@ -69,6 +69,16 @@ func IsBindingReady(targetClusters []workv1alpha1.TargetCluster) bool {
 	return len(targetClusters) != 0
 }
 
+// IsBindingReplicasReady will check if resourceBinding/clusterResourceBinding is ready to build Work with given replicas
+func IsBindingReplicasReady(targetClusters []workv1alpha1.TargetCluster) bool {
+	for _, targetCluster := range targetClusters {
+		if targetCluster.Replicas > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // GetBindingClusterNames will get clusterName list from bind clusters field
 func GetBindingClusterNames(targetClusters []workv1alpha1.TargetCluster) []string {
 	var clusterNames []string
@@ -153,12 +163,20 @@ func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, 
 // EnsureWork ensure Work to be created or updated.
 //nolint:gocyclo
 // Note: ignore the cyclomatic complexity issue to get gocyclo on board. Tracked by: https://github.com/karmada-io/karmada/issues/460
-func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNames []string, overrideManager overridemanager.OverrideManager,
-	binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
-	referenceRSP, desireReplicaInfos, err := calculateReplicasIfNeeded(c, workload, clusterNames)
-	if err != nil {
-		klog.Errorf("Failed to get ReplicaSchedulingPolicy for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
-		return err
+func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNames []string, clusters []workv1alpha1.TargetCluster,
+	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
+	var desireReplicaInfos map[string]int64
+	var referenceRSP *v1alpha1.ReplicaSchedulingPolicy
+	var err error
+	isBindingReplicasReady := IsBindingReplicasReady(clusters)
+	if isBindingReplicasReady {
+		desireReplicaInfos = changeTargetClusterToMap(clusters)
+	} else {
+		referenceRSP, desireReplicaInfos, err = calculateReplicasIfNeeded(c, workload, clusterNames)
+		if err != nil {
+			klog.Errorf("Failed to get ReplicaSchedulingPolicy for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+			return err
+		}
 	}
 
 	var workLabel = make(map[string]string)
@@ -192,7 +210,7 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 			workLabel[util.ClusterResourceBindingLabel] = binding.GetName()
 		}
 
-		if clonedWorkload.GetKind() == util.DeploymentKind && referenceRSP != nil {
+		if clonedWorkload.GetKind() == util.DeploymentKind && (referenceRSP != nil || isBindingReplicasReady) {
 			err = applyReplicaSchedulingPolicy(clonedWorkload, desireReplicaInfos[clusterName])
 			if err != nil {
 				klog.Errorf("failed to apply ReplicaSchedulingPolicy for %s/%s/%s in cluster %s, err is: %v",
@@ -277,6 +295,14 @@ func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNam
 		}
 	}
 	return nil
+}
+
+func changeTargetClusterToMap(targetCluster []workv1alpha1.TargetCluster) map[string]int64 {
+	var desireReplicaInfos = make(map[string]int64)
+	for _, clusterInfo := range targetCluster {
+		desireReplicaInfos[clusterInfo.Name] = int64(clusterInfo.Replicas)
+	}
+	return desireReplicaInfos
 }
 
 func calculateReplicasIfNeeded(c client.Client, workload *unstructured.Unstructured, clusterNames []string) (*v1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
