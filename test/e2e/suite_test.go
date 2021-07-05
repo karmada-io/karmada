@@ -39,7 +39,7 @@ const (
 	// pollInterval defines the interval time for a poll operation.
 	pollInterval = 5 * time.Second
 	// pollTimeout defines the time after which the poll operation times out.
-	pollTimeout = 60 * time.Second
+	pollTimeout = 300 * time.Second
 
 	// MinimumCluster represents the minimum number of member clusters to run E2E test.
 	MinimumCluster = 2
