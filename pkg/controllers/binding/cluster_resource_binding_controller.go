@@ -88,7 +88,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha1.Clu
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = helper.EnsureWork(c.Client, workload, clusterNames, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
+	err = helper.EnsureWork(c.Client, workload, clusterNames, binding.Spec.Clusters, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
