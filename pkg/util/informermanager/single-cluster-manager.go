@@ -18,6 +18,13 @@ type SingleClusterInformerManager interface {
 	// The handler should not be nil.
 	ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler)
 
+	// IsInformerSynced checks if the resource's informer is synced.
+	// A informer is synced means:
+	// - The informer has been created(by method 'ForResource' or 'Lister').
+	// - The informer has started(by method 'Start').
+	// - The informer's cache has been synced.
+	IsInformerSynced(resource schema.GroupVersionResource) bool
+
 	// IsHandlerExist checks if handler already added to a the informer that watches the 'resource'.
 	IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool
 
@@ -39,11 +46,14 @@ func NewSingleClusterInformerManager(client dynamic.Interface, defaultResync tim
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
 		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
+		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
 	}
 }
 
 type singleClusterInformerManagerImpl struct {
 	informerFactory dynamicinformer.DynamicSharedInformerFactory
+
+	syncedInformers map[schema.GroupVersionResource]struct{}
 
 	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
 
@@ -58,6 +68,14 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 
 	s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
 	s.appendHandler(resource, handler)
+}
+
+func (s *singleClusterInformerManagerImpl) IsInformerSynced(resource schema.GroupVersionResource) bool {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	_, exist := s.syncedInformers[resource]
+	return exist
 }
 
 func (s *singleClusterInformerManagerImpl) IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
@@ -98,5 +116,13 @@ func (s *singleClusterInformerManagerImpl) Start(stopCh <-chan struct{}) {
 }
 
 func (s *singleClusterInformerManagerImpl) WaitForCacheSync(stopCh <-chan struct{}) map[schema.GroupVersionResource]bool {
-	return s.informerFactory.WaitForCacheSync(stopCh)
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	res := s.informerFactory.WaitForCacheSync(stopCh)
+	for resource, synced := range res {
+		if _, exist := s.syncedInformers[resource]; !exist && synced {
+			s.syncedInformers[resource] = struct{}{}
+		}
+	}
+	return res
 }
