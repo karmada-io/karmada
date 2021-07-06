@@ -14,6 +14,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
@@ -203,9 +204,61 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 		}
 		return targetClusters, nil
 	}
+	if replicaSchedulingStrategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
+		if replicaSchedulingStrategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted {
+			return g.calculateReplicasWithWight(clusters, replicaSchedulingStrategy.WeightPreference.StaticWeightList, object.Replicas)
+		}
+	}
 	targetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
 	for i, cluster := range clusters {
 		targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
+	}
+	return targetClusters, nil
+}
+
+func (g *genericScheduler) calculateReplicasWithWight(clusters []*clusterv1alpha1.Cluster, staticWeightList []policyv1alpha1.StaticClusterWeight, replicas int32) ([]workv1alpha1.TargetCluster, error) {
+	weightSum := int64(0)
+	matchClusters := make(map[string]int64)
+	desireReplicaInfos := make(map[string]int64)
+
+	for _, cluster := range clusters {
+		for _, staticWeightRule := range staticWeightList {
+			if util.ClusterMatches(cluster, staticWeightRule.TargetCluster) {
+				weightSum += staticWeightRule.Weight
+				matchClusters[cluster.Name] = staticWeightRule.Weight
+				break
+			}
+		}
+	}
+
+	allocatedReplicas := int32(0)
+	for clusterName, weight := range matchClusters {
+		desireReplicaInfos[clusterName] = weight * int64(replicas) / weightSum
+		allocatedReplicas += int32(desireReplicaInfos[clusterName])
+	}
+
+	if remainReplicas := replicas - allocatedReplicas; remainReplicas > 0 {
+		sortedClusters := helper.SortClusterByWeight(matchClusters)
+		for i := 0; remainReplicas > 0; i++ {
+			desireReplicaInfos[sortedClusters[i].ClusterName]++
+			remainReplicas--
+			if i == len(desireReplicaInfos) {
+				i = 0
+			}
+		}
+	}
+
+	for _, cluster := range clusters {
+		if _, exist := matchClusters[cluster.Name]; !exist {
+			desireReplicaInfos[cluster.Name] = 0
+		}
+	}
+
+	targetClusters := make([]workv1alpha1.TargetCluster, len(desireReplicaInfos))
+	i := 0
+	for key, value := range desireReplicaInfos {
+		targetClusters[i] = workv1alpha1.TargetCluster{Name: key, Replicas: int32(value)}
+		i++
 	}
 	return targetClusters, nil
 }

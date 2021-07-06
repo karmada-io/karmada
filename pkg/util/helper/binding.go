@@ -53,7 +53,7 @@ func (p ClusterWeightInfoList) Less(i, j int) bool {
 	return p[i].ClusterName < p[j].ClusterName
 }
 
-func sortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
+func SortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
 	p := make(ClusterWeightInfoList, len(m))
 	i := 0
 	for k, v := range m {
@@ -367,7 +367,7 @@ func calculateReplicas(c client.Client, policy *v1alpha1.ReplicaSchedulingPolicy
 	}
 
 	if remainReplicas := policy.Spec.TotalReplicas - allocatedReplicas; remainReplicas > 0 {
-		sortedClusters := sortClusterByWeight(matchClusters)
+		sortedClusters := SortClusterByWeight(matchClusters)
 		for i := 0; remainReplicas > 0; i++ {
 			desireReplicaInfos[sortedClusters[i].ClusterName]++
 			remainReplicas--
