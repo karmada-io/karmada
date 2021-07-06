@@ -25,13 +25,16 @@ CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.19.1"}
 KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 #step0: prepare
-# install kind
+# install kind and kubectl
 util::install_tools sigs.k8s.io/kind v0.10.0
+# we choose v1.18.0, because in kubectl after versions 1.18 exist a bug which will give wrong output when using jsonpath.
+# bug details: https://github.com/kubernetes/kubernetes/pull/98057
+util::install_kubectl "v1.18.0" "amd64"
 
 #step1. create host cluster and member clusters in parallel
 util::create_cluster "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
-util::create_cluster "${MEMBER_CLUSTER_1_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
-util::create_cluster "${MEMBER_CLUSTER_2_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
+util::create_cluster "${MEMBER_CLUSTER_1_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${REPO_ROOT}/artifacts/kindClusterConfig/member1.yaml"
+util::create_cluster "${MEMBER_CLUSTER_2_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${REPO_ROOT}/artifacts/kindClusterConfig/member2.yaml"
 util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
 
 #step2. make images and get karmadactl
@@ -61,6 +64,12 @@ KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Network
 #step6. wait until the member cluster ready and join member clusters
 util::check_clusters_ready "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_1_NAME}"
 util::check_clusters_ready "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_2_NAME}"
+
+# connecting networks between member1 and member2 clusters
+echo "connecting cluster networks..."
+util::add_routes "${MEMBER_CLUSTER_1_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_2_NAME}"
+util::add_routes "${MEMBER_CLUSTER_2_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_1_NAME}"
+echo "cluster networks connected"
 
 #join push mode member clusters
 export KUBECONFIG="${MAIN_KUBECONFIG}"

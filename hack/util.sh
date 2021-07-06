@@ -65,6 +65,17 @@ function util::cmd_must_exist_cfssl {
     fi
 }
 
+# util::install_kubectl will install the given version kubectl
+function util::install_kubectl {
+    local KUBECTL_VERSION=${1}
+    local ARCH=${2}
+
+    curl -sSL --retry 5 https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/linux/"$ARCH"/kubectl > ./kubectl
+    chmod +x ./kubectl
+    sudo rm -rf "$(which kubectl)"
+    sudo mv ./kubectl /usr/local/bin/kubectl
+}
+
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose
 function util::create_signing_certkey {
     local sudo=$1
@@ -255,11 +266,12 @@ function util::create_cluster() {
   local kubeconfig=${2}
   local kind_image=${3}
   local log_path=${4}
+  local cluster_config=${5:-}
 
   mkdir -p ${log_path}
   rm -rf "${log_path}/${cluster_name}.log"
   rm -f "${kubeconfig}"
-  nohup kind delete cluster --name="${cluster_name}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
+  nohup kind delete cluster --name="${cluster_name}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
   echo "Creating cluster ${cluster_name}"
 }
 
@@ -345,4 +357,23 @@ function util::get_load_balancer_ip() {
   return 1
 }
 
+# util::add_routes will add routes for given kind cluster
+# Parameters:
+#  - $1: name of the kind cluster want to add routes
+#  - $2: the kubeconfig path of the cluster wanted to be connected
+#  - $3: the context in kubeconfig of the cluster wanted to be connected
+function util::add_routes() {
+  unset IFS
+  routes=$(kubectl --kubeconfig ${2} --context ${3} get nodes -o jsonpath='{range .items[*]}ip route add {.spec.podCIDR} via {.status.addresses[?(.type=="InternalIP")].address}{"\n"}')
+  echo "Connecting cluster ${1} to ${2}"
+
+  IFS=$'\n'
+  for n in $(kind get nodes --name "${1}"); do
+    for r in $routes; do
+      echo "exec cmd in docker $n $r"
+      eval "docker exec $n $r"
+    done
+  done
+  unset IFS
+}
 
