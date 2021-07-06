@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -71,44 +70,30 @@ func (o *objectWatcherImpl) Create(cluster *v1alpha1.Cluster, desireObj *unstruc
 	// users should resolve the conflict in person.
 	clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(context.TODO(), desireObj, metav1.CreateOptions{})
 	if err != nil {
+		// The 'IsAlreadyExists' conflict may happen in following known scenarios:
+		// - 1. In a reconcile process, the execution controller successfully applied resource to member cluster but failed to update the work conditions(Applied=True),
+		//   when reconcile again, the controller will try to apply(by create) the resource again.
+		// - 2. The resource already exist in the member cluster but it's not created by karmada.
 		if apierrors.IsAlreadyExists(err) {
-			if err := o.resolveAlreadyExist(dynamicClusterClient, gvr, desireObj); err != nil {
-				return err
+			existObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Get(context.TODO(), desireObj.GetName(), metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get exist resource(kind=%s, %s/%s) in cluster %v: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
 			}
-			return nil
+
+			// Avoid updating resources that not managed by karmada.
+			if util.GetLabelValue(desireObj.GetLabels(), util.WorkNameLabel) != util.GetLabelValue(existObj.GetLabels(), util.WorkNameLabel) {
+				return fmt.Errorf("resource(kind=%s, %s/%s) already exist in cluster %v but not managed by karamda", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name)
+			}
+
+			return o.Update(cluster, desireObj, existObj)
 		}
-		klog.Errorf("Failed to create resource %v, err is %v ", desireObj.GetName(), err)
+		klog.Errorf("Failed to create resource(kind=%s, %s/%s), err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
 		return err
 	}
 	klog.Infof("Created resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name)
 
 	// record version
 	o.recordVersion(clusterObj, dynamicClusterClient.ClusterName)
-	return nil
-}
-
-// resolveAlreadyExist used to resolve the 'AlreadyExist' conflicts in a 'Create' process.
-// The conflict may happen in following known scenarios:
-// - 1. In a reconcile process, the execution controller successfully applied resource to member cluster but failed to update the work conditions(Applied=True),
-//   when reconcile again, the controller will try to apply(by create) the resource again.
-// - 2. The resource already exist in the member cluster but it's not created by karmada.
-func (o *objectWatcherImpl) resolveAlreadyExist(dynamicClusterClient *util.DynamicClusterClient, gvr schema.GroupVersionResource, desireObj *unstructured.Unstructured) error {
-	existObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Get(context.TODO(), desireObj.GetName(), metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get exist resource %s(%s/%s): %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
-	}
-
-	// Avoid updating resources that not managed by karmada.
-	if util.GetLabelValue(desireObj.GetLabels(), util.WorkNameLabel) != util.GetLabelValue(existObj.GetLabels(), util.WorkNameLabel) {
-		return fmt.Errorf("resource %s(%s/%s) already exist but not managed by karamda", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName())
-	}
-
-	_, err = dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(context.TODO(), desireObj, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Failed to update exist resource %s(%s/%s), err is %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
-		return fmt.Errorf("failed to update exist resource %s(%s/%s), err is %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
-	}
-
 	return nil
 }
 
@@ -127,13 +112,13 @@ func (o *objectWatcherImpl) Update(cluster *v1alpha1.Cluster, desireObj, cluster
 
 	err = RetainClusterFields(desireObj, clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to retain fields: %v", err)
+		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) : %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
 		return err
 	}
 
 	resource, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(context.TODO(), desireObj, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("Failed to update resource %v/%v, err is %v ", desireObj.GetNamespace(), desireObj.GetName(), err)
+		klog.Errorf("Failed to update resource(kind=%s, %s/%s), err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
 		return err
 	}
 

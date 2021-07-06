@@ -17,6 +17,7 @@ import (
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -73,23 +74,20 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation tes
 			})
 
 			ginkgo.By("check if crd present on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterDynamicClient := getClusterDynamicClient(cluster.Name)
-					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for crd(%s) present on cluster(%s)", crd.Name, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return false, nil
-							}
-							return false, err
+				crAPIVersion := fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					clusters, err := fetchClusters(karmadaClient)
+					if err != nil {
+						return false, err
+					}
+					for _, cluster := range clusters {
+						if !util.IsAPIInstallInCluster(cluster.Status, crAPIVersion, crdSpecNames.Plural, crdSpecNames.Kind) {
+							return false, nil
 						}
-						return true, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
+					}
+					return true, nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By(fmt.Sprintf("removing crd(%s)", crd.Name), func() {
