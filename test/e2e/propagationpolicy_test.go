@@ -20,6 +20,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -452,6 +453,22 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 
 			ginkgo.By(fmt.Sprintf("get crd(%s)", crd.Name), func() {
 				_, err := dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if crd present on member clusters", func() {
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					clusters, err := fetchClusters(karmadaClient)
+					if err != nil {
+						return false, err
+					}
+					for _, cluster := range clusters {
+						if !util.IsAPIInstallInCluster(cluster.Status, crAPIVersion, crdSpecNames.Plural, crdSpecNames.Kind) {
+							return false, nil
+						}
+					}
+					return true, nil
+				})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})

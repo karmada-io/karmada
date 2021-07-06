@@ -28,3 +28,17 @@ func GetCluster(hostClient client.Client, clusterName string) (*v1alpha1.Cluster
 	}
 	return cluster, nil
 }
+
+// IsAPIInstallInCluster checks if the given api is installed in member cluster
+func IsAPIInstallInCluster(clusterStatus v1alpha1.ClusterStatus, groupVersion, name, kind string) bool {
+	for _, apiEnablement := range clusterStatus.APIEnablements {
+		if apiEnablement.GroupVersion == groupVersion {
+			for _, apiResource := range apiEnablement.Resources {
+				if apiResource.Kind == kind && apiResource.Name == name {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
