@@ -20,8 +20,8 @@ import (
 	"k8s.io/utils/pointer"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/test/helper"
+	"github.com/karmada-io/karmada/pkg/util/helper"
+	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 // BasicPropagation focus on basic propagation functionality testing.
@@ -32,8 +32,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		deploymentNamespace := testNamespace
 		deploymentName := policyName
 
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+		deployment := testhelper.NewDeployment(deploymentNamespace, deploymentName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: deployment.APIVersion,
 				Kind:       deployment.Kind,
@@ -154,8 +154,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		serviceNamespace := policyNamespace
 		serviceName := policyName
 
-		service := helper.NewService(serviceNamespace, serviceName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+		service := testhelper.NewService(serviceNamespace, serviceName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: service.APIVersion,
 				Kind:       service.Kind,
@@ -278,8 +278,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		podNamespace := policyNamespace
 		podName := policyName
 
-		pod := helper.NewPod(podNamespace, podName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+		pod := testhelper.NewPod(podNamespace, podName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: pod.APIVersion,
 				Kind:       pod.Kind,
@@ -405,8 +405,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			Plural:   fmt.Sprintf("foo%ss", randStr),
 			Singular: fmt.Sprintf("foo%s", randStr),
 		}
-		crd := helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-		crdPolicy := helper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+		crd := testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+		crdPolicy := testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: crd.APIVersion,
 				Kind:       crd.Kind,
@@ -424,8 +424,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		crGVR := schema.GroupVersionResource{Group: crd.Spec.Group, Version: "v1alpha1", Resource: crd.Spec.Names.Plural}
 
 		crAPIVersion := fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
-		cr := helper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
-		crPolicy := helper.NewPropagationPolicy(crNamespace, crName, []policyv1alpha1.ResourceSelector{
+		cr := testhelper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
+		crPolicy := testhelper.NewPropagationPolicy(crNamespace, crName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: crAPIVersion,
 				Kind:       crd.Spec.Names.Kind,
@@ -456,6 +456,9 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
+			// Check CRD enablement from cluster objects instead of member clusters.
+			// After CRD installed on member cluster, the cluster status controller takes at most cluster-status-update-frequency
+			// time to collect the API list, before that the scheduler will filter out the cluster from scheduling.
 			ginkgo.By("check if crd present on member clusters", func() {
 				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 					clusters, err := fetchClusters(karmadaClient)
@@ -463,7 +466,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 						return false, err
 					}
 					for _, cluster := range clusters {
-						if !util.IsAPIInstallInCluster(cluster.Status, crAPIVersion, crdSpecNames.Plural, crdSpecNames.Kind) {
+						if !helper.IsAPIEnabled(cluster.Status.APIEnablements, crAPIVersion, crdSpecNames.Kind) {
 							return false, nil
 						}
 					}
