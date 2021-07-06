@@ -56,6 +56,9 @@ const (
 	// ReconcileSchedule means the binding object associated policy has been changed.
 	ReconcileSchedule ScheduleType = "ReconcileSchedule"
 
+	// ScaleSchedule means the replicas of binding object has been changed.
+	ScaleSchedule ScheduleType = "ScaleSchedule"
+
 	// FailoverSchedule means one of the cluster a binding object associated with becomes failure.
 	FailoverSchedule ScheduleType = "FailoverSchedule"
 
@@ -351,6 +354,10 @@ func (s *Scheduler) getScheduleType(key string) ScheduleType {
 			return ReconcileSchedule
 		}
 
+		if util.IsBindingReplicasChanges(&resourceBinding.Spec) {
+			return ScaleSchedule
+		}
+
 		clusters := s.schedulerCache.Snapshot().GetClusters()
 		for _, tc := range resourceBinding.Spec.Clusters {
 			boundCluster := tc.Name
@@ -391,6 +398,10 @@ func (s *Scheduler) getScheduleType(key string) ScheduleType {
 			return ReconcileSchedule
 		}
 
+		if util.IsBindingReplicasChanges(&binding.Spec) {
+			return ScaleSchedule
+		}
+
 		clusters := s.schedulerCache.Snapshot().GetClusters()
 		for _, tc := range binding.Spec.Clusters {
 			boundCluster := tc.Name
@@ -423,6 +434,9 @@ func (s *Scheduler) scheduleNext() bool {
 	case ReconcileSchedule: // share same logic with first schedule
 		err = s.scheduleOne(key.(string))
 		klog.Infof("Reschedule binding(%s) as placement changed", key.(string))
+	case ScaleSchedule:
+		err = s.scaleScheduleOne(key.(string))
+		klog.Infof("Reschedule binding(%s) as replicas scaled down or scaled up", key.(string))
 	case FailoverSchedule:
 		if Failover {
 			err = s.rescheduleOne(key.(string))
@@ -774,6 +788,100 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha1.Reso
 	klog.Infof("The final binding.Spec.Cluster values are: %v\n", resourceBinding.Spec.Clusters)
 
 	_, err = s.KarmadaClient.WorkV1alpha1().ResourceBindings(ns).Update(context.TODO(), resourceBinding, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Scheduler) scaleScheduleOne(key string) (err error) {
+	klog.V(4).Infof("begin scale scheduling ResourceBinding %s", key)
+	defer klog.V(4).Infof("end scale scheduling ResourceBinding %s: %v", key, err)
+
+	ns, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+
+	if ns == "" {
+		clusterResourceBinding, err := s.clusterBindingLister.Get(name)
+		if errors.IsNotFound(err) {
+			return nil
+		}
+
+		clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, util.ClusterPropagationPolicyLabel)
+
+		clusterPolicy, err := s.clusterPolicyLister.Get(clusterPolicyName)
+		if err != nil {
+			return err
+		}
+
+		return s.scaleScheduleClusterResourceBinding(clusterResourceBinding, clusterPolicy)
+	}
+
+	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+
+	return s.scaleScheduleResourceBinding(resourceBinding)
+}
+
+func (s *Scheduler) scaleScheduleResourceBinding(resourceBinding *workv1alpha1.ResourceBinding) (err error) {
+	placement, placementStr, err := s.getPlacement(resourceBinding)
+	if err != nil {
+		return err
+	}
+
+	scheduleResult, err := s.Algorithm.ScaleSchedule(context.TODO(), &placement, &resourceBinding.Spec.Resource, resourceBinding.Spec.Clusters)
+	if err != nil {
+		klog.V(2).Infof("failed rescheduling ResourceBinding %s/%s after replicas changes: %v", resourceBinding.Namespace, resourceBinding.Name, err)
+		return err
+	}
+
+	klog.V(4).Infof("ResourceBinding %s/%s scheduled to clusters %v", resourceBinding.Namespace, resourceBinding.Name, scheduleResult.SuggestedClusters)
+
+	binding := resourceBinding.DeepCopy()
+	binding.Spec.Clusters = scheduleResult.SuggestedClusters
+
+	if binding.Annotations == nil {
+		binding.Annotations = make(map[string]string)
+	}
+	binding.Annotations[util.PolicyPlacementAnnotation] = placementStr
+
+	binding, err = s.KarmadaClient.WorkV1alpha1().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *workv1alpha1.ClusterResourceBinding,
+	policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
+
+	scheduleResult, err := s.Algorithm.ScaleSchedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec.Resource, clusterResourceBinding.Spec.Clusters)
+	if err != nil {
+		klog.V(2).Infof("failed rescheduling ClusterResourceBinding %s after replicas scaled down: %v", clusterResourceBinding.Name, err)
+		return err
+	}
+
+	klog.V(4).Infof("ClusterResourceBinding %s scheduled to clusters %v", clusterResourceBinding.Name, scheduleResult.SuggestedClusters)
+
+	binding := clusterResourceBinding.DeepCopy()
+	binding.Spec.Clusters = scheduleResult.SuggestedClusters
+
+	placement, err := json.Marshal(policy.Spec.Placement)
+	if err != nil {
+		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+		return err
+	}
+
+	if binding.Annotations == nil {
+		binding.Annotations = make(map[string]string)
+	}
+	binding.Annotations[util.PolicyPlacementAnnotation] = string(placement)
+
+	binding, err = s.KarmadaClient.WorkV1alpha1().ClusterResourceBindings().Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

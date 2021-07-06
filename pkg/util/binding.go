@@ -57,3 +57,12 @@ func CreateOrUpdateWork(client client.Client, objectMeta metav1.ObjectMeta, rawE
 	}
 	return nil
 }
+
+// IsBindingReplicasChanges will check if the sum of replicas is different from the replicas of object
+func IsBindingReplicasChanges(bindingSpec *workv1alpha1.ResourceBindingSpec) bool {
+	replicasSum := int32(0)
+	for _, targetCluster := range bindingSpec.Clusters {
+		replicasSum += targetCluster.Replicas
+	}
+	return replicasSum != bindingSpec.Resource.Replicas
+}

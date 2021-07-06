@@ -3,9 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
 	"sort"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -22,6 +22,7 @@ import (
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
 	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ObjectReference) (scheduleResult ScheduleResult, err error)
+	ScaleSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ObjectReference, []workv1alpha1.TargetCluster) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -208,7 +209,7 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 	}
 	if replicaSchedulingStrategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
 		if replicaSchedulingStrategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted {
-			return g.calculateReplicasWithWight(clusters, replicaSchedulingStrategy.WeightPreference.StaticWeightList, object.Replicas)
+			return g.divideReplicasWighted(clusters, replicaSchedulingStrategy.WeightPreference.StaticWeightList, object.Replicas)
 		}
 		return g.divideReplicasAggregated(clusters, object)
 	}
@@ -219,7 +220,7 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 	return targetClusters, nil
 }
 
-func (g *genericScheduler) calculateReplicasWithWight(clusters []*clusterv1alpha1.Cluster, staticWeightList []policyv1alpha1.StaticClusterWeight, replicas int32) ([]workv1alpha1.TargetCluster, error) {
+func (g *genericScheduler) divideReplicasWighted(clusters []*clusterv1alpha1.Cluster, staticWeightList []policyv1alpha1.StaticClusterWeight, replicas int32) ([]workv1alpha1.TargetCluster, error) {
 	weightSum := int64(0)
 	matchClusters := make(map[string]int64)
 	desireReplicaInfos := make(map[string]int64)
@@ -384,4 +385,47 @@ func (g *genericScheduler) divideReplicasAggregatedWithoutResourceRequirements(c
 	}
 	targetClusters[0] = workv1alpha1.TargetCluster{Name: clusters[0].Name, Replicas: object.Replicas}
 	return targetClusters, nil
+}
+
+func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
+	object *workv1alpha1.ObjectReference, targetClusters []workv1alpha1.TargetCluster) (result ScheduleResult, err error) {
+	if object.Replicas == 0 {
+		newTargetClusters := make([]workv1alpha1.TargetCluster, len(targetClusters))
+		for i, cluster := range targetClusters {
+			newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name}
+		}
+		result.SuggestedClusters = newTargetClusters
+		return result, nil
+	}
+	if placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
+		preSelectedClusters := g.getPreSelected(targetClusters)
+		if placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted {
+			clustersWithReplicase, err := g.divideReplicasWighted(preSelectedClusters, placement.ReplicaScheduling.WeightPreference.StaticWeightList, object.Replicas)
+			if err != nil {
+				return result, fmt.Errorf("failed to assignReplicas with Weight: %v", err)
+			}
+			result.SuggestedClusters = clustersWithReplicase
+			return result, nil
+		}
+	}
+	newTargetClusters := make([]workv1alpha1.TargetCluster, len(targetClusters))
+	for i, cluster := range targetClusters {
+		newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
+	}
+	result.SuggestedClusters = newTargetClusters
+	return result, nil
+}
+
+func (g *genericScheduler) getPreSelected(targetClusters []workv1alpha1.TargetCluster) []*clusterv1alpha1.Cluster {
+	PreSelectedClusters := make([]*clusterv1alpha1.Cluster, len(targetClusters))
+	clusterInfoSnapshot := g.schedulerCache.Snapshot()
+	for i, targetCluster := range targetClusters {
+		for _, cluster := range clusterInfoSnapshot.GetClusters() {
+			if targetCluster.Name == cluster.Cluster().Name {
+				PreSelectedClusters[i] = cluster.Cluster()
+				break
+			}
+		}
+	}
+	return PreSelectedClusters
 }
