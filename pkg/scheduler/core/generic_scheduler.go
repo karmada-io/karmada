@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	"sort"
 
 	"k8s.io/klog/v2"
 
@@ -208,6 +210,7 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 		if replicaSchedulingStrategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted {
 			return g.calculateReplicasWithWight(clusters, replicaSchedulingStrategy.WeightPreference.StaticWeightList, object.Replicas)
 		}
+		return g.divideReplicasAggregated(clusters, object)
 	}
 	targetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
 	for i, cluster := range clusters {
@@ -260,5 +263,125 @@ func (g *genericScheduler) calculateReplicasWithWight(clusters []*clusterv1alpha
 		targetClusters[i] = workv1alpha1.TargetCluster{Name: key, Replicas: int32(value)}
 		i++
 	}
+	return targetClusters, nil
+}
+
+// TargetClustersList is a slice of TargetCluster that implements sort.Interface to sort by Value.
+type TargetClustersList []workv1alpha1.TargetCluster
+
+func (a TargetClustersList) Len() int           { return len(a) }
+func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
+
+func (g *genericScheduler) divideReplicasAggregated(clusters []*clusterv1alpha1.Cluster, object *workv1alpha1.ObjectReference) ([]workv1alpha1.TargetCluster, error) {
+	for _, value := range object.ReplicaResourceRequirements {
+		if value.Value() > 0 {
+			return g.divideReplicasAggregatedWithResourceRequirements(clusters, object)
+		}
+	}
+	return g.divideReplicasAggregatedWithoutResourceRequirements(clusters, object)
+}
+
+func (g *genericScheduler) divideReplicasAggregatedWithResourceRequirements(clusters []*clusterv1alpha1.Cluster,
+	object *workv1alpha1.ObjectReference) ([]workv1alpha1.TargetCluster, error) {
+	clusterAvailableReplicas := g.calAvailableReplicas(clusters, object.ReplicaResourceRequirements)
+	return g.divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas, object.Replicas)
+}
+
+func (g *genericScheduler) divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas []workv1alpha1.TargetCluster, replicas int32) ([]workv1alpha1.TargetCluster, error) {
+	clustersNum := 0
+	clustersMaxReplicas := int32(0)
+	for _, clusterInfo := range clusterAvailableReplicas {
+		clustersNum++
+		clustersMaxReplicas += clusterInfo.Replicas
+		if clustersMaxReplicas >= replicas {
+			break
+		}
+	}
+	if clustersMaxReplicas < replicas {
+		return nil, fmt.Errorf("clusters resources are not enough to schedule, max %v replicas are support", clustersMaxReplicas)
+	}
+
+	desireReplicaInfos := make(map[string]int32)
+	allocatedReplicas := int32(0)
+	for i, clusterInfo := range clusterAvailableReplicas {
+		if i >= clustersNum {
+			desireReplicaInfos[clusterInfo.Name] = 0
+		}
+		desireReplicaInfos[clusterInfo.Name] = clusterInfo.Replicas * replicas / clustersMaxReplicas
+		allocatedReplicas += desireReplicaInfos[clusterInfo.Name]
+	}
+
+	if remainReplicas := replicas - allocatedReplicas; remainReplicas > 0 {
+		for i := 0; remainReplicas > 0; i++ {
+			desireReplicaInfos[clusterAvailableReplicas[i].Name]++
+			remainReplicas--
+			if i == clustersNum {
+				i = 0
+			}
+		}
+	}
+
+	targetClusters := make([]workv1alpha1.TargetCluster, len(clusterAvailableReplicas))
+	i := 0
+	for key, value := range desireReplicaInfos {
+		targetClusters[i] = workv1alpha1.TargetCluster{Name: key, Replicas: value}
+		i++
+	}
+	return targetClusters, nil
+}
+
+func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaResourceRequirements corev1.ResourceList) []workv1alpha1.TargetCluster {
+	availableTargetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
+	for i, cluster := range clusters {
+		maxReplicas := g.calClusterAvailableReplicas(cluster, replicaResourceRequirements)
+		availableTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: maxReplicas}
+	}
+	sort.Sort(TargetClustersList(availableTargetClusters))
+	return availableTargetClusters
+}
+
+func (g *genericScheduler) calClusterAvailableReplicas(cluster *clusterv1alpha1.Cluster, resourcePerReplicas corev1.ResourceList) int32 {
+	ReplicasResult := int64(0)
+	calFlag := false
+	resourceSummary := cluster.Status.ResourceSummary
+	for key, value := range resourcePerReplicas {
+		allocatable, ok := resourceSummary.Allocatable[key]
+		if !ok {
+			return 0
+		}
+		allocated, ok := resourceSummary.Allocated[key]
+		if ok {
+			allocatable.Sub(allocated)
+		}
+		allocating, ok := resourceSummary.Allocating[key]
+		if ok {
+			allocatable.Sub(allocating)
+		}
+		requestInt := value.Value()
+		freeInt := allocatable.Value()
+		if freeInt <= 0 {
+			return 0
+		}
+		if requestInt != 0 {
+			maxReplicas := freeInt / requestInt
+			if !calFlag {
+				ReplicasResult = maxReplicas
+				calFlag = true
+			} else if ReplicasResult > maxReplicas {
+				ReplicasResult = maxReplicas
+			}
+		}
+	}
+	return int32(ReplicasResult)
+}
+
+func (g *genericScheduler) divideReplicasAggregatedWithoutResourceRequirements(clusters []*clusterv1alpha1.Cluster,
+	object *workv1alpha1.ObjectReference) ([]workv1alpha1.TargetCluster, error) {
+	targetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
+	for i, clusterInfo := range clusters {
+		targetClusters[i] = workv1alpha1.TargetCluster{Name: clusterInfo.Name, Replicas: 0}
+	}
+	targetClusters[0] = workv1alpha1.TargetCluster{Name: clusters[0].Name, Replicas: object.Replicas}
 	return targetClusters, nil
 }
