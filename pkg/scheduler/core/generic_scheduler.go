@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -274,18 +275,21 @@ func (a TargetClustersList) Len() int           { return len(a) }
 func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
-func (g *genericScheduler) divideReplicasAggregated(clusters []*clusterv1alpha1.Cluster, object *workv1alpha1.ObjectReference) ([]workv1alpha1.TargetCluster, error) {
+func (g *genericScheduler) divideReplicasAggregated(clusters []*clusterv1alpha1.Cluster, object *workv1alpha1.ObjectReference, preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
 	for _, value := range object.ReplicaResourceRequirements {
 		if value.Value() > 0 {
-			return g.divideReplicasAggregatedWithResourceRequirements(clusters, object)
+			return g.divideReplicasAggregatedWithResourceRequirements(clusters, object, preUsedClustersName...)
 		}
 	}
-	return g.divideReplicasAggregatedWithoutResourceRequirements(clusters, object)
+	return g.divideReplicasAggregatedWithoutResourceRequirements(clusters, object, preUsedClustersName...)
 }
 
 func (g *genericScheduler) divideReplicasAggregatedWithResourceRequirements(clusters []*clusterv1alpha1.Cluster,
-	object *workv1alpha1.ObjectReference) ([]workv1alpha1.TargetCluster, error) {
-	clusterAvailableReplicas := g.calAvailableReplicas(clusters, object.ReplicaResourceRequirements)
+	object *workv1alpha1.ObjectReference, preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
+	preUsedClusters, unUsedClusters := g.getPreUsed(clusters, preUsedClustersName...)
+	preUsedClustersAvailableReplicas := g.calAvailableReplicas(preUsedClusters, object.ReplicaResourceRequirements)
+	unUsedClustersAvailableReplicas := g.calAvailableReplicas(unUsedClusters, object.ReplicaResourceRequirements)
+	clusterAvailableReplicas := append(preUsedClustersAvailableReplicas, unUsedClustersAvailableReplicas...)
 	return g.divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas, object.Replicas)
 }
 
@@ -378,7 +382,9 @@ func (g *genericScheduler) calClusterAvailableReplicas(cluster *clusterv1alpha1.
 }
 
 func (g *genericScheduler) divideReplicasAggregatedWithoutResourceRequirements(clusters []*clusterv1alpha1.Cluster,
-	object *workv1alpha1.ObjectReference) ([]workv1alpha1.TargetCluster, error) {
+	object *workv1alpha1.ObjectReference, preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
+	preUsedClusters, unUsedClusters := g.getPreUsed(clusters, preUsedClustersName...)
+	clusters = append(preUsedClusters, unUsedClusters...)
 	targetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
 	for i, clusterInfo := range clusters {
 		targetClusters[i] = workv1alpha1.TargetCluster{Name: clusterInfo.Name, Replicas: 0}
@@ -407,12 +413,70 @@ func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv
 			result.SuggestedClusters = clustersWithReplicase
 			return result, nil
 		}
+		return g.scaleScheduleWithReplicaDivisionPreferenceAggregated(object, targetClusters)
 	}
 	newTargetClusters := make([]workv1alpha1.TargetCluster, len(targetClusters))
 	for i, cluster := range targetClusters {
 		newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
 	}
 	result.SuggestedClusters = newTargetClusters
+	return result, nil
+}
+
+func (g *genericScheduler) scaleScheduleWithReplicaDivisionPreferenceAggregated(object *workv1alpha1.ObjectReference,
+	targetClusters []workv1alpha1.TargetCluster) (result ScheduleResult, err error) {
+	assignedReplicas := util.GetSumOfReplicas(targetClusters)
+	if assignedReplicas > object.Replicas {
+		newTargetClusters, err := g.scaleDownScheduleWithReplicaDivisionPreferenceAggregated(object, targetClusters)
+		if err != nil {
+			return result, fmt.Errorf("failed to scaleDown: %v", err)
+		}
+		result.SuggestedClusters = newTargetClusters
+	} else if assignedReplicas < object.Replicas {
+		newTargetClusters, err := g.scaleUpScheduleWithReplicaDivisionPreferenceAggregated(object, targetClusters, assignedReplicas)
+		if err != nil {
+			return result, fmt.Errorf("failed to scaleUp: %v", err)
+		}
+		result.SuggestedClusters = newTargetClusters
+		return result, nil
+	} else {
+		result.SuggestedClusters = targetClusters
+	}
+	return result, nil
+}
+
+func (g *genericScheduler) scaleDownScheduleWithReplicaDivisionPreferenceAggregated(object *workv1alpha1.ObjectReference,
+	targetClusters []workv1alpha1.TargetCluster) ([]workv1alpha1.TargetCluster, error) {
+	return g.divideReplicasAggregatedWithClusterReplicas(targetClusters, object.Replicas)
+}
+
+func (g *genericScheduler) scaleUpScheduleWithReplicaDivisionPreferenceAggregated(object *workv1alpha1.ObjectReference,
+	targetClusters []workv1alpha1.TargetCluster, assignedReplicas int32) ([]workv1alpha1.TargetCluster, error) {
+	targetMap := make(map[string]int32)
+	usedTargetClusters := make([]string, 0)
+	for _, cluster := range targetClusters {
+		targetMap[cluster.Name] = cluster.Replicas
+		if cluster.Replicas > 0 {
+			usedTargetClusters = append(usedTargetClusters, cluster.Name)
+		}
+	}
+	preSelected := g.getPreSelected(targetClusters)
+	newObject := object.DeepCopy()
+	newObject.Replicas = object.Replicas - assignedReplicas
+	result, err := g.divideReplicasAggregated(preSelected, newObject, usedTargetClusters...)
+	if err != nil {
+		return result, err
+	}
+	for i, cluster := range result {
+		value, ok := targetMap[cluster.Name]
+		if ok {
+			result[i].Replicas = cluster.Replicas + value
+			delete(targetMap, cluster.Name)
+		}
+	}
+	for key, value := range targetMap {
+		result = append(result, workv1alpha1.TargetCluster{Name: key, Replicas: value})
+	}
 	return result, nil
 }
 
@@ -428,4 +492,22 @@ func (g *genericScheduler) getPreSelected(targetClusters []workv1alpha1.TargetCl
 		}
 	}
 	return PreSelectedClusters
+}
+
+func (g *genericScheduler) getPreUsed(clusters []*clusterv1alpha1.Cluster, preUsedClustersName ...string) ([]*clusterv1alpha1.Cluster, []*clusterv1alpha1.Cluster) {
+	if len(preUsedClustersName) == 0 {
+		return clusters, nil
+	}
+	preUsedClusterSet := sets.NewString()
+	preUsedClusterSet.Insert(preUsedClustersName...)
+	var preUsedCluster []*clusterv1alpha1.Cluster
+	var unUsedCluster []*clusterv1alpha1.Cluster
+	for _, cluster := range clusters {
+		if preUsedClusterSet.Has(cluster.Name) {
+			preUsedCluster = append(preUsedCluster, cluster)
+		} else {
+			unUsedCluster = append(unUsedCluster, cluster)
+		}
+	}
+	return preUsedCluster, unUsedCluster
 }
