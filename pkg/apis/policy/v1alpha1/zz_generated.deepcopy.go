@@ -390,7 +390,7 @@ func (in *Placement) DeepCopyInto(out *Placement) {
 	}
 	if in.ReplicaScheduling != nil {
 		in, out := &in.ReplicaScheduling, &out.ReplicaScheduling
-		*out = new(ReplicaSchedulingPolicy)
+		*out = new(ReplicaSchedulingStrategy)
 		(*in).DeepCopyInto(*out)
 	}
 	return

@@ -104,7 +104,7 @@ type Placement struct {
 	// ReplicaScheduling represents the scheduling policy on dealing with the number of replicas
 	// when propagating resources that have replicas in spec (e.g. deployments, statefulsets) to member clusters.
 	// +optional
-	ReplicaScheduling *ReplicaSchedulingPolicy `json:"replicaScheduling,omitempty"`
+	ReplicaScheduling *ReplicaSchedulingStrategy `json:"replicaScheduling,omitempty"`
 }
 
 // SpreadFieldValue is the type to define valid values for SpreadConstraint.SpreadByField
