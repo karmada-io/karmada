@@ -89,3 +89,13 @@ const (
 	// EndpointSliceKind indicates the target resource is a endpointslice
 	EndpointSliceKind = "EndpointSlice"
 )
+
+// Define resource filed
+const (
+	// SpecField indicates the 'spec' field of a resource
+	SpecField = "spec"
+	// ReplicasField indicates the 'replicas' field of a resource
+	ReplicasField = "replicas"
+	// TemplateField indicates the 'template' field of a resource
+	TemplateField = "template"
+)
