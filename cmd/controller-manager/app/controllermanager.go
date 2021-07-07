@@ -260,4 +260,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := endpointSliceController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup EndpointSlice controller: %v", err)
 	}
+
+	serviceImportController := &mcs.ServiceImportController{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+	}
+	if err := serviceImportController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
+	}
 }
