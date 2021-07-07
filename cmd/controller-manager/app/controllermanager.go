@@ -240,7 +240,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	serviceExportController := &mcs.ServiceExportController{
 		Client:                      mgr.GetClient(),
-		EventRecorder:               mgr.GetEventRecorderFor(mcs.ControllerName),
+		EventRecorder:               mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 		RESTMapper:                  mgr.GetRESTMapper(),
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    stopChan,
@@ -251,5 +251,13 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+	}
+
+	endpointSliceController := &mcs.EndpointSliceController{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
+	}
+	if err := endpointSliceController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup EndpointSlice controller: %v", err)
 	}
 }

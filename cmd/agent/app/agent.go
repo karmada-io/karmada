@@ -138,7 +138,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	serviceExportController := &mcs.ServiceExportController{
 		Client:                      mgr.GetClient(),
-		EventRecorder:               mgr.GetEventRecorderFor(mcs.ControllerName),
+		EventRecorder:               mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 		RESTMapper:                  mgr.GetRESTMapper(),
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    stopChan,
