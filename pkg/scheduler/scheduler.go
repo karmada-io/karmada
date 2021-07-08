@@ -485,11 +485,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha1.Resour
 	klog.V(4).Infof("ResourceBinding %s/%s scheduled to clusters %v", resourceBinding.Namespace, resourceBinding.Name, scheduleResult.SuggestedClusters)
 
 	binding := resourceBinding.DeepCopy()
-	targetClusters := make([]workv1alpha1.TargetCluster, len(scheduleResult.SuggestedClusters))
-	for i, cluster := range scheduleResult.SuggestedClusters {
-		targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster}
-	}
-	binding.Spec.Clusters = targetClusters
+	binding.Spec.Clusters = scheduleResult.SuggestedClusters
 
 	if binding.Annotations == nil {
 		binding.Annotations = make(map[string]string)
@@ -512,11 +508,7 @@ func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv
 	klog.V(4).Infof("ClusterResourceBinding %s scheduled to clusters %v", clusterResourceBinding.Name, scheduleResult.SuggestedClusters)
 
 	binding := clusterResourceBinding.DeepCopy()
-	targetClusters := make([]workv1alpha1.TargetCluster, len(scheduleResult.SuggestedClusters))
-	for i, cluster := range scheduleResult.SuggestedClusters {
-		targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster}
-	}
-	binding.Spec.Clusters = targetClusters
+	binding.Spec.Clusters = scheduleResult.SuggestedClusters
 
 	placement, err := json.Marshal(policy.Spec.Placement)
 	if err != nil {
