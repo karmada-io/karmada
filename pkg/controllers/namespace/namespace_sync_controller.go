@@ -87,6 +87,7 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 		strings.HasPrefix(namespace, karmadaExecutionSpacePrefix) || strings.HasPrefix(namespace, kubeSystemNamespacePrefix) {
 		return false
 	}
+
 	return true
 }
 

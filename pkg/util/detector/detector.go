@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -46,11 +45,11 @@ type ResourceDetector struct {
 	// Client is used to retrieve objects, it is often more convenient than lister.
 	Client client.Client
 	// DynamicClient used to fetch arbitrary resources.
-	DynamicClient   dynamic.Interface
-	InformerManager informermanager.SingleClusterInformerManager
-	EventHandler    cache.ResourceEventHandler
-	Processor       util.AsyncWorker
-
+	DynamicClient         dynamic.Interface
+	InformerManager       informermanager.SingleClusterInformerManager
+	EventHandler          cache.ResourceEventHandler
+	Processor             util.AsyncWorker
+	SkippedResourceConfig *util.SkippedResourceConfig
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
 	policyReconcileWorker util.AsyncWorker
@@ -200,6 +199,13 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 // All objects which API group defined by Karmada should be ignored:
 // - cluster.karmada.io
 // - policy.karmada.io
+//
+// The api objects listed above will be ignored by default, as we don't want users to manually input the things
+// they don't care when trying to skip something else.
+//
+// If '--skipped-propagating-apis' which used to specific the APIs should be ignored in addition to the defaults, is set,
+// the specified apis will be ignored as well.
+//
 func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 	key, err := ClusterWideKeyFunc(obj)
 	if err != nil {
@@ -217,12 +223,20 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 		return false
 	}
 
-	if clusterWideKey.Group == clusterv1alpha1.GroupName ||
-		clusterWideKey.Group == policyv1alpha1.GroupName ||
-		clusterWideKey.Group == workv1alpha1.GroupName {
-		return false
+	if d.SkippedResourceConfig != nil {
+		if d.SkippedResourceConfig.GroupDisabled(clusterWideKey.Group) {
+			klog.V(4).Infof("Skip event for %s", clusterWideKey.Group)
+			return false
+		}
+		if d.SkippedResourceConfig.GroupVersionDisabled(clusterWideKey.GroupVersion()) {
+			klog.V(4).Infof("Skip event for %s", clusterWideKey.GroupVersion())
+			return false
+		}
+		if d.SkippedResourceConfig.GroupVersionKindDisabled(clusterWideKey.GroupVersionKind()) {
+			klog.V(4).Infof("Skip event for %s", clusterWideKey.GroupVersionKind())
+			return false
+		}
 	}
-
 	return true
 }
 
