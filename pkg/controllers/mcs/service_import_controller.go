@@ -32,7 +32,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 	svcImport := &mcsv1alpha1.ServiceImport{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, svcImport); err != nil {
 		if errors.IsNotFound(err) {
-			return controllerruntime.Result{}, nil
+			return c.deleteDerivedService(req.NamespacedName)
 		}
 
 		return controllerruntime.Result{Requeue: true}, err
@@ -50,14 +50,35 @@ func (c *ServiceImportController) SetupWithManager(mgr controllerruntime.Manager
 	return controllerruntime.NewControllerManagedBy(mgr).For(&mcsv1alpha1.ServiceImport{}).Complete(c)
 }
 
+func (c *ServiceImportController) deleteDerivedService(svcImport types.NamespacedName) (controllerruntime.Result, error) {
+	derivedSvc := &corev1.Service{}
+	derivedSvcNamespacedName := types.NamespacedName{
+		Namespace: svcImport.Namespace,
+		Name:      names.GenerateDerivedServiceName(svcImport.Name),
+	}
+	err := c.Client.Get(context.TODO(), derivedSvcNamespacedName, derivedSvc)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return controllerruntime.Result{}, nil
+		}
+
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	err = c.Client.Delete(context.TODO(), derivedSvc)
+	if err != nil {
+		klog.Errorf("Delete derived service(%s) failed, Error: %v", derivedSvcNamespacedName, err)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	return controllerruntime.Result{}, nil
+}
+
 func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv1alpha1.ServiceImport) (controllerruntime.Result, error) {
 	newDerivedService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: svcImport.Namespace,
 			Name:      names.GenerateDerivedServiceName(svcImport.Name),
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(svcImport, svcImport.GroupVersionKind()),
-			},
 		},
 		Spec: corev1.ServiceSpec{
 			Type:  corev1.ServiceTypeClusterIP,
@@ -77,7 +98,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 				return controllerruntime.Result{Requeue: true}, err
 			}
 
-			return controllerruntime.Result{}, nil
+			return c.updateServiceStatus(svcImport, newDerivedService)
 		}
 
 		return controllerruntime.Result{Requeue: true}, err
