@@ -17,8 +17,8 @@ import (
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/test/helper"
+	"github.com/karmada-io/karmada/pkg/util/helper"
+	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation testing", func() {
@@ -31,8 +31,8 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation tes
 			Plural:   fmt.Sprintf("foo%ss", randStr),
 			Singular: fmt.Sprintf("foo%s", randStr),
 		}
-		crd := helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-		crdPolicy := helper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+		crd := testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+		crdPolicy := testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: crd.APIVersion,
 				Kind:       crd.Kind,
@@ -73,6 +73,9 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation tes
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
+			// Check CRD enablement from cluster objects instead of member clusters.
+			// After CRD installed on member cluster, the cluster status controller takes at most cluster-status-update-frequency
+			// time to collect the API list, before that the scheduler will filter out the cluster from scheduling.
 			ginkgo.By("check if crd present on member clusters", func() {
 				crAPIVersion := fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
 				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
@@ -81,7 +84,7 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation tes
 						return false, err
 					}
 					for _, cluster := range clusters {
-						if !util.IsAPIInstallInCluster(cluster.Status, crAPIVersion, crdSpecNames.Plural, crdSpecNames.Kind) {
+						if !helper.IsAPIEnabled(cluster.Status.APIEnablements, crAPIVersion, crdSpecNames.Kind) {
 							return false, nil
 						}
 					}
