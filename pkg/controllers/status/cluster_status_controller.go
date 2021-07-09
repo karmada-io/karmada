@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/component-helpers/apimachinery/lease"
@@ -296,7 +295,7 @@ func getClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy 
 	return true, true
 }
 
-func healthEndpointCheck(client *kubernetes.Clientset, path string) (int, error) {
+func healthEndpointCheck(client *clientset.Clientset, path string) (int, error) {
 	var healthStatus int
 	resp := client.DiscoveryClient.RESTClient().Get().AbsPath(path).Do(context.TODO()).StatusCode(&healthStatus)
 	return healthStatus, resp.Error()
