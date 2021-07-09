@@ -210,7 +210,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		EventRecorder:        mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:           mgr.GetRESTMapper(),
 		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        helper.NewWorkPredicate(mgr),
+		PredicateFunc:        helper.NewExecutionPredicate(mgr),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
@@ -225,7 +225,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		StopChan:             stopChan,
 		WorkerNumber:         1,
 		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        helper.NewWorkPredicate(mgr),
+		PredicateFunc:        helper.NewExecutionPredicate(mgr),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
 	}
 	workStatusController.RunWorkQueue()

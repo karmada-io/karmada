@@ -374,7 +374,8 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		Labels: map[string]string{
 			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
 			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1beta1.LabelServiceName],
-			// todo: add label to indicate work do not need execute
+			// indicate the Work should be not propagated since it's collected resource.
+			util.PropagationInstruction: util.PropagationInstructionSuppressed,
 		},
 	}
 
