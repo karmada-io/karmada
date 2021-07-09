@@ -30,6 +30,14 @@ const (
 
 	// ServiceNameLabel is added to work object, which is report by member cluster, to specify service name associated with EndpointSlice.
 	ServiceNameLabel = "endpointslice.karmada.io/name"
+
+	// PropagationInstruction is used to mark a resource(like Work) propagation instruction.
+	// Valid values includes:
+	// - suppressed: indicates that the resource should not be propagated.
+	//
+	// Note: This instruction is intended to set on Work objects to indicate the Work should be ignored by
+	// execution controller. The instruction maybe deprecated once we extend the Work API and no other scenario want this.
+	PropagationInstruction = "propagation.karmada.io/instruction"
 )
 
 // Define annotations used by karmada system.
@@ -98,4 +106,9 @@ const (
 	ReplicasField = "replicas"
 	// TemplateField indicates the 'template' field of a resource
 	TemplateField = "template"
+)
+
+const (
+	// PropagationInstructionSuppressed indicates that the resource should not be propagated.
+	PropagationInstructionSuppressed = "suppressed"
 )
