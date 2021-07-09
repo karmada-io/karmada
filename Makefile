@@ -1,5 +1,6 @@
 GOOS ?= $(shell go env GOOS)
 SOURCES := $(shell find . -type f  -name '*.go')
+GOBUILD_ENV = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS)
 
 # Git information
 GIT_VERSION ?= $(shell git describe --tags --dirty)
@@ -16,16 +17,6 @@ LDFLAGS := "-X github.com/karmada-io/karmada/pkg/version.gitVersion=$(GIT_VERSIO
                       -X github.com/karmada-io/karmada/pkg/version.gitTreeState=$(GIT_TREESTATE) \
                       -X github.com/karmada-io/karmada/pkg/version.buildDate=$(BUILDDATE)"
 
-# Images management
-REGISTRY_REGION?="ap-southeast-1"
-ACCESS_KEY?=""
-REGISTRY_LOGIN_KEY?=""
-SWR_SERVICE_ADDRESS?="swr.ap-southeast-1.myhuaweicloud.com"
-REGISTRY?="swr.ap-southeast-1.myhuaweicloud.com/karmada"
-REGISTRY_USER_NAME?=""
-REGISTRY_PASSWORD?=""
-REGISTRY_SERVER_ADDRESS?=""
-
 # Set your version by env or using latest tags from git
 VERSION?=""
 ifeq ($(VERSION), "")
@@ -41,37 +32,37 @@ endif
 all: karmada-controller-manager karmada-scheduler karmadactl karmada-webhook karmada-agent
 
 karmada-controller-manager: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	$(GOBUILD_ENV) go build \
 		-ldflags $(LDFLAGS) \
-		-o karmada-controller-manager \
+		-o bin/karmada-controller-manager \
 		cmd/controller-manager/controller-manager.go
 
 karmada-scheduler: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	$(GOBUILD_ENV) go build \
 		-ldflags $(LDFLAGS) \
-		-o karmada-scheduler \
+		-o bin/karmada-scheduler \
 		cmd/scheduler/main.go
 
 karmadactl: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	$(GOBUILD_ENV) go build \
 		-ldflags $(LDFLAGS) \
-		-o karmadactl \
+		-o bin/karmadactl \
 		cmd/karmadactl/karmadactl.go
 
 karmada-webhook: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	$(GOBUILD_ENV) go build \
 		-ldflags $(LDFLAGS) \
-		-o karmada-webhook \
+		-o bin/karmada-webhook \
 		cmd/webhook/main.go
 
 karmada-agent: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	$(GOBUILD_ENV) go build \
 		-ldflags $(LDFLAGS) \
-		-o karmada-agent \
+		-o bin/karmada-agent \
 		cmd/agent/main.go
 
 clean:
-	rm -rf karmada-controller-manager karmada-scheduler karmadactl karmada-webhook karmada-agent
+	rm -rf bin
 
 .PHONY: update
 update:
@@ -88,22 +79,26 @@ test:
 images: image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook image-karmada-agent
 
 image-karmada-controller-manager: karmada-controller-manager
-	VERSION=$(VERSION) hack/docker.sh karmada-controller-manager
+	docker build -t karmada-controller-manager:$(VERSION) -f ./cluster/images/karmada-controller-manager/Dockerfile ./bin
 
 image-karmada-scheduler: karmada-scheduler
-	VERSION=$(VERSION) hack/docker.sh karmada-scheduler
+	docker build -t karmada-scheduler:$(VERSION) -f ./cluster/images/karmada-scheduler/Dockerfile ./bin
 
 image-karmada-webhook: karmada-webhook
-	VERSION=$(VERSION) hack/docker.sh karmada-webhook
+	docker build -t karmada-webhook:$(VERSION) -f ./cluster/images/karmada-webhook/Dockerfile ./bin
 
 image-karmada-agent: karmada-agent
-	VERSION=$(VERSION) hack/docker.sh karmada-agent
+	docker build -t karmada-agent:$(VERSION) -f ./cluster/images/karmada-agent/Dockerfile ./bin
 
 upload-images: images
-	@echo "push images to $(REGISTRY)"
+	@echo "push images to ${REGISTRY}"
 ifneq ($(REGISTRY_USER_NAME), "")
 	docker login -u ${REGISTRY_USER_NAME} -p ${REGISTRY_PASSWORD} ${REGISTRY_SERVER_ADDRESS}
 endif
+	docker tag karmada-controller-manager:${VERSION} ${REGISTRY}/karmada-controller-manager:${VERSION}
+	docker tag karmada-scheduler:${VERSION} ${REGISTRY}/karmada-scheduler:${VERSION}
+	docker tag karmada-webhook:${VERSION} ${REGISTRY}/karmada-webhook:${VERSION}
+	docker tag karmada-agent:${VERSION} ${REGISTRY}/karmada-agent:${VERSION}
 	docker push ${REGISTRY}/karmada-controller-manager:${VERSION}
 	docker push ${REGISTRY}/karmada-scheduler:${VERSION}
 	docker push ${REGISTRY}/karmada-webhook:${VERSION}

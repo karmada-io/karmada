@@ -21,7 +21,7 @@ spec:
           operator: Exists
       containers:
         - name: karmada-agent
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-agent:latest
+          image: karmada-agent:latest
           imagePullPolicy: {{image_pull_policy}}
           command:
             - /bin/karmada-agent
@@ -37,4 +37,3 @@ spec:
         - name: kubeconfig
           secret:
             secretName: karmada-kubeconfig
-

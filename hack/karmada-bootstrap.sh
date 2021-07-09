@@ -39,7 +39,6 @@ util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" 
 
 #step2. make images and get karmadactl
 export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 make images --directory="${REPO_ROOT}"
 
 GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl"
@@ -52,10 +51,9 @@ util::check_clusters_ready "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}"
 
 #step4. load components images to kind cluster
 export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
-kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
-kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
-kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 #step5. install karmada control plane components
 KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
@@ -79,7 +77,7 @@ ${KARMADACTL_BIN} join member2 --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG
 
 # wait until the pull mode cluster ready
 util::check_clusters_ready "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
-kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${PULL_MODE_CLUSTER_NAME}"
+kind load docker-image "karmada-agent:${VERSION}" --name="${PULL_MODE_CLUSTER_NAME}"
 
 #step7. deploy karmada agent in pull mode member clusters
 "${REPO_ROOT}"/hack/deploy-karmada-agent.sh "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"

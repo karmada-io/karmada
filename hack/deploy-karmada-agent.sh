@@ -63,9 +63,8 @@ if kubectl config get-clusters | grep "kind-${MEMBER_CLUSTER_NAME}"
 then
   # make agent image
   export VERSION="latest"
-  export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
   make image-karmada-agent --directory="${REPO_ROOT}"
-  kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${MEMBER_CLUSTER_NAME}"
+  kind load docker-image "karmada-agent:${VERSION}" --name="${MEMBER_CLUSTER_NAME}"
   AGENT_IMAGE_PULL_POLICY="IfNotPresent" # It must not reload the image when member cluster created by kind
 fi
 

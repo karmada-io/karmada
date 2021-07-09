@@ -18,8 +18,4 @@
 .vscode/
 
 # karamada binary
-karmada-agent
-karmada-controller-manager
-karmada-scheduler
-karmada-webhook
-karmadactl
+bin/

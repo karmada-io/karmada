@@ -31,17 +31,16 @@ fi
 
 # make controller-manager image
 export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 make images --directory="${SCRIPT_ROOT}"
 
 # load controller-manager image
-kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 # load scheduler image
-kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 # load webhook image
-kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 # deploy karmada control plane
 KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")

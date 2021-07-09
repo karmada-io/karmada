@@ -21,7 +21,7 @@ spec:
         operator: Exists
       containers:
         - name: karmada-controller-manager
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager:latest
+          image: karmada-controller-manager:latest
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-controller-manager
@@ -38,4 +38,3 @@ spec:
         - name: kubeconfig
           secret:
             secretName: kubeconfig
-
