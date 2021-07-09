@@ -92,10 +92,13 @@ const (
 	ReplicaSetKind = "ReplicaSet"
 	// StatefulSetKind indicates the target resource is a statefulset
 	StatefulSetKind = "StatefulSet"
-	// ServiceExportKind indicates the target resource is a serviceexport
-	ServiceExportKind = "ServiceExport"
 	// EndpointSliceKind indicates the target resource is a endpointslice
 	EndpointSliceKind = "EndpointSlice"
+
+	// ServiceExportKind indicates the target resource is a serviceexport crd
+	ServiceExportKind = "ServiceExport"
+	// ServiceImportKind indicates the target resource is a serviceimport crd
+	ServiceImportKind = "ServiceImport"
 )
 
 // Define resource filed
