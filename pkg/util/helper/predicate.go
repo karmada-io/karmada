@@ -99,10 +99,16 @@ func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predi
 			return false
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			clusterName, err := names.GetClusterName(updateEvent.ObjectOld.GetNamespace())
+			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
+
+			if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
+				klog.V(5).Infof("Ignored Work(%s/%s) update event as propagation instruction is suppressed.", obj.Namespace, obj.Name)
+				return false
+			}
+
+			clusterName, err := names.GetClusterName(obj.GetNamespace())
 			if err != nil {
-				klog.Errorf("Failed to get member cluster name for work %s/%s", updateEvent.ObjectOld.GetNamespace(),
-					updateEvent.ObjectOld.GetName())
+				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.GetNamespace(), obj.GetName())
 				return false
 			}
 
@@ -122,8 +128,8 @@ func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predi
 	}
 }
 
-// NewClusterPredicateByAgent generates an event filter function with Cluster for karmada-agent.
-func NewClusterPredicateByAgent(clusterName string) predicate.Funcs {
+// NewClusterPredicateOnAgent generates an event filter function with Cluster for karmada-agent.
+func NewClusterPredicateOnAgent(clusterName string) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			return createEvent.Object.GetName() == clusterName
@@ -140,23 +146,74 @@ func NewClusterPredicateByAgent(clusterName string) predicate.Funcs {
 	}
 }
 
-// NewPredicateForServiceExportControllerByAgent generates an event filter function for ServiceExport controller running by karmada-agent.
-func NewPredicateForServiceExportControllerByAgent(curClusterName string) predicate.Funcs {
+// NewPredicateForServiceExportControllerOnAgent generates an event filter function for ServiceExport controller running by karmada-agent.
+func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			return false
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			clusterName, err := names.GetClusterName(updateEvent.ObjectOld.GetNamespace())
+			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
+
+			if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
+				klog.V(5).Infof("Ignored Work(%s/%s) update event as propagation instruction is suppressed.", obj.Namespace, obj.Name)
+				return false
+			}
+
+			clusterName, err := names.GetClusterName(obj.GetNamespace())
 			if err != nil {
-				klog.Errorf("Failed to get member cluster name for work %s/%s", updateEvent.ObjectOld.GetNamespace(),
-					updateEvent.ObjectOld.GetName())
+				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.GetNamespace(), obj.GetName())
 				return false
 			}
 			return clusterName == curClusterName
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return false
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
+// NewExecutionPredicateOnAgent generates the event filter function to skip events that the controllers are uninterested.
+// Used by controllers:
+// - execution controller working in agent
+// - work status controller working in agent
+func NewExecutionPredicateOnAgent() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			obj := createEvent.Object.(*workv1alpha1.Work)
+
+			// Ignore the object that has been suppressed.
+			if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
+				klog.V(5).Infof("Ignored Work(%s/%s) create event as propagation instruction is suppressed.", obj.Namespace, obj.Name)
+				return false
+			}
+
+			return true
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
+
+			// Ignore the object that has been suppressed.
+			if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
+				klog.V(5).Infof("Ignored Work(%s/%s) update event as propagation instruction is suppressed.", obj.Namespace, obj.Name)
+				return false
+			}
+
+			return true
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			obj := deleteEvent.Object.(*workv1alpha1.Work)
+
+			// Ignore the object that has been suppressed.
+			if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
+				klog.V(5).Infof("Ignored Work(%s/%s) delete event as propagation instruction is suppressed.", obj.Namespace, obj.Name)
+				return false
+			}
+
+			return true
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
