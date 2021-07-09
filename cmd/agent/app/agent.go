@@ -12,7 +12,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -94,7 +93,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		Client:                            mgr.GetClient(),
 		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
 		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:                     helper.NewClusterPredicateByAgent(opts.ClusterName),
+		PredicateFunc:                     helper.NewClusterPredicateOnAgent(opts.ClusterName),
 		InformerManager:                   informermanager.GetInstance(),
 		StopChan:                          stopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
@@ -113,7 +112,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		EventRecorder:        mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:           mgr.GetRESTMapper(),
 		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        predicate.Funcs{},
+		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
@@ -128,7 +127,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		StopChan:             stopChan,
 		WorkerNumber:         1,
 		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        predicate.Funcs{},
+		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 	}
 	workStatusController.RunWorkQueue()
@@ -143,7 +142,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    stopChan,
 		WorkerNumber:                1,
-		PredicateFunc:               helper.NewPredicateForServiceExportControllerByAgent(opts.ClusterName),
+		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(opts.ClusterName),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 	}
 	serviceExportController.RunWorkQueue()
