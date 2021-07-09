@@ -357,13 +357,7 @@ func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUp
 
 // reportEndpointSlice report EndPointSlice objects to control-plane.
 func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
-	var (
-		executionSpace    string
-		endpointSliceWork *workv1alpha1.Work
-		err               error
-	)
-
-	executionSpace, err = names.GenerateExecutionSpaceName(clusterName)
+	executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
 	if err != nil {
 		return err
 	}
@@ -379,11 +373,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		},
 	}
 
-	endpointSliceWork, err = helper.WarpResourceWithWork(workMeta, endpointSlice)
-	if err != nil {
-		return err
-	}
-	if err = helper.CreateOrUpdateWork(c, endpointSliceWork); err != nil {
+	if err = helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
 		return err
 	}
 

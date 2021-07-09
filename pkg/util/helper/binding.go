@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -17,7 +16,6 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -162,144 +160,128 @@ func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, 
 }
 
 // EnsureWork ensure Work to be created or updated.
-//nolint:gocyclo
-// Note: ignore the cyclomatic complexity issue to get gocyclo on board. Tracked by: https://github.com/karmada-io/karmada/issues/460
-func EnsureWork(c client.Client, workload *unstructured.Unstructured, clusterNames []string, scheduleResult []workv1alpha1.TargetCluster,
-	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
-	var desireReplicaInfos map[string]int64
-	var referenceRSP *v1alpha1.ReplicaSchedulingPolicy
-	var err error
-	hasScheduledReplica := HasScheduledReplica(scheduleResult)
-	if hasScheduledReplica {
-		desireReplicaInfos = transScheduleResultToMap(scheduleResult)
-	} else {
-		referenceRSP, desireReplicaInfos, err = calculateReplicasIfNeeded(c, workload, clusterNames)
-		if err != nil {
-			klog.Errorf("Failed to get ReplicaSchedulingPolicy for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
-			return err
-		}
+func EnsureWork(c client.Client, workload *unstructured.Unstructured, overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
+	var targetClusters []workv1alpha1.TargetCluster
+	switch scope {
+	case apiextensionsv1.NamespaceScoped:
+		bindingObj := binding.(*workv1alpha1.ResourceBinding)
+		targetClusters = bindingObj.Spec.Clusters
+	case apiextensionsv1.ClusterScoped:
+		bindingObj := binding.(*workv1alpha1.ClusterResourceBinding)
+		targetClusters = bindingObj.Spec.Clusters
 	}
 
-	var workLabel = make(map[string]string)
+	hasScheduledReplica, referenceRSP, desireReplicaInfos, err := getRSPAndReplicaInfos(c, workload, targetClusters)
+	if err != nil {
+		return err
+	}
 
-	for _, clusterName := range clusterNames {
-		// apply override policies
+	for _, targetCluster := range targetClusters {
 		clonedWorkload := workload.DeepCopy()
-		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, clusterName)
+		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
 		if err != nil {
-			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
 			return err
 		}
 
-		workName := names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace())
-		workNamespace, err := names.GenerateExecutionSpaceName(clusterName)
+		workNamespace, err := names.GenerateExecutionSpaceName(targetCluster.Name)
 		if err != nil {
-			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
+			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", targetCluster.Name, err)
 			return err
 		}
 
-		util.MergeLabel(clonedWorkload, util.WorkNamespaceLabel, workNamespace)
-		util.MergeLabel(clonedWorkload, util.WorkNameLabel, workName)
-
-		if scope == apiextensionsv1.NamespaceScoped {
-			util.MergeLabel(clonedWorkload, util.ResourceBindingNamespaceLabel, binding.GetNamespace())
-			util.MergeLabel(clonedWorkload, util.ResourceBindingNameLabel, binding.GetName())
-			workLabel[util.ResourceBindingNamespaceLabel] = binding.GetNamespace()
-			workLabel[util.ResourceBindingNameLabel] = binding.GetName()
-		} else {
-			util.MergeLabel(clonedWorkload, util.ClusterResourceBindingLabel, binding.GetName())
-			workLabel[util.ClusterResourceBindingLabel] = binding.GetName()
-		}
+		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
 
 		if clonedWorkload.GetKind() == util.DeploymentKind && (referenceRSP != nil || hasScheduledReplica) {
-			err = applyReplicaSchedulingPolicy(clonedWorkload, desireReplicaInfos[clusterName])
+			err = applyReplicaSchedulingPolicy(clonedWorkload, desireReplicaInfos[targetCluster.Name])
 			if err != nil {
 				klog.Errorf("failed to apply ReplicaSchedulingPolicy for %s/%s/%s in cluster %s, err is: %v",
-					clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), clusterName, err)
+					clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
 				return err
 			}
 		}
 
-		// TODO(@XiShanYongYe-Chang): refactor util.CreateOrUpdateWork with pkg/util/helper/work.go
-		workloadJSON, err := clonedWorkload.MarshalJSON()
+		annotations, err := recordAppliedOverrides(cops, ops)
 		if err != nil {
-			klog.Errorf("Failed to marshal workload, kind: %s, namespace: %s, name: %s. Error: %v",
-				clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace(), err)
+			klog.Errorf("failed to record appliedOverrides, Error: %v", err)
 			return err
 		}
 
-		work := &workv1alpha1.Work{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       workName,
-				Namespace:  workNamespace,
-				Finalizers: []string{util.ExecutionControllerFinalizer},
-				Labels:     workLabel,
-			},
-			Spec: workv1alpha1.WorkSpec{
-				Workload: workv1alpha1.WorkloadTemplate{
-					Manifests: []workv1alpha1.Manifest{
-						{
-							RawExtension: runtime.RawExtension{
-								Raw: workloadJSON,
-							},
-						},
-					},
-				},
-			},
+		workMeta := metav1.ObjectMeta{
+			Name:        names.GenerateWorkName(clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace()),
+			Namespace:   workNamespace,
+			Finalizers:  []string{util.ExecutionControllerFinalizer},
+			Labels:      workLabel,
+			Annotations: annotations,
 		}
 
-		// set applied override policies if needed.
-		var appliedBytes []byte
-		if cops != nil {
-			appliedBytes, err = cops.MarshalJSON()
-			if err != nil {
-				return err
-			}
-			if appliedBytes != nil {
-				if work.Annotations == nil {
-					work.Annotations = make(map[string]string, 1)
-				}
-				work.Annotations[util.AppliedClusterOverrides] = string(appliedBytes)
-			}
-		}
-		if ops != nil {
-			appliedBytes, err = ops.MarshalJSON()
-			if err != nil {
-				return err
-			}
-			if appliedBytes != nil {
-				if work.Annotations == nil {
-					work.Annotations = make(map[string]string, 1)
-				}
-				work.Annotations[util.AppliedOverrides] = string(appliedBytes)
-			}
-		}
-
-		runtimeObject := work.DeepCopy()
-		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), c, runtimeObject, func() error {
-			runtimeObject.Annotations = work.Annotations
-			runtimeObject.Labels = work.Labels
-			runtimeObject.Spec = work.Spec
-			return nil
-		})
-		if err != nil {
-			klog.Errorf("Failed to create/update work %s/%s. Error: %v", work.GetNamespace(), work.GetName(), err)
+		if err = CreateOrUpdateWork(c, workMeta, clonedWorkload); err != nil {
 			return err
-		}
-
-		if operationResult == controllerutil.OperationResultCreated {
-			klog.Infof("Create work %s/%s successfully.", work.GetNamespace(), work.GetName())
-		} else if operationResult == controllerutil.OperationResultUpdated {
-			klog.Infof("Update work %s/%s successfully.", work.GetNamespace(), work.GetName())
-		} else {
-			klog.V(2).Infof("Work %s/%s is up to date.", work.GetNamespace(), work.GetName())
 		}
 	}
 	return nil
 }
 
+func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured, targetClusters []workv1alpha1.TargetCluster) (bool, *v1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
+	if HasScheduledReplica(targetClusters) {
+		return true, nil, transScheduleResultToMap(targetClusters), nil
+	}
+
+	referenceRSP, desireReplicaInfos, err := calculateReplicasIfNeeded(c, workload, GetBindingClusterNames(targetClusters))
+	if err != nil {
+		klog.Errorf("Failed to get ReplicaSchedulingPolicy for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+		return false, nil, nil, err
+	}
+
+	return false, referenceRSP, desireReplicaInfos, nil
+}
+
+func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
+	var workLabel = make(map[string]string)
+	util.MergeLabel(workload, util.WorkNamespaceLabel, workNamespace)
+	util.MergeLabel(workload, util.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
+
+	if scope == apiextensionsv1.NamespaceScoped {
+		util.MergeLabel(workload, util.ResourceBindingNamespaceLabel, binding.GetNamespace())
+		util.MergeLabel(workload, util.ResourceBindingNameLabel, binding.GetName())
+		workLabel[util.ResourceBindingNamespaceLabel] = binding.GetNamespace()
+		workLabel[util.ResourceBindingNameLabel] = binding.GetName()
+	} else {
+		util.MergeLabel(workload, util.ClusterResourceBindingLabel, binding.GetName())
+		workLabel[util.ClusterResourceBindingLabel] = binding.GetName()
+	}
+
+	return workLabel
+}
+
+func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overridemanager.AppliedOverrides) (map[string]string, error) {
+	annotations := make(map[string]string)
+
+	if cops != nil {
+		appliedBytes, err := cops.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		if appliedBytes != nil {
+			annotations[util.AppliedClusterOverrides] = string(appliedBytes)
+		}
+	}
+
+	if ops != nil {
+		appliedBytes, err := ops.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		if appliedBytes != nil {
+			annotations[util.AppliedOverrides] = string(appliedBytes)
+		}
+	}
+
+	return annotations, nil
+}
+
 func transScheduleResultToMap(scheduleResult []workv1alpha1.TargetCluster) map[string]int64 {
-	var desireReplicaInfos = make(map[string]int64)
+	var desireReplicaInfos = make(map[string]int64, len(scheduleResult))
 	for _, clusterInfo := range scheduleResult {
 		desireReplicaInfos[clusterInfo.Name] = int64(clusterInfo.Replicas)
 	}
