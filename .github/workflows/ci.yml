@@ -65,6 +65,8 @@ jobs:
     name: e2e test
     needs: build
     runs-on: ubuntu-18.04
+    env:
+      ARTIFACTS_PATH: ${{ github.workspace }}/karmada-e2e-logs/
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -76,3 +78,9 @@ jobs:
         run: hack/karmada-bootstrap.sh
       - name: run e2e
         run: hack/run-e2e.sh
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: karmada_e2e_log
+          path: ${{ github.workspace }}/karmada-e2e-logs/
