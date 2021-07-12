@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -148,16 +148,9 @@ func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal 
 	return false, nil
 }
 
-// IsResourceApplied checking weather resource has been dispatched to member cluster or not
+// IsResourceApplied checks whether resource has been dispatched to member cluster or not
 func IsResourceApplied(workStatus *workv1alpha1.WorkStatus) bool {
-	for _, condition := range workStatus.Conditions {
-		if condition.Type == workv1alpha1.WorkApplied {
-			if condition.Status == metav1.ConditionTrue {
-				return true
-			}
-		}
-	}
-	return false
+	return meta.IsStatusConditionTrue(workStatus.Conditions, workv1alpha1.WorkApplied)
 }
 
 // IsWorkContains checks if the target resource exists in a work.
