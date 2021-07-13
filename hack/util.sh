@@ -281,7 +281,9 @@ function util::check_clusters_ready() {
   local context_name=${2}
 
   echo "Waiting for kubeconfig file ${kubeconfig_path} and clusters ${context_name} to be ready..."
-  util::wait_file_exist ${kubeconfig_path} 300
+  util::wait_file_exist "${kubeconfig_path}" 300
+  util::wait_for_condition 'running' "docker inspect --format='{{.State.Status}}' ${context_name}-control-plane &> /dev/null" 300
+
   kubectl config rename-context "kind-${context_name}" "${context_name}" --kubeconfig="${kubeconfig_path}"
   container_ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${context_name}-control-plane")
   kubectl config set-cluster "kind-${context_name}" --server="https://${container_ip}:6443" --kubeconfig="${kubeconfig_path}"
