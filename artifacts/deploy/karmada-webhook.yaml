@@ -29,6 +29,7 @@ spec:
             - --bind-address=0.0.0.0
             - --secure-port=8443
             - --cert-dir=/var/serving-cert
+            - --v=4
           ports:
             - containerPort: 8443
           volumeMounts:

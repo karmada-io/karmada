@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -59,11 +60,12 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By("adding taints to clusters", func() {
 				for _, cluster := range clusterNames {
-					fmt.Printf("add taints to cluster %v", cluster)
 					clusterObj := &clusterv1alpha1.Cluster{}
 					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+					// TODO(RainbowMango): This will overrides the taints already exist in the cluster.
+					// Should merge new taint to it and cleanup after testing.
 					clusterObj.Spec.Taints = []corev1.Taint{
 						{
 							Key:    tolerationKey,
@@ -72,6 +74,9 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 						},
 					}
 
+					for _, taint := range clusterObj.Spec.Taints {
+						klog.Infof("Adding taints(%s) to cluster(%s)", taint.ToString(), clusterObj.Name)
+					}
 					err = controlPlaneClient.Update(context.TODO(), clusterObj)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
@@ -100,7 +105,7 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 		})
 
 		ginkgo.It("deployment with cluster tolerations testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deployment.Namespace, deployment.Name), func() {
 				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})

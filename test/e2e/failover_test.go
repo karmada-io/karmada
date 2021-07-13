@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
@@ -208,10 +209,8 @@ func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint str
 // get the target cluster names from binding information
 func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []string, err error) {
 	bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
-	fmt.Printf("deploy kind is %s, name is %s\n", deployment.Kind, deployment.Name)
 	binding := &workv1alpha1.ResourceBinding{}
 
-	fmt.Printf("collect the target clusters in resource binding\n")
 	err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 		err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: deployment.Namespace, Name: bindingName}, binding)
 		if err != nil {
@@ -220,6 +219,12 @@ func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []
 			}
 			return false, err
 		}
+
+		if len(binding.Spec.Clusters) == 0 {
+			klog.Infof("The ResourceBinding(%s/%s) hasn't been scheduled.", binding.Namespace, binding.Name)
+			return false, nil
+		}
+
 		return true, nil
 	})
 	if err != nil {
@@ -228,7 +233,7 @@ func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []
 	for _, cluster := range binding.Spec.Clusters {
 		targetClusterNames = append(targetClusterNames, cluster.Name)
 	}
-	fmt.Printf("target clusters in resource binding are %s\n", targetClusterNames)
+	klog.Infof("The ResourceBinding(%s/%s) schedule result is: %s", binding.Namespace, binding.Name, strings.Join(targetClusterNames, ","))
 	return targetClusterNames, nil
 }
 
