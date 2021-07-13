@@ -60,6 +60,8 @@ const (
 	DeploymentKind = "Deployment"
 	// ServiceKind indicates the target resource is a service
 	ServiceKind = "Service"
+	// IngressKind indicates the target resource is a ingress
+	IngressKind = "Ingress"
 	// JobKind indicates the target resource is a job
 	JobKind = "Job"
 	// PodKind indicates the target resource is a pod
