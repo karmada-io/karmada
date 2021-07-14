@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,4 +28,18 @@ func GetCluster(hostClient client.Client, clusterName string) (*v1alpha1.Cluster
 		return nil, err
 	}
 	return cluster, nil
+}
+
+// CreateClusterIfNotExist try to create the cluster if it does not exist.
+func CreateClusterIfNotExist(client client.Client, clusterObj *v1alpha1.Cluster) error {
+	cluster := &v1alpha1.Cluster{}
+	if err := client.Get(context.TODO(), types.NamespacedName{Name: clusterObj.Name}, cluster); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		if err := client.Create(context.TODO(), clusterObj); err != nil {
+			return err
+		}
+	}
+	return nil
 }

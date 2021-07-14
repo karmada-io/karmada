@@ -53,7 +53,9 @@ MEMBER_CLUSTER_NAME=$4
 source "${REPO_ROOT}"/hack/util.sh
 
 # install agent to member cluster
-CURR_KUBECONFIG=$KUBECONFIG # backup current kubeconfig
+if [ -n "${KUBECONFIG+x}" ];then
+  CURR_KUBECONFIG=$KUBECONFIG # backup current kubeconfig
+fi
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}" # switch to member cluster
 kubectl config use-context "${MEMBER_CLUSTER_NAME}"
 
@@ -92,5 +94,9 @@ kubectl apply -f "${TEMP_PATH}"/karmada-agent.yaml
 # Wait for karmada-etcd to come up before launching the rest of the components.
 util::wait_pod_ready "${AGENT_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
-# recover the kubeconfig before installing agent
-export KUBECONFIG="${CURR_KUBECONFIG}"
+# recover the kubeconfig before installing agent if necessary
+if [ -n "${CURR_KUBECONFIG+x}" ];then
+  export KUBECONFIG="${CURR_KUBECONFIG}"
+else
+  unset KUBECONFIG
+fi

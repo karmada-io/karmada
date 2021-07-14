@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -19,7 +20,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -153,15 +153,22 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 }
 
 func registerWithControlPlaneAPIServer(controlPlaneRestConfig *restclient.Config, memberClusterName string) error {
-	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+	client := gclient.NewForConfigOrDie(controlPlaneRestConfig)
+
+	namespaceObj := &corev1.Namespace{}
+	namespaceObj.Name = util.NamespaceClusterLease
+
+	if err := util.CreateNamespaceIfNotExist(client, namespaceObj); err != nil {
+		klog.Errorf("Failed to create namespace(%s) object, error: %v", namespaceObj.Name, err)
+		return err
+	}
 
 	clusterObj := &clusterv1alpha1.Cluster{}
 	clusterObj.Name = memberClusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
 
-	_, err := karmadactl.CreateClusterObject(karmadaClient, clusterObj, false)
-	if err != nil {
-		klog.Errorf("failed to create cluster object. cluster name: %s, error: %v", memberClusterName, err)
+	if err := util.CreateClusterIfNotExist(client, clusterObj); err != nil {
+		klog.Errorf("Failed to create cluster(%s) object, error: %v", clusterObj.Name, err)
 		return err
 	}
 

@@ -6,7 +6,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	kubeclient "k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // IsNamespaceExist tells if specific already exists.
@@ -42,6 +44,20 @@ func DeleteNamespace(client kubeclient.Interface, namespace string) error {
 	err := client.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
+	}
+	return nil
+}
+
+// CreateNamespaceIfNotExist try to create the namespace if it does not exist.
+func CreateNamespaceIfNotExist(client client.Client, namespaceObj *corev1.Namespace) error {
+	namespace := &corev1.Namespace{}
+	if err := client.Get(context.TODO(), types.NamespacedName{Name: namespaceObj.Name}, namespace); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		if err := client.Create(context.TODO(), namespaceObj); err != nil {
+			return err
+		}
 	}
 	return nil
 }
