@@ -13,16 +13,16 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
-// WarpResourceWithWork will warp resource into Work.
-func WarpResourceWithWork(workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) (*workv1alpha1.Work, error) {
+// CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
+func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) error {
 	workload := resource.DeepCopy()
 	workloadJSON, err := workload.MarshalJSON()
 	if err != nil {
 		klog.Errorf("Failed to marshal workload(%s/%s), Error: %v", workload.GetNamespace(), workload.GetName(), err)
-		return nil, err
+		return err
 	}
 
-	return &workv1alpha1.Work{
+	work := &workv1alpha1.Work{
 		ObjectMeta: workMeta,
 		Spec: workv1alpha1.WorkSpec{
 			Workload: workv1alpha1.WorkloadTemplate{
@@ -35,15 +35,13 @@ func WarpResourceWithWork(workMeta metav1.ObjectMeta, resource *unstructured.Uns
 				},
 			},
 		},
-	}, nil
-}
+	}
 
-// CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
-func CreateOrUpdateWork(client client.Client, work *workv1alpha1.Work) error {
 	runtimeObject := work.DeepCopy()
 	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
 		runtimeObject.Spec = work.Spec
 		runtimeObject.Labels = work.Labels
+		runtimeObject.Annotations = work.Annotations
 		return nil
 	})
 	if err != nil {
