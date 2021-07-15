@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -97,5 +99,11 @@ func removeIrrelevantField(workload *unstructured.Unstructured) {
 
 	unstructured.RemoveNestedField(workload.Object, "status")
 
-	unstructured.RemoveNestedField(workload.Object, "spec", "clusterIP")
+	if workload.GetKind() == util.ServiceKind {
+		// In the case spec.clusterIP is set to `None`, means user want a headless service,  then it shouldn't be removed.
+		clusterIP, exist, _ := unstructured.NestedString(workload.Object, "spec", "clusterIP")
+		if exist && clusterIP != corev1.ClusterIPNone {
+			unstructured.RemoveNestedField(workload.Object, "spec", "clusterIP")
+		}
+	}
 }
