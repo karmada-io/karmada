@@ -67,6 +67,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
 				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				klog.Infof("created policy(%s)", policyNamespace, policyName)
 			})
 		})
 
@@ -78,33 +79,16 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 		})
 
 		ginkgo.It("deployment propagation with label and group constraints testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deployment.Namespace, deployment.Name), func() {
 				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				klog.Infof("created deployment(%s/%s)", deployment.Namespace, deployment.Name)
 			})
 
 			ginkgo.By("collect the target clusters in resource binding", func() {
-				bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
-				fmt.Printf("deploy kind is %s, name is %s\n", deployment.Kind, deployment.Name)
-				binding := &workv1alpha1.ResourceBinding{}
-
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-					err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: deployment.Namespace, Name: bindingName}, binding)
-					if err != nil {
-						if errors.IsNotFound(err) {
-							return false, nil
-						}
-						return false, err
-					}
-					return true, nil
-				})
+				var err error
+				targetClusterNames, err = getTargetClusterNames(deployment)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				fmt.Printf("MaxGroups= %v, MinGroups= %v\n", maxGroups, minGroups)
-				for _, cluster := range binding.Spec.Clusters {
-					targetClusterNames = append(targetClusterNames, cluster.Name)
-				}
-				fmt.Printf("target clusters in resource binding are %s\n", targetClusterNames)
 				gomega.Expect(len(targetClusterNames) == minGroups).ShouldNot(gomega.BeFalse())
 			})
 

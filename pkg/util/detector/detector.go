@@ -701,6 +701,8 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 			klog.Infof("Policy(%s) has been removed", ckey.NamespaceKey())
 			return d.HandlePropagationPolicyDeletion(ckey.Namespace, ckey.Name)
 		}
+
+		klog.Errorf("Failed to get Policy(%s): %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
