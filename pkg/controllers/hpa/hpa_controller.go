@@ -19,6 +19,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -100,16 +101,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 		util.MergeLabel(hpaObj, util.WorkNamespaceLabel, workNamespace)
 		util.MergeLabel(hpaObj, util.WorkNameLabel, workName)
 
-		hpaJSON, err := hpaObj.MarshalJSON()
-		if err != nil {
-			klog.Errorf("Failed to marshal hpa %s/%s. Error: %v",
-				hpaObj.GetNamespace(), hpaObj.GetName(), err)
-			return err
-		}
-
-		// TODO(@XiShanYongYe-Chang): refactor util.CreateOrUpdateWork with pkg/util/helper/work.go
-		err = util.CreateOrUpdateWork(c.Client, objectMeta, hpaJSON)
-		if err != nil {
+		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, hpaObj); err != nil {
 			return err
 		}
 	}
