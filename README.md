@@ -239,7 +239,7 @@ First, create a [deployment](samples/nginx/deployment.yaml) named `nginx`:
 ```
 
 #### 2. Create PropagationPolicy that will propagate nginx to member cluster
-Then, we need create a policy to drive the deployment to our member cluster.
+Then, we need create a [propagation policy](samples/nginx/propagationpolicy.yaml) to drive the deployment to our member cluster.
 ```
 # kubectl create -f samples/nginx/propagationpolicy.yaml
 ```
