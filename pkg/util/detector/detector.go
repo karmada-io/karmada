@@ -45,11 +45,12 @@ type ResourceDetector struct {
 	// Client is used to retrieve objects, it is often more convenient than lister.
 	Client client.Client
 	// DynamicClient used to fetch arbitrary resources.
-	DynamicClient         dynamic.Interface
-	InformerManager       informermanager.SingleClusterInformerManager
-	EventHandler          cache.ResourceEventHandler
-	Processor             util.AsyncWorker
-	SkippedResourceConfig *util.SkippedResourceConfig
+	DynamicClient                dynamic.Interface
+	InformerManager              informermanager.SingleClusterInformerManager
+	EventHandler                 cache.ResourceEventHandler
+	Processor                    util.AsyncWorker
+	SkippedResourceConfig        *util.SkippedResourceConfig
+	SkippedPropagatingNamespaces map[string]struct{}
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
 	policyReconcileWorker util.AsyncWorker
@@ -206,6 +207,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 // If '--skipped-propagating-apis' which used to specific the APIs should be ignored in addition to the defaults, is set,
 // the specified apis will be ignored as well.
 //
+// If '--skipped-propagating-namespaces' is specified, all APIs in the skipped-propagating-namespaces will be ignored.
 func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 	key, err := ClusterWideKeyFunc(obj)
 	if err != nil {
@@ -237,6 +239,11 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 			return false
 		}
 	}
+	// if SkippedPropagatingNamespaces is set, skip object events in these namespaces.
+	if _, ok := d.SkippedPropagatingNamespaces[clusterWideKey.Namespace]; ok {
+		return false
+	}
+
 	return true
 }
 

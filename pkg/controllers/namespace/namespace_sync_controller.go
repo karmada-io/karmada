@@ -39,8 +39,9 @@ const (
 
 // Controller is to sync Work.
 type Controller struct {
-	client.Client // used to operate Work resources.
-	EventRecorder record.EventRecorder
+	client.Client                // used to operate Work resources.
+	EventRecorder                record.EventRecorder
+	SkippedPropagatingNamespaces map[string]struct{}
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -89,6 +90,9 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 		return false
 	}
 
+	if _, ok := c.SkippedPropagatingNamespaces[namespace]; ok {
+		return false
+	}
 	return true
 }
 
