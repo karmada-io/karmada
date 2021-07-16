@@ -67,7 +67,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
 				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				klog.Infof("created policy(%s)", policyNamespace, policyName)
+				klog.Infof("created policy(%s/%s)", policyNamespace, policyName)
 			})
 		})
 
