@@ -23,6 +23,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -119,15 +120,7 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 		util.MergeLabel(namespaceObj, util.WorkNamespaceLabel, workNamespace)
 		util.MergeLabel(namespaceObj, util.WorkNameLabel, workName)
 
-		namespaceJSON, err := namespaceObj.MarshalJSON()
-		if err != nil {
-			klog.Errorf("Failed to marshal namespace %s. Error: %v", namespaceObj.GetName(), err)
-			return err
-		}
-
-		// TODO(@XiShanYongYe-Chang): refactor util.CreateOrUpdateWork with pkg/util/helper/work.go
-		err = util.CreateOrUpdateWork(c.Client, objectMeta, namespaceJSON)
-		if err != nil {
+		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, namespaceObj); err != nil {
 			return err
 		}
 	}
