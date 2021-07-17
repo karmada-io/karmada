@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# This script only fits for Linux, macOS adaptation will come soon
 
 set -o errexit
 set -o nounset

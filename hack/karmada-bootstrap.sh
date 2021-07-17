@@ -40,7 +40,7 @@ util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" 
 #step2. make images and get karmadactl
 export VERSION="latest"
 export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
-make images --directory="${REPO_ROOT}"
+make images GOOS="linux" --directory="${REPO_ROOT}"
 
 GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl"
 GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
@@ -58,8 +58,7 @@ kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST
 kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 #step5. install karmada control plane components
-KARMADA_APISERVER_IP=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${HOST_CLUSTER_NAME}-control-plane")
-"${REPO_ROOT}"/hack/deploy-karmada.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${KARMADA_APISERVER_IP}"
+"${REPO_ROOT}"/hack/deploy-karmada.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}"
 
 #step6. wait until the member cluster ready and join member clusters
 util::check_clusters_ready "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_1_NAME}"
@@ -85,12 +84,9 @@ kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${PULL_MOD
 "${REPO_ROOT}"/hack/deploy-karmada-agent.sh "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 
 function print_success() {
-  echo
-  echo "Local Karmada is running."
+  echo -e "\nLocal Karmada is running."
   echo "To start using your karmada, run:"
-cat <<EOF
-  export KUBECONFIG=${MAIN_KUBECONFIG}
-EOF
+  echo -e "  export KUBECONFIG=${MAIN_KUBECONFIG}"
 }
 
 print_success
