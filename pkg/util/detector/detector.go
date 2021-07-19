@@ -670,6 +670,7 @@ func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}) {
 		return
 	}
 
+	klog.V(2).Infof("Create PropagationPolicy(%s)", key)
 	d.policyReconcileWorker.AddRateLimited(key)
 }
 
@@ -680,7 +681,13 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{})
 
 // OnPropagationPolicyDelete handles object delete event and push the object to queue.
 func (d *ResourceDetector) OnPropagationPolicyDelete(obj interface{}) {
-	d.OnPropagationPolicyAdd(obj)
+	key, err := ClusterWideKeyFunc(obj)
+	if err != nil {
+		return
+	}
+
+	klog.V(2).Infof("Delete PropagationPolicy(%s)", key)
+	d.policyReconcileWorker.AddRateLimited(key)
 }
 
 // ReconcilePropagationPolicy handles PropagationPolicy resource changes.
@@ -717,6 +724,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}) {
 		return
 	}
 
+	klog.V(2).Infof("Create ClusterPropagationPolicy(%s)", key)
 	d.clusterPolicyReconcileWorker.AddRateLimited(key)
 }
 
@@ -727,7 +735,13 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj inter
 
 // OnClusterPropagationPolicyDelete handles object delete event and push the object to queue.
 func (d *ResourceDetector) OnClusterPropagationPolicyDelete(obj interface{}) {
-	d.OnClusterPropagationPolicyAdd(obj)
+	key, err := ClusterWideKeyFunc(obj)
+	if err != nil {
+		return
+	}
+
+	klog.V(2).Infof("Delete ClusterPropagationPolicy(%s)", key)
+	d.clusterPolicyReconcileWorker.AddRateLimited(key)
 }
 
 // ReconcileClusterPropagationPolicy handles ClusterPropagationPolicy resource changes.
@@ -748,6 +762,8 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 			klog.Infof("Policy(%s) has been removed", ckey.NamespaceKey())
 			return d.HandleClusterPropagationPolicyDeletion(ckey.Name)
 		}
+
+		klog.Errorf("Failed to get Policy(%s): %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
