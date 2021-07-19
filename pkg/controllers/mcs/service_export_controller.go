@@ -132,6 +132,9 @@ func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.Queu
 				fedKey.NamespaceKey(), err)
 			return err
 		}
+	default:
+		klog.Errorf("Not supported kind %s", fedKey.Kind)
+		return fmt.Errorf("not supported kind")
 	}
 
 	return nil
