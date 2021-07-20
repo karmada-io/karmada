@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -35,15 +34,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
 	"github.com/karmada-io/karmada/pkg/util"
-)
-
-const (
-	// maxRetries is the number of times a service will be retried before it is dropped out of the queue.
-	// With the current rate-limiter in use (5ms*2^(maxRetries-1)) the following numbers represent the
-	// sequence of delays between successive queuings of a propagationbinding.
-	//
-	// 5ms, 10ms, 20ms, 40ms, 80ms, 160ms, 320ms, 640ms, 1.3s, 2.6s, 5.1s, 10.2s, 20.4s, 41s, 82s
-	maxRetries = 15
 )
 
 // ScheduleType defines the schedule type of a binding object should be performed.
@@ -534,14 +524,7 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 		return
 	}
 
-	if s.queue.NumRequeues(key) < maxRetries {
-		s.queue.AddRateLimited(key)
-		return
-	}
-
-	utilruntime.HandleError(err)
-	klog.V(2).Infof("Dropping ResourceBinding %q out of the queue: %v", key, err)
-	s.queue.Forget(key)
+	s.queue.AddRateLimited(key)
 }
 
 func (s *Scheduler) addCluster(obj interface{}) {
