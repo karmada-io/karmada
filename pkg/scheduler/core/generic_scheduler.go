@@ -23,6 +23,7 @@ import (
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
 	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ObjectReference) (scheduleResult ScheduleResult, err error)
+	ScaleSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -414,4 +415,53 @@ func (g *genericScheduler) divideReplicasAggregatedWithClusterReplicas(clusterAv
 		i++
 	}
 	return targetClusters, nil
+}
+
+func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
+	spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
+	newTargetClusters := make([]workv1alpha1.TargetCluster, len(spec.Clusters))
+
+	if spec.Resource.Replicas > 0 {
+		if placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+			for i, cluster := range spec.Clusters {
+				newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: spec.Resource.Replicas}
+			}
+			result.SuggestedClusters = newTargetClusters
+			return result, nil
+		}
+		if placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
+			preSelectedClusters := g.getPreSelected(spec.Clusters)
+			if placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted {
+				if placement.ReplicaScheduling.WeightPreference == nil {
+					return result, fmt.Errorf("no WeightPreference find to divide replicas")
+				}
+				clustersWithReplicase, err := g.divideReplicasByStaticWeight(preSelectedClusters, placement.ReplicaScheduling.WeightPreference.StaticWeightList, spec.Resource.Replicas)
+				if err != nil {
+					return result, fmt.Errorf("failed to assignReplicas with Weight: %v", err)
+				}
+				result.SuggestedClusters = clustersWithReplicase
+				return result, nil
+			}
+		}
+	}
+
+	for i, cluster := range spec.Clusters {
+		newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name}
+	}
+	result.SuggestedClusters = newTargetClusters
+	return result, nil
+}
+
+func (g *genericScheduler) getPreSelected(targetClusters []workv1alpha1.TargetCluster) []*clusterv1alpha1.Cluster {
+	var preSelectedClusters []*clusterv1alpha1.Cluster
+	clusterInfoSnapshot := g.schedulerCache.Snapshot()
+	for _, targetCluster := range targetClusters {
+		for _, cluster := range clusterInfoSnapshot.GetClusters() {
+			if targetCluster.Name == cluster.Cluster().Name {
+				preSelectedClusters = append(preSelectedClusters, cluster.Cluster())
+				break
+			}
+		}
+	}
+	return preSelectedClusters
 }
