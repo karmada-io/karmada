@@ -69,11 +69,22 @@ function util::cmd_must_exist_cfssl {
 function util::install_kubectl {
     local KUBECTL_VERSION=${1}
     local ARCH=${2}
-
+    echo "Installing 'kubectl ${KUBECTL_VERSION}' for you, may require your root privileges"
     curl -sSL --retry 5 https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/linux/"$ARCH"/kubectl > ./kubectl
     chmod +x ./kubectl
     sudo rm -rf "$(which kubectl)"
     sudo mv ./kubectl /usr/local/bin/kubectl
+}
+
+function util::install_kind {
+  local kind_version=${1}
+  echo "Installing 'kind ${kind_version}' for you, may require your root privileges"
+  local os_name
+  os_name=$(go env GOOS)
+  curl --retry 5 -sSLo ./kind "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-amd64"
+  chmod +x ./kind
+  sudo rm -f "$(which kind)"
+  sudo mv ./kind /usr/local/bin/kind
 }
 
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose
@@ -275,6 +286,27 @@ function util::create_cluster() {
   echo "Creating cluster ${cluster_name}"
 }
 
+# This function returns the IP address of a docker instance
+# Parameters:
+#  - $1: docker instance name
+
+function util::get_docker_native_ipaddress(){
+  local container_name=$1
+  docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${container_name}"
+}
+
+# This function returns the IP address and port of a specific docker instance's host IP
+# Parameters:
+#  - $1: docker instance name
+# Note:
+#   Use for getting host IP and port for cluster
+#   "6443/tcp" assumes that API server port is 6443 and protocol is TCP
+
+function util::get_docker_host_ip_port(){
+  local container_name=$1
+  docker inspect --format='{{range $key, $value := index .NetworkSettings.Ports "6443/tcp"}}{{if eq $key 0}}{{$value.HostIp}}:{{$value.HostPort}}{{end}}{{end}}' "${container_name}"
+}
+
 # util::check_clusters_ready checks if a cluster is ready, if not, wait until timeout
 function util::check_clusters_ready() {
   local kubeconfig_path=${1}
@@ -285,10 +317,31 @@ function util::check_clusters_ready() {
   util::wait_for_condition 'running' "docker inspect --format='{{.State.Status}}' ${context_name}-control-plane &> /dev/null" 300
 
   kubectl config rename-context "kind-${context_name}" "${context_name}" --kubeconfig="${kubeconfig_path}"
-  container_ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${context_name}-control-plane")
-  kubectl config set-cluster "kind-${context_name}" --server="https://${container_ip}:6443" --kubeconfig="${kubeconfig_path}"
+
+  local os_name
+  os_name=$(go env GOOS)
+  local container_ip_port
+  case $os_name in
+    linux) container_ip_port=$(util::get_docker_native_ipaddress "${context_name}-control-plane")":6443"
+    ;;
+    darwin) container_ip_port=$(util::get_docker_host_ip_port "${context_name}-control-plane")
+    ;;
+    *)
+        echo "OS ${os_name} does NOT support for getting container ip in installation script"
+        exit 1
+  esac
+  kubectl config set-cluster "kind-${context_name}" --server="https://${container_ip_port}" --kubeconfig="${kubeconfig_path}"
 
   util::wait_for_condition 'ok' "kubectl --kubeconfig ${kubeconfig_path} --context ${context_name} get --raw=/healthz &> /dev/null" 300
+}
+
+# This function gets api server's ip from kubeconfig by context name
+function util::get_apiserver_ip_from_kubeconfig(){
+  local context_name=$1
+  local cluster_name apiserver_url
+  cluster_name=$(kubectl config view --template='{{ range $_, $value := .contexts }}{{if eq $value.name '"\"${context_name}\""'}}{{$value.context.cluster}}{{end}}{{end}}')
+  apiserver_url=$(kubectl config view --template='{{range $_, $value := .clusters }}{{if eq $value.name '"\"${cluster_name}\""'}}{{$value.cluster.server}}{{end}}{{end}}')
+  echo "${apiserver_url}" | awk -F/ '{print $3}' | sed 's/:.*//'
 }
 
 # This function deploys webhook configuration
@@ -305,7 +358,7 @@ function util::deploy_webhook_configuration() {
 
   local temp_path=$(mktemp -d)
   cp -rf "${conf}" "${temp_path}/temp.yaml"
-  sed -i "s/{{caBundle}}/${ca_string}/g" "${temp_path}/temp.yaml"
+  sed -i'' -e "s/{{caBundle}}/${ca_string}/g" "${temp_path}/temp.yaml"
   kubectl apply -f "${temp_path}/temp.yaml"
   rm -rf "${temp_path}"
 }
