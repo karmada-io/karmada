@@ -176,18 +176,22 @@ if [ "${HOST_CLUSTER_TYPE}" = "remote" ]; then
     ;;
     LoadBalancer)
       if util::wait_service_external_ip "karmada-apiserver" "${KARMADA_SYSTEM_NAMESPACE}"; then
-      KARMADA_APISERVER_IP=$(util::get_load_balancer_ip)
+        echo "Get service external IP: ${SERVICE_EXTERNAL_IP}, wait to check network connectivity"
+        KARMADA_APISERVER_IP=$(util::get_load_balancer_ip) || KARMADA_APISERVER_IP=''
+      else
+        echo "ERROR: wait service external IP timeout, please check the load balancer IP of service: karmada-apiserver"
+        exit 1
       fi
     ;;
   esac
 fi
 
-if [[ -z "${KARMADA_APISERVER_IP}" ]]; then
-  echo -e "ERROR: failed to get Karmada API server IP after creating service 'karmada-apiserver' (host cluster type: ${HOST_CLUSTER_TYPE}), please verify.\n"
+if [[ -n "${KARMADA_APISERVER_IP}" ]]; then
+  echo -e "\nKarmada API Server's IP is: ${KARMADA_APISERVER_IP}, host cluster type is: ${HOST_CLUSTER_TYPE}"
+else
+  echo -e "\nERROR: failed to get Karmada API server IP after creating service 'karmada-apiserver' (host cluster type: ${HOST_CLUSTER_TYPE}), please verify."
   recover_kubeconfig
   exit 1
-else
-  echo -e "\nKarmada API Server's IP is: ${KARMADA_APISERVER_IP}, host cluster type is: ${HOST_CLUSTER_TYPE}"
 fi
 
 # write karmada api server config to kubeconfig file
