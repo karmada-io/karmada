@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
@@ -52,11 +53,13 @@ type ResourceDetector struct {
 	SkippedResourceConfig *util.SkippedResourceConfig
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
-	policyReconcileWorker util.AsyncWorker
+	policyReconcileWorker   util.AsyncWorker
+	propagationPolicyLister cache.GenericLister
 
 	// clusterPolicyReconcileWorker maintains a rate limited queue which used to store ClusterPropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
-	clusterPolicyReconcileWorker util.AsyncWorker
+	clusterPolicyReconcileWorker   util.AsyncWorker
+	clusterPropagationPolicyLister cache.GenericLister
 
 	// bindingReconcileWorker maintains a rate limited queue which used to store ResourceBinding's key and
 	// a reconcile function to consume the items in queue.
@@ -84,11 +87,25 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.clusterPolicyReconcileWorker = util.NewAsyncWorker("cluster policy reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileClusterPropagationPolicy)
 	d.clusterPolicyReconcileWorker.Run(1, d.stopCh)
 
-	// watch and enqueue policy changes.
+	// watch and enqueue PropagationPolicy changes.
+	propagationPolicyGVR := schema.GroupVersionResource{
+		Group:    policyv1alpha1.GroupVersion.Group,
+		Version:  policyv1alpha1.GroupVersion.Version,
+		Resource: "propagationpolicies",
+	}
 	policyHandler := informermanager.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, d.OnPropagationPolicyDelete)
-	d.InformerManager.ForResource(policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"), policyHandler)
+	d.InformerManager.ForResource(propagationPolicyGVR, policyHandler)
+	d.propagationPolicyLister = d.InformerManager.Lister(propagationPolicyGVR)
+
+	// watch and enqueue ClusterPropagationPolicy changes.
+	clusterPropagationPolicyGVR := schema.GroupVersionResource{
+		Group:    policyv1alpha1.GroupVersion.Group,
+		Version:  policyv1alpha1.GroupVersion.Version,
+		Resource: "clusterpropagationpolicies",
+	}
 	clusterPolicyHandler := informermanager.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, d.OnClusterPropagationPolicyDelete)
-	d.InformerManager.ForResource(policyv1alpha1.SchemeGroupVersion.WithResource("clusterpropagationpolicies"), clusterPolicyHandler)
+	d.InformerManager.ForResource(clusterPropagationPolicyGVR, clusterPolicyHandler)
+	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
 
 	// setup binding reconcile worker
 	d.bindingReconcileWorker = util.NewAsyncWorker("binding reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileResourceBinding)
@@ -702,19 +719,23 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	policy := &policyv1alpha1.PropagationPolicy{}
-	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: ckey.Namespace, Name: ckey.Name}, policy); err != nil {
+	unstructuredObj, err := d.propagationPolicyLister.Get(ckey.NamespaceKey())
+	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("Policy(%s) has been removed", ckey.NamespaceKey())
+			klog.Infof("PropagationPolicy(%s) has been removed.", ckey.NamespaceKey())
 			return d.HandlePropagationPolicyDeletion(ckey.Namespace, ckey.Name)
 		}
-
-		klog.Errorf("Failed to get Policy(%s): %v", ckey.NamespaceKey(), err)
+		klog.Errorf("Failed to get PropagationPolicy(%s): %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
-	klog.Infof("Policy(%s) has been added", ckey.NamespaceKey())
-	return d.HandlePropagationPolicyCreation(policy)
+	klog.Infof("PropagationPolicy(%s) has been added.", ckey.NamespaceKey())
+	propagationObject, err := helper.ConvertToPropagationPolicy(unstructuredObj.(*unstructured.Unstructured))
+	if err != nil {
+		klog.Errorf("Failed to convert PropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
+		return err
+	}
+	return d.HandlePropagationPolicyCreation(propagationObject)
 }
 
 // OnClusterPropagationPolicyAdd handles object add event and push the object to queue.
@@ -756,19 +777,24 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 		return fmt.Errorf("invalid key")
 	}
 
-	policy := &policyv1alpha1.ClusterPropagationPolicy{}
-	if err := d.Client.Get(context.TODO(), client.ObjectKey{Name: ckey.Name}, policy); err != nil {
+	unstructuredObj, err := d.clusterPropagationPolicyLister.Get(ckey.NamespaceKey())
+	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("Policy(%s) has been removed", ckey.NamespaceKey())
+			klog.Infof("ClusterPropagationPolicy(%s) has been removed.", ckey.NamespaceKey())
 			return d.HandleClusterPropagationPolicyDeletion(ckey.Name)
 		}
 
-		klog.Errorf("Failed to get Policy(%s): %v", ckey.NamespaceKey(), err)
+		klog.Errorf("Failed to get ClusterPropagationPolicy(%s): %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
 	klog.Infof("Policy(%s) has been added", ckey.NamespaceKey())
-	return d.HandleClusterPropagationPolicyCreation(policy)
+	propagationObject, err := helper.ConvertToClusterPropagationPolicy(unstructuredObj.(*unstructured.Unstructured))
+	if err != nil {
+		klog.Errorf("Failed to convert ClusterPropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
+		return err
+	}
+	return d.HandleClusterPropagationPolicyCreation(propagationObject)
 }
 
 // HandlePropagationPolicyDeletion handles PropagationPolicy delete event.
