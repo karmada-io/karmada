@@ -111,13 +111,13 @@ func (c *ServiceExportController) RunWorkQueue() {
 }
 
 func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.QueueKey) error {
-	klog.V(4).Infof("Begin to sync ServiceExport or EndpointSlice %s.", key)
-
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
 		klog.Errorf("Failed to sync serviceExport as invalid key: %v", key)
 		return fmt.Errorf("invalid key")
 	}
+
+	klog.V(4).Infof("Begin to sync %s %s.", fedKey.Kind, fedKey.NamespaceKey())
 
 	switch fedKey.Kind {
 	case util.ServiceExportKind:

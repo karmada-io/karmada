@@ -99,6 +99,9 @@ const (
 	ServiceExportKind = "ServiceExport"
 	// ServiceImportKind indicates the target resource is a serviceimport crd
 	ServiceImportKind = "ServiceImport"
+
+	// CRDKind indicated the target resource is a CustomResourceDefinition
+	CRDKind = "CustomResourceDefinition"
 )
 
 // Define resource filed

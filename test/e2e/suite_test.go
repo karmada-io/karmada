@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -370,4 +372,18 @@ func DeleteClusterLabel(c client.Client, clusterName string) error {
 		return true, nil
 	})
 	return err
+}
+
+func podLogs(ctx context.Context, k8s kubernetes.Interface, namespace, name string) (string, error) {
+	logRequest := k8s.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{})
+	logs, err := logRequest.Stream(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer logs.Close()
+	data, err := ioutil.ReadAll(logs)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
