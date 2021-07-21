@@ -96,6 +96,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 	return nil
 }
 
+// setupControllers initialize controllers and setup one by one.
+// Note: ignore cyclomatic complexity check(by gocyclo) because it will not effect readability.
+//nolint:gocyclo
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	resetConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
@@ -103,8 +106,11 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
 	overrideManager := overridemanager.New(mgr.GetClient())
 	skippedResourceConfig := util.NewSkippedResourceConfig()
-	// TODO(pigletfly): add SkippedPropagatingAPIs validation
-	skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs)
+	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
+		// TODO(RainbowMango): the parameter should be checked earlier.
+		// Consider add validation to 'options.Options'
+		panic(err)
+	}
 	skippedPropagatingNamespaces := map[string]struct{}{}
 	for _, ns := range opts.SkippedPropagatingNamespaces {
 		skippedPropagatingNamespaces[ns] = struct{}{}
