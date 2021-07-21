@@ -65,6 +65,7 @@ type ResourceDetector struct {
 	// bindingReconcileWorker maintains a rate limited queue which used to store ResourceBinding's key and
 	// a reconcile function to consume the items in queue.
 	bindingReconcileWorker util.AsyncWorker
+	resourceBindingLister  cache.GenericLister
 
 	RESTMapper meta.RESTMapper
 
@@ -83,9 +84,9 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
-	d.policyReconcileWorker = util.NewAsyncWorker("propagationpolicy detector", 1*time.Millisecond, ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
+	d.policyReconcileWorker = util.NewAsyncWorker("propagationPolicy reconciler", 1*time.Millisecond, ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
 	d.policyReconcileWorker.Run(1, d.stopCh)
-	d.clusterPolicyReconcileWorker = util.NewAsyncWorker("cluster policy reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileClusterPropagationPolicy)
+	d.clusterPolicyReconcileWorker = util.NewAsyncWorker("clusterPropagationPolicy reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileClusterPropagationPolicy)
 	d.clusterPolicyReconcileWorker.Run(1, d.stopCh)
 
 	// watch and enqueue PropagationPolicy changes.
@@ -109,14 +110,27 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
 
 	// setup binding reconcile worker
-	d.bindingReconcileWorker = util.NewAsyncWorker("binding reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileResourceBinding)
+	d.bindingReconcileWorker = util.NewAsyncWorker("resourceBinding reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileResourceBinding)
 	d.bindingReconcileWorker.Run(1, d.stopCh)
 
-	// watch and enqueue binding changes.
+	// watch and enqueue ResourceBinding changes.
+	resourceBindingGVR := schema.GroupVersionResource{
+		Group:    workv1alpha1.GroupVersion.Group,
+		Version:  workv1alpha1.GroupVersion.Version,
+		Resource: "resourcebindings",
+	}
 	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
-	d.InformerManager.ForResource(workv1alpha1.SchemeGroupVersion.WithResource("resourcebindings"), bindingHandler)
+	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
+	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
+
+	// watch and enqueue ClusterResourceBinding changes.
+	clusterResourceBindingGVR := schema.GroupVersionResource{
+		Group:    workv1alpha1.GroupVersion.Group,
+		Version:  workv1alpha1.GroupVersion.Version,
+		Resource: "clusterresourcebindings",
+	}
 	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, d.OnClusterResourceBindingDelete)
-	d.InformerManager.ForResource(workv1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"), clusterBindingHandler)
+	d.InformerManager.ForResource(clusterResourceBindingGVR, clusterBindingHandler)
 
 	d.Processor.Run(1, d.stopCh)
 	go d.discoverResources(30 * time.Second)
@@ -995,11 +1009,17 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	binding := &workv1alpha1.ResourceBinding{}
-	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: ckey.Namespace, Name: ckey.Name}, binding); err != nil {
+	unstructuredObj, err := d.resourceBindingLister.Get(ckey.NamespaceKey())
+	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
+		return err
+	}
+
+	binding, err := helper.ConvertToResourceBinding(unstructuredObj.(*unstructured.Unstructured))
+	if err != nil {
+		klog.Errorf("Failed to convert ResourceBinding(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
