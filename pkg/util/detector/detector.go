@@ -1063,6 +1063,9 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 	oldStatus := &obj.Status
 	newStatus := &appsv1.DeploymentStatus{}
 	for _, item := range status {
+		if item.Status == nil {
+			continue
+		}
 		temp := &appsv1.DeploymentStatus{}
 		if err := json.Unmarshal(item.Status.Raw, temp); err != nil {
 			klog.Errorf("Failed to unmarshal status")

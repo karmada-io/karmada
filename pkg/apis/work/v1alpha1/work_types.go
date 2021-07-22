@@ -61,11 +61,13 @@ type WorkStatus struct {
 // ManifestStatus contains running status of a specific manifest in spec.
 type ManifestStatus struct {
 	// Identifier represents the identity of a resource linking to manifests in spec.
+	// +required
 	Identifier ResourceIdentifier `json:"identifier"`
 
 	// Status reflects running status of current manifest.
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Status runtime.RawExtension `json:",inline"`
+	// +optional
+	Status *runtime.RawExtension `json:"status,omitempty"`
 }
 
 // ResourceIdentifier provides the identifiers needed to interact with any arbitrary object.
