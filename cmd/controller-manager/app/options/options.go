@@ -51,6 +51,8 @@ type Options struct {
 	ClusterStartupGracePeriod metav1.Duration
 	// SkippedPropagatingAPIs indicates comma separated resources that should be skipped for propagating.
 	SkippedPropagatingAPIs string
+	// SkippedPropagatingNamespaces is a list of namespaces that will be skipped for propagating.
+	SkippedPropagatingNamespaces []string
 }
 
 // NewOptions builds an empty options.
@@ -109,4 +111,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		"<group> for skip resources with a specific API group(e.g. networking.k8s.io),\n"+
 		"<group>/<version> for skip resources with a specific API version(e.g. networking.k8s.io/v1beta1),\n"+
 		"<group>/<version>/<kind>,<kind> for skip one or more specific resource(e.g. networking.k8s.io/v1beta1/Ingress,IngressClass) where the kinds are case-insensitive.")
+	flags.StringSliceVar(&o.SkippedPropagatingNamespaces, "skipped-propagating-namespaces", []string{},
+		"Comma-separated namespaces that should be skipped from propagating in addition to the default skipped namespaces(namespaces prefixed by kube- and karmada-).")
 }

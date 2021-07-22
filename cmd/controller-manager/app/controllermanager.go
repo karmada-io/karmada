@@ -105,13 +105,18 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	skippedResourceConfig := util.NewSkippedResourceConfig()
 	// TODO(pigletfly): add SkippedPropagatingAPIs validation
 	skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs)
+	skippedPropagatingNamespaces := map[string]struct{}{}
+	for _, ns := range opts.SkippedPropagatingNamespaces {
+		skippedPropagatingNamespaces[ns] = struct{}{}
+	}
 	resourceDetector := &detector.ResourceDetector{
-		DiscoveryClientSet:    discoverClientSet,
-		Client:                mgr.GetClient(),
-		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
-		RESTMapper:            mgr.GetRESTMapper(),
-		DynamicClient:         dynamicClientSet,
-		SkippedResourceConfig: skippedResourceConfig,
+		DiscoveryClientSet:           discoverClientSet,
+		Client:                       mgr.GetClient(),
+		InformerManager:              informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
+		RESTMapper:                   mgr.GetRESTMapper(),
+		DynamicClient:                dynamicClientSet,
+		SkippedResourceConfig:        skippedResourceConfig,
+		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
 	}
 
 	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
@@ -234,8 +239,9 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	namespaceSyncController := &namespace.Controller{
-		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(namespace.ControllerName),
+		Client:                       mgr.GetClient(),
+		EventRecorder:                mgr.GetEventRecorderFor(namespace.ControllerName),
+		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
 	}
 	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
