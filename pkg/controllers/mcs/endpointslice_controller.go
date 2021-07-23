@@ -40,8 +40,8 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 		if errors.IsNotFound(err) {
 			// Cleanup derived EndpointSlices after work has been removed.
 			return helper.DeleteEndpointSlice(c.Client, labels.Set{
-				util.WorkNamespaceLabel: req.Namespace,
-				util.WorkNameLabel:      req.Name,
+				workv1alpha1.WorkNamespaceLabel: req.Namespace,
+				workv1alpha1.WorkNameLabel:      req.Name,
 			})
 		}
 
@@ -96,8 +96,8 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 
 		desiredEndpointSlice := deriveEndpointSlice(endpointSlice, clusterName)
 		desiredEndpointSlice.Labels = map[string]string{
-			util.WorkNamespaceLabel:           work.Namespace,
-			util.WorkNameLabel:                work.Name,
+			workv1alpha1.WorkNamespaceLabel:   work.Namespace,
+			workv1alpha1.WorkNameLabel:        work.Name,
 			discoveryv1beta1.LabelServiceName: names.GenerateDerivedServiceName(work.Labels[util.ServiceNameLabel]),
 		}
 

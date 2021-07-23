@@ -47,7 +47,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 		// The resource no longer exist, clean up derived Work objects.
 		if errors.IsNotFound(err) {
 			return helper.DeleteWorks(c.Client, labels.Set{
-				util.ClusterResourceBindingLabel: req.Name,
+				workv1alpha1.ClusterResourceBindingLabel: req.Name,
 			})
 		}
 
@@ -110,7 +110,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 			var requests []reconcile.Request
 
 			labels := a.GetLabels()
-			clusterResourcebindingName, nameExist := labels[util.ClusterResourceBindingLabel]
+			clusterResourcebindingName, nameExist := labels[workv1alpha1.ClusterResourceBindingLabel]
 			if !nameExist {
 				return nil
 			}

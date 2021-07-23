@@ -1,30 +1,6 @@
 package util
 
 const (
-	// PropagationPolicyNamespaceLabel is added to objects to specify associated PropagationPolicy namespace.
-	PropagationPolicyNamespaceLabel = "propagationpolicy.karmada.io/namespace"
-
-	// PropagationPolicyNameLabel is added to objects to specify associated PropagationPolicy's name.
-	PropagationPolicyNameLabel = "propagationpolicy.karmada.io/name"
-
-	// ClusterPropagationPolicyLabel is added to objects to specify associated ClusterPropagationPolicy.
-	ClusterPropagationPolicyLabel = "clusterpropagationpolicy.karmada.io/name"
-
-	// ResourceBindingNamespaceLabel is added to objects to specify associated ResourceBinding's namespace.
-	ResourceBindingNamespaceLabel = "resourcebinding.karmada.io/namespace"
-
-	// ResourceBindingNameLabel is added to objects to specify associated ResourceBinding's name.
-	ResourceBindingNameLabel = "resourcebinding.karmada.io/name"
-
-	// ClusterResourceBindingLabel is added to objects to specify associated ClusterResourceBinding.
-	ClusterResourceBindingLabel = "clusterresourcebinding.karmada.io/name"
-
-	// WorkNamespaceLabel is added to objects to specify associated Work's namespace.
-	WorkNamespaceLabel = "work.karmada.io/namespace"
-
-	// WorkNameLabel is added to objects to specify associated Work's name.
-	WorkNameLabel = "work.karmada.io/name"
-
 	// ServiceNamespaceLabel is added to work object, which is report by member cluster, to specify service namespace associated with EndpointSlice.
 	ServiceNamespaceLabel = "endpointslice.karmada.io/namespace"
 

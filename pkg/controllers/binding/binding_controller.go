@@ -47,8 +47,8 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 		// The resource no longer exist, clean up derived Work objects.
 		if errors.IsNotFound(err) {
 			return helper.DeleteWorks(c.Client, labels.Set{
-				util.ResourceBindingNamespaceLabel: req.Namespace,
-				util.ResourceBindingNameLabel:      req.Name,
+				workv1alpha1.ResourceBindingNamespaceLabel: req.Namespace,
+				workv1alpha1.ResourceBindingNameLabel:      req.Name,
 			})
 		}
 
@@ -116,8 +116,8 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 			var requests []reconcile.Request
 
 			labels := a.GetLabels()
-			resourcebindingNamespace, namespaceExist := labels[util.ResourceBindingNamespaceLabel]
-			resourcebindingName, nameExist := labels[util.ResourceBindingNameLabel]
+			resourcebindingNamespace, namespaceExist := labels[workv1alpha1.ResourceBindingNamespaceLabel]
+			resourcebindingName, nameExist := labels[workv1alpha1.ResourceBindingNameLabel]
 			if !namespaceExist || !nameExist {
 				return nil
 			}

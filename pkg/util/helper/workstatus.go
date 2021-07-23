@@ -13,7 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -21,8 +20,8 @@ import (
 // then aggregate status info to current ResourceBinding status.
 func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.ResourceBinding, workload *unstructured.Unstructured) error {
 	aggregatedStatuses, err := assembleWorkStatus(c, labels.SelectorFromSet(labels.Set{
-		util.ResourceBindingNamespaceLabel: binding.Namespace,
-		util.ResourceBindingNameLabel:      binding.Name,
+		workv1alpha1.ResourceBindingNamespaceLabel: binding.Namespace,
+		workv1alpha1.ResourceBindingNameLabel:      binding.Name,
 	}), workload)
 	if err != nil {
 		return err
@@ -49,7 +48,7 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.R
 // then aggregate status info to current ClusterResourceBinding status.
 func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.ClusterResourceBinding, workload *unstructured.Unstructured) error {
 	aggregatedStatuses, err := assembleWorkStatus(c, labels.SelectorFromSet(labels.Set{
-		util.ClusterResourceBindingLabel: binding.Name,
+		workv1alpha1.ClusterResourceBindingLabel: binding.Name,
 	}), workload)
 	if err != nil {
 		return err
