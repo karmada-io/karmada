@@ -107,6 +107,10 @@ func (w *asyncWorker) EnqueueRateLimited(obj runtime.Object) {
 		return
 	}
 
+	if key == nil {
+		return
+	}
+
 	w.AddRateLimited(key)
 }
 
