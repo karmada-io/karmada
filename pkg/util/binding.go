@@ -36,3 +36,12 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha1.ResourceBindingSpec, str
 	}
 	return false
 }
+
+// GetSumOfReplicas will get the sum of replicas in target clusters
+func GetSumOfReplicas(clusters []workv1alpha1.TargetCluster) int32 {
+	replicasSum := int32(0)
+	for i := range clusters {
+		replicasSum += clusters[i].Replicas
+	}
+	return replicasSum
+}
