@@ -87,11 +87,13 @@ type ResourceBindingStatus struct {
 // AggregatedStatusItem represents status of the resource running in a member cluster.
 type AggregatedStatusItem struct {
 	// ClusterName represents the member cluster name which the resource deployed on.
+	// +required
 	ClusterName string `json:"clusterName"`
 
 	// Status reflects running status of current manifest.
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Status runtime.RawExtension `json:",inline"`
+	// +optional
+	Status *runtime.RawExtension `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

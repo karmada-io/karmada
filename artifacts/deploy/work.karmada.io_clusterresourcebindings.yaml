@@ -119,10 +119,13 @@ spec:
                       description: ClusterName represents the member cluster name
                         which the resource deployed on.
                       type: string
+                    status:
+                      description: Status reflects running status of current manifest.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
                   required:
                   - clusterName
                   type: object
-                  x-kubernetes-preserve-unknown-fields: true
                 type: array
               conditions:
                 description: Conditions contain the different condition statuses.

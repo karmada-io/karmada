@@ -258,19 +258,26 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		return err
 	}
 
-	rawExtension, err := c.buildStatusRawExtension(statusMap)
-	if err != nil {
-		return err
-	}
-
 	manifestStatus := workv1alpha1.ManifestStatus{
 		Identifier: *identifier,
-		Status:     *rawExtension,
+	}
+
+	if statusMap != nil {
+		rawExtension, err := c.buildStatusRawExtension(statusMap)
+		if err != nil {
+			return err
+		}
+		manifestStatus.Status = rawExtension
 	}
 
 	work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
 
-	return c.Client.Status().Update(context.TODO(), work)
+	if err := c.Client.Status().Update(context.TODO(), work); err != nil {
+		klog.Errorf("Failed to reflect status to work(%s/%s): %v", work.Namespace, work.Name, err)
+		return err
+	}
+
+	return nil
 }
 
 func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {

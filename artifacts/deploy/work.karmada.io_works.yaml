@@ -173,10 +173,13 @@ spec:
                       - resource
                       - version
                       type: object
+                    status:
+                      description: Status reflects running status of current manifest.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
                   required:
                   - identifier
                   type: object
-                  x-kubernetes-preserve-unknown-fields: true
                 type: array
             type: object
         required:
