@@ -222,6 +222,9 @@ spec:
                           respecting clusters' resource availabilities during the
                           division. "Weighted" divides replicas by weight according
                           to WeightPreference.
+                        enum:
+                        - Aggregated
+                        - Weighted
                         type: string
                       replicaSchedulingType:
                         description: ReplicaSchedulingType determines how the replicas
@@ -231,6 +234,9 @@ spec:
                           resource. "Divided" divides replicas into parts according
                           to number of valid candidate member clusters, and exact
                           replicas for each cluster are determined by ReplicaDivisionPreference.
+                        enum:
+                        - Duplicated
+                        - Divided
                         type: string
                       weightPreference:
                         description: WeightPreference describes weight for each cluster

@@ -198,6 +198,7 @@ type ReplicaSchedulingStrategy struct {
 	// "Duplicated" duplicates the same replicas to each candidate member cluster from resource.
 	// "Divided" divides replicas into parts according to number of valid candidate member
 	// clusters, and exact replicas for each cluster are determined by ReplicaDivisionPreference.
+	// +kubebuilder:validation:Enum=Duplicated;Divided
 	// +optional
 	ReplicaSchedulingType ReplicaSchedulingType `json:"replicaSchedulingType,omitempty"`
 
@@ -206,6 +207,7 @@ type ReplicaSchedulingStrategy struct {
 	// "Aggregated" divides replicas into clusters as few as possible,
 	// while respecting clusters' resource availabilities during the division.
 	// "Weighted" divides replicas by weight according to WeightPreference.
+	// +kubebuilder:validation:Enum=Aggregated;Weighted
 	// +optional
 	ReplicaDivisionPreference ReplicaDivisionPreference `json:"replicaDivisionPreference,omitempty"`
 
