@@ -216,13 +216,6 @@ func setupTestNamespace(namespace string, kubeClient kubernetes.Interface, clust
 		return err
 	}
 
-	for _, clusterClient := range clusterClients {
-		_, err = util.CreateNamespace(clusterClient.KubeClient, namespaceObj)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -231,13 +224,6 @@ func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface, clu
 	err := util.DeleteNamespace(kubeClient, namespace)
 	if err != nil {
 		return err
-	}
-
-	for _, clusterClient := range clusterClients {
-		err = util.DeleteNamespace(clusterClient.KubeClient, namespace)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
