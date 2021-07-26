@@ -177,7 +177,9 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 	object, err := d.GetUnstructuredObject(clusterWideKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// The resource may no longer exist, in which case we stop processing.
+			// The resource may no longer exist, in which case we try (may not exist in waiting list) remove it from waiting list and stop processing.
+			d.RemoveWaiting(clusterWideKey)
+
 			// Once resource be deleted, the derived ResourceBinding or ClusterResourceBinding also need to be cleaned up,
 			// currently we do that by setting owner reference to derived objects.
 			return nil
