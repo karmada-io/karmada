@@ -94,6 +94,8 @@ const (
 	StatefulSetKind = "StatefulSet"
 	// EndpointSliceKind indicates the target resource is a endpointslice
 	EndpointSliceKind = "EndpointSlice"
+	// PersistentVolumeClaimKind indicated the target resource is a persistentvolumeclaim
+	PersistentVolumeClaimKind = "PersistentVolumeClaim"
 
 	// ServiceExportKind indicates the target resource is a serviceexport crd
 	ServiceExportKind = "ServiceExport"
