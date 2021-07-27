@@ -1,10 +1,10 @@
 package util
 
 import (
+	"fmt"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -35,34 +35,36 @@ func NewSkippedResourceConfig() *SkippedResourceConfig {
 	return r
 }
 
-// Parse to parse tokens to SkippedResourceConfig
-func (r *SkippedResourceConfig) Parse(c string) {
-	// v1/Node,Pod;networking.k8s.io/v1beta1/Ingress,IngressClass
-	// group networking.k8s.io
-	// group version networking.k8s.io/v1
-	// group version kind networking.k8s.io/v1/Ingress
-	// corev1 has no group
+// Parse parses the --skipped-propagating-apis input.
+func (r *SkippedResourceConfig) Parse(c string) error {
+	// default(empty) input
 	if c == "" {
-		return
+		return nil
 	}
 
 	tokens := strings.Split(c, ";")
 	for _, token := range tokens {
-		r.parseSingle(token)
+		if err := r.parseSingle(token); err != nil {
+			return fmt.Errorf("parse --skipped-propagating-apis %w", err)
+		}
 	}
+
+	return nil
 }
 
-func (r *SkippedResourceConfig) parseSingle(token string) {
+func (r *SkippedResourceConfig) parseSingle(token string) error {
 	switch strings.Count(token, "/") {
+	// Assume user don't want to skip the 'core'(no group name) group.
+	// So, it should be the case "<group>".
 	case 0:
-		// Group
 		r.Groups[token] = struct{}{}
+	// it should be the case "<group>/<version>"
 	case 1:
+		// for core group which don't have the group name, the case should be "v1/<kind>" or "v1/<kind>,<kind>..."
 		if strings.HasPrefix(token, "v1") {
-			// core v1
-			kinds := []string{}
+			var kinds []string
 			for _, k := range strings.Split(token, ",") {
-				if strings.Contains(k, "/") {
+				if strings.Contains(k, "/") { // "v1/<kind>"
 					s := strings.Split(k, "/")
 					kinds = append(kinds, s[1])
 				} else {
@@ -76,20 +78,22 @@ func (r *SkippedResourceConfig) parseSingle(token string) {
 				}
 				r.GroupVersionKinds[gvk] = struct{}{}
 			}
-		} else {
-			// GroupVersion
-			i := strings.Index(token, "/")
+		} else { // case "<group>/<version>"
+			parts := strings.Split(token, "/")
+			if len(parts) != 2 {
+				return fmt.Errorf("invalid token: %s", token)
+			}
 			gv := schema.GroupVersion{
-				Group:   token[:i],
-				Version: token[i+1:],
+				Group:   parts[0],
+				Version: parts[1],
 			}
 			r.GroupVersions[gv] = struct{}{}
 		}
+	// parameter format: "<group>/<version>/<kind>" or "<group>/<version>/<kind>,<kind>..."
 	case 2:
-		// GroupVersionKind
 		g := ""
 		v := ""
-		kinds := []string{}
+		var kinds []string
 		for _, k := range strings.Split(token, ",") {
 			if strings.Contains(k, "/") {
 				s := strings.Split(k, "/")
@@ -109,8 +113,10 @@ func (r *SkippedResourceConfig) parseSingle(token string) {
 			r.GroupVersionKinds[gvk] = struct{}{}
 		}
 	default:
-		klog.Error("Unsupported SkippedPropagatingAPIs: ", token)
+		return fmt.Errorf("invalid parameter: %s", token)
 	}
+
+	return nil
 }
 
 // GroupVersionDisabled returns whether GroupVersion is disabled.
