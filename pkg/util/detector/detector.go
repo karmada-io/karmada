@@ -1095,6 +1095,7 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 		}
 		klog.V(3).Infof("Scrub deployment(%s/%s) status from cluster(%s), replicas: %d, ready: %d, updated: %d, available: %d, unavailable: %d",
 			obj.Namespace, obj.Name, item.ClusterName, temp.Replicas, temp.ReadyReplicas, temp.UpdatedReplicas, temp.AvailableReplicas, temp.UnavailableReplicas)
+		newStatus.ObservedGeneration = obj.Generation
 		newStatus.Replicas += temp.Replicas
 		newStatus.ReadyReplicas += temp.ReadyReplicas
 		newStatus.UpdatedReplicas += temp.UpdatedReplicas
@@ -1102,7 +1103,8 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 		newStatus.UnavailableReplicas += temp.UnavailableReplicas
 	}
 
-	if oldStatus.Replicas == newStatus.Replicas &&
+	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
+		oldStatus.Replicas == newStatus.Replicas &&
 		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
 		oldStatus.UpdatedReplicas == newStatus.UpdatedReplicas &&
 		oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
@@ -1111,6 +1113,7 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 		return nil
 	}
 
+	oldStatus.ObservedGeneration = newStatus.ObservedGeneration
 	oldStatus.Replicas = newStatus.Replicas
 	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
 	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
