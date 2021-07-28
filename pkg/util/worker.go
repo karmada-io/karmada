@@ -3,8 +3,6 @@ package util
 import (
 	"time"
 
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -124,7 +122,7 @@ func (w *asyncWorker) AddRateLimited(item interface{}) {
 }
 
 func (w *asyncWorker) handleError(err error, key interface{}) {
-	if err == nil || errors.HasStatusCause(err, v1.NamespaceTerminatingCause) {
+	if err == nil {
 		w.queue.Forget(key)
 		return
 	}
