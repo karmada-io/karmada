@@ -251,23 +251,19 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				binding := &workv1alpha1.ClusterResourceBinding{}
 
 				fmt.Printf("MaxGroups= %v, MinGroups= %v\n", maxGroups, minGroups)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-					err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: bindingName}, binding)
+				gomega.Eventually(func() int {
+					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: bindingName}, binding)
 					if err != nil {
-						if errors.IsNotFound(err) {
-							return false, nil
-						}
-						return false, err
+						return -1
 					}
-					return true, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					return len(binding.Spec.Clusters)
+				}, pollTimeout, pollInterval).Should(gomega.Equal(minGroups))
 
 				for _, cluster := range binding.Spec.Clusters {
 					targetClusterNames = append(targetClusterNames, cluster.Name)
 				}
 				fmt.Printf("target clusters in cluster resource binding are %s\n", targetClusterNames)
-				gomega.Expect(len(targetClusterNames) == minGroups).ShouldNot(gomega.BeFalse())
 			})
 
 			ginkgo.By("check if crd present on right clusters", func() {
