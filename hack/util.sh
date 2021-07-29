@@ -67,6 +67,7 @@ function util::cmd_must_exist_cfssl {
 
 # util::install_kubectl will install the given version kubectl
 function util::install_kubectl {
+    echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
     local KUBECTL_VERSION=${1}
     local ARCH=${2}
     local OS=${3:-linux}
@@ -78,6 +79,7 @@ function util::install_kubectl {
 }
 
 function util::install_kind {
+  echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
   local kind_version=${1}
   echo "Installing 'kind ${kind_version}' for you, may require your root privileges"
   local os_name
