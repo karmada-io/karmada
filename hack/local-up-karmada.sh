@@ -33,33 +33,7 @@ if [ ! -d "$KUBECONFIG_PATH" ]; then
   mkdir -p "$KUBECONFIG_PATH"
 fi
 
-# Adapt for macOS
-if [[ $(go env GOOS) = "darwin" ]]; then
-  tmp_ip=$(ipconfig getifaddr en0 || true)
-  echo ""
-  echo " Detected that you are installing Karmada on macOS "
-  echo ""
-  echo "It needs a Macintosh IP address to bind Karmada API Server(port 5443),"
-  echo "so that member clusters can access it from docker containers, please"
-  echo -n "input an available IP, "
-  if [[ -z ${tmp_ip} ]]; then
-    echo "you can use the command 'ifconfig' to look for one"
-    tips_msg="[Enter IP address]:"
-  else
-    echo "default IP will be en0 inet addr if exists"
-    tips_msg="[Enter for default ${tmp_ip}]:"
-  fi
-  read -r -p "${tips_msg}" MAC_NIC_IPADDRESS
-  MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-$tmp_ip}
-  if [[ "${MAC_NIC_IPADDRESS}" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
-    echo "Using IP address: ${MAC_NIC_IPADDRESS}"
-  else
-    echo -e "\nError: you input an invalid IP address"
-    exit 1
-  fi
-else # non-macOS
-  MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-}
-fi
+util::get_macos_ipaddress # Adapt for macOS
 
 # create a cluster to deploy karmada control plane components.
 if [[ -n "${MAC_NIC_IPADDRESS}" ]]; then # install on macOS
