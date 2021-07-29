@@ -25,16 +25,36 @@ CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.19.1"}
 KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 #step0: prepare
+# Make sure go exists
+util::cmd_must_exist "go"
 # install kind and kubectl
 util::install_tools sigs.k8s.io/kind v0.10.0
+# get arch name and os name in bootstrap
+BS_ARCH=$(go env GOARCH)
+BS_OS=$(go env GOOS)
 # we choose v1.18.0, because in kubectl after versions 1.18 exist a bug which will give wrong output when using jsonpath.
 # bug details: https://github.com/kubernetes/kubernetes/pull/98057
-util::install_kubectl "v1.18.0" "amd64"
+util::install_kubectl "v1.18.0" "${BS_ARCH}" "${BS_OS}"
 
 #step1. create host cluster and member clusters in parallel
-util::create_cluster "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
-util::create_cluster "${MEMBER_CLUSTER_1_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${REPO_ROOT}/artifacts/kindClusterConfig/member1.yaml"
-util::create_cluster "${MEMBER_CLUSTER_2_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${REPO_ROOT}/artifacts/kindClusterConfig/member2.yaml"
+#prepare for kindClusterConfig
+util::get_macos_ipaddress # Adapt for macOS
+HOST_IPADDRESS=${MAC_NIC_IPADDRESS:-}
+TEMP_PATH=$(mktemp -d)
+echo -e "\nApply dynamic rendered kindClusterConfig in path: ${TEMP_PATH}"
+cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member1.yaml "${TEMP_PATH}"/member1.yaml
+cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member2.yaml "${TEMP_PATH}"/member2.yaml
+if [[ -n "${HOST_IPADDRESS}" ]]; then # If bind the port of clusters(karmada-host, member1 and member2) to the host IP
+  cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/karmada-host.yaml "${TEMP_PATH}"/karmada-host.yaml
+  sed -i'' -e "s/{{host_ipaddress}}/${HOST_IPADDRESS}/g" "${TEMP_PATH}"/karmada-host.yaml
+  sed -i'' -e '/networking:/a\'$'\n''  apiServerAddress: '${HOST_IPADDRESS}''$'\n' "${TEMP_PATH}"/member1.yaml
+  sed -i'' -e '/networking:/a\'$'\n''  apiServerAddress: '${HOST_IPADDRESS}''$'\n' "${TEMP_PATH}"/member2.yaml
+  util::create_cluster "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/karmada-host.yaml
+else
+  util::create_cluster "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
+fi
+util::create_cluster "${MEMBER_CLUSTER_1_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/member1.yaml
+util::create_cluster "${MEMBER_CLUSTER_2_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/member2.yaml
 util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
 
 #step2. make images and get karmadactl
