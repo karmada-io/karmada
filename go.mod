@@ -6,6 +6,7 @@ require (
 	github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
 	github.com/evanphx/json-patch/v5 v5.1.0
 	github.com/google/uuid v1.1.2
+	github.com/kr/pretty v0.3.0
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	github.com/spf13/cobra v1.1.1
