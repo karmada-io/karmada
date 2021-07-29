@@ -41,7 +41,7 @@ util::install_kubectl "v1.18.0" "${BS_ARCH}" "${BS_OS}"
 util::get_macos_ipaddress # Adapt for macOS
 HOST_IPADDRESS=${MAC_NIC_IPADDRESS:-}
 TEMP_PATH=$(mktemp -d)
-echo -e "\nApply dynamic rendered kindClusterConfig in path: ${TEMP_PATH}"
+echo -e "Preparing kindClusterConfig in path: ${TEMP_PATH}"
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member1.yaml "${TEMP_PATH}"/member1.yaml
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member2.yaml "${TEMP_PATH}"/member2.yaml
 if [[ -n "${HOST_IPADDRESS}" ]]; then # If bind the port of clusters(karmada-host, member1 and member2) to the host IP
