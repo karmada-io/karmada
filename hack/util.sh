@@ -241,8 +241,10 @@ function util::wait_pod_ready() {
 
     echo "wait the $pod_label ready..."
     set +e
-    util::kubectl_with_retry wait --for=condition=Ready --timeout=200s pods -l app=${pod_label} -n ${pod_namespace}
+    util::kubectl_with_retry wait --for=condition=Ready --timeout=30s pods -l app=${pod_label} -n ${pod_namespace}
     ret=$?
+    echo "kubectl describe info:"
+    kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
     set -e
     return ${ret}
 }
