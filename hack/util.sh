@@ -243,8 +243,6 @@ function util::wait_pod_ready() {
     set +e
     util::kubectl_with_retry wait --for=condition=Ready --timeout=30s pods -l app=${pod_label} -n ${pod_namespace}
     ret=$?
-    echo "kubectl describe info:"
-    kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
     set -e
     return ${ret}
 }
@@ -258,6 +256,8 @@ function util::kubectl_with_retry() {
         ret=$?
         if [[ ${ret} -ne 0 ]]; then
             echo "kubectl $@ failed, retrying"
+            echo "kubectl describe info:"
+            kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
             sleep 1
             continue
         else
