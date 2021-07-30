@@ -238,9 +238,13 @@ function util::wait_pod_ready() {
 
     echo "wait the $pod_label ready..."
     set +e
-    util::kubectl_with_retry wait --for=condition=Ready --timeout=200s pods -l app=${pod_label} -n ${pod_namespace}
+    util::kubectl_with_retry wait --for=condition=Ready --timeout=30s pods -l app=${pod_label} -n ${pod_namespace}
     ret=$?
     set -e
+    if [ $ret -ne 0 ];then
+      echo "kubectl describe info:"
+      kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
+    fi
     return ${ret}
 }
 
@@ -248,11 +252,11 @@ function util::wait_pod_ready() {
 # tolerate kubectl command failure that may happen before the pod is created by  StatefulSet/Deployment.
 function util::kubectl_with_retry() {
     local ret=0
-    for i in `seq 1 30`; do
+    for i in {1..10}; do
         kubectl "$@"
         ret=$?
         if [[ ${ret} -ne 0 ]]; then
-            echo "kubectl $@ failed, retrying"
+            echo "kubectl $@ failed, retrying(${i} times)"
             sleep 1
             continue
         else
