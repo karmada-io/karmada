@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -729,12 +730,14 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha1.Reso
 	return nil
 }
 
-func calcReservedCluster(total, ready sets.String) sets.String {
-	return total.Difference(total.Difference(ready))
+// calcReservedCluster eliminates the not-ready clusters from the 'bindClusters'.
+func calcReservedCluster(bindClusters, readyClusters sets.String) sets.String {
+	return bindClusters.Difference(bindClusters.Difference(readyClusters))
 }
 
-func calcAvailableCluster(total, ready sets.String) sets.String {
-	return ready.Difference(total)
+// calcAvailableCluster returns a list of ready clusters that not in 'bindClusters'.
+func calcAvailableCluster(bindCluster, readyClusters sets.String) sets.String {
+	return readyClusters.Difference(bindCluster)
 }
 
 func (s *Scheduler) obtainTargetCluster(bindingClusters []workv1alpha1.TargetCluster, placement policyv1alpha1.Placement) (sets.String, error) {
@@ -744,20 +747,27 @@ func (s *Scheduler) obtainTargetCluster(bindingClusters []workv1alpha1.TargetClu
 	reservedClusters := calcReservedCluster(totalClusters, readyClusters)
 	availableClusters := calcAvailableCluster(totalClusters, readyClusters)
 
-	candidateClusters := sets.NewString()
-	if placement.ClusterAffinity == nil {
-		candidateClusters.Insert(availableClusters.List()...)
-	} else {
-		for clusterName := range availableClusters {
-			clusterObj, err := s.clusterLister.Get(clusterName)
-			if err != nil {
-				klog.Errorf("Failed to get clusterObj by clusterName: %s", clusterName)
-				return nil, err
-			}
+	filterPredicate := func(t *corev1.Taint) bool {
+		// now only interested in NoSchedule taint which means do not allow new resource to schedule onto the cluster unless they tolerate the taint
+		// todo: supprot NoExecute taint
+		return t.Effect == corev1.TaintEffectNoSchedule
+	}
 
-			if util.ClusterMatches(clusterObj, *placement.ClusterAffinity) {
-				candidateClusters.Insert(clusterName)
-			}
+	candidateClusters := sets.NewString()
+	for clusterName := range availableClusters {
+		clusterObj, err := s.clusterLister.Get(clusterName)
+		if err != nil {
+			klog.Errorf("Failed to get clusterObj by clusterName: %s", clusterName)
+			return nil, err
+		}
+
+		if placement.ClusterAffinity != nil && !util.ClusterMatches(clusterObj, *placement.ClusterAffinity) {
+			continue
+		}
+
+		_, isUntolerated := v1helper.FindMatchingUntoleratedTaint(clusterObj.Spec.Taints, placement.ClusterTolerations, filterPredicate)
+		if !isUntolerated {
+			candidateClusters.Insert(clusterName)
 		}
 	}
 
