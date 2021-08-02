@@ -40,7 +40,7 @@ type Options struct {
 func NewOptions() *Options {
 	return &Options{
 		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-			LeaderElect:       false,
+			LeaderElect:       true,
 			ResourceLock:      resourcelock.LeasesResourceLock,
 			ResourceNamespace: util.NamespaceKarmadaSystem,
 			ResourceName:      "karmada-scheduler",

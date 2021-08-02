@@ -5,10 +5,15 @@ import (
 
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	componentbaseconfig "k8s.io/component-base/config"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
+	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
 	KarmadaKubeConfig string
 	// ClusterContext is the name of the cluster context in control plane KUBECONFIG file.
 	// Default value is the current-context.
@@ -28,7 +33,13 @@ type Options struct {
 
 // NewOptions builds an default scheduler options.
 func NewOptions() *Options {
-	return &Options{}
+	return &Options{
+		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
+			LeaderElect:       true,
+			ResourceLock:      resourcelock.LeasesResourceLock,
+			ResourceNamespace: util.NamespaceKarmadaSystem,
+		},
+	}
 }
 
 // AddFlags adds flags of scheduler to the specified FlagSet
@@ -37,6 +48,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 		return
 	}
 
+	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
 	fs.StringVar(&o.KarmadaKubeConfig, "karmada-kubeconfig", o.KarmadaKubeConfig, "Path to karmada control plane kubeconfig file.")
 	fs.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in karmada control plane kubeconfig file.")
 	fs.StringVar(&o.ClusterName, "cluster-name", o.ClusterName, "Name of member cluster that the agent serves for.")
