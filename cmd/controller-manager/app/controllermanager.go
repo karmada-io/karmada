@@ -11,7 +11,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
-	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -60,9 +59,6 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 
 // Run runs the controller-manager with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
-	logs.InitLogs()
-	defer logs.FlushLogs()
-
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)
