@@ -118,3 +118,8 @@ const (
 	// PropagationInstructionSuppressed indicates that the resource should not be propagated.
 	PropagationInstructionSuppressed = "suppressed"
 )
+
+const (
+	// NamespaceKarmadaSystem is the karmada system namespace.
+	NamespaceKarmadaSystem = "karmada-system"
+)

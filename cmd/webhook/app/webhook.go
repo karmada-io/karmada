@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -31,7 +30,6 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 		Use:  "webhook",
 		Long: `Start a webhook server`,
 		Run: func(cmd *cobra.Command, args []string) {
-			opts.Complete()
 			if err := Run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
@@ -47,20 +45,16 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 
 // Run runs the webhook server with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
-	logs.InitLogs()
-	defer logs.FlushLogs()
-
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)
 	}
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Scheme:           gclient.NewSchema(),
-		Host:             opts.BindAddress,
-		Port:             opts.SecurePort,
-		CertDir:          opts.CertDir,
-		LeaderElection:   false,
-		LeaderElectionID: "webhook.karmada.io",
+		Scheme:         gclient.NewSchema(),
+		Host:           opts.BindAddress,
+		Port:           opts.SecurePort,
+		CertDir:        opts.CertDir,
+		LeaderElection: false,
 	})
 	if err != nil {
 		klog.Errorf("failed to build webhook server: %v", err)
