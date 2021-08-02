@@ -39,13 +39,8 @@ func NewFramework(plugins []string) framework.Framework {
 			klog.Warningf("scheduling plugin %s not exists", p)
 			continue
 		}
-		if reflect.TypeOf(plugin).Implements(filterType) {
-			newPlugins := reflect.Append(filterPluginsList, reflect.ValueOf(plugin))
-			filterPluginsList.Set(newPlugins)
-		} else if reflect.TypeOf(plugin).Implements(scoreType) {
-			newPlugins := reflect.Append(scorePluginsList, reflect.ValueOf(plugin))
-			scorePluginsList.Set(newPlugins)
-		}
+		addPluginToList(plugin, filterType, &filterPluginsList)
+		addPluginToList(plugin, scoreType, &scorePluginsList)
 	}
 
 	return out
@@ -68,17 +63,26 @@ func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *polic
 func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, clusters []*clusterv1alpha1.Cluster) (framework.PluginToClusterScores, error) {
 	result := make(framework.PluginToClusterScores, len(frw.filterPlugins))
 	for _, p := range frw.scorePlugins {
-		for i, cluster := range clusters {
+		var scoreList framework.ClusterScoreList
+		for _, cluster := range clusters {
 			score, res := p.Score(ctx, placement, cluster)
 			if !res.IsSuccess() {
 				return nil, fmt.Errorf("plugin %q failed with: %w", p.Name(), res.AsError())
 			}
-			result[p.Name()][i] = framework.ClusterScore{
+			scoreList = append(scoreList, framework.ClusterScore{
 				Name:  cluster.Name,
 				Score: score,
-			}
+			})
 		}
+		result[p.Name()] = scoreList
 	}
 
 	return result, nil
+}
+
+func addPluginToList(plugin framework.Plugin, pluginType reflect.Type, pluginList *reflect.Value) {
+	if reflect.TypeOf(plugin).Implements(pluginType) {
+		newPlugins := reflect.Append(*pluginList, reflect.ValueOf(plugin))
+		pluginList.Set(newPlugins)
+	}
 }
