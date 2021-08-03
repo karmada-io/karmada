@@ -55,47 +55,41 @@ type multiClusterInformerManagerImpl struct {
 	lock     sync.RWMutex
 }
 
+func (m *multiClusterInformerManagerImpl) getManager(cluster string) (SingleClusterInformerManager, bool) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	manager, exist := m.managers[cluster]
+	return manager, exist
+}
+
 func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager {
 	// If informer manager already exist, just return
-	m.lock.RLock()
-	manager, exist := m.managers[cluster]
-	if exist {
-		m.lock.RUnlock()
+	if manager, exist := m.getManager(cluster); exist {
 		return manager
 	}
-	m.lock.RUnlock()
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	manager = NewSingleClusterInformerManager(client, defaultResync)
+	manager := NewSingleClusterInformerManager(client, defaultResync)
 	m.managers[cluster] = manager
 	return manager
 }
 
 func (m *multiClusterInformerManagerImpl) GetSingleClusterManager(cluster string) SingleClusterInformerManager {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	manager, exist := m.managers[cluster]
-	if exist {
+	if manager, exist := m.getManager(cluster); exist {
 		return manager
 	}
 	return nil
 }
 
 func (m *multiClusterInformerManagerImpl) IsManagerExist(cluster string) bool {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
-	_, exist := m.managers[cluster]
-
+	_, exist := m.getManager(cluster)
 	return exist
 }
 
 func (m *multiClusterInformerManagerImpl) Start(cluster string, stopCh <-chan struct{}) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
 	// if informer manager haven't been created, just return with no-ops.
-	manager, exist := m.managers[cluster]
+	manager, exist := m.getManager(cluster)
 	if !exist {
 		return
 	}
@@ -103,10 +97,7 @@ func (m *multiClusterInformerManagerImpl) Start(cluster string, stopCh <-chan st
 }
 
 func (m *multiClusterInformerManagerImpl) WaitForCacheSync(cluster string, stopCh <-chan struct{}) map[schema.GroupVersionResource]bool {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
-	manager, exist := m.managers[cluster]
+	manager, exist := m.getManager(cluster)
 	if !exist {
 		return nil
 	}
