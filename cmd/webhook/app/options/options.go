@@ -22,6 +22,10 @@ type Options struct {
 	// if not set, webhook server would look up the server key and certificate in {TempDir}/k8s-webhook-server/serving-certs.
 	// The server key and certificate must be named `tls.key` and `tls.crt`, respectively.
 	CertDir string
+	// KubeAPIQPS is the QPS to use while talking with karmada-apiserver.
+	KubeAPIQPS float32
+	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
+	KubeAPIBurst int
 }
 
 // NewOptions builds an empty options.
@@ -37,4 +41,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		"The secure port on which to serve HTTPS.")
 	flags.StringVar(&o.CertDir, "cert-dir", defaultCertDir,
 		"The directory that contains the server key(named tls.key) and certificate(named tls.crt).")
+	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 }

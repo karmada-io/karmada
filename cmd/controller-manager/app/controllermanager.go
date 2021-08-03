@@ -64,6 +64,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		panic(err)
 	}
+	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:                     gclient.NewSchema(),
 		LeaderElection:             opts.LeaderElection.LeaderElect,
@@ -168,7 +169,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		StopChan:                          stopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSet,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
-		ClusterClientOption:               &util.ClientOption{QPS: 40, Burst: 60},
+		ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
 		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,

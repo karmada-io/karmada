@@ -52,6 +52,14 @@ type Options struct {
 	ClusterAPIContext string
 	// ClusterAPIKubeconfig holds the cluster-api management cluster KUBECONFIG file path.
 	ClusterAPIKubeconfig string
+	// ClusterAPIQPS is the QPS to use while talking with cluster kube-apiserver.
+	ClusterAPIQPS float32
+	// ClusterAPIBurst is the burst to allow while talking with cluster kube-apiserver.
+	ClusterAPIBurst int
+	// KubeAPIQPS is the QPS to use while talking with karmada-apiserver.
+	KubeAPIQPS float32
+	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
+	KubeAPIBurst int
 }
 
 // NewOptions builds an empty options.
@@ -93,4 +101,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		"Comma-separated namespaces that should be skipped from propagating in addition to the default skipped namespaces(namespaces prefixed by kube- and karmada-).")
 	flags.StringVar(&o.ClusterAPIContext, "cluster-api-context", "", "Name of the cluster context in cluster-api management cluster kubeconfig file.")
 	flags.StringVar(&o.ClusterAPIKubeconfig, "cluster-api-kubeconfig", "", "Path to the cluster-api management cluster kubeconfig file.")
+	flags.Float32Var(&o.ClusterAPIQPS, "cluster-api-qps", 40.0, "QPS to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	flags.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", 60, "Burst to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 }

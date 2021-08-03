@@ -49,6 +49,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
+	restConfig.QPS, restConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
