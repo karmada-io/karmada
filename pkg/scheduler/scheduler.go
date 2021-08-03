@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -633,21 +634,6 @@ func (s *Scheduler) enqueueAffectedClusterBinding(notReadyClusterName string) {
 	}
 }
 
-// getReservedAndCandidates obtains the target clusters in the binding information, returns the reserved clusters and candidate clusters
-func (s Scheduler) getReservedAndCandidates(clusters []workv1alpha1.TargetCluster) (reserved sets.String, candidates sets.String) {
-	boundClusters := sets.NewString()
-	for _, cluster := range clusters {
-		boundClusters.Insert(cluster.Name)
-	}
-
-	availableClusters := sets.NewString()
-	for _, cluster := range s.schedulerCache.Snapshot().GetReadyClusters() {
-		availableClusters.Insert(cluster.Cluster().Name)
-	}
-
-	return boundClusters.Difference(boundClusters.Difference(availableClusters)), availableClusters.Difference(boundClusters)
-}
-
 // rescheduleOne.
 func (s *Scheduler) rescheduleOne(key string) (err error) {
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
@@ -664,8 +650,8 @@ func (s *Scheduler) rescheduleOne(key string) (err error) {
 		if errors.IsNotFound(err) {
 			return nil
 		}
-		crbinding := clusterResourceBinding.DeepCopy()
-		return s.rescheduleClusterResourceBinding(crbinding, name)
+		crBinding := clusterResourceBinding.DeepCopy()
+		return s.rescheduleClusterResourceBinding(crBinding)
 	}
 
 	// ResourceBinding object
@@ -678,43 +664,27 @@ func (s *Scheduler) rescheduleOne(key string) (err error) {
 			return nil
 		}
 		binding := resourceBinding.DeepCopy()
-		return s.rescheduleResourceBinding(binding, ns, name)
+		return s.rescheduleResourceBinding(binding)
 	}
 	return nil
 }
 
-func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *workv1alpha1.ClusterResourceBinding, name string) (err error) {
-	reservedClusters, candidateClusters := s.getReservedAndCandidates(clusterResourceBinding.Spec.Clusters)
-	klog.Infof("Reserved clusters : %v", reservedClusters.List())
-	klog.Infof("Candidate clusters: %v", candidateClusters.List())
-	deltaLen := len(clusterResourceBinding.Spec.Clusters) - len(reservedClusters)
-	klog.Infof("binding %s has %d failure clusters, and got %d candidates", name, deltaLen, len(candidateClusters))
+func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *workv1alpha1.ClusterResourceBinding) error {
+	policyName := util.GetLabelValue(clusterResourceBinding.Labels, util.ClusterPropagationPolicyLabel)
+	policy, err := s.clusterPolicyLister.Get(policyName)
+	if err != nil {
+		klog.Errorf("Failed to get policy by policyName(%s): Error: %v", policyName, err)
+		return err
+	}
 
-	// TODO: should schedule as much as possible?
-	if len(candidateClusters) < deltaLen {
-		klog.Warningf("ignore reschedule binding(%s) as insufficient available cluster", name)
+	targetClusters, err := s.obtainTargetCluster(clusterResourceBinding.Spec.Clusters, policy.Spec.Placement)
+	if err != nil {
+		return err
+	}
+	if targetClusters == nil {
 		return nil
 	}
-	targetClusters := reservedClusters
 
-	for i := 0; i < deltaLen; i++ {
-		for clusterName := range candidateClusters {
-			curCluster, _ := s.clusterLister.Get(clusterName)
-			policyName := util.GetLabelValue(clusterResourceBinding.Labels, util.ClusterPropagationPolicyLabel)
-			policy, _ := s.clusterPolicyLister.Get(policyName)
-
-			if policy.Spec.Placement.ClusterAffinity != nil && !util.ClusterMatches(curCluster, *policy.Spec.Placement.ClusterAffinity) {
-				continue
-			}
-
-			klog.Infof("Rescheduling %s to member cluster %s", clusterResourceBinding.Name, clusterName)
-			targetClusters.Insert(clusterName)
-			candidateClusters.Delete(clusterName)
-
-			// break as soon as find a result
-			break
-		}
-	}
 	// TODO(tinyma123) Check if the final result meets the spread constraints.
 
 	clusterResourceBinding.Spec.Clusters = nil
@@ -730,38 +700,21 @@ func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *wor
 	return nil
 }
 
-func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha1.ResourceBinding, ns, name string) (err error) {
-	reservedClusters, candidateClusters := s.getReservedAndCandidates(resourceBinding.Spec.Clusters)
-	klog.Infof("Reserved clusters : %v", reservedClusters.List())
-	klog.Infof("Candidate clusters: %v", candidateClusters.List())
-	deltaLen := len(resourceBinding.Spec.Clusters) - len(reservedClusters)
-	klog.Infof("binding(%s/%s) has %d failure clusters, and got %d candidates", ns, name, deltaLen, len(candidateClusters))
+func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha1.ResourceBinding) error {
+	placement, _, err := s.getPlacement(resourceBinding)
+	if err != nil {
+		klog.Errorf("Failed to get placement by resourceBinding(%s/%s): Error: %v", resourceBinding.Namespace, resourceBinding.Name, err)
+		return err
+	}
 
-	// TODO: should schedule as much as possible?
-	if len(candidateClusters) < deltaLen {
-		klog.Warningf("ignore reschedule binding(%s/%s) as insufficient available cluster", ns, name)
+	targetClusters, err := s.obtainTargetCluster(resourceBinding.Spec.Clusters, placement)
+	if err != nil {
+		return err
+	}
+	if targetClusters == nil {
 		return nil
 	}
-	targetClusters := reservedClusters
 
-	for i := 0; i < deltaLen; i++ {
-		for clusterName := range candidateClusters {
-			curCluster, _ := s.clusterLister.Get(clusterName)
-			placement, _, err := s.getPlacement(resourceBinding)
-			if err != nil {
-				return err
-			}
-
-			if placement.ClusterAffinity != nil && !util.ClusterMatches(curCluster, *placement.ClusterAffinity) {
-				continue
-			}
-			klog.Infof("Rescheduling %s/ %s to member cluster %s", resourceBinding.Namespace, resourceBinding.Name, clusterName)
-			targetClusters.Insert(clusterName)
-			candidateClusters.Delete(clusterName)
-			// break as soon as find a result
-			break
-		}
-	}
 	// TODO(tinyma123) Check if the final result meets the spread constraints.
 
 	resourceBinding.Spec.Clusters = nil
@@ -770,11 +723,71 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha1.Reso
 	}
 	klog.Infof("The final binding.Spec.Cluster values are: %v\n", resourceBinding.Spec.Clusters)
 
-	_, err = s.KarmadaClient.WorkV1alpha1().ResourceBindings(ns).Update(context.TODO(), resourceBinding, metav1.UpdateOptions{})
+	_, err = s.KarmadaClient.WorkV1alpha1().ResourceBindings(resourceBinding.Namespace).Update(context.TODO(), resourceBinding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// calcReservedCluster eliminates the not-ready clusters from the 'bindClusters'.
+func calcReservedCluster(bindClusters, readyClusters sets.String) sets.String {
+	return bindClusters.Difference(bindClusters.Difference(readyClusters))
+}
+
+// calcAvailableCluster returns a list of ready clusters that not in 'bindClusters'.
+func calcAvailableCluster(bindCluster, readyClusters sets.String) sets.String {
+	return readyClusters.Difference(bindCluster)
+}
+
+func (s *Scheduler) obtainTargetCluster(bindingClusters []workv1alpha1.TargetCluster, placement policyv1alpha1.Placement) (sets.String, error) {
+	readyClusters := s.schedulerCache.Snapshot().GetReadyClusterNames()
+	totalClusters := util.ConvertToClusterNames(bindingClusters)
+
+	reservedClusters := calcReservedCluster(totalClusters, readyClusters)
+	availableClusters := calcAvailableCluster(totalClusters, readyClusters)
+
+	filterPredicate := func(t *corev1.Taint) bool {
+		// now only interested in NoSchedule taint which means do not allow new resource to schedule onto the cluster unless they tolerate the taint
+		// todo: supprot NoExecute taint
+		return t.Effect == corev1.TaintEffectNoSchedule
+	}
+
+	candidateClusters := sets.NewString()
+	for clusterName := range availableClusters {
+		clusterObj, err := s.clusterLister.Get(clusterName)
+		if err != nil {
+			klog.Errorf("Failed to get clusterObj by clusterName: %s", clusterName)
+			return nil, err
+		}
+
+		if placement.ClusterAffinity != nil && !util.ClusterMatches(clusterObj, *placement.ClusterAffinity) {
+			continue
+		}
+
+		_, isUntolerated := v1helper.FindMatchingUntoleratedTaint(clusterObj.Spec.Taints, placement.ClusterTolerations, filterPredicate)
+		if !isUntolerated {
+			candidateClusters.Insert(clusterName)
+		}
+	}
+
+	klog.V(4).Infof("Reserved bindingClusters : %v", reservedClusters.List())
+	klog.V(4).Infof("Candidate bindingClusters: %v", candidateClusters.List())
+
+	// TODO: should schedule as much as possible?
+	deltaLen := len(bindingClusters) - len(reservedClusters)
+	if len(candidateClusters) < deltaLen {
+		klog.Warningf("ignore reschedule binding as insufficient available cluster")
+		return nil, nil
+	}
+
+	targetClusters := reservedClusters
+	clusterList := candidateClusters.List()
+	for i := 0; i < deltaLen; i++ {
+		targetClusters.Insert(clusterList[i])
+	}
+
+	return targetClusters, nil
 }
 
 func (s *Scheduler) scaleScheduleOne(key string) (err error) {
