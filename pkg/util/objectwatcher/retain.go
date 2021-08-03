@@ -34,15 +34,17 @@ func RetainClusterFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 	// and be set by user in karmada-controller-plane.
 	util.MergeAnnotations(desiredObj, clusterObj)
 
-	if targetKind == util.PodKind {
+	switch targetKind {
+	case util.PodKind:
 		return retainPodFields(desiredObj, clusterObj)
-	}
-	if targetKind == util.ServiceKind {
+	case util.ServiceKind:
 		return retainServiceFields(desiredObj, clusterObj)
-	}
-	if targetKind == util.ServiceAccountKind {
+	case util.ServiceAccountKind:
 		return retainServiceAccountFields(desiredObj, clusterObj)
+	case util.PersistentVolumeClaimKind:
+		return retainPersistentVolumeClaimFields(desiredObj, clusterObj)
 	}
+
 	return nil
 }
 
@@ -173,5 +175,20 @@ func retainServiceAccountFields(desiredObj, clusterObj *unstructured.Unstructure
 			return fmt.Errorf("error setting secrets for service account: %w", err)
 		}
 	}
+	return nil
+}
+
+func retainPersistentVolumeClaimFields(desiredObj, clusterObj *unstructured.Unstructured) error {
+	// volumeName is allocated by member cluster and unchangeable, so it should be retained while updating
+	volumeName, ok, err := unstructured.NestedString(clusterObj.Object, "spec", "volumeName")
+	if err != nil {
+		return fmt.Errorf("error retrieving volumeName from pvc: %w", err)
+	}
+	if ok && len(volumeName) > 0 {
+		if err = unstructured.SetNestedField(desiredObj.Object, volumeName, "spec", "volumeName"); err != nil {
+			return fmt.Errorf("error setting volumeName for pvc: %w", err)
+		}
+	}
+
 	return nil
 }
