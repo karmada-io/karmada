@@ -21,7 +21,6 @@ import (
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -55,7 +54,7 @@ var (
 	}
 )
 
-var resourceKind = v1alpha1.SchemeGroupVersion.WithKind("Cluster")
+var clusterResourceKind = clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")
 
 const (
 	// TODO(RainbowMango) token and caData key both used by command and controller.
@@ -157,7 +156,7 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 	klog.V(1).Infof("joining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("joining cluster. cluster namespace: %s", opts.ClusterNamespace)
 
-	// Get control plane kube-apiserver client
+	// Get control plane karmada-apiserver client
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KubeConfig)
 	if err != nil {
 		klog.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
@@ -286,7 +285,7 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 	patchSecretBody := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(cluster, resourceKind),
+				*metav1.NewControllerRef(cluster, clusterResourceKind),
 			},
 		},
 	}
