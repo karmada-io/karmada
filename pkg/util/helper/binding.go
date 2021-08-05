@@ -93,8 +93,8 @@ func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clus
 	workList := &workv1alpha1.WorkList{}
 	if scope == apiextensionsv1.NamespaceScoped {
 		selector := labels.SelectorFromSet(labels.Set{
-			util.ResourceBindingNamespaceLabel: bindingNamespace,
-			util.ResourceBindingNameLabel:      bindingName,
+			workv1alpha1.ResourceBindingNamespaceLabel: bindingNamespace,
+			workv1alpha1.ResourceBindingNameLabel:      bindingName,
 		})
 
 		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
@@ -102,7 +102,7 @@ func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clus
 		}
 	} else {
 		selector := labels.SelectorFromSet(labels.Set{
-			util.ClusterResourceBindingLabel: bindingName,
+			workv1alpha1.ClusterResourceBindingLabel: bindingName,
 		})
 
 		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
@@ -238,17 +238,17 @@ func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured,
 
 func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
-	util.MergeLabel(workload, util.WorkNamespaceLabel, workNamespace)
-	util.MergeLabel(workload, util.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
+	util.MergeLabel(workload, workv1alpha1.WorkNamespaceLabel, workNamespace)
+	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
 
 	if scope == apiextensionsv1.NamespaceScoped {
-		util.MergeLabel(workload, util.ResourceBindingNamespaceLabel, binding.GetNamespace())
-		util.MergeLabel(workload, util.ResourceBindingNameLabel, binding.GetName())
-		workLabel[util.ResourceBindingNamespaceLabel] = binding.GetNamespace()
-		workLabel[util.ResourceBindingNameLabel] = binding.GetName()
+		util.MergeLabel(workload, workv1alpha1.ResourceBindingNamespaceLabel, binding.GetNamespace())
+		util.MergeLabel(workload, workv1alpha1.ResourceBindingNameLabel, binding.GetName())
+		workLabel[workv1alpha1.ResourceBindingNamespaceLabel] = binding.GetNamespace()
+		workLabel[workv1alpha1.ResourceBindingNameLabel] = binding.GetName()
 	} else {
-		util.MergeLabel(workload, util.ClusterResourceBindingLabel, binding.GetName())
-		workLabel[util.ClusterResourceBindingLabel] = binding.GetName()
+		util.MergeLabel(workload, workv1alpha1.ClusterResourceBindingLabel, binding.GetName())
+		workLabel[workv1alpha1.ClusterResourceBindingLabel] = binding.GetName()
 	}
 
 	return workLabel

@@ -134,8 +134,8 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return nil
 	}
 
-	workNamespace := util.GetLabelValue(obj.GetLabels(), util.WorkNamespaceLabel)
-	workName := util.GetLabelValue(obj.GetLabels(), util.WorkNameLabel)
+	workNamespace := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
+	workName := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNameLabel)
 	if len(workNamespace) == 0 || len(workName) == 0 {
 		klog.Infof("Ignore object(%s) which not managed by karmada.", fedKey.String())
 		return nil

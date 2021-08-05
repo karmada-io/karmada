@@ -375,8 +375,8 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	}
 
 	policyLabels := map[string]string{
-		util.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
-		util.PropagationPolicyNameLabel:      policy.GetName(),
+		policyv1alpha1.PropagationPolicyNamespaceLabel: policy.GetNamespace(),
+		policyv1alpha1.PropagationPolicyNameLabel:      policy.GetName(),
 	}
 
 	binding, err := d.BuildResourceBinding(object, objectKey, policyLabels)
@@ -418,7 +418,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 	}
 
 	policyLabels := map[string]string{
-		util.ClusterPropagationPolicyLabel: policy.GetName(),
+		policyv1alpha1.ClusterPropagationPolicyLabel: policy.GetName(),
 	}
 
 	// Build `ResourceBinding` or `ClusterResourceBinding` according to the resource template's scope.
@@ -529,30 +529,30 @@ func (d *ResourceDetector) GetObject(objectKey keys.ClusterWideKey) (runtime.Obj
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
 func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policyNamespace string, policyName string) error {
-	claimedNS := util.GetLabelValue(object.GetLabels(), util.PropagationPolicyNamespaceLabel)
-	claimedName := util.GetLabelValue(object.GetLabels(), util.PropagationPolicyNameLabel)
+	claimedNS := util.GetLabelValue(object.GetLabels(), policyv1alpha1.PropagationPolicyNamespaceLabel)
+	claimedName := util.GetLabelValue(object.GetLabels(), policyv1alpha1.PropagationPolicyNameLabel)
 
 	// object has been claimed, don't need to claim again
 	if claimedNS == policyNamespace && claimedName == policyName {
 		return nil
 	}
 
-	util.MergeLabel(object, util.PropagationPolicyNamespaceLabel, policyNamespace)
-	util.MergeLabel(object, util.PropagationPolicyNameLabel, policyName)
+	util.MergeLabel(object, policyv1alpha1.PropagationPolicyNamespaceLabel, policyNamespace)
+	util.MergeLabel(object, policyv1alpha1.PropagationPolicyNameLabel, policyName)
 
 	return d.Client.Update(context.TODO(), object)
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with.
 func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policyName string) error {
-	claimedName := util.GetLabelValue(object.GetLabels(), util.ClusterPropagationPolicyLabel)
+	claimedName := util.GetLabelValue(object.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel)
 
 	// object has been claimed, don't need to claim again
 	if claimedName == policyName {
 		return nil
 	}
 
-	util.MergeLabel(object, util.ClusterPropagationPolicyLabel, policyName)
+	util.MergeLabel(object, policyv1alpha1.ClusterPropagationPolicyLabel, policyName)
 	return d.Client.Update(context.TODO(), object)
 }
 
@@ -826,8 +826,8 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 // original resource to match another policy.
 func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, policyName string) error {
 	labelSet := labels.Set{
-		util.PropagationPolicyNamespaceLabel: policyNS,
-		util.PropagationPolicyNameLabel:      policyName,
+		policyv1alpha1.PropagationPolicyNamespaceLabel: policyNS,
+		policyv1alpha1.PropagationPolicyNameLabel:      policyName,
 	}
 
 	rbs, err := helper.GetResourceBindings(d.Client, labelSet)
@@ -839,7 +839,7 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 	for itemIndex, binding := range rbs.Items {
 		// Cleanup the labels from the object referencing by binding.
 		// In addition, this will give the object a chance to match another policy.
-		if err := d.CleanupLabels(binding.Spec.Resource, util.PropagationPolicyNameLabel, util.PropagationPolicyNameLabel); err != nil {
+		if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.PropagationPolicyNameLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
 			klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when resource binding(%s/%s) removing, error: %v",
 				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Namespace, binding.Name, err)
 			return err
@@ -861,7 +861,7 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName string) error {
 	var errs []error
 	labelSet := labels.Set{
-		util.ClusterPropagationPolicyLabel: policyName,
+		policyv1alpha1.ClusterPropagationPolicyLabel: policyName,
 	}
 
 	// load and remove the ClusterResourceBindings which labeled with current policy
@@ -873,7 +873,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		for itemIndex, binding := range crbs.Items {
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
-			if err := d.CleanupLabels(binding.Spec.Resource, util.ClusterPropagationPolicyLabel); err != nil {
+			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
 				klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when cluster resource binding(%s) removing, error: %v",
 					binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Name, err)
 				errs = append(errs, err)
@@ -896,7 +896,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		for itemIndex, binding := range rbs.Items {
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
-			if err := d.CleanupLabels(binding.Spec.Resource, util.ClusterPropagationPolicyLabel); err != nil {
+			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
 				klog.Errorf("Failed to cleanup label from resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
 				errs = append(errs, err)
 			}

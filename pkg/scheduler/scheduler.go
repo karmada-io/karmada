@@ -190,8 +190,8 @@ func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
 	}
 
 	selector := labels.SelectorFromSet(labels.Set{
-		util.PropagationPolicyNamespaceLabel: oldPropagationPolicy.Namespace,
-		util.PropagationPolicyNameLabel:      oldPropagationPolicy.Name,
+		policyv1alpha1.PropagationPolicyNamespaceLabel: oldPropagationPolicy.Namespace,
+		policyv1alpha1.PropagationPolicyNameLabel:      oldPropagationPolicy.Name,
 	})
 
 	err := s.requeueResourceBindings(selector)
@@ -210,7 +210,7 @@ func (s *Scheduler) onClusterPropagationPolicyUpdate(old, cur interface{}) {
 	}
 
 	selector := labels.SelectorFromSet(labels.Set{
-		util.ClusterPropagationPolicyLabel: oldClusterPropagationPolicy.Name,
+		policyv1alpha1.ClusterPropagationPolicyLabel: oldClusterPropagationPolicy.Name,
 	})
 
 	err := s.requeueClusterResourceBindings(selector)
@@ -275,7 +275,7 @@ func (s *Scheduler) getPlacement(resourceBinding *workv1alpha1.ResourceBinding) 
 	var policyName string
 	var policyNamespace string
 	var err error
-	if clusterPolicyName = util.GetLabelValue(resourceBinding.Labels, util.ClusterPropagationPolicyLabel); clusterPolicyName != "" {
+	if clusterPolicyName = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel); clusterPolicyName != "" {
 		var clusterPolicy *policyv1alpha1.ClusterPropagationPolicy
 		clusterPolicy, err = s.clusterPolicyLister.Get(clusterPolicyName)
 		if err != nil {
@@ -285,8 +285,8 @@ func (s *Scheduler) getPlacement(resourceBinding *workv1alpha1.ResourceBinding) 
 		placement = clusterPolicy.Spec.Placement
 	}
 
-	if policyName = util.GetLabelValue(resourceBinding.Labels, util.PropagationPolicyNameLabel); policyName != "" {
-		policyNamespace = util.GetLabelValue(resourceBinding.Labels, util.PropagationPolicyNamespaceLabel)
+	if policyName = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNameLabel); policyName != "" {
+		policyNamespace = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNamespaceLabel)
 		var policy *policyv1alpha1.PropagationPolicy
 		policy, err = s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
 		if err != nil {
@@ -370,7 +370,7 @@ func (s *Scheduler) getScheduleType(key string) ScheduleType {
 			return FirstSchedule
 		}
 
-		policyName := util.GetLabelValue(binding.Labels, util.ClusterPropagationPolicyLabel)
+		policyName := util.GetLabelValue(binding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
 
 		policy, err := s.clusterPolicyLister.Get(policyName)
 		if err != nil {
@@ -459,7 +459,7 @@ func (s *Scheduler) scheduleOne(key string) (err error) {
 			return nil
 		}
 
-		clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, util.ClusterPropagationPolicyLabel)
+		clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
 
 		clusterPolicy, err := s.clusterPolicyLister.Get(clusterPolicyName)
 		if err != nil {
@@ -670,7 +670,7 @@ func (s *Scheduler) rescheduleOne(key string) (err error) {
 }
 
 func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *workv1alpha1.ClusterResourceBinding) error {
-	policyName := util.GetLabelValue(clusterResourceBinding.Labels, util.ClusterPropagationPolicyLabel)
+	policyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
 	policy, err := s.clusterPolicyLister.Get(policyName)
 	if err != nil {
 		klog.Errorf("Failed to get policy by policyName(%s): Error: %v", policyName, err)
@@ -805,7 +805,7 @@ func (s *Scheduler) scaleScheduleOne(key string) (err error) {
 			return nil
 		}
 
-		clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, util.ClusterPropagationPolicyLabel)
+		clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
 
 		clusterPolicy, err := s.clusterPolicyLister.Get(clusterPolicyName)
 		if err != nil {

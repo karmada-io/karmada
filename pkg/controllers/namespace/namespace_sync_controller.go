@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -121,8 +122,8 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 			},
 		}
 
-		util.MergeLabel(namespaceObj, util.WorkNamespaceLabel, workNamespace)
-		util.MergeLabel(namespaceObj, util.WorkNameLabel, workName)
+		util.MergeLabel(namespaceObj, workv1alpha1.WorkNamespaceLabel, workNamespace)
+		util.MergeLabel(namespaceObj, workv1alpha1.WorkNameLabel, workName)
 
 		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, namespaceObj); err != nil {
 			return err

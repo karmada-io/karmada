@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -84,7 +85,7 @@ func GenerateKey(obj interface{}) (QueueKey, error) {
 
 // getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
 func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
-	workNamespace := GetLabelValue(resource.GetLabels(), WorkNamespaceLabel)
+	workNamespace := GetLabelValue(resource.GetLabels(), workv1alpha1.WorkNamespaceLabel)
 	if len(workNamespace) == 0 {
 		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
 		return "", nil
