@@ -40,7 +40,7 @@ func (a *karmadaConfig) GetRestConfig(context, kubeconfigPath string) (*rest.Con
 	return restConfig, nil
 }
 
-// getClientConfig is a helper method to create a client config from the
+// GetClientConfig is a helper method to create a client config from the
 // context and kubeconfig passed as arguments.
 func (a *karmadaConfig) GetClientConfig(context, kubeconfigPath string) clientcmd.ClientConfig {
 	loadingRules := *a.pathOptions.LoadingRules
