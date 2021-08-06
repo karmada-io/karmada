@@ -14,7 +14,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14.x
+          go-version: 1.15.x
       - name: lint
         run: hack/verify-staticcheck.sh
   codegen:
@@ -26,7 +26,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14.x
+          go-version: 1.15.x
       - name: verify codegen
         run: hack/verify-codegen.sh
       - name: verify crdgen
@@ -45,7 +45,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14.x
+          go-version: 1.15.x
       - name: compile
         run: make all
   test:
@@ -58,7 +58,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14.x
+          go-version: 1.15.x
       - name: make test
         run: make test
   e2e:
@@ -75,7 +75,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14.x
+          go-version: 1.15.x
       - name: setup e2e test environment
         run: hack/karmada-bootstrap.sh
       - name: run e2e
