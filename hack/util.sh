@@ -65,29 +65,59 @@ function util::cmd_must_exist_cfssl {
     fi
 }
 
+# util::install_environment_check will check OS and ARCH before installing
+# ARCH support list: amd64,arm64
+# OS support list: linux,darwin
+function util::install_environment_check {
+    local ARCH=${1:-}
+    local OS=${2:-}
+    if [[ "$ARCH" =~ ^(amd64|arm64)$ ]]; then
+        if [[ "$OS" =~ ^(linux|darwin)$ ]]; then
+            return 0
+        fi
+    fi
+    echo "Sorry, Karmada installation does not support $ARCH/$OS at the moment"
+    exit 1
+}
+
 # util::install_kubectl will install the given version kubectl
 function util::install_kubectl {
-    echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
     local KUBECTL_VERSION=${1}
     local ARCH=${2}
     local OS=${3:-linux}
-    echo "Installing 'kubectl ${KUBECTL_VERSION}' for you, may require your root privileges"
-    curl -sSL --retry 5 https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl > ./kubectl
-    chmod +x ./kubectl
-    sudo rm -rf "$(which kubectl)"
-    sudo mv ./kubectl /usr/local/bin/kubectl
+    echo "Installing 'kubectl ${KUBECTL_VERSION}' for you, may require the root privileges"
+    curl --retry 5 -sSLo ./kubectl -w "%{http_code}" https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl | grep '200'
+    ret=$?
+    if [ ${ret} -eq 0 ]; then
+        chmod +x ./kubectl
+        echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
+        sudo rm -rf "$(which kubectl)"
+        sudo mv ./kubectl /usr/local/bin/kubectl
+    else
+        echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
+        exit 1
+    fi
 }
 
+# util::install_kind will install the given version kind
 function util::install_kind {
-  echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
   local kind_version=${1}
-  echo "Installing 'kind ${kind_version}' for you, may require your root privileges"
+  echo "Installing 'kind ${kind_version}' for you, may require the root privileges"
   local os_name
   os_name=$(go env GOOS)
-  curl --retry 5 -sSLo ./kind "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-amd64"
-  chmod +x ./kind
-  sudo rm -f "$(which kind)"
-  sudo mv ./kind /usr/local/bin/kind
+  local arch_name
+  arch_name=$(go env GOARCH)
+  curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200'
+  ret=$?
+  if [ ${ret} -eq 0 ]; then
+      chmod +x ./kind
+      echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
+      sudo rm -f "$(which kind)"
+      sudo mv ./kind /usr/local/bin/kind
+  else
+      echo "Failed to install kind, can not download the binary file at https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}"
+      exit 1
+  fi
 }
 
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose

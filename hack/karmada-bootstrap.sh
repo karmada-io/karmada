@@ -34,6 +34,8 @@ util::install_tools sigs.k8s.io/kind v0.10.0
 # get arch name and os name in bootstrap
 BS_ARCH=$(go env GOARCH)
 BS_OS=$(go env GOOS)
+# check arch and os name before installing
+util::install_environment_check "${BS_ARCH}" "${BS_OS}"
 # we choose v1.18.0, because in kubectl after versions 1.18 exist a bug which will give wrong output when using jsonpath.
 # bug details: https://github.com/kubernetes/kubernetes/pull/98057
 util::install_kubectl "v1.18.0" "${BS_ARCH}" "${BS_OS}"
