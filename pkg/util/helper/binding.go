@@ -26,13 +26,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
-const (
-	// SpecField indicates the 'spec' field of a deployment
-	SpecField = "spec"
-	// ReplicasField indicates the 'replicas' field of a deployment
-	ReplicasField = "replicas"
-)
-
 // ClusterWeightInfo records the weight of a cluster
 type ClusterWeightInfo struct {
 	ClusterName string
@@ -396,12 +389,12 @@ func calculateReplicas(c client.Client, policy *v1alpha1.ReplicaSchedulingPolicy
 }
 
 func applyReplicaSchedulingPolicy(workload *unstructured.Unstructured, desireReplica int64) error {
-	_, ok, err := unstructured.NestedInt64(workload.Object, SpecField, ReplicasField)
+	_, ok, err := unstructured.NestedInt64(workload.Object, util.SpecField, util.ReplicasField)
 	if err != nil {
 		return err
 	}
 	if ok {
-		err := unstructured.SetNestedField(workload.Object, desireReplica, SpecField, ReplicasField)
+		err := unstructured.SetNestedField(workload.Object, desireReplica, util.SpecField, util.ReplicasField)
 		if err != nil {
 			return err
 		}
