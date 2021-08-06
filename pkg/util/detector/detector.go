@@ -148,7 +148,7 @@ func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
 		newResources := GetDeletableResources(d.DiscoveryClientSet)
 		for r := range newResources {
-			if d.InformerManager.IsHandlerExist(r, d.EventHandler) {
+			if d.InformerManager.IsHandlerExist(r, d.EventHandler) || d.gvrDisabled(r) {
 				continue
 			}
 			klog.Infof("Setup informer for %s", r.String())
@@ -156,6 +156,34 @@ func (d *ResourceDetector) discoverResources(period time.Duration) {
 		}
 		d.InformerManager.Start(d.stopCh)
 	}, period, d.stopCh)
+}
+
+// gvrDisabled returns whether GroupVersionResource is disabled.
+func (d *ResourceDetector) gvrDisabled(gvr schema.GroupVersionResource) bool {
+	if d.SkippedResourceConfig == nil {
+		return false
+	}
+
+	if d.SkippedResourceConfig.GroupVersionDisabled(gvr.GroupVersion()) {
+		return true
+	}
+	if d.SkippedResourceConfig.GroupDisabled(gvr.Group) {
+		return true
+	}
+
+	gvks, err := d.RESTMapper.KindsFor(gvr)
+	if err != nil {
+		klog.Errorf("gvr(%s) transform failed: %v", gvr.String(), err)
+		return false
+	}
+
+	for _, gvk := range gvks {
+		if d.SkippedResourceConfig.GroupVersionKindDisabled(gvk) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // NeedLeaderElection implements LeaderElectionRunnable interface.
