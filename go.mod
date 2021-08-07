@@ -28,8 +28,6 @@ require (
 	sigs.k8s.io/mcs-api v0.1.0
 )
 
-// controller-runtime@v0.8.3 uses gnostic@v0.5.1 which not compatible with kubernetes@v1.20.6.
-// kubernetes@v1.20.6 using gnostic@v0.4.1.
 replace (
 	// kubernetes@v1.21.3 requires gnostic@v0.4.1 which is not compatible with gnostic@v0.5.1 that controller-runtime@v0.9.5 requires.
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
