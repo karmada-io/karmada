@@ -132,6 +132,8 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, d.OnClusterResourceBindingDelete)
 	d.InformerManager.ForResource(clusterResourceBindingGVR, clusterBindingHandler)
 
+	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
+	d.Processor = util.NewAsyncWorker("resource detector", time.Microsecond, ClusterWideKeyFunc, d.Reconcile)
 	d.Processor.Run(1, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
@@ -487,7 +489,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (*unstructured.Unstructured, error) {
 	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GroupVersionKind())
 	if err != nil {
-		klog.Errorf("Failed to get GVK of object: %s, error: %v", objectKey, err)
+		klog.Errorf("Failed to get GVR of object: %s, error: %v", objectKey, err)
 		return nil, err
 	}
 

@@ -5,12 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -19,6 +19,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
@@ -27,6 +28,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
+	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/detector"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -112,6 +114,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	for _, ns := range opts.SkippedPropagatingNamespaces {
 		skippedPropagatingNamespaces[ns] = struct{}{}
 	}
+
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:           discoverClientSet,
 		Client:                       mgr.GetClient(),
@@ -121,12 +124,11 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		SkippedResourceConfig:        skippedResourceConfig,
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
 	}
-
-	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
-	resourceDetector.Processor = util.NewAsyncWorker("resource detector", time.Microsecond, detector.ClusterWideKeyFunc, resourceDetector.Reconcile)
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
+
+	setupClusterAPIClusterDetector(mgr, opts)
 
 	clusterController := &cluster.Controller{
 		Client:                    mgr.GetClient(),
@@ -280,4 +282,37 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := serviceImportController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
 	}
+}
+
+// setupClusterAPIClusterDetector initialize Cluster detector with the cluster-api management cluster.
+func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options.Options) {
+	if len(opts.ClusterAPIKubeconfig) == 0 {
+		return
+	}
+
+	klog.Infof("Begin to setup cluster-api cluster detector")
+
+	karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
+	clusterAPIRestConfig, err := karmadaConfig.GetRestConfig(opts.ClusterAPIContext, opts.ClusterAPIKubeconfig)
+	if err != nil {
+		klog.Fatalf("Failed to get cluster-api management cluster rest config. context: %s, kubeconfig: %s, err: %v", opts.ClusterAPIContext, opts.ClusterAPIKubeconfig, err)
+	}
+
+	clusterAPIClient, err := gclient.NewForConfig(clusterAPIRestConfig)
+	if err != nil {
+		klog.Fatalf("Failed to get config from clusterAPIRestConfig: %v", err)
+	}
+
+	clusterAPIClusterDetector := &clusterapi.ClusterDetector{
+		KarmadaConfig:         karmadaConfig,
+		ControllerPlaneConfig: mgr.GetConfig(),
+		ClusterAPIConfig:      clusterAPIRestConfig,
+		ClusterAPIClient:      clusterAPIClient,
+		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0),
+	}
+	if err := mgr.Add(clusterAPIClusterDetector); err != nil {
+		klog.Fatalf("Failed to setup cluster-api cluster detector: %v", err)
+	}
+
+	klog.Infof("Success to setup cluster-api cluster detector")
 }

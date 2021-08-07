@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -115,46 +116,55 @@ func RunUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandUnjoin
 		return err
 	}
 
+	var clusterConfig *rest.Config
+	if opts.ClusterKubeConfig != "" {
+		// Get cluster config
+		clusterConfig, err = karmadaConfig.GetRestConfig(opts.ClusterContext, opts.ClusterKubeConfig)
+		if err != nil {
+			klog.V(1).Infof("failed to get unjoining cluster config. error: %v", err)
+			return err
+		}
+	}
+
+	return UnJoinCluster(controlPlaneRestConfig, clusterConfig, opts.ClusterNamespace, opts.ClusterName, opts.forceDeletion, opts.DryRun)
+}
+
+// UnJoinCluster unJoin the cluster from karmada.
+func UnJoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, clusterNamespace, clusterName string, forceDeletion, dryRun bool) (err error) {
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	// delete the cluster object in host cluster that associates the unjoining cluster
-	err = deleteClusterObject(controlPlaneKarmadaClient, opts.ClusterName, opts.DryRun)
+	err = deleteClusterObject(controlPlaneKarmadaClient, clusterName, dryRun)
 	if err != nil {
-		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
+		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", clusterName, err)
 		return err
 	}
 
 	// Attempt to delete the cluster role, cluster rolebindings and service account from the unjoining cluster
 	// if user provides the kubeconfig of cluster
-	if opts.ClusterKubeConfig != "" {
-		// Get cluster config
-		clusterConfig, err := karmadaConfig.GetRestConfig(opts.ClusterContext, opts.ClusterKubeConfig)
-		if err != nil {
-			klog.V(1).Infof("failed to get unjoining cluster config. error: %v", err)
-			return err
-		}
+	if clusterConfig != nil {
 		clusterKubeClient := kubeclient.NewForConfigOrDie(clusterConfig)
 
 		klog.V(1).Infof("unjoining cluster config. endpoint: %s", clusterConfig.Host)
 
 		// delete RBAC resource from unjoining cluster
-		err = deleteRBACResources(clusterKubeClient, opts.ClusterName, opts.forceDeletion, opts.DryRun)
+		err = deleteRBACResources(clusterKubeClient, clusterName, forceDeletion, dryRun)
 		if err != nil {
-			klog.Errorf("Failed to delete RBAC resource in unjoining cluster %q: %v", opts.ClusterName, err)
+			klog.Errorf("Failed to delete RBAC resource in unjoining cluster %q: %v", clusterName, err)
 			return err
 		}
 
 		// delete service account from unjoining cluster
-		err = deleteServiceAccount(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.forceDeletion, opts.DryRun)
+		err = deleteServiceAccount(clusterKubeClient, clusterNamespace, clusterName, forceDeletion, dryRun)
 		if err != nil {
-			klog.Errorf("Failed to delete service account in unjoining cluster %q: %v", opts.ClusterName, err)
+			klog.Errorf("Failed to delete service account in unjoining cluster %q: %v", clusterName, err)
 			return err
 		}
 
 		// delete namespace from unjoining cluster
-		err = deleteNamespaceFromUnjoinCluster(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.forceDeletion, opts.DryRun)
+		err = deleteNamespaceFromUnjoinCluster(clusterKubeClient, clusterNamespace, clusterName, forceDeletion, dryRun)
 		if err != nil {
-			klog.Errorf("Failed to delete namespace in unjoining cluster %q: %v", opts.ClusterName, err)
+			klog.Errorf("Failed to delete namespace in unjoining cluster %q: %v", clusterName, err)
 			return err
 		}
 	}
