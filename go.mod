@@ -9,7 +9,7 @@ require (
 	github.com/kr/pretty v0.3.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.14.0
-	github.com/spf13/cobra v1.1.1
+	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver v0.21.3
@@ -19,9 +19,10 @@ require (
 	k8s.io/code-generator v0.21.3
 	k8s.io/component-base v0.21.3
 	k8s.io/component-helpers v0.21.3
-	k8s.io/klog/v2 v2.8.0
+	k8s.io/klog/v2 v2.9.0
 	k8s.io/kubernetes v1.20.6
 	k8s.io/utils v0.0.0-20210722164352-7f3ee0f31471
+	sigs.k8s.io/cluster-api v0.4.0
 	sigs.k8s.io/controller-runtime v0.9.5
 	sigs.k8s.io/kind v0.10.0
 	sigs.k8s.io/mcs-api v0.1.0
@@ -30,7 +31,10 @@ require (
 // controller-runtime@v0.8.3 uses gnostic@v0.5.1 which not compatible with kubernetes@v1.20.6.
 // kubernetes@v1.20.6 using gnostic@v0.4.1.
 replace (
+	// kubernetes@v1.21.3 requires gnostic@v0.4.1 which is not compatible with gnostic@v0.5.1 that controller-runtime@v0.9.5 requires.
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
+	// kubernete@v1.21.3 requires grpc@v1.27.1 which is not compatible with grpc@v1.39.x that cluster-api@v0.4.0 requires.
+	google.golang.org/grpc => google.golang.org/grpc v1.27.1
 	k8s.io/api => k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.3
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.3

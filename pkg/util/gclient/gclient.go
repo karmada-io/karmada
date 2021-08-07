@@ -4,6 +4,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	clusterapiv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
@@ -16,11 +17,12 @@ import (
 var aggregatedScheme = runtime.NewScheme()
 
 func init() {
-	var _ = scheme.AddToScheme(aggregatedScheme)          // add Kubernetes schemes
-	var _ = clusterv1alpha1.AddToScheme(aggregatedScheme) // add cluster schemes
-	var _ = policyv1alpha1.AddToScheme(aggregatedScheme)  // add propagation schemes
-	var _ = workv1alpha1.AddToScheme(aggregatedScheme)    // add work schemes
-	var _ = mcsv1alpha1.AddToScheme(aggregatedScheme)     // add mcs-api schemes
+	var _ = scheme.AddToScheme(aggregatedScheme)             // add Kubernetes schemes
+	var _ = clusterv1alpha1.AddToScheme(aggregatedScheme)    // add cluster schemes
+	var _ = policyv1alpha1.AddToScheme(aggregatedScheme)     // add propagation schemes
+	var _ = workv1alpha1.AddToScheme(aggregatedScheme)       // add work schemes
+	var _ = mcsv1alpha1.AddToScheme(aggregatedScheme)        // add mcs-api schemes
+	var _ = clusterapiv1alpha4.AddToScheme(aggregatedScheme) // add cluster-api v1alpha4 schemes
 }
 
 // NewSchema returns a singleton schema set which aggregated Kubernetes's schemes and extended schemes.
