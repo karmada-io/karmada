@@ -596,4 +596,129 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			})
 		})
 	})
+
+	ginkgo.Context("Job propagation testing", func() {
+		policyNamespace := testNamespace
+		policyName := jobNamePrefix + rand.String(RandomStrLength)
+		jobNamespace := testNamespace
+		jobName := policyName
+
+		job := testhelper.NewJob(jobNamespace, jobName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: job.APIVersion,
+				Kind:       job.Kind,
+				Name:       job.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
+				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
+				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.It("job propagation testing", func() {
+			ginkgo.By(fmt.Sprintf("creating job(%s/%s)", jobNamespace, jobName), func() {
+				_, err := kubeClient.BatchV1().Jobs(jobNamespace).Create(context.TODO(), job, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if job present on member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					klog.Infof("Waiting for job(%s/%s) present on cluster(%s)", jobNamespace, jobName, cluster.Name)
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+						_, err = clusterClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
+						if err != nil {
+							if errors.IsNotFound(err) {
+								return false, nil
+							}
+							return false, err
+						}
+						return true, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("updating job(%s/%s)", jobNamespace, jobName), func() {
+				patch := []map[string]interface{}{
+					{
+						"op":    "replace",
+						"path":  "/spec/backoffLimit",
+						"value": pointer.Int32Ptr(updateBackoffLimit),
+					},
+				}
+				bytes, err := json.Marshal(patch)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				_, err = kubeClient.BatchV1().Jobs(jobNamespace).Patch(context.TODO(), jobName, types.JSONPatchType, bytes, metav1.PatchOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if update has been synced to member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					klog.Infof("Waiting for job(%s/%s) synced on cluster(%s)", jobNamespace, jobName, cluster.Name)
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+						newJob, err := clusterClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
+						if err != nil {
+							return false, err
+						}
+
+						if *newJob.Spec.BackoffLimit == updateBackoffLimit {
+							return true, nil
+						}
+
+						return false, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("removing job(%s/%s)", jobNamespace, jobName), func() {
+				foregroundDelete := metav1.DeletePropagationForeground
+				err := kubeClient.BatchV1().Jobs(jobNamespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{PropagationPolicy: &foregroundDelete})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if job has been deleted from member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					klog.Infof("Waiting for job(%s/%s) disappear on cluster(%s)", jobNamespace, jobName, cluster.Name)
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+						_, err = clusterClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
+						if err != nil {
+							if errors.IsNotFound(err) {
+								return true, nil
+							}
+							return false, err
+						}
+
+						return false, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+		})
+	})
 })
