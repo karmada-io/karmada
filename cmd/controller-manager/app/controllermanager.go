@@ -44,7 +44,6 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 		Use:  "controller-manager",
 		Long: `The controller manager runs a bunch of controllers`,
 		Run: func(cmd *cobra.Command, args []string) {
-			opts.Complete()
 			if err := Run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
@@ -64,11 +63,13 @@ func Run(ctx context.Context, opts *options.Options) error {
 		panic(err)
 	}
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Scheme:                 gclient.NewSchema(),
-		LeaderElection:         opts.LeaderElection.LeaderElect,
-		LeaderElectionID:       "karmada-controller-manager",
-		HealthProbeBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort),
-		LivenessEndpointName:   "/healthz",
+		Scheme:                     gclient.NewSchema(),
+		LeaderElection:             opts.LeaderElection.LeaderElect,
+		LeaderElectionID:           opts.LeaderElection.ResourceName,
+		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
+		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
+		HealthProbeBindAddress:     fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort),
+		LivenessEndpointName:       "/healthz",
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)

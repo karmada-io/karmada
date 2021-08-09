@@ -80,7 +80,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 
 	rl, err := resourcelock.New(opts.LeaderElection.ResourceLock,
 		opts.LeaderElection.ResourceNamespace,
-		"karmada-scheduler",
+		opts.LeaderElection.ResourceName,
 		leaderElectionClient.CoreV1(),
 		leaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{

@@ -67,10 +67,12 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	}
 
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
-		Scheme:           gclient.NewSchema(),
-		Namespace:        executionSpace,
-		LeaderElection:   false,
-		LeaderElectionID: "agent.karmada.io",
+		Scheme:                     gclient.NewSchema(),
+		Namespace:                  executionSpace,
+		LeaderElection:             opts.LeaderElection.LeaderElect,
+		LeaderElectionID:           fmt.Sprintf("karmada-agent-%s", opts.ClusterName),
+		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
+		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)
