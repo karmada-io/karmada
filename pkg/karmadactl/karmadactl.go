@@ -37,6 +37,8 @@ func NewKarmadaCtlCommand(out io.Writer) *cobra.Command {
 	rootCmd.AddCommand(NewCmdJoin(out, karmadaConfig))
 	rootCmd.AddCommand(NewCmdUnjoin(out, karmadaConfig))
 	rootCmd.AddCommand(NewCmdVersion(out))
+	rootCmd.AddCommand(NewCmdCordon(out, karmadaConfig))
+	rootCmd.AddCommand(NewCmdUncordon(out, karmadaConfig))
 
 	return rootCmd
 }
