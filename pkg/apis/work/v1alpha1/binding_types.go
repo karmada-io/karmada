@@ -94,6 +94,15 @@ type AggregatedStatusItem struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	Status *runtime.RawExtension `json:"status,omitempty"`
+	// Applied represents if the resource referencing by ResourceBinding or ClusterResourceBinding
+	// is successfully applied on the cluster.
+	// +optional
+	Applied bool `json:"applied,omitempty"`
+
+	// AppliedMessage is a human readable message indicating details about the applied status.
+	// This is usually holds the error message in case of apply failed.
+	// +optional
+	AppliedMessage string `json:"appliedMessage,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
