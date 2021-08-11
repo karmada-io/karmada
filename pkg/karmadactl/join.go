@@ -18,6 +18,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -150,8 +151,6 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 }
 
 // RunJoin is the implementation of the 'join' command.
-//nolint:gocyclo
-// Note: ignore the cyclomatic complexity issue to get gocyclo on board. Tracked by: https://github.com/karmada-io/karmada/issues/460
 func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
 	klog.V(1).Infof("joining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("joining cluster. cluster namespace: %s", opts.ClusterNamespace)
@@ -164,33 +163,40 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 		return err
 	}
 
-	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
-	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
-
 	// Get cluster config
 	clusterConfig, err := karmadaConfig.GetRestConfig(opts.ClusterContext, opts.ClusterKubeConfig)
 	if err != nil {
 		klog.V(1).Infof("failed to get joining cluster config. error: %v", err)
 		return err
 	}
+
+	return JoinCluster(controlPlaneRestConfig, clusterConfig, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
+}
+
+// JoinCluster join the cluster into karmada.
+//nolint:gocyclo
+// Note: ignore the cyclomatic complexity issue to get gocyclo on board. Tracked by: https://github.com/karmada-io/karmada/issues/460
+func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, clusterNamespace, clusterName string, dryRun bool) (err error) {
+	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
 	clusterKubeClient := kubeclient.NewForConfigOrDie(clusterConfig)
 
 	klog.V(1).Infof("joining cluster config. endpoint: %s", clusterConfig.Host)
 
 	// ensure namespace where the cluster object be stored exists in control plane.
-	if _, err := ensureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
+	if _, err := ensureNamespaceExist(controlPlaneKubeClient, clusterNamespace, dryRun); err != nil {
 		return err
 	}
 	// ensure namespace where the karmada control plane credential be stored exists in cluster.
-	if _, err := ensureNamespaceExist(clusterKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
+	if _, err := ensureNamespaceExist(clusterKubeClient, clusterNamespace, dryRun); err != nil {
 		return err
 	}
 
 	// create a ServiceAccount in cluster.
 	serviceAccountObj := &corev1.ServiceAccount{}
-	serviceAccountObj.Namespace = opts.ClusterNamespace
-	serviceAccountObj.Name = names.GenerateServiceAccountName(opts.ClusterName)
-	if serviceAccountObj, err = ensureServiceAccountExist(clusterKubeClient, serviceAccountObj, opts.DryRun); err != nil {
+	serviceAccountObj.Namespace = clusterNamespace
+	serviceAccountObj.Name = names.GenerateServiceAccountName(clusterName)
+	if serviceAccountObj, err = ensureServiceAccountExist(clusterKubeClient, serviceAccountObj, dryRun); err != nil {
 		return err
 	}
 
@@ -198,7 +204,7 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 	clusterRole := &rbacv1.ClusterRole{}
 	clusterRole.Name = names.GenerateRoleName(serviceAccountObj.Name)
 	clusterRole.Rules = clusterPolicyRules
-	if _, err := ensureClusterRoleExist(clusterKubeClient, clusterRole, opts.DryRun); err != nil {
+	if _, err := ensureClusterRoleExist(clusterKubeClient, clusterRole, dryRun); err != nil {
 		return err
 	}
 
@@ -207,11 +213,11 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 	clusterRoleBinding.Name = clusterRole.Name
 	clusterRoleBinding.Subjects = buildRoleBindingSubjects(serviceAccountObj.Name, serviceAccountObj.Namespace)
 	clusterRoleBinding.RoleRef = buildClusterRoleReference(clusterRole.Name)
-	if _, err := ensureClusterRoleBindingExist(clusterKubeClient, clusterRoleBinding, opts.DryRun); err != nil {
+	if _, err := ensureClusterRoleBindingExist(clusterKubeClient, clusterRoleBinding, dryRun); err != nil {
 		return err
 	}
 
-	if opts.DryRun {
+	if dryRun {
 		return nil
 	}
 
@@ -223,7 +229,7 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 			klog.Errorf("Failed to retrieve service account(%s/%s) from cluster. err: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
 			return false, err
 		}
-		clusterSecret, err = util.GetTargetSecret(clusterKubeClient, serviceAccountObj.Secrets, corev1.SecretTypeServiceAccountToken, opts.ClusterNamespace)
+		clusterSecret, err = util.GetTargetSecret(clusterKubeClient, serviceAccountObj.Secrets, corev1.SecretTypeServiceAccountToken, clusterNamespace)
 		if err != nil {
 			return false, err
 		}
@@ -236,8 +242,8 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 	}
 
 	// create secret in control plane
-	secretNamespace := opts.ClusterNamespace
-	secretName := opts.ClusterName
+	secretNamespace := clusterNamespace
+	secretName := clusterName
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: secretNamespace,
@@ -255,7 +261,7 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 	}
 
 	clusterObj := &clusterv1alpha1.Cluster{}
-	clusterObj.Name = opts.ClusterName
+	clusterObj.Name = clusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Push
 	clusterObj.Spec.APIEndpoint = clusterConfig.Host
 	clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
@@ -278,7 +284,7 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 
 	cluster, err := CreateClusterObject(controlPlaneKarmadaClient, clusterObj, false)
 	if err != nil {
-		klog.Errorf("failed to create cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
+		klog.Errorf("failed to create cluster object. cluster name: %s, error: %v", clusterName, err)
 		return err
 	}
 

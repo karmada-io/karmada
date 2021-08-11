@@ -87,3 +87,8 @@ func GenerateEndpointSliceName(endpointSliceName string, cluster string) string 
 func GenerateDerivedServiceName(serviceName string) string {
 	return fmt.Sprintf("%s-%s", derivedServicePrefix, serviceName)
 }
+
+// GenerateClusterAPISecretName generates the secret name of cluster authentication in cluster-api.
+func GenerateClusterAPISecretName(clusterName string) string {
+	return fmt.Sprintf("%s-kubeconfig", clusterName)
+}

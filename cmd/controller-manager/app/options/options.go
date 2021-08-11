@@ -47,6 +47,11 @@ type Options struct {
 	SkippedPropagatingAPIs string
 	// SkippedPropagatingNamespaces is a list of namespaces that will be skipped for propagating.
 	SkippedPropagatingNamespaces []string
+	// ClusterAPIContext is the name of the cluster context in cluster-api management cluster KUBECONFIG file.
+	// Default value is the current-context.
+	ClusterAPIContext string
+	// ClusterAPIKubeconfig holds the cluster-api management cluster KUBECONFIG file path.
+	ClusterAPIKubeconfig string
 }
 
 // NewOptions builds an empty options.
@@ -86,4 +91,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		"<group>/<version>/<kind>,<kind> for skip one or more specific resource(e.g. networking.k8s.io/v1beta1/Ingress,IngressClass) where the kinds are case-insensitive.")
 	flags.StringSliceVar(&o.SkippedPropagatingNamespaces, "skipped-propagating-namespaces", []string{},
 		"Comma-separated namespaces that should be skipped from propagating in addition to the default skipped namespaces(namespaces prefixed by kube- and karmada-).")
+	flags.StringVar(&o.ClusterAPIContext, "cluster-api-context", "", "Name of the cluster context in cluster-api management cluster kubeconfig file.")
+	flags.StringVar(&o.ClusterAPIKubeconfig, "cluster-api-kubeconfig", "", "Path to the cluster-api management cluster kubeconfig file.")
 }
