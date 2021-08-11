@@ -49,6 +49,14 @@ type Overriders struct {
 	// ImageOverrider represents the rules dedicated to handling image overrides.
 	// +optional
 	ImageOverrider []ImageOverrider `json:"imageOverrider,omitempty"`
+
+	// CommandOverrider represents the rules dedicated to handling container command
+	// +optional
+	CommandOverrider []CommandArgsOverrider `json:"commandOverrider,omitempty"`
+
+	// ArgsOverrider represents the rules dedicated to handling container args
+	// +optional
+	ArgsOverrider []CommandArgsOverrider `json:"argsOverrider,omitempty"`
 }
 
 // ImageOverrider represents the rules dedicated to handling image overrides.
@@ -105,6 +113,25 @@ type ImagePredicate struct {
 
 // ImageComponent indicates the components for image.
 type ImageComponent string
+
+// CommandArgsOverrider represents the rules dedicated to handling command/args overrides.
+type CommandArgsOverrider struct {
+	// The name of container
+	// +required
+	ContainerName string `json:"containerName"`
+
+	// Operator represents the operator which will apply on the command/args.
+	// +kubebuilder:validation:Enum=add;remove
+	// +required
+	Operator OverriderOperator `json:"operator"`
+
+	// Value to be applied to command/args.
+	// Items in Value which will be appended after command/args when Operator is 'add'.
+	// Items in Value which match in command/args will be deleted when Operator is 'remove'.
+	// If Value is empty, then the command/args will remain the same.
+	// +optional
+	Value []string `json:"value,omitempty"`
+}
 
 const (
 	// Registry is the registry component of an image with format '[registry/]repository[:tag]'.
