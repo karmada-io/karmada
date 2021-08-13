@@ -258,41 +258,8 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Delete(context.TODO(), serviceImportPolicy.Name, metav1.DeleteOptions{})
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
-
-		// In order to avoid that current delete operation will delete the ServiceExport and ServiceImport
-		// CRD which created in next block, here waiting for the deletion action to be end.
-
-		ginkgo.By("Wait ServiceExport CRD disappear on member clusters", func() {
-			err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-				clusters, err := fetchClusters(karmadaClient)
-				if err != nil {
-					return false, err
-				}
-				for _, cluster := range clusters {
-					if helper.IsAPIEnabled(cluster.Status.APIEnablements, mcsv1alpha1.GroupVersion.String(), util.ServiceExportKind) {
-						return false, nil
-					}
-				}
-				return true, nil
-			})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
-
-		ginkgo.By("Wait ServiceImport CRD disappear on member clusters", func() {
-			err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-				clusters, err := fetchClusters(karmadaClient)
-				if err != nil {
-					return false, err
-				}
-				for _, cluster := range clusters {
-					if helper.IsAPIEnabled(cluster.Status.APIEnablements, mcsv1alpha1.GroupVersion.String(), util.ServiceImportKind) {
-						return false, nil
-					}
-				}
-				return true, nil
-			})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
+		// Now the deletion of ClusterPropagationPolicy will not cause the deletion of related binding and workload on member clusters,
+		// so we do not need to wait the disappearance of ServiceExport CRD and ServiceImport CRD
 	})
 
 	ginkgo.Context("Connectivity testing", func() {
