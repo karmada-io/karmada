@@ -20,7 +20,7 @@ require (
 	k8s.io/component-base v0.21.3
 	k8s.io/component-helpers v0.21.3
 	k8s.io/klog/v2 v2.9.0
-	k8s.io/kubernetes v1.20.6
+	k8s.io/kubernetes v1.21.3
 	k8s.io/utils v0.0.0-20210722164352-7f3ee0f31471
 	sigs.k8s.io/cluster-api v0.4.0
 	sigs.k8s.io/controller-runtime v0.9.5
