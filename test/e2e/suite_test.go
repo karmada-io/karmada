@@ -55,11 +55,13 @@ const (
 	serviceNamePrefix    = "service-"
 	podNamePrefix        = "pod-"
 	crdNamePrefix        = "cr-"
+	jobNamePrefix        = "job-"
 
 	updateDeploymentReplicas = 6
 	updateServicePort        = 81
 	updatePodImage           = "nginx:latest"
 	updateCRnamespace        = "e2e-test"
+	updateBackoffLimit       = 3
 )
 
 var (

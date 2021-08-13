@@ -43,8 +43,9 @@ func RetainClusterFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 		return retainServiceAccountFields(desiredObj, clusterObj)
 	case util.PersistentVolumeClaimKind:
 		return retainPersistentVolumeClaimFields(desiredObj, clusterObj)
+	case util.JobKind:
+		return retainJobSelectorFields(desiredObj, clusterObj)
 	}
-
 	return nil
 }
 
@@ -189,6 +190,30 @@ func retainPersistentVolumeClaimFields(desiredObj, clusterObj *unstructured.Unst
 			return fmt.Errorf("error setting volumeName for pvc: %w", err)
 		}
 	}
+	return nil
+}
 
+func retainJobSelectorFields(desiredObj, clusterObj *unstructured.Unstructured) error {
+	matchLabels, exist, err := unstructured.NestedStringMap(clusterObj.Object, "spec", "selector", "matchLabels")
+	if err != nil {
+		return err
+	}
+	if exist {
+		err = unstructured.SetNestedStringMap(desiredObj.Object, matchLabels, "spec", "selector", "matchLabels")
+		if err != nil {
+			return err
+		}
+	}
+
+	templateLabels, exist, err := unstructured.NestedStringMap(clusterObj.Object, "spec", "template", "metadata", "labels")
+	if err != nil {
+		return err
+	}
+	if exist {
+		err = unstructured.SetNestedStringMap(desiredObj.Object, templateLabels, "spec", "template", "metadata", "labels")
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
