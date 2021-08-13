@@ -68,6 +68,8 @@ const (
 	ReplicaSetKind = "ReplicaSet"
 	// StatefulSetKind indicates the target resource is a statefulset
 	StatefulSetKind = "StatefulSet"
+	// DaemonSetKind indicates the target resource is a daemonset
+	DaemonSetKind = "DaemonSet"
 	// EndpointSliceKind indicates the target resource is a endpointslice
 	EndpointSliceKind = "EndpointSlice"
 	// PersistentVolumeClaimKind indicated the target resource is a persistentvolumeclaim

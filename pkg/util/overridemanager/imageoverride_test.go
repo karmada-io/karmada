@@ -121,6 +121,37 @@ func generateReplicaSetYaml() *unstructured.Unstructured {
 							}}}}}}}
 }
 
+func generateDaemonSetYaml() *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       "DaemonSet",
+			"metadata": map[string]interface{}{
+				"name": "nginx",
+				"labels": map[string]interface{}{
+					"app": "nginx",
+				},
+			},
+			"spec": map[string]interface{}{
+				"selector": map[string]interface{}{
+					"matchLabels": map[string]interface{}{
+						"app": "nginx",
+					},
+				},
+				"template": map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"app": "nginx",
+						},
+					},
+					"spec": map[string]interface{}{
+						"containers": []interface{}{
+							map[string]interface{}{
+								"image": "fictional.registry.example/imagename:v1.0.0",
+								"name":  "nginx",
+							}}}}}}}
+}
+
 func generateDeploymentYamlWithTwoContainer() *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -381,6 +412,25 @@ func TestParseJSONPatchesByImageOverrider(t *testing.T) {
 			name: "imageOverrider with empty predicate, resource kind: ReplicaSet",
 			args: args{
 				rawObj: generateReplicaSetYaml(),
+				imageOverrider: &policyv1alpha1.ImageOverrider{
+					Component: "Repository",
+					Operator:  "replace",
+					Value:     "nginx",
+				},
+			},
+			want: []overrideOption{
+				{
+					Op:    "replace",
+					Path:  "/spec/template/spec/containers/0/image",
+					Value: "fictional.registry.example/nginx:v1.0.0",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "imageOverrider with empty predicate, resource kind: DaemonSet",
+			args: args{
+				rawObj: generateDaemonSetYaml(),
 				imageOverrider: &policyv1alpha1.ImageOverrider{
 					Component: "Repository",
 					Operator:  "replace",
