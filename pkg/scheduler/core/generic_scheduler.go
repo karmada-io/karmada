@@ -25,6 +25,7 @@ import (
 type ScheduleAlgorithm interface {
 	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ObjectReference) (scheduleResult ScheduleResult, err error)
 	ScaleSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
+	FailoverSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -557,4 +558,66 @@ func (g *genericScheduler) getPreUsed(clusters []*clusterv1alpha1.Cluster, preUs
 		}
 	}
 	return preUsedCluster, unUsedCluster
+}
+
+func (g *genericScheduler) FailoverSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
+	spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
+	readyClusters := g.schedulerCache.Snapshot().GetReadyClusterNames()
+	totalClusters := util.ConvertToClusterNames(spec.Clusters)
+
+	reservedClusters := calcReservedCluster(totalClusters, readyClusters)
+	availableClusters := calcAvailableCluster(totalClusters, readyClusters)
+
+	candidateClusters := sets.NewString()
+	for clusterName := range availableClusters {
+		clusterObj := g.schedulerCache.Snapshot().GetCluster(clusterName)
+		if clusterObj == nil {
+			return result, fmt.Errorf("failed to get clusterObj by clusterName: %s", clusterName)
+		}
+
+		resMap := g.scheduleFramework.RunFilterPlugins(ctx, placement, &spec.Resource, clusterObj.Cluster())
+		res := resMap.Merge()
+		if !res.IsSuccess() {
+			klog.V(4).Infof("cluster %q is not fit", clusterName)
+		} else {
+			candidateClusters.Insert(clusterName)
+		}
+	}
+
+	klog.V(4).Infof("Reserved bindingClusters : %v", reservedClusters.List())
+	klog.V(4).Infof("Candidate bindingClusters: %v", candidateClusters.List())
+
+	// TODO: should schedule as much as possible?
+	deltaLen := len(spec.Clusters) - len(reservedClusters)
+	if len(candidateClusters) < deltaLen {
+		// for ReplicaSchedulingTypeDivided, we will try to migrate replicas to the other health clusters
+		if placement.ReplicaScheduling == nil || placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+			klog.Warningf("ignore reschedule binding as insufficient available cluster")
+			return ScheduleResult{}, nil
+		}
+	}
+
+	// TODO: check if the final result meets the spread constraints.
+	targetClusters := reservedClusters
+	clusterList := candidateClusters.List()
+	for i := 0; i < deltaLen && i < len(candidateClusters); i++ {
+		targetClusters.Insert(clusterList[i])
+	}
+
+	var reScheduleResult []workv1alpha1.TargetCluster
+	for cluster := range targetClusters {
+		reScheduleResult = append(reScheduleResult, workv1alpha1.TargetCluster{Name: cluster})
+	}
+
+	return ScheduleResult{reScheduleResult}, nil
+}
+
+// calcReservedCluster eliminates the not-ready clusters from the 'bindClusters'.
+func calcReservedCluster(bindClusters, readyClusters sets.String) sets.String {
+	return bindClusters.Difference(bindClusters.Difference(readyClusters))
+}
+
+// calcAvailableCluster returns a list of ready clusters that not in 'bindClusters'.
+func calcAvailableCluster(bindCluster, readyClusters sets.String) sets.String {
+	return readyClusters.Difference(bindCluster)
 }
