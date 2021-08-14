@@ -34,6 +34,8 @@ func buildPatchesWithEmptyPredicate(rawObj *unstructured.Unstructured, imageOver
 		fallthrough
 	case util.DeploymentKind:
 		fallthrough
+	case util.DaemonSetKind:
+		fallthrough
 	case util.StatefulSetKind:
 		return buildPatchesWithPath("spec/template/spec/containers", rawObj, imageOverrider)
 	}
