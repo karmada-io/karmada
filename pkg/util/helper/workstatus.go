@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -84,6 +85,37 @@ func assembleWorkStatus(c client.Client, selector labels.Selector, workload *uns
 			klog.Errorf("Failed to get manifestIndex of workload in work.Spec.Workload.Manifests. Error: %v.", err)
 			return nil, err
 		}
+		clusterName, err := names.GetClusterName(work.Namespace)
+		if err != nil {
+			klog.Errorf("Failed to get clusterName from work namespace %s. Error: %v.", work.Namespace, err)
+			return nil, err
+		}
+
+		// if sync work to member cluster failed, then set status back to resource binding.
+		var applied bool
+		var appliedMsg string
+		if cond := meta.FindStatusCondition(work.Status.Conditions, workv1alpha1.WorkApplied); cond != nil {
+			switch cond.Status {
+			case metav1.ConditionTrue:
+				applied = true
+			case metav1.ConditionUnknown:
+				fallthrough
+			case metav1.ConditionFalse:
+				applied = false
+				appliedMsg = cond.Message
+			default: // should not happen unless the condition api changed.
+				panic("unexpected status")
+			}
+		}
+		if !applied {
+			aggregatedStatus := workv1alpha1.AggregatedStatusItem{
+				ClusterName:    clusterName,
+				Applied:        applied,
+				AppliedMessage: appliedMsg,
+			}
+			statuses = append(statuses, aggregatedStatus)
+			return statuses, nil
+		}
 
 		for _, manifestStatus := range work.Status.ManifestStatuses {
 			equal, err := equalIdentifier(&manifestStatus.Identifier, identifierIndex, workload)
@@ -91,15 +123,10 @@ func assembleWorkStatus(c client.Client, selector labels.Selector, workload *uns
 				return nil, err
 			}
 			if equal {
-				clusterName, err := names.GetClusterName(work.Namespace)
-				if err != nil {
-					klog.Errorf("Failed to get clusterName from work namespace %s. Error: %v.", work.Namespace, err)
-					return nil, err
-				}
-
 				aggregatedStatus := workv1alpha1.AggregatedStatusItem{
 					ClusterName: clusterName,
 					Status:      manifestStatus.Status,
+					Applied:     applied,
 				}
 				statuses = append(statuses, aggregatedStatus)
 				break
