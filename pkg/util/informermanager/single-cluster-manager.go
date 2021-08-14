@@ -1,6 +1,7 @@
 package informermanager
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -8,6 +9,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // SingleClusterInformerManager manages dynamic shared informer for all resources, include Kubernetes resource and
@@ -32,25 +35,35 @@ type SingleClusterInformerManager interface {
 	// The informer for 'resource' will be created if not exist, but without any event handler.
 	Lister(resource schema.GroupVersionResource) cache.GenericLister
 
-	// Start will run all informers with a stop channel, the informers will keep running until channel closed.
+	// Start will run all informers, the informers will keep running until the channel closed.
 	// It is intended to be called after create new informer(s), and it's safe to call multi times.
-	Start(stopCh <-chan struct{})
+	Start()
+
+	// Stop stops all single cluster informers of a cluster. Once it is stopped, it will be not able
+	// to Start again.
+	Stop()
 
 	// WaitForCacheSync waits for all caches to populate.
-	WaitForCacheSync(stopCh <-chan struct{}) map[schema.GroupVersionResource]bool
+	WaitForCacheSync() map[schema.GroupVersionResource]bool
 }
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
 // defaultResync with value '0' means no re-sync.
-func NewSingleClusterInformerManager(client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager {
+func NewSingleClusterInformerManager(client dynamic.Interface, defaultResync time.Duration, parentCh <-chan struct{}) SingleClusterInformerManager {
+	ctx, cancel := util.ContextForChannel(parentCh)
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
 		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
 		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 }
 
 type singleClusterInformerManagerImpl struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	informerFactory dynamicinformer.DynamicSharedInformerFactory
 
 	syncedInformers map[schema.GroupVersionResource]struct{}
@@ -111,14 +124,18 @@ func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVe
 	s.handlers[resource] = append(handlers, handler)
 }
 
-func (s *singleClusterInformerManagerImpl) Start(stopCh <-chan struct{}) {
-	s.informerFactory.Start(stopCh)
+func (s *singleClusterInformerManagerImpl) Start() {
+	s.informerFactory.Start(s.ctx.Done())
 }
 
-func (s *singleClusterInformerManagerImpl) WaitForCacheSync(stopCh <-chan struct{}) map[schema.GroupVersionResource]bool {
+func (s *singleClusterInformerManagerImpl) Stop() {
+	s.cancel()
+}
+
+func (s *singleClusterInformerManagerImpl) WaitForCacheSync() map[schema.GroupVersionResource]bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	res := s.informerFactory.WaitForCacheSync(stopCh)
+	res := s.informerFactory.WaitForCacheSync(s.ctx.Done())
 	for resource, synced := range res {
 		if _, exist := s.syncedInformers[resource]; !exist && synced {
 			s.syncedInformers[resource] = struct{}{}

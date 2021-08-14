@@ -11,20 +11,32 @@ import (
 var (
 	instance MultiClusterInformerManager
 	once     sync.Once
+	stopCh   chan struct{}
 )
+
+func init() {
+	stopCh = make(chan struct{})
+}
 
 // GetInstance returns a shared MultiClusterInformerManager instance.
 func GetInstance() MultiClusterInformerManager {
 	once.Do(func() {
-		instance = NewMultiClusterInformerManager()
+		instance = NewMultiClusterInformerManager(stopCh)
 	})
 	return instance
+}
+
+// StopInstance will stop the shared MultiClusterInformerManager instance.
+func StopInstance() {
+	once.Do(func() {
+		close(stopCh)
+	})
 }
 
 // MultiClusterInformerManager manages dynamic shared informer for all resources, include Kubernetes resource and
 // custom resources defined by CustomResourceDefinition, across multi-cluster.
 type MultiClusterInformerManager interface {
-	// ForCluster builds a informer manager for a specific cluster.
+	// ForCluster builds an informer manager for a specific cluster.
 	ForCluster(cluster string, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager
 
 	// GetSingleClusterManager gets the informer manager for a specific cluster.
@@ -34,24 +46,29 @@ type MultiClusterInformerManager interface {
 	// IsManagerExist checks if the informer manager for the cluster already created.
 	IsManagerExist(cluster string) bool
 
-	// Start will run all informers for a specific cluster, it accepts a stop channel, the informers will keep running until channel closed.
+	// Start will run all informers for a specific cluster.
 	// Should call after 'ForCluster', otherwise no-ops.
-	Start(cluster string, stopCh <-chan struct{})
+	Start(cluster string)
+
+	// Stop will stop all informers for a specific cluster, and delete the cluster from informer managers.
+	Stop(cluster string)
 
 	// WaitForCacheSync waits for all caches to populate.
 	// Should call after 'ForCluster', otherwise no-ops.
-	WaitForCacheSync(cluster string, stopCh <-chan struct{}) map[schema.GroupVersionResource]bool
+	WaitForCacheSync(cluster string) map[schema.GroupVersionResource]bool
 }
 
 // NewMultiClusterInformerManager constructs a new instance of multiClusterInformerManagerImpl.
-func NewMultiClusterInformerManager() MultiClusterInformerManager {
+func NewMultiClusterInformerManager(stopCh <-chan struct{}) MultiClusterInformerManager {
 	return &multiClusterInformerManagerImpl{
 		managers: make(map[string]SingleClusterInformerManager),
+		stopCh:   stopCh,
 	}
 }
 
 type multiClusterInformerManagerImpl struct {
 	managers map[string]SingleClusterInformerManager
+	stopCh   <-chan struct{}
 	lock     sync.RWMutex
 }
 
@@ -70,7 +87,7 @@ func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client dyna
 
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	manager := NewSingleClusterInformerManager(client, defaultResync)
+	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh)
 	m.managers[cluster] = manager
 	return manager
 }
@@ -87,19 +104,30 @@ func (m *multiClusterInformerManagerImpl) IsManagerExist(cluster string) bool {
 	return exist
 }
 
-func (m *multiClusterInformerManagerImpl) Start(cluster string, stopCh <-chan struct{}) {
+func (m *multiClusterInformerManagerImpl) Start(cluster string) {
 	// if informer manager haven't been created, just return with no-ops.
 	manager, exist := m.getManager(cluster)
 	if !exist {
 		return
 	}
-	manager.Start(stopCh)
+	manager.Start()
 }
 
-func (m *multiClusterInformerManagerImpl) WaitForCacheSync(cluster string, stopCh <-chan struct{}) map[schema.GroupVersionResource]bool {
+func (m *multiClusterInformerManagerImpl) Stop(cluster string) {
+	manager, exist := m.getManager(cluster)
+	if !exist {
+		return
+	}
+	manager.Stop()
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	delete(m.managers, cluster)
+}
+
+func (m *multiClusterInformerManagerImpl) WaitForCacheSync(cluster string) map[schema.GroupVersionResource]bool {
 	manager, exist := m.getManager(cluster)
 	if !exist {
 		return nil
 	}
-	return manager.WaitForCacheSync(stopCh)
+	return manager.WaitForCacheSync()
 }
