@@ -160,7 +160,7 @@ There are two contexts you can switch after the script run are:
 The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host` is only used for debugging karmada installation with host cluster, you can check all clusters at any time by run: `kubectl config view` and switch by `kubectl config use-context [CONTEXT_NAME]`
 
 ##### 3.2. I have present cluster for installing
-Before running the following script, please make sure your cluster could provide `LoadBalancer` type service.
+Before running the following script, please make sure your cluster could provide the `LoadBalancer` type service. Otherwise, type `export CLUSTER_IP_ONLY=true` with the `ClusterIP` type service before the following script.
 ```
 # hack/remote-up-karmada.sh <kubeconfig> <context_name>
 ```
