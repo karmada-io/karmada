@@ -151,6 +151,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := serviceExportController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
 	}
+
+	// Ensure the InformerManager stops when the stop channel closes
+	go func() {
+		<-stopChan
+		informermanager.StopInstance()
+	}()
 }
 
 func registerWithControlPlaneAPIServer(controlPlaneRestConfig *restclient.Config, memberClusterName string) error {

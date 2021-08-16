@@ -118,7 +118,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:           discoverClientSet,
 		Client:                       mgr.GetClient(),
-		InformerManager:              informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0),
+		InformerManager:              informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan),
 		RESTMapper:                   mgr.GetRESTMapper(),
 		DynamicClient:                dynamicClientSet,
 		SkippedResourceConfig:        skippedResourceConfig,
@@ -128,7 +128,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
 
-	setupClusterAPIClusterDetector(mgr, opts)
+	setupClusterAPIClusterDetector(mgr, opts, stopChan)
 
 	clusterController := &cluster.Controller{
 		Client:                    mgr.GetClient(),
@@ -282,10 +282,16 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := serviceImportController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
 	}
+
+	// Ensure the InformerManager stops when the stop channel closes
+	go func() {
+		<-stopChan
+		informermanager.StopInstance()
+	}()
 }
 
 // setupClusterAPIClusterDetector initialize Cluster detector with the cluster-api management cluster.
-func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options.Options) {
+func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	if len(opts.ClusterAPIKubeconfig) == 0 {
 		return
 	}
@@ -308,7 +314,7 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 		ControllerPlaneConfig: mgr.GetConfig(),
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,
-		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0),
+		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, stopChan),
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {
 		klog.Fatalf("Failed to setup cluster-api cluster detector: %v", err)

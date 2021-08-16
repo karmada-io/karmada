@@ -69,7 +69,7 @@ func (d *ClusterDetector) discoveryCluster() {
 		}
 	}
 
-	d.InformerManager.Start(d.stopCh)
+	d.InformerManager.Start()
 }
 
 // OnAdd handles object add event and push the object to queue.
