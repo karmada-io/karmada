@@ -79,13 +79,13 @@ type ClusterStatusController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will requeue the reconcile key after the duration.
 func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Syncing cluster status: %s", req.NamespacedName.String())
+	klog.V(4).Infof("Syncing cluster status: %s", req.NamespacedName.Name)
 
 	cluster := &v1alpha1.Cluster{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop the informer.
 		if errors.IsNotFound(err) {
-			// TODO(Garrybest): stop the informer and delete the cluster manager
+			c.InformerManager.Stop(req.NamespacedName.Name)
 			return controllerruntime.Result{}, nil
 		}
 
@@ -227,8 +227,8 @@ func (c *ClusterStatusController) buildInformerForCluster(cluster *v1alpha1.Clus
 		return singleClusterInformerManager, nil
 	}
 
-	c.InformerManager.Start(cluster.Name, c.StopChan)
-	synced := c.InformerManager.WaitForCacheSync(cluster.Name, c.StopChan)
+	c.InformerManager.Start(cluster.Name)
+	synced := c.InformerManager.WaitForCacheSync(cluster.Name)
 	if synced == nil {
 		klog.Errorf("The informer factory for cluster(%s) does not exist.", cluster.Name)
 		return nil, fmt.Errorf("informer factory for cluster(%s) does not exist", cluster.Name)

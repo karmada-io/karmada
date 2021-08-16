@@ -175,8 +175,8 @@ func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1al
 		return nil
 	}
 
-	c.InformerManager.Start(cluster.Name, c.StopChan)
-	synced := c.InformerManager.WaitForCacheSync(cluster.Name, c.StopChan)
+	c.InformerManager.Start(cluster.Name)
+	synced := c.InformerManager.WaitForCacheSync(cluster.Name)
 	if synced == nil {
 		klog.Errorf("No informerFactory for cluster %s exist.", cluster.Name)
 		return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)

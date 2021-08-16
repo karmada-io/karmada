@@ -156,7 +156,7 @@ func (d *ResourceDetector) discoverResources(period time.Duration) {
 			klog.Infof("Setup informer for %s", r.String())
 			d.InformerManager.ForResource(r, d.EventHandler)
 		}
-		d.InformerManager.Start(d.stopCh)
+		d.InformerManager.Start()
 	}, period, d.stopCh)
 }
 
