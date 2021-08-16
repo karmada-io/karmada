@@ -137,13 +137,14 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (
 	err = wait.PollImmediate(clusterStatusRetryInterval, clusterStatusRetryTimeout, func() (done bool, err error) {
 		online, healthy = getClusterHealthStatus(clusterClient)
 		if !online {
+			klog.V(2).Infof("Cluster(%s) is offline.", cluster.Name)
 			return false, nil
 		}
-		klog.V(2).Infof("Cluster(%s) back to online after retry.", cluster.Name)
 		return true, nil
 	})
 	// error indicates that retry timeout, update cluster status immediately and return.
 	if err != nil {
+		klog.V(2).Infof("Cluster(%s) still offline after retry, ensuring offline is set.", cluster.Name)
 		currentClusterStatus.Conditions = generateReadyCondition(false, false)
 		setTransitionTime(&cluster.Status, &currentClusterStatus)
 		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
