@@ -58,6 +58,9 @@ const (
 
 	// Unknown means can't detect the schedule type
 	Unknown ScheduleType = "Unknown"
+
+	// DefaultScheduler means default karmada scheduler name. handler by this scheduler.
+	DefaultScheduler string = "default-scheduler"
 )
 
 // Failover indicates if the scheduler should performs re-scheduler in case of cluster failure.
@@ -127,8 +130,18 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		UpdateFunc: sched.onResourceBindingUpdate,
 	})
 
-	policyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: sched.onPropagationPolicyUpdate,
+	policyInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: func(obj interface{}) bool {
+			switch t := obj.(type) {
+			case *policyv1alpha1.PropagationPolicy:
+				return isDefaultScheduler(t.Spec.SchedulerName)
+			default:
+				return false
+			}
+		},
+		Handler: cache.ResourceEventHandlerFuncs{
+			UpdateFunc: sched.onPropagationPolicyUpdate,
+		},
 	})
 
 	clusterBindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -136,8 +149,18 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		UpdateFunc: sched.onResourceBindingUpdate,
 	})
 
-	clusterPolicyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: sched.onClusterPropagationPolicyUpdate,
+	clusterPolicyInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: func(obj interface{}) bool {
+			switch t := obj.(type) {
+			case *policyv1alpha1.PropagationPolicy:
+				return isDefaultScheduler(t.Spec.SchedulerName)
+			default:
+				return false
+			}
+		},
+		Handler: cache.ResourceEventHandlerFuncs{
+			UpdateFunc: sched.onClusterPropagationPolicyUpdate,
+		},
 	})
 
 	memclusterInformer := factory.Cluster().V1alpha1().Clusters().Informer()
@@ -330,6 +353,15 @@ func (s *Scheduler) getScheduleType(key string) ScheduleType {
 			return Unknown
 		}
 
+		schedulerName, err := s.getBindingPolicySchedulerName(resourceBinding)
+		if err != nil {
+			return Unknown
+		}
+
+		if !isDefaultScheduler(schedulerName) {
+			return AvoidSchedule
+		}
+
 		if len(resourceBinding.Spec.Clusters) == 0 {
 			return FirstSchedule
 		}
@@ -376,6 +408,11 @@ func (s *Scheduler) getScheduleType(key string) ScheduleType {
 		if err != nil {
 			return Unknown
 		}
+
+		if !isDefaultScheduler(policy.Spec.SchedulerName) {
+			return AvoidSchedule
+		}
+
 		placement, err := json.Marshal(policy.Spec.Placement)
 		if err != nil {
 			klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
@@ -881,4 +918,22 @@ func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *
 		return err
 	}
 	return nil
+}
+
+func (s *Scheduler) getBindingPolicySchedulerName(resourceBinding *workv1alpha1.ResourceBinding) (string, error) {
+	if policyName := util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNameLabel); policyName != "" {
+		policyNamespace := util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNamespaceLabel)
+		policy, err := s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
+		if err != nil {
+			return "", err
+		}
+		return policy.Spec.SchedulerName, nil
+	}
+	// FIXME: policyName not exist need return errors.
+	return "", nil
+}
+
+func isDefaultScheduler(schedulerName string) bool {
+	// for exist PropagationPolicy without SchedulerName return true.
+	return schedulerName == DefaultScheduler || schedulerName == ""
 }
