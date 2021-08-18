@@ -1,0 +1,10 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  apiServerAddress: MAC_NIC_IPADDRESS
+nodes:
+- role: control-plane
+  image: kindest/node:v1.19.11
+  extraPortMappings:
+  - containerPort: 6443
+    hostPort: PUBLIC_PORT

@@ -52,18 +52,10 @@ util::get_macos_ipaddress # Adapt for macOS
 # create a cluster to deploy karmada control plane components.
 if [[ -n "${MAC_NIC_IPADDRESS}" ]]; then
     CONF=`mktemp`
-cat <<EOF >> $CONF
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-networking:
-  apiServerAddress: "${MAC_NIC_IPADDRESS}"
-nodes:
-- role: control-plane
-  image: kindest/node:v1.19.11
-  extraPortMappings:
-  - containerPort: 6443
-    hostPort: 8443
-EOF
+    PUBLIC_PORT=$(((RANDOM%(8000-7000+1))/1*1+7000))
+    cp artifacts/kindClusterConfig/member-example.yaml "${CONF}"
+    sed -i '' "s/MAC_NIC_IPADDRESS/${MAC_NIC_IPADDRESS}/g" "${CONF}"
+    sed -i '' "s/PUBLIC_PORT/${PUBLIC_PORT}/g" "${CONF}"
     kind create cluster --name "${CLUSTER_NAME}" \
         --kubeconfig="${KUBECONFIG}" --wait=120s \
         --config=${CONF}
@@ -79,12 +71,11 @@ kubectl config rename-context "kind-${CLUSTER_NAME}" "${CLUSTER_NAME}" --kubecon
 # Kind cluster uses `127.0.0.1` as kube-apiserver endpoint by default, thus kind clusters can't reach each other.
 # So we need to update endpoint with container IP.
 if [[ -n "${MAC_NIC_IPADDRESS}" ]]; then
-    kubectl config set-cluster "kind-${CLUSTER_NAME}" \
-        --server="https://${MAC_NIC_IPADDRESS}:8443" \
-        --kubeconfig="${KUBECONFIG}"
+    SERVER_URL="https://${MAC_NIC_IPADDRESS}:${PUBLIC_PORT}"
 else
     container_ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${CLUSTER_NAME}-control-plane")
-    kubectl config set-cluster "kind-${CLUSTER_NAME}" \
-    --server="https://${container_ip}:6443" \
-    --kubeconfig="${KUBECONFIG}"
+    SERVER_URL="https://{container_ip}:6443"
 fi
+kubectl config set-cluster "kind-${CLUSTER_NAME}" \
+    --server="${SERVER_URL}" \
+    --kubeconfig="${KUBECONFIG}"
