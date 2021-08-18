@@ -2,7 +2,6 @@ package detector
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -10,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -1059,6 +1057,12 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 	switch binding.Spec.Resource.Kind {
 	case util.DeploymentKind:
 		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
+	case util.ServiceKind:
+		return d.AggregateServiceStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
+	case util.IngressKind:
+		return d.AggregateIngressStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
+	case util.JobKind:
+		return d.AggregateJobStatus(binding.Spec.Resource, binding.Status.AggregatedStatus, binding.Spec.Clusters)
 	default:
 		// Unsupported resource type.
 		return nil
@@ -1097,102 +1101,15 @@ func (d *ResourceDetector) OnResourceBindingDelete(obj interface{}) {
 	}
 }
 
-// AggregateDeploymentStatus summarize deployment status and update to original objects.
-func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectReference, status []workv1alpha1.AggregatedStatusItem) error {
-	if objRef.APIVersion != "apps/v1" {
-		return nil
-	}
-
-	obj := &appsv1.Deployment{}
-	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: objRef.Namespace, Name: objRef.Name}, obj); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		klog.Errorf("Failed to get deployment(%s/%s): %v", objRef.Namespace, objRef.Name, err)
-		return err
-	}
-
-	oldStatus := &obj.Status
-	newStatus := &appsv1.DeploymentStatus{}
-	for _, item := range status {
-		if item.Status == nil {
-			continue
-		}
-		temp := &appsv1.DeploymentStatus{}
-		if err := json.Unmarshal(item.Status.Raw, temp); err != nil {
-			klog.Errorf("Failed to unmarshal status")
-			return err
-		}
-		klog.V(3).Infof("Scrub deployment(%s/%s) status from cluster(%s), replicas: %d, ready: %d, updated: %d, available: %d, unavailable: %d",
-			obj.Namespace, obj.Name, item.ClusterName, temp.Replicas, temp.ReadyReplicas, temp.UpdatedReplicas, temp.AvailableReplicas, temp.UnavailableReplicas)
-		newStatus.ObservedGeneration = obj.Generation
-		newStatus.Replicas += temp.Replicas
-		newStatus.ReadyReplicas += temp.ReadyReplicas
-		newStatus.UpdatedReplicas += temp.UpdatedReplicas
-		newStatus.AvailableReplicas += temp.AvailableReplicas
-		newStatus.UnavailableReplicas += temp.UnavailableReplicas
-	}
-
-	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
-		oldStatus.Replicas == newStatus.Replicas &&
-		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
-		oldStatus.UpdatedReplicas == newStatus.UpdatedReplicas &&
-		oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
-		oldStatus.UnavailableReplicas == newStatus.UnavailableReplicas {
-		klog.V(3).Infof("ignore update deployment(%s/%s) status as up to date", obj.Namespace, obj.Name)
-		return nil
-	}
-
-	oldStatus.ObservedGeneration = newStatus.ObservedGeneration
-	oldStatus.Replicas = newStatus.Replicas
-	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
-	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
-	oldStatus.AvailableReplicas = newStatus.AvailableReplicas
-	oldStatus.UnavailableReplicas = newStatus.UnavailableReplicas
-
-	if err := d.Client.Status().Update(context.TODO(), obj); err != nil {
-		klog.Errorf("Failed to update deployment(%s/%s) status: %v", objRef.Namespace, objRef.Name, err)
-		return err
-	}
-
-	return nil
-}
-
 // CleanupResourceTemplateStatus cleanup the status from resource template.
 // Note: Only limited resource type supported.
 func (d *ResourceDetector) CleanupResourceTemplateStatus(objRef workv1alpha1.ObjectReference) error {
 	switch objRef.Kind {
-	case util.DeploymentKind:
-		return d.CleanupDeploymentStatus(objRef)
+	case util.DeploymentKind, util.ServiceKind, util.IngressKind, util.JobKind:
+		return d.CleanupResourceStatus(objRef)
 	}
 
 	// Unsupported resource type.
-	return nil
-}
-
-// CleanupDeploymentStatus reinitialize Deployment status.
-func (d *ResourceDetector) CleanupDeploymentStatus(objRef workv1alpha1.ObjectReference) error {
-	if objRef.APIVersion != "apps/v1" {
-		return nil
-	}
-
-	obj := &appsv1.Deployment{}
-	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: objRef.Namespace, Name: objRef.Name}, obj); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		klog.Errorf("Failed to get deployment(%s/%s): %v", objRef.Namespace, objRef.Name, err)
-		return err
-	}
-
-	obj.Status = appsv1.DeploymentStatus{}
-
-	if err := d.Client.Status().Update(context.TODO(), obj); err != nil {
-		klog.Errorf("Failed to update deployment(%s/%s) status: %v", objRef.Namespace, objRef.Name, err)
-		return err
-	}
-	klog.V(2).Infof("Reinitialized deployment(%s/%s) status.", objRef.Namespace, objRef.Name)
-
 	return nil
 }
 
