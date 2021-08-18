@@ -16,7 +16,7 @@ HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # The KUBECONFIG path for the 'host cluster'.
 HOST_CLUSTER_KUBECONFIG="${KUBECONFIG_PATH}/karmada.config"
-CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.19.1"}
+CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.19.11"}
 KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 # Make sure go exists
