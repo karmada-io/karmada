@@ -17,14 +17,18 @@ var (
 )
 
 const (
-	defaultBindAddress = "0.0.0.0"
-	defaultPort        = 10357
+	defaultMetricsBindAddress = ":8080"
+	defaultBindAddress        = "0.0.0.0"
+	defaultPort               = 10357
 )
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
 	HostNamespace  string
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
+	// MetricsBindAddress is the TCP address that the controller should bind to for serving prometheus metrics.
+	// It can be set to "0" to disable the metrics serving.
+	MetricsBindAddress string
 	// BindAddress is the IP address on which to listen for the --secure-port port.
 	BindAddress string
 	// SecurePort is the port that the the server serves at.
@@ -90,6 +94,7 @@ func (o *Options) Complete() {
 
 // AddFlags adds flags to the specified FlagSet.
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", defaultMetricsBindAddress, "The TCP address for serving prometheus metrics.")
 	flags.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
 		"The IP address on which to listen for the --secure-port port.")
 	flags.IntVar(&o.SecurePort, "secure-port", defaultPort,

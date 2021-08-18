@@ -1,6 +1,8 @@
 package detector
 
 import (
+	"strings"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/klog/v2"
@@ -38,6 +40,12 @@ func GetDeletableResources(discoveryClient discovery.ServerResourcesInterface) m
 			klog.Warningf("ignoring invalid discovered resource %q: %v", rl.GroupVersion, err)
 			continue
 		}
+
+		//TODO
+		if !strings.Contains(gv.Group, "autoscaling.karrier.io") {
+			continue
+		}
+
 		for i := range rl.APIResources {
 			deletableGroupVersionResources[schema.GroupVersionResource{Group: gv.Group, Version: gv.Version, Resource: rl.APIResources[i].Name}] = struct{}{}
 		}

@@ -66,6 +66,8 @@ func (o *objectWatcherImpl) Create(cluster *v1alpha1.Cluster, desireObj *unstruc
 		return err
 	}
 
+	desireObj.SetResourceVersion("")
+
 	// Karmada will adopt creating resource due to an existing resource in member cluster, because we don't want to force update or delete the resource created by users.
 	// users should resolve the conflict in person.
 	clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(context.TODO(), desireObj, metav1.CreateOptions{})
@@ -74,7 +76,7 @@ func (o *objectWatcherImpl) Create(cluster *v1alpha1.Cluster, desireObj *unstruc
 		// - 1. In a reconcile process, the execution controller successfully applied resource to member cluster but failed to update the work conditions(Applied=True),
 		//   when reconcile again, the controller will try to apply(by create) the resource again.
 		// - 2. The resource already exist in the member cluster but it's not created by karmada.
-		if apierrors.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) || strings.Contains(err.Error(), "already exists") {
 			existObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Get(context.TODO(), desireObj.GetName(), metav1.GetOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to get exist resource(kind=%s, %s/%s) in cluster %v: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
@@ -109,6 +111,8 @@ func (o *objectWatcherImpl) Update(cluster *v1alpha1.Cluster, desireObj, cluster
 		klog.Errorf("Failed to update resource(%s/%s) as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), err)
 		return err
 	}
+
+	desireObj.SetUID("")
 
 	err = RetainClusterFields(desireObj, clusterObj)
 	if err != nil {

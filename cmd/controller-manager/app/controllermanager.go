@@ -22,10 +22,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
-	"github.com/karmada-io/karmada/pkg/controllers/hpa"
+	//"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
-	"github.com/karmada-io/karmada/pkg/controllers/namespace"
-	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
+	//"github.com/karmada-io/karmada/pkg/controllers/namespace"
+	//"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/detector"
@@ -69,6 +69,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		LeaderElectionID:       "karmada-controller-manager",
 		HealthProbeBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort),
 		LivenessEndpointName:   "/healthz",
+		MetricsBindAddress:     opts.MetricsBindAddress,
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)
@@ -173,22 +174,26 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup cluster status controller: %v", err)
 	}
 
-	hpaController := &hpa.HorizontalPodAutoscalerController{
-		Client:        mgr.GetClient(),
-		DynamicClient: dynamicClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(hpa.ControllerName),
-		RESTMapper:    mgr.GetRESTMapper(),
-	}
-	if err := hpaController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup hpa controller: %v", err)
-	}
+	/*
+		hpaController := &hpa.HorizontalPodAutoscalerController{
+			Client:        mgr.GetClient(),
+			DynamicClient: dynamicClientSet,
+			EventRecorder: mgr.GetEventRecorderFor(hpa.ControllerName),
+			RESTMapper:    mgr.GetRESTMapper(),
+		}
+		if err := hpaController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup hpa controller: %v", err)
+		}
+	*/
 
-	policyController := &propagationpolicy.Controller{
-		Client: mgr.GetClient(),
-	}
-	if err := policyController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup policy controller: %v", err)
-	}
+	/*
+		policyController := &propagationpolicy.Controller{
+			Client: mgr.GetClient(),
+		}
+		if err := policyController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup policy controller: %v", err)
+		}
+	*/
 
 	bindingController := &binding.ResourceBindingController{
 		Client:          mgr.GetClient(),
@@ -240,14 +245,16 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup work status controller: %v", err)
 	}
 
-	namespaceSyncController := &namespace.Controller{
-		Client:                       mgr.GetClient(),
-		EventRecorder:                mgr.GetEventRecorderFor(namespace.ControllerName),
-		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
-	}
-	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
-	}
+	/*
+		namespaceSyncController := &namespace.Controller{
+			Client:                       mgr.GetClient(),
+			EventRecorder:                mgr.GetEventRecorderFor(namespace.ControllerName),
+			SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		}
+		if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup namespace sync controller: %v", err)
+		}
+	*/
 
 	serviceExportController := &mcs.ServiceExportController{
 		Client:                      mgr.GetClient(),

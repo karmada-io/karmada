@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
@@ -116,5 +117,5 @@ func getInClusterNamespace() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error reading namespace file: %w", err)
 	}
-	return string(namespace), nil
+	return strings.Replace(string(namespace), "\n", "", -1), nil
 }
