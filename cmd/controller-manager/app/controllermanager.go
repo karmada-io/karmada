@@ -120,6 +120,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		DynamicClient:                dynamicClientSet,
 		SkippedResourceConfig:        skippedResourceConfig,
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		ManagedGroups:                opts.ManagedGroups,
 	}
 
 	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)

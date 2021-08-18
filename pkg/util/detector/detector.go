@@ -75,6 +75,8 @@ type ResourceDetector struct {
 	waitingLock sync.RWMutex
 
 	stopCh <-chan struct{}
+
+	ManagedGroups []string
 }
 
 // Start runs the detector, never stop until stopCh closed.
@@ -146,7 +148,7 @@ var _ manager.LeaderElectionRunnable = &ResourceDetector{}
 
 func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
-		newResources := GetDeletableResources(d.DiscoveryClientSet)
+		newResources := GetDeletableResources(d.DiscoveryClientSet, d.ManagedGroups)
 		for r := range newResources {
 			if d.InformerManager.IsHandlerExist(r, d.EventHandler) {
 				continue

@@ -26,6 +26,8 @@ const (
 type Options struct {
 	HostNamespace  string
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
+
+	ManagedGroups []string
 	// MetricsBindAddress is the TCP address that the controller should bind to for serving prometheus metrics.
 	// It can be set to "0" to disable the metrics serving.
 	MetricsBindAddress string
@@ -94,6 +96,7 @@ func (o *Options) Complete() {
 
 // AddFlags adds flags to the specified FlagSet.
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
+	flags.StringSliceVar(&o.ManagedGroups, "managed-groups", []string{"autoscaling.karrier.io"}, "Groups managed by federation.")
 	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", defaultMetricsBindAddress, "The TCP address for serving prometheus metrics.")
 	flags.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
 		"The IP address on which to listen for the --secure-port port.")
