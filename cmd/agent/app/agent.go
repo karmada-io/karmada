@@ -100,6 +100,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		StopChan:                          stopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
+		ClusterClientOption:               &util.ClientOption{QPS: 40, Burst: 60},
 		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,

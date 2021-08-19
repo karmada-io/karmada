@@ -290,7 +290,7 @@ func deleteCluster(clusterName, kubeConfigPath string) error {
 
 func newClusterClientSet(c *clusterv1alpha1.Cluster) (*util.ClusterClient, *util.DynamicClusterClient, error) {
 	if c.Spec.SyncMode == clusterv1alpha1.Push {
-		clusterClient, err := util.NewClusterClientSet(c, controlPlaneClient)
+		clusterClient, err := util.NewClusterClientSet(c, controlPlaneClient, nil)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -60,8 +60,10 @@ type ClusterStatusController struct {
 	PredicateFunc               predicate.Predicate
 	InformerManager             informermanager.MultiClusterInformerManager
 	StopChan                    <-chan struct{}
-	ClusterClientSetFunc        func(c *v1alpha1.Cluster, client client.Client) (*util.ClusterClient, error)
+	ClusterClientSetFunc        func(*v1alpha1.Cluster, client.Client, *util.ClientOption) (*util.ClusterClient, error)
 	ClusterDynamicClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
+	// ClusterClientOption holds the attributes that should be injected to a Kubernetes client.
+	ClusterClientOption *util.ClientOption
 
 	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
 	ClusterStatusUpdateFrequency metav1.Duration
@@ -113,7 +115,7 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create a ClusterClient for the given member cluster
-	clusterClient, err := c.ClusterClientSetFunc(cluster, c.Client)
+	clusterClient, err := c.ClusterClientSetFunc(cluster, c.Client, c.ClusterClientOption)
 	if err != nil {
 		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
