@@ -43,6 +43,68 @@ spec:
                 description: Overriders represents the override rules that would apply
                   on resources
                 properties:
+                  argsOverrider:
+                    description: ArgsOverrider represents the rules dedicated to handling
+                      container args
+                    items:
+                      description: CommandArgsOverrider represents the rules dedicated
+                        to handling command/args overrides.
+                      properties:
+                        containerName:
+                          description: The name of container
+                          type: string
+                        operator:
+                          description: Operator represents the operator which will
+                            apply on the command/args.
+                          enum:
+                          - add
+                          - remove
+                          type: string
+                        value:
+                          description: Value to be applied to command/args. Items
+                            in Value which will be appended after command/args when
+                            Operator is 'add'. Items in Value which match in command/args
+                            will be deleted when Operator is 'remove'. If Value is
+                            empty, then the command/args will remain the same.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - containerName
+                      - operator
+                      type: object
+                    type: array
+                  commandOverrider:
+                    description: CommandOverrider represents the rules dedicated to
+                      handling container command
+                    items:
+                      description: CommandArgsOverrider represents the rules dedicated
+                        to handling command/args overrides.
+                      properties:
+                        containerName:
+                          description: The name of container
+                          type: string
+                        operator:
+                          description: Operator represents the operator which will
+                            apply on the command/args.
+                          enum:
+                          - add
+                          - remove
+                          type: string
+                        value:
+                          description: Value to be applied to command/args. Items
+                            in Value which will be appended after command/args when
+                            Operator is 'add'. Items in Value which match in command/args
+                            will be deleted when Operator is 'remove'. If Value is
+                            empty, then the command/args will remain the same.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - containerName
+                      - operator
+                      type: object
+                    type: array
                   imageOverrider:
                     description: ImageOverrider represents the rules dedicated to
                       handling image overrides.
