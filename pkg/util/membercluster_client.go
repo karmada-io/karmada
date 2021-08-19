@@ -20,12 +20,8 @@ import (
 )
 
 const (
-	// kubeAPIQPS is the maximum QPS to the master from this client
-	kubeAPIQPS = 20.0
-	// kubeAPIBurst is the maximum burst for throttle
-	kubeAPIBurst = 30
-	tokenKey     = "token"
-	cADataKey    = "caBundle"
+	tokenKey  = "token"
+	cADataKey = "caBundle"
 )
 
 // ClusterClient stands for a cluster Clientset for the given member cluster
@@ -40,29 +36,53 @@ type DynamicClusterClient struct {
 	ClusterName      string
 }
 
+// Config holds the common attributes that can be passed to a Kubernetes client on
+// initialization.
+
+// ClientOption holds the attributes that should be injected to a Kubernetes client.
+type ClientOption struct {
+	// QPS indicates the maximum QPS to the master from this client.
+	// If it's zero, the created RESTClient will use DefaultQPS: 5
+	QPS float32
+
+	// Burst indicates the maximum burst for throttle.
+	// If it's zero, the created RESTClient will use DefaultBurst: 10.
+	Burst int
+}
+
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
-func NewClusterClientSet(c *v1alpha1.Cluster, client client.Client) (*ClusterClient, error) {
+func NewClusterClientSet(c *v1alpha1.Cluster, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
 	clusterConfig, err := buildClusterConfig(c, client)
 	if err != nil {
 		return nil, err
 	}
+
 	var clusterClientSet = ClusterClient{ClusterName: c.Name}
 
 	if clusterConfig != nil {
+		if clientOption != nil {
+			clusterConfig.QPS = clientOption.QPS
+			clusterConfig.Burst = clientOption.Burst
+		}
 		clusterClientSet.KubeClient = kubeclientset.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
 }
 
 // NewClusterClientSetForAgent returns a ClusterClient for the given member cluster which will be used in karmada agent.
-func NewClusterClientSetForAgent(c *v1alpha1.Cluster, client client.Client) (*ClusterClient, error) {
+func NewClusterClientSetForAgent(c *v1alpha1.Cluster, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
 	}
+
 	var clusterClientSet = ClusterClient{ClusterName: c.Name}
 
 	if clusterConfig != nil {
+		if clientOption != nil {
+			clusterConfig.QPS = clientOption.QPS
+			clusterConfig.Burst = clientOption.Burst
+		}
 		clusterClientSet.KubeClient = kubeclientset.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
@@ -125,8 +145,6 @@ func buildClusterConfig(cluster *v1alpha1.Cluster, client client.Client) (*rest.
 	}
 
 	clusterConfig.BearerToken = string(token)
-	clusterConfig.QPS = kubeAPIQPS
-	clusterConfig.Burst = kubeAPIBurst
 
 	if cluster.Spec.InsecureSkipTLSVerification {
 		clusterConfig.TLSClientConfig.Insecure = true
