@@ -49,6 +49,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		panic(err)
 	}
+	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
+
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:         gclient.NewSchema(),
 		Host:           opts.BindAddress,
