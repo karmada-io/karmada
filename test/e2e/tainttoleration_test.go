@@ -59,26 +59,24 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By("adding taints to clusters", func() {
-				for _, cluster := range clusterNames {
-					clusterObj := &clusterv1alpha1.Cluster{}
-					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				for _, clusterName := range clusterNames {
+					taints := constructAddedTaints(tolerationKey, clusterName)
 
-					// TODO(RainbowMango): This will overrides the taints already exist in the cluster.
-					// Should merge new taint to it and cleanup after testing.
-					clusterObj.Spec.Taints = []corev1.Taint{
-						{
-							Key:    tolerationKey,
-							Value:  clusterObj.Name,
-							Effect: corev1.TaintEffectNoSchedule,
-						},
-					}
+					gomega.Eventually(func() bool {
+						clusterObj := &clusterv1alpha1.Cluster{}
+						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-					for _, taint := range clusterObj.Spec.Taints {
-						klog.Infof("Adding taints(%s) to cluster(%s)", taint.ToString(), clusterObj.Name)
-					}
-					err = controlPlaneClient.Update(context.TODO(), clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						clusterObj.Spec.Taints = append(clusterObj.Spec.Taints, taints...)
+						klog.Infof("update taints(%s) of cluster(%s)", clusterObj.Spec.Taints, clusterName)
+
+						err = controlPlaneClient.Update(context.TODO(), clusterObj)
+						if err != nil {
+							klog.Errorf("Failed to update cluster(%s), err: %v", clusterName, err)
+							return false
+						}
+						return true
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				}
 			})
 		})
@@ -92,14 +90,22 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 
 		ginkgo.AfterEach(func() {
 			ginkgo.By("removing taints in cluster", func() {
-				for _, cluster := range clusterNames {
-					clusterObj := &clusterv1alpha1.Cluster{}
-					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				for _, clusterName := range clusterNames {
+					gomega.Eventually(func() bool {
+						clusterObj := &clusterv1alpha1.Cluster{}
+						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-					clusterObj.Spec.Taints = nil
-					err = controlPlaneClient.Update(context.TODO(), clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						clusterObj.Spec.Taints = removeTargetFromSource(clusterObj.Spec.Taints, constructAddedTaints(tolerationKey, clusterName))
+						klog.Infof("update taints(%s) of cluster(%s)", clusterObj.Spec.Taints, clusterName)
+
+						err = controlPlaneClient.Update(context.TODO(), clusterObj)
+						if err != nil {
+							klog.Errorf("Failed to update cluster(%s), err: %v", clusterName, err)
+							return false
+						}
+						return true
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				}
 			})
 		})
@@ -124,3 +130,31 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 		})
 	})
 })
+
+func constructAddedTaints(tolerationKey, clusterName string) []corev1.Taint {
+	return []corev1.Taint{
+		{
+			Key:    tolerationKey,
+			Value:  clusterName,
+			Effect: corev1.TaintEffectNoSchedule,
+		},
+	}
+}
+
+func removeTargetFromSource(source, target []corev1.Taint) []corev1.Taint {
+	var result []corev1.Taint
+	for si := range source {
+		deleted := false
+		for tj := range target {
+			if source[si].MatchTaint(&target[tj]) {
+				deleted = true
+				break
+			}
+		}
+		if !deleted {
+			result = append(result, source[si])
+		}
+	}
+
+	return result
+}
