@@ -139,6 +139,9 @@ func (c *Controller) removeCluster(cluster *v1alpha1.Cluster) (controllerruntime
 		return controllerruntime.Result{Requeue: true}, fmt.Errorf("requeuing operation until the execution space %v deleted, ", cluster.Name)
 	}
 
+	// delete the health data from the map explicitly after we removing the cluster.
+	c.clusterHealthMap.Delete(cluster.Name)
+
 	return c.removeFinalizer(cluster)
 }
 
