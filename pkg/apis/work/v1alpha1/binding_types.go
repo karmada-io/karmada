@@ -28,6 +28,15 @@ type ResourceBinding struct {
 type ResourceBindingSpec struct {
 	// Resource represents the Kubernetes resource to be propagated.
 	Resource ObjectReference `json:"resource"`
+
+	// ReplicaResourceRequirements represents the resources required by each replica.
+	// +optional
+	ReplicaResourceRequirements corev1.ResourceList `json:"replicaResourceRequirements,omitempty"`
+
+	// Replicas represents the replica number of the referencing resource.
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
@@ -55,14 +64,6 @@ type ObjectReference struct {
 	// determine when object has changed.
 	// +optional
 	ResourceVersion string `json:"resourceVersion,omitempty"`
-
-	// ReplicaResourceRequirements represents the resources required by each replica.
-	// +optional
-	ReplicaResourceRequirements corev1.ResourceList `json:"resourcePerReplicas,omitempty"`
-
-	// Replicas represents the replica number of the referencing resource.
-	// +optional
-	Replicas int32 `json:"replicas,omitempty"`
 }
 
 // TargetCluster represents the identifier of a member cluster.
