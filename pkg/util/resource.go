@@ -102,11 +102,12 @@ func (r *Resource) ResourceList() corev1.ResourceList {
 // - the sum of all app containers(spec.Containers) request for a resource.
 // - the effective init containers(spec.InitContainers) request for a resource.
 // The effective init containers request is the highest request on all init containers.
-func (r *Resource) AddPodRequest(pod *corev1.Pod) {
-	for _, container := range pod.Spec.Containers {
+func (r *Resource) AddPodRequest(podSpec *corev1.PodSpec) *Resource {
+	for _, container := range podSpec.Containers {
 		r.Add(container.Resources.Requests)
 	}
-	for _, container := range pod.Spec.InitContainers {
+	for _, container := range podSpec.InitContainers {
 		r.SetMaxResource(container.Resources.Requests)
 	}
+	return r
 }
