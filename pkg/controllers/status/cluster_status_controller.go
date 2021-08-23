@@ -510,7 +510,7 @@ func getAllocatingResource(podList []*corev1.Pod) corev1.ResourceList {
 	allocating := util.EmptyResource()
 	for _, pod := range podList {
 		if len(pod.Spec.NodeName) == 0 {
-			allocating.AddPodRequest(pod)
+			allocating.AddPodRequest(&pod.Spec)
 		}
 	}
 
@@ -522,7 +522,7 @@ func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
 	for _, pod := range podList {
 		// When the phase of a pod is Succeeded or Failed, kube-scheduler would not consider its resource occupation.
 		if len(pod.Spec.NodeName) != 0 && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
-			allocated.AddPodRequest(pod)
+			allocated.AddPodRequest(&pod.Spec)
 		}
 	}
 

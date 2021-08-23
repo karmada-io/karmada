@@ -672,20 +672,9 @@ func (d *ResourceDetector) getReplicaResourceRequirements(object map[string]inte
 	if err != nil {
 		return nil, err
 	}
-	resPtr := d.calculateResource(&podTemplateSpec.Spec)
-	replicaResourceRequirements := resPtr.ResourceList()
+	res := util.EmptyResource().AddPodRequest(&podTemplateSpec.Spec)
+	replicaResourceRequirements := res.ResourceList()
 	return replicaResourceRequirements, nil
-}
-
-func (d *ResourceDetector) calculateResource(podSpec *corev1.PodSpec) (res util.Resource) {
-	resPtr := &res
-	for _, c := range podSpec.Containers {
-		resPtr.Add(c.Resources.Requests)
-	}
-	for _, c := range podSpec.InitContainers {
-		resPtr.SetMaxResource(c.Resources.Requests)
-	}
-	return
 }
 
 // AddWaiting adds object's key to waiting list.
