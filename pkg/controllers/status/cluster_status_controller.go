@@ -129,7 +129,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *v1alpha1.Cluster) (
 	}
 
 	// init the lease controller for every cluster
-	c.initLeaseController(cluster)
+	c.initLeaseController(clusterInformerManager.Context(), cluster)
 
 	var currentClusterStatus = v1alpha1.ClusterStatus{}
 
@@ -244,7 +244,7 @@ func (c *ClusterStatusController) buildInformerForCluster(cluster *v1alpha1.Clus
 	return singleClusterInformerManager, nil
 }
 
-func (c *ClusterStatusController) initLeaseController(cluster *v1alpha1.Cluster) {
+func (c *ClusterStatusController) initLeaseController(ctx context.Context, cluster *v1alpha1.Cluster) {
 	// If lease controller has been registered, we skip this function.
 	if _, exists := c.ClusterLeaseControllers.Load(cluster.Name); exists {
 		return
@@ -253,7 +253,7 @@ func (c *ClusterStatusController) initLeaseController(cluster *v1alpha1.Cluster)
 	// renewInterval is how often the lease renew time is updated.
 	renewInterval := time.Duration(float64(c.ClusterLeaseDuration.Nanoseconds()) * c.ClusterLeaseRenewIntervalFraction)
 
-	nodeLeaseController := lease.NewController(
+	clusterLeaseController := lease.NewController(
 		clock.RealClock{},
 		c.KubeClient,
 		cluster.Name,
@@ -263,13 +263,12 @@ func (c *ClusterStatusController) initLeaseController(cluster *v1alpha1.Cluster)
 		util.NamespaceClusterLease,
 		util.SetLeaseOwnerFunc(c.Client, cluster.Name))
 
-	c.ClusterLeaseControllers.Store(cluster.Name, nodeLeaseController)
+	c.ClusterLeaseControllers.Store(cluster.Name, clusterLeaseController)
 
 	// start syncing lease
-	// todo(garryfang): stop the lease controller when cluster does not exist according to #384
 	go func() {
-		nodeLeaseController.Run(c.StopChan)
-		<-c.StopChan
+		clusterLeaseController.Run(ctx.Done())
+		<-ctx.Done()
 		c.ClusterLeaseControllers.Delete(cluster.Name)
 	}()
 }

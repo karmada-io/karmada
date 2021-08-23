@@ -45,6 +45,9 @@ type SingleClusterInformerManager interface {
 
 	// WaitForCacheSync waits for all caches to populate.
 	WaitForCacheSync() map[schema.GroupVersionResource]bool
+
+	// Context returns the single cluster context.
+	Context() context.Context
 }
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
@@ -142,4 +145,8 @@ func (s *singleClusterInformerManagerImpl) WaitForCacheSync() map[schema.GroupVe
 		}
 	}
 	return res
+}
+
+func (s *singleClusterInformerManagerImpl) Context() context.Context {
+	return s.ctx
 }
