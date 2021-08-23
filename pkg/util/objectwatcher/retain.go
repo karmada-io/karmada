@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 /*
@@ -50,16 +52,35 @@ func RetainClusterFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 }
 
 func retainPodFields(desiredObj, clusterObj *unstructured.Unstructured) error {
-	nodeName, ok, err := unstructured.NestedString(clusterObj.Object, "spec", "nodeName")
+	desiredPod, err := helper.ConvertToPod(desiredObj)
 	if err != nil {
-		return fmt.Errorf("error retrieving nodeName from cluster pod: %w", err)
+		return fmt.Errorf("failed to convert desiredPod from unstructured object: %v", err)
 	}
-	if ok && nodeName != "" {
-		err := unstructured.SetNestedField(desiredObj.Object, nodeName, "spec", "nodeName")
-		if err != nil {
-			return fmt.Errorf("error setting nodeName for pod: %w", err)
+
+	clusterPod, err := helper.ConvertToPod(clusterObj)
+	if err != nil {
+		return fmt.Errorf("failed to convert clusterPod from unstructured object: %v", err)
+	}
+
+	desiredPod.Spec.NodeName = clusterPod.Spec.NodeName
+	desiredPod.Spec.ServiceAccountName = clusterPod.Spec.ServiceAccountName
+	desiredPod.Spec.Volumes = clusterPod.Spec.Volumes
+	// retain volumeMounts in each container
+	for _, clusterContainer := range clusterPod.Spec.Containers {
+		for desiredIndex, desiredContainer := range desiredPod.Spec.Containers {
+			if desiredContainer.Name == clusterContainer.Name {
+				desiredPod.Spec.Containers[desiredIndex].VolumeMounts = clusterContainer.VolumeMounts
+				break
+			}
 		}
 	}
+
+	unCastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(desiredPod)
+	if err != nil {
+		return fmt.Errorf("failed to transform Pod: %v", err)
+	}
+
+	desiredObj.Object = unCastObj
 	return nil
 }
 
