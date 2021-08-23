@@ -3,7 +3,9 @@ package work
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -126,6 +128,20 @@ func removeIrrelevantField(workload *unstructured.Unstructured) error {
 
 		if job.Spec.ManualSelector == nil || !*job.Spec.ManualSelector {
 			return removeGenerateSelectorOfJob(workload)
+		}
+	}
+
+	if workload.GetKind() == util.ServiceAccountKind {
+		secrets, exist, _ := unstructured.NestedSlice(workload.Object, "secrets")
+		// If 'secrets' exists in ServiceAccount, remove the automatic generation secrets(e.g. default-token-xxx)
+		if exist && len(secrets) > 0 {
+			tokenPrefix := fmt.Sprintf("%s-token-", workload.GetName())
+			for idx := 0; idx < len(secrets); idx++ {
+				if strings.HasPrefix(secrets[idx].(map[string]interface{})["name"].(string), tokenPrefix) {
+					secrets = append(secrets[:idx], secrets[idx+1:]...)
+				}
+			}
+			_ = unstructured.SetNestedSlice(workload.Object, secrets, "secrets")
 		}
 	}
 
