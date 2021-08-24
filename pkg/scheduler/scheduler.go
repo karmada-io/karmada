@@ -482,7 +482,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha1.Resour
 		return err
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec.Resource)
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec)
 	if err != nil {
 		klog.V(2).Infof("failed scheduling ResourceBinding %s/%s: %v", resourceBinding.Namespace, resourceBinding.Name, err)
 		return err
@@ -505,7 +505,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha1.Resour
 }
 
 func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha1.ClusterResourceBinding, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec.Resource)
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
 	if err != nil {
 		klog.V(2).Infof("failed scheduling ClusterResourceBinding %s: %v", clusterResourceBinding.Name, err)
 		return err

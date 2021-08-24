@@ -57,6 +57,21 @@ spec:
                   - name
                   type: object
                 type: array
+              replicaResourceRequirements:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: ReplicaResourceRequirements represents the resources
+                  required by each replica.
+                type: object
+              replicas:
+                description: Replicas represents the replica number of the referencing
+                  resource.
+                format: int32
+                type: integer
               resource:
                 description: Resource represents the Kubernetes resource to be propagated.
                 properties:
@@ -76,21 +91,6 @@ spec:
                       Namespace is required. If Namespace is not specified, means
                       the resource is non-namespace scoped.
                     type: string
-                  replicas:
-                    description: Replicas represents the replica number of the referencing
-                      resource.
-                    format: int32
-                    type: integer
-                  resourcePerReplicas:
-                    additionalProperties:
-                      anyOf:
-                      - type: integer
-                      - type: string
-                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      x-kubernetes-int-or-string: true
-                    description: ReplicaResourceRequirements represents the resources
-                      required by each replica.
-                    type: object
                   resourceVersion:
                     description: ResourceVersion represents the internal version of
                       the referenced object, that can be used by clients to determine

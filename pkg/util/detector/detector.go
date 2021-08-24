@@ -602,14 +602,14 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 		},
 		Spec: workv1alpha1.ResourceBindingSpec{
 			Resource: workv1alpha1.ObjectReference{
-				APIVersion:                  object.GetAPIVersion(),
-				Kind:                        object.GetKind(),
-				Namespace:                   object.GetNamespace(),
-				Name:                        object.GetName(),
-				ResourceVersion:             object.GetResourceVersion(),
-				ReplicaResourceRequirements: replicaResourceRequirements,
-				Replicas:                    replicas,
+				APIVersion:      object.GetAPIVersion(),
+				Kind:            object.GetKind(),
+				Namespace:       object.GetNamespace(),
+				Name:            object.GetName(),
+				ResourceVersion: object.GetResourceVersion(),
 			},
+			ReplicaResourceRequirements: replicaResourceRequirements,
+			Replicas:                    replicas,
 		},
 	}
 
@@ -633,13 +633,13 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		},
 		Spec: workv1alpha1.ResourceBindingSpec{
 			Resource: workv1alpha1.ObjectReference{
-				APIVersion:                  object.GetAPIVersion(),
-				Kind:                        object.GetKind(),
-				Name:                        object.GetName(),
-				ResourceVersion:             object.GetResourceVersion(),
-				ReplicaResourceRequirements: replicaResourceRequirements,
-				Replicas:                    replicas,
+				APIVersion:      object.GetAPIVersion(),
+				Kind:            object.GetKind(),
+				Name:            object.GetName(),
+				ResourceVersion: object.GetResourceVersion(),
 			},
+			ReplicaResourceRequirements: replicaResourceRequirements,
+			Replicas:                    replicas,
 		},
 	}
 

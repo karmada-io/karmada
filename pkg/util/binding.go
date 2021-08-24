@@ -23,7 +23,7 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha1.ResourceBindingSpec, str
 	}
 	if strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		for _, targetCluster := range bindingSpec.Clusters {
-			if targetCluster.Replicas != bindingSpec.Resource.Replicas {
+			if targetCluster.Replicas != bindingSpec.Replicas {
 				return true
 			}
 		}
@@ -34,7 +34,7 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha1.ResourceBindingSpec, str
 		for _, targetCluster := range bindingSpec.Clusters {
 			replicasSum += targetCluster.Replicas
 		}
-		return replicasSum != bindingSpec.Resource.Replicas
+		return replicasSum != bindingSpec.Replicas
 	}
 	return false
 }

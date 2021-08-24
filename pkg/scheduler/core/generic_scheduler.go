@@ -23,7 +23,7 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ObjectReference) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
 	ScaleSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
 }
 
@@ -52,13 +52,13 @@ func NewGenericScheduler(
 	}
 }
 
-func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha1.ObjectReference) (result ScheduleResult, err error) {
+func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, resource, clusterInfoSnapshot)
+	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, &spec.Resource, clusterInfoSnapshot)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
@@ -75,7 +75,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 
 	clusters := g.selectClusters(clustersScore, placement.SpreadConstraints, feasibleClusters)
 
-	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, resource)
+	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
 	if err != nil {
 		return result, fmt.Errorf("failed to assignReplicas: %v", err)
 	}
@@ -198,7 +198,7 @@ func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*c
 	return feasibleClusters
 }
 
-func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy, object *workv1alpha1.ObjectReference) ([]workv1alpha1.TargetCluster, error) {
+func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy, object *workv1alpha1.ResourceBindingSpec) ([]workv1alpha1.TargetCluster, error) {
 	if len(clusters) == 0 {
 		return nil, fmt.Errorf("no clusters available to schedule")
 	}
@@ -294,39 +294,39 @@ func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
 // divideReplicasAggregatedWithResource assigns a total number of replicas to the selected clusters aggregated according to the resource
-func (g *genericScheduler) divideReplicasAggregatedWithResource(clusters []*clusterv1alpha1.Cluster, object *workv1alpha1.ObjectReference,
+func (g *genericScheduler) divideReplicasAggregatedWithResource(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha1.ResourceBindingSpec,
 	preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
 	// preUsedClustersName is used to prioritize the clusters
-	for _, value := range object.ReplicaResourceRequirements {
+	for _, value := range spec.ReplicaResourceRequirements {
 		if value.Value() > 0 {
-			return g.divideReplicasAggregatedWithResourceRequirements(clusters, object, preUsedClustersName...)
+			return g.divideReplicasAggregatedWithResourceRequirements(clusters, spec, preUsedClustersName...)
 		}
 	}
-	return g.divideReplicasAggregatedWithoutResourceRequirements(clusters, object, preUsedClustersName...)
+	return g.divideReplicasAggregatedWithoutResourceRequirements(clusters, spec, preUsedClustersName...)
 }
 
 func (g *genericScheduler) divideReplicasAggregatedWithoutResourceRequirements(clusters []*clusterv1alpha1.Cluster,
-	object *workv1alpha1.ObjectReference, preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
+	spec *workv1alpha1.ResourceBindingSpec, preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
 	preUsedClusters, unUsedClusters := g.getPreUsed(clusters, preUsedClustersName...)
 	clusters = append(preUsedClusters, unUsedClusters...)
 	targetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
 	for i, clusterInfo := range clusters {
 		targetClusters[i] = workv1alpha1.TargetCluster{Name: clusterInfo.Name, Replicas: 0}
 	}
-	targetClusters[0] = workv1alpha1.TargetCluster{Name: clusters[0].Name, Replicas: object.Replicas}
+	targetClusters[0] = workv1alpha1.TargetCluster{Name: clusters[0].Name, Replicas: spec.Replicas}
 	return targetClusters, nil
 }
 
 func (g *genericScheduler) divideReplicasAggregatedWithResourceRequirements(clusters []*clusterv1alpha1.Cluster,
-	object *workv1alpha1.ObjectReference, preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
+	spec *workv1alpha1.ResourceBindingSpec, preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
 	// make sure preUsedClusters are in front of the unUsedClusters in the list of clusterAvailableReplicas
 	// so that we can assign new replicas to them preferentially when scale up.
 	// preUsedClusters have none items during first scheduler
 	preUsedClusters, unUsedClusters := g.getPreUsed(clusters, preUsedClustersName...)
-	preUsedClustersAvailableReplicas := g.calAvailableReplicas(preUsedClusters, object.ReplicaResourceRequirements)
-	unUsedClustersAvailableReplicas := g.calAvailableReplicas(unUsedClusters, object.ReplicaResourceRequirements)
+	preUsedClustersAvailableReplicas := g.calAvailableReplicas(preUsedClusters, spec.ReplicaResourceRequirements)
+	unUsedClustersAvailableReplicas := g.calAvailableReplicas(unUsedClusters, spec.ReplicaResourceRequirements)
 	clusterAvailableReplicas := append(preUsedClustersAvailableReplicas, unUsedClustersAvailableReplicas...)
-	return g.divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas, object.Replicas)
+	return g.divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas, spec.Replicas)
 }
 
 func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaResourceRequirements corev1.ResourceList) []workv1alpha1.TargetCluster {
@@ -432,10 +432,10 @@ func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv
 	spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
 	newTargetClusters := make([]workv1alpha1.TargetCluster, len(spec.Clusters))
 
-	if spec.Resource.Replicas > 0 {
+	if spec.Replicas > 0 {
 		if placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 			for i, cluster := range spec.Clusters {
-				newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: spec.Resource.Replicas}
+				newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: spec.Replicas}
 			}
 			result.SuggestedClusters = newTargetClusters
 			return result, nil
@@ -446,7 +446,7 @@ func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv
 					return result, fmt.Errorf("no WeightPreference find to divide replicas")
 				}
 				preSelectedClusters := g.getPreSelected(spec.Clusters)
-				clustersWithReplicase, err := g.divideReplicasByStaticWeight(preSelectedClusters, placement.ReplicaScheduling.WeightPreference.StaticWeightList, spec.Resource.Replicas)
+				clustersWithReplicase, err := g.divideReplicasByStaticWeight(preSelectedClusters, placement.ReplicaScheduling.WeightPreference.StaticWeightList, spec.Replicas)
 				if err != nil {
 					return result, fmt.Errorf("failed to assignReplicas with Weight: %v", err)
 				}
@@ -469,13 +469,13 @@ func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv
 
 func (g *genericScheduler) scaleScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
 	assignedReplicas := util.GetSumOfReplicas(spec.Clusters)
-	if assignedReplicas > spec.Resource.Replicas {
+	if assignedReplicas > spec.Replicas {
 		newTargetClusters, err := g.scaleDownScheduleWithReplicaDivisionPreferenceAggregated(spec)
 		if err != nil {
 			return result, fmt.Errorf("failed to scaleDown: %v", err)
 		}
 		result.SuggestedClusters = newTargetClusters
-	} else if assignedReplicas < spec.Resource.Replicas {
+	} else if assignedReplicas < spec.Replicas {
 		newTargetClusters, err := g.scaleUpScheduleWithReplicaDivisionPreferenceAggregated(spec)
 		if err != nil {
 			return result, fmt.Errorf("failed to scaleUp: %v", err)
@@ -488,7 +488,7 @@ func (g *genericScheduler) scaleScheduleWithReplicaDivisionPreferenceAggregated(
 }
 
 func (g *genericScheduler) scaleDownScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha1.ResourceBindingSpec) ([]workv1alpha1.TargetCluster, error) {
-	return g.divideReplicasAggregatedWithClusterReplicas(spec.Clusters, spec.Resource.Replicas)
+	return g.divideReplicasAggregatedWithClusterReplicas(spec.Clusters, spec.Replicas)
 }
 
 func (g *genericScheduler) scaleUpScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha1.ResourceBindingSpec) ([]workv1alpha1.TargetCluster, error) {
@@ -508,8 +508,8 @@ func (g *genericScheduler) scaleUpScheduleWithReplicaDivisionPreferenceAggregate
 	// only the new replicas are considered during this scheduler, the old replicas will not be moved.
 	// if not the old replicas may be recreated which is not expected during scaling up
 	// use usedTargetClusters to make sure that we assign new replicas to them preferentially so that all the replicas are aggregated
-	newObject := spec.Resource.DeepCopy()
-	newObject.Replicas = spec.Resource.Replicas - assignedReplicas
+	newObject := spec.DeepCopy()
+	newObject.Replicas = spec.Replicas - assignedReplicas
 	result, err := g.divideReplicasAggregatedWithResource(preSelected, newObject, usedTargetClusters...)
 	if err != nil {
 		return result, err
