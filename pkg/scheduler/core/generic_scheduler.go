@@ -297,9 +297,11 @@ func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Re
 func (g *genericScheduler) divideReplicasAggregatedWithResource(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha1.ResourceBindingSpec,
 	preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
 	// preUsedClustersName is used to prioritize the clusters
-	for _, value := range spec.ReplicaResourceRequirements {
-		if value.Value() > 0 {
-			return g.divideReplicasAggregatedWithResourceRequirements(clusters, spec, preUsedClustersName...)
+	if spec.ReplicaRequirements != nil {
+		for _, value := range spec.ReplicaRequirements.ResourceRequest {
+			if value.Value() > 0 {
+				return g.divideReplicasAggregatedWithResourceRequirements(clusters, spec, preUsedClustersName...)
+			}
 		}
 	}
 	return g.divideReplicasAggregatedWithoutResourceRequirements(clusters, spec, preUsedClustersName...)
@@ -323,16 +325,16 @@ func (g *genericScheduler) divideReplicasAggregatedWithResourceRequirements(clus
 	// so that we can assign new replicas to them preferentially when scale up.
 	// preUsedClusters have none items during first scheduler
 	preUsedClusters, unUsedClusters := g.getPreUsed(clusters, preUsedClustersName...)
-	preUsedClustersAvailableReplicas := g.calAvailableReplicas(preUsedClusters, spec.ReplicaResourceRequirements)
-	unUsedClustersAvailableReplicas := g.calAvailableReplicas(unUsedClusters, spec.ReplicaResourceRequirements)
+	preUsedClustersAvailableReplicas := g.calAvailableReplicas(preUsedClusters, spec.ReplicaRequirements)
+	unUsedClustersAvailableReplicas := g.calAvailableReplicas(unUsedClusters, spec.ReplicaRequirements)
 	clusterAvailableReplicas := append(preUsedClustersAvailableReplicas, unUsedClustersAvailableReplicas...)
 	return g.divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas, spec.Replicas)
 }
 
-func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaResourceRequirements corev1.ResourceList) []workv1alpha1.TargetCluster {
+func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha1.ReplicaRequirements) []workv1alpha1.TargetCluster {
 	availableTargetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
 	for i, cluster := range clusters {
-		maxReplicas := g.calClusterAvailableReplicas(cluster, replicaResourceRequirements)
+		maxReplicas := g.calClusterAvailableReplicas(cluster, replicaRequirements)
 		availableTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: maxReplicas}
 	}
 	sort.Sort(TargetClustersList(availableTargetClusters))
@@ -340,11 +342,11 @@ func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Clus
 }
 
 // calClusterAvailableReplicas calculates how many replicas can be applied to the target cluster.
-func (g *genericScheduler) calClusterAvailableReplicas(cluster *clusterv1alpha1.Cluster, resourcePerReplicas corev1.ResourceList) int32 {
+func (g *genericScheduler) calClusterAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha1.ReplicaRequirements) int32 {
 	var maximumReplicas int64 = math.MaxInt32
 	resourceSummary := cluster.Status.ResourceSummary
 
-	for key, value := range resourcePerReplicas {
+	for key, value := range replicaRequirements.ResourceRequest {
 		requestedQuantity := value.Value()
 		if requestedQuantity <= 0 {
 			continue
