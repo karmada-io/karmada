@@ -258,6 +258,7 @@ func applyImageOverriders(rawObj *unstructured.Unstructured, imageOverriders []p
 	for index := range imageOverriders {
 		patches, err := buildPatches(rawObj, &imageOverriders[index])
 		if err != nil {
+			klog.Errorf("Build patches with imageOverrides err: %v", err)
 			return err
 		}
 
