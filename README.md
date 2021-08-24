@@ -252,6 +252,20 @@ NAME    READY   UP-TO-DATE   AVAILABLE   AGE
 nginx   1/1     1            1           43s
 ```
 
+## Kubernetes compatibility
+
+|                        | Kubernetes 1.15 | Kubernetes 1.16 | Kubernetes 1.17 | Kubernetes 1.18 | Kubernetes 1.19 | Kubernetes 1.20 | Kubernetes 1.21 |
+|------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| Karmada v0.6           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | -               |
+| Karmada v0.7          | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | -               |
+| Karmada v0.8           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+| Karmada HEAD (master) | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+
+Key:
+* `✓` Karmada and the Kubernetes version are exactly compatible.
+* `+` Karmada has features or API objects that may not be present in the Kubernetes version.
+* `-` The Kubernetes version has features or API objects that Karmada can't use.
+
 ## Meeting
 
 Regular Community Meeting:
