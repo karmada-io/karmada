@@ -45,6 +45,7 @@ type StaticClusterWeight struct {
 	TargetCluster ClusterAffinity `json:"targetCluster"`
 
 	// Weight expressing the preference to the cluster(s) specified by 'TargetCluster'.
+	// +kubebuilder:validation:Minimum=1
 	// +required
 	Weight int64 `json:"weight"`
 }
