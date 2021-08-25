@@ -901,7 +901,6 @@ k8s.io/kube-openapi/pkg/util/sets
 k8s.io/kube-scheduler/extender/v1
 # k8s.io/kubernetes v1.21.3
 ## explicit
-k8s.io/kubernetes/pkg/apis/batch
 k8s.io/kubernetes/pkg/apis/core
 k8s.io/kubernetes/pkg/apis/core/helper
 k8s.io/kubernetes/pkg/apis/core/v1/helper
