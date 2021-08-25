@@ -838,9 +838,10 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 }
 
 // HandlePropagationPolicyDeletion handles PropagationPolicy delete event.
-// When policy removing, the associated ResourceBinding objects should be cleaned up.
-// In addition, the label added to original resource also need to be cleaned up, this gives a chance for
-// original resource to match another policy.
+// After a policy is removed, the label marked on relevant resource template will be removed(which gives
+// the resource template a change to match another policy).
+//
+// Note: The relevant ResourceBinding will continue to exist until the resource template is gone.
 func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, policyName string) error {
 	labelSet := labels.Set{
 		policyv1alpha1.PropagationPolicyNamespaceLabel: policyNS,
@@ -853,7 +854,7 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 		return err
 	}
 
-	for itemIndex, binding := range rbs.Items {
+	for _, binding := range rbs.Items {
 		// Cleanup the labels from the object referencing by binding.
 		// In addition, this will give the object a chance to match another policy.
 		if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.PropagationPolicyNameLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
@@ -861,33 +862,28 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Namespace, binding.Name, err)
 			return err
 		}
-
-		klog.V(2).Infof("Removing binding(%s/%s)", binding.Namespace, binding.Name)
-		if err := d.Client.Delete(context.TODO(), &rbs.Items[itemIndex]); err != nil {
-			klog.Errorf("Failed to delete binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
-			return err
-		}
 	}
 	return nil
 }
 
 // HandleClusterPropagationPolicyDeletion handles ClusterPropagationPolicy delete event.
-// When policy removing, the associated ClusterResourceBinding or ResourceBinding objects will be cleaned up.
-// In addition, the label added to original resource also should be cleaned up, this gives a chance for
-// original resource to match another policy.
+// After a policy is removed, the label marked on relevant resource template will be removed(which gives
+// the resource template a change to match another policy).
+//
+// Note: The relevant ClusterResourceBinding or ResourceBinding will continue to exist until the resource template is gone.
 func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName string) error {
 	var errs []error
 	labelSet := labels.Set{
 		policyv1alpha1.ClusterPropagationPolicyLabel: policyName,
 	}
 
-	// load and remove the ClusterResourceBindings which labeled with current policy
+	// load the ClusterResourceBindings which labeled with current policy
 	crbs, err := helper.GetClusterResourceBindings(d.Client, labelSet)
 	if err != nil {
 		klog.Errorf("Failed to load cluster resource binding by policy(%s), error: %v", policyName, err)
 		errs = append(errs, err)
 	} else if len(crbs.Items) > 0 {
-		for itemIndex, binding := range crbs.Items {
+		for _, binding := range crbs.Items {
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
 			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
@@ -895,32 +891,20 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 					binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Name, err)
 				errs = append(errs, err)
 			}
-
-			klog.V(2).Infof("Removing cluster resource binding(%s)", binding.Name)
-			if err := d.Client.Delete(context.TODO(), &crbs.Items[itemIndex]); err != nil {
-				klog.Errorf("Failed to delete cluster resource binding(%s), error: %v", binding.Name, err)
-				errs = append(errs, err)
-			}
 		}
 	}
 
-	// load and remove the ResourceBindings which labeled with current policy
+	// load the ResourceBindings which labeled with current policy
 	rbs, err := helper.GetResourceBindings(d.Client, labelSet)
 	if err != nil {
 		klog.Errorf("Failed to load resource binding by policy(%s), error: %v", policyName, err)
 		errs = append(errs, err)
 	} else if len(rbs.Items) > 0 {
-		for itemIndex, binding := range rbs.Items {
+		for _, binding := range rbs.Items {
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
 			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
 				klog.Errorf("Failed to cleanup label from resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
-				errs = append(errs, err)
-			}
-
-			klog.V(2).Infof("Removing resource binding(%s)", binding.Name)
-			if err := d.Client.Delete(context.TODO(), &rbs.Items[itemIndex]); err != nil {
-				klog.Errorf("Failed to delete resource binding(%s/%s), error: %v", binding.Namespace, binding.Name, err)
 				errs = append(errs, err)
 			}
 		}
