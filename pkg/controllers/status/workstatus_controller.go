@@ -58,6 +58,7 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
+			c.InformerManager.Stop(req.NamespacedName.Name)
 			return controllerruntime.Result{}, nil
 		}
 
