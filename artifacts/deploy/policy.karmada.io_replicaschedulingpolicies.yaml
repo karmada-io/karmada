@@ -159,6 +159,7 @@ spec:
                           description: Weight expressing the preference to the cluster(s)
                             specified by 'TargetCluster'.
                           format: int64
+                          minimum: 1
                           type: integer
                       required:
                       - targetCluster
