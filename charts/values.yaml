@@ -1,0 +1,339 @@
+## Default values for charts.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
+
+## @param installMode "host" and "agent" are provided
+## "host" means install karmada in the control-cluster
+## "agent" means install agent client in the member cluster
+installMode: "host"
+
+## @param clusterDomain default domain for karmada
+clusterDomain: "cluster.local"
+
+## karmada certificate config
+certs:
+  ## @param certs.mode "auto" and "custom" are provided
+  ## "auto" means auto generate certificate
+  ## "custom" means use user certificate
+  mode: auto
+  auto:
+    ## @param certs.auto.expiry expiry of the certificate
+    expiry: 43800h
+    ## @param certs.auto.hosts hosts of the certificate
+    hosts: [
+      "kubernetes.default.svc",
+      "*.etcd.karmada-system.svc.cluster.local",
+      "*.karmada-system.svc.cluster.local",
+      "*.karmada-system.svc",
+      "localhost",
+      "127.0.0.1"
+    ]
+  custom:
+    ## @param certs.custom.caCrt ca of the certificate
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.crt crt of the certificate
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.key key of the certificate
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+
+## scheduler config
+scheduler:
+  ## @param scheduler.labels
+  labels:
+    app: karmada-scheduler
+  ## @param scheduler.replicaCount target replicas
+  replicaCount: 1
+  ## @param scheduler.podAnnotations
+  podAnnotations: { }
+  ## @param scheduler.podLabels
+  podLabels: { }
+  ## @param scheduler.imagePullSecrets
+  imagePullSecrets: [ ]
+  image:
+    ## @param scheduler.image.repository image of the scheduler
+    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler
+    ## @param scheduler.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param scheduler.image.tag verrides the image tag whose default is the latest
+    tag: latest
+  ## @param scheduler.resources
+  resources: { }
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param scheduler.nodeSelector
+  nodeSelector: { }
+  ## @param scheduler.affinity
+  affinity: { }
+  ## @param scheduler.tolerations
+  tolerations: [ ]
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+
+## webhook config
+webhook:
+  ## @param webhook.labels
+  labels:
+    app: karmada-webhook
+  ## @param webhook.replicaCount target replicas
+  replicaCount: 1
+  ## @param webhook.podAnnotations
+  podAnnotations: { }
+  ## @param webhook.podLabels
+  podLabels: { }
+  ## @param webhook.imagePullSecrets
+  imagePullSecrets: [ ]
+  image:
+    ## @param webhook.image.repository image of the webhook
+    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook
+    ## @param webhook.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param webhook.image.tag verrides the image tag whose default is the latest
+    tag: latest
+  ## @param webhook.resources
+  resources: { }
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param webhook.nodeSelector
+  nodeSelector: { }
+  ## @param webhook.affinity
+  affinity: { }
+  ## @param webhook.tolerations
+  tolerations: [ ]
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+
+## controller manager config
+controllerManager:
+  ## @param controllerManager.labels
+  labels:
+    app: karmada-controller-manager
+  ## @param controllerManager.replicaCount target replicas
+  replicaCount: 1
+  ## @param controllerManager.podAnnotations
+  podAnnotations: { }
+  ## @param controllerManager.podLabels
+  podLabels: { }
+  ## @param controllerManager.imagePullSecrets
+  imagePullSecrets: [ ]
+  image:
+    ## @param controllerManager.image.repository image of the controller manager
+    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager
+    ## @param controllerManager.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param controllerManager.image.tag verrides the image tag whose default is the latest
+    tag: latest
+  ## @param controllerManager.resources
+  resources: { }
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param controllerManager.nodeSelector
+  nodeSelector: { }
+  ## @param controllerManager.affinity
+  affinity: { }
+  ## @param controllerManager.tolerations
+  tolerations: [ ]
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+
+## karmada apiserver config
+apiServer:
+  ## @param apiServer.labels
+  labels:
+    app: karmada-apiserver
+  ## @param apiServer.replicaCount target replicas
+  replicaCount: 1
+  ## @param apiServer.podAnnotations
+  podAnnotations: { }
+  ## @param apiServer.podLabels
+  podLabels: { }
+  ## @param apiServer.imagePullSecrets
+  imagePullSecrets: []
+  image:
+    ## @param apiServer.image.repository image of the apiserver
+    repository: k8s.gcr.io/kube-apiserver
+    ## @param apiServer.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param apiServer.image.tag verrides the image tag whose default is the latest
+    tag: "v1.19.1"
+  ## @param apiServer.resources
+  resources: { }
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param apiServer.nodeSelector
+  nodeSelector: { }
+  ## @param apiServer.affinity
+  affinity: { }
+  ## @param apiServer.tolerations
+  tolerations: [ ]
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+
+## kubernetes controller manager config
+kubeControllerManager:
+  ## @param kubeControllerManager.labels
+  labels:
+    app: kube-controller-manager
+  ## @param kubeControllerManager.replicaCount target replicas
+  replicaCount: 1
+  ## @param kubeControllerManager.podAnnotations
+  podAnnotations: {}
+  ## @param kubeControllerManager.podLabels
+  podLabels: {}
+  ## @param kubeControllerManager.imagePullSecrets
+  imagePullSecrets: []
+  image:
+    ## @param kubeControllerManager.image.repository image of the kube controller manager
+    repository: k8s.gcr.io/kube-controller-manager
+    ## @param kubeControllerManager.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param kubeControllerManager.image.tag verrides the image tag whose default is the latest
+    tag: "v1.19.1"
+  ## @param kubeControllerManager.resources
+  resources:
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param kubeControllerManager.nodeSelector
+  nodeSelector: {}
+  ## @param kubeControllerManager.affinity
+  affinity: {}
+  ## @param kubeControllerManager.tolerations
+  tolerations: [ ]
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+
+## etcd config
+etcd:
+  ## @param etcd.mode "external" and "internal" are provided
+  ## "external" means use external ectd 
+  ## "internal" means install a etcd in the cluster
+  mode: "internal"
+  external:
+    ## @param etcd.external.servers servers of etcd
+    ## such as "https://192.168.1.1:2379,https://192.168.1.2:2379,https://192.168.1.3:2379"
+    servers: ""
+    ## @param etcd.external.registryPrefix use to registry prefix of etcd
+    registryPrefix: "/registry/karmada"
+    certs:
+      ## @param etcd.external.certs.caCrt ca of the certificate
+      caCrt: |
+        -----BEGIN CERTIFICATE-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END CERTIFICATE-----
+      ## @param etcd.external.certs.crt crt of the certificate
+      crt: |
+        -----BEGIN CERTIFICATE-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END CERTIFICATE-----
+      ## @param etcd.external.certs.key key of the certificate
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END RSA PRIVATE KEY-----
+  internal:
+    ## @param etcd.internal.replicaCount target replicas
+    replicaCount: 1
+    image:
+      ## @param etcd.internal.image.repository image of the etcd
+      repository: k8s.gcr.io/etcd
+      ## @param etcd.internal.image.pullPolicy pull policy of image
+      pullPolicy: IfNotPresent
+      ## @param etcd.internal.image.tag verrides the image tag whose default is the latest
+      tag: "3.4.13-0"
+
+## agent client config
+agent:
+  ## @param agent.clusterName name of the member cluster
+  clusterName: ""
+  kubeconfig:
+    ## @param agent.kubeconfig.caCrt ca of the certificate
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param agent.kubeconfig.crt crt of the certificate
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param agent.kubeconfig.key key of the certificate
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param agent.kubeconfig.server apiserver of the karmada
+    server: ""
+  ## @param agent.labels
+  labels:
+    app: karmada-agent
+  ## @param agent.replicaCount target replicas
+  replicaCount: 1
+  ## @param agent.podAnnotations
+  podAnnotations: { }
+  ## @param agent.podLabels
+  podLabels: { }
+  ## @param agent.imagePullSecrets
+  imagePullSecrets: [ ]
+  image:
+    ## @param agent.image.repository image of the agent
+    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-agent
+    ## @param agent.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param agent.image.tag verrides the image tag whose default is the latest
+    tag: latest
+  ## @param agent.resources 
+  resources: { }
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param agent.nodeSelector
+  nodeSelector: { }
+  ## @param agent.affinity
+  affinity: { }
+  ## @param agent.tolerations
+  tolerations: { }
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
