@@ -261,7 +261,7 @@ func (c *ClusterStatusController) initLeaseController(ctx context.Context, clust
 		nil,
 		renewInterval,
 		util.NamespaceClusterLease,
-		util.SetLeaseOwnerFunc(c.Client, cluster.Name))
+		setLeaseOwnerFunc(c.Client, cluster.Name))
 
 	c.ClusterLeaseControllers.Store(cluster.Name, clusterLeaseController)
 

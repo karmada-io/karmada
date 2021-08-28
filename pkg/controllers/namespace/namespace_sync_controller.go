@@ -23,8 +23,8 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	karmadactlutil "github.com/karmada-io/karmada/pkg/controllers/util"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -112,7 +112,7 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 			return err
 		}
 
-		workName := names.GenerateWorkName(namespaceObj.GetKind(), namespaceObj.GetName(), namespaceObj.GetNamespace())
+		workName := karmadactlutil.GenerateWorkName(namespaceObj.GetKind(), namespaceObj.GetName(), namespaceObj.GetNamespace())
 		objectMeta := metav1.ObjectMeta{
 			Name:       workName,
 			Namespace:  workNamespace,
@@ -125,7 +125,7 @@ func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Clu
 		util.MergeLabel(namespaceObj, workv1alpha1.WorkNamespaceLabel, workNamespace)
 		util.MergeLabel(namespaceObj, workv1alpha1.WorkNameLabel, workName)
 
-		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, namespaceObj); err != nil {
+		if err = karmadactlutil.CreateOrUpdateWork(c.Client, objectMeta, namespaceObj); err != nil {
 			return err
 		}
 	}

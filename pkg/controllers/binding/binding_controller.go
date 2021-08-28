@@ -46,7 +46,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
 		// The resource no longer exist, clean up derived Work objects.
 		if errors.IsNotFound(err) {
-			return helper.DeleteWorks(c.Client, labels.Set{
+			return deleteWorks(c.Client, labels.Set{
 				workv1alpha1.ResourceBindingNamespaceLabel: req.Namespace,
 				workv1alpha1.ResourceBindingNameLabel:      req.Name,
 			})
@@ -59,7 +59,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 		return controllerruntime.Result{}, nil
 	}
 
-	isReady := helper.IsBindingReady(binding.Spec.Clusters)
+	isReady := isBindingReady(binding.Spec.Clusters)
 	if !isReady {
 		klog.Infof("ResourceBinding(%s/%s) is not ready to sync", binding.GetNamespace(), binding.GetName())
 		return controllerruntime.Result{}, nil
@@ -70,15 +70,15 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 
 // syncBinding will sync resourceBinding to Works.
 func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBinding) (controllerruntime.Result, error) {
-	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters)
-	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name, clusterNames, apiextensionsv1.NamespaceScoped)
+	clusterNames := getBindingClusterNames(binding.Spec.Clusters)
+	works, err := findOrphanWorks(c.Client, binding.Namespace, binding.Name, clusterNames, apiextensionsv1.NamespaceScoped)
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = helper.RemoveOrphanWorks(c.Client, works)
+	err = removeOrphanWorks(c.Client, works)
 	if err != nil {
 		klog.Errorf("Failed to remove orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
@@ -99,7 +99,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBi
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload)
+	err = aggregateResourceBindingWorkStatus(c.Client, binding, workload)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)

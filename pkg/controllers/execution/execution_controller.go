@@ -18,8 +18,8 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	karmadactlutil "github.com/karmada-io/karmada/pkg/controllers/util"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -69,7 +69,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		applied := helper.IsResourceApplied(&work.Status)
+		applied := karmadactlutil.IsResourceApplied(&work.Status)
 		if applied {
 			err := c.tryDeleteWorkload(cluster, work)
 			if err != nil {
@@ -166,7 +166,7 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha
 			continue
 		}
 
-		applied := helper.IsResourceApplied(&work.Status)
+		applied := karmadactlutil.IsResourceApplied(&work.Status)
 		if applied {
 			err = c.tryUpdateWorkload(cluster, workload, clusterDynamicClient)
 			if err != nil {

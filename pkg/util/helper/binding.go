@@ -4,21 +4,16 @@ import (
 	"context"
 	"sort"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -50,81 +45,6 @@ func SortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
 	}
 	sort.Sort(p)
 	return p
-}
-
-// IsBindingReady will check if resourceBinding/clusterResourceBinding is ready to build Work.
-func IsBindingReady(targetClusters []workv1alpha1.TargetCluster) bool {
-	return len(targetClusters) != 0
-}
-
-// HasScheduledReplica checks if the scheduler has assigned replicas for each cluster.
-func HasScheduledReplica(scheduleResult []workv1alpha1.TargetCluster) bool {
-	for _, clusterResult := range scheduleResult {
-		if clusterResult.Replicas > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// GetBindingClusterNames will get clusterName list from bind clusters field
-func GetBindingClusterNames(targetClusters []workv1alpha1.TargetCluster) []string {
-	var clusterNames []string
-	for _, targetCluster := range targetClusters {
-		clusterNames = append(clusterNames, targetCluster.Name)
-	}
-	return clusterNames
-}
-
-// FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
-// then pick the works that not meet current binding declaration.
-func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clusterNames []string, scope apiextensionsv1.ResourceScope) ([]workv1alpha1.Work, error) {
-	workList := &workv1alpha1.WorkList{}
-	if scope == apiextensionsv1.NamespaceScoped {
-		selector := labels.SelectorFromSet(labels.Set{
-			workv1alpha1.ResourceBindingNamespaceLabel: bindingNamespace,
-			workv1alpha1.ResourceBindingNameLabel:      bindingName,
-		})
-
-		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
-			return nil, err
-		}
-	} else {
-		selector := labels.SelectorFromSet(labels.Set{
-			workv1alpha1.ClusterResourceBindingLabel: bindingName,
-		})
-
-		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
-			return nil, err
-		}
-	}
-
-	var orphanWorks []workv1alpha1.Work
-	expectClusters := sets.NewString(clusterNames...)
-	for _, work := range workList.Items {
-		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
-		if err != nil {
-			klog.Errorf("Failed to get cluster name which Work %s/%s belongs to. Error: %v.",
-				work.GetNamespace(), work.GetName(), err)
-			return nil, err
-		}
-		if !expectClusters.Has(workTargetCluster) {
-			orphanWorks = append(orphanWorks, work)
-		}
-	}
-	return orphanWorks, nil
-}
-
-// RemoveOrphanWorks will remove orphan works.
-func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
-	for workIndex, work := range works {
-		err := c.Delete(context.TODO(), &works[workIndex])
-		if err != nil {
-			return err
-		}
-		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
-	}
-	return nil
 }
 
 // FetchWorkload fetches the kubernetes resource to be propagated.
@@ -170,27 +90,4 @@ func GetWorks(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
 	return works, c.List(context.TODO(), works, listOpt)
-}
-
-// DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(c client.Client, selector labels.Set) (controllerruntime.Result, error) {
-	workList, err := GetWorks(c, selector)
-	if err != nil {
-		klog.Errorf("Failed to get works by label %v: %v", selector, err)
-		return controllerruntime.Result{Requeue: true}, err
-	}
-
-	var errs []error
-	for index, work := range workList.Items {
-		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
-			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
-			errs = append(errs, err)
-		}
-	}
-
-	if len(errs) > 0 {
-		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
-	}
-
-	return controllerruntime.Result{}, nil
 }

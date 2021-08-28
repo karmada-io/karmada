@@ -18,8 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	karmadactlutil "github.com/karmada-io/karmada/pkg/controllers/util"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -88,7 +88,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
 			return err
 		}
-		workName := names.GenerateWorkName(hpaObj.GetKind(), hpaObj.GetName(), hpa.GetNamespace())
+		workName := karmadactlutil.GenerateWorkName(hpaObj.GetKind(), hpaObj.GetName(), hpa.GetNamespace())
 		objectMeta := metav1.ObjectMeta{
 			Name:       workName,
 			Namespace:  workNamespace,
@@ -101,7 +101,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 		util.MergeLabel(hpaObj, workv1alpha1.WorkNamespaceLabel, workNamespace)
 		util.MergeLabel(hpaObj, workv1alpha1.WorkNameLabel, workName)
 
-		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, hpaObj); err != nil {
+		if err = karmadactlutil.CreateOrUpdateWork(c.Client, objectMeta, hpaObj); err != nil {
 			return err
 		}
 	}
@@ -133,7 +133,7 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 	if err := c.Client.Get(context.TODO(), namespacedName, binding); err != nil {
 		return nil, err
 	}
-	return util.GetBindingClusterNames(binding), nil
+	return karmadactlutil.GetBindingClusterNames(binding), nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.

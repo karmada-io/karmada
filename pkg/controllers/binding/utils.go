@@ -6,17 +6,25 @@ import (
 	"sort"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/kind/pkg/errors"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	karmadactlutil "github.com/karmada-io/karmada/pkg/controllers/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -103,14 +111,14 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 		}
 
 		workMeta := metav1.ObjectMeta{
-			Name:        names.GenerateWorkName(clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace()),
+			Name:        karmadactlutil.GenerateWorkName(clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace()),
 			Namespace:   workNamespace,
 			Finalizers:  []string{util.ExecutionControllerFinalizer},
 			Labels:      workLabel,
 			Annotations: annotations,
 		}
 
-		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload); err != nil {
+		if err = karmadactlutil.CreateOrUpdateWork(c, workMeta, clonedWorkload); err != nil {
 			return err
 		}
 	}
@@ -118,11 +126,11 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 }
 
 func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured, targetClusters []workv1alpha1.TargetCluster) (bool, *v1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
-	if helper.HasScheduledReplica(targetClusters) {
+	if hasScheduledReplica(targetClusters) {
 		return true, nil, transScheduleResultToMap(targetClusters), nil
 	}
 
-	referenceRSP, desireReplicaInfos, err := calculateReplicasIfNeeded(c, workload, helper.GetBindingClusterNames(targetClusters))
+	referenceRSP, desireReplicaInfos, err := calculateReplicasIfNeeded(c, workload, getBindingClusterNames(targetClusters))
 	if err != nil {
 		klog.Errorf("Failed to get ReplicaSchedulingPolicy for %s/%s/%s, err is: %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
 		return false, nil, nil, err
@@ -148,7 +156,7 @@ func applyReplicaSchedulingPolicy(workload *unstructured.Unstructured, desireRep
 func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
 	util.MergeLabel(workload, workv1alpha1.WorkNamespaceLabel, workNamespace)
-	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
+	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, karmadactlutil.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
 
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeLabel(workload, workv1alpha1.ResourceBindingNamespaceLabel, binding.GetNamespace())
@@ -306,4 +314,236 @@ func calculateReplicas(c client.Client, policy *v1alpha1.ReplicaSchedulingPolicy
 	}
 
 	return desireReplicaInfos, nil
+}
+
+// aggregateResourceBindingWorkStatus will collect all work statuses with current ResourceBinding objects,
+// then aggregate status info to current ResourceBinding status.
+func aggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.ResourceBinding, workload *unstructured.Unstructured) error {
+	aggregatedStatuses, err := assembleWorkStatus(c, labels.SelectorFromSet(labels.Set{
+		workv1alpha1.ResourceBindingNamespaceLabel: binding.Namespace,
+		workv1alpha1.ResourceBindingNameLabel:      binding.Name,
+	}), workload)
+	if err != nil {
+		return err
+	}
+
+	if reflect.DeepEqual(binding.Status.AggregatedStatus, aggregatedStatuses) {
+		klog.V(4).Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
+			binding.Namespace, binding.Name)
+		return nil
+	}
+
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, binding); err != nil {
+			return err
+		}
+		binding.Status.AggregatedStatus = aggregatedStatuses
+		return c.Status().Update(context.TODO(), binding)
+	})
+}
+
+// aggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
+// then aggregate status info to current ClusterResourceBinding status.
+func aggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.ClusterResourceBinding, workload *unstructured.Unstructured) error {
+	aggregatedStatuses, err := assembleWorkStatus(c, labels.SelectorFromSet(labels.Set{
+		workv1alpha1.ClusterResourceBindingLabel: binding.Name,
+	}), workload)
+	if err != nil {
+		return err
+	}
+
+	if reflect.DeepEqual(binding.Status.AggregatedStatus, aggregatedStatuses) {
+		klog.Infof("New aggregatedStatuses are equal with old clusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
+		return nil
+	}
+
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+		if err = c.Get(context.TODO(), client.ObjectKey{Name: binding.Name}, binding); err != nil {
+			return err
+		}
+		binding.Status.AggregatedStatus = aggregatedStatuses
+		return c.Status().Update(context.TODO(), binding)
+	})
+}
+
+// assemble workStatuses from workList which list by selector and match with workload.
+func assembleWorkStatus(c client.Client, selector labels.Selector, workload *unstructured.Unstructured) ([]workv1alpha1.AggregatedStatusItem, error) {
+	workList := &workv1alpha1.WorkList{}
+	if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
+		return nil, err
+	}
+
+	statuses := make([]workv1alpha1.AggregatedStatusItem, 0)
+	for _, work := range workList.Items {
+		identifierIndex, err := karmadactlutil.GetManifestIndex(work.Spec.Workload.Manifests, workload)
+		if err != nil {
+			klog.Errorf("Failed to get manifestIndex of workload in work.Spec.Workload.Manifests. Error: %v.", err)
+			return nil, err
+		}
+		clusterName, err := names.GetClusterName(work.Namespace)
+		if err != nil {
+			klog.Errorf("Failed to get clusterName from work namespace %s. Error: %v.", work.Namespace, err)
+			return nil, err
+		}
+
+		// if sync work to member cluster failed, then set status back to resource binding.
+		var applied bool
+		var appliedMsg string
+		if cond := meta.FindStatusCondition(work.Status.Conditions, workv1alpha1.WorkApplied); cond != nil {
+			switch cond.Status {
+			case metav1.ConditionTrue:
+				applied = true
+			case metav1.ConditionUnknown:
+				fallthrough
+			case metav1.ConditionFalse:
+				applied = false
+				appliedMsg = cond.Message
+			default: // should not happen unless the condition api changed.
+				panic("unexpected status")
+			}
+		}
+		if !applied {
+			aggregatedStatus := workv1alpha1.AggregatedStatusItem{
+				ClusterName:    clusterName,
+				Applied:        applied,
+				AppliedMessage: appliedMsg,
+			}
+			statuses = append(statuses, aggregatedStatus)
+			return statuses, nil
+		}
+
+		for _, manifestStatus := range work.Status.ManifestStatuses {
+			equal, err := equalIdentifier(&manifestStatus.Identifier, identifierIndex, workload)
+			if err != nil {
+				return nil, err
+			}
+			if equal {
+				aggregatedStatus := workv1alpha1.AggregatedStatusItem{
+					ClusterName: clusterName,
+					Status:      manifestStatus.Status,
+					Applied:     applied,
+				}
+				statuses = append(statuses, aggregatedStatus)
+				break
+			}
+		}
+	}
+
+	return statuses, nil
+}
+
+func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal int, workload *unstructured.Unstructured) (bool, error) {
+	groupVersion, err := schema.ParseGroupVersion(workload.GetAPIVersion())
+	if err != nil {
+		return false, err
+	}
+
+	if targetIdentifier.Ordinal == ordinal &&
+		targetIdentifier.Group == groupVersion.Group &&
+		targetIdentifier.Version == groupVersion.Version &&
+		targetIdentifier.Kind == workload.GetKind() &&
+		targetIdentifier.Namespace == workload.GetNamespace() &&
+		targetIdentifier.Name == workload.GetName() {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// isBindingReady will check if resourceBinding/clusterResourceBinding is ready to build Work.
+func isBindingReady(targetClusters []workv1alpha1.TargetCluster) bool {
+	return len(targetClusters) != 0
+}
+
+// hasScheduledReplica checks if the scheduler has assigned replicas for each cluster.
+func hasScheduledReplica(scheduleResult []workv1alpha1.TargetCluster) bool {
+	for _, clusterResult := range scheduleResult {
+		if clusterResult.Replicas > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// getBindingClusterNames will get clusterName list from bind clusters field
+func getBindingClusterNames(targetClusters []workv1alpha1.TargetCluster) []string {
+	var clusterNames []string
+	for _, targetCluster := range targetClusters {
+		clusterNames = append(clusterNames, targetCluster.Name)
+	}
+	return clusterNames
+}
+
+// findOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
+// then pick the works that not meet current binding declaration.
+func findOrphanWorks(c client.Client, bindingNamespace, bindingName string, clusterNames []string, scope apiextensionsv1.ResourceScope) ([]workv1alpha1.Work, error) {
+	workList := &workv1alpha1.WorkList{}
+	if scope == apiextensionsv1.NamespaceScoped {
+		selector := labels.SelectorFromSet(labels.Set{
+			workv1alpha1.ResourceBindingNamespaceLabel: bindingNamespace,
+			workv1alpha1.ResourceBindingNameLabel:      bindingName,
+		})
+
+		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
+			return nil, err
+		}
+	} else {
+		selector := labels.SelectorFromSet(labels.Set{
+			workv1alpha1.ClusterResourceBindingLabel: bindingName,
+		})
+
+		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
+			return nil, err
+		}
+	}
+
+	var orphanWorks []workv1alpha1.Work
+	expectClusters := sets.NewString(clusterNames...)
+	for _, work := range workList.Items {
+		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
+		if err != nil {
+			klog.Errorf("Failed to get cluster name which Work %s/%s belongs to. Error: %v.",
+				work.GetNamespace(), work.GetName(), err)
+			return nil, err
+		}
+		if !expectClusters.Has(workTargetCluster) {
+			orphanWorks = append(orphanWorks, work)
+		}
+	}
+	return orphanWorks, nil
+}
+
+// removeOrphanWorks will remove orphan works.
+func removeOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
+	for workIndex, work := range works {
+		err := c.Delete(context.TODO(), &works[workIndex])
+		if err != nil {
+			return err
+		}
+		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
+	}
+	return nil
+}
+
+// deleteWorks will delete all Work objects by labels.
+func deleteWorks(c client.Client, selector labels.Set) (controllerruntime.Result, error) {
+	workList, err := helper.GetWorks(c, selector)
+	if err != nil {
+		klog.Errorf("Failed to get works by label %v: %v", selector, err)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	var errs []error
+	for index, work := range workList.Items {
+		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
+			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
+	}
+
+	return controllerruntime.Result{}, nil
 }

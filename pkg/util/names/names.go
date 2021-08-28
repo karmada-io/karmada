@@ -2,12 +2,7 @@ package names
 
 import (
 	"fmt"
-	"hash/fnv"
 	"strings"
-
-	"k8s.io/apimachinery/pkg/util/rand"
-
-	hashutil "github.com/karmada-io/karmada/pkg/util/hash"
 )
 
 const (
@@ -53,19 +48,6 @@ func GetClusterName(executionSpaceName string) (string, error) {
 // GenerateBindingName will generate binding name by kind and name
 func GenerateBindingName(kind, name string) string {
 	return strings.ToLower(name + "-" + kind)
-}
-
-// GenerateWorkName will generate work name by its name and the hash of its namespace, kind and name.
-func GenerateWorkName(kind, name, namespace string) string {
-	var workName string
-	if len(namespace) == 0 {
-		workName = strings.ToLower(name + "-" + kind)
-	} else {
-		workName = strings.ToLower(namespace + "-" + name + "-" + kind)
-	}
-	hash := fnv.New32a()
-	hashutil.DeepHashObject(hash, workName)
-	return fmt.Sprintf("%s-%s", name, rand.SafeEncodeString(fmt.Sprint(hash.Sum32())))
 }
 
 // GenerateServiceAccountName generates the name of a ServiceAccount.

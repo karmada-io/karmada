@@ -46,7 +46,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, clusterResourceBinding); err != nil {
 		// The resource no longer exist, clean up derived Work objects.
 		if errors.IsNotFound(err) {
-			return helper.DeleteWorks(c.Client, labels.Set{
+			return deleteWorks(c.Client, labels.Set{
 				workv1alpha1.ClusterResourceBindingLabel: req.Name,
 			})
 		}
@@ -58,7 +58,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 		return controllerruntime.Result{}, nil
 	}
 
-	isReady := helper.IsBindingReady(clusterResourceBinding.Spec.Clusters)
+	isReady := isBindingReady(clusterResourceBinding.Spec.Clusters)
 	if !isReady {
 		klog.Infof("ClusterResourceBinding %s is not ready to sync", clusterResourceBinding.GetName())
 		return controllerruntime.Result{}, nil
@@ -69,14 +69,14 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 
 // syncBinding will sync clusterResourceBinding to Works.
 func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha1.ClusterResourceBinding) (controllerruntime.Result, error) {
-	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters)
-	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, clusterNames, apiextensionsv1.ClusterScoped)
+	clusterNames := getBindingClusterNames(binding.Spec.Clusters)
+	works, err := findOrphanWorks(c.Client, "", binding.Name, clusterNames, apiextensionsv1.ClusterScoped)
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by ClusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = helper.RemoveOrphanWorks(c.Client, works)
+	err = removeOrphanWorks(c.Client, works)
 	if err != nil {
 		klog.Errorf("Failed to remove orphan works by clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
@@ -94,7 +94,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha1.Clu
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, workload)
+	err = aggregateClusterResourceBindingWorkStatus(c.Client, binding, workload)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatuses to clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err

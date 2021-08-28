@@ -1,4 +1,4 @@
-package util
+package status
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
-// SetLeaseOwnerFunc helps construct a newLeasePostProcessFunc which sets
+// setLeaseOwnerFunc helps construct a newLeasePostProcessFunc which sets
 // a cluster OwnerReference to the given lease object.
-func SetLeaseOwnerFunc(c client.Client, clusterName string) func(lease *coordinationv1.Lease) error {
+func setLeaseOwnerFunc(c client.Client, clusterName string) func(lease *coordinationv1.Lease) error {
 	return func(lease *coordinationv1.Lease) error {
 		// Try to set owner reference every time when renewing the lease if it is not set, until successful.
 		if len(lease.OwnerReferences) == 0 {

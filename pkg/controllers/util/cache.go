@@ -1,4 +1,4 @@
-package helper
+package util
 
 import (
 	"k8s.io/apimachinery/pkg/api/errors"

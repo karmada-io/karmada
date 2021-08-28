@@ -27,8 +27,8 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	karmadactlutil "github.com/karmada-io/karmada/pkg/controllers/util"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -76,11 +76,11 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{}, nil
 	}
 
-	if !helper.IsResourceApplied(&work.Status) {
+	if !karmadactlutil.IsResourceApplied(&work.Status) {
 		return controllerruntime.Result{}, nil
 	}
 
-	if !helper.IsWorkContains(&work.Status, serviceExportGVK) {
+	if !karmadactlutil.IsWorkContains(&work.Status, serviceExportGVK) {
 		return controllerruntime.Result{}, nil
 	}
 
@@ -252,7 +252,7 @@ func (c *ServiceExportController) genHandlerDeleteFunc(clusterName string) func(
 // For ServiceExport create or update event, reports the referencing service's EndpointSlice.
 // For ServiceExport delete event, cleanup the previously reported EndpointSlice.
 func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys.FederatedKey) error {
-	_, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, serviceExportKey)
+	_, err := karmadactlutil.GetObjectFromCache(c.RESTMapper, c.InformerManager, serviceExportKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return cleanupWorkWithServiceExportDelete(c.Client, serviceExportKey)
@@ -277,7 +277,7 @@ func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys
 // For EndpointSlice create or update event, reports the EndpointSlice when referencing service has been exported.
 // For EndpointSlice delete event, cleanup the previously reported EndpointSlice.
 func (c *ServiceExportController) handleEndpointSliceEvent(endpointSliceKey keys.FederatedKey) error {
-	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey)
+	endpointSliceObj, err := karmadactlutil.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return cleanupWorkWithEndpointSliceDelete(c.Client, endpointSliceKey)
@@ -363,7 +363,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 	}
 
 	workMeta := metav1.ObjectMeta{
-		Name:      names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace()),
+		Name:      karmadactlutil.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace()),
 		Namespace: executionSpace,
 		Labels: map[string]string{
 			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
@@ -373,7 +373,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		},
 	}
 
-	if err = helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
+	if err = karmadactlutil.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
 		return err
 	}
 
@@ -421,7 +421,7 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 
 	workNamespaceKey := types.NamespacedName{
 		Namespace: executionSpace,
-		Name:      names.GenerateWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace),
+		Name:      karmadactlutil.GenerateWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace),
 	}
 	work := &workv1alpha1.Work{}
 	if err = c.Get(context.TODO(), workNamespaceKey, work); err != nil {

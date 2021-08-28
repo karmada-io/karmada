@@ -1,17 +1,34 @@
-package helper
+package util
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
+
+// GenerateWorkName will generate work name by its name and the hash of its namespace, kind and name.
+func GenerateWorkName(kind, name, namespace string) string {
+	var workName string
+	if len(namespace) == 0 {
+		workName = strings.ToLower(name + "-" + kind)
+	} else {
+		workName = strings.ToLower(namespace + "-" + name + "-" + kind)
+	}
+	hash := fnv.New32a()
+	deepHashObject(hash, workName)
+	return fmt.Sprintf("%s-%s", name, rand.SafeEncodeString(fmt.Sprint(hash.Sum32())))
+}
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exist.
 func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) error {
