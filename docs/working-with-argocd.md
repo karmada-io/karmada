@@ -64,7 +64,7 @@ and set the path to `guestbook`:
 
 ![](./images/argocd-new-app-repo.png)
 
-For Destination, set cluster to `karmada` and namespace to `default`:
+For Destination, set cluster to `karmada` and namespace to `default`(tht cluster URL is same with # Registering Karmada to Argo CD):
 
 ![](./images/argocd-new-app-cluster.png)
 
