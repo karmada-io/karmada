@@ -14,4 +14,5 @@ labels: kind/question
 
 **Environment**:
 - Karmada version:
+- Kubernetes version:
 - Others:
