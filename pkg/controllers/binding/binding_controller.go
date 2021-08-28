@@ -92,7 +92,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBi
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = helper.EnsureWork(c.Client, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
+	err = ensureWork(c.Client, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
