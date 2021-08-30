@@ -6,11 +6,11 @@ labels: kind/question
 ---
 
 <!-- Please use this template while providing as much info as possible. Thanks!-->
-**What happened and what you expected to happen**:
+**Please provide an in-depth description of the question you have**:
 
-**How to reproduce it (as minimally and precisely as possible)**:
+**What do you think about this question?**:
 
-**Anything else we need to know?**:
+**How to reproduce it**:
 
 **Environment**:
 - Karmada version:
