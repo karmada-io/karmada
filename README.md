@@ -139,11 +139,11 @@ If everything goes well, at the end of the script output, you will see similar m
 ```
 Local Karmada is running.
 
-Kubeconfig for karmada in file: /root/.kube/karmada.config, so you can run:
+Kubeconfig for karmada is in file: /root/.kube/karmada.config, so you can run:
   export KUBECONFIG="/root/.kube/karmada.config"
 Or use kubectl with --kubeconfig=/root/.kube/karmada.config
-Please use 'kubectl config use-context <Context_Name>' to switch cluster to operate,
-the following is context intro:
+Please use 'kubectl config use-context <Context_Name>' to switch clusters.
+The following is context intro:
   ------------------------------------------------------
   |    Context Name   |          Purpose               |
   |----------------------------------------------------|
@@ -153,11 +153,11 @@ the following is context intro:
   ------------------------------------------------------
 ```
 
-There are two contexts you can switch after the script run are:
+There are two contexts:
 - karmada-apiserver `kubectl config use-context karmada-apiserver`
 - karmada-host `kubectl config use-context karmada-host`
 
-The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host` is only used for debugging karmada installation with host cluster, you can check all clusters at any time by run: `kubectl config view` and switch by `kubectl config use-context [CONTEXT_NAME]`
+The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host` is only used for debugging karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
 
 ##### 3.2. I have present cluster for installing
 Before running the following script, please make sure your cluster could provide the `LoadBalancer` type service. Otherwise, type `export CLUSTER_IP_ONLY=true` with the `ClusterIP` type service before the following script.
