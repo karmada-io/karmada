@@ -99,6 +99,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha1.Clu
 		klog.Errorf("Failed to aggregate workStatuses to clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
+	klog.V(4).Infof("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
 
 	return controllerruntime.Result{}, nil
 }

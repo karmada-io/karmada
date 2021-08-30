@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -33,16 +34,13 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha1.R
 			binding.Namespace, binding.Name)
 		return nil
 	}
-
-	binding.Status.AggregatedStatus = aggregatedStatuses
-	err = c.Status().Update(context.TODO(), binding)
-	if err != nil {
-		klog.Errorf("Failed update resourceBinding(%s/%s). Error: %v.", binding.Namespace, binding.Name, err)
-		return err
-	}
-	klog.Infof("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
-
-	return nil
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, binding); err != nil {
+			return err
+		}
+		binding.Status.AggregatedStatus = aggregatedStatuses
+		return c.Status().Update(context.TODO(), binding)
+	})
 }
 
 // AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
@@ -60,15 +58,13 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 		return nil
 	}
 
-	binding.Status.AggregatedStatus = aggregatedStatuses
-	err = c.Status().Update(context.TODO(), binding)
-	if err != nil {
-		klog.Errorf("Failed update clusterResourceBinding(%s). Error: %v.", binding.Name, err)
-		return err
-	}
-	klog.Infof("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
-
-	return nil
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+		if err = c.Get(context.TODO(), client.ObjectKey{Name: binding.Name}, binding); err != nil {
+			return err
+		}
+		binding.Status.AggregatedStatus = aggregatedStatuses
+		return c.Status().Update(context.TODO(), binding)
+	})
 }
 
 // assemble workStatuses from workList which list by selector and match with workload.
