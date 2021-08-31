@@ -315,98 +315,16 @@ func (s *Scheduler) getPlacement(resourceBinding *workv1alpha1.ResourceBinding) 
 	return placement, string(placementBytes), nil
 }
 
-//nolint:gocyclo
-// Note: ignore the cyclomatic complexity issue to get gocyclo on board. Tracked by: https://github.com/karmada-io/karmada/issues/460
 func (s *Scheduler) getScheduleType(key string) ScheduleType {
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return Unknown
 	}
 
-	// ResourceBinding object
 	if len(ns) > 0 {
-		resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-		if errors.IsNotFound(err) {
-			return Unknown
-		}
-
-		if len(resourceBinding.Spec.Clusters) == 0 {
-			return FirstSchedule
-		}
-
-		policyPlacement, policyPlacementStr, err := s.getPlacement(resourceBinding)
-		if err != nil {
-			return Unknown
-		}
-
-		appliedPlacement := util.GetLabelValue(resourceBinding.Annotations, util.PolicyPlacementAnnotation)
-
-		if policyPlacementStr != appliedPlacement {
-			return ReconcileSchedule
-		}
-
-		if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&resourceBinding.Spec, policyPlacement.ReplicaScheduling) {
-			return ScaleSchedule
-		}
-
-		clusters := s.schedulerCache.Snapshot().GetClusters()
-		for _, tc := range resourceBinding.Spec.Clusters {
-			boundCluster := tc.Name
-			for _, c := range clusters {
-				if c.Cluster().Name == boundCluster {
-					if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-						return FailoverSchedule
-					}
-				}
-			}
-		}
-	} else { // ClusterResourceBinding
-		binding, err := s.clusterBindingLister.Get(name)
-		if errors.IsNotFound(err) {
-			return Unknown
-		}
-
-		if len(binding.Spec.Clusters) == 0 {
-			return FirstSchedule
-		}
-
-		policyName := util.GetLabelValue(binding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
-
-		policy, err := s.clusterPolicyLister.Get(policyName)
-		if err != nil {
-			return Unknown
-		}
-		placement, err := json.Marshal(policy.Spec.Placement)
-		if err != nil {
-			klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
-			return Unknown
-		}
-		policyPlacementStr := string(placement)
-
-		appliedPlacement := util.GetLabelValue(binding.Annotations, util.PolicyPlacementAnnotation)
-
-		if policyPlacementStr != appliedPlacement {
-			return ReconcileSchedule
-		}
-
-		if policy.Spec.Placement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&binding.Spec, policy.Spec.Placement.ReplicaScheduling) {
-			return ScaleSchedule
-		}
-
-		clusters := s.schedulerCache.Snapshot().GetClusters()
-		for _, tc := range binding.Spec.Clusters {
-			boundCluster := tc.Name
-			for _, c := range clusters {
-				if c.Cluster().Name == boundCluster {
-					if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-						return FailoverSchedule
-					}
-				}
-			}
-		}
+		return s.getTypeFromResourceBindings(ns, name)
 	}
-
-	return AvoidSchedule
+	return s.getTypeFromClusterCResourceBindings(name)
 }
 
 func (s *Scheduler) scheduleNext() bool {
@@ -881,4 +799,90 @@ func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *
 		return err
 	}
 	return nil
+}
+
+func (s *Scheduler) getTypeFromResourceBindings(ns, name string) ScheduleType {
+	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
+	if errors.IsNotFound(err) {
+		return Unknown
+	}
+
+	if len(resourceBinding.Spec.Clusters) == 0 {
+		return FirstSchedule
+	}
+
+	policyPlacement, policyPlacementStr, err := s.getPlacement(resourceBinding)
+	if err != nil {
+		return Unknown
+	}
+
+	appliedPlacement := util.GetLabelValue(resourceBinding.Annotations, util.PolicyPlacementAnnotation)
+
+	if policyPlacementStr != appliedPlacement {
+		return ReconcileSchedule
+	}
+
+	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&resourceBinding.Spec, policyPlacement.ReplicaScheduling) {
+		return ScaleSchedule
+	}
+
+	clusters := s.schedulerCache.Snapshot().GetClusters()
+	for _, tc := range resourceBinding.Spec.Clusters {
+		boundCluster := tc.Name
+		for _, c := range clusters {
+			if c.Cluster().Name == boundCluster {
+				if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+					return FailoverSchedule
+				}
+			}
+		}
+	}
+	return AvoidSchedule
+}
+
+func (s *Scheduler) getTypeFromClusterCResourceBindings(name string) ScheduleType {
+	binding, err := s.clusterBindingLister.Get(name)
+	if errors.IsNotFound(err) {
+		return Unknown
+	}
+
+	if len(binding.Spec.Clusters) == 0 {
+		return FirstSchedule
+	}
+
+	policyName := util.GetLabelValue(binding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
+
+	policy, err := s.clusterPolicyLister.Get(policyName)
+	if err != nil {
+		return Unknown
+	}
+	placement, err := json.Marshal(policy.Spec.Placement)
+	if err != nil {
+		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+		return Unknown
+	}
+	policyPlacementStr := string(placement)
+
+	appliedPlacement := util.GetLabelValue(binding.Annotations, util.PolicyPlacementAnnotation)
+
+	if policyPlacementStr != appliedPlacement {
+		return ReconcileSchedule
+	}
+
+	if policy.Spec.Placement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&binding.Spec, policy.Spec.Placement.ReplicaScheduling) {
+		return ScaleSchedule
+	}
+
+	clusters := s.schedulerCache.Snapshot().GetClusters()
+	for _, tc := range binding.Spec.Clusters {
+		boundCluster := tc.Name
+		for _, c := range clusters {
+			if c.Cluster().Name == boundCluster {
+				if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+					return FailoverSchedule
+				}
+			}
+		}
+	}
+	return AvoidSchedule
 }
