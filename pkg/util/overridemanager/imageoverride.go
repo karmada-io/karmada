@@ -5,16 +5,19 @@ import (
 	"strconv"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/imageparser"
 )
 
 const (
-	pathSplit   = "/"
-	imageString = "image"
+	pathSplit         = "/"
+	podSpecPrefix     = "/spec"
+	podTemplatePrefix = "/spec/template/spec"
 )
 
 // buildPatches parse JSON patches from resource object by imageOverriders
@@ -29,42 +32,63 @@ func buildPatches(rawObj *unstructured.Unstructured, imageOverrider *policyv1alp
 func buildPatchesWithEmptyPredicate(rawObj *unstructured.Unstructured, imageOverrider *policyv1alpha1.ImageOverrider) ([]overrideOption, error) {
 	switch rawObj.GetKind() {
 	case util.PodKind:
-		return buildPatchesWithPath("spec/containers", rawObj, imageOverrider)
+		podObj, err := helper.ConvertToPod(rawObj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert Pod from unstructured object: %v", err)
+		}
+		return extractPatchesBy(podObj.Spec, podSpecPrefix, imageOverrider)
 	case util.ReplicaSetKind:
-		fallthrough
+		replicaSetObj, err := helper.ConvertToReplicaSet(rawObj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %v", err)
+		}
+		return extractPatchesBy(replicaSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.DeploymentKind:
-		fallthrough
+		deploymentObj, err := helper.ConvertToDeployment(rawObj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert Deployment from unstructured object: %v", err)
+		}
+		return extractPatchesBy(deploymentObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.DaemonSetKind:
-		fallthrough
+		daemonSetObj, err := helper.ConvertToDaemonSet(rawObj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert DaemonSet from unstructured object: %v", err)
+		}
+		return extractPatchesBy(daemonSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.StatefulSetKind:
-		return buildPatchesWithPath("spec/template/spec/containers", rawObj, imageOverrider)
+		statefulSetObj, err := helper.ConvertToStatefulSet(rawObj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert StatefulSet from unstructured object: %v", err)
+		}
+		return extractPatchesBy(statefulSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
+	case util.JobKind:
+		jobObj, err := helper.ConvertToJob(rawObj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert Job from unstructured object: %v", err)
+		}
+		return extractPatchesBy(jobObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	}
 
 	return nil, nil
 }
 
-func buildPatchesWithPath(specContainersPath string, rawObj *unstructured.Unstructured, imageOverrider *policyv1alpha1.ImageOverrider) ([]overrideOption, error) {
+func extractPatchesBy(podSpec corev1.PodSpec, prefixPath string, imageOverrider *policyv1alpha1.ImageOverrider) ([]overrideOption, error) {
 	patches := make([]overrideOption, 0)
 
-	containers, ok, err := unstructured.NestedSlice(rawObj.Object, strings.Split(specContainersPath, pathSplit)...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieves path(%s) from rawObj, error: %v", specContainersPath, err)
-	}
-	if !ok || len(containers) == 0 {
-		return nil, nil
-	}
-
-	for index := range containers {
-		imagePath := fmt.Sprintf("/%s/%d/image", specContainersPath, index)
-		imageValue := containers[index].(map[string]interface{})[imageString].(string)
-		patch, err := acquireOverrideOption(imagePath, imageValue, imageOverrider)
+	for containerIndex, container := range podSpec.Containers {
+		patch, err := acquireOverrideOption(spliceImagePath(prefixPath, containerIndex), container.Image, imageOverrider)
 		if err != nil {
 			return nil, err
 		}
+
 		patches = append(patches, patch)
 	}
 
 	return patches, nil
+}
+
+func spliceImagePath(prefixPath string, containerIndex int) string {
+	return fmt.Sprintf("%s/containers/%d/image", prefixPath, containerIndex)
 }
 
 func buildPatchesWithPredicate(rawObj *unstructured.Unstructured, imageOverrider *policyv1alpha1.ImageOverrider) ([]overrideOption, error) {
