@@ -879,7 +879,7 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 	for _, binding := range rbs.Items {
 		// Cleanup the labels from the object referencing by binding.
 		// In addition, this will give the object a chance to match another policy.
-		if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.PropagationPolicyNameLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
+		if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.PropagationPolicyNamespaceLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
 			klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when resource binding(%s/%s) removing, error: %v",
 				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Namespace, binding.Name, err)
 			return err
