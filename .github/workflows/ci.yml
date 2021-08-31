@@ -65,10 +65,8 @@ jobs:
         run: make test
   e2e:
     name: e2e test
-    if: ${{ github.repository == 'karmada-io/karmada' }}
     needs: build
-    # switch back to GitHub Action after https://github.com/karmada-io/karmada/issues/566
-    runs-on: self-hosted
+    runs-on: ubuntu-18.04
     env:
       ARTIFACTS_PATH: ${{ github.workspace }}/karmada-e2e-logs/
     steps:
