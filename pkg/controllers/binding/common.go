@@ -278,6 +278,10 @@ func calculateReplicas(c client.Client, policy *v1alpha1.ReplicaSchedulingPolicy
 		}
 	}
 
+	if weightSum == 0 {
+		return desireReplicaInfos, nil
+	}
+
 	allocatedReplicas := int32(0)
 	for clusterName, weight := range matchClusters {
 		desireReplicaInfos[clusterName] = weight * int64(policy.Spec.TotalReplicas) / weightSum
