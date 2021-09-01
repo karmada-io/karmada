@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+package github.com.karmada_io.karmada.pkg.estimator.pb;
+
+import "pkg/estimator/pb/generated.proto";
+
+// Package-wide variables from generator "generated".
+option go_package = "pb";
+
+service Estimator {
+  rpc MaxAvailableReplicas(MaxAvailableReplicasRequest) returns (MaxAvailableReplicasResponse) {}
+}
