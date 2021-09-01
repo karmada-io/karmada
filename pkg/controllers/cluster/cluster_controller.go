@@ -145,7 +145,7 @@ func (c *Controller) removeCluster(cluster *v1alpha1.Cluster) (controllerruntime
 	return c.removeFinalizer(cluster)
 }
 
-// removeExecutionSpace delete the given execution space
+// removeExecutionSpace deletes the given execution space
 func (c *Controller) removeExecutionSpace(cluster *v1alpha1.Cluster) error {
 	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
 	if err != nil {
@@ -166,7 +166,7 @@ func (c *Controller) removeExecutionSpace(cluster *v1alpha1.Cluster) error {
 	return nil
 }
 
-// ensureRemoveExecutionSpace make sure the given execution space has been deleted
+// ensureRemoveExecutionSpace makes sure the given execution space has been deleted
 func (c *Controller) ensureRemoveExecutionSpace(cluster *v1alpha1.Cluster) (bool, error) {
 	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
 	if err != nil {
@@ -215,7 +215,7 @@ func (c *Controller) ensureFinalizer(cluster *v1alpha1.Cluster) (controllerrunti
 	return controllerruntime.Result{}, nil
 }
 
-// createExecutionSpace create member cluster execution space when member cluster joined
+// createExecutionSpace creates member cluster execution space when member cluster joined
 func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
 	if err != nil {
