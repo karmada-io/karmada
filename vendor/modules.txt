@@ -6,7 +6,7 @@ github.com/NYTimes/gziphandler
 github.com/PuerkitoBio/purell
 # github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
 github.com/PuerkitoBio/urlesc
-# github.com/alessio/shellescape v1.2.2
+# github.com/alessio/shellescape v1.4.1
 github.com/alessio/shellescape
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
@@ -32,7 +32,7 @@ github.com/emicklei/go-restful
 github.com/emicklei/go-restful/log
 # github.com/evanphx/json-patch v4.11.0+incompatible
 github.com/evanphx/json-patch
-# github.com/evanphx/json-patch/v5 v5.1.0
+# github.com/evanphx/json-patch/v5 v5.2.0
 ## explicit
 github.com/evanphx/json-patch/v5
 # github.com/fsnotify/fsnotify v1.4.9
@@ -992,7 +992,7 @@ sigs.k8s.io/controller-runtime/pkg/webhook
 sigs.k8s.io/controller-runtime/pkg/webhook/admission
 sigs.k8s.io/controller-runtime/pkg/webhook/conversion
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
-# sigs.k8s.io/kind v0.10.0
+# sigs.k8s.io/kind v0.11.1
 ## explicit
 sigs.k8s.io/kind/pkg/apis/config/defaults
 sigs.k8s.io/kind/pkg/apis/config/v1alpha4

@@ -45,4 +45,15 @@ type Provider interface {
 	GetAPIServerInternalEndpoint(cluster string) (string, error)
 	// CollectLogs will populate dir with cluster logs and other debug files
 	CollectLogs(dir string, nodes []nodes.Node) error
+	// Info returns the provider info
+	Info() (*ProviderInfo, error)
+}
+
+// ProviderInfo is the info of the provider
+type ProviderInfo struct {
+	Rootless            bool
+	Cgroup2             bool
+	SupportsMemoryLimit bool
+	SupportsPidsLimit   bool
+	SupportsCPUShares   bool
 }
