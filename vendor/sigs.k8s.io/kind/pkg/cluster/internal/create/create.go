@@ -19,7 +19,6 @@ package create
 import (
 	"fmt"
 	"math/rand"
-	"regexp"
 	"time"
 
 	"github.com/alessio/shellescape"
@@ -49,12 +48,6 @@ const (
 	clusterNameMax = 50
 )
 
-// similar to valid docker container names, but since we will prefix
-// and suffix this name, we can relax it a little
-// see NewContext() for usage
-// https://godoc.org/github.com/docker/docker/daemon/names#pkg-constants
-var validNameRE = regexp.MustCompile(`^[a-z0-9_.-]+$`)
-
 // ClusterOptions holds cluster creation options
 type ClusterOptions struct {
 	Config       *config.Cluster
@@ -73,6 +66,11 @@ type ClusterOptions struct {
 
 // Cluster creates a cluster
 func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) error {
+	// validate provider first
+	if err := validateProvider(p); err != nil {
+		return err
+	}
+
 	// default / process options (namely config)
 	if err := fixupOptions(opts); err != nil {
 		return err
@@ -83,14 +81,6 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 		return err
 	}
 
-	// TODO: move to config validation
-	// validate the name
-	if !validNameRE.MatchString(opts.Config.Name) {
-		return errors.Errorf(
-			"'%s' is not a valid cluster name, cluster names must match `%s`",
-			opts.Config.Name, validNameRE.String(),
-		)
-	}
 	// warn if cluster name might typically be too long
 	if len(opts.Config.Name) > clusterNameMax {
 		logger.Warnf("cluster name %q is probably too long, this might not work properly on some systems", opts.Config.Name)
@@ -123,7 +113,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	}
 	if !opts.StopBeforeSettingUpKubernetes {
 		actionsToRun = append(actionsToRun,
-			kubeadminit.NewAction(), // run kubeadm init
+			kubeadminit.NewAction(opts.Config), // run kubeadm init
 		)
 		// this step might be skipped, but is next after init
 		if !opts.Config.Networking.DisableDefaultCNI {
@@ -247,5 +237,21 @@ func fixupOptions(opts *ClusterOptions) error {
 	// may be constructed in memory rather than from disk)
 	config.SetDefaultsCluster(opts.Config)
 
+	return nil
+}
+
+func validateProvider(p providers.Provider) error {
+	info, err := p.Info()
+	if err != nil {
+		return err
+	}
+	if info.Rootless {
+		if !info.Cgroup2 {
+			return errors.New("running kind with rootless provider requires cgroup v2, see https://kind.sigs.k8s.io/docs/user/rootless/")
+		}
+		if !info.SupportsMemoryLimit || !info.SupportsPidsLimit || !info.SupportsCPUShares {
+			return errors.New("running kind with rootless provider requires setting systemd property \"Delegate=yes\", see https://kind.sigs.k8s.io/docs/user/rootless/")
+		}
+	}
 	return nil
 }

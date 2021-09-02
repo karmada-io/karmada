@@ -85,6 +85,9 @@ type Node struct {
 	// If unset a default image will be used, see defaults.Image
 	Image string
 
+	// Labels are the labels with which the respective node will be labeled
+	Labels map[string]string
+
 	/* Advanced fields */
 
 	// ExtraMounts describes additional mount points for the node container
@@ -157,16 +160,20 @@ const (
 	IPv4Family ClusterIPFamily = "ipv4"
 	// IPv6Family sets ClusterIPFamily to ipv6
 	IPv6Family ClusterIPFamily = "ipv6"
+	// DualStackFamily sets ClusterIPFamily to dual
+	DualStackFamily ClusterIPFamily = "dual"
 )
 
 // ProxyMode defines a proxy mode for kube-proxy
 type ProxyMode string
 
 const (
-	// IPTablesMode sets ProxyMode to iptables
-	IPTablesMode ProxyMode = "iptables"
-	// IPVSMode sets ProxyMode to iptables
-	IPVSMode ProxyMode = "ipvs"
+	// IPTablesProxyMode sets ProxyMode to iptables
+	IPTablesProxyMode ProxyMode = "iptables"
+	// IPVSProxyMode sets ProxyMode to ipvs
+	IPVSProxyMode ProxyMode = "ipvs"
+	// NoneProxyMode disables kube-proxy
+	NoneProxyMode ProxyMode = "none"
 )
 
 // PatchJSON6902 represents an inline kustomize json 6902 patch
