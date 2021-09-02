@@ -30,10 +30,10 @@ import (
 )
 
 var (
-	joinLong = `Join registers a cluster to control plane.`
-
+	joinShort   = `Register a cluster to control plane`
+	joinLong    = `Join registers a cluster to control plane.`
 	joinExample = `
-karmadactl join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
+%s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
 `
 )
 
@@ -65,14 +65,14 @@ const (
 )
 
 // NewCmdJoin defines the `join` command that registers a cluster.
-func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
+func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
 	opts := CommandJoinOption{}
 
 	cmd := &cobra.Command{
 		Use:     "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:   "Register a cluster to control plane",
+		Short:   joinShort,
 		Long:    joinLong,
-		Example: joinExample,
+		Example: fmt.Sprintf(joinExample, cmdStr),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Set default values
 			err := opts.Complete(args)

@@ -3,6 +3,7 @@ package karmadactl
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -22,22 +23,22 @@ import (
 )
 
 var (
-	unjoinLong = `Unjoin removes the registration of a cluster from control plane.`
-
+	unjoinShort   = `Remove the registration of a cluster from control plane`
+	unjoinLong    = `Unjoin removes the registration of a cluster from control plane.`
 	unjoinExample = `
-karmadactl unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
+%s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
 `
 )
 
 // NewCmdUnjoin defines the `unjoin` command that removes registration of a cluster from control plane.
-func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
+func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
 	opts := CommandUnjoinOption{}
 
 	cmd := &cobra.Command{
 		Use:     "unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:   "Remove the registration of a cluster from control plane",
+		Short:   unjoinShort,
 		Long:    unjoinLong,
-		Example: unjoinExample,
+		Example: fmt.Sprintf(unjoinExample, cmdStr),
 		Run: func(cmd *cobra.Command, args []string) {
 			err := opts.Complete(args)
 			if err != nil {

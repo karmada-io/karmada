@@ -2,6 +2,7 @@ package karmadactl
 
 import (
 	"flag"
+	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -10,13 +11,18 @@ import (
 	apiserverflag "k8s.io/component-base/cli/flag"
 )
 
+var (
+	rootCmdShort = "%s controls a Kubernetes Cluster Federation."
+	rootCmdLong  = "%s controls a Kubernetes Cluster Federation."
+)
+
 // NewKarmadaCtlCommand creates the `karmadactl` command.
-func NewKarmadaCtlCommand(out io.Writer) *cobra.Command {
+func NewKarmadaCtlCommand(out io.Writer, cmdUse, cmdStr string) *cobra.Command {
 	// Parent command to which all sub-commands are added.
 	rootCmd := &cobra.Command{
-		Use:   "karmadactl",
-		Short: "karmadactl controls a Kubernetes Cluster Federation.",
-		Long:  "karmadactl controls a Kubernetes Cluster Federation.",
+		Use:   cmdUse,
+		Short: fmt.Sprintf(rootCmdShort, cmdStr),
+		Long:  fmt.Sprintf(rootCmdLong, cmdStr),
 
 		RunE: runHelp,
 	}
@@ -34,11 +40,11 @@ func NewKarmadaCtlCommand(out io.Writer) *cobra.Command {
 	_ = flag.CommandLine.Parse(nil)
 
 	karmadaConfig := NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-	rootCmd.AddCommand(NewCmdJoin(out, karmadaConfig))
-	rootCmd.AddCommand(NewCmdUnjoin(out, karmadaConfig))
-	rootCmd.AddCommand(NewCmdVersion(out))
-	rootCmd.AddCommand(NewCmdCordon(out, karmadaConfig))
-	rootCmd.AddCommand(NewCmdUncordon(out, karmadaConfig))
+	rootCmd.AddCommand(NewCmdJoin(out, karmadaConfig, cmdStr))
+	rootCmd.AddCommand(NewCmdUnjoin(out, karmadaConfig, cmdStr))
+	rootCmd.AddCommand(NewCmdVersion(out, cmdStr))
+	rootCmd.AddCommand(NewCmdCordon(out, karmadaConfig, cmdStr))
+	rootCmd.AddCommand(NewCmdUncordon(out, karmadaConfig, cmdStr))
 
 	return rootCmd
 }
