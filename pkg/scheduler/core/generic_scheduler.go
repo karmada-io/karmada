@@ -214,14 +214,17 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 		if replicaSchedulingStrategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
 			if replicaSchedulingStrategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted {
 				if replicaSchedulingStrategy.WeightPreference == nil {
-					return nil, fmt.Errorf("no WeightPreference find to divide replicas")
+					// if ReplicaDivisionPreference is set to "Weighted" and WeightPreference is not set, scheduler will weight all clusters the same.
+					replicaSchedulingStrategy.WeightPreference = getDefaultWeightPreference(clusters)
 				}
 				return g.divideReplicasByStaticWeight(clusters, replicaSchedulingStrategy.WeightPreference.StaticWeightList, object.Replicas)
 			}
 			if replicaSchedulingStrategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceAggregated {
 				return g.divideReplicasAggregatedWithResource(clusters, object)
 			}
-			return g.divideReplicasAggregatedWithResource(clusters, object) //default policy for ReplicaSchedulingTypeDivided
+
+			// will never reach here, only "Aggregated" and "Weighted" are support
+			return nil, nil
 		}
 	}
 
@@ -229,6 +232,23 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 		targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name}
 	}
 	return targetClusters, nil
+}
+
+func getDefaultWeightPreference(clusters []*clusterv1alpha1.Cluster) *policyv1alpha1.ClusterPreferences {
+	staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
+	for _, cluster := range clusters {
+		staticWeightList := policyv1alpha1.StaticClusterWeight{
+			TargetCluster: policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{cluster.Name},
+			},
+			Weight: 1,
+		}
+		staticWeightLists = append(staticWeightLists, staticWeightList)
+	}
+
+	return &policyv1alpha1.ClusterPreferences{
+		StaticWeightList: staticWeightLists,
+	}
 }
 
 // divideReplicasByStaticWeight assigns a total number of replicas to the selected clusters by the weight list.
@@ -442,10 +462,11 @@ func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv
 		}
 		if placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
 			if placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted {
-				if placement.ReplicaScheduling.WeightPreference == nil {
-					return result, fmt.Errorf("no WeightPreference find to divide replicas")
-				}
 				preSelectedClusters := g.getPreSelected(spec.Clusters)
+				if placement.ReplicaScheduling.WeightPreference == nil {
+					// if ReplicaDivisionPreference is set to "Weighted" and WeightPreference is not set, scheduler will weight all clusters the same.
+					placement.ReplicaScheduling.WeightPreference = getDefaultWeightPreference(preSelectedClusters)
+				}
 				clustersWithReplicase, err := g.divideReplicasByStaticWeight(preSelectedClusters, placement.ReplicaScheduling.WeightPreference.StaticWeightList, spec.Replicas)
 				if err != nil {
 					return result, fmt.Errorf("failed to assignReplicas with Weight: %v", err)
@@ -456,7 +477,9 @@ func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv
 			if placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceAggregated {
 				return g.scaleScheduleWithReplicaDivisionPreferenceAggregated(spec)
 			}
-			return g.scaleScheduleWithReplicaDivisionPreferenceAggregated(spec)
+
+			// will never reach here, only "Aggregated" and "Weighted" are support
+			return result, nil
 		}
 	}
 
