@@ -327,6 +327,10 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			`ReplicaSchedulingType` value is `Duplicated`.
 		Case 2:
 			`ReplicaSchedulingType` value is `Duplicated`, trigger rescheduling when replicas have changed.
+		Case 3:
+			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` is nil.
+		Case 4:
+			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` is nil, trigger rescheduling when replicas have changed.
 */
 var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing", func() {
 	// Case 1: `ReplicaSchedulingType` value is `Duplicated`.
@@ -463,6 +467,154 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, *deployment.Spec.Replicas))
 						return memberDeployment.Spec.Replicas
 					}, pollTimeout, pollInterval).Should(gomega.Equal(deployment.Spec.Replicas))
+				}
+			})
+		})
+	})
+
+	// Case 3: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
+	// `WeightPreference` is nil.
+	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference is nil.", func() {
+		policyNamespace := testNamespace
+		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+		deploymentNamespace := policyNamespace
+		deploymentName := policyName
+
+		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+			},
+		})
+
+		ginkgo.It("replicas divided and weighted testing", func() {
+			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
+				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			expectedReplicas := int32(2)
+			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				updateReplicas := expectedReplicas * int32(len(clusters))
+				deployment.Spec.Replicas = &updateReplicas
+				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					gomega.Eventually(func() int32 {
+						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
+							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
+						return *memberDeployment.Spec.Replicas
+					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
+				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+	})
+
+	// Case 4: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
+	// `WeightPreference` is nil, trigger rescheduling when replicas have changed.
+	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference is "+
+		"nil, trigger rescheduling when replicas have changed.", func() {
+		policyNamespace := testNamespace
+		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+		deploymentNamespace := policyNamespace
+		deploymentName := policyName
+
+		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+			},
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
+				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
+				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
+			expectedReplicas := int32(3)
+			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas to 3*len(clusters)", policyNamespace, policyName), func() {
+				updateReplicas := expectedReplicas * int32(len(clusters))
+				deployment.Spec.Replicas = &updateReplicas
+				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					gomega.Eventually(func() int32 {
+						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
+							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
+						return *memberDeployment.Spec.Replicas
+					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 				}
 			})
 		})
