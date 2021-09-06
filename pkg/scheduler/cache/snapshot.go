@@ -52,3 +52,13 @@ func (s *Snapshot) GetReadyClusterNames() sets.String {
 
 	return readyClusterNames
 }
+
+// GetCluster returns the given clusters.
+func (s *Snapshot) GetCluster(clusterName string) *framework.ClusterInfo {
+	for _, c := range s.clusterInfoList {
+		if c.Cluster().Name == clusterName {
+			return c
+		}
+	}
+	return nil
+}
