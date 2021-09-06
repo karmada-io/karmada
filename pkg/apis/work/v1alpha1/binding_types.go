@@ -29,9 +29,9 @@ type ResourceBindingSpec struct {
 	// Resource represents the Kubernetes resource to be propagated.
 	Resource ObjectReference `json:"resource"`
 
-	// ReplicaResourceRequirements represents the resources required by each replica.
+	// ReplicaRequirements represents the requirements required by each replica.
 	// +optional
-	ReplicaResourceRequirements corev1.ResourceList `json:"replicaResourceRequirements,omitempty"`
+	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
 
 	// Replicas represents the replica number of the referencing resource.
 	// +optional
@@ -64,6 +64,34 @@ type ObjectReference struct {
 	// determine when object has changed.
 	// +optional
 	ResourceVersion string `json:"resourceVersion,omitempty"`
+}
+
+// ReplicaRequirements represents the requirements required by each replica.
+type ReplicaRequirements struct {
+	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
+	// +optional
+	NodeClaim *NodeClaim `json:"nodeClaim,omitempty"`
+
+	// ResourceRequest represents the resources required by each replica.
+	// +optional
+	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
+}
+
+// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
+type NodeClaim struct {
+	// A node selector represents the union of the results of one or more label queries over a set of
+	// nodes; that is, it represents the OR of the selectors represented by the node selector terms.
+	// Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	// is included here because it has a hard limit on pod scheduling.
+	// +optional
+	HardNodeAffinity *corev1.NodeSelector `json:"hardNodeAffinity,omitempty"`
+	// NodeSelector is a selector which must be true for the pod to fit on a node.
+	// Selector which must match a node's labels for the pod to be scheduled on that node.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// If specified, the pod's tolerations.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 // TargetCluster represents the identifier of a member cluster.
