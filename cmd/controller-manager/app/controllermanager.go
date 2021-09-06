@@ -100,9 +100,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 // Note: ignore cyclomatic complexity check(by gocyclo) because it will not effect readability.
 //nolint:gocyclo
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
-	resetConfig := mgr.GetConfig()
-	dynamicClientSet := dynamic.NewForConfigOrDie(resetConfig)
-	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(resetConfig)
+	restConfig := mgr.GetConfig()
+	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
+	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
 	overrideManager := overridemanager.New(mgr.GetClient())
 	skippedResourceConfig := util.NewSkippedResourceConfig()

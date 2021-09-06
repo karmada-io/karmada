@@ -105,6 +105,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBi
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
+	klog.V(4).Infof("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
 
 	return controllerruntime.Result{}, nil
 }

@@ -63,7 +63,8 @@ func planCreation(cfg *config.Cluster, networkName string) (createContainerFuncs
 		// For now remote docker + multi control plane is not supported
 		apiServerPort = 0              // replaced with random ports
 		apiServerAddress = "127.0.0.1" // only the LB needs to be non-local
-		if clusterIsIPv6(cfg) {
+		// only for IPv6 only clusters
+		if cfg.Networking.IPFamily == config.IPv6Family {
 			apiServerAddress = "::1" // only the LB needs to be non-local
 		}
 		// plan loadbalancer node
@@ -134,7 +135,7 @@ func createContainer(args []string) error {
 }
 
 func clusterIsIPv6(cfg *config.Cluster) bool {
-	return cfg.Networking.IPFamily == "ipv6"
+	return cfg.Networking.IPFamily == config.IPv6Family || cfg.Networking.IPFamily == config.DualStackFamily
 }
 
 func clusterHasImplicitLoadBalancer(cfg *config.Cluster) bool {
@@ -183,6 +184,9 @@ func commonArgs(cluster string, cfg *config.Cluster, networkName string, nodeNam
 		// however this _actually_ means the same thing as always
 		// so the closest thing is on-failure:1, which will retry *once*
 		"--restart=on-failure:1",
+		// this can be enabled by default in docker daemon.json, so we explicitly
+		// disable it, we want our entrypoint to be PID1, not docker-init / tini
+		"--init=false",
 	}
 
 	// enable IPv6 if necessary
@@ -250,6 +254,11 @@ func runArgsForNode(node *config.Node, clusterIPFamily config.ClusterIPFamily, n
 		return nil, err
 	}
 	args = append(args, mappingArgs...)
+
+	switch node.Role {
+	case config.ControlPlaneRole:
+		args = append(args, "-e", "KUBECONFIG=/etc/kubernetes/admin.conf")
+	}
 
 	// finally, specify the image to run
 	return append(args, node.Image), nil

@@ -30,7 +30,7 @@ KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 # Make sure go exists
 util::cmd_must_exist "go"
 # install kind and kubectl
-util::install_tools sigs.k8s.io/kind v0.10.0
+util::install_tools sigs.k8s.io/kind v0.11.1
 # get arch name and os name in bootstrap
 BS_ARCH=$(go env GOARCH)
 BS_OS=$(go env GOOS)
