@@ -331,6 +331,10 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` is nil.
 		Case 4:
 			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` is nil, trigger rescheduling when replicas have changed.
+		Case 5:
+			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` isn't nil.
+		Case 6:
+			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` isn't nil, trigger rescheduling when replicas have changed.
 */
 var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing", func() {
 	// Case 1: `ReplicaSchedulingType` value is `Duplicated`.
@@ -604,6 +608,194 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 
 			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
 				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					gomega.Eventually(func() int32 {
+						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
+							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
+						return *memberDeployment.Spec.Replicas
+					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
+				}
+			})
+		})
+	})
+
+	// Case 5: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
+	// `WeightPreference` isn't nil.
+	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference isn't nil.", func() {
+		policyNamespace := testNamespace
+		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+		deploymentNamespace := policyNamespace
+		deploymentName := policyName
+
+		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+				WeightPreference:          &policyv1alpha1.ClusterPreferences{},
+			},
+		})
+
+		ginkgo.It("replicas divided and weighted testing", func() {
+			sumWeight := 0
+			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
+			for index, clusterName := range clusterNames {
+				staticWeightList := policyv1alpha1.StaticClusterWeight{
+					TargetCluster: policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{clusterName},
+					},
+					Weight: int64(index + 1),
+				}
+				sumWeight += index + 1
+				staticWeightLists = append(staticWeightLists, staticWeightList)
+			}
+			klog.Infof("StaticWeightList of policy is %+v", staticWeightLists)
+			policy.Spec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList = staticWeightLists
+			klog.Infof("Sum weight of clusters is %d", sumWeight)
+
+			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
+				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				sumReplicas := int32(sumWeight)
+				deployment.Spec.Replicas = &sumReplicas
+
+				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
+				for index, cluster := range clusters {
+					expectedReplicas := int32(index + 1)
+
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					gomega.Eventually(func() int32 {
+						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
+							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
+						return *memberDeployment.Spec.Replicas
+					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
+				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+	})
+
+	// Case 6: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
+	// `WeightPreference` isn't nil, trigger rescheduling when replicas have changed.
+	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference isn't "+
+		"nil, trigger rescheduling when replicas have changed.", func() {
+		policyNamespace := testNamespace
+		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+		deploymentNamespace := policyNamespace
+		deploymentName := policyName
+
+		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
+		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: clusterNames,
+			},
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+				WeightPreference:          &policyv1alpha1.ClusterPreferences{},
+			},
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
+				staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
+				for index, clusterName := range clusterNames {
+					staticWeightList := policyv1alpha1.StaticClusterWeight{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{clusterName},
+						},
+						Weight: int64(index + 1),
+					}
+					staticWeightLists = append(staticWeightLists, staticWeightList)
+				}
+				klog.Infof("StaticWeightList of policy is %+v", staticWeightLists)
+				policy.Spec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList = staticWeightLists
+
+				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
+				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
+				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
+			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas to 2*sumWeight", policyNamespace, policyName), func() {
+				sumWeight := 0
+				for index := range clusterNames {
+					sumWeight += index + 1
+				}
+				klog.Infof("sumWeight of clusters is %d", sumWeight)
+				updateReplicas := 2 * int32(sumWeight)
+				deployment.Spec.Replicas = &updateReplicas
+				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
+				for index, cluster := range clusters {
+					expectedReplicas := 2 * int32(index+1)
+
 					clusterClient := getClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
