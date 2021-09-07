@@ -609,7 +609,7 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 // BuildResourceBinding builds a desired ResourceBinding for object.
 func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha1.ResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
-	replicaResourceRequirements, replicas, err := d.GetReplicaDeclaration(object)
+	replicaRequirements, replicas, err := d.GetReplicaDeclaration(object)
 	if err != nil {
 		return nil, err
 	}
@@ -630,8 +630,8 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 				Name:            object.GetName(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
-			ReplicaResourceRequirements: replicaResourceRequirements,
-			Replicas:                    replicas,
+			ReplicaRequirements: replicaRequirements,
+			Replicas:            replicas,
 		},
 	}
 
@@ -641,7 +641,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
 func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha1.ClusterResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
-	replicaResourceRequirements, replicas, err := d.GetReplicaDeclaration(object)
+	replicaRequirements, replicas, err := d.GetReplicaDeclaration(object)
 	if err != nil {
 		return nil, err
 	}
@@ -660,8 +660,8 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 				Name:            object.GetName(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
-			ReplicaResourceRequirements: replicaResourceRequirements,
-			Replicas:                    replicas,
+			ReplicaRequirements: replicaRequirements,
+			Replicas:            replicas,
 		},
 	}
 
@@ -669,7 +669,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 }
 
 // GetReplicaDeclaration get the replicas and resource requirements of a Deployment object
-func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (corev1.ResourceList, int32, error) {
+func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (*workv1alpha1.ReplicaRequirements, int32, error) {
 	if object.GetKind() == util.DeploymentKind {
 		replicas, ok, err := unstructured.NestedInt64(object.Object, util.SpecField, util.ReplicasField)
 		if !ok || err != nil {
@@ -679,24 +679,27 @@ func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructur
 		if !ok || err != nil {
 			return nil, 0, err
 		}
-		replicaResourceRequirements, err := d.getReplicaResourceRequirements(podTemplate)
+		replicaRequirements, err := d.getReplicaRequirements(podTemplate)
 		if err != nil {
 			return nil, 0, err
 		}
-		return replicaResourceRequirements, int32(replicas), nil
+		return replicaRequirements, int32(replicas), nil
 	}
 	return nil, 0, nil
 }
 
-func (d *ResourceDetector) getReplicaResourceRequirements(object map[string]interface{}) (corev1.ResourceList, error) {
+func (d *ResourceDetector) getReplicaRequirements(object map[string]interface{}) (*workv1alpha1.ReplicaRequirements, error) {
 	var podTemplateSpec *corev1.PodTemplateSpec
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &podTemplateSpec)
 	if err != nil {
 		return nil, err
 	}
 	res := util.EmptyResource().AddPodRequest(&podTemplateSpec.Spec)
-	replicaResourceRequirements := res.ResourceList()
-	return replicaResourceRequirements, nil
+	replicaRequirements := &workv1alpha1.ReplicaRequirements{
+		NodeClaim:       helper.GenerateNodeClaimByPodSpec(&podTemplateSpec.Spec),
+		ResourceRequest: res.ResourceList(),
+	}
+	return replicaRequirements, nil
 }
 
 // AddWaiting adds object's key to waiting list.

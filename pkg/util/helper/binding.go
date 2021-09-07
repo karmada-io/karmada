@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -193,4 +194,20 @@ func DeleteWorks(c client.Client, selector labels.Set) (controllerruntime.Result
 	}
 
 	return controllerruntime.Result{}, nil
+}
+
+// GenerateNodeClaimByPodSpec will return a NodeClaim from PodSpec.
+func GenerateNodeClaimByPodSpec(podSpec *corev1.PodSpec) *workv1alpha1.NodeClaim {
+	nodeClaim := &workv1alpha1.NodeClaim{
+		NodeSelector: podSpec.NodeSelector,
+		Tolerations:  podSpec.Tolerations,
+	}
+	hasAffinity := podSpec.Affinity != nil && podSpec.Affinity.NodeAffinity != nil && podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil
+	if hasAffinity {
+		nodeClaim.HardNodeAffinity = podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	}
+	if nodeClaim.NodeSelector == nil && nodeClaim.HardNodeAffinity == nil && len(nodeClaim.Tolerations) == 0 {
+		return nil
+	}
+	return nodeClaim
 }
