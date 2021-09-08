@@ -313,6 +313,24 @@ func (s *Scheduler) getPlacement(resourceBinding *workv1alpha1.ResourceBinding) 
 	return placement, string(placementBytes), nil
 }
 
+func (s *Scheduler) getClusterPlacement(crb *workv1alpha1.ClusterResourceBinding) (policyv1alpha1.Placement, string, error) {
+	var placement policyv1alpha1.Placement
+	policyName := util.GetLabelValue(crb.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
+
+	policy, err := s.clusterPolicyLister.Get(policyName)
+	if err != nil {
+		return placement, "", err
+	}
+
+	placement = policy.Spec.Placement
+	placementBytes, err := json.Marshal(placement)
+	if err != nil {
+		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+		return placement, "", err
+	}
+	return placement, string(placementBytes), nil
+}
+
 func (s *Scheduler) getScheduleType(key string) ScheduleType {
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -322,7 +340,7 @@ func (s *Scheduler) getScheduleType(key string) ScheduleType {
 	if len(ns) > 0 {
 		return s.getTypeFromResourceBindings(ns, name)
 	}
-	return s.getTypeFromClusterCResourceBindings(name)
+	return s.getTypeFromClusterResourceBindings(name)
 }
 
 func (s *Scheduler) scheduleNext() bool {
@@ -754,21 +772,13 @@ func (s *Scheduler) getTypeFromResourceBindings(ns, name string) ScheduleType {
 		return ScaleSchedule
 	}
 
-	clusters := s.schedulerCache.Snapshot().GetClusters()
-	for _, tc := range resourceBinding.Spec.Clusters {
-		boundCluster := tc.Name
-		for _, c := range clusters {
-			if c.Cluster().Name == boundCluster {
-				if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-					return FailoverSchedule
-				}
-			}
-		}
+	if s.allClustersInReadyState(resourceBinding.Spec.Clusters) {
+		return AvoidSchedule
 	}
-	return AvoidSchedule
+	return FailoverSchedule
 }
 
-func (s *Scheduler) getTypeFromClusterCResourceBindings(name string) ScheduleType {
+func (s *Scheduler) getTypeFromClusterResourceBindings(name string) ScheduleType {
 	binding, err := s.clusterBindingLister.Get(name)
 	if errors.IsNotFound(err) {
 		return Unknown
@@ -778,39 +788,37 @@ func (s *Scheduler) getTypeFromClusterCResourceBindings(name string) ScheduleTyp
 		return FirstSchedule
 	}
 
-	policyName := util.GetLabelValue(binding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
-
-	policy, err := s.clusterPolicyLister.Get(policyName)
-	if err != nil {
-		return Unknown
-	}
-	placement, err := json.Marshal(policy.Spec.Placement)
-	if err != nil {
-		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
-		return Unknown
-	}
-	policyPlacementStr := string(placement)
-
 	appliedPlacement := util.GetLabelValue(binding.Annotations, util.PolicyPlacementAnnotation)
+	policyPlacement, policyPlacementStr, err := s.getClusterPlacement(binding)
+	if err != nil {
+		return Unknown
+	}
 
 	if policyPlacementStr != appliedPlacement {
 		return ReconcileSchedule
 	}
 
-	if policy.Spec.Placement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&binding.Spec, policy.Spec.Placement.ReplicaScheduling) {
+	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&binding.Spec, policyPlacement.ReplicaScheduling) {
 		return ScaleSchedule
 	}
 
+	if s.allClustersInReadyState(binding.Spec.Clusters) {
+		return AvoidSchedule
+	}
+	return FailoverSchedule
+}
+
+func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha1.TargetCluster) bool {
 	clusters := s.schedulerCache.Snapshot().GetClusters()
-	for _, tc := range binding.Spec.Clusters {
-		boundCluster := tc.Name
+	for i := range tcs {
 		for _, c := range clusters {
-			if c.Cluster().Name == boundCluster {
+			if c.Cluster().Name == tcs[i].Name {
 				if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-					return FailoverSchedule
+					return false
 				}
+				continue
 			}
 		}
 	}
-	return AvoidSchedule
+	return true
 }
