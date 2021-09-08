@@ -38,7 +38,7 @@ ifeq ($(VERSION), "")
     endif
 endif
 
-all: karmada-controller-manager karmada-scheduler karmadactl karmada-webhook karmada-agent
+all: karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent
 
 karmada-controller-manager: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
@@ -58,6 +58,12 @@ karmadactl: $(SOURCES)
 		-o karmadactl \
 		cmd/karmadactl/karmadactl.go
 
+kubectl-karmada: $(SOURCES)
+	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+		-ldflags $(LDFLAGS) \
+		-o kubectl-karmada \
+		cmd/kubectl-karmada/kubectl-karmada.go
+
 karmada-webhook: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
 		-ldflags $(LDFLAGS) \
@@ -71,7 +77,7 @@ karmada-agent: $(SOURCES)
 		cmd/agent/main.go
 
 clean:
-	rm -rf karmada-controller-manager karmada-scheduler karmadactl karmada-webhook karmada-agent
+	rm -rf karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent
 
 .PHONY: update
 update:

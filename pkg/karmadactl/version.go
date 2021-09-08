@@ -10,21 +10,21 @@ import (
 )
 
 var (
-	versionLong = `Version prints the version info of this command.`
-
-	versionExample = `  # Print karmadactl command version
-  karmadactl version`
+	versionShort   = `Print the version info`
+	versionLong    = `Version prints the version info of this command.`
+	versionExample = `  # Print %s command version
+  %s version`
 )
 
 // NewCmdVersion prints out the release version info for this command binary.
-func NewCmdVersion(out io.Writer) *cobra.Command {
+func NewCmdVersion(out io.Writer, cmdStr string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "version",
-		Short:   "Print the version info",
+		Short:   versionShort,
 		Long:    versionLong,
-		Example: versionExample,
+		Example: fmt.Sprintf(versionExample, cmdStr, cmdStr),
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(out, "karmadactl version: %s\n", fmt.Sprintf("%#v", version.Get()))
+			fmt.Fprintf(out, "%s version: %s\n", cmdStr, fmt.Sprintf("%#v", version.Get()))
 		},
 	}
 

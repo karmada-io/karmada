@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -20,18 +21,18 @@ import (
 )
 
 var (
-	cordonLong = `Mark cluster as unschedulable.`
-
+	cordonShort   = `Mark cluster as unschedulable`
+	cordonLong    = `Mark cluster as unschedulable.`
 	cordonExample = `
 # Mark cluster "foo" as unschedulable.
-karmadactl cordon foo
+%s cordon foo
 `
 
-	uncordonLong = `Mark cluster as schedulable.`
-
+	uncordonShort   = `Mark cluster as schedulable`
+	uncordonLong    = `Mark cluster as schedulable.`
 	uncordonExample = `
 # Mark cluster "foo" as schedulable.
-karmadactl uncordon foo
+%s uncordon foo
 `
 )
 
@@ -41,13 +42,13 @@ const (
 )
 
 // NewCmdCordon defines the `cordon` command that mark cluster as unschedulable.
-func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
+func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:     "cordon CLUSTER",
-		Short:   "Mark cluster as unschedulable",
+		Short:   cordonShort,
 		Long:    cordonLong,
-		Example: cordonExample,
+		Example: fmt.Sprintf(cordonExample, cmdStr),
 		Run: func(cmd *cobra.Command, args []string) {
 			err := opts.Complete(args)
 			if err != nil {
@@ -72,13 +73,13 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig) *cobra.Command 
 }
 
 // NewCmdUncordon defines the `cordon` command that mark cluster as schedulable.
-func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
+func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:     "uncordon CLUSTER",
-		Short:   "Mark cluster as schedulable",
+		Short:   uncordonShort,
 		Long:    uncordonLong,
-		Example: uncordonExample,
+		Example: fmt.Sprintf(uncordonExample, cmdStr),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Set default values
 			err := opts.Complete(args)
