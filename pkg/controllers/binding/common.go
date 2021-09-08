@@ -47,7 +47,7 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 		return !reflect.DeepEqual(statusesOld, statusesNew)
 	},
 	DeleteFunc: func(event.DeleteEvent) bool {
-		return false
+		return true
 	},
 	GenericFunc: func(event.GenericEvent) bool {
 		return false
