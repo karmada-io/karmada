@@ -1,0 +1,127 @@
+{{- if and (eq .Values.etcd.mode "internal") (eq .Values.installMode "host")}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etcd
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    app: etcd
+spec:
+  replicas: {{ .Values.etcd.internal.replicaCount }}
+  serviceName: etcd
+  selector:
+    matchLabels:
+      app: etcd
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - etcd
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: etcd
+          image: "{{ .Values.etcd.internal.image.repository }}:{{ .Values.etcd.internal.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.etcd.internal.image.pullPolicy }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/kubernetes/pki/etcd/server-ca.crt --cert /etc/kubernetes/pki/etcd/karmada.crt --key /etc/kubernetes/pki/etcd/karmada.key'
+            failureThreshold: 3
+            initialDelaySeconds: 600
+            periodSeconds: 60
+            successThreshold: 1
+            timeoutSeconds: 10
+          ports:
+            - containerPort: 2369
+              name: client
+              protocol: TCP
+            - containerPort: 2370
+              name: server
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/etcd
+              name: etcd-data
+            - name: etcd-cert
+              mountPath: /etc/kubernetes/pki/etcd
+              readOnly: true
+          command:
+            - /usr/local/bin/etcd
+            - --name
+            - etcd0
+            - --listen-peer-urls
+            - http://0.0.0.0:2380
+            - --listen-client-urls
+            - https://0.0.0.0:2379
+            - --advertise-client-urls
+            - https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
+            - --initial-cluster
+            - etcd0=http://etcd-0.etcd.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2380
+            - --initial-cluster-state
+            - new
+            - --cert-file=/etc/kubernetes/pki/etcd/karmada.crt
+            - --client-cert-auth=true
+            - --key-file=/etc/kubernetes/pki/etcd/karmada.key
+            - --trusted-ca-file=/etc/kubernetes/pki/etcd/server-ca.crt
+            - --data-dir=/var/lib/etcd
+      volumes:
+        - name: etcd-cert
+          secret:
+            secretName: {{ include "karmada.name" . }}-cert
+        - hostPath:
+            path: /var/lib/karmada-etcd
+            type: DirectoryOrCreate
+          name: etcd-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: etcd
+  name: etcd-client
+  namespace: {{ include "karmada.namespace" . }}
+spec:
+  ports:
+    - name: etcd-client-port
+      port: 2379
+      protocol: TCP
+      targetPort: 2379
+  selector:
+    app: etcd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: etcd
+  name: etcd
+  namespace: {{ include "karmada.namespace" . }}
+spec:
+  ports:
+    - name: client
+      port: 2379
+      protocol: TCP
+      targetPort: 2379
+    - name: server
+      port: 2380
+      protocol: TCP
+      targetPort: 2380
+  clusterIP: None
+  selector:
+    app: etcd
+
+{{- end }}
