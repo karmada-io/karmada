@@ -440,6 +440,8 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		bindingCopy.Labels = binding.Labels
 		bindingCopy.OwnerReferences = binding.OwnerReferences
 		bindingCopy.Spec.Resource = binding.Spec.Resource
+		bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
+		bindingCopy.Spec.Replicas = binding.Spec.Replicas
 		return nil
 	})
 	if err != nil {
@@ -486,6 +488,8 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Labels = binding.Labels
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Spec.Resource = binding.Spec.Resource
+			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
+			bindingCopy.Spec.Replicas = binding.Spec.Replicas
 			return nil
 		})
 
@@ -513,6 +517,8 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Labels = binding.Labels
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Spec.Resource = binding.Spec.Resource
+			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
+			bindingCopy.Spec.Replicas = binding.Spec.Replicas
 			return nil
 		})
 
