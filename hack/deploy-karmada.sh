@@ -103,17 +103,17 @@ function generate_cert_secret {
 # install Karmada's APIs
 function installCRDs() {
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/cluster.karmada.io_clusters.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_propagationpolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_clusterpropagationpolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_overridepolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_clusteroverridepolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/policy.karmada.io_replicaschedulingpolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_works.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_resourcebindings.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/work.karmada.io_clusterresourcebindings.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/multicluster.x-k8s.io_serviceexports.yaml"
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/multicluster.x-k8s.io_serviceimports.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/cluster.karmada.io_clusters.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/policy.karmada.io_propagationpolicies.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/policy.karmada.io_clusterpropagationpolicies.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/policy.karmada.io_overridepolicies.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/policy.karmada.io_clusteroverridepolicies.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/policy.karmada.io_replicaschedulingpolicies.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/work.karmada.io_works.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/work.karmada.io_resourcebindings.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/work.karmada.io_clusterresourcebindings.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/multicluster.x-k8s.io_serviceexports.yaml"
+    kubectl apply -f "${REPO_ROOT}/artifacts/crds/bases/multicluster.x-k8s.io_serviceimports.yaml"
 }
 
 # generate cert
