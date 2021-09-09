@@ -451,11 +451,26 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 
 		ginkgo.It("replicas duplicated testing when rescheduling", func() {
-			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas to 2", policyNamespace, policyName), func() {
+			ginkgo.By("make sure deployment has been propagated to member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					gomega.Eventually(func() bool {
+						_, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						return true
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas", deploymentNamespace, deploymentName), func() {
 				updateReplicas := int32(2)
 				deployment.Spec.Replicas = &updateReplicas
 				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				klog.Infof("Update deployment(%s/%s)'s replicas to %d", deploymentNamespace, deploymentName, *deployment.Spec.Replicas)
 			})
 
 			ginkgo.By("check if deployment's replicas have been updated on member clusters", func() {
@@ -598,6 +613,20 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
+			ginkgo.By("make sure deployment has been propagated to member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					gomega.Eventually(func() bool {
+						_, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						return true
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				}
+			})
+
 			expectedReplicas := int32(3)
 			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas to 3*len(clusters)", policyNamespace, policyName), func() {
 				updateReplicas := expectedReplicas * int32(len(clusters))
@@ -780,6 +809,20 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
+			ginkgo.By("make sure deployment has been propagated to member clusters", func() {
+				for _, cluster := range clusters {
+					clusterClient := getClusterClient(cluster.Name)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+					gomega.Eventually(func() bool {
+						_, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						return true
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				}
+			})
+
 			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas to 2*sumWeight", policyNamespace, policyName), func() {
 				sumWeight := 0
 				for index := range clusterNames {
