@@ -2,7 +2,9 @@ package binding
 
 import (
 	"context"
+	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -24,16 +26,34 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
-// ControllerName is the controller name that will be used when reporting events.
-const ControllerName = "binding-controller"
+const (
+	// ControllerName is the controller name that will be used when reporting events.
+	ControllerName                    = "binding-controller"
+	eventTypeFindOrphanWorks          = "FindOrphanWorks"
+	eventTypeFetchWorkload            = "FetchWorkload"
+	eventTypeTransformResourceBinding = "TransformResourceBinding"
+	eventTypeAggregateWorkStatuses    = "AggregateWorkStatuses"
+)
 
 // ResourceBindingController is to sync ResourceBinding.
 type ResourceBindingController struct {
-	client.Client                     // used to operate ResourceBinding resources.
-	DynamicClient   dynamic.Interface // used to fetch arbitrary resources.
-	EventRecorder   record.EventRecorder
-	RESTMapper      meta.RESTMapper
-	OverrideManager overridemanager.OverrideManager
+	client          client.Client     // used to operate ResourceBinding resources.
+	dynamicClient   dynamic.Interface // used to fetch arbitrary resources.
+	recorder        record.EventRecorder
+	restMapper      meta.RESTMapper
+	overrideManager overridemanager.OverrideManager
+}
+
+// NewResourceBindingController creates a new ResourceBindingController.
+func NewResourceBindingController(client client.Client, dynamicClient dynamic.Interface, recorder record.EventRecorder, restMapper meta.RESTMapper, overrideManager overridemanager.OverrideManager) *ResourceBindingController {
+	rbConroller := ResourceBindingController{
+		client:          client,
+		dynamicClient:   dynamicClient,
+		recorder:        recorder,
+		restMapper:      restMapper,
+		overrideManager: overrideManager,
+	}
+	return &rbConroller
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -43,10 +63,10 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
 
 	binding := &workv1alpha1.ResourceBinding{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
+	if err := c.client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
 		// The resource no longer exist, clean up derived Work objects.
 		if apierrors.IsNotFound(err) {
-			return helper.DeleteWorks(c.Client, labels.Set{
+			return helper.DeleteWorks(c.client, labels.Set{
 				workv1alpha1.ResourceBindingNamespaceLabel: req.Namespace,
 				workv1alpha1.ResourceBindingNameLabel:      req.Name,
 			})
@@ -61,7 +81,10 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 
 	isReady := helper.IsBindingReady(binding.Spec.Clusters)
 	if !isReady {
-		klog.Infof("ResourceBinding(%s/%s) is not ready to sync", binding.GetNamespace(), binding.GetName())
+		msg := fmt.Sprintf("ResourceBinding %s is not ready.", req.NamespacedName.String())
+		klog.Infof(msg)
+		c.recorder.Event(binding, corev1.EventTypeWarning, "ResourceBindingNotReady", msg)
+
 		return controllerruntime.Result{}, nil
 	}
 
@@ -71,41 +94,47 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 // syncBinding will sync resourceBinding to Works.
 func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBinding) (controllerruntime.Result, error) {
 	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters)
-	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name, clusterNames, apiextensionsv1.NamespaceScoped)
+	works, err := helper.FindOrphanWorks(c.client, binding.Namespace, binding.Name, clusterNames, apiextensionsv1.NamespaceScoped)
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
+		c.recorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFindOrphanWorks), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = helper.RemoveOrphanWorks(c.Client, works)
+	err = helper.RemoveOrphanWorks(c.client, works)
 	if err != nil {
 		klog.Errorf("Failed to remove orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
+		c.recorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFindOrphanWorks), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
+	workload, err := helper.FetchWorkload(c.dynamicClient, c.restMapper, binding.Spec.Resource)
 	if err != nil {
 		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
+		c.recorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFetchWorkload), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = ensureWork(c.Client, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
+	err = ensureWork(c.client, workload, c.overrideManager, binding, apiextensionsv1.NamespaceScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
+		c.recorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeTransformResourceBinding), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload)
+	err = helper.AggregateResourceBindingWorkStatus(c.client, binding, workload)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
+		c.recorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeAggregateWorkStatuses), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	klog.V(4).Infof("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
+	c.recorder.Event(binding, corev1.EventTypeNormal, "SyncResourceBinding", "ResourceBinding synced successfully")
 
 	return controllerruntime.Result{}, nil
 }
@@ -152,14 +181,14 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 		}
 
 		bindingList := &workv1alpha1.ResourceBindingList{}
-		if err := c.Client.List(context.TODO(), bindingList); err != nil {
+		if err := c.client.List(context.TODO(), bindingList); err != nil {
 			klog.Errorf("Failed to list resourceBindings, error: %v", err)
 			return nil
 		}
 
 		var requests []reconcile.Request
 		for _, binding := range bindingList.Items {
-			workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
+			workload, err := helper.FetchWorkload(c.dynamicClient, c.restMapper, binding.Spec.Resource)
 			if err != nil {
 				klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", binding.Namespace, binding.Name, err)
 				return nil
@@ -181,14 +210,14 @@ func (c *ResourceBindingController) newReplicaSchedulingPolicyFunc() handler.Map
 	return func(a client.Object) []reconcile.Request {
 		rspResourceSelectors := a.(*policyv1alpha1.ReplicaSchedulingPolicy).Spec.ResourceSelectors
 		bindingList := &workv1alpha1.ResourceBindingList{}
-		if err := c.Client.List(context.TODO(), bindingList); err != nil {
+		if err := c.client.List(context.TODO(), bindingList); err != nil {
 			klog.Errorf("Failed to list resourceBindings, error: %v", err)
 			return nil
 		}
 
 		var requests []reconcile.Request
 		for _, binding := range bindingList.Items {
-			workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
+			workload, err := helper.FetchWorkload(c.dynamicClient, c.restMapper, binding.Spec.Resource)
 			if err != nil {
 				klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", binding.Namespace, binding.Name, err)
 				return nil
