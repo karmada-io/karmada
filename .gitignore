@@ -24,3 +24,4 @@
 /karmada-webhook
 /karmadactl
 /kubectl-karmada
+/karmada-scheduler-estimator
