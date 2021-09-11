@@ -16,6 +16,11 @@ type Info struct {
 	Platform     string `json:"platform"`
 }
 
+// String returns a Go-syntax representation of the Info.
+func (info Info) String() string {
+	return fmt.Sprintf("%#v", info)
+}
+
 // Get returns the overall codebase version. It's for detecting
 // what code a binary was built from.
 func Get() Info {
