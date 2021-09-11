@@ -12,7 +12,7 @@ data:
     {{- include "karmada.webhook.configuration" . | nindent 4 }}
   {{- print "system-namespace.yaml: " | nindent 2 }} |-
     {{- include "karmada.systemNamespace" . | nindent 4 }}
-  {{ range $path, $bytes := .Files.Glob (printf "_crds/**")}}
+  {{ range $path, $bytes := .Files.Glob (printf "_crds/bases/**")}}
   {{ $name := base $path }}
   {{- (printf "%s: " $name) | nindent 2 }} |-
     {{- $.Files.Get $path | nindent 4 }}
