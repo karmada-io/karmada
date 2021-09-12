@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	defaultBindAddress = "0.0.0.0"
-	defaultPort        = 10351
+	defaultBindAddress   = "0.0.0.0"
+	defaultPort          = 10351
+	defaultEstimatorPort = 10352
 )
 
 var (
@@ -39,6 +40,13 @@ type Options struct {
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
 	KubeAPIBurst int
+
+	// EnableSchedulerEstimator represents whether the accurate scheduler estimator should be enabled.
+	EnableSchedulerEstimator bool
+	// SchedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
+	SchedulerEstimatorTimeout metav1.Duration
+	// SchedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
+	SchedulerEstimatorPort int
 }
 
 // NewOptions builds an default scheduler options.
@@ -71,4 +79,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&o.Failover, "failover", false, "Reschedule on cluster failure.")
 	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	fs.BoolVar(&o.EnableSchedulerEstimator, "enable-scheduler-estimator", false, "Enable calling cluster scheduler estimator for adjusting replicas.")
+	fs.DurationVar(&o.SchedulerEstimatorTimeout.Duration, "scheduler-estimator-timeout", 3*time.Second, "Specifies the timeout period of calling the scheduler estimator service.")
+	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
 }

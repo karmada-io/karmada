@@ -33,6 +33,9 @@ const endpointSlicePrefix = "imported"
 // endpointSlicePrefix is the prefix of service derived from ServiceImport.
 const derivedServicePrefix = "derived"
 
+// estimatorServicePrefix is the prefix of scheduler estimator service name.
+const estimatorServicePrefix = "karmada-scheduler-estimator"
+
 // GenerateExecutionSpaceName generates execution space name for the given member cluster
 func GenerateExecutionSpaceName(clusterName string) (string, error) {
 	if clusterName == "" {
@@ -86,6 +89,11 @@ func GenerateEndpointSliceName(endpointSliceName string, cluster string) string 
 // GenerateDerivedServiceName generates the service name derived from ServiceImport.
 func GenerateDerivedServiceName(serviceName string) string {
 	return fmt.Sprintf("%s-%s", derivedServicePrefix, serviceName)
+}
+
+// GenerateEstimatorServiceName generates the gRPC scheduler estimator service name which belongs to a cluster.
+func GenerateEstimatorServiceName(clusterName string) string {
+	return fmt.Sprintf("%s-%s", estimatorServicePrefix, clusterName)
 }
 
 // GenerateClusterAPISecretName generates the secret name of cluster authentication in cluster-api.
