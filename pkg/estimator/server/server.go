@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/http"
 	"time"
 
 	"github.com/kr/pretty"
@@ -39,7 +38,6 @@ type AccurateSchedulerEstimatorServer struct {
 	nodeLister      listv1.NodeLister
 	podLister       listv1.PodLister
 	getPodFunc      func(nodeName string) ([]*corev1.Pod, error)
-	httpServer      *http.Server
 }
 
 // NewEstimatorServer creates an instance of AccurateSchedulerEstimatorServer.
@@ -120,9 +118,6 @@ func (es *AccurateSchedulerEstimatorServer) Start(ctx context.Context) error {
 	go func() {
 		<-stopCh
 		s.GracefulStop()
-		if err := es.httpServer.Shutdown(context.Background()); nil != err {
-			klog.Fatalf("server shutdown failed, err: %v\n", err)
-		}
 	}()
 
 	// Start the gRPC server.
