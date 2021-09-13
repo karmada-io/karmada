@@ -36,6 +36,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
+	"github.com/karmada-io/karmada/pkg/version"
+	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
@@ -43,8 +45,8 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "controller-manager",
-		Long: `The controller manager runs a bunch of controllers`,
+		Use:  "karmada-controller-manager",
+		Long: `The karmada controller manager runs a bunch of controllers`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := Run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -54,12 +56,14 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	}
 
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-controller-manager"))
 	opts.AddFlags(cmd.Flags())
 	return cmd
 }
 
 // Run runs the controller-manager with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
+	klog.Infof("karmada-controller-manager version: %s", version.Get())
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)
