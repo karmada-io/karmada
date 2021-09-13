@@ -20,6 +20,8 @@ import (
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/scheduler"
+	"github.com/karmada-io/karmada/pkg/version"
+	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
 // NewSchedulerCommand creates a *cobra.Command object with default parameters
@@ -27,7 +29,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "scheduler",
+		Use:  "karmada-scheduler",
 		Long: `The karmada scheduler binds resources to the clusters it manages.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(opts, stopChan); err != nil {
@@ -38,11 +40,13 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 	}
 
 	opts.AddFlags(cmd.Flags())
+	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-scheduler"))
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	return cmd
 }
 
 func run(opts *options.Options, stopChan <-chan struct{}) error {
+	klog.Infof("karmada-scheduler version: %s", version.Get())
 	go serveHealthz(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)

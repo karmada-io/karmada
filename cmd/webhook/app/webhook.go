@@ -15,6 +15,8 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/version"
+	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 	"github.com/karmada-io/karmada/pkg/webhook/cluster"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
@@ -27,8 +29,8 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "webhook",
-		Long: `Start a webhook server`,
+		Use:  "karmada-webhook",
+		Long: `Start a karmada webhook server`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := Run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -38,6 +40,7 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	}
 
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-webhook"))
 	opts.AddFlags(cmd.Flags())
 
 	return cmd
@@ -45,6 +48,7 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 
 // Run runs the webhook server with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
+	klog.Infof("karmada-webhook version: %s", version.Get())
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)
