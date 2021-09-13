@@ -7,10 +7,21 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
+)
+
+// These are different resource units.
+const (
+	ResourceUnitZero             int64 = 0
+	ResourceUnitCPU              int64 = 1000
+	ResourceUnitMem              int64 = 1024 * 1024 * 1024
+	ResourceUnitPod              int64 = 1
+	ResourceUnitEphemeralStorage int64 = 1024 * 1024 * 1024
+	ResourceUnitGPU              int64 = 1
 )
 
 // NewDeployment will build a deployment object.
@@ -239,6 +250,132 @@ func NewJob(namespace string, name string) *batchv1.Job {
 				},
 			},
 			BackoffLimit: pointer.Int32Ptr(4),
+		},
+	}
+}
+
+// NewResourceList will build a ResourceList.
+func NewResourceList(milliCPU, memory, ephemeralStorage int64) corev1.ResourceList {
+	return corev1.ResourceList{
+		corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+		corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.DecimalSI),
+		corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+	}
+}
+
+// NewPodWithRequest will build a Pod with resource request.
+func NewPodWithRequest(pod, node string, milliCPU, memory, ephemeralStorage int64) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: pod},
+		Spec: corev1.PodSpec{
+			NodeName: node,
+			Containers: []corev1.Container{
+				{
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+							corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.DecimalSI),
+							corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+						},
+					},
+				},
+			},
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodRunning,
+		},
+	}
+}
+
+// NewNode will build a ready node with resource.
+func NewNode(node string, milliCPU, memory, pods, ephemeralStorage int64) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: node},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Conditions: []corev1.NodeCondition{
+				{
+					Type:              corev1.NodeReady,
+					Status:            corev1.ConditionTrue,
+					Reason:            "KubeletReady",
+					Message:           "kubelet is posting ready status",
+					LastHeartbeatTime: metav1.Now(),
+				},
+			},
+		},
+	}
+}
+
+// MakeNodeWithLabels will build a ready node with resource and labels.
+func MakeNodeWithLabels(node string, milliCPU, memory, pods, ephemeralStorage int64, labels map[string]string) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: node, Labels: labels},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Conditions: []corev1.NodeCondition{
+				{
+					Type:              corev1.NodeReady,
+					Status:            corev1.ConditionTrue,
+					Reason:            "KubeletReady",
+					Message:           "kubelet is posting ready status",
+					LastHeartbeatTime: metav1.Now(),
+				},
+			},
+		},
+	}
+}
+
+// MakeNodeWithTaints will build a ready node with resource and taints.
+func MakeNodeWithTaints(node string, milliCPU, memory, pods, ephemeralStorage int64, taints []corev1.Taint) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: node},
+		Spec: corev1.NodeSpec{
+			Taints: taints,
+		},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Conditions: []corev1.NodeCondition{
+				{
+					Type:              corev1.NodeReady,
+					Status:            corev1.ConditionTrue,
+					Reason:            "KubeletReady",
+					Message:           "kubelet is posting ready status",
+					LastHeartbeatTime: metav1.Now(),
+				},
+			},
 		},
 	}
 }
