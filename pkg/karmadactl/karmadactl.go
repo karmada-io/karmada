@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/tools/clientcmd"
 	apiserverflag "k8s.io/component-base/cli/flag"
+
+	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
 var (
@@ -42,7 +44,7 @@ func NewKarmadaCtlCommand(out io.Writer, cmdUse, cmdStr string) *cobra.Command {
 	karmadaConfig := NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 	rootCmd.AddCommand(NewCmdJoin(out, karmadaConfig, cmdStr))
 	rootCmd.AddCommand(NewCmdUnjoin(out, karmadaConfig, cmdStr))
-	rootCmd.AddCommand(NewCmdVersion(out, cmdStr))
+	rootCmd.AddCommand(sharedcommand.NewCmdVersion(out, cmdStr))
 	rootCmd.AddCommand(NewCmdCordon(out, karmadaConfig, cmdStr))
 	rootCmd.AddCommand(NewCmdUncordon(out, karmadaConfig, cmdStr))
 
