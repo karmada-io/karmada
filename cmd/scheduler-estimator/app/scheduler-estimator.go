@@ -14,6 +14,8 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/server"
+	"github.com/karmada-io/karmada/pkg/version"
+	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
 // NewSchedulerEstimatorCommand creates a *cobra.Command object with default parameters
@@ -21,8 +23,8 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "scheduler-estimator",
-		Long: `The scheduler estimator runs an accurate scheduler estimator of a cluster`,
+		Use:  "karmada-scheduler-estimator",
+		Long: `The karmada scheduler estimator runs an accurate scheduler estimator of a cluster`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -32,11 +34,13 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 	}
 
 	opts.AddFlags(cmd.Flags())
+	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-scheduler-estimator"))
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	return cmd
 }
 
 func run(ctx context.Context, opts *options.Options) error {
+	klog.Infof("karmada-scheduler-estimator version: %s", version.Get())
 	go serveHealthz(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)

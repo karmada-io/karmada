@@ -26,6 +26,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
+	"github.com/karmada-io/karmada/pkg/version"
+	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
 // NewAgentCommand creates a *cobra.Command object with default parameters
@@ -45,11 +47,13 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	}
 
 	opts.AddFlags(cmd.Flags())
+	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-agent"))
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	return cmd
 }
 
 func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *options.Options) error {
+	klog.Infof("karmada-agent version: %s", version.Get())
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KarmadaKubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of karmada control plane: %s", err.Error())
