@@ -507,23 +507,27 @@ func getClusterAllocatable(nodeList []*corev1.Node) (allocatable corev1.Resource
 
 func getAllocatingResource(podList []*corev1.Pod) corev1.ResourceList {
 	allocating := util.EmptyResource()
+	podNum := int64(0)
 	for _, pod := range podList {
 		if len(pod.Spec.NodeName) == 0 {
 			allocating.AddPodRequest(&pod.Spec)
+			podNum++
 		}
 	}
-
+	allocating.AddResourcePods(podNum)
 	return allocating.ResourceList()
 }
 
 func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
 	allocated := util.EmptyResource()
+	podNum := int64(0)
 	for _, pod := range podList {
 		// When the phase of a pod is Succeeded or Failed, kube-scheduler would not consider its resource occupation.
 		if len(pod.Spec.NodeName) != 0 && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
 			allocated.AddPodRequest(&pod.Spec)
+			podNum++
 		}
 	}
-
+	allocated.AddResourcePods(podNum)
 	return allocated.ResourceList()
 }
