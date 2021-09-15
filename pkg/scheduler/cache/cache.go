@@ -3,44 +3,44 @@ package cache
 import (
 	"sync"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
 // Cache is an interface for scheduler internal cache.
 type Cache interface {
-	AddCluster(cluster *v1alpha1.Cluster)
-	UpdateCluster(cluster *v1alpha1.Cluster)
-	DeleteCluster(cluster *v1alpha1.Cluster)
+	AddCluster(cluster *clusterv1alpha1.Cluster)
+	UpdateCluster(cluster *clusterv1alpha1.Cluster)
+	DeleteCluster(cluster *clusterv1alpha1.Cluster)
 	// Snapshot returns a snapshot of the current clusters info
 	Snapshot() *Snapshot
 }
 
 type schedulerCache struct {
 	mutex    sync.RWMutex
-	clusters map[string]*v1alpha1.Cluster
+	clusters map[string]*clusterv1alpha1.Cluster
 }
 
 // NewCache instantiates a cache used only by scheduler.
 func NewCache() Cache {
 	return &schedulerCache{
-		clusters: make(map[string]*v1alpha1.Cluster),
+		clusters: make(map[string]*clusterv1alpha1.Cluster),
 	}
 }
 
-func (c *schedulerCache) AddCluster(cluster *v1alpha1.Cluster) {
+func (c *schedulerCache) AddCluster(cluster *clusterv1alpha1.Cluster) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.clusters[cluster.Name] = cluster
 }
 
-func (c *schedulerCache) UpdateCluster(cluster *v1alpha1.Cluster) {
+func (c *schedulerCache) UpdateCluster(cluster *clusterv1alpha1.Cluster) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.clusters[cluster.Name] = cluster
 }
 
-func (c *schedulerCache) DeleteCluster(cluster *v1alpha1.Cluster) {
+func (c *schedulerCache) DeleteCluster(cluster *clusterv1alpha1.Cluster) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	delete(c.clusters, cluster.Name)

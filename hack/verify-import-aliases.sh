@@ -16,8 +16,8 @@ popd >/dev/null
 
 IMPORT_ALIASES_PATH="${ROOT_PATH}/hack/.import-aliases"
 INCLUDE_PATH="(${ROOT_PATH}/cmd|${ROOT_PATH}/test/e2e|${ROOT_PATH}/test/helper|\
-${ROOT_PATH}/pkg/apis|${ROOT_PATH}/pkg/clusterdiscovery|${ROOT_PATH}/pkg/controllers|\
-${ROOT_PATH}/pkg/estimator|${ROOT_PATH}/pkg/karmadactl|${ROOT_PATH}/pkg/scheduler|\
+${ROOT_PATH}/pkg/clusterdiscovery|${ROOT_PATH}/pkg/controllers|\
+${ROOT_PATH}/pkg/estimator/server|${ROOT_PATH}/pkg/karmadactl|${ROOT_PATH}/pkg/scheduler|\
 ${ROOT_PATH}/pkg/util|${ROOT_PATH}/pkg/version|${ROOT_PATH}/pkg/webhook)"
 
 ret=0

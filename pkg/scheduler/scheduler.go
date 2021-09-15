@@ -8,7 +8,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -389,7 +389,7 @@ func (s *Scheduler) scheduleOne(key string) (err error) {
 
 	if ns == "" {
 		clusterResourceBinding, err := s.clusterBindingLister.Get(name)
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 
@@ -403,7 +403,7 @@ func (s *Scheduler) scheduleOne(key string) (err error) {
 		return s.scheduleClusterResourceBinding(clusterResourceBinding, clusterPolicy)
 	}
 	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-	if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		return nil
 	}
 
@@ -468,7 +468,7 @@ func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv
 }
 
 func (s *Scheduler) handleErr(err error, key interface{}) {
-	if err == nil || errors.HasStatusCause(err, corev1.NamespaceTerminatingCause) {
+	if err == nil || apierrors.HasStatusCause(err, corev1.NamespaceTerminatingCause) {
 		s.queue.Forget(key)
 		return
 	}
@@ -581,7 +581,7 @@ func (s *Scheduler) rescheduleOne(key string) (err error) {
 		defer klog.Infof("end rescheduling ClusterResourceBinding %s", name)
 
 		clusterResourceBinding, err := s.clusterBindingLister.Get(name)
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		crBinding := clusterResourceBinding.DeepCopy()
@@ -594,7 +594,7 @@ func (s *Scheduler) rescheduleOne(key string) (err error) {
 		defer klog.Infof("end rescheduling ResourceBinding %s: %s", ns, name)
 
 		resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		binding := resourceBinding.DeepCopy()
@@ -665,7 +665,7 @@ func (s *Scheduler) scaleScheduleOne(key string) (err error) {
 
 	if ns == "" {
 		clusterResourceBinding, err := s.clusterBindingLister.Get(name)
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 
@@ -680,7 +680,7 @@ func (s *Scheduler) scaleScheduleOne(key string) (err error) {
 	}
 
 	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-	if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		return nil
 	}
 
@@ -749,7 +749,7 @@ func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *
 
 func (s *Scheduler) getTypeFromResourceBindings(ns, name string) ScheduleType {
 	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-	if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		return Unknown
 	}
 
@@ -780,7 +780,7 @@ func (s *Scheduler) getTypeFromResourceBindings(ns, name string) ScheduleType {
 
 func (s *Scheduler) getTypeFromClusterResourceBindings(name string) ScheduleType {
 	binding, err := s.clusterBindingLister.Get(name)
-	if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		return Unknown
 	}
 

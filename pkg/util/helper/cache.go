@@ -1,7 +1,7 @@
 package helper
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,7 +29,7 @@ func GetObjectFromCache(restMapper meta.RESTMapper, manager informermanager.Mult
 	lister := singleClusterManager.Lister(gvr)
 	obj, err = lister.Get(fedKey.NamespaceKey())
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil, err
 		}
 

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -44,7 +44,7 @@ func (c *HorizontalPodAutoscalerController) Reconcile(ctx context.Context, req c
 	hpa := &autoscalingv1.HorizontalPodAutoscaler{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, hpa); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
 

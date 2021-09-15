@@ -10,7 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -146,7 +146,7 @@ func (d *ResourceDetector) AggregateIngressStatus(objRef workv1alpha1.ObjectRefe
 		return nil
 	}
 
-	obj := &v1beta1.Ingress{}
+	obj := &extensionsv1beta1.Ingress{}
 	if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: objRef.Namespace, Name: objRef.Name}, obj); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -155,12 +155,12 @@ func (d *ResourceDetector) AggregateIngressStatus(objRef workv1alpha1.ObjectRefe
 		return err
 	}
 
-	newStatus := &v1beta1.IngressStatus{}
+	newStatus := &extensionsv1beta1.IngressStatus{}
 	for _, item := range status {
 		if item.Status == nil {
 			continue
 		}
-		temp := &v1beta1.IngressStatus{}
+		temp := &extensionsv1beta1.IngressStatus{}
 		if err := json.Unmarshal(item.Status.Raw, temp); err != nil {
 			klog.Errorf("Failed to unmarshal status ingress(%s/%s): %v", obj.Namespace, obj.Name, err)
 			return err

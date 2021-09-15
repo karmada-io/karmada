@@ -8,7 +8,7 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -101,7 +101,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -166,7 +166,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 							return false, err
@@ -275,7 +275,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -305,7 +305,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 							return false, err

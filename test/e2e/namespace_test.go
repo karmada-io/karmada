@@ -7,7 +7,7 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -46,7 +46,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -77,7 +77,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -104,7 +104,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 						}
@@ -197,7 +197,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 				err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 					_, err = clusterClient.KubeClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 					if err != nil {
-						if errors.IsNotFound(err) {
+						if apierrors.IsNotFound(err) {
 							return false, nil
 						}
 						return false, err

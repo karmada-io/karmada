@@ -12,7 +12,7 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -320,7 +320,7 @@ func SetClusterLabel(c client.Client, clusterName string) error {
 	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if errors.IsConflict(err) {
+			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
@@ -330,7 +330,7 @@ func SetClusterLabel(c client.Client, clusterName string) error {
 		}
 		clusterObj.Labels["location"] = "CHN"
 		if err := c.Update(context.TODO(), clusterObj); err != nil {
-			if errors.IsConflict(err) {
+			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
@@ -345,14 +345,14 @@ func DeleteClusterLabel(c client.Client, clusterName string) error {
 	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if errors.IsConflict(err) {
+			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
 		}
 		delete(clusterObj.Labels, "location")
 		if err := c.Update(context.TODO(), clusterObj); err != nil {
-			if errors.IsConflict(err) {
+			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err

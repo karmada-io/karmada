@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -54,10 +54,10 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, nil
 	}
 
-	namespace := &v1.Namespace{}
+	namespace := &corev1.Namespace{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, namespace); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
 
@@ -70,7 +70,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, nil
 	}
 
-	clusterList := &v1alpha1.ClusterList{}
+	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(context.TODO(), clusterList); err != nil {
 		klog.Errorf("Failed to list clusters, error: %v", err)
 		return controllerruntime.Result{Requeue: true}, err
@@ -97,7 +97,7 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 	return true
 }
 
-func (c *Controller) buildWorks(namespace *v1.Namespace, clusters []v1alpha1.Cluster) error {
+func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv1alpha1.Cluster) error {
 	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(namespace)
 	if err != nil {
 		klog.Errorf("Failed to transform namespace %s. Error: %v", namespace.GetName(), err)
@@ -137,7 +137,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	namespaceFn := handler.MapFunc(
 		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
-			namespaceList := &v1.NamespaceList{}
+			namespaceList := &corev1.NamespaceList{}
 			if err := c.Client.List(context.TODO(), namespaceList); err != nil {
 				klog.Errorf("Failed to list namespace, error: %v", err)
 				return nil
@@ -167,6 +167,6 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	})
 
 	return controllerruntime.NewControllerManagedBy(mgr).
-		For(&v1.Namespace{}).Watches(&source.Kind{Type: &v1alpha1.Cluster{}}, handler.EnqueueRequestsFromMapFunc(namespaceFn),
+		For(&corev1.Namespace{}).Watches(&source.Kind{Type: &clusterv1alpha1.Cluster{}}, handler.EnqueueRequestsFromMapFunc(namespaceFn),
 		predicate).Complete(c)
 }
