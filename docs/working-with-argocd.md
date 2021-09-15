@@ -10,7 +10,7 @@ You have installed Argo CD following the instructions in [Getting Started](https
 ### Karmada Installation
 In this example, we are using a Karmada environment with at lease `3` member clusters joined.
 
-You can set up the environment by `hack/karmada-bootstrap.sh`, which is also used to run our E2E cases.
+You can set up the environment by `hack/local-up-karmada.sh`, which is also used to run our E2E cases.
 
 ```bash
 # kubectl get clusters

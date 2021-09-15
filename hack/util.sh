@@ -86,12 +86,12 @@ function util::install_kubectl {
     local ARCH=${2}
     local OS=${3:-linux}
     echo "Installing 'kubectl ${KUBECTL_VERSION}' for you, may require the root privileges"
-    curl --retry 5 -sSLo ./kubectl -w "%{http_code}" https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl | grep '200'
+    curl --retry 5 -sSLo ./kubectl -w "%{http_code}" https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl | grep '200' > /dev/null
     ret=$?
     if [ ${ret} -eq 0 ]; then
         chmod +x ./kubectl
         echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
-        sudo rm -rf "$(which kubectl)"
+        sudo rm -rf "$(which kubectl 2> /dev/null)"
         sudo mv ./kubectl /usr/local/bin/kubectl
     else
         echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
@@ -107,12 +107,12 @@ function util::install_kind {
   os_name=$(go env GOOS)
   local arch_name
   arch_name=$(go env GOARCH)
-  curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200'
+  curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200' > /dev/null
   ret=$?
   if [ ${ret} -eq 0 ]; then
       chmod +x ./kind
       echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
-      sudo rm -f "$(which kind)"
+      sudo rm -f "$(which kind 2> /dev/null)"
       sudo mv ./kind /usr/local/bin/kind
   else
       echo "Failed to install kind, can not download the binary file at https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}"

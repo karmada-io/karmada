@@ -79,7 +79,7 @@ jobs:
         with:
           go-version: 1.16.x
       - name: setup e2e test environment
-        run: hack/karmada-bootstrap.sh
+        run: hack/local-up-karmada.sh
       - name: run e2e
         run: hack/run-e2e.sh
       - name: upload logs

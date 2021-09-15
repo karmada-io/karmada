@@ -6,13 +6,13 @@ Users are able to **export** and **import** services between clusters with [Mult
 
 ### Karmada has been installed
 
-We can install Karmada by referring to [quick-start](https://github.com/karmada-io/karmada#quick-start), or directly run `hack/karmada-bootstrap.sh` script which is also used to run our E2E cases.
+We can install Karmada by referring to [quick-start](https://github.com/karmada-io/karmada#quick-start), or directly run `hack/local-up-karmada.sh` script which is also used to run our E2E cases.
 
 ### Member Cluster Network
 
 Ensure that at least two clusters have been added to Karmada, and the container networks between member clusters are connected.
 
-- If you use the `hack/karmada-bootstrap.sh` script to deploy Karmada, Karmada will have three member clusters, and the container networks of the `member1` and `member2` will be connected.
+- If you use the `hack/local-up-karmada.sh` script to deploy Karmada, Karmada will have three member clusters, and the container networks of the `member1` and `member2` will be connected.
 - If you use `Kind` tool to create member clusters, you can refer to the [hack/util.sh](https://github.com/karmada-io/karmada/blob/af5f544cbe68d6b37a730b42dcc1ead0fac16915/hack/util.sh#L452-L470) script to enable the container networks.
 
 ### The ServiceExport and ServiceImport CRDs have been installed
