@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	coordv1 "k8s.io/api/coordination/v1"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -57,9 +57,9 @@ type Controller struct {
 }
 
 type clusterHealthData struct {
-	probeTimestamp v1.Time
-	status         *v1alpha1.ClusterStatus
-	lease          *coordv1.Lease
+	probeTimestamp metav1.Time
+	status         *clusterv1alpha1.ClusterStatus
+	lease          *coordinationv1.Lease
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -68,7 +68,7 @@ type clusterHealthData struct {
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling cluster %s", req.NamespacedName.Name)
 
-	cluster := &v1alpha1.Cluster{}
+	cluster := &clusterv1alpha1.Cluster{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
@@ -104,12 +104,12 @@ func (c *Controller) Start(ctx context.Context) error {
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return utilerrors.NewAggregate([]error{
-		controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).Complete(c),
+		controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).Complete(c),
 		mgr.Add(c),
 	})
 }
 
-func (c *Controller) syncCluster(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *Controller) syncCluster(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create execution space
 	err := c.createExecutionSpace(cluster)
 	if err != nil {
@@ -120,7 +120,7 @@ func (c *Controller) syncCluster(cluster *v1alpha1.Cluster) (controllerruntime.R
 	return c.ensureFinalizer(cluster)
 }
 
-func (c *Controller) removeCluster(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *Controller) removeCluster(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	err := c.removeExecutionSpace(cluster)
 	if apierrors.IsNotFound(err) {
 		return c.removeFinalizer(cluster)
@@ -146,7 +146,7 @@ func (c *Controller) removeCluster(cluster *v1alpha1.Cluster) (controllerruntime
 }
 
 // removeExecutionSpace deletes the given execution space
-func (c *Controller) removeExecutionSpace(cluster *v1alpha1.Cluster) error {
+func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) error {
 	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
 	if err != nil {
 		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
@@ -154,7 +154,7 @@ func (c *Controller) removeExecutionSpace(cluster *v1alpha1.Cluster) error {
 	}
 
 	executionSpaceObj := &corev1.Namespace{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: executionSpaceName,
 		},
 	}
@@ -167,7 +167,7 @@ func (c *Controller) removeExecutionSpace(cluster *v1alpha1.Cluster) error {
 }
 
 // ensureRemoveExecutionSpace makes sure the given execution space has been deleted
-func (c *Controller) ensureRemoveExecutionSpace(cluster *v1alpha1.Cluster) (bool, error) {
+func (c *Controller) ensureRemoveExecutionSpace(cluster *clusterv1alpha1.Cluster) (bool, error) {
 	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
 	if err != nil {
 		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
@@ -187,7 +187,7 @@ func (c *Controller) ensureRemoveExecutionSpace(cluster *v1alpha1.Cluster) (bool
 	return true, nil
 }
 
-func (c *Controller) removeFinalizer(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *Controller) removeFinalizer(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
@@ -201,7 +201,7 @@ func (c *Controller) removeFinalizer(cluster *v1alpha1.Cluster) (controllerrunti
 	return controllerruntime.Result{}, nil
 }
 
-func (c *Controller) ensureFinalizer(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
+func (c *Controller) ensureFinalizer(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	if controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
@@ -216,7 +216,7 @@ func (c *Controller) ensureFinalizer(cluster *v1alpha1.Cluster) (controllerrunti
 }
 
 // createExecutionSpace creates member cluster execution space when member cluster joined
-func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
+func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) error {
 	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
 	if err != nil {
 		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
@@ -234,7 +234,7 @@ func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 
 		// create only when not exist
 		executionSpace := &corev1.Namespace{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name: executionSpaceName,
 			},
 		}
@@ -250,7 +250,7 @@ func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 }
 
 func (c *Controller) monitorClusterHealth() error {
-	clusterList := &v1alpha1.ClusterList{}
+	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(context.TODO(), clusterList); err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func (c *Controller) monitorClusterHealth() error {
 
 // tryUpdateClusterHealth checks a given cluster's conditions and tries to update it.
 //nolint:gocyclo
-func (c *Controller) tryUpdateClusterHealth(cluster *v1alpha1.Cluster) error {
+func (c *Controller) tryUpdateClusterHealth(cluster *clusterv1alpha1.Cluster) error {
 	// Step 1: Get the last cluster heath from `clusterHealthMap`.
 	var clusterHealth *clusterHealthData
 	if value, exists := c.clusterHealthMap.Load(cluster.Name); exists {
@@ -298,15 +298,15 @@ func (c *Controller) tryUpdateClusterHealth(cluster *v1alpha1.Cluster) error {
 
 	// Step 2: Get the cluster ready condition.
 	var gracePeriod time.Duration
-	var observedReadyCondition *v1.Condition
-	currentReadyCondition := meta.FindStatusCondition(cluster.Status.Conditions, v1alpha1.ClusterConditionReady)
+	var observedReadyCondition *metav1.Condition
+	currentReadyCondition := meta.FindStatusCondition(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady)
 	if currentReadyCondition == nil {
 		// If ready condition is nil, then cluster-status-controller has never posted cluster status.
 		// A fake ready condition is created, where LastTransitionTime is set to cluster.CreationTimestamp
 		// to avoid handle the corner case.
-		observedReadyCondition = &v1.Condition{
-			Type:               v1alpha1.ClusterConditionReady,
-			Status:             v1.ConditionUnknown,
+		observedReadyCondition = &metav1.Condition{
+			Type:               clusterv1alpha1.ClusterConditionReady,
+			Status:             metav1.ConditionUnknown,
 			LastTransitionTime: cluster.CreationTimestamp,
 		}
 		gracePeriod = c.ClusterStartupGracePeriod
@@ -325,10 +325,10 @@ func (c *Controller) tryUpdateClusterHealth(cluster *v1alpha1.Cluster) error {
 	}
 
 	// Step 3: Get the last condition and lease from `clusterHealth`.
-	var savedCondition *v1.Condition
-	var savedLease *coordv1.Lease
+	var savedCondition *metav1.Condition
+	var savedLease *coordinationv1.Lease
 	if clusterHealth != nil {
-		savedCondition = meta.FindStatusCondition(clusterHealth.status.Conditions, v1alpha1.ClusterConditionReady)
+		savedCondition = meta.FindStatusCondition(clusterHealth.status.Conditions, clusterv1alpha1.ClusterConditionReady)
 		savedLease = clusterHealth.lease
 	}
 
@@ -338,43 +338,43 @@ func (c *Controller) tryUpdateClusterHealth(cluster *v1alpha1.Cluster) error {
 	if clusterHealth == nil || !equality.Semantic.DeepEqual(savedCondition, currentReadyCondition) {
 		clusterHealth = &clusterHealthData{
 			status:         cluster.Status.DeepCopy(),
-			probeTimestamp: v1.Now(),
+			probeTimestamp: metav1.Now(),
 		}
 	}
 	// Always update the probe time if cluster lease is renewed.
 	// Note: If cluster-status-controller never posted the cluster status, but continues renewing the
 	// heartbeat leases, the cluster controller will assume the cluster is healthy and take no action.
-	observedLease := &coordv1.Lease{}
+	observedLease := &coordinationv1.Lease{}
 	err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: util.NamespaceClusterLease, Name: cluster.Name}, observedLease)
 	if err == nil && (savedLease == nil || savedLease.Spec.RenewTime.Before(observedLease.Spec.RenewTime)) {
 		clusterHealth.lease = observedLease
-		clusterHealth.probeTimestamp = v1.Now()
+		clusterHealth.probeTimestamp = metav1.Now()
 	}
 
 	// Step 5: Check whether the probe timestamp has timed out.
-	if v1.Now().After(clusterHealth.probeTimestamp.Add(gracePeriod)) {
+	if metav1.Now().After(clusterHealth.probeTimestamp.Add(gracePeriod)) {
 		clusterConditionTypes := []string{
-			v1alpha1.ClusterConditionReady,
+			clusterv1alpha1.ClusterConditionReady,
 		}
 
-		nowTimestamp := v1.Now()
+		nowTimestamp := metav1.Now()
 		for _, clusterConditionType := range clusterConditionTypes {
 			currentCondition := meta.FindStatusCondition(cluster.Status.Conditions, clusterConditionType)
 			if currentCondition == nil {
 				klog.V(2).Infof("Condition %v of cluster %v was never updated by cluster-status-controller",
 					clusterConditionType, cluster.Name)
-				cluster.Status.Conditions = append(cluster.Status.Conditions, v1.Condition{
+				cluster.Status.Conditions = append(cluster.Status.Conditions, metav1.Condition{
 					Type:               clusterConditionType,
-					Status:             v1.ConditionUnknown,
+					Status:             metav1.ConditionUnknown,
 					Reason:             "ClusterStatusNeverUpdated",
 					Message:            "Cluster status controller never posted cluster status.",
 					LastTransitionTime: nowTimestamp,
 				})
 			} else {
 				klog.V(2).Infof("cluster %v hasn't been updated for %+v. Last %v is: %+v",
-					cluster.Name, v1.Now().Time.Sub(clusterHealth.probeTimestamp.Time), clusterConditionType, currentCondition)
-				if currentCondition.Status != v1.ConditionUnknown {
-					currentCondition.Status = v1.ConditionUnknown
+					cluster.Name, metav1.Now().Time.Sub(clusterHealth.probeTimestamp.Time), clusterConditionType, currentCondition)
+				if currentCondition.Status != metav1.ConditionUnknown {
+					currentCondition.Status = metav1.ConditionUnknown
 					currentCondition.Reason = "ClusterStatusUnknown"
 					currentCondition.Message = "Cluster status controller stopped posting cluster status."
 					currentCondition.LastTransitionTime = nowTimestamp
@@ -382,7 +382,7 @@ func (c *Controller) tryUpdateClusterHealth(cluster *v1alpha1.Cluster) error {
 			}
 		}
 		// We need to update currentReadyCondition due to its value potentially changed.
-		currentReadyCondition = meta.FindStatusCondition(cluster.Status.Conditions, v1alpha1.ClusterConditionReady)
+		currentReadyCondition = meta.FindStatusCondition(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady)
 
 		if !equality.Semantic.DeepEqual(currentReadyCondition, observedReadyCondition) {
 			if err := c.Status().Update(context.TODO(), cluster); err != nil {

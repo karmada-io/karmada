@@ -5,9 +5,9 @@ import (
 	"errors"
 	"strings"
 
-	cluster "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	work "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
 // Framework manages the set of plugins in use by the scheduling framework.
@@ -16,10 +16,10 @@ type Framework interface {
 
 	// RunFilterPlugins runs the set of configured Filter plugins for resources on
 	// the given cluster.
-	RunFilterPlugins(ctx context.Context, placement *v1alpha1.Placement, resource *work.ObjectReference, cluster *cluster.Cluster) PluginToResult
+	RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha1.ObjectReference, clusterv1alpha1 *clusterv1alpha1.Cluster) PluginToResult
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin name to cores
-	RunScorePlugins(ctx context.Context, placement *v1alpha1.Placement, clusters []*cluster.Cluster) (PluginToClusterScores, error)
+	RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, error)
 }
 
 // Plugin is the parent type for all the scheduling framework plugins.
@@ -32,7 +32,7 @@ type Plugin interface {
 type FilterPlugin interface {
 	Plugin
 	// Filter is called by the scheduling framework.
-	Filter(ctx context.Context, placement *v1alpha1.Placement, resource *work.ObjectReference, cluster *cluster.Cluster) *Result
+	Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha1.ObjectReference, clusterv1alpha1 *clusterv1alpha1.Cluster) *Result
 }
 
 // Result indicates the result of running a plugin. It consists of a code, a
@@ -125,7 +125,7 @@ type ScorePlugin interface {
 	// Score is called on each filtered cluster. It must return success and an integer
 	// indicating the rank of the cluster. All scoring plugins must return success or
 	// the resource will be rejected.
-	Score(ctx context.Context, placement *v1alpha1.Placement, cluster *cluster.Cluster) (float64, *Result)
+	Score(ctx context.Context, placement *policyv1alpha1.Placement, clusterv1alpha1 *clusterv1alpha1.Cluster) (float64, *Result)
 }
 
 // ClusterScore represent the cluster score.

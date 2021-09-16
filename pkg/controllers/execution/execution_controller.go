@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -37,7 +37,7 @@ type Controller struct {
 	RESTMapper           meta.RESTMapper
 	ObjectWatcher        objectwatcher.ObjectWatcher
 	PredicateFunc        predicate.Predicate
-	ClusterClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterClientSetFunc func(c *clusterv1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -92,7 +92,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		Complete(c)
 }
 
-func (c *Controller) syncWork(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *Controller) syncWork(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	if !util.IsClusterReady(&cluster.Status) {
 		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
 		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
@@ -109,7 +109,7 @@ func (c *Controller) syncWork(cluster *v1alpha1.Cluster, work *workv1alpha1.Work
 
 // tryDeleteWorkload tries to delete resource in the given member cluster.
 // Abort deleting when the member cluster is unready, otherwise we can't unjoin the member cluster when the member cluster is unready
-func (c *Controller) tryDeleteWorkload(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
+func (c *Controller) tryDeleteWorkload(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) error {
 	// Do not clean up resource in the given member cluster if the status of the given member cluster is unready
 	if !util.IsClusterReady(&cluster.Status) {
 		klog.Infof("Do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", cluster.Name)
@@ -149,7 +149,7 @@ func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime
 }
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
+func (c *Controller) syncToClusters(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) error {
 	clusterDynamicClient, err := c.ClusterClientSetFunc(cluster, c.Client)
 	if err != nil {
 		return err
@@ -205,7 +205,7 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha
 	return nil
 }
 
-func (c *Controller) tryUpdateWorkload(cluster *v1alpha1.Cluster, workload *unstructured.Unstructured, clusterDynamicClient *util.DynamicClusterClient) error {
+func (c *Controller) tryUpdateWorkload(cluster *clusterv1alpha1.Cluster, workload *unstructured.Unstructured, clusterDynamicClient *util.DynamicClusterClient) error {
 	// todo: get clusterObj from cache
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
 	if err != nil {
@@ -230,7 +230,7 @@ func (c *Controller) tryUpdateWorkload(cluster *v1alpha1.Cluster, workload *unst
 	return nil
 }
 
-func (c *Controller) tryCreateWorkload(cluster *v1alpha1.Cluster, workload *unstructured.Unstructured) error {
+func (c *Controller) tryCreateWorkload(cluster *clusterv1alpha1.Cluster, workload *unstructured.Unstructured) error {
 	err := c.ObjectWatcher.Create(cluster, workload)
 	if err != nil {
 		klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", cluster.Name, err)

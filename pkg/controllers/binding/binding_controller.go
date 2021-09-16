@@ -4,7 +4,7 @@ import (
 	"context"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -45,7 +45,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 	binding := &workv1alpha1.ResourceBinding{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
 		// The resource no longer exist, clean up derived Work objects.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return helper.DeleteWorks(c.Client, labels.Set{
 				workv1alpha1.ResourceBindingNamespaceLabel: req.Namespace,
 				workv1alpha1.ResourceBindingNameLabel:      req.Name,

@@ -3,18 +3,18 @@ package util
 import (
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // ResourceMatches tells if the specific resource matches the selector.
-func ResourceMatches(resource *unstructured.Unstructured, rs v1alpha1.ResourceSelector) bool {
+func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) bool {
 	if resource.GetAPIVersion() != rs.APIVersion ||
 		resource.GetKind() != rs.Kind ||
 		(len(rs.Namespace) > 0 && resource.GetNamespace() != rs.Namespace) {
@@ -50,7 +50,7 @@ func ResourceMatches(resource *unstructured.Unstructured, rs v1alpha1.ResourceSe
 }
 
 // ClusterMatches tells if specific cluster matches the affinity.
-func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity v1alpha1.ClusterAffinity) bool {
+func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity policyv1alpha1.ClusterAffinity) bool {
 	for _, clusterName := range affinity.ExcludeClusters {
 		if clusterName == cluster.Name {
 			return false
@@ -110,7 +110,7 @@ func ClusterNamesMatches(cluster *clusterv1alpha1.Cluster, clusterNames []string
 }
 
 // ResourceMatchSelectors tells if the specific resource matches the selectors.
-func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...v1alpha1.ResourceSelector) bool {
+func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...policyv1alpha1.ResourceSelector) bool {
 	for _, rs := range selectors {
 		if ResourceMatches(resource, rs) {
 			return true
@@ -123,7 +123,7 @@ func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...v1
 // For reference: https://github.com/kubernetes/kubernetes/blob/release-1.20/staging/src/k8s.io/component-helpers/scheduling/corev1/nodeaffinity/nodeaffinity.go#L193-L225
 // nodeSelectorRequirementsAsSelector converts the []NodeSelectorRequirement api type into a struct that implements
 // labels.Selector.
-func nodeSelectorRequirementsAsSelector(nsm []v1.NodeSelectorRequirement) (labels.Selector, error) {
+func nodeSelectorRequirementsAsSelector(nsm []corev1.NodeSelectorRequirement) (labels.Selector, error) {
 	if len(nsm) == 0 {
 		return labels.Nothing(), nil
 	}
@@ -131,17 +131,17 @@ func nodeSelectorRequirementsAsSelector(nsm []v1.NodeSelectorRequirement) (label
 	for _, expr := range nsm {
 		var op selection.Operator
 		switch expr.Operator {
-		case v1.NodeSelectorOpIn:
+		case corev1.NodeSelectorOpIn:
 			op = selection.In
-		case v1.NodeSelectorOpNotIn:
+		case corev1.NodeSelectorOpNotIn:
 			op = selection.NotIn
-		case v1.NodeSelectorOpExists:
+		case corev1.NodeSelectorOpExists:
 			op = selection.Exists
-		case v1.NodeSelectorOpDoesNotExist:
+		case corev1.NodeSelectorOpDoesNotExist:
 			op = selection.DoesNotExist
-		case v1.NodeSelectorOpGt:
+		case corev1.NodeSelectorOpGt:
 			op = selection.GreaterThan
-		case v1.NodeSelectorOpLt:
+		case corev1.NodeSelectorOpLt:
 			op = selection.LessThan
 		default:
 			return nil, fmt.Errorf("%q is not a valid node selector operator", expr.Operator)

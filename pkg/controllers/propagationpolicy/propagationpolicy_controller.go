@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
@@ -24,10 +24,10 @@ type Controller struct {
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling PropagationPolicy %s.", req.NamespacedName.String())
 
-	policy := &v1alpha1.PropagationPolicy{}
+	policy := &policyv1alpha1.PropagationPolicy{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, policy); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
 
@@ -54,5 +54,5 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.PropagationPolicy{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&policyv1alpha1.PropagationPolicy{}).Complete(c)
 }

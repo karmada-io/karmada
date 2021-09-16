@@ -8,7 +8,7 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -74,7 +74,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -134,7 +134,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 							return false, err
@@ -196,7 +196,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -258,7 +258,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 							return false, err
@@ -320,7 +320,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Pods(podNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -382,7 +382,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.CoreV1().Pods(podNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 							return false, err
@@ -517,7 +517,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -583,7 +583,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = dynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 							return false, err
@@ -645,7 +645,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -708,7 +708,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 							return false, err

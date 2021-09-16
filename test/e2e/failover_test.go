@@ -8,7 +8,7 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -129,7 +129,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -167,7 +167,7 @@ func disableCluster(c client.Client, clusterName string) error {
 	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
-			if errors.IsConflict(err) {
+			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
@@ -176,7 +176,7 @@ func disableCluster(c client.Client, clusterName string) error {
 		unavailableAPIEndpoint := "https://172.19.1.3:6443"
 		clusterObj.Spec.APIEndpoint = unavailableAPIEndpoint
 		if err := c.Update(context.TODO(), clusterObj); err != nil {
-			if errors.IsConflict(err) {
+			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
@@ -195,7 +195,7 @@ func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint str
 		}
 		clusterObj.Spec.APIEndpoint = originalAPIEndpoint
 		if err := c.Update(context.TODO(), clusterObj); err != nil {
-			if errors.IsConflict(err) {
+			if apierrors.IsConflict(err) {
 				return false, nil
 			}
 			return false, err
@@ -214,7 +214,7 @@ func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []
 	err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 		err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: deployment.Namespace, Name: bindingName}, binding)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return false, nil
 			}
 			return false, err

@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -117,7 +117,7 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 	return nil
 }
 
-func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured, targetClusters []workv1alpha1.TargetCluster) (bool, *v1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
+func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured, targetClusters []workv1alpha1.TargetCluster) (bool, *policyv1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
 	if helper.HasScheduledReplica(targetClusters) {
 		return true, nil, transScheduleResultToMap(targetClusters), nil
 	}
@@ -197,9 +197,9 @@ func transScheduleResultToMap(scheduleResult []workv1alpha1.TargetCluster) map[s
 	return desireReplicaInfos
 }
 
-func calculateReplicasIfNeeded(c client.Client, workload *unstructured.Unstructured, clusterNames []string) (*v1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
+func calculateReplicasIfNeeded(c client.Client, workload *unstructured.Unstructured, clusterNames []string) (*policyv1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
 	var err error
-	var referenceRSP *v1alpha1.ReplicaSchedulingPolicy
+	var referenceRSP *policyv1alpha1.ReplicaSchedulingPolicy
 	var desireReplicaInfos = make(map[string]int64)
 
 	if workload.GetKind() == util.DeploymentKind {
@@ -219,9 +219,9 @@ func calculateReplicasIfNeeded(c client.Client, workload *unstructured.Unstructu
 	return referenceRSP, desireReplicaInfos, nil
 }
 
-func matchReplicaSchedulingPolicy(c client.Client, workload *unstructured.Unstructured) (*v1alpha1.ReplicaSchedulingPolicy, error) {
+func matchReplicaSchedulingPolicy(c client.Client, workload *unstructured.Unstructured) (*policyv1alpha1.ReplicaSchedulingPolicy, error) {
 	// get all namespace-scoped replica scheduling policies
-	policyList := &v1alpha1.ReplicaSchedulingPolicyList{}
+	policyList := &policyv1alpha1.ReplicaSchedulingPolicyList{}
 	if err := c.List(context.TODO(), policyList, &client.ListOptions{Namespace: workload.GetNamespace()}); err != nil {
 		klog.Errorf("Failed to list replica scheduling policies from namespace: %s, error: %v", workload.GetNamespace(), err)
 		return nil, err
@@ -240,9 +240,9 @@ func matchReplicaSchedulingPolicy(c client.Client, workload *unstructured.Unstru
 	return &matchedPolicies[0], nil
 }
 
-func getMatchedReplicaSchedulingPolicy(policies []v1alpha1.ReplicaSchedulingPolicy, resource *unstructured.Unstructured) []v1alpha1.ReplicaSchedulingPolicy {
+func getMatchedReplicaSchedulingPolicy(policies []policyv1alpha1.ReplicaSchedulingPolicy, resource *unstructured.Unstructured) []policyv1alpha1.ReplicaSchedulingPolicy {
 	// select policy in which at least one resource selector matches target resource.
-	resourceMatches := make([]v1alpha1.ReplicaSchedulingPolicy, 0)
+	resourceMatches := make([]policyv1alpha1.ReplicaSchedulingPolicy, 0)
 	for _, policy := range policies {
 		if util.ResourceMatchSelectors(resource, policy.Spec.ResourceSelectors...) {
 			resourceMatches = append(resourceMatches, policy)
@@ -257,7 +257,7 @@ func getMatchedReplicaSchedulingPolicy(policies []v1alpha1.ReplicaSchedulingPoli
 	return resourceMatches
 }
 
-func calculateReplicas(c client.Client, policy *v1alpha1.ReplicaSchedulingPolicy, clusterNames []string) (map[string]int64, error) {
+func calculateReplicas(c client.Client, policy *policyv1alpha1.ReplicaSchedulingPolicy, clusterNames []string) (map[string]int64, error) {
 	weightSum := int64(0)
 	matchClusters := make(map[string]int64)
 	desireReplicaInfos := make(map[string]int64)

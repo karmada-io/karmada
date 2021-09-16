@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kubevalidation "k8s.io/apimachinery/pkg/util/validation"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -63,7 +63,7 @@ func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) er
 		}
 
 		switch matchExpression.Operator {
-		case v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn:
+		case corev1.NodeSelectorOpIn, corev1.NodeSelectorOpNotIn:
 		default:
 			return fmt.Errorf("unsupported operator %q, must be In or NotIn", matchExpression.Operator)
 		}

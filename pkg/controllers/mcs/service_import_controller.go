@@ -4,7 +4,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -31,7 +31,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 
 	svcImport := &mcsv1alpha1.ServiceImport{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, svcImport); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return c.deleteDerivedService(req.NamespacedName)
 		}
 
@@ -58,7 +58,7 @@ func (c *ServiceImportController) deleteDerivedService(svcImport types.Namespace
 	}
 	err := c.Client.Get(context.TODO(), derivedSvcNamespacedName, derivedSvc)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
 
@@ -92,7 +92,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 		Namespace: svcImport.Namespace,
 	}, oldDerivedService)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			if err = c.Client.Create(context.TODO(), newDerivedService); err != nil {
 				klog.Errorf("Create derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
 				return controllerruntime.Result{Requeue: true}, err

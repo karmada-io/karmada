@@ -14,7 +14,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -27,14 +27,14 @@ const (
 
 // ObjectWatcher manages operations for object dispatched to member clusters.
 type ObjectWatcher interface {
-	Create(cluster *v1alpha1.Cluster, desireObj *unstructured.Unstructured) error
-	Update(cluster *v1alpha1.Cluster, desireObj, clusterObj *unstructured.Unstructured) error
-	Delete(cluster *v1alpha1.Cluster, desireObj *unstructured.Unstructured) error
-	NeedsUpdate(cluster *v1alpha1.Cluster, desiredObj, clusterObj *unstructured.Unstructured) (bool, error)
+	Create(cluster *clusterv1alpha1.Cluster, desireObj *unstructured.Unstructured) error
+	Update(cluster *clusterv1alpha1.Cluster, desireObj, clusterObj *unstructured.Unstructured) error
+	Delete(cluster *clusterv1alpha1.Cluster, desireObj *unstructured.Unstructured) error
+	NeedsUpdate(cluster *clusterv1alpha1.Cluster, desiredObj, clusterObj *unstructured.Unstructured) (bool, error)
 }
 
 // ClientSetFunc is used to generate client set of member cluster
-type ClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
+type ClientSetFunc func(c *clusterv1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
 
 type objectWatcherImpl struct {
 	Lock                 sync.RWMutex
@@ -54,7 +54,7 @@ func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, c
 	}
 }
 
-func (o *objectWatcherImpl) Create(cluster *v1alpha1.Cluster, desireObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Create(cluster *clusterv1alpha1.Cluster, desireObj *unstructured.Unstructured) error {
 	dynamicClusterClient, err := o.ClusterClientSetFunc(cluster, o.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
@@ -98,7 +98,7 @@ func (o *objectWatcherImpl) Create(cluster *v1alpha1.Cluster, desireObj *unstruc
 	return nil
 }
 
-func (o *objectWatcherImpl) Update(cluster *v1alpha1.Cluster, desireObj, clusterObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Update(cluster *clusterv1alpha1.Cluster, desireObj, clusterObj *unstructured.Unstructured) error {
 	dynamicClusterClient, err := o.ClusterClientSetFunc(cluster, o.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
@@ -130,7 +130,7 @@ func (o *objectWatcherImpl) Update(cluster *v1alpha1.Cluster, desireObj, cluster
 	return nil
 }
 
-func (o *objectWatcherImpl) Delete(cluster *v1alpha1.Cluster, desireObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Delete(cluster *clusterv1alpha1.Cluster, desireObj *unstructured.Unstructured) error {
 	dynamicClusterClient, err := o.ClusterClientSetFunc(cluster, o.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
@@ -214,7 +214,7 @@ func (o *objectWatcherImpl) deleteVersionRecord(clusterName, resourceName string
 	delete(o.VersionRecord[clusterName], resourceName)
 }
 
-func (o *objectWatcherImpl) NeedsUpdate(cluster *v1alpha1.Cluster, desiredObj, clusterObj *unstructured.Unstructured) (bool, error) {
+func (o *objectWatcherImpl) NeedsUpdate(cluster *clusterv1alpha1.Cluster, desiredObj, clusterObj *unstructured.Unstructured) (bool, error) {
 	// get resource version
 	version, exist := o.getVersionRecord(cluster.Name, desiredObj.GroupVersionKind().String()+"/"+desiredObj.GetNamespace()+"/"+desiredObj.GetName())
 	if !exist {
