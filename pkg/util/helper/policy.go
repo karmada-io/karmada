@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -117,6 +118,34 @@ func GenerateResourceSelectorForServiceImport(svcImport policyv1alpha1.ResourceS
 					discoveryv1beta1.LabelServiceName: derivedServiceName,
 				},
 			},
+		},
+	}
+}
+
+// NewServiceExport will build a ServiceExport object
+func NewServiceExport(namespace, name string) *mcsv1alpha1.ServiceExport {
+	return &mcsv1alpha1.ServiceExport{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "multicluster.x-k8s.io/v1alpha1",
+			Kind:       util.ServiceExportKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+	}
+}
+
+// NewPropagationPolicy will build a PropagationPolicy object.
+func NewPropagationPolicy(namespace, name string, rsSelectors []policyv1alpha1.ResourceSelector, placement policyv1alpha1.Placement) *policyv1alpha1.PropagationPolicy {
+	return &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: rsSelectors,
+			Placement:         placement,
 		},
 	}
 }

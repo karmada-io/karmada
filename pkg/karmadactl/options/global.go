@@ -2,8 +2,6 @@ package options
 
 import "github.com/spf13/pflag"
 
-
-
 // GlobalCommandOptions holds the configuration shared by the all sub-commands of `karmadactl`.
 type GlobalCommandOptions struct {
 	// KubeConfig holds the control plane KUBECONFIG file path.
