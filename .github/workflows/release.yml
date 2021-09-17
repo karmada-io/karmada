@@ -20,7 +20,6 @@ jobs:
             goos: linux
           - goarch: arm64
             goos: darwin
-
     steps:
     - uses: actions/checkout@master
     - name: Set up Go
@@ -33,7 +32,7 @@ jobs:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
     - name: Packaging...
-      run: tar czf kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz kubectl-karmada
+      run: tar czf kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz kubectl-karmada LICENSE
     - name: Uploading assets...
       id: upload-release-asset 
       uses: actions/upload-release-asset@v1
