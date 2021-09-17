@@ -19,6 +19,8 @@ jobs:
         run: hack/verify-vendor.sh
       - name: lint
         run: hack/verify-staticcheck.sh
+      - name: import alias
+        run: hack/verify-import-aliases.sh
   codegen:
     name: codegen
     runs-on: ubuntu-18.04
