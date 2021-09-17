@@ -64,6 +64,9 @@ func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 type CommandUnjoinOption struct {
 	options.GlobalCommandOptions
 
+	// ClusterNamespace holds the namespace name where the member cluster objects are stored.
+	ClusterNamespace string
+
 	// ClusterName is the cluster's name that we are going to join with.
 	ClusterName string
 
@@ -96,6 +99,8 @@ func (j *CommandUnjoinOption) Complete(args []string) error {
 func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 	j.GlobalCommandOptions.AddFlags(flags)
 
+	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", DefaultKarmadaClusterNamespace,
+		"Namespace in the control plane where member cluster are stored.")
 	flags.StringVar(&j.ClusterContext, "cluster-context", "",
 		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",

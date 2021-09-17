@@ -20,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl"
-	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
@@ -176,7 +175,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterName string) error {
 		klog.Fatalf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
 	}
 
-	err = karmadactl.JoinCluster(d.ControllerPlaneConfig, clusterRestConfig, options.DefaultKarmadaClusterNamespace, clusterName, false)
+	err = karmadactl.JoinCluster(d.ControllerPlaneConfig, clusterRestConfig, karmadactl.DefaultKarmadaClusterNamespace, clusterName, false)
 	if err != nil {
 		klog.Errorf("Failed to join cluster-api's cluster(%s): %v", clusterName, err)
 		return err
@@ -188,7 +187,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterName string) error {
 
 func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 	klog.Infof("Begin to unJoin cluster-api's Cluster(%s) to karmada", clusterName)
-	err := karmadactl.UnJoinCluster(d.ControllerPlaneConfig, nil, options.DefaultKarmadaClusterNamespace, clusterName, false, false)
+	err := karmadactl.UnJoinCluster(d.ControllerPlaneConfig, nil, karmadactl.DefaultKarmadaClusterNamespace, clusterName, false, false)
 	if err != nil {
 		klog.Errorf("Failed to unJoin cluster-api's cluster(%s): %v", clusterName, err)
 		return err

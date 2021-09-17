@@ -29,6 +29,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
+// DefaultKarmadaClusterNamespace defines the default namespace where the member cluster objects are stored.
+// The secret owns by cluster objects will be stored in the namespace too.
+const DefaultKarmadaClusterNamespace = "karmada-cluster"
+
 var (
 	joinShort   = `Register a cluster to control plane`
 	joinLong    = `Join registers a cluster to control plane.`
@@ -104,6 +108,9 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *c
 type CommandJoinOption struct {
 	options.GlobalCommandOptions
 
+	// ClusterNamespace holds the namespace name where the member cluster objects are stored.
+	ClusterNamespace string
+
 	// ClusterName is the cluster's name that we are going to join with.
 	ClusterName string
 
@@ -144,6 +151,8 @@ func (j *CommandJoinOption) Validate() []error {
 func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	j.GlobalCommandOptions.AddFlags(flags)
 
+	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", DefaultKarmadaClusterNamespace,
+		"Namespace in the control plane where member cluster are stored.")
 	flags.StringVar(&j.ClusterContext, "cluster-context", "",
 		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
