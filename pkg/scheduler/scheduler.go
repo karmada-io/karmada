@@ -19,9 +19,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
@@ -83,10 +85,15 @@ type Scheduler struct {
 
 	Algorithm      core.ScheduleAlgorithm
 	schedulerCache schedulercache.Cache
+
+	enableSchedulerEstimator bool
+	schedulerEstimatorCache  *estimatorclient.SchedulerEstimatorCache
+	schedulerEstimatorPort   int
+	schedulerEstimatorWorker util.AsyncWorker
 }
 
 // NewScheduler instantiates a scheduler
-func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface) *Scheduler {
+func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts *options.Options) *Scheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	bindingInformer := factory.Work().V1alpha1().ResourceBindings().Informer()
 	bindingLister := factory.Work().V1alpha1().ResourceBindings().Lister()
@@ -102,22 +109,30 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	// TODO: make plugins as a flag
 	algorithm := core.NewGenericScheduler(schedulerCache, policyLister, []string{clusteraffinity.Name, tainttoleration.Name, apiinstalled.Name})
 	sched := &Scheduler{
-		DynamicClient:          dynamicClient,
-		KarmadaClient:          karmadaClient,
-		KubeClient:             kubeClient,
-		bindingInformer:        bindingInformer,
-		bindingLister:          bindingLister,
-		policyInformer:         policyInformer,
-		policyLister:           policyLister,
-		clusterBindingInformer: clusterBindingInformer,
-		clusterBindingLister:   clusterBindingLister,
-		clusterPolicyInformer:  clusterPolicyInformer,
-		clusterPolicyLister:    clusterPolicyLister,
-		clusterLister:          clusterLister,
-		informerFactory:        factory,
-		queue:                  queue,
-		Algorithm:              algorithm,
-		schedulerCache:         schedulerCache,
+		DynamicClient:            dynamicClient,
+		KarmadaClient:            karmadaClient,
+		KubeClient:               kubeClient,
+		bindingInformer:          bindingInformer,
+		bindingLister:            bindingLister,
+		policyInformer:           policyInformer,
+		policyLister:             policyLister,
+		clusterBindingInformer:   clusterBindingInformer,
+		clusterBindingLister:     clusterBindingLister,
+		clusterPolicyInformer:    clusterPolicyInformer,
+		clusterPolicyLister:      clusterPolicyLister,
+		clusterLister:            clusterLister,
+		informerFactory:          factory,
+		queue:                    queue,
+		Algorithm:                algorithm,
+		schedulerCache:           schedulerCache,
+		enableSchedulerEstimator: opts.EnableSchedulerEstimator,
+	}
+	if opts.EnableSchedulerEstimator {
+		sched.schedulerEstimatorCache = estimatorclient.NewSchedulerEstimatorCache()
+		sched.schedulerEstimatorPort = opts.SchedulerEstimatorPort
+		sched.schedulerEstimatorWorker = util.NewAsyncWorker("scheduler-estimator", 0, nil, sched.reconcileEstimatorConnection)
+		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, opts.SchedulerEstimatorTimeout.Duration)
+		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
 
 	bindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -155,6 +170,13 @@ func (s *Scheduler) Run(ctx context.Context) {
 	stopCh := ctx.Done()
 	klog.Infof("Starting karmada scheduler")
 	defer klog.Infof("Shutting down karmada scheduler")
+
+	// Establish all connections first and then begin scheduling.
+	if s.enableSchedulerEstimator {
+		s.establishEstimatorConnections()
+		s.schedulerEstimatorWorker.Run(1, stopCh)
+	}
+
 	s.informerFactory.Start(stopCh)
 	if !cache.WaitForCacheSync(stopCh, s.bindingInformer.HasSynced) {
 		return
@@ -485,6 +507,10 @@ func (s *Scheduler) addCluster(obj interface{}) {
 	klog.V(3).Infof("add event for cluster %s", cluster.Name)
 
 	s.schedulerCache.AddCluster(cluster)
+
+	if s.enableSchedulerEstimator {
+		s.schedulerEstimatorWorker.AddRateLimited(cluster.Name)
+	}
 }
 
 func (s *Scheduler) updateCluster(_, newObj interface{}) {
@@ -495,6 +521,10 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 	}
 	klog.V(3).Infof("update event for cluster %s", newCluster.Name)
 	s.schedulerCache.UpdateCluster(newCluster)
+
+	if s.enableSchedulerEstimator {
+		s.schedulerEstimatorWorker.AddRateLimited(newCluster.Name)
+	}
 
 	// Check if cluster becomes failure
 	if meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
@@ -526,6 +556,10 @@ func (s *Scheduler) deleteCluster(obj interface{}) {
 	}
 	klog.V(3).Infof("delete event for cluster %s", cluster.Name)
 	s.schedulerCache.DeleteCluster(cluster)
+
+	if s.enableSchedulerEstimator {
+		s.schedulerEstimatorWorker.AddRateLimited(cluster.Name)
+	}
 }
 
 // enqueueAffectedBinding will find all ResourceBindings which are related to the current NotReady cluster and add them in queue.
@@ -821,4 +855,33 @@ func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha1.TargetCluster) bo
 		}
 	}
 	return true
+}
+
+func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
+	name, ok := key.(string)
+	if !ok {
+		return fmt.Errorf("failed to reconcile estimator connection as invalid key: %v", key)
+	}
+
+	_, err := s.clusterLister.Get(name)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			s.schedulerEstimatorCache.DeleteCluster(name)
+			return nil
+		}
+		return err
+	}
+	return estimatorclient.EstablishConnection(name, s.schedulerEstimatorCache, s.schedulerEstimatorPort)
+}
+
+func (s *Scheduler) establishEstimatorConnections() {
+	clusterList, err := s.KarmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		klog.Errorf("Cannot list all clusters when establish all cluster estimator connections: %v", err)
+	}
+	for i := range clusterList.Items {
+		if err = estimatorclient.EstablishConnection(clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorPort); err != nil {
+			klog.Error(err)
+		}
+	}
 }

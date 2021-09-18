@@ -66,7 +66,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	}()
 
 	scheduler.Failover = opts.Failover
-	sched := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet)
+	sched := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet, opts)
 	if !opts.LeaderElection.LeaderElect {
 		sched.Run(ctx)
 		return fmt.Errorf("scheduler exited")
