@@ -105,7 +105,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	clusterPolicyLister := factory.Policy().V1alpha1().ClusterPropagationPolicies().Lister()
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-	schedulerCache := schedulercache.NewCache()
+	schedulerCache := schedulercache.NewCache(clusterLister)
 	// TODO: make plugins as a flag
 	algorithm := core.NewGenericScheduler(schedulerCache, policyLister, []string{clusteraffinity.Name, tainttoleration.Name, apiinstalled.Name})
 	sched := &Scheduler{
@@ -506,8 +506,6 @@ func (s *Scheduler) addCluster(obj interface{}) {
 	}
 	klog.V(3).Infof("add event for cluster %s", cluster.Name)
 
-	s.schedulerCache.AddCluster(cluster)
-
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.AddRateLimited(cluster.Name)
 	}
@@ -520,7 +518,6 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 		return
 	}
 	klog.V(3).Infof("update event for cluster %s", newCluster.Name)
-	s.schedulerCache.UpdateCluster(newCluster)
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.AddRateLimited(newCluster.Name)
@@ -555,7 +552,6 @@ func (s *Scheduler) deleteCluster(obj interface{}) {
 		return
 	}
 	klog.V(3).Infof("delete event for cluster %s", cluster.Name)
-	s.schedulerCache.DeleteCluster(cluster)
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.AddRateLimited(cluster.Name)
