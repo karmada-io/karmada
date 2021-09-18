@@ -1,5 +1,3 @@
-# .github/workflows/release.yaml
-
 on:
   release:
     types:
@@ -7,8 +5,8 @@ on:
 name: Build Release
 jobs:
   release-assests:
-    name: release linux/amd64
-    runs-on: ubuntu-latest
+    name: release kubectl-karmada
+    runs-on: ubuntu-18.04    
     strategy:
       matrix:
         include:
