@@ -291,53 +291,51 @@ func (s *Scheduler) requeueClusterResourceBindings(selector labels.Selector) err
 
 func (s *Scheduler) getPlacement(resourceBinding *workv1alpha1.ResourceBinding) (policyv1alpha1.Placement, string, error) {
 	var placement policyv1alpha1.Placement
-	var clusterPolicyName string
-	var policyName string
-	var policyNamespace string
-	var err error
-	if clusterPolicyName = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel); clusterPolicyName != "" {
-		var clusterPolicy *policyv1alpha1.ClusterPropagationPolicy
-		clusterPolicy, err = s.clusterPolicyLister.Get(clusterPolicyName)
-		if err != nil {
-			return placement, "", err
-		}
-
-		placement = clusterPolicy.Spec.Placement
-	}
+	var policyName, clusterPolicyName string
 
 	if policyName = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNameLabel); policyName != "" {
-		policyNamespace = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNamespaceLabel)
-		var policy *policyv1alpha1.PropagationPolicy
-		policy, err = s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
-		if err != nil {
-			return placement, "", err
-		}
-
-		placement = policy.Spec.Placement
+		policyNamespace := util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNamespaceLabel)
+		return s.getNamespacedPlacement(policyName, policyNamespace)
 	}
 
-	var placementBytes []byte
-	placementBytes, err = json.Marshal(placement)
+	if clusterPolicyName = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel); clusterPolicyName != "" {
+		return s.getClusterPlacement(clusterPolicyName)
+	}
+
+	return placement, "", fmt.Errorf("failed to get placement, policyName or clusterPolicyName not found")
+}
+
+func (s *Scheduler) getNamespacedPlacement(policyName, policyNamespace string) (policyv1alpha1.Placement, string, error) {
+	var placement policyv1alpha1.Placement
+	var err error
+	defer func() {
+		if err != nil {
+			klog.Errorf("Failed to get placement of propagationPolicy %s/%s, error: %v", policyNamespace, policyName, err)
+		}
+	}()
+
+	policy, err := s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
 	if err != nil {
 		return placement, "", err
 	}
 
-	defer func() {
-		if err != nil {
-			if clusterPolicyName != "" {
-				klog.Errorf("Failed to get placement of clusterPropagationPolicy %s, error: %v", clusterPolicyName, err)
-			} else {
-				klog.Errorf("Failed to get placement of propagationPolicy %s/%s, error: %v", policyNamespace, policyName, err)
-			}
-		}
-	}()
-
+	placement = policy.Spec.Placement
+	placementBytes, err := json.Marshal(placement)
+	if err != nil {
+		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+		return placement, "", err
+	}
 	return placement, string(placementBytes), nil
 }
 
-func (s *Scheduler) getClusterPlacement(crb *workv1alpha1.ClusterResourceBinding) (policyv1alpha1.Placement, string, error) {
+func (s *Scheduler) getClusterPlacement(policyName string) (policyv1alpha1.Placement, string, error) {
 	var placement policyv1alpha1.Placement
-	policyName := util.GetLabelValue(crb.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
+	var err error
+	defer func() {
+		if err != nil {
+			klog.Errorf("Failed to get placement of clusterPropagationPolicy %s, error: %v", policyName, err)
+		}
+	}()
 
 	policy, err := s.clusterPolicyLister.Get(policyName)
 	if err != nil {
@@ -347,7 +345,7 @@ func (s *Scheduler) getClusterPlacement(crb *workv1alpha1.ClusterResourceBinding
 	placement = policy.Spec.Placement
 	placementBytes, err := json.Marshal(placement)
 	if err != nil {
-		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
+		klog.Errorf("Failed to marshal placement of clusterPropagationPolicy %s, error: %v", policy.Name, err)
 		return placement, "", err
 	}
 	return placement, string(placementBytes), nil
@@ -392,7 +390,7 @@ func (s *Scheduler) scheduleNext() bool {
 	case AvoidSchedule:
 		klog.Infof("Don't need to schedule binding(%s)", key.(string))
 	default:
-		err = fmt.Errorf("unknow schedule type")
+		err = fmt.Errorf("unknown schedule type")
 		klog.Warningf("Failed to identify scheduler type for binding(%s)", key.(string))
 	}
 
@@ -818,12 +816,13 @@ func (s *Scheduler) getTypeFromClusterResourceBindings(name string) ScheduleType
 		return FirstSchedule
 	}
 
-	appliedPlacement := util.GetLabelValue(binding.Annotations, util.PolicyPlacementAnnotation)
-	policyPlacement, policyPlacementStr, err := s.getClusterPlacement(binding)
+	policyName := util.GetLabelValue(binding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
+	policyPlacement, policyPlacementStr, err := s.getClusterPlacement(policyName)
 	if err != nil {
 		return Unknown
 	}
 
+	appliedPlacement := util.GetLabelValue(binding.Annotations, util.PolicyPlacementAnnotation)
 	if policyPlacementStr != appliedPlacement {
 		return ReconcileSchedule
 	}
