@@ -116,12 +116,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent)
 	executionController := &execution.Controller{
-		Client:               mgr.GetClient(),
-		EventRecorder:        mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:           mgr.GetRESTMapper(),
-		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
-		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		Client:          mgr.GetClient(),
+		EventRecorder:   mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:      mgr.GetRESTMapper(),
+		ObjectWatcher:   objectWatcher,
+		PredicateFunc:   helper.NewExecutionPredicateOnAgent(),
+		InformerManager: informermanager.GetInstance(),
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup execution controller: %v", err)
