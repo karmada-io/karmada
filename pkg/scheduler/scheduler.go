@@ -34,6 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/apiinstalled"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
+	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -135,6 +136,8 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
 
+	metrics.Register()
+
 	bindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    sched.onResourceBindingAdd,
 		UpdateFunc: sched.onResourceBindingUpdate,
@@ -195,10 +198,18 @@ func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
 	}
 
 	s.queue.Add(key)
+	metrics.CountSchedulerBindings(metrics.BindingAdd)
 }
 
 func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
-	s.onResourceBindingAdd(cur)
+	key, err := cache.MetaNamespaceKeyFunc(cur)
+	if err != nil {
+		klog.Errorf("couldn't get key for object %#v: %v", cur, err)
+		return
+	}
+
+	s.queue.Add(key)
+	metrics.CountSchedulerBindings(metrics.BindingUpdate)
 }
 
 func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
@@ -265,6 +276,7 @@ func (s *Scheduler) requeueResourceBindings(selector labels.Selector) error {
 		}
 		klog.Infof("Requeue ResourceBinding(%s/%s) as placement changed.", binding.Namespace, binding.Name)
 		s.queue.Add(key)
+		metrics.CountSchedulerBindings(metrics.PolicyChanged)
 	}
 	return nil
 }
@@ -285,6 +297,7 @@ func (s *Scheduler) requeueClusterResourceBindings(selector labels.Selector) err
 		}
 		klog.Infof("Requeue ClusterResourceBinding(%s) as placement changed.", clusterResourceBinding.Name)
 		s.queue.Add(key)
+		metrics.CountSchedulerBindings(metrics.PolicyChanged)
 	}
 	return nil
 }
@@ -373,21 +386,27 @@ func (s *Scheduler) scheduleNext() bool {
 	}
 	defer s.queue.Done(key)
 
+	start := time.Now()
+
 	var err error
 	switch s.getScheduleType(key.(string)) {
 	case FirstSchedule:
 		err = s.scheduleOne(key.(string))
 		klog.Infof("Start scheduling binding(%s)", key.(string))
+		metrics.BindingSchedule(string(FirstSchedule), metrics.SinceInSeconds(start), err)
 	case ReconcileSchedule: // share same logic with first schedule
 		err = s.scheduleOne(key.(string))
 		klog.Infof("Reschedule binding(%s) as placement changed", key.(string))
+		metrics.BindingSchedule(string(ReconcileSchedule), metrics.SinceInSeconds(start), err)
 	case ScaleSchedule:
 		err = s.scaleScheduleOne(key.(string))
 		klog.Infof("Reschedule binding(%s) as replicas scaled down or scaled up", key.(string))
+		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
 	case FailoverSchedule:
 		if Failover {
 			err = s.rescheduleOne(key.(string))
 			klog.Infof("Reschedule binding(%s) as cluster failure", key.(string))
+			metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
 		}
 	case AvoidSchedule:
 		klog.Infof("Don't need to schedule binding(%s)", key.(string))
@@ -496,6 +515,7 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 	}
 
 	s.queue.AddRateLimited(key)
+	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
 
 func (s *Scheduler) addCluster(obj interface{}) {
@@ -572,6 +592,7 @@ func (s *Scheduler) enqueueAffectedBinding(notReadyClusterName string) {
 					return
 				}
 				s.queue.Add(rescheduleKey)
+				metrics.CountSchedulerBindings(metrics.ClusterNotReady)
 				klog.Infof("Add expired ResourceBinding in queue successfully")
 			}
 		}
@@ -592,6 +613,7 @@ func (s *Scheduler) enqueueAffectedClusterBinding(notReadyClusterName string) {
 					return
 				}
 				s.queue.Add(rescheduleKey)
+				metrics.CountSchedulerBindings(metrics.ClusterNotReady)
 				klog.Infof("Add expired ClusterResourceBinding in queue successfully")
 			}
 		}
