@@ -8,7 +8,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -57,10 +56,8 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 	}
 
 	if !binding.DeletionTimestamp.IsZero() {
-		if err := helper.DeleteWorks(c.Client, labels.Set{
-			workv1alpha2.ResourceBindingNamespaceLabel: req.Namespace,
-			workv1alpha2.ResourceBindingNameLabel:      req.Name,
-		}); err != nil {
+		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
+		if err := helper.DeleteWorkByRBNamespaceAndName(c.Client, req.Namespace, req.Name); err != nil {
 			klog.Errorf("Failed to delete works related to %s/%s: %v", binding.GetNamespace(), binding.GetName(), err)
 			return controllerruntime.Result{Requeue: true}, err
 		}
@@ -147,18 +144,31 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
+			// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
 			labels := a.GetLabels()
-			resourcebindingNamespace, namespaceExist := labels[workv1alpha2.ResourceBindingNamespaceLabel]
-			resourcebindingName, nameExist := labels[workv1alpha2.ResourceBindingNameLabel]
-			if !namespaceExist || !nameExist {
-				return nil
-			}
-			namespacesName := types.NamespacedName{
-				Namespace: resourcebindingNamespace,
-				Name:      resourcebindingName,
+			crNamespace, namespaceExist := labels[workv1alpha2.ResourceBindingNamespaceLabel]
+			crName, nameExist := labels[workv1alpha2.ResourceBindingNameLabel]
+			if namespaceExist && nameExist {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: crNamespace,
+						Name:      crName,
+					},
+				})
 			}
 
-			requests = append(requests, reconcile.Request{NamespacedName: namespacesName})
+			annotations := a.GetAnnotations()
+			crNamespace, namespaceExist = annotations[workv1alpha2.ResourceBindingNamespaceLabel]
+			crName, nameExist = annotations[workv1alpha2.ResourceBindingNameLabel]
+			if namespaceExist && nameExist {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: crNamespace,
+						Name:      crName,
+					},
+				})
+			}
+
 			return requests
 		})
 

@@ -8,7 +8,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -57,9 +56,8 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 	}
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
-		if err := helper.DeleteWorks(c.Client, labels.Set{
-			workv1alpha2.ClusterResourceBindingLabel: req.Name,
-		}); err != nil {
+		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
+		if err := helper.DeleteWorkByCRBName(c.Client, req.Name); err != nil {
 			klog.Errorf("Failed to delete works related to %s: %v", clusterResourceBinding.GetName(), err)
 			return controllerruntime.Result{Requeue: true}, err
 		}
@@ -141,16 +139,27 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
+			// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
 			labels := a.GetLabels()
-			clusterResourcebindingName, nameExist := labels[workv1alpha2.ClusterResourceBindingLabel]
-			if !nameExist {
-				return nil
-			}
-			namespacesName := types.NamespacedName{
-				Name: clusterResourcebindingName,
+			crbName, nameExist := labels[workv1alpha2.ClusterResourceBindingLabel]
+			if nameExist {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name: crbName,
+					},
+				})
 			}
 
-			requests = append(requests, reconcile.Request{NamespacedName: namespacesName})
+			annotations := a.GetAnnotations()
+			crbName, nameExist = annotations[workv1alpha2.ClusterResourceBindingLabel]
+			if nameExist {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name: crbName,
+					},
+				})
+			}
+
 			return requests
 		})
 

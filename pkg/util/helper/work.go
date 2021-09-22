@@ -5,6 +5,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,4 +59,15 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	}
 
 	return nil
+}
+
+// GetWorksByLabelSelector get WorkList by matching label selector.
+func GetWorksByLabelSelector(c client.Client, selector labels.Selector) (*workv1alpha1.WorkList, error) {
+	workList := &workv1alpha1.WorkList{}
+	err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return nil, err
+	}
+
+	return workList, nil
 }
