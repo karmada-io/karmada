@@ -468,8 +468,11 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas", deploymentNamespace, deploymentName), func() {
 				updateReplicas := int32(2)
 				deployment.Spec.Replicas = &updateReplicas
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				gomega.Eventually(func() error {
+					_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+					return err
+				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 				klog.Infof("Update deployment(%s/%s)'s replicas to %d", deploymentNamespace, deploymentName, *deployment.Spec.Replicas)
 			})
 
@@ -631,8 +634,11 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas to 3*len(clusters)", policyNamespace, policyName), func() {
 				updateReplicas := expectedReplicas * int32(len(clusters))
 				deployment.Spec.Replicas = &updateReplicas
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				gomega.Eventually(func() error {
+					_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+					return err
+				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
@@ -831,8 +837,11 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 				klog.Infof("sumWeight of clusters is %d", sumWeight)
 				updateReplicas := 2 * int32(sumWeight)
 				deployment.Spec.Replicas = &updateReplicas
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				gomega.Eventually(func() error {
+					_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+					return err
+				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
