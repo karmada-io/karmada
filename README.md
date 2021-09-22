@@ -140,7 +140,7 @@ There are two contexts about karmada:
 - karmada-apiserver `kubectl config use-context karmada-apiserver`
 - karmada-host `kubectl config use-context karmada-host`
 
-The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host` is only used for debugging karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
+The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karmada control plane, while `karmada-host` is only used for debugging karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
 
 
 ### Demo
