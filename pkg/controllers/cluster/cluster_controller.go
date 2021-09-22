@@ -33,7 +33,9 @@ const (
 	// sleep between retrying cluster health updates.
 	MonitorRetrySleepTime = 20 * time.Millisecond
 	// HealthUpdateRetry controls the number of retries of writing cluster health update.
-	HealthUpdateRetry = 5
+	HealthUpdateRetry                         = 5
+	eventReasonCreateExecutionNamespaceFailed = "CreateExecutionNamespaceFailed"
+	eventReasonRemoveExecutionNamespaceFailed = "RemoveExecutionNamespaceFailed"
 )
 
 // Controller is to sync Cluster.
@@ -113,6 +115,7 @@ func (c *Controller) syncCluster(cluster *clusterv1alpha1.Cluster) (controllerru
 	// create execution space
 	err := c.createExecutionSpace(cluster)
 	if err != nil {
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventReasonRemoveExecutionNamespaceFailed), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -127,6 +130,7 @@ func (c *Controller) removeCluster(cluster *clusterv1alpha1.Cluster) (controller
 	}
 	if err != nil {
 		klog.Errorf("Failed to remove execution space %v, err is %v", cluster.Name, err)
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventReasonCreateExecutionNamespaceFailed), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
