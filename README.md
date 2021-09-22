@@ -150,7 +150,7 @@ There are two contexts:
 - karmada-apiserver `kubectl config use-context karmada-apiserver`
 - karmada-host `kubectl config use-context karmada-host`
 
-The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host` is only used for debugging karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
+The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karmada control plane, while `karmada-host` is only used for debugging karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
 
 #### Tips
 - Please make sure you can access google cloud registry: k8s.gcr.io
@@ -190,7 +190,7 @@ The `karmadactl join` command will create a `Cluster` object to reflect the memb
 
 ##### 2.2. Pull Mode: Installing karmada-agent in the member cluster
 
-The following script will install the `karamda-agent` to your member cluster, you need to specify the kubeconfig and the cluster context of the karmada control plane and member cluster.
+The following script will install the `karmada-agent` to your member cluster, you need to specify the kubeconfig and the cluster context of the karmada control plane and member cluster.
 ```
 hack/deploy-karmada-agent.sh <karmada_apiserver_kubeconfig> <karmada_apiserver_context_name> <member_cluster_kubeconfig> <member_cluster_context_name>
 ```
