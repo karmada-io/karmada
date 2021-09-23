@@ -530,8 +530,10 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 				updateReplicaCount := int32(2)
 				demoDeployment.Spec.Replicas = &updateReplicaCount
 
-				_, err := exportClusterClient.AppsV1().Deployments(demoDeployment.Namespace).Update(context.TODO(), &demoDeployment, metav1.UpdateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Eventually(func() error {
+					_, err := exportClusterClient.AppsV1().Deployments(demoDeployment.Namespace).Update(context.TODO(), &demoDeployment, metav1.UpdateOptions{})
+					return err
+				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlice update in %s cluster", serviceImportClusterName), func() {
