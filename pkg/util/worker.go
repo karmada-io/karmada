@@ -3,15 +3,10 @@ package util
 import (
 	"time"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -65,38 +60,6 @@ func NewAsyncWorker(name string, interval time.Duration, keyFunc KeyFunc, reconc
 		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
 		interval:      interval,
 	}
-}
-
-// GenerateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
-// TODO(RainbowMango): Move this function out of this file, to it's user.
-func GenerateKey(obj interface{}) (QueueKey, error) {
-	resource := obj.(*unstructured.Unstructured)
-	cluster, err := getClusterNameFromLabel(resource)
-	if err != nil {
-		return "", err
-	}
-	// it happens when the obj not managed by Karmada.
-	if cluster == "" {
-		return nil, nil
-	}
-
-	return keys.FederatedKeyFunc(cluster, obj)
-}
-
-// getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
-func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
-	workNamespace := GetLabelValue(resource.GetLabels(), workv1alpha1.WorkNamespaceLabel)
-	if len(workNamespace) == 0 {
-		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
-		return "", nil
-	}
-
-	cluster, err := names.GetClusterName(workNamespace)
-	if err != nil {
-		klog.Errorf("Failed to get cluster name from work namespace: %s, error: %v.", workNamespace, err)
-		return "", err
-	}
-	return cluster, nil
 }
 
 func (w *asyncWorker) EnqueueRateLimited(obj runtime.Object) {
