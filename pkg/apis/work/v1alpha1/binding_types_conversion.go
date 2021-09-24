@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"unsafe"
-
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -61,15 +59,17 @@ func (rb *ClusterResourceBinding) ConvertFrom(srcRaw conversion.Hub) error {
 // ConvertBindingSpecToHub converts ResourceBindingSpec to the Hub version.
 // This function intends to be shared by ResourceBinding and ClusterResourceBinding.
 func ConvertBindingSpecToHub(src *ResourceBindingSpec, dst *workv1alpha2.ResourceBindingSpec) {
-	// TODO(RainbowMango): currently v1alpha1 has introduced break changes at PR#637 and PR#657, we can revert it back before
-	// next release and updates the hub version to v1alpha2.
 	dst.Resource.APIVersion = src.Resource.APIVersion
 	dst.Resource.Kind = src.Resource.Kind
 	dst.Resource.Namespace = src.Resource.Namespace
 	dst.Resource.Name = src.Resource.Name
 	dst.Resource.ResourceVersion = src.Resource.ResourceVersion
-	dst.ReplicaRequirements = (*workv1alpha2.ReplicaRequirements)(unsafe.Pointer(src.ReplicaRequirements))
-	dst.Replicas = src.Replicas
+
+	if dst.ReplicaRequirements == nil {
+		dst.ReplicaRequirements = &workv1alpha2.ReplicaRequirements{}
+	}
+	dst.ReplicaRequirements.ResourceRequest = src.Resource.ReplicaResourceRequirements
+	dst.Replicas = src.Resource.Replicas
 
 	for i := range src.Clusters {
 		dst.Clusters = append(dst.Clusters, workv1alpha2.TargetCluster(src.Clusters[i]))
@@ -95,8 +95,10 @@ func ConvertBindingSpecFromHub(src *workv1alpha2.ResourceBindingSpec, dst *Resou
 	dst.Resource.Namespace = src.Resource.Namespace
 	dst.Resource.Name = src.Resource.Name
 	dst.Resource.ResourceVersion = src.Resource.ResourceVersion
-	dst.ReplicaRequirements = (*ReplicaRequirements)(unsafe.Pointer(src.ReplicaRequirements))
-	dst.Replicas = src.Replicas
+	if src.ReplicaRequirements != nil && src.ReplicaRequirements.ResourceRequest != nil {
+		dst.Resource.ReplicaResourceRequirements = src.ReplicaRequirements.ResourceRequest
+	}
+	dst.Resource.Replicas = src.Replicas
 
 	for i := range src.Clusters {
 		dst.Clusters = append(dst.Clusters, TargetCluster(src.Clusters[i]))
