@@ -19,6 +19,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -42,13 +43,13 @@ type ResourceBindingController struct {
 func (c *ResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
 
-	binding := &workv1alpha1.ResourceBinding{}
+	binding := &workv1alpha2.ResourceBinding{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
 		// The resource no longer exist, clean up derived Work objects.
 		if apierrors.IsNotFound(err) {
 			return helper.DeleteWorks(c.Client, labels.Set{
-				workv1alpha1.ResourceBindingNamespaceLabel: req.Namespace,
-				workv1alpha1.ResourceBindingNameLabel:      req.Name,
+				workv1alpha2.ResourceBindingNamespaceLabel: req.Namespace,
+				workv1alpha2.ResourceBindingNameLabel:      req.Name,
 			})
 		}
 
@@ -69,7 +70,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 }
 
 // syncBinding will sync resourceBinding to Works.
-func (c *ResourceBindingController) syncBinding(binding *workv1alpha1.ResourceBinding) (controllerruntime.Result, error) {
+func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
 	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters)
 	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name, clusterNames, apiextensionsv1.NamespaceScoped)
 	if err != nil {
@@ -117,8 +118,8 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 			var requests []reconcile.Request
 
 			labels := a.GetLabels()
-			resourcebindingNamespace, namespaceExist := labels[workv1alpha1.ResourceBindingNamespaceLabel]
-			resourcebindingName, nameExist := labels[workv1alpha1.ResourceBindingNameLabel]
+			resourcebindingNamespace, namespaceExist := labels[workv1alpha2.ResourceBindingNamespaceLabel]
+			resourcebindingName, nameExist := labels[workv1alpha2.ResourceBindingNameLabel]
 			if !namespaceExist || !nameExist {
 				return nil
 			}
@@ -131,7 +132,7 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 			return requests
 		})
 
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ResourceBinding{}).
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ResourceBinding{}).
 		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
 		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
@@ -151,7 +152,7 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 			return nil
 		}
 
-		bindingList := &workv1alpha1.ResourceBindingList{}
+		bindingList := &workv1alpha2.ResourceBindingList{}
 		if err := c.Client.List(context.TODO(), bindingList); err != nil {
 			klog.Errorf("Failed to list resourceBindings, error: %v", err)
 			return nil
@@ -180,7 +181,7 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 func (c *ResourceBindingController) newReplicaSchedulingPolicyFunc() handler.MapFunc {
 	return func(a client.Object) []reconcile.Request {
 		rspResourceSelectors := a.(*policyv1alpha1.ReplicaSchedulingPolicy).Spec.ResourceSelectors
-		bindingList := &workv1alpha1.ResourceBindingList{}
+		bindingList := &workv1alpha2.ResourceBindingList{}
 		if err := c.Client.List(context.TODO(), bindingList); err != nil {
 			klog.Errorf("Failed to list resourceBindings, error: %v", err)
 			return nil

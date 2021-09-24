@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -112,8 +112,8 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 
 	// watch and enqueue ResourceBinding changes.
 	resourceBindingGVR := schema.GroupVersionResource{
-		Group:    workv1alpha1.GroupVersion.Group,
-		Version:  workv1alpha1.GroupVersion.Version,
+		Group:    workv1alpha2.GroupVersion.Group,
+		Version:  workv1alpha2.GroupVersion.Version,
 		Resource: "resourcebindings",
 	}
 	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, nil)
@@ -122,8 +122,8 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 
 	// watch and enqueue ClusterResourceBinding changes.
 	clusterResourceBindingGVR := schema.GroupVersionResource{
-		Group:    workv1alpha1.GroupVersion.Group,
-		Version:  workv1alpha1.GroupVersion.Version,
+		Group:    workv1alpha2.GroupVersion.Group,
+		Version:  workv1alpha2.GroupVersion.Version,
 		Resource: "clusterresourcebindings",
 	}
 	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, nil)
@@ -612,13 +612,13 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha1.ResourceBinding, error) {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha2.ResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	replicaRequirements, replicas, err := d.GetReplicaDeclaration(object)
 	if err != nil {
 		return nil, err
 	}
-	propagationBinding := &workv1alpha1.ResourceBinding{
+	propagationBinding := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: object.GetNamespace(),
@@ -627,8 +627,8 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			},
 			Labels: labels,
 		},
-		Spec: workv1alpha1.ResourceBindingSpec{
-			Resource: workv1alpha1.ObjectReference{
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
 				Namespace:       object.GetNamespace(),
@@ -644,13 +644,13 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
-func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha1.ClusterResourceBinding, error) {
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha2.ClusterResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	replicaRequirements, replicas, err := d.GetReplicaDeclaration(object)
 	if err != nil {
 		return nil, err
 	}
-	binding := &workv1alpha1.ClusterResourceBinding{
+	binding := &workv1alpha2.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
 			OwnerReferences: []metav1.OwnerReference{
@@ -658,8 +658,8 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			},
 			Labels: labels,
 		},
-		Spec: workv1alpha1.ResourceBindingSpec{
-			Resource: workv1alpha1.ObjectReference{
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
 				Name:            object.GetName(),
@@ -674,7 +674,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 }
 
 // GetReplicaDeclaration get the replicas and resource requirements of a Deployment object
-func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (*workv1alpha1.ReplicaRequirements, int32, error) {
+func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (*workv1alpha2.ReplicaRequirements, int32, error) {
 	if object.GetKind() == util.DeploymentKind {
 		replicas, ok, err := unstructured.NestedInt64(object.Object, util.SpecField, util.ReplicasField)
 		if !ok || err != nil {
@@ -693,14 +693,14 @@ func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructur
 	return nil, 0, nil
 }
 
-func (d *ResourceDetector) getReplicaRequirements(object map[string]interface{}) (*workv1alpha1.ReplicaRequirements, error) {
+func (d *ResourceDetector) getReplicaRequirements(object map[string]interface{}) (*workv1alpha2.ReplicaRequirements, error) {
 	var podTemplateSpec *corev1.PodTemplateSpec
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &podTemplateSpec)
 	if err != nil {
 		return nil, err
 	}
 	res := util.EmptyResource().AddPodRequest(&podTemplateSpec.Spec)
-	replicaRequirements := &workv1alpha1.ReplicaRequirements{
+	replicaRequirements := &workv1alpha2.ReplicaRequirements{
 		NodeClaim:       helper.GenerateNodeClaimByPodSpec(&podTemplateSpec.Spec),
 		ResourceRequest: res.ResourceList(),
 	}
@@ -1061,7 +1061,7 @@ func (d *ResourceDetector) OnClusterResourceBindingUpdate(oldObj, newObj interfa
 }
 
 // CleanupLabels removes labels from object referencing by objRef.
-func (d *ResourceDetector) CleanupLabels(objRef workv1alpha1.ObjectReference, labels ...string) error {
+func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, labels ...string) error {
 	workload, err := helper.FetchWorkload(d.DynamicClient, d.RESTMapper, objRef)
 	if err != nil {
 		// do nothing if resource template not exist, it might has been removed.

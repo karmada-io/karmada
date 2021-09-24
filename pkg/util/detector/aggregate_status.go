@@ -16,11 +16,11 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // AggregateDeploymentStatus summarize deployment status and update to original objects.
-func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectReference, status []workv1alpha1.AggregatedStatusItem) error {
+func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha2.ObjectReference, status []workv1alpha2.AggregatedStatusItem) error {
 	if objRef.APIVersion != "apps/v1" {
 		return nil
 	}
@@ -81,7 +81,7 @@ func (d *ResourceDetector) AggregateDeploymentStatus(objRef workv1alpha1.ObjectR
 }
 
 // AggregateServiceStatus summarize service status and update to original objects.
-func (d *ResourceDetector) AggregateServiceStatus(objRef workv1alpha1.ObjectReference, status []workv1alpha1.AggregatedStatusItem) error {
+func (d *ResourceDetector) AggregateServiceStatus(objRef workv1alpha2.ObjectReference, status []workv1alpha2.AggregatedStatusItem) error {
 	if objRef.APIVersion != "v1" {
 		return nil
 	}
@@ -138,7 +138,7 @@ func (d *ResourceDetector) AggregateServiceStatus(objRef workv1alpha1.ObjectRefe
 }
 
 // AggregateIngressStatus summarize ingress status and update to original objects.
-func (d *ResourceDetector) AggregateIngressStatus(objRef workv1alpha1.ObjectReference, status []workv1alpha1.AggregatedStatusItem) error {
+func (d *ResourceDetector) AggregateIngressStatus(objRef workv1alpha2.ObjectReference, status []workv1alpha2.AggregatedStatusItem) error {
 	if objRef.APIVersion != "extensions/v1beta1" {
 		return nil
 	}
@@ -190,7 +190,7 @@ func (d *ResourceDetector) AggregateIngressStatus(objRef workv1alpha1.ObjectRefe
 }
 
 // AggregateJobStatus summarize job status and update to original objects.
-func (d *ResourceDetector) AggregateJobStatus(objRef workv1alpha1.ObjectReference, status []workv1alpha1.AggregatedStatusItem, clusters []workv1alpha1.TargetCluster) error {
+func (d *ResourceDetector) AggregateJobStatus(objRef workv1alpha2.ObjectReference, status []workv1alpha2.AggregatedStatusItem, clusters []workv1alpha2.TargetCluster) error {
 	if objRef.APIVersion != "batch/v1" {
 		return nil
 	}
@@ -235,7 +235,7 @@ func (d *ResourceDetector) getJobFinishedStatus(jobStatus *batchv1.JobStatus) (b
 }
 
 // parsingJobStatus generates new status of given 'AggregatedStatusItem'.
-func (d *ResourceDetector) parsingJobStatus(obj *batchv1.Job, status []workv1alpha1.AggregatedStatusItem, clusters []workv1alpha1.TargetCluster) (*batchv1.JobStatus, error) {
+func (d *ResourceDetector) parsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusItem, clusters []workv1alpha2.TargetCluster) (*batchv1.JobStatus, error) {
 	var jobFailed []string
 	successfulJobs := 0
 	newStatus := &batchv1.JobStatus{}

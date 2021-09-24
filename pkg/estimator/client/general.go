@@ -6,7 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // GeneralEstimator is the default replica estimator.
@@ -23,16 +23,16 @@ func NewGeneralEstimator() *GeneralEstimator {
 }
 
 // MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by cluster ResourceSummary.
-func (ge *GeneralEstimator) MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha1.ReplicaRequirements) ([]workv1alpha1.TargetCluster, error) {
-	availableTargetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
+func (ge *GeneralEstimator) MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
+	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 	for i, cluster := range clusters {
 		maxReplicas := ge.maxAvailableReplicas(cluster, replicaRequirements)
-		availableTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: maxReplicas}
+		availableTargetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: maxReplicas}
 	}
 	return availableTargetClusters, nil
 }
 
-func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha1.ReplicaRequirements) int32 {
+func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {
 	var maximumReplicas int64 = math.MaxInt32
 	resourceSummary := cluster.Status.ResourceSummary
 

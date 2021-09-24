@@ -2,7 +2,7 @@ package client
 
 import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // UnauthenticReplica is special replica number returned by estimator in case of estimator can't calculate the available
@@ -16,7 +16,7 @@ var (
 
 // ReplicaEstimator is an estimator which estimates the maximum replicas that can be applied to the target cluster.
 type ReplicaEstimator interface {
-	MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha1.ReplicaRequirements) ([]workv1alpha1.TargetCluster, error)
+	MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error)
 }
 
 // GetReplicaEstimators returns all replica estimators.
