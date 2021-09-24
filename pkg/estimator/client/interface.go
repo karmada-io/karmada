@@ -5,6 +5,11 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
+// UnauthenticReplica is special replica number returned by estimator in case of estimator can't calculate the available
+// replicas.
+// The scheduler should discard the estimator's result and back-off to rely on other estimator's result.
+const UnauthenticReplica = -1
+
 var (
 	replicaEstimators = map[string]ReplicaEstimator{}
 )
