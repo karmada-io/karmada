@@ -1,4 +1,5 @@
 GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 SOURCES := $(shell find . -type f  -name '*.go')
 
 # Git information

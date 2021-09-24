@@ -76,17 +76,17 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 						break
 					}
 					fmt.Printf("setting provider and region for cluster %v", cluster)
-					clusterObj := &clusterv1alpha1.Cluster{}
-					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Eventually(func() error {
+						clusterObj := &clusterv1alpha1.Cluster{}
+						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-					originalClusterProviderInfo[cluster] = clusterObj.Spec.Provider
-					originalClusterRegionInfo[cluster] = clusterObj.Spec.Region
-					clusterObj.Spec.Provider = providerMap[index]
-					clusterObj.Spec.Region = regionMap[index]
-
-					err = controlPlaneClient.Update(context.TODO(), clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						originalClusterProviderInfo[cluster] = clusterObj.Spec.Provider
+						originalClusterRegionInfo[cluster] = clusterObj.Spec.Region
+						clusterObj.Spec.Provider = providerMap[index]
+						clusterObj.Spec.Region = regionMap[index]
+						return controlPlaneClient.Update(context.TODO(), clusterObj)
+					}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 				}
 			})
 		})
@@ -104,14 +104,16 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 					if index > 2 {
 						break
 					}
-					clusterObj := &clusterv1alpha1.Cluster{}
-					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-					clusterObj.Spec.Provider = originalClusterProviderInfo[cluster]
-					clusterObj.Spec.Region = originalClusterRegionInfo[cluster]
-					err = controlPlaneClient.Update(context.TODO(), clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Eventually(func() error {
+						clusterObj := &clusterv1alpha1.Cluster{}
+						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						clusterObj.Spec.Provider = originalClusterProviderInfo[cluster]
+						clusterObj.Spec.Region = originalClusterRegionInfo[cluster]
+						return controlPlaneClient.Update(context.TODO(), clusterObj)
+					}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 				}
 			})
 		})

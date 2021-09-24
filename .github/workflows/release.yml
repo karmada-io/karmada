@@ -1,0 +1,38 @@
+on:
+  release:
+    types:
+    - created
+name: Build Release
+jobs:
+  release-assests:
+    name: release kubectl-karmada
+    runs-on: ubuntu-18.04    
+    strategy:
+      matrix:
+        include:
+          - goarch: amd64
+            goos: linux
+          - goarch: amd64
+            goos: darwin
+          - goarch: arm64
+            goos: linux
+          - goarch: arm64
+            goos: darwin
+    steps:
+    - uses: actions/checkout@master
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with: 
+        go-version: 1.16
+    - name: Making kubectl-karmada
+      run: make kubectl-karmada
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+    - name: Packaging...
+      run: tar czf kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz kubectl-karmada LICENSE
+    - name: Uploading assets...
+      if: ${{ !env.ACT }}
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz   
