@@ -24,6 +24,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
+	"github.com/karmada-io/karmada/pkg/features"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
@@ -67,10 +68,6 @@ const (
 
 	scheduleSuccessMessage = "the binding has been scheduled"
 )
-
-// Failover indicates if the scheduler should performs re-scheduler in case of cluster failure.
-// TODO(RainbowMango): Remove the temporary solution by introducing feature flag
-var Failover bool
 
 // Scheduler is the scheduler schema, which is used to schedule a specific resource to specific clusters
 type Scheduler struct {
@@ -412,7 +409,7 @@ func (s *Scheduler) scheduleNext() bool {
 		klog.Infof("Reschedule binding(%s) as replicas scaled down or scaled up", keys)
 		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
 	case FailoverSchedule:
-		if Failover {
+		if features.FeatureGate.Enabled(features.Failover) {
 			err = s.rescheduleOne(keys)
 			klog.Infof("Reschedule binding(%s) as cluster failure", keys)
 			metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
@@ -554,9 +551,9 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 
 	// Check if cluster becomes failure
 	if meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-		klog.Infof("Found cluster(%s) failure and failover flag is %v", newCluster.Name, Failover)
+		klog.Infof("Found cluster(%s) failure and failover flag is %v", newCluster.Name, features.FeatureGate.Enabled(features.Failover))
 
-		if Failover { // Trigger reschedule on cluster failure only when flag is true.
+		if features.FeatureGate.Enabled(features.Failover) { // Trigger reschedule on cluster failure only when flag is true.
 			s.enqueueAffectedBinding(newCluster.Name)
 			s.enqueueAffectedClusterBinding(newCluster.Name)
 			return
