@@ -233,6 +233,10 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, clusterName
 }
 
 func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clusterNamespace, clusterName string, dryRun bool) (*corev1.Secret, error) {
+	if dryRun {
+		return nil, nil
+	}
+
 	var err error
 
 	// ensure namespace where the karmada control plane credential be stored exists in cluster.
@@ -263,10 +267,6 @@ func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clust
 	clusterRoleBinding.RoleRef = buildClusterRoleReference(clusterRole.Name)
 	if _, err = ensureClusterRoleBindingExist(clusterKubeClient, clusterRoleBinding, dryRun); err != nil {
 		return nil, err
-	}
-
-	if dryRun {
-		return nil, nil
 	}
 
 	var clusterSecret *corev1.Secret
