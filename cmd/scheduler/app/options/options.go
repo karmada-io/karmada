@@ -8,6 +8,9 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/apiinstalled"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -21,6 +24,7 @@ var (
 	defaultElectionLeaseDuration = metav1.Duration{Duration: 15 * time.Second}
 	defaultElectionRenewDeadline = metav1.Duration{Duration: 10 * time.Second}
 	defaultElectionRetryPeriod   = metav1.Duration{Duration: 2 * time.Second}
+	defaultSchedulerPlugins      = []string{clusteraffinity.Name, tainttoleration.Name, apiinstalled.Name}
 )
 
 // Options contains everything necessary to create and run controller-manager.
@@ -47,6 +51,8 @@ type Options struct {
 	SchedulerEstimatorTimeout metav1.Duration
 	// SchedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
 	SchedulerEstimatorPort int
+	// SchedulerPlugins is the name of plugins that needs to be enabled.
+	SchedulerPlugins []string
 }
 
 // NewOptions builds an default scheduler options.
@@ -82,4 +88,5 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&o.EnableSchedulerEstimator, "enable-scheduler-estimator", false, "Enable calling cluster scheduler estimator for adjusting replicas.")
 	fs.DurationVar(&o.SchedulerEstimatorTimeout.Duration, "scheduler-estimator-timeout", 3*time.Second, "Specifies the timeout period of calling the scheduler estimator service.")
 	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
+	fs.StringSliceVar(&o.SchedulerPlugins, "plugins", defaultSchedulerPlugins, "The name of plugins that needs to be enabled.")
 }
