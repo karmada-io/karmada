@@ -43,7 +43,7 @@ func (se *SchedulerEstimator) MaxAvailableReplicas(clusters []*clusterv1alpha1.C
 func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster string, replicaRequirements *workv1alpha1.ReplicaRequirements) (int32, error) {
 	client, err := se.cache.GetClient(cluster)
 	if err != nil {
-		return 0, err
+		return UnauthenticReplica, err
 	}
 
 	req := &pb.MaxAvailableReplicasRequest{
@@ -61,7 +61,7 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 	}
 	res, err := client.MaxAvailableReplicas(ctx, req)
 	if err != nil {
-		return 0, fmt.Errorf("gRPC request cluster(%s) estimator error: %v", cluster, err)
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error: %v", cluster, err)
 	}
 	return res.MaxReplicas, nil
 }

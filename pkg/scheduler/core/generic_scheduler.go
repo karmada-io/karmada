@@ -344,6 +344,9 @@ func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Clus
 			continue
 		}
 		for i := range res {
+			if res[i].Replicas == estimatorclient.UnauthenticReplica {
+				continue
+			}
 			if availableTargetClusters[i].Name == res[i].Name && availableTargetClusters[i].Replicas > res[i].Replicas {
 				availableTargetClusters[i].Replicas = res[i].Replicas
 			}
