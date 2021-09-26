@@ -19,11 +19,6 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
-const (
-	tokenKey  = "token"
-	cADataKey = "caBundle"
-)
-
 // ClusterClient stands for a cluster Clientset for the given member cluster
 type ClusterClient struct {
 	KubeClient  *kubeclientset.Clientset
@@ -134,9 +129,9 @@ func buildClusterConfig(cluster *clusterv1alpha1.Cluster, client client.Client) 
 		return nil, err
 	}
 
-	token, tokenFound := secret.Data[tokenKey]
+	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
 	if !tokenFound || len(token) == 0 {
-		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, tokenKey)
+		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
 	}
 
 	clusterConfig, err := clientcmd.BuildConfigFromFlags(apiEndpoint, "")
@@ -149,7 +144,7 @@ func buildClusterConfig(cluster *clusterv1alpha1.Cluster, client client.Client) 
 	if cluster.Spec.InsecureSkipTLSVerification {
 		clusterConfig.TLSClientConfig.Insecure = true
 	} else {
-		clusterConfig.CAData = secret.Data[cADataKey]
+		clusterConfig.CAData = secret.Data[clusterv1alpha1.SecretCADataKey]
 	}
 
 	if cluster.Spec.ProxyURL != "" {
