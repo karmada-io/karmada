@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,7 +25,11 @@ func GetObjectFromCache(restMapper meta.RESTMapper, manager informermanager.Mult
 
 	singleClusterManager := manager.GetSingleClusterManager(fedKey.Cluster)
 	if singleClusterManager == nil {
-		return nil, nil
+		// That may happen in case of multi-controllers sharing one informer. For example:
+		// controller-A takes responsibility of initialize informer for clusters, but controller-B consumes
+		// the informer before the initialization.
+		// Usually this error will be eliminated during the controller reconciling loop.
+		return nil, fmt.Errorf("the informer of cluster(%s) has not been initialized", fedKey.Cluster)
 	}
 	var obj runtime.Object
 	lister := singleClusterManager.Lister(gvr)
