@@ -124,4 +124,3 @@ spec:
   clusterIP: None
   selector:
     app: etcd
-
