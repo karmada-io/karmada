@@ -288,7 +288,7 @@ func calculateReplicas(c client.Client, policy *policyv1alpha1.ReplicaScheduling
 		allocatedReplicas += int32(desireReplicaInfos[clusterName])
 	}
 
-	if remainReplicas := policy.Spec.TotalReplicas - allocatedReplicas; remainReplicas > 0 {
+	if remainReplicas := policy.Spec.TotalReplicas - allocatedReplicas; remainReplicas > 0 && len(matchClusters) > 0 {
 		sortedClusters := helper.SortClusterByWeight(matchClusters)
 		for i := 0; remainReplicas > 0; i++ {
 			desireReplicaInfos[sortedClusters[i].ClusterName]++
