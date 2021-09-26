@@ -159,12 +159,6 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	if obj == nil {
-		// Ignore the object which not managed by current karmada.
-		klog.V(2).Infof("Ignore the event key %s which not managed by karmada.", key)
-		return nil
-	}
-
 	workNamespace := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
 	workName := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNameLabel)
 	if len(workNamespace) == 0 || len(workName) == 0 {
