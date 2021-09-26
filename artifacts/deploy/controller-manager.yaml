@@ -38,4 +38,3 @@ spec:
         - name: kubeconfig
           secret:
             secretName: kubeconfig
-
