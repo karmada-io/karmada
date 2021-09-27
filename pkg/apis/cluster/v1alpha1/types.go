@@ -79,6 +79,13 @@ type ClusterSpec struct {
 	Taints []corev1.Taint `json:"taints,omitempty"`
 }
 
+const (
+	// SecretTokenKey is the name of secret token key.
+	SecretTokenKey = "token"
+	// SecretCADataKey is the name of secret caBundle key.
+	SecretCADataKey = "caBundle"
+)
+
 // ClusterSyncMode describes the mode of synchronization between member cluster and karmada control plane.
 type ClusterSyncMode string
 
