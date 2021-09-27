@@ -112,14 +112,16 @@ echo "cluster networks connected"
 export KUBECONFIG="${MAIN_KUBECONFIG}"
 kubectl config use-context "${KARMADA_APISERVER_CLUSTER_NAME}"
 ${KARMADACTL_BIN} join member1 --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}"
+"${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_1_NAME}"
 ${KARMADACTL_BIN} join member2 --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}"
+"${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_2_NAME}"
 
 # wait until the pull mode cluster ready
 util::check_clusters_ready "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${PULL_MODE_CLUSTER_NAME}"
 
 #step7. deploy karmada agent in pull mode member clusters
-"${REPO_ROOT}"/hack/deploy-karmada-agent.sh "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
+"${REPO_ROOT}"/hack/deploy-agent-and-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 
 function print_success() {
   echo -e "---\n"

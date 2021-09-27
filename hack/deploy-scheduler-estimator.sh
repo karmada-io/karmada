@@ -6,8 +6,8 @@ set -o nounset
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 function usage() {
   echo "This script will deploy karmada-scheduler-estimator of a cluster."
-  echo "Usage: hack/deploy-scheduler-estimator <HOST_CLUSTER_KUBECONFIG> <HOST_CLUSTER_NAME> <MEMBER_CLUSTER_KUBECONFIG> <MEMBER_CLUSTER_NAME>"
-  echo "Example: hack/deploy-scheduler-estimator ~/.kube/karmada.config karmada-host ~/.kube/members.config member1"
+  echo "Usage: hack/deploy-scheduler-estimator.sh <HOST_CLUSTER_KUBECONFIG> <HOST_CLUSTER_NAME> <MEMBER_CLUSTER_KUBECONFIG> <MEMBER_CLUSTER_NAME>"
+  echo "Example: hack/deploy-scheduler-estimator.sh ~/.kube/karmada.config karmada-host ~/.kube/members.config member1"
 }
 
 if [[ $# -ne 4 ]]; then
@@ -52,7 +52,7 @@ MEMBER_CLUSTER_NAME=$4
 kubectl --kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}" config use-context "${MEMBER_CLUSTER_NAME}"
 
 # check whether the kubeconfig secret has been created before
-if ! kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" get secrets -n karmada-system | grep "${MEMBER_CLUSTER_NAME}-kubeconfig"; then
+if ! kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" get secrets -n karmada-system | grep "${MEMBER_CLUSTER_NAME}-kubeconfig"; then
   # create secret
   kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" create secret generic ${MEMBER_CLUSTER_NAME}-kubeconfig --from-file=${MEMBER_CLUSTER_NAME}-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}" -n "karmada-system"
 fi
