@@ -44,7 +44,7 @@ type objectWatcherImpl struct {
 	ClusterClientSetFunc ClientSetFunc
 }
 
-// NewObjectWatcher returns a instance of ObjectWatcher
+// NewObjectWatcher returns an instance of ObjectWatcher
 func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc) ObjectWatcher {
 	return &objectWatcherImpl{
 		KubeClientSet:        kubeClientSet,
@@ -226,7 +226,7 @@ func (o *objectWatcherImpl) NeedsUpdate(cluster *clusterv1alpha1.Cluster, desire
 }
 
 /*
-This code is lifted from the kubefed codebase. It's a list of functions to determines whether the provided cluster
+This code is lifted from the kubefed codebase. It's a list of functions to determine whether the provided cluster
 object needs to be updated according to the desired object and the recorded version.
 For reference: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L30-L59
 */
