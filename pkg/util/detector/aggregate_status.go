@@ -13,13 +13,10 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 // AggregateDeploymentStatus summarize deployment status and update to original objects.
@@ -288,33 +285,4 @@ func (d *ResourceDetector) parsingJobStatus(obj *batchv1.Job, status []workv1alp
 		})
 	}
 	return newStatus, nil
-}
-
-// CleanupResourceStatus reinitialize resource's status.
-func (d *ResourceDetector) CleanupResourceStatus(objRef workv1alpha1.ObjectReference) error {
-	dynamicResource, err := restmapper.GetGroupVersionResource(d.RESTMapper, schema.FromAPIVersionAndKind(objRef.APIVersion, objRef.Kind))
-	if err != nil {
-		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", objRef.APIVersion, objRef.Kind, err)
-		return err
-	}
-
-	workload, err := d.DynamicClient.Resource(dynamicResource).Namespace(objRef.Namespace).Get(context.TODO(),
-		objRef.Name, metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("Failed to get workload, kind: %s, namespace: %s, name: %s. Error: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-		return err
-	}
-
-	err = unstructured.SetNestedField(workload.Object, map[string]interface{}{}, "status")
-	if err != nil {
-		klog.Errorf("Failed to update resource(%s/%s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-		return nil
-	}
-
-	_, err = d.DynamicClient.Resource(dynamicResource).Namespace(objRef.Namespace).UpdateStatus(context.TODO(), workload, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Failed to update resource(%s/%s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-		return err
-	}
-	return nil
 }

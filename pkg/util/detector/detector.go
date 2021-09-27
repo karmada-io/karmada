@@ -3,7 +3,6 @@ package detector
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -117,7 +116,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  workv1alpha1.GroupVersion.Version,
 		Resource: "resourcebindings",
 	}
-	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
+	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, nil)
 	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
 	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
 
@@ -127,7 +126,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  workv1alpha1.GroupVersion.Version,
 		Resource: "clusterresourcebindings",
 	}
-	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, d.OnClusterResourceBindingDelete)
+	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, nil)
 	d.InformerManager.ForResource(clusterResourceBindingGVR, clusterBindingHandler)
 
 	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
@@ -1011,28 +1010,6 @@ func (d *ResourceDetector) OnResourceBindingUpdate(_, newObj interface{}) {
 	d.OnResourceBindingAdd(newObj)
 }
 
-// OnClusterResourceBindingDelete handles object delete event.
-func (d *ResourceDetector) OnClusterResourceBindingDelete(obj interface{}) {
-	unstructuredObj, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		klog.Errorf("Invalid object type: %v", reflect.TypeOf(obj))
-		return
-	}
-
-	binding := &workv1alpha1.ClusterResourceBinding{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.UnstructuredContent(), binding); err != nil {
-		klog.Errorf("Failed to convert unstructured to typed object: %v", err)
-		return
-	}
-
-	objRef := binding.Spec.Resource
-	err := d.CleanupResourceTemplateStatus(binding.Spec.Resource)
-	if err != nil {
-		// Just log when error happened as there is no queue for delete event.
-		klog.Warningf("Failed to cleanup resource(kind=%s, %s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-	}
-}
-
 // ReconcileResourceBinding handles ResourceBinding object changes.
 // For each ResourceBinding changes, we will try to calculate the summary status and update to original object
 // that the ResourceBinding refer to.
@@ -1081,40 +1058,6 @@ func (d *ResourceDetector) OnClusterResourceBindingAdd(obj interface{}) {
 // OnClusterResourceBindingUpdate handles object update event and push the object to queue.
 func (d *ResourceDetector) OnClusterResourceBindingUpdate(oldObj, newObj interface{}) {
 	d.OnClusterResourceBindingAdd(newObj)
-}
-
-// OnResourceBindingDelete handles object delete event.
-func (d *ResourceDetector) OnResourceBindingDelete(obj interface{}) {
-	unstructuredObj, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		klog.Errorf("Invalid object type: %v", reflect.TypeOf(obj))
-		return
-	}
-
-	binding := &workv1alpha1.ResourceBinding{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.UnstructuredContent(), binding); err != nil {
-		klog.Errorf("Failed to convert unstructured to typed object: %v", err)
-		return
-	}
-
-	objRef := binding.Spec.Resource
-	err := d.CleanupResourceTemplateStatus(binding.Spec.Resource)
-	if err != nil {
-		// Just log when error happened as there is no queue for delete event.
-		klog.Warningf("Failed to cleanup resource(kind=%s, %s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-	}
-}
-
-// CleanupResourceTemplateStatus cleanup the status from resource template.
-// Note: Only limited resource type supported.
-func (d *ResourceDetector) CleanupResourceTemplateStatus(objRef workv1alpha1.ObjectReference) error {
-	switch objRef.Kind {
-	case util.DeploymentKind, util.ServiceKind, util.IngressKind, util.JobKind:
-		return d.CleanupResourceStatus(objRef)
-	}
-
-	// Unsupported resource type.
-	return nil
 }
 
 // CleanupLabels removes labels from object referencing by objRef.
