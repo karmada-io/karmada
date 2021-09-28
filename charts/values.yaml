@@ -5,10 +5,17 @@
 ## @param installMode "host" and "agent" are provided
 ## "host" means install karmada in the control-cluster
 ## "agent" means install agent client in the member cluster
+## "component" means install selected components in the control-cluster
 installMode: "host"
 
 ## @param clusterDomain default domain for karmada
 clusterDomain: "cluster.local"
+
+## @param components component list
+components: []
+  # components: [
+  #   "schedulerEstimator"
+  # ]
 
 ## karmada certificate config
 certs:
@@ -63,7 +70,7 @@ scheduler:
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler
     ## @param scheduler.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
-    ## @param scheduler.image.tag verrides the image tag whose default is the latest
+    ## @param scheduler.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param scheduler.resources
   resources: { }
@@ -102,7 +109,7 @@ webhook:
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook
     ## @param webhook.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
-    ## @param webhook.image.tag verrides the image tag whose default is the latest
+    ## @param webhook.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param webhook.resources
   resources: { }
@@ -141,7 +148,7 @@ controllerManager:
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager
     ## @param controllerManager.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
-    ## @param controllerManager.image.tag verrides the image tag whose default is the latest
+    ## @param controllerManager.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param controllerManager.resources
   resources: { }
@@ -180,7 +187,7 @@ apiServer:
     repository: k8s.gcr.io/kube-apiserver
     ## @param apiServer.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
-    ## @param apiServer.image.tag verrides the image tag whose default is the latest
+    ## @param apiServer.image.tag overrides the image tag whose default is the latest
     tag: "v1.19.1"
   ## @param apiServer.resources
   resources: { }
@@ -219,7 +226,7 @@ kubeControllerManager:
     repository: k8s.gcr.io/kube-controller-manager
     ## @param kubeControllerManager.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
-    ## @param kubeControllerManager.image.tag verrides the image tag whose default is the latest
+    ## @param kubeControllerManager.image.tag overrides the image tag whose default is the latest
     tag: "v1.19.1"
   ## @param kubeControllerManager.resources
   resources:
@@ -276,13 +283,14 @@ etcd:
       repository: k8s.gcr.io/etcd
       ## @param etcd.internal.image.pullPolicy pull policy of image
       pullPolicy: IfNotPresent
-      ## @param etcd.internal.image.tag verrides the image tag whose default is the latest
+      ## @param etcd.internal.image.tag overrides the image tag whose default is the latest
       tag: "3.4.13-0"
 
 ## agent client config
 agent:
   ## @param agent.clusterName name of the member cluster
   clusterName: ""
+  ## kubeconfig of the karmada
   kubeconfig:
     ## @param agent.kubeconfig.caCrt ca of the certificate
     caCrt: |
@@ -317,7 +325,7 @@ agent:
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-agent
     ## @param agent.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
-    ## @param agent.image.tag verrides the image tag whose default is the latest
+    ## @param agent.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param agent.resources 
   resources: { }
@@ -335,5 +343,64 @@ agent:
   affinity: { }
   ## @param agent.tolerations
   tolerations: { }
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+
+## karmada scheduler estimator
+schedulerEstimator:
+  ## schedulerEstimator.clusterName the name of the member cluster
+  clusterName: ""
+  ## kubeconfig of the member cluster
+  kubeconfig:
+    ## @param schedulerEstimator.kubeconfig.caCrt ca of the certificate
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param schedulerEstimator.kubeconfig.crt crt of the certificate
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param schedulerEstimator.kubeconfig.key key of the certificate
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param schedulerEstimator.kubeconfig.server apiserver of the member cluster
+    server: ""
+  ## @param schedulerEstimator.labels
+  labels: {}
+  ## @param schedulerEstimator.replicaCount target replicas
+  replicaCount: 1
+  ## @param schedulerEstimator.podAnnotations
+  podAnnotations: { }
+  ## @param schedulerEstimator.podLabels
+  podLabels: { }
+  ## @param schedulerEstimator.imagePullSecrets
+  imagePullSecrets: [ ]
+  image:
+    ## @param schedulerEstimator.image.repository image of the apiserver
+    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler-estimator
+    ## @param schedulerEstimator.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param schedulerEstimator.image.tag overrides the image tag whose default is the latest
+    tag: "latest"
+  ## @param schedulerEstimator.resources
+  resources: { }
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param schedulerEstimator.nodeSelector
+  nodeSelector: { }
+  ## @param schedulerEstimator.affinity
+  affinity: { }
+  ## @param schedulerEstimator.tolerations
+  tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists

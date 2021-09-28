@@ -41,11 +41,71 @@ $ helm uninstall karmada -n karmada-system
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
+
+## Example
+### 1. Install agent
+Edited values.yaml
+```YAML
+installMode: "agent"
+agent:
+  clusterName: "member"
+  ## kubeconfig of the karmada
+  kubeconfig:
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    server: "https://apiserver.karmada"
+```
+Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
+```console
+$ kubectl config use-context member
+$ helm install karmada-agent -n karmada-system --create-namespace ./charts
+```
+### 2. Install component
+Edited values.yaml
+```YAML
+installMode: "component"
+components: [
+  "schedulerEstimator"
+]
+schedulerEstimator:
+  clusterName: "member"
+  ## kubeconfig of the member cluster
+  kubeconfig:
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    server: "https://apiserver.member"
+```
+Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
+```console
+$ kubectl config use-context host
+$ helm install karmada-scheduler-estimator -n karmada-system ./charts
+```
 ## Configuration
 | Name                      | Description                                     | Value |
 | ------------------------- | ----------------------------------------------- | ----- |
-| `installMode` | InstallMode "host" and "agent" are provided, "host" means install karmada in the control-cluster, "agent" means install agent client in the member cluster   | `"host"`|
+| `installMode` | InstallMode "host", "agent" and "component" are provided, "host" means install karmada in the control-cluster, "agent" means install agent client in the member cluster, "component" means install selected components in the control-cluster   | `"host"`|
 | `clusterDomain` | Default cluster domain for karmada | `"cluster.local"`  |
+| `components` | Selected components list, selectable values: "schedulerEstimator"  | `[]`  |
 |`certs.mode`| Mode "auto" and "custom" are provided, "auto" means auto generate certificate, "custom" means use user certificate |`"auto"`|
 |`certs.auto.expiry`| Expiry of the certificate |`"43800h"`|
 |`certs.auto.hosts`| Hosts of the certificate |`["kubernetes.default.svc","*.etcd.karmada-system.svc.cluster.local","*.karmada-system.svc.cluster.local","*.karmada-system.svc","localhost","127.0.0.1"]`|
@@ -139,3 +199,20 @@ The command removes all the Kubernetes components associated with the chart and 
 |`kubeControllerManager.nodeSelector`| Node selector of the kube-controller-manager |`{}`|
 |`kubeControllerManager.affinity`| Affinity of the kube-controller-manager |`{}`|
 |`kubeControllerManager.tolerations`| Tolerations of the kube-controller-manager |`[]`|
+|`schedulerEstimator.clusterName`| Name of the member cluster |`""`|
+|`schedulerEstimator.kubeconfig.caCrt`| CA CRT of the certificate |`""`|
+|`schedulerEstimator.kubeconfig.crt`| CRT of the certificate |`""`|
+|`schedulerEstimator.kubeconfig.key`| KEY of the certificate |`""`|
+|`schedulerEstimator.kubeconfig.server`| API-server of the member cluster |`""`|
+|`schedulerEstimator.labels`| Labels of the scheduler-estimator deployment |`{}`|
+|`schedulerEstimator.replicaCount`| Target replicas of the scheduler-estimator |`1`|
+|`schedulerEstimator.podLabels`| Labels of the scheduler-estimator pods |`{}`|
+|`schedulerEstimator.podAnnotations`| Annotaions of the scheduler-estimator pods |`{}`|
+|`schedulerEstimator.imagePullSecrets`| Image pull secret of the scheduler-estimator |`[]`|
+|`schedulerEstimator.image.repository`| Image of the scheduler-estimator |`"swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler-estimator"`|
+|`schedulerEstimator.image.tag`| Image tag of the scheduler-estimator |`"latest"`|
+|`schedulerEstimator.image.pullPolicy`| Image pull policy of the scheduler-estimator |`"IfNotPresent"`|
+|`schedulerEstimator.resources`| Resource quota of the scheduler-estimator |`{}`|
+|`schedulerEstimator.nodeSelector`| Node selector of the scheduler-estimator |`{}`|
+|`schedulerEstimator.affinity`| Affinity of the scheduler-estimator |`{}`|
+|`schedulerEstimator.tolerations`| Tolerations of the scheduler-estimator |`[]`|
