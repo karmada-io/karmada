@@ -29,6 +29,7 @@ spec:
             - --bind-address=0.0.0.0
             - --secure-port=10351
             - --failover=true
+            - --enable-scheduler-estimator=true
             - --v=4
           volumeMounts:
             - name: kubeconfig
