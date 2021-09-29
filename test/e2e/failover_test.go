@@ -18,7 +18,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/helper"
@@ -209,7 +209,7 @@ func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint str
 // get the target cluster names from binding information
 func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []string, err error) {
 	bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
-	binding := &workv1alpha1.ResourceBinding{}
+	binding := &workv1alpha2.ResourceBinding{}
 
 	err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 		err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: deployment.Namespace, Name: bindingName}, binding)

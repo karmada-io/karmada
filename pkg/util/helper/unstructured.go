@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // ConvertToPropagationPolicy converts a PropagationPolicy object from unstructured to typed.
@@ -32,8 +32,8 @@ func ConvertToClusterPropagationPolicy(obj *unstructured.Unstructured) (*policyv
 }
 
 // ConvertToResourceBinding converts a ResourceBinding object from unstructured to typed.
-func ConvertToResourceBinding(obj *unstructured.Unstructured) (*workv1alpha1.ResourceBinding, error) {
-	typedObj := &workv1alpha1.ResourceBinding{}
+func ConvertToResourceBinding(obj *unstructured.Unstructured) (*workv1alpha2.ResourceBinding, error) {
+	typedObj := &workv1alpha2.ResourceBinding{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}

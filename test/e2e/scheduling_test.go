@@ -22,7 +22,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/helper"
@@ -248,7 +248,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			ginkgo.By("collect the target clusters in cluster resource binding", func() {
 				bindingName := names.GenerateBindingName(crd.Kind, crd.Name)
 				fmt.Printf("crd kind is %s, name is %s\n", crd.Kind, crd.Name)
-				binding := &workv1alpha1.ClusterResourceBinding{}
+				binding := &workv1alpha2.ClusterResourceBinding{}
 
 				fmt.Printf("MaxGroups= %v, MinGroups= %v\n", maxGroups, minGroups)
 				gomega.Eventually(func() int {

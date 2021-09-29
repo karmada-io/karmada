@@ -17,6 +17,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -56,13 +57,13 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
-	var targetClusters []workv1alpha1.TargetCluster
+	var targetClusters []workv1alpha2.TargetCluster
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
-		bindingObj := binding.(*workv1alpha1.ResourceBinding)
+		bindingObj := binding.(*workv1alpha2.ResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
 	case apiextensionsv1.ClusterScoped:
-		bindingObj := binding.(*workv1alpha1.ClusterResourceBinding)
+		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
 	}
 
@@ -117,7 +118,7 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 	return nil
 }
 
-func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured, targetClusters []workv1alpha1.TargetCluster) (bool, *policyv1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
+func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured, targetClusters []workv1alpha2.TargetCluster) (bool, *policyv1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
 	if helper.HasScheduledReplica(targetClusters) {
 		return true, nil, transScheduleResultToMap(targetClusters), nil
 	}
@@ -147,17 +148,17 @@ func applyReplicaSchedulingPolicy(workload *unstructured.Unstructured, desireRep
 
 func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
-	util.MergeLabel(workload, workv1alpha1.WorkNamespaceLabel, workNamespace)
-	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
+	util.MergeLabel(workload, workv1alpha2.WorkNamespaceLabel, workNamespace)
+	util.MergeLabel(workload, workv1alpha2.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
 
 	if scope == apiextensionsv1.NamespaceScoped {
-		util.MergeLabel(workload, workv1alpha1.ResourceBindingNamespaceLabel, binding.GetNamespace())
-		util.MergeLabel(workload, workv1alpha1.ResourceBindingNameLabel, binding.GetName())
-		workLabel[workv1alpha1.ResourceBindingNamespaceLabel] = binding.GetNamespace()
-		workLabel[workv1alpha1.ResourceBindingNameLabel] = binding.GetName()
+		util.MergeLabel(workload, workv1alpha2.ResourceBindingNamespaceLabel, binding.GetNamespace())
+		util.MergeLabel(workload, workv1alpha2.ResourceBindingNameLabel, binding.GetName())
+		workLabel[workv1alpha2.ResourceBindingNamespaceLabel] = binding.GetNamespace()
+		workLabel[workv1alpha2.ResourceBindingNameLabel] = binding.GetName()
 	} else {
-		util.MergeLabel(workload, workv1alpha1.ClusterResourceBindingLabel, binding.GetName())
-		workLabel[workv1alpha1.ClusterResourceBindingLabel] = binding.GetName()
+		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingLabel, binding.GetName())
+		workLabel[workv1alpha2.ClusterResourceBindingLabel] = binding.GetName()
 	}
 
 	return workLabel
@@ -189,7 +190,7 @@ func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overrid
 	return annotations, nil
 }
 
-func transScheduleResultToMap(scheduleResult []workv1alpha1.TargetCluster) map[string]int64 {
+func transScheduleResultToMap(scheduleResult []workv1alpha2.TargetCluster) map[string]int64 {
 	var desireReplicaInfos = make(map[string]int64, len(scheduleResult))
 	for _, clusterInfo := range scheduleResult {
 		desireReplicaInfos[clusterInfo.Name] = int64(clusterInfo.Replicas)

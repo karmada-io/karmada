@@ -400,6 +400,14 @@ function util::deploy_webhook_configuration() {
   rm -rf "${temp_path}"
 }
 
+function util::fill_cabundle() {
+  local ca_file=$1
+  local conf=$2
+
+  local ca_string=$(sudo cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+  sed -i'' -e "s/{{caBundle}}/${ca_string}/g" "${conf}"
+}
+
 # util::wait_service_external_ip give a service external ip when it is ready, if not, wait until timeout
 # Parameters:
 #  - $1: service name in k8s

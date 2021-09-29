@@ -19,6 +19,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -42,12 +43,12 @@ type ClusterResourceBindingController struct {
 func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
 
-	clusterResourceBinding := &workv1alpha1.ClusterResourceBinding{}
+	clusterResourceBinding := &workv1alpha2.ClusterResourceBinding{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, clusterResourceBinding); err != nil {
 		// The resource no longer exist, clean up derived Work objects.
 		if apierrors.IsNotFound(err) {
 			return helper.DeleteWorks(c.Client, labels.Set{
-				workv1alpha1.ClusterResourceBindingLabel: req.Name,
+				workv1alpha2.ClusterResourceBindingLabel: req.Name,
 			})
 		}
 
@@ -68,7 +69,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 }
 
 // syncBinding will sync clusterResourceBinding to Works.
-func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha1.ClusterResourceBinding) (controllerruntime.Result, error) {
+func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
 	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters)
 	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, clusterNames, apiextensionsv1.ClusterScoped)
 	if err != nil {
@@ -111,7 +112,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 			var requests []reconcile.Request
 
 			labels := a.GetLabels()
-			clusterResourcebindingName, nameExist := labels[workv1alpha1.ClusterResourceBindingLabel]
+			clusterResourcebindingName, nameExist := labels[workv1alpha2.ClusterResourceBindingLabel]
 			if !nameExist {
 				return nil
 			}
@@ -123,7 +124,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 			return requests
 		})
 
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.ClusterResourceBinding{}).
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ClusterResourceBinding{}).
 		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
 		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
@@ -143,7 +144,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 			return nil
 		}
 
-		bindingList := &workv1alpha1.ClusterResourceBindingList{}
+		bindingList := &workv1alpha2.ClusterResourceBindingList{}
 		if err := c.Client.List(context.TODO(), bindingList); err != nil {
 			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
 			return nil
@@ -172,7 +173,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() handler.MapFunc {
 	return func(a client.Object) []reconcile.Request {
 		rspResourceSelectors := a.(*policyv1alpha1.ReplicaSchedulingPolicy).Spec.ResourceSelectors
-		bindingList := &workv1alpha1.ClusterResourceBindingList{}
+		bindingList := &workv1alpha2.ClusterResourceBindingList{}
 		if err := c.Client.List(context.TODO(), bindingList); err != nil {
 			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
 			return nil
