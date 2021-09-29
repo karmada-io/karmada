@@ -8,7 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -88,8 +87,8 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 			return controllerruntime.Result{Requeue: true}, err
 		}
 
-		endpointSlice := &discoveryv1beta1.EndpointSlice{}
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructObj.UnstructuredContent(), endpointSlice); err != nil {
+		endpointSlice, err := helper.ConvertToEndpointSlice(unstructObj)
+		if err != nil {
 			klog.Errorf("failed to convert unstructured to typed object: %v", err)
 			return controllerruntime.Result{Requeue: true}, err
 		}

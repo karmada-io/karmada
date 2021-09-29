@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,6 +15,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -120,8 +120,7 @@ func removeIrrelevantField(workload *unstructured.Unstructured) error {
 	}
 
 	if workload.GetKind() == util.JobKind {
-		job := &batchv1.Job{}
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(workload.UnstructuredContent(), job)
+		job, err := helper.ConvertToJob(workload)
 		if err != nil {
 			return err
 		}
