@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -47,7 +48,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 
 func run(opts *options.Options, stopChan <-chan struct{}) error {
 	klog.Infof("karmada-scheduler version: %s", version.Get())
-	go serveHealthz(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
+	go serveHealthzAndMetrics(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {
@@ -111,11 +112,13 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	return nil
 }
 
-func serveHealthz(address string) {
+func serveHealthzAndMetrics(address string) {
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+
+	http.Handle("/metrics", promhttp.Handler())
 
 	klog.Fatal(http.ListenAndServe(address, nil))
 }

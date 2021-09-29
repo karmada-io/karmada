@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
@@ -17,6 +18,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
+	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -92,6 +94,8 @@ func (g *genericScheduler) findClustersThatFit(
 	placement *policyv1alpha1.Placement,
 	resource *workv1alpha2.ObjectReference,
 	clusterInfo *cache.Snapshot) ([]*clusterv1alpha1.Cluster, error) {
+	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, time.Now())
+
 	var out []*clusterv1alpha1.Cluster
 	clusters := clusterInfo.GetReadyClusters()
 	for _, c := range clusters {
@@ -113,6 +117,8 @@ func (g *genericScheduler) prioritizeClusters(
 	fwk framework.Framework,
 	placement *policyv1alpha1.Placement,
 	clusters []*clusterv1alpha1.Cluster) (result framework.ClusterScoreList, err error) {
+	defer metrics.ScheduleStep(metrics.ScheduleStepScore, time.Now())
+
 	scoresMap, err := fwk.RunScorePlugins(ctx, placement, clusters)
 	if err != nil {
 		return result, err
@@ -130,6 +136,8 @@ func (g *genericScheduler) prioritizeClusters(
 }
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, spreadConstraints []policyv1alpha1.SpreadConstraint, clusters []*clusterv1alpha1.Cluster) []*clusterv1alpha1.Cluster {
+	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
+
 	if len(spreadConstraints) != 0 {
 		return g.matchSpreadConstraints(clusters, spreadConstraints)
 	}
@@ -200,6 +208,7 @@ func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*c
 }
 
 func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy, object *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
+	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, time.Now())
 	if len(clusters) == 0 {
 		return nil, fmt.Errorf("no clusters available to schedule")
 	}
