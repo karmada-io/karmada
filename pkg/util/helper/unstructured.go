@@ -4,6 +4,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -44,6 +45,16 @@ func ConvertToResourceBinding(obj *unstructured.Unstructured) (*workv1alpha2.Res
 // ConvertToPod converts a Pod object from unstructured to typed.
 func ConvertToPod(obj *unstructured.Unstructured) (*corev1.Pod, error) {
 	typedObj := &corev1.Pod{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToNode converts a Node object from unstructured to typed.
+func ConvertToNode(obj *unstructured.Unstructured) (*corev1.Node, error) {
+	typedObj := &corev1.Node{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}
@@ -94,6 +105,16 @@ func ConvertToStatefulSet(obj *unstructured.Unstructured) (*appsv1.StatefulSet, 
 // ConvertToJob converts a Job object from unstructured to typed.
 func ConvertToJob(obj *unstructured.Unstructured) (*batchv1.Job, error) {
 	typedObj := &batchv1.Job{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToEndpointSlice converts a EndpointSlice object from unstructured to typed.
+func ConvertToEndpointSlice(obj *unstructured.Unstructured) (*discoveryv1beta1.EndpointSlice, error) {
+	typedObj := &discoveryv1beta1.EndpointSlice{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}

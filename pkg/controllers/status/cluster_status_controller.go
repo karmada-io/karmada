@@ -29,6 +29,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 )
 
@@ -454,9 +455,8 @@ func getResourceSummary(nodes []*corev1.Node, pods []*corev1.Pod) *clusterv1alph
 func convertObjectsToNodes(nodeList []runtime.Object) ([]*corev1.Node, error) {
 	nodes := make([]*corev1.Node, 0, len(nodeList))
 	for _, obj := range nodeList {
-		unstructObj := obj.(*unstructured.Unstructured)
-		node := &corev1.Node{}
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructObj.UnstructuredContent(), node); err != nil {
+		node, err := helper.ConvertToNode(obj.(*unstructured.Unstructured))
+		if err != nil {
 			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
 		}
 		nodes = append(nodes, node)
@@ -467,9 +467,8 @@ func convertObjectsToNodes(nodeList []runtime.Object) ([]*corev1.Node, error) {
 func convertObjectsToPods(podList []runtime.Object) ([]*corev1.Pod, error) {
 	pods := make([]*corev1.Pod, 0, len(podList))
 	for _, obj := range podList {
-		unstructObj := obj.(*unstructured.Unstructured)
-		pod := &corev1.Pod{}
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructObj.UnstructuredContent(), pod); err != nil {
+		pod, err := helper.ConvertToPod(obj.(*unstructured.Unstructured))
+		if err != nil {
 			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
 		}
 		pods = append(pods, pod)
