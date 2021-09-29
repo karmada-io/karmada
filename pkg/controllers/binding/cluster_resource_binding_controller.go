@@ -13,6 +13,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -45,18 +46,22 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 
 	clusterResourceBinding := &workv1alpha2.ClusterResourceBinding{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, clusterResourceBinding); err != nil {
-		// The resource no longer exist, clean up derived Work objects.
+		// The resource no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
-			return helper.DeleteWorks(c.Client, labels.Set{
-				workv1alpha2.ClusterResourceBindingLabel: req.Name,
-			})
+			return controllerruntime.Result{}, nil
 		}
 
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
-		return controllerruntime.Result{}, nil
+		if err := helper.DeleteWorks(c.Client, labels.Set{
+			workv1alpha2.ClusterResourceBindingLabel: req.Name,
+		}); err != nil {
+			klog.Errorf("Failed to delete works related to %s: %v", clusterResourceBinding.GetName(), err)
+			return controllerruntime.Result{Requeue: true}, err
+		}
+		return c.removeFinalizer(clusterResourceBinding)
 	}
 
 	isReady := helper.IsBindingReady(clusterResourceBinding.Spec.Clusters)
@@ -66,6 +71,20 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 	}
 
 	return c.syncBinding(clusterResourceBinding)
+}
+
+// removeFinalizer removes finalizer from the given ClusterResourceBinding
+func (c *ClusterResourceBindingController) removeFinalizer(crb *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
+	if !controllerutil.ContainsFinalizer(crb, util.ClusterResourceBindingControllerFinalizer) {
+		return controllerruntime.Result{}, nil
+	}
+
+	controllerutil.RemoveFinalizer(crb, util.ClusterResourceBindingControllerFinalizer)
+	err := c.Client.Update(context.TODO(), crb)
+	if err != nil {
+		return controllerruntime.Result{Requeue: true}, err
+	}
+	return controllerruntime.Result{}, nil
 }
 
 // syncBinding will sync clusterResourceBinding to Works.
