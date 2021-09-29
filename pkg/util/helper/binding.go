@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -175,11 +174,11 @@ func GetWorks(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 }
 
 // DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(c client.Client, selector labels.Set) (controllerruntime.Result, error) {
+func DeleteWorks(c client.Client, selector labels.Set) error {
 	workList, err := GetWorks(c, selector)
 	if err != nil {
 		klog.Errorf("Failed to get works by label %v: %v", selector, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
 
 	var errs []error
@@ -191,10 +190,10 @@ func DeleteWorks(c client.Client, selector labels.Set) (controllerruntime.Result
 	}
 
 	if len(errs) > 0 {
-		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
+		return errors.NewAggregate(errs)
 	}
 
-	return controllerruntime.Result{}, nil
+	return nil
 }
 
 // GenerateNodeClaimByPodSpec will return a NodeClaim from PodSpec.
