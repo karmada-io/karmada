@@ -43,9 +43,12 @@ func (c *HorizontalPodAutoscalerController) Reconcile(ctx context.Context, req c
 
 	hpa := &autoscalingv1.HorizontalPodAutoscaler{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, hpa); err != nil {
-		// The resource may no longer exist, in which case we stop processing.
+		// The resource may no longer exist, in which case we delete related works.
 		if apierrors.IsNotFound(err) {
-			return controllerruntime.Result{}, nil
+			if err := c.deleteWorks(names.GenerateWorkName(util.HorizontalPodAutoscalerKind, req.Name, req.Namespace)); err != nil {
+				return controllerruntime.Result{Requeue: true}, err
+			}
+			return controllerruntime.Result{}, err
 		}
 
 		return controllerruntime.Result{Requeue: true}, err
@@ -93,9 +96,6 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 			Name:       workName,
 			Namespace:  workNamespace,
 			Finalizers: []string{util.ExecutionControllerFinalizer},
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(hpa, hpa.GroupVersionKind()),
-			},
 		}
 
 		util.MergeLabel(hpaObj, workv1alpha2.WorkNamespaceLabel, workNamespace)
@@ -139,4 +139,23 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 // SetupWithManager creates a controller and register to controller manager.
 func (c *HorizontalPodAutoscalerController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).For(&autoscalingv1.HorizontalPodAutoscaler{}).Complete(c)
+}
+
+func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
+	workList := &workv1alpha1.WorkList{}
+	if err := c.List(context.TODO(), workList); err != nil {
+		klog.Errorf("Failed to list works: %v.", err)
+		return err
+	}
+
+	for i := range workList.Items {
+		work := &workList.Items[i]
+		if workName == work.Name {
+			if err := c.Client.Delete(context.TODO(), work); err != nil {
+				klog.Errorf("Failed to delete work %s/%s: %v.", work.Namespace, work.Name, err)
+				return err
+			}
+		}
+	}
+	return nil
 }
