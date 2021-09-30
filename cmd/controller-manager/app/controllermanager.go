@@ -199,24 +199,24 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup policy controller: %v", err)
 	}
 
-	bindingController := binding.NewResourceBindingController(
-		mgr.GetClient(),
-		dynamicClientSet,
-		mgr.GetEventRecorderFor(binding.ControllerName),
-		mgr.GetRESTMapper(),
-		overrideManager,
-	)
+	bindingController := &binding.ResourceBindingController{
+		Client:          mgr.GetClient(),
+		DynamicClient:   dynamicClientSet,
+		EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
+		RESTMapper:      mgr.GetRESTMapper(),
+		OverrideManager: overrideManager,
+	}
 	if err := bindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup binding controller: %v", err)
 	}
 
-	clusterResourceBindingController := binding.NewClusterResourceBindingController(
-		mgr.GetClient(),
-		dynamicClientSet,
-		mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
-		mgr.GetRESTMapper(),
-		overrideManager,
-	)
+	clusterResourceBindingController := &binding.ClusterResourceBindingController{
+		Client:          mgr.GetClient(),
+		DynamicClient:   dynamicClientSet,
+		EventRecorder:   mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
+		RESTMapper:      mgr.GetRESTMapper(),
+		OverrideManager: overrideManager,
+	}
 	if err := clusterResourceBindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
 	}
