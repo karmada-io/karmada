@@ -17,6 +17,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -98,8 +99,8 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 			Finalizers: []string{util.ExecutionControllerFinalizer},
 		}
 
-		util.MergeLabel(hpaObj, workv1alpha2.WorkNamespaceLabel, workNamespace)
-		util.MergeLabel(hpaObj, workv1alpha2.WorkNameLabel, workName)
+		util.MergeLabel(hpaObj, workv1alpha1.WorkNamespaceLabel, workNamespace)
+		util.MergeLabel(hpaObj, workv1alpha1.WorkNameLabel, workName)
 
 		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, hpaObj); err != nil {
 			return err
