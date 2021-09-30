@@ -68,10 +68,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 
 	isReady := helper.IsBindingReady(clusterResourceBinding.Spec.Clusters)
 	if !isReady {
-		msg := fmt.Sprintf("ClusterResourceBinding %s is not ready to sync.", clusterResourceBinding.GetName())
-		klog.Infof(msg)
-		c.EventRecorder.Event(clusterResourceBinding, corev1.EventTypeWarning, "ResourceBindingNotReady", msg)
-
+		klog.Infof("ClusterResourceBinding %s is not ready to sync", clusterResourceBinding.GetName())
 		return controllerruntime.Result{}, nil
 	}
 
@@ -98,37 +95,42 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, clusterNames, apiextensionsv1.ClusterScoped)
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by ClusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFindOrphanWorks), err.Error())
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonCleanupWorkFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	err = helper.RemoveOrphanWorks(c.Client, works)
 	if err != nil {
 		klog.Errorf("Failed to remove orphan works by clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFindOrphanWorks), err.Error())
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonCleanupWorkFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
 		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFetchWorkload), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	err = ensureWork(c.Client, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonSyncWorkFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
+	msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
+	klog.V(4).Infof(msg)
+	c.EventRecorder.Event(binding, corev1.EventTypeNormal, eventReasonSyncWorkSucceed, msg)
 
 	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, workload)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatuses to clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeTransformResourceBinding), err.Error())
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonAggregateStatusFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
-	klog.V(4).Infof("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
+	msg = fmt.Sprintf("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
+	klog.V(4).Infof(msg)
+	c.EventRecorder.Event(binding, corev1.EventTypeNormal, eventReasonAggregateStatusSucceed, msg)
 
 	return controllerruntime.Result{}, nil
 }

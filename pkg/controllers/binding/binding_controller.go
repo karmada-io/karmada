@@ -28,15 +28,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
-const (
-	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName                    = "binding-controller"
-
-	eventTypeFindOrphanWorks          = "FindOrphanWorks"
-	eventTypeFetchWorkload            = "FetchWorkload"
-	eventTypeTransformResourceBinding = "TransformResourceBinding"
-	eventTypeAggregateWorkStatuses    = "AggregateWorkStatuses"
-)
+// ControllerName is the controller name that will be used when reporting events.
+const ControllerName = "binding-controller"
 
 // ResourceBindingController is to sync ResourceBinding.
 type ResourceBindingController struct {
@@ -76,10 +69,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 
 	isReady := helper.IsBindingReady(binding.Spec.Clusters)
 	if !isReady {
-		msg := fmt.Sprintf("ResourceBinding %s is not ready.", req.NamespacedName.String())
-		klog.Infof(msg)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, "ResourceBindingNotReady", msg)
-
+		klog.Infof("ResourceBinding(%s/%s) is not ready to sync", binding.GetNamespace(), binding.GetName())
 		return controllerruntime.Result{}, nil
 	}
 
@@ -107,7 +97,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFindOrphanWorks), err.Error())
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonCleanupWorkFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -115,7 +105,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 	if err != nil {
 		klog.Errorf("Failed to remove orphan works by resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFindOrphanWorks), err.Error())
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonCleanupWorkFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -123,7 +113,6 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 	if err != nil {
 		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeFetchWorkload), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -131,19 +120,23 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 	if err != nil {
 		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeTransformResourceBinding), err.Error())
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonSyncWorkFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
+	msg := fmt.Sprintf("Sync work of resourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
+	klog.V(4).Infof(msg)
+	c.EventRecorder.Event(binding, corev1.EventTypeNormal, eventReasonSyncWorkSucceed, msg)
 
 	err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeAggregateWorkStatuses), err.Error())
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonAggregateStatusFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
-	klog.V(4).Infof("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
-	c.EventRecorder.Event(binding, corev1.EventTypeNormal, "SyncResourceBinding", "ResourceBinding synced successfully")
+	msg = fmt.Sprintf("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
+	klog.V(4).Infof(msg)
+	c.EventRecorder.Event(binding, corev1.EventTypeNormal, eventReasonAggregateStatusSucceed, msg)
 
 	return controllerruntime.Result{}, nil
 }
