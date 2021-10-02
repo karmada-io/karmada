@@ -1,8 +1,6 @@
 package client
 
 import (
-	"math"
-
 	corev1 "k8s.io/api/core/v1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -33,12 +31,18 @@ func (ge *GeneralEstimator) MaxAvailableReplicas(clusters []*clusterv1alpha1.Clu
 }
 
 func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {
-	var maximumReplicas int64 = math.MaxInt32
 	resourceSummary := cluster.Status.ResourceSummary
-
 	if resourceSummary == nil {
 		return 0
 	}
+
+	allowedPodNumber := resourceSummary.Allocatable.Pods().Value() - resourceSummary.Allocated.Pods().Value() - resourceSummary.Allocating.Pods().Value()
+	// When too many pods have been created, scheduling will fail so that the allocating pods number may be huge.
+	// If allowedPodNumber is less than 0, we don't allow more pods to be created.
+	if allowedPodNumber <= 0 {
+		return 0
+	}
+	maximumReplicas := allowedPodNumber
 
 	for key, value := range replicaRequirements.ResourceRequest {
 		requestedQuantity := value.Value()
