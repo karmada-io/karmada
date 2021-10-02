@@ -46,7 +46,7 @@ func (c *HorizontalPodAutoscalerController) Reconcile(ctx context.Context, req c
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, hpa); err != nil {
 		// The resource may no longer exist, in which case we delete related works.
 		if apierrors.IsNotFound(err) {
-			if err := c.deleteWorks(names.GenerateWorkName(util.HorizontalPodAutoscalerKind, req.Name, req.Namespace)); err != nil {
+			if err := c.deleteWorks(req.Namespace, names.GenerateWorkName(util.HorizontalPodAutoscalerKind, req.Name, req.Namespace)); err != nil {
 				return controllerruntime.Result{Requeue: true}, err
 			}
 			return controllerruntime.Result{}, err
@@ -142,9 +142,9 @@ func (c *HorizontalPodAutoscalerController) SetupWithManager(mgr controllerrunti
 	return controllerruntime.NewControllerManagedBy(mgr).For(&autoscalingv1.HorizontalPodAutoscaler{}).Complete(c)
 }
 
-func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
+func (c *HorizontalPodAutoscalerController) deleteWorks(namespace string, workName string) error {
 	workList := &workv1alpha1.WorkList{}
-	if err := c.List(context.TODO(), workList); err != nil {
+	if err := c.List(context.TODO(), workList, &client.ListOptions{Namespace: namespace}); err != nil {
 		klog.Errorf("Failed to list works: %v.", err)
 		return err
 	}
@@ -156,6 +156,7 @@ func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
 				klog.Errorf("Failed to delete work %s/%s: %v.", work.Namespace, work.Name, err)
 				return err
 			}
+			return nil
 		}
 	}
 	return nil
