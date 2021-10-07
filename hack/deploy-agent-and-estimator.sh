@@ -5,7 +5,7 @@ set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 function usage() {
-  echo "This script will deploy karmada-agent and karmada-scheduler-estimator of a cluster in karmada-host."
+  echo "This script will deploy karmada-agent in member cluster and karmada-scheduler-estimator of the cluster in karmada-host."
   echo "Usage: hack/deploy-agent-and-estimator.sh <HOST_CLUSTER_KUBECONFIG> <HOST_CLUSTER_NAME> <KARMADA_APISERVER_KUBECONFIG> <KARMADA_APISERVER_CONTEXT_NAME> <MEMBER_CLUSTER_KUBECONFIG> <MEMBER_CLUSTER_NAME>"
   echo "Example: hack/deploy-agent-and-estimator.sh ~/.kube/karmada.config karmada-host ~/.kube/karmada.config karmada-apiserver ~/.kube/members.config member1"
 }
