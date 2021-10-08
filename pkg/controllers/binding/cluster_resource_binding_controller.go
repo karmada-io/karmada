@@ -25,6 +25,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
@@ -33,8 +34,9 @@ const ClusterResourceBindingControllerName = "cluster-resource-binding-controlle
 
 // ClusterResourceBindingController is to sync ClusterResourceBinding.
 type ClusterResourceBindingController struct {
-	client.Client                     // used to operate ClusterResourceBinding resources.
-	DynamicClient   dynamic.Interface // used to fetch arbitrary resources.
+	client.Client                                                // used to operate ClusterResourceBinding resources.
+	DynamicClient   dynamic.Interface                            // used to fetch arbitrary resources from api server.
+	InformerManager informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
 	EventRecorder   record.EventRecorder
 	RESTMapper      meta.RESTMapper
 	OverrideManager overridemanager.OverrideManager
@@ -106,7 +108,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
+	workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
 		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
@@ -182,7 +184,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 
 		var requests []reconcile.Request
 		for _, binding := range bindingList.Items {
-			workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
+			workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
 				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
 				return nil
@@ -211,7 +213,7 @@ func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() hand
 
 		var requests []reconcile.Request
 		for _, binding := range bindingList.Items {
-			workload, err := helper.FetchWorkload(c.DynamicClient, c.RESTMapper, binding.Spec.Resource)
+			workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
 				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
 				return nil

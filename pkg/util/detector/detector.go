@@ -1067,7 +1067,7 @@ func (d *ResourceDetector) OnClusterResourceBindingUpdate(oldObj, newObj interfa
 
 // CleanupLabels removes labels from object referencing by objRef.
 func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, labels ...string) error {
-	workload, err := helper.FetchWorkload(d.DynamicClient, d.RESTMapper, objRef)
+	workload, err := helper.FetchWorkload(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef)
 	if err != nil {
 		// do nothing if resource template not exist, it might has been removed.
 		if apierrors.IsNotFound(err) {
