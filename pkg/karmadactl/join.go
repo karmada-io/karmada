@@ -467,13 +467,13 @@ func GetCluster(client karmadaclientset.Interface, name string) (*clusterv1alpha
 
 // CreateCluster creates a new cluster object in control plane.
 func CreateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
-	cluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
+	newCluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create cluster(%s). error: %v", cluster.Name, err)
-		return cluster, err
+		return nil, err
 	}
 
-	return cluster, nil
+	return newCluster, nil
 }
 
 // buildRoleBindingSubjects will generate a subject as per service account.
