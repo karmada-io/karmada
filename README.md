@@ -129,11 +129,11 @@ If everything goes well, at the end of the script output, you will see similar m
 Local Karmada is running.
 
 To start using your karmada, run:
-  export KUBECONFIG=/root/.kube/karmada.config
+  export KUBECONFIG="$HOME/.kube/karmada.config"
 Please use 'kubectl config use-context karmada-host/karmada-apiserver' to switch the host and control plane cluster.
 
 To manage your member clusters, run:
-  export KUBECONFIG=/root/.kube/members.config
+  export KUBECONFIG="$HOME/.kube/members.config"
 Please use 'kubectl config use-context member1/member2/member3' to switch to the different member cluster.
 ```
 
