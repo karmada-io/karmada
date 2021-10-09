@@ -34,7 +34,7 @@ func RetainClusterFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 	desiredObj.SetFinalizers(clusterObj.GetFinalizers())
 	// Merge annotations since they will typically be set by controllers in a member cluster
 	// and be set by user in karmada-controller-plane.
-	util.MergeAnnotations(desiredObj, clusterObj)
+	util.MergeAnnotations(clusterObj, desiredObj)
 
 	switch targetKind {
 	case util.PodKind:
