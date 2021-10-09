@@ -22,10 +22,33 @@ import (
 // AggregateResourceBindingWorkStatus will collect all work statuses with current ResourceBinding objects,
 // then aggregate status info to current ResourceBinding status.
 func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ResourceBinding, workload *unstructured.Unstructured) error {
-	aggregatedStatuses, err := assembleWorkStatus(c, labels.SelectorFromSet(labels.Set{
-		workv1alpha2.ResourceBindingNamespaceLabel: binding.Namespace,
-		workv1alpha2.ResourceBindingNameLabel:      binding.Name,
-	}), workload)
+	var targetWorks []workv1alpha1.Work
+
+	// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+	workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(
+		labels.Set{
+			workv1alpha2.ResourceBindingNamespaceLabel: binding.Namespace,
+			workv1alpha2.ResourceBindingNameLabel:      binding.Name,
+		},
+	))
+	if err != nil {
+		klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
+		return err
+	}
+	targetWorks = append(targetWorks, workList.Items...)
+
+	workList, err = GetWorksByLabelSelector(c, labels.SelectorFromSet(
+		labels.Set{
+			workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(binding.Namespace, binding.Name),
+		},
+	))
+	if err != nil {
+		klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
+		return err
+	}
+	targetWorks = append(targetWorks, workList.Items...)
+
+	aggregatedStatuses, err := assembleWorkStatus(targetWorks, workload)
 	if err != nil {
 		return err
 	}
@@ -47,9 +70,32 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 // AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
 // then aggregate status info to current ClusterResourceBinding status.
 func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ClusterResourceBinding, workload *unstructured.Unstructured) error {
-	aggregatedStatuses, err := assembleWorkStatus(c, labels.SelectorFromSet(labels.Set{
-		workv1alpha2.ClusterResourceBindingLabel: binding.Name,
-	}), workload)
+	var targetWorks []workv1alpha1.Work
+
+	// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+	workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(
+		labels.Set{
+			workv1alpha2.ClusterResourceBindingLabel: binding.Name,
+		},
+	))
+	if err != nil {
+		klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", binding.Name, err)
+		return err
+	}
+	targetWorks = append(targetWorks, workList.Items...)
+
+	workList, err = GetWorksByLabelSelector(c, labels.SelectorFromSet(
+		labels.Set{
+			workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", binding.Name),
+		},
+	))
+	if err != nil {
+		klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", binding.Name, err)
+		return err
+	}
+	targetWorks = append(targetWorks, workList.Items...)
+
+	aggregatedStatuses, err := assembleWorkStatus(targetWorks, workload)
 	if err != nil {
 		return err
 	}
@@ -69,14 +115,9 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 }
 
 // assemble workStatuses from workList which list by selector and match with workload.
-func assembleWorkStatus(c client.Client, selector labels.Selector, workload *unstructured.Unstructured) ([]workv1alpha2.AggregatedStatusItem, error) {
-	workList := &workv1alpha1.WorkList{}
-	if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
-		return nil, err
-	}
-
+func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstructured) ([]workv1alpha2.AggregatedStatusItem, error) {
 	statuses := make([]workv1alpha2.AggregatedStatusItem, 0)
-	for _, work := range workList.Items {
+	for _, work := range works {
 		identifierIndex, err := GetManifestIndex(work.Spec.Workload.Manifests, workload)
 		if err != nil {
 			klog.Errorf("Failed to get manifestIndex of workload in work.Spec.Workload.Manifests. Error: %v.", err)

@@ -105,7 +105,8 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 			}
 		}
 
-		annotations, err := recordAppliedOverrides(cops, ops)
+		annotations := mergeAnnotations(clonedWorkload, binding, scope)
+		annotations, err = recordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
 			klog.Errorf("failed to record appliedOverrides, Error: %v", err)
 			return err
@@ -158,22 +159,36 @@ func mergeLabel(workload *unstructured.Unstructured, workNamespace string, bindi
 	var workLabel = make(map[string]string)
 	util.MergeLabel(workload, workv1alpha2.WorkNamespaceLabel, workNamespace)
 	util.MergeLabel(workload, workv1alpha2.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
-
 	if scope == apiextensionsv1.NamespaceScoped {
-		util.MergeLabel(workload, workv1alpha2.ResourceBindingNamespaceLabel, binding.GetNamespace())
-		util.MergeLabel(workload, workv1alpha2.ResourceBindingNameLabel, binding.GetName())
-		workLabel[workv1alpha2.ResourceBindingNamespaceLabel] = binding.GetNamespace()
-		workLabel[workv1alpha2.ResourceBindingNameLabel] = binding.GetName()
+		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
+		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
 	} else {
-		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingLabel, binding.GetName())
-		workLabel[workv1alpha2.ClusterResourceBindingLabel] = binding.GetName()
+		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
+		workLabel[workv1alpha2.ClusterResourceBindingReferenceKey] = names.GenerateBindingReferenceKey("", binding.GetName())
 	}
-
 	return workLabel
 }
 
-func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overridemanager.AppliedOverrides) (map[string]string, error) {
+func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	annotations := make(map[string]string)
+	if scope == apiextensionsv1.NamespaceScoped {
+		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNamespaceLabel, binding.GetNamespace())
+		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNameLabel, binding.GetName())
+		annotations[workv1alpha2.ResourceBindingNamespaceLabel] = binding.GetNamespace()
+		annotations[workv1alpha2.ResourceBindingNameLabel] = binding.GetName()
+	} else {
+		util.MergeAnnotation(workload, workv1alpha2.ClusterResourceBindingLabel, binding.GetName())
+		annotations[workv1alpha2.ClusterResourceBindingLabel] = binding.GetName()
+	}
+
+	return annotations
+}
+
+func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overridemanager.AppliedOverrides,
+	annotations map[string]string) (map[string]string, error) {
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
 
 	if cops != nil {
 		appliedBytes, err := cops.MarshalJSON()
