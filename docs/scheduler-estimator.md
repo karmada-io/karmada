@@ -45,7 +45,7 @@ And then add the option `--enable-scheduler-estimator=true` into the command of 
 
 ## Example
 
-Now we could divide the replicas into different member clusters. Note that `propagationPolicy.spec.replicaScheduling.replicaSchedulingType` must be `Divided` and `propagationPolicy.spec.replicaScheduling.replicaDivisionPreference` must be `Aggregated`. The scheduler will try to divide the replicas aggregatedly in terms of available resources of member clusters.
+Now we could divide the replicas into different member clusters. Note that `propagationPolicy.spec.replicaScheduling.replicaSchedulingType` must be `Divided` and `propagationPolicy.spec.replicaScheduling.replicaDivisionPreference` must be `Aggregated`. The scheduler will try to divide the replicas aggregately in terms of all available resources of member clusters.
 
 ```yaml
 apiVersion: policy.karmada.io/v1alpha1
@@ -97,7 +97,7 @@ spec:
             memory: 2Gi
 ```
 
-You could find all replicas has benn assigned to as few clusters as possible.
+You will find all replicas have been assigned to as few clusters as possible.
 
 ```
 $ kubectl get deployments.apps          
