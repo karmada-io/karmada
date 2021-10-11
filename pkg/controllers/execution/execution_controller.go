@@ -214,7 +214,12 @@ func (c *Controller) tryUpdateWorkload(cluster *clusterv1alpha1.Cluster, workloa
 			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
 			return err
 		}
-		return c.tryCreateWorkload(cluster, workload)
+		err = c.tryCreateWorkload(cluster, workload)
+		if err != nil {
+			klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+			return err
+		}
+		return nil
 	}
 
 	err = c.ObjectWatcher.Update(cluster, workload, clusterObj)
@@ -226,13 +231,7 @@ func (c *Controller) tryUpdateWorkload(cluster *clusterv1alpha1.Cluster, workloa
 }
 
 func (c *Controller) tryCreateWorkload(cluster *clusterv1alpha1.Cluster, workload *unstructured.Unstructured) error {
-	err := c.ObjectWatcher.Create(cluster, workload)
-	if err != nil {
-		klog.Errorf("Failed to create resource in the given member cluster %s, err is %v", cluster.Name, err)
-		return err
-	}
-
-	return nil
+	return c.ObjectWatcher.Create(cluster, workload)
 }
 
 // updateAppliedCondition update the Applied condition for the given Work
