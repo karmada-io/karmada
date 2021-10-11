@@ -24,14 +24,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
-const (
-	eventReasonCleanupWorkFailed      = "CleanupWorkFailed"
-	eventReasonSyncWorkFailed         = "SyncWorkFailed"
-	eventReasonSyncWorkSucceed        = "SyncWorkSucceed"
-	eventReasonAggregateStatusFailed  = "AggregateStatusFailed"
-	eventReasonAggregateStatusSucceed = "AggregateStatusSucceed"
-)
-
 var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 	CreateFunc: func(e event.CreateEvent) bool {
 		return false
