@@ -29,7 +29,6 @@ linters:
   # linters maintained by golang.org
   - gofmt
   - goimports
-  - golint
   - govet
   # linters default enabled by golangci-lint .
   - deadcode
@@ -45,6 +44,7 @@ linters:
   - gocyclo
   - gosec
   - whitespace
+  - revive
 
 linters-settings:
   goimports:
