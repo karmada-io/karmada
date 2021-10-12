@@ -1,27 +1,33 @@
 ---
-title: Cluster Accurate Replica Estimator
+title: Cluster Accurate Scheduler Estimator
+kep-number: 521
 authors:
-- "@Garrybest"
-  reviewers:
-- TBD
-  approvers:
-- TBD
-  creation-date: 2021-08-03
+  - "@Garrybest"
+reviewers:
+  - "@kevin-wangzefeng"
+  - "@RainbowMango"
+  - "@mrlihanbo"
+approvers:
+  - "@kevin-wangzefeng"
+  - "@RainbowMango"
+creation-date: 2021-08-03
+last-updated: 2021-10-11
+status: implemented
 ---
 
-# Cluster Accurate Replica Estimator
+# Cluster Accurate Scheduler Estimator
 
 ## Summary
 
 As workloads in multi-clusters become more heterogeneous, it is natural that they have different scheduling needs such as NodeSelector, NodeAffinity and Tolerations. Meanwhile, the scheduler could not perceive free node resource of every node in member cluster accurately.
 
-This KEP proposes a new component, Karmada Cluster Accurate Replica Estimator, to enhance the accurate scheduling for Karmada Scheduler. It aims for estimating available replicas and return the result back to Karmada Scheduler for decision reference。
+This KEP proposes a new component, Karmada Cluster Accurate Scheduler Estimator, to enhance the accurate scheduling for Karmada Scheduler. It aims for estimating available replicas and return the result back to Karmada Scheduler for decision reference。
 
 ## Motivation
 
 There is currently no right way for Karmada Scheduler to perceive the dynamic node resource and pod request resource of the member clusters. The scheduler could only know the total resource situation of a member cluster according to the `NodeSummary` and `ResourceSummary` in `Cluster.Status`. If a workload specifies the replica resource claim, we should know how many available replicas a member cluster could produce in case of propagating too many replicas, which may lead to pending pods that fail to be scheduled.
 
-The Cluster Accurate Replica Estimator aims to fix these problems.
+The Cluster Accurate Scheduler Estimator aims to fix these problems.
 
 ### Goals
 
@@ -35,15 +41,15 @@ The Cluster Accurate Replica Estimator aims to fix these problems.
 
 ## Proposal
 
-This proposal gives a new component to estimate the maximum available replica of a workload. When assigning replicas, the Karmada Scheduler parallelly requests the corresponding Cluster Accurate Replica Estimators for estimation by gRPC request.
+This proposal gives a new component to estimate the maximum available replica of a workload. When assigning replicas, the Karmada Scheduler parallelly requests the corresponding Cluster Accurate Scheduler Estimators for estimation by gRPC request.
 
 This proposal is divided into several steps, see below:
 
 - [ ] `ResourceBinding` API changes to add `NodeAffinity`, `NodeSelector` and `Tolerations`.
 - [ ] Definition of proto and gRPC struct file.
-- [ ] Estimator client transform in Karmada Scheduler.
-- [ ] Estimator server development in Karmada Cluster Accurate Replica Estimator.
-- [ ] Deployment script of Karmada Cluster Accurate Replica Estimator.
+- [ ] Estimator client integration in Karmada Scheduler.
+- [ ] Estimator server development in Karmada Cluster Accurate Scheduler Estimator.
+- [ ] Deployment script of Karmada Cluster Accurate Scheduler Estimator.
 - [ ] Associated docs and architecture diagram as a supplement.
 
 ### User Stories
@@ -84,12 +90,15 @@ First, the API of `ResourceBinding` must be changed. `NodeAffinity`, `NodeSelect
 type ResourceBindingSpec struct {
 	// Resource represents the Kubernetes resource to be propagated.
 	Resource ObjectReference `json:"resource"`
+
 	// ReplicaRequirements represents the requirements required by each replica.
 	// +optional
 	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
+
 	// Replicas represents the replica number of the referencing resource.
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
+
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
@@ -97,27 +106,27 @@ type ResourceBindingSpec struct {
 
 // ReplicaRequirements represents the requirements required by each replica.
 type ReplicaRequirements struct {
-	// NodeClaim represents the special claim for nodes that required by each replica.
+	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
 	// +optional
 	NodeClaim *NodeClaim `json:"nodeClaim,omitempty"`
+
 	// ResourceRequest represents the resources required by each replica.
 	// +optional
 	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
 }
 
-// NodeClaim represents the special claim for the node that required by each replica.
+// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
 type NodeClaim struct {
-	// A node selector represents the union of the results of one or more label queries
-	// over a set of nodes; that is, it represents the OR of the selectors represented
-	// by the node selector terms.
+	// A node selector represents the union of the results of one or more label queries over a set of
+	// nodes; that is, it represents the OR of the selectors represented by the node selector terms.
+	// Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	// is included here because it has a hard limit on pod scheduling.
 	// +optional
-	NodeAffinity *corev1.NodeSelector `json:"nodeAffinity,omitempty"`
-
+	HardNodeAffinity *corev1.NodeSelector `json:"hardNodeAffinity,omitempty"`
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
 	// Selector which must match a node's labels for the pod to be scheduled on that node.
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-
 	// If specified, the pod's tolerations.
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
@@ -128,17 +137,17 @@ type NodeClaim struct {
 
 First, the existing plugins in Karmada Scheduler such as ClusterAffinity, APIInstalled and TaintToleration will select the suitable clusters.
 
-Based on this prefilter result, when assigning replicas, the Karmada Scheduler could try to calculate cluster max available replicas by starting gRPC requests concurrently to the Cluster Accurate Replica Estimator. At last, the Cluster Accurate Replica Estimator will soon return how many available replicas that the cluster could produce. Then the Karmada Scheduler assgin replicas into different clusters in terms of the estimation result.
+Based on this prefilter result, when assigning replicas, the Karmada Scheduler could try to calculate cluster max available replicas by starting gRPC requests concurrently to the Cluster Accurate Scheduler Estimator. At last, the Cluster Accurate Scheduler Estimator will soon return how many available replicas that the cluster could produce. Then the Karmada Scheduler assgin replicas into different clusters in terms of the estimation result.
 
-We could implement this by modifying function calClusterAvailableReplicas to a interface. The previous estimation method, based on `ResourceSummary` in `Cluster.Status`, is able to be a default normal estimation approach. Now we could just add a switch to determine whether Cluster Accurate Replica Estimator is applied, while the estimator via `ResourceSummary` could be a default one that does not support disabled. In the future, after the scheduler profile is added, a user could customize the config by using a profile.
+We could implement this by modifying function calClusterAvailableReplicas to a interface. The previous estimation method, based on `ResourceSummary` in `Cluster.Status`, is able to be a default normal estimation approach. Now we could just add a switch to determine whether Cluster Accurate Scheduler Estimator is applied, while the estimator via `ResourceSummary` could be a default one that does not support disabled. In the future, after the scheduler profile is added, a user could customize the config by using a profile.
 
 Furthermore, replica estimation can be considered as a new scheduler plugin.
 
-### Karmada Cluster Accurate Replica Estimator
+### Karmada Cluster Accurate Scheduler Estimator
 
-Cluster Accurate Replica Estimator is a independent component that works as a gRPC server. Before its server starts, a pod and node informer associated with a member cluster will be created as a cache. Once the cache has been synced, the gRPC server would start and serve the incoming scheduler request as a replica estimator. Each Cluster Accurate Replica Estimator serves for one cluster, as same as `karmada-agent`.
+Cluster Accurate Scheduler Estimator is a independent component that works as a gRPC server. Before its server starts, a pod and node informer associated with a member cluster will be created as a cache. Once the cache has been synced, the gRPC server would start and serve the incoming scheduler request as a replica estimator. Each Cluster Accurate Scheduler Estimator serves for one cluster, as same as `karmada-agent`.
 
-There are five steps for a replica estimation:
+There are five steps for a scheduler estimation:
 
 - Verify whether the request meets the requirements.
 - Find all nodes that matches the node claim.
@@ -151,14 +160,14 @@ There are five steps for a replica estimation:
   - Calculate how many replicas that the node can be divided into, marked as `r1`.
   - Calculate the maximum remaining pods that the node allows, marked as `r2`.
   - Return the max available replicas --> `min(r1, r2)`.
-- Return the sum of all node max available replicas, which .
+- Return the sum of all node max available replicas.
 
 ### Test Plan
 
 - Unit Test covering:
   - Core changes in Karmada Scheduler that consists of gRPC connection establishment, replica estimation request sending.
-  - Core changes in Karmada Cluster Accurate Replica Estimator that consists of node filtering and node idle resource calculation.
+  - Core changes in Karmada Cluster Accurate Scheduler Estimator that consists of node filtering and node idle resource calculation.
 - E2E Test covering:
-  - Deploy Karmada Cluster Accurate Replica Estimator.
+  - Deploy Karmada Cluster Accurate Scheduler Estimator.
   - Specify different node claim in a workload and test the scheduler result.
 
