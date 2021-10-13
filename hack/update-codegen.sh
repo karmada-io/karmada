@@ -48,6 +48,13 @@ register-gen \
   --input-dirs="${FULL_PKGS}" \
   --output-file-base=zz_generated.register
 
+echo "Generating with conversion-gen"
+GO111MODULE=on go install k8s.io/code-generator/cmd/conversion-gen
+conversion-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs="${FULL_PKGS}" \
+  --output-file-base=zz_generated.conversion
+
 echo "Generating with client-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen
 client-gen \
