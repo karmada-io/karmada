@@ -9,6 +9,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // SkippedResourceConfig represents the configuration that identifies the API resources should be skipped from propagating.
@@ -32,6 +33,7 @@ func NewSkippedResourceConfig() *SkippedResourceConfig {
 	r.DisableGroup(clusterv1alpha1.GroupVersion.Group)
 	r.DisableGroup(policyv1alpha1.GroupVersion.Group)
 	r.DisableGroup(workv1alpha1.GroupVersion.Group)
+	r.DisableGroup(workv1alpha2.GroupVersion.Group)
 	return r
 }
 
