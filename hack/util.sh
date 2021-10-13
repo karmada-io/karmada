@@ -15,6 +15,8 @@ KARMADA_SCHEDULER_LABEL="karmada-scheduler"
 KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 
+MIN_Go_VERSION=go1.16.0
+
 # This function installs a Go tools by 'go get' command.
 # Parameters:
 #  - $1: package name, such as "sigs.k8s.io/controller-tools/cmd/controller-gen"
@@ -49,6 +51,17 @@ function util::cmd_must_exist {
     local CMD=$(command -v ${1})
     if [[ ! -x ${CMD} ]]; then
       echo "Please install ${1} and verify they are in \$PATH."
+      exit 1
+    fi
+}
+
+function util::verify_go_version {
+    local go_version
+    IFS=" " read -ra go_version <<< "$(GOFLAGS='' go version)"
+    if [[ "${MIN_Go_VERSION}" != $(echo -e "${MIN_Go_VERSION}\n${go_version[2]}" | sort -s -t. -k 1,1 -k 2,2n -k 3,3n | head -n1) && "${go_version[2]}" != "devel" ]]; then
+      echo "Detected go version: ${go_version[*]}."
+      echo "Karmada requires ${MIN_Go_VERSION} or greater."
+      echo "Please install ${MIN_Go_VERSION} or later."
       exit 1
     fi
 }
