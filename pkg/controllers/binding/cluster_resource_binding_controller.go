@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -111,26 +112,31 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
+	var errs []error
 	err = ensureWork(c.Client, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonSyncWorkFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		errs = append(errs, err)
+	} else {
+		msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
+		klog.V(4).Infof(msg)
+		c.EventRecorder.Event(binding, corev1.EventTypeNormal, eventReasonSyncWorkSucceed, msg)
 	}
-	msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
-	klog.V(4).Infof(msg)
-	c.EventRecorder.Event(binding, corev1.EventTypeNormal, eventReasonSyncWorkSucceed, msg)
 
 	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, workload)
 	if err != nil {
 		klog.Errorf("Failed to aggregate workStatuses to clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, eventReasonAggregateStatusFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
+		errs = append(errs, err)
+	} else {
+		msg := fmt.Sprintf("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
+		klog.V(4).Infof(msg)
+		c.EventRecorder.Event(binding, corev1.EventTypeNormal, eventReasonAggregateStatusSucceed, msg)
 	}
-	msg = fmt.Sprintf("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
-	klog.V(4).Infof(msg)
-	c.EventRecorder.Event(binding, corev1.EventTypeNormal, eventReasonAggregateStatusSucceed, msg)
+	if len(errs) > 0 {
+		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
+	}
 
 	return controllerruntime.Result{}, nil
 }
