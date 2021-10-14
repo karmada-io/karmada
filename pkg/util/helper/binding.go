@@ -141,12 +141,17 @@ func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clus
 
 // RemoveOrphanWorks will remove orphan works.
 func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
+	var errs []error
 	for workIndex, work := range works {
 		err := c.Delete(context.TODO(), &works[workIndex])
 		if err != nil {
-			return err
+			klog.Errorf("Failed to delete orphan work %s/%s, err is %v", work.GetNamespace(), work.GetName(), err)
+			errs = append(errs, err)
 		}
 		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
+	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
 	}
 	return nil
 }
