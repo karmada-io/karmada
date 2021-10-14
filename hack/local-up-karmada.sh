@@ -37,8 +37,10 @@ sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" artifacts/d
 sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" artifacts/deploy/kube-controller-manager.yaml
 fi
 
-# Make sure go exists
+# Make sure go exists and the go version is a viable version.
 util::cmd_must_exist "go"
+util::verify_go_version
+
 # install kind and kubectl
 kind_version=v0.11.1
 if util::cmd_exist kind; then
