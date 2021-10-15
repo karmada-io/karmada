@@ -79,6 +79,7 @@ var (
 	clusterProvider       *cluster.Provider
 	pullModeClusters      map[string]string
 	clusterLabels         = map[string]string{"location": "CHN"}
+	pushModeClusterLabels = map[string]string{"sync-mode": "Push"}
 )
 
 func TestE2E(t *testing.T) {
@@ -329,6 +330,9 @@ func SetClusterLabel(c client.Client, clusterName string) error {
 			clusterObj.Labels = make(map[string]string)
 		}
 		clusterObj.Labels["location"] = "CHN"
+		if clusterObj.Spec.SyncMode == clusterv1alpha1.Push {
+			clusterObj.Labels["sync-mode"] = "Push"
+		}
 		if err := c.Update(context.TODO(), clusterObj); err != nil {
 			if apierrors.IsConflict(err) {
 				return false, nil

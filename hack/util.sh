@@ -15,6 +15,8 @@ KARMADA_SCHEDULER_LABEL="karmada-scheduler"
 KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 
+MIN_Go_VERSION=go1.16.0
+
 # This function installs a Go tools by 'go get' command.
 # Parameters:
 #  - $1: package name, such as "sigs.k8s.io/controller-tools/cmd/controller-gen"
@@ -35,11 +37,31 @@ function util::install_tools() {
 	rm -rf "${temp_path}"
 }
 
+
+function util::cmd_exist {
+  local CMD=$(command -v ${1})
+  if [[ ! -x ${CMD} ]]; then
+    return 1
+  fi
+  return 0
+}
+
 # util::cmd_must_exist check whether command is installed.
 function util::cmd_must_exist {
     local CMD=$(command -v ${1})
     if [[ ! -x ${CMD} ]]; then
       echo "Please install ${1} and verify they are in \$PATH."
+      exit 1
+    fi
+}
+
+function util::verify_go_version {
+    local go_version
+    IFS=" " read -ra go_version <<< "$(GOFLAGS='' go version)"
+    if [[ "${MIN_Go_VERSION}" != $(echo -e "${MIN_Go_VERSION}\n${go_version[2]}" | sort -s -t. -k 1,1 -k 2,2n -k 3,3n | head -n1) && "${go_version[2]}" != "devel" ]]; then
+      echo "Detected go version: ${go_version[*]}."
+      echo "Karmada requires ${MIN_Go_VERSION} or greater."
+      echo "Please install ${MIN_Go_VERSION} or later."
       exit 1
     fi
 }
@@ -85,14 +107,16 @@ function util::install_kubectl {
     local KUBECTL_VERSION=${1}
     local ARCH=${2}
     local OS=${3:-linux}
-    echo "Installing 'kubectl ${KUBECTL_VERSION}' for you, may require the root privileges"
+    echo "Installing 'kubectl ${KUBECTL_VERSION}' for you"
     curl --retry 5 -sSLo ./kubectl -w "%{http_code}" https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl | grep '200' > /dev/null
     ret=$?
     if [ ${ret} -eq 0 ]; then
+        rm -rf "$(which kubectl 2> /dev/null)"
         chmod +x ./kubectl
-        echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
-        sudo rm -rf "$(which kubectl 2> /dev/null)"
-        sudo mv ./kubectl /usr/local/bin/kubectl
+        mkdir -p ~/.local/bin/
+        mv ./kubectl ~/.local/bin/kubectl
+
+        export PATH=$PATH:~/.local/bin
     else
         echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
         exit 1
@@ -102,7 +126,7 @@ function util::install_kubectl {
 # util::install_kind will install the given version kind
 function util::install_kind {
   local kind_version=${1}
-  echo "Installing 'kind ${kind_version}' for you, may require the root privileges"
+  echo "Installing 'kind ${kind_version}' for you"
   local os_name
   os_name=$(go env GOOS)
   local arch_name
@@ -110,10 +134,14 @@ function util::install_kind {
   curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200' > /dev/null
   ret=$?
   if [ ${ret} -eq 0 ]; then
+      rm -rf "$(which kind> /dev/null)"
       chmod +x ./kind
-      echo "$PATH" | grep '/usr/local/bin' || export PATH=$PATH:/usr/local/bin
-      sudo rm -f "$(which kind 2> /dev/null)"
-      sudo mv ./kind /usr/local/bin/kind
+      mkdir -p ~/.local/bin/
+
+      rm -rf "$(which kind 2> /dev/null)"
+      mv ./kind ~/.local/bin/kind
+
+      export PATH=$PATH:~/.local/bin
   else
       echo "Failed to install kind, can not download the binary file at https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}"
       exit 1
@@ -391,7 +419,7 @@ function util::deploy_webhook_configuration() {
   local ca_file=$1
   local conf=$2
 
-  local ca_string=$(sudo cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+  local ca_string=$(cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
 
   local temp_path=$(mktemp -d)
   cp -rf "${conf}" "${temp_path}/temp.yaml"

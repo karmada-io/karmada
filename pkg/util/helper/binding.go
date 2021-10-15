@@ -6,6 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -80,29 +81,51 @@ func GetBindingClusterNames(targetClusters []workv1alpha2.TargetCluster) []strin
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
 func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clusterNames []string, scope apiextensionsv1.ResourceScope) ([]workv1alpha1.Work, error) {
-	workList := &workv1alpha1.WorkList{}
+	var needJudgeWorks []workv1alpha1.Work
 	if scope == apiextensionsv1.NamespaceScoped {
-		selector := labels.SelectorFromSet(labels.Set{
+		// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+		workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(labels.Set{
 			workv1alpha2.ResourceBindingNamespaceLabel: bindingNamespace,
 			workv1alpha2.ResourceBindingNameLabel:      bindingName,
-		})
-
-		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
+		}))
+		if err != nil {
+			klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", bindingNamespace, bindingName, err)
 			return nil, err
 		}
+		needJudgeWorks = append(needJudgeWorks, workList.Items...)
+
+		workList, err = GetWorksByLabelSelector(c, labels.SelectorFromSet(labels.Set{
+			workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(bindingNamespace, bindingName),
+		}))
+		if err != nil {
+			klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", bindingNamespace, bindingName, err)
+			return nil, err
+		}
+		needJudgeWorks = append(needJudgeWorks, workList.Items...)
 	} else {
-		selector := labels.SelectorFromSet(labels.Set{
+		// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+		workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(labels.Set{
 			workv1alpha2.ClusterResourceBindingLabel: bindingName,
-		})
-
-		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
+		}))
+		if err != nil {
+			klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", bindingName, err)
 			return nil, err
 		}
+		needJudgeWorks = append(needJudgeWorks, workList.Items...)
+
+		workList, err = GetWorksByLabelSelector(c, labels.SelectorFromSet(labels.Set{
+			workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", bindingName),
+		}))
+		if err != nil {
+			klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", bindingName, err)
+			return nil, err
+		}
+		needJudgeWorks = append(needJudgeWorks, workList.Items...)
 	}
 
 	var orphanWorks []workv1alpha1.Work
 	expectClusters := sets.NewString(clusterNames...)
-	for _, work := range workList.Items {
+	for _, work := range needJudgeWorks {
 		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
 		if err != nil {
 			klog.Errorf("Failed to get cluster name which Work %s/%s belongs to. Error: %v.",
@@ -118,12 +141,17 @@ func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clus
 
 // RemoveOrphanWorks will remove orphan works.
 func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
+	var errs []error
 	for workIndex, work := range works {
 		err := c.Delete(context.TODO(), &works[workIndex])
 		if err != nil {
-			return err
+			klog.Errorf("Failed to delete orphan work %s/%s, err is %v", work.GetNamespace(), work.GetName(), err)
+			errs = append(errs, err)
 		}
 		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
+	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
 	}
 	return nil
 }
@@ -173,6 +201,37 @@ func GetWorks(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 	return works, c.List(context.TODO(), works, listOpt)
 }
 
+// DeleteWorkByRBNamespaceAndName will delete all Work objects by ResourceBinding namespace and name.
+func DeleteWorkByRBNamespaceAndName(c client.Client, namespace, name string) error {
+	err := DeleteWorks(c, labels.Set{
+		workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(namespace, name),
+	})
+	if err != nil {
+		return err
+	}
+
+	// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+	return DeleteWorks(c, labels.Set{
+		workv1alpha2.ResourceBindingNamespaceLabel: namespace,
+		workv1alpha2.ResourceBindingNameLabel:      name,
+	})
+}
+
+// DeleteWorkByCRBName will delete all Work objects by ClusterResourceBinding name.
+func DeleteWorkByCRBName(c client.Client, name string) error {
+	err := DeleteWorks(c, labels.Set{
+		workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", name),
+	})
+	if err != nil {
+		return err
+	}
+
+	// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+	return DeleteWorks(c, labels.Set{
+		workv1alpha2.ClusterResourceBindingLabel: name,
+	})
+}
+
 // DeleteWorks will delete all Work objects by labels.
 func DeleteWorks(c client.Client, selector labels.Set) error {
 	workList, err := GetWorks(c, selector)
@@ -185,6 +244,9 @@ func DeleteWorks(c client.Client, selector labels.Set) error {
 	for index, work := range workList.Items {
 		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
 			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
+			if apierrors.IsNotFound(err) {
+				continue
+			}
 			errs = append(errs, err)
 		}
 	}

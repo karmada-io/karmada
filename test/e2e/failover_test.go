@@ -50,7 +50,9 @@ var _ = ginkgo.Describe("failover testing", func() {
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: clusterLabels,
+					// only test push mode clusters
+					// because pull mode clusters cannot be disabled by changing APIEndpoint
+					MatchLabels: pushModeClusterLabels,
 				},
 			},
 			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
@@ -98,17 +100,21 @@ var _ = ginkgo.Describe("failover testing", func() {
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 						fmt.Printf("cluster %s is false\n", targetClusterName)
-						currentCluster, _ := util.GetCluster(controlPlaneClient, targetClusterName)
 
 						// wait for the current cluster status changing to false
-						_ = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-							if !meta.IsStatusConditionPresentAndEqual(currentCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+						err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+							currentCluster, err := util.GetCluster(controlPlaneClient, targetClusterName)
+							if err != nil {
+								return false, err
+							}
+							if meta.IsStatusConditionPresentAndEqual(currentCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
 								fmt.Printf("current cluster %s is false\n", targetClusterName)
 								disabledClusters = append(disabledClusters, currentCluster)
 								return true, nil
 							}
 							return false, nil
 						})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 						temp--
 					}
 				}
@@ -117,11 +123,13 @@ var _ = ginkgo.Describe("failover testing", func() {
 			ginkgo.By("check whether deployment of failed cluster is rescheduled to other available cluster", func() {
 				totalNum := 0
 
-				// Since labels are added to all clusters, clusters are used here instead of written as clusters which have label.
 				targetClusterNames, err := getTargetClusterNames(deployment)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				for _, targetClusterName := range targetClusterNames {
+					// the target cluster should be overwritten to another available cluster
+					gomega.Expect(isDisabled(targetClusterName, disabledClusters)).Should(gomega.BeFalse())
+
 					clusterClient := getClusterClient(targetClusterName)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
@@ -150,6 +158,19 @@ var _ = ginkgo.Describe("failover testing", func() {
 					originalAPIEndpoint := getClusterAPIEndpoint(disabledCluster.Name)
 
 					err := recoverCluster(controlPlaneClient, disabledCluster.Name, originalAPIEndpoint)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					// wait for the disabled cluster recovered
+					err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+						currentCluster, err := util.GetCluster(controlPlaneClient, disabledCluster.Name)
+						if err != nil {
+							return false, err
+						}
+						if meta.IsStatusConditionPresentAndEqual(currentCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue) {
+							fmt.Printf("cluster %s recovered\n", disabledCluster.Name)
+							return true, nil
+						}
+						return false, nil
+					})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 			})
@@ -235,6 +256,16 @@ func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []
 	}
 	klog.Infof("The ResourceBinding(%s/%s) schedule result is: %s", binding.Namespace, binding.Name, strings.Join(targetClusterNames, ","))
 	return targetClusterNames, nil
+}
+
+// indicate if the cluster is disabled
+func isDisabled(clusterName string, disabledClusters []*clusterv1alpha1.Cluster) bool {
+	for _, cluster := range disabledClusters {
+		if cluster.Name == clusterName {
+			return true
+		}
+	}
+	return false
 }
 
 // get the API endpoint of a specific cluster
