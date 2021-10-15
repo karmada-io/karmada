@@ -5,32 +5,34 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	lister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
+	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
-	ScaleSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
-	FailoverSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha1.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
+	ScaleSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
+	FailoverSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
 type ScheduleResult struct {
-	SuggestedClusters []workv1alpha1.TargetCluster
+	SuggestedClusters []workv1alpha2.TargetCluster
 }
 
 type genericScheduler struct {
@@ -53,7 +55,7 @@ func NewGenericScheduler(
 	}
 }
 
-func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
+func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
@@ -90,8 +92,10 @@ func (g *genericScheduler) findClustersThatFit(
 	ctx context.Context,
 	fwk framework.Framework,
 	placement *policyv1alpha1.Placement,
-	resource *workv1alpha1.ObjectReference,
+	resource *workv1alpha2.ObjectReference,
 	clusterInfo *cache.Snapshot) ([]*clusterv1alpha1.Cluster, error) {
+	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, time.Now())
+
 	var out []*clusterv1alpha1.Cluster
 	clusters := clusterInfo.GetReadyClusters()
 	for _, c := range clusters {
@@ -113,6 +117,8 @@ func (g *genericScheduler) prioritizeClusters(
 	fwk framework.Framework,
 	placement *policyv1alpha1.Placement,
 	clusters []*clusterv1alpha1.Cluster) (result framework.ClusterScoreList, err error) {
+	defer metrics.ScheduleStep(metrics.ScheduleStepScore, time.Now())
+
 	scoresMap, err := fwk.RunScorePlugins(ctx, placement, clusters)
 	if err != nil {
 		return result, err
@@ -130,6 +136,8 @@ func (g *genericScheduler) prioritizeClusters(
 }
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, spreadConstraints []policyv1alpha1.SpreadConstraint, clusters []*clusterv1alpha1.Cluster) []*clusterv1alpha1.Cluster {
+	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
+
 	if len(spreadConstraints) != 0 {
 		return g.matchSpreadConstraints(clusters, spreadConstraints)
 	}
@@ -199,16 +207,17 @@ func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*c
 	return feasibleClusters
 }
 
-func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy, object *workv1alpha1.ResourceBindingSpec) ([]workv1alpha1.TargetCluster, error) {
+func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy, object *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
+	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, time.Now())
 	if len(clusters) == 0 {
 		return nil, fmt.Errorf("no clusters available to schedule")
 	}
-	targetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
+	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 
 	if object.Replicas > 0 && replicaSchedulingStrategy != nil {
 		if replicaSchedulingStrategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 			for i, cluster := range clusters {
-				targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
+				targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
 			}
 			return targetClusters, nil
 		}
@@ -230,7 +239,7 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 	}
 
 	for i, cluster := range clusters {
-		targetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name}
+		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
 	}
 	return targetClusters, nil
 }
@@ -253,7 +262,7 @@ func getDefaultWeightPreference(clusters []*clusterv1alpha1.Cluster) *policyv1al
 }
 
 // divideReplicasByStaticWeight assigns a total number of replicas to the selected clusters by the weight list.
-func (g *genericScheduler) divideReplicasByStaticWeight(clusters []*clusterv1alpha1.Cluster, staticWeightList []policyv1alpha1.StaticClusterWeight, replicas int32) ([]workv1alpha1.TargetCluster, error) {
+func (g *genericScheduler) divideReplicasByStaticWeight(clusters []*clusterv1alpha1.Cluster, staticWeightList []policyv1alpha1.StaticClusterWeight, replicas int32) ([]workv1alpha2.TargetCluster, error) {
 	weightSum := int64(0)
 	matchClusters := make(map[string]int64)
 	desireReplicaInfos := make(map[string]int64)
@@ -298,24 +307,24 @@ func (g *genericScheduler) divideReplicasByStaticWeight(clusters []*clusterv1alp
 		}
 	}
 
-	targetClusters := make([]workv1alpha1.TargetCluster, len(desireReplicaInfos))
+	targetClusters := make([]workv1alpha2.TargetCluster, len(desireReplicaInfos))
 	i := 0
 	for key, value := range desireReplicaInfos {
-		targetClusters[i] = workv1alpha1.TargetCluster{Name: key, Replicas: int32(value)}
+		targetClusters[i] = workv1alpha2.TargetCluster{Name: key, Replicas: int32(value)}
 		i++
 	}
 	return targetClusters, nil
 }
 
 // TargetClustersList is a slice of TargetCluster that implements sort.Interface to sort by Value.
-type TargetClustersList []workv1alpha1.TargetCluster
+type TargetClustersList []workv1alpha2.TargetCluster
 
 func (a TargetClustersList) Len() int           { return len(a) }
 func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
 func (g *genericScheduler) divideReplicasAggregatedWithResource(clusters []*clusterv1alpha1.Cluster,
-	spec *workv1alpha1.ResourceBindingSpec, preUsedClustersName ...string) ([]workv1alpha1.TargetCluster, error) {
+	spec *workv1alpha2.ResourceBindingSpec, preUsedClustersName ...string) ([]workv1alpha2.TargetCluster, error) {
 	// make sure preUsedClusters are in front of the unUsedClusters in the list of clusterAvailableReplicas
 	// so that we can assign new replicas to them preferentially when scale up.
 	// preUsedClusters have none items during first scheduler
@@ -326,8 +335,8 @@ func (g *genericScheduler) divideReplicasAggregatedWithResource(clusters []*clus
 	return g.divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas, spec.Replicas)
 }
 
-func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha1.ResourceBindingSpec) []workv1alpha1.TargetCluster {
-	availableTargetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
+func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 
 	// Set the boundary.
 	for i := range availableTargetClusters {
@@ -344,6 +353,9 @@ func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Clus
 			continue
 		}
 		for i := range res {
+			if res[i].Replicas == estimatorclient.UnauthenticReplica {
+				continue
+			}
 			if availableTargetClusters[i].Name == res[i].Name && availableTargetClusters[i].Replicas > res[i].Replicas {
 				availableTargetClusters[i].Replicas = res[i].Replicas
 			}
@@ -363,7 +375,7 @@ func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Clus
 	return availableTargetClusters
 }
 
-func (g *genericScheduler) divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas []workv1alpha1.TargetCluster, replicas int32) ([]workv1alpha1.TargetCluster, error) {
+func (g *genericScheduler) divideReplicasAggregatedWithClusterReplicas(clusterAvailableReplicas []workv1alpha2.TargetCluster, replicas int32) ([]workv1alpha2.TargetCluster, error) {
 	clustersNum := 0
 	clustersMaxReplicas := int32(0)
 	for _, clusterInfo := range clusterAvailableReplicas {
@@ -398,23 +410,23 @@ func (g *genericScheduler) divideReplicasAggregatedWithClusterReplicas(clusterAv
 		}
 	}
 
-	targetClusters := make([]workv1alpha1.TargetCluster, len(clusterAvailableReplicas))
+	targetClusters := make([]workv1alpha2.TargetCluster, len(clusterAvailableReplicas))
 	i := 0
 	for key, value := range desireReplicaInfos {
-		targetClusters[i] = workv1alpha1.TargetCluster{Name: key, Replicas: value}
+		targetClusters[i] = workv1alpha2.TargetCluster{Name: key, Replicas: value}
 		i++
 	}
 	return targetClusters, nil
 }
 
 func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
-	spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
-	newTargetClusters := make([]workv1alpha1.TargetCluster, len(spec.Clusters))
+	spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
+	newTargetClusters := make([]workv1alpha2.TargetCluster, len(spec.Clusters))
 
 	if spec.Replicas > 0 {
 		if placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 			for i, cluster := range spec.Clusters {
-				newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name, Replicas: spec.Replicas}
+				newTargetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: spec.Replicas}
 			}
 			result.SuggestedClusters = newTargetClusters
 			return result, nil
@@ -443,13 +455,13 @@ func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv
 	}
 
 	for i, cluster := range spec.Clusters {
-		newTargetClusters[i] = workv1alpha1.TargetCluster{Name: cluster.Name}
+		newTargetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
 	}
 	result.SuggestedClusters = newTargetClusters
 	return result, nil
 }
 
-func (g *genericScheduler) scaleScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
+func (g *genericScheduler) scaleScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
 	assignedReplicas := util.GetSumOfReplicas(spec.Clusters)
 	if assignedReplicas > spec.Replicas {
 		newTargetClusters, err := g.scaleDownScheduleWithReplicaDivisionPreferenceAggregated(spec)
@@ -469,11 +481,11 @@ func (g *genericScheduler) scaleScheduleWithReplicaDivisionPreferenceAggregated(
 	return result, nil
 }
 
-func (g *genericScheduler) scaleDownScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha1.ResourceBindingSpec) ([]workv1alpha1.TargetCluster, error) {
+func (g *genericScheduler) scaleDownScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
 	return g.divideReplicasAggregatedWithClusterReplicas(spec.Clusters, spec.Replicas)
 }
 
-func (g *genericScheduler) scaleUpScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha1.ResourceBindingSpec) ([]workv1alpha1.TargetCluster, error) {
+func (g *genericScheduler) scaleUpScheduleWithReplicaDivisionPreferenceAggregated(spec *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
 	// find the clusters that have old replicas so we can assign new replicas to them preferentially
 	// targetMap map of the result for the old replicas so that it can be merged with the new result easily
 	targetMap := make(map[string]int32)
@@ -505,12 +517,12 @@ func (g *genericScheduler) scaleUpScheduleWithReplicaDivisionPreferenceAggregate
 		}
 	}
 	for key, value := range targetMap {
-		result = append(result, workv1alpha1.TargetCluster{Name: key, Replicas: value})
+		result = append(result, workv1alpha2.TargetCluster{Name: key, Replicas: value})
 	}
 	return result, nil
 }
 
-func (g *genericScheduler) getPreSelected(targetClusters []workv1alpha1.TargetCluster) []*clusterv1alpha1.Cluster {
+func (g *genericScheduler) getPreSelected(targetClusters []workv1alpha2.TargetCluster) []*clusterv1alpha1.Cluster {
 	var preSelectedClusters []*clusterv1alpha1.Cluster
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	for _, targetCluster := range targetClusters {
@@ -542,7 +554,7 @@ func (g *genericScheduler) getPreUsed(clusters []*clusterv1alpha1.Cluster, preUs
 }
 
 func (g *genericScheduler) FailoverSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
-	spec *workv1alpha1.ResourceBindingSpec) (result ScheduleResult, err error) {
+	spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
 	readyClusters := g.schedulerCache.Snapshot().GetReadyClusterNames()
 	totalClusters := util.ConvertToClusterNames(spec.Clusters)
 
@@ -585,9 +597,9 @@ func (g *genericScheduler) FailoverSchedule(ctx context.Context, placement *poli
 		targetClusters.Insert(clusterList[i])
 	}
 
-	var reScheduleResult []workv1alpha1.TargetCluster
+	var reScheduleResult []workv1alpha2.TargetCluster
 	for cluster := range targetClusters {
-		reScheduleResult = append(reScheduleResult, workv1alpha1.TargetCluster{Name: cluster})
+		reScheduleResult = append(reScheduleResult, workv1alpha2.TargetCluster{Name: cluster})
 	}
 
 	return ScheduleResult{reScheduleResult}, nil

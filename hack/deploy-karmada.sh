@@ -8,15 +8,14 @@ set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
-mkdir -p "${CERT_DIR}" &>/dev/null || sudo mkdir -p "${CERT_DIR}"
-rm -f "${CERT_DIR}/*" &>/dev/null || sudo rm -f "${CERT_DIR}/*"
+mkdir -p "${CERT_DIR}" &>/dev/null ||  mkdir -p "${CERT_DIR}"
+rm -f "${CERT_DIR}/*" &>/dev/null ||  rm -f "${CERT_DIR}/*"
 KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 
 # The host cluster name which used to install karmada control plane components.
 HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
 CFSSL_VERSION="v1.5.0"
-CONTROLPLANE_SUDO=$(test -w "${CERT_DIR}" || echo "sudo -E")
 CLUSTER_IP_ONLY=${CLUSTER_IP_ONLY:-false} # whether create a 'ClusterIP' type service for karmada apiserver
 source "${REPO_ROOT}"/hack/util.sh
 
@@ -103,26 +102,17 @@ function generate_cert_secret {
 # install Karmada's APIs
 function installCRDs() {
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/cluster.karmada.io_clusters.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/policy.karmada.io_propagationpolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/policy.karmada.io_clusterpropagationpolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/policy.karmada.io_overridepolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/policy.karmada.io_clusteroverridepolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/policy.karmada.io_replicaschedulingpolicies.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/work.karmada.io_works.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/work.karmada.io_resourcebindings.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/work.karmada.io_clusterresourcebindings.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/multicluster.x-k8s.io_serviceexports.yaml"
-    kubectl apply -f "${REPO_ROOT}/charts/_crds/bases/multicluster.x-k8s.io_serviceimports.yaml"
+
+    kubectl kustomize "${REPO_ROOT}/charts/_crds" | kubectl apply -f -
 }
 
 # generate cert
 util::cmd_must_exist "openssl"
 util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 # create CA signers
-util::create_signing_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" server '"client auth","server auth"'
+util::create_signing_certkey "" "${CERT_DIR}" server '"client auth","server auth"'
 # signs a certificate
-util::create_certkey "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
+util::create_certkey "" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
 # create namespace for control plane components
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
@@ -207,6 +197,8 @@ then
   recover_kubeconfig
   exit 1
 fi
+util::fill_cabundle "${ROOT_CA_FILE}" "${REPO_ROOT}/charts/_crds/patches/webhook_in_resourcebindings.yaml"
+util::fill_cabundle "${ROOT_CA_FILE}" "${REPO_ROOT}/charts/_crds/patches/webhook_in_clusterresourcebindings.yaml"
 installCRDs
 
 # deploy webhook configurations on karmada apiserver

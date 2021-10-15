@@ -7,7 +7,7 @@ import (
 	"time"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -34,16 +34,16 @@ func NewSchedulerEstimator(cache *SchedulerEstimatorCache, timeout time.Duration
 }
 
 // MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by calling karmada-scheduler-estimator.
-func (se *SchedulerEstimator) MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha1.ReplicaRequirements) ([]workv1alpha1.TargetCluster, error) {
+func (se *SchedulerEstimator) MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
 	return getClusterReplicasConcurrently(clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
 		return se.maxAvailableReplicas(ctx, cluster, replicaRequirements.DeepCopy())
 	})
 }
 
-func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster string, replicaRequirements *workv1alpha1.ReplicaRequirements) (int32, error) {
+func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster string, replicaRequirements *workv1alpha2.ReplicaRequirements) (int32, error) {
 	client, err := se.cache.GetClient(cluster)
 	if err != nil {
-		return 0, err
+		return UnauthenticReplica, err
 	}
 
 	req := &pb.MaxAvailableReplicasRequest{
@@ -61,13 +61,13 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 	}
 	res, err := client.MaxAvailableReplicas(ctx, req)
 	if err != nil {
-		return 0, fmt.Errorf("gRPC request cluster(%s) estimator error: %v", cluster, err)
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error: %v", cluster, err)
 	}
 	return res.MaxReplicas, nil
 }
 
-func getClusterReplicasConcurrently(clusters []*clusterv1alpha1.Cluster, timeout time.Duration, getClusterReplicas getClusterReplicasFunc) ([]workv1alpha1.TargetCluster, error) {
-	availableTargetClusters := make([]workv1alpha1.TargetCluster, len(clusters))
+func getClusterReplicasConcurrently(clusters []*clusterv1alpha1.Cluster, timeout time.Duration, getClusterReplicas getClusterReplicasFunc) ([]workv1alpha2.TargetCluster, error) {
+	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -81,7 +81,7 @@ func getClusterReplicasConcurrently(clusters []*clusterv1alpha1.Cluster, timeout
 			if err != nil {
 				errChan <- err
 			}
-			availableTargetClusters[idx] = workv1alpha1.TargetCluster{Name: cluster, Replicas: replicas}
+			availableTargetClusters[idx] = workv1alpha2.TargetCluster{Name: cluster, Replicas: replicas}
 		}(i, clusters[i].Name)
 	}
 	wg.Wait()

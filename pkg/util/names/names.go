@@ -58,6 +58,19 @@ func GenerateBindingName(kind, name string) string {
 	return strings.ToLower(name + "-" + kind)
 }
 
+// GenerateBindingReferenceKey will generate the key of binding object with the hash of its namespace and name.
+func GenerateBindingReferenceKey(namespace, name string) string {
+	var bindingName string
+	if len(namespace) == 0 {
+		bindingName = namespace + "-" + name
+	} else {
+		bindingName = name
+	}
+	hash := fnv.New32a()
+	hashutil.DeepHashObject(hash, bindingName)
+	return rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))
+}
+
 // GenerateWorkName will generate work name by its name and the hash of its namespace, kind and name.
 func GenerateWorkName(kind, name, namespace string) string {
 	var workName string

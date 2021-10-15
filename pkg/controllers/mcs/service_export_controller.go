@@ -285,11 +285,6 @@ func (c *ServiceExportController) handleEndpointSliceEvent(endpointSliceKey keys
 		return err
 	}
 
-	if endpointSliceObj == nil {
-		klog.V(2).Infof("Ignore the event key %s which not listened by karmada.", endpointSliceKey)
-		return nil
-	}
-
 	if err = c.reportEndpointSliceWithEndpointSliceCreateOrUpdate(endpointSliceKey.Cluster, endpointSliceObj); err != nil {
 		klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
 			endpointSliceKey.NamespaceKey(), err)

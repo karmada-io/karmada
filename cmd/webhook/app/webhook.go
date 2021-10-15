@@ -12,6 +12,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -76,6 +77,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/validate-clusterpropagationpolicy", &webhook.Admission{Handler: &clusterpropagationpolicy.ValidatingAdmission{}})
 	hookServer.Register("/mutate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.MutatingAdmission{}})
 	hookServer.Register("/mutate-work", &webhook.Admission{Handler: &work.MutatingAdmission{}})
+	hookServer.Register("/convert", &conversion.Webhook{})
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.

@@ -16,3 +16,5 @@ Please make sure you have read the FAQ and searched the issue list.
 
 **Environment**:
 - Karmada version:
+- Kubernetes version:
+- Others:

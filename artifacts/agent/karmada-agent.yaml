@@ -37,4 +37,3 @@ spec:
         - name: kubeconfig
           secret:
             secretName: karmada-kubeconfig
-

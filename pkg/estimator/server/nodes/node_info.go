@@ -16,7 +16,7 @@ type NodeInfo struct {
 	IdleResource        *util.Resource
 }
 
-// NewNodeInfo returns a instance of NodeInfo. The initial IdleResource equals with AllocatableResource.
+// NewNodeInfo returns an instance of NodeInfo. The initial IdleResource equals with AllocatableResource.
 func NewNodeInfo(node *corev1.Node) *NodeInfo {
 	allocatableResource := util.NewResource(node.Status.Allocatable)
 	return &NodeInfo{

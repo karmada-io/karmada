@@ -8,6 +8,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -18,6 +19,7 @@ type Interface interface {
 	ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface
 	PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface
 	WorkV1alpha1() workv1alpha1.WorkV1alpha1Interface
+	WorkV1alpha2() workv1alpha2.WorkV1alpha2Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -27,6 +29,7 @@ type Clientset struct {
 	clusterV1alpha1 *clusterv1alpha1.ClusterV1alpha1Client
 	policyV1alpha1  *policyv1alpha1.PolicyV1alpha1Client
 	workV1alpha1    *workv1alpha1.WorkV1alpha1Client
+	workV1alpha2    *workv1alpha2.WorkV1alpha2Client
 }
 
 // ClusterV1alpha1 retrieves the ClusterV1alpha1Client
@@ -42,6 +45,11 @@ func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
 // WorkV1alpha1 retrieves the WorkV1alpha1Client
 func (c *Clientset) WorkV1alpha1() workv1alpha1.WorkV1alpha1Interface {
 	return c.workV1alpha1
+}
+
+// WorkV1alpha2 retrieves the WorkV1alpha2Client
+func (c *Clientset) WorkV1alpha2() workv1alpha2.WorkV1alpha2Interface {
+	return c.workV1alpha2
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -77,6 +85,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.workV1alpha2, err = workv1alpha2.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -92,6 +104,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.clusterV1alpha1 = clusterv1alpha1.NewForConfigOrDie(c)
 	cs.policyV1alpha1 = policyv1alpha1.NewForConfigOrDie(c)
 	cs.workV1alpha1 = workv1alpha1.NewForConfigOrDie(c)
+	cs.workV1alpha2 = workv1alpha2.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -103,6 +116,7 @@ func New(c rest.Interface) *Clientset {
 	cs.clusterV1alpha1 = clusterv1alpha1.New(c)
 	cs.policyV1alpha1 = policyv1alpha1.New(c)
 	cs.workV1alpha1 = workv1alpha1.New(c)
+	cs.workV1alpha2 = workv1alpha2.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

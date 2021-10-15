@@ -8,6 +8,7 @@
 [![LICENSE](https://img.shields.io/github/license/karmada-io/karmada.svg)](/LICENSE)
 [![Releases](https://img.shields.io/github/release/karmada-io/karmada/all.svg)](https://github.com/karmada-io/karmada/releases)
 [![Slack](https://img.shields.io/badge/slack-join-brightgreen)](https://join.slack.com/t/karmada-io/shared_invite/zt-omhy1wfa-LmAkCLfpDMnBjVXp3_U~0w)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5301/badge)](https://bestpractices.coreinfrastructure.org/projects/5301)
 
 ## Karmada: Open, Multi-Cloud, Multi-Cluster Kubernetes Orchestration
 
@@ -60,7 +61,7 @@ The Karmada Control Plane consists of the following components:
 
 ETCD stores the karmada API objects, the API Server is the REST endpoint all other components talk to, and the Karmada Controller Manager perform operations based on the API objects you create through the API server.
 
-The Karmada Controller Manager runs the various controllers,  the controllers watch karmada objects and then talk to the underlying clusters’ API servers to create regular Kubernetes resources.
+The Karmada Controller Manager runs the various controllers,  the controllers watch karmada objects and then talk to the underlying clusters' API servers to create regular Kubernetes resources.
 
 1. Cluster Controller: attach kubernetes clusters to Karmada for managing the lifecycle of the clusters by creating cluster object.
 
@@ -128,11 +129,11 @@ If everything goes well, at the end of the script output, you will see similar m
 Local Karmada is running.
 
 To start using your karmada, run:
-  export KUBECONFIG=/root/.kube/karmada.config
+  export KUBECONFIG="$HOME/.kube/karmada.config"
 Please use 'kubectl config use-context karmada-host/karmada-apiserver' to switch the host and control plane cluster.
 
 To manage your member clusters, run:
-  export KUBECONFIG=/root/.kube/members.config
+  export KUBECONFIG="$HOME/.kube/members.config"
 Please use 'kubectl config use-context member1/member2/member3' to switch to the different member cluster.
 ```
 

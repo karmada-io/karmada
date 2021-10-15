@@ -11,6 +11,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // aggregatedScheme aggregates Kubernetes and extended schemes.
@@ -20,7 +21,8 @@ func init() {
 	var _ = scheme.AddToScheme(aggregatedScheme)             // add Kubernetes schemes
 	var _ = clusterv1alpha1.AddToScheme(aggregatedScheme)    // add cluster schemes
 	var _ = policyv1alpha1.AddToScheme(aggregatedScheme)     // add propagation schemes
-	var _ = workv1alpha1.AddToScheme(aggregatedScheme)       // add work schemes
+	var _ = workv1alpha1.AddToScheme(aggregatedScheme)       // add work v1alpha1 schemes
+	var _ = workv1alpha2.AddToScheme(aggregatedScheme)       // add work v1alpha2 schemes
 	var _ = mcsv1alpha1.AddToScheme(aggregatedScheme)        // add mcs-api schemes
 	var _ = clusterapiv1alpha4.AddToScheme(aggregatedScheme) // add cluster-api v1alpha4 schemes
 }

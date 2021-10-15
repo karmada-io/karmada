@@ -37,10 +37,18 @@ sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" artifacts/d
 sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" artifacts/deploy/kube-controller-manager.yaml
 fi
 
-# Make sure go exists
+# Make sure go exists and the go version is a viable version.
 util::cmd_must_exist "go"
+util::verify_go_version
+
 # install kind and kubectl
-util::install_tools sigs.k8s.io/kind v0.11.1
+kind_version=v0.11.1
+if util::cmd_exist kind; then
+  echo "kind exists"
+else
+  echo "kind not exists, will install kind $kind_version"
+  util::install_kind $kind_version
+fi
 # get arch name and os name in bootstrap
 BS_ARCH=$(go env GOARCH)
 BS_OS=$(go env GOOS)
@@ -48,7 +56,8 @@ BS_OS=$(go env GOOS)
 util::install_environment_check "${BS_ARCH}" "${BS_OS}"
 # we choose v1.18.0, because in kubectl after versions 1.18 exist a bug which will give wrong output when using jsonpath.
 # bug details: https://github.com/kubernetes/kubernetes/pull/98057
-util::install_kubectl "v1.18.0" "${BS_ARCH}" "${BS_OS}"
+kubectl_version=v1.18.0
+util::install_kubectl $kubectl_version "${BS_ARCH}" "${BS_OS}"
 
 #step1. create host cluster and member clusters in parallel
 # host IP address: script parameter ahead of macOS IP
@@ -112,14 +121,16 @@ echo "cluster networks connected"
 export KUBECONFIG="${MAIN_KUBECONFIG}"
 kubectl config use-context "${KARMADA_APISERVER_CLUSTER_NAME}"
 ${KARMADACTL_BIN} join member1 --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}"
+"${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_1_NAME}"
 ${KARMADACTL_BIN} join member2 --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}"
+"${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_2_NAME}"
 
 # wait until the pull mode cluster ready
 util::check_clusters_ready "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${PULL_MODE_CLUSTER_NAME}"
 
 #step7. deploy karmada agent in pull mode member clusters
-"${REPO_ROOT}"/hack/deploy-karmada-agent.sh "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
+"${REPO_ROOT}"/hack/deploy-agent-and-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 
 function print_success() {
   echo -e "---\n"

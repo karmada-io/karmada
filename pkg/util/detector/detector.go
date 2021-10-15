@@ -3,7 +3,6 @@ package detector
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -28,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -113,21 +112,21 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 
 	// watch and enqueue ResourceBinding changes.
 	resourceBindingGVR := schema.GroupVersionResource{
-		Group:    workv1alpha1.GroupVersion.Group,
-		Version:  workv1alpha1.GroupVersion.Version,
+		Group:    workv1alpha2.GroupVersion.Group,
+		Version:  workv1alpha2.GroupVersion.Version,
 		Resource: "resourcebindings",
 	}
-	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
+	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, nil)
 	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
 	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
 
 	// watch and enqueue ClusterResourceBinding changes.
 	clusterResourceBindingGVR := schema.GroupVersionResource{
-		Group:    workv1alpha1.GroupVersion.Group,
-		Version:  workv1alpha1.GroupVersion.Version,
+		Group:    workv1alpha2.GroupVersion.Group,
+		Version:  workv1alpha2.GroupVersion.Version,
 		Resource: "clusterresourcebindings",
 	}
-	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, d.OnClusterResourceBindingDelete)
+	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, nil)
 	d.InformerManager.ForResource(clusterResourceBindingGVR, clusterBindingHandler)
 
 	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
@@ -439,6 +438,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 		bindingCopy.Labels = binding.Labels
 		bindingCopy.OwnerReferences = binding.OwnerReferences
+		bindingCopy.Finalizers = binding.Finalizers
 		bindingCopy.Spec.Resource = binding.Spec.Resource
 		bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
 		bindingCopy.Spec.Replicas = binding.Spec.Replicas
@@ -487,6 +487,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = binding.Labels
 			bindingCopy.OwnerReferences = binding.OwnerReferences
+			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Resource = binding.Spec.Resource
 			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
 			bindingCopy.Spec.Replicas = binding.Spec.Replicas
@@ -516,6 +517,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = binding.Labels
 			bindingCopy.OwnerReferences = binding.OwnerReferences
+			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Resource = binding.Spec.Resource
 			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
 			bindingCopy.Spec.Replicas = binding.Spec.Replicas
@@ -613,23 +615,24 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha1.ResourceBinding, error) {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha2.ResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	replicaRequirements, replicas, err := d.GetReplicaDeclaration(object)
 	if err != nil {
 		return nil, err
 	}
-	propagationBinding := &workv1alpha1.ResourceBinding{
+	propagationBinding := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
 			Namespace: object.GetNamespace(),
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
-			Labels: labels,
+			Labels:     labels,
+			Finalizers: []string{util.BindingControllerFinalizer},
 		},
-		Spec: workv1alpha1.ResourceBindingSpec{
-			Resource: workv1alpha1.ObjectReference{
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
 				Namespace:       object.GetNamespace(),
@@ -645,22 +648,23 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
-func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha1.ClusterResourceBinding, error) {
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha2.ClusterResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	replicaRequirements, replicas, err := d.GetReplicaDeclaration(object)
 	if err != nil {
 		return nil, err
 	}
-	binding := &workv1alpha1.ClusterResourceBinding{
+	binding := &workv1alpha2.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, objectKey.GroupVersionKind()),
 			},
-			Labels: labels,
+			Labels:     labels,
+			Finalizers: []string{util.ClusterResourceBindingControllerFinalizer},
 		},
-		Spec: workv1alpha1.ResourceBindingSpec{
-			Resource: workv1alpha1.ObjectReference{
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
 				Name:            object.GetName(),
@@ -675,7 +679,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 }
 
 // GetReplicaDeclaration get the replicas and resource requirements of a Deployment object
-func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (*workv1alpha1.ReplicaRequirements, int32, error) {
+func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (*workv1alpha2.ReplicaRequirements, int32, error) {
 	if object.GetKind() == util.DeploymentKind {
 		replicas, ok, err := unstructured.NestedInt64(object.Object, util.SpecField, util.ReplicasField)
 		if !ok || err != nil {
@@ -694,14 +698,14 @@ func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructur
 	return nil, 0, nil
 }
 
-func (d *ResourceDetector) getReplicaRequirements(object map[string]interface{}) (*workv1alpha1.ReplicaRequirements, error) {
+func (d *ResourceDetector) getReplicaRequirements(object map[string]interface{}) (*workv1alpha2.ReplicaRequirements, error) {
 	var podTemplateSpec *corev1.PodTemplateSpec
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &podTemplateSpec)
 	if err != nil {
 		return nil, err
 	}
 	res := util.EmptyResource().AddPodRequest(&podTemplateSpec.Spec)
-	replicaRequirements := &workv1alpha1.ReplicaRequirements{
+	replicaRequirements := &workv1alpha2.ReplicaRequirements{
 		NodeClaim:       helper.GenerateNodeClaimByPodSpec(&podTemplateSpec.Spec),
 		ResourceRequest: res.ResourceList(),
 	}
@@ -1011,28 +1015,6 @@ func (d *ResourceDetector) OnResourceBindingUpdate(_, newObj interface{}) {
 	d.OnResourceBindingAdd(newObj)
 }
 
-// OnClusterResourceBindingDelete handles object delete event.
-func (d *ResourceDetector) OnClusterResourceBindingDelete(obj interface{}) {
-	unstructuredObj, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		klog.Errorf("Invalid object type: %v", reflect.TypeOf(obj))
-		return
-	}
-
-	binding := &workv1alpha1.ClusterResourceBinding{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.UnstructuredContent(), binding); err != nil {
-		klog.Errorf("Failed to convert unstructured to typed object: %v", err)
-		return
-	}
-
-	objRef := binding.Spec.Resource
-	err := d.CleanupResourceTemplateStatus(binding.Spec.Resource)
-	if err != nil {
-		// Just log when error happened as there is no queue for delete event.
-		klog.Warningf("Failed to cleanup resource(kind=%s, %s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-	}
-}
-
 // ReconcileResourceBinding handles ResourceBinding object changes.
 // For each ResourceBinding changes, we will try to calculate the summary status and update to original object
 // that the ResourceBinding refer to.
@@ -1083,42 +1065,8 @@ func (d *ResourceDetector) OnClusterResourceBindingUpdate(oldObj, newObj interfa
 	d.OnClusterResourceBindingAdd(newObj)
 }
 
-// OnResourceBindingDelete handles object delete event.
-func (d *ResourceDetector) OnResourceBindingDelete(obj interface{}) {
-	unstructuredObj, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		klog.Errorf("Invalid object type: %v", reflect.TypeOf(obj))
-		return
-	}
-
-	binding := &workv1alpha1.ResourceBinding{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.UnstructuredContent(), binding); err != nil {
-		klog.Errorf("Failed to convert unstructured to typed object: %v", err)
-		return
-	}
-
-	objRef := binding.Spec.Resource
-	err := d.CleanupResourceTemplateStatus(binding.Spec.Resource)
-	if err != nil {
-		// Just log when error happened as there is no queue for delete event.
-		klog.Warningf("Failed to cleanup resource(kind=%s, %s/%s) status: %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-	}
-}
-
-// CleanupResourceTemplateStatus cleanup the status from resource template.
-// Note: Only limited resource type supported.
-func (d *ResourceDetector) CleanupResourceTemplateStatus(objRef workv1alpha1.ObjectReference) error {
-	switch objRef.Kind {
-	case util.DeploymentKind, util.ServiceKind, util.IngressKind, util.JobKind:
-		return d.CleanupResourceStatus(objRef)
-	}
-
-	// Unsupported resource type.
-	return nil
-}
-
 // CleanupLabels removes labels from object referencing by objRef.
-func (d *ResourceDetector) CleanupLabels(objRef workv1alpha1.ObjectReference, labels ...string) error {
+func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, labels ...string) error {
 	workload, err := helper.FetchWorkload(d.DynamicClient, d.RESTMapper, objRef)
 	if err != nil {
 		// do nothing if resource template not exist, it might has been removed.

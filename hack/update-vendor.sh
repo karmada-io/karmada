@@ -4,7 +4,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# TODO(RainbowMango): checks if the Go version is greater than the minimum go version that we requires.
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+source "${REPO_ROOT}"/hack/util.sh
+
+util::verify_go_version
 
 echo "vendor: running 'go mod vendor'"
 go mod vendor

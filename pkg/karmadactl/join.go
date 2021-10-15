@@ -57,13 +57,6 @@ var (
 
 var clusterResourceKind = clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")
 
-const (
-	// TODO(RainbowMango) token and caData key both used by command and controller.
-	// It's better to put them to a common place, such as API definition.
-	tokenKey  = "token"
-	caDataKey = "caBundle"
-)
-
 // NewCmdJoin defines the `join` command that registers a cluster.
 func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
 	opts := CommandJoinOption{}
@@ -201,8 +194,8 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, clusterName
 			Name:      clusterName,
 		},
 		Data: map[string][]byte{
-			caDataKey: clusterSecret.Data["ca.crt"], // TODO(RainbowMango): change ca bundle key to 'ca.crt'.
-			tokenKey:  clusterSecret.Data[tokenKey],
+			clusterv1alpha1.SecretCADataKey: clusterSecret.Data["ca.crt"],
+			clusterv1alpha1.SecretTokenKey:  clusterSecret.Data[clusterv1alpha1.SecretTokenKey],
 		},
 	}
 	secret, err = util.CreateSecret(controlPlaneKubeClient, secret)
@@ -474,13 +467,13 @@ func GetCluster(client karmadaclientset.Interface, name string) (*clusterv1alpha
 
 // CreateCluster creates a new cluster object in control plane.
 func CreateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
-	cluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
+	newCluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create cluster(%s). error: %v", cluster.Name, err)
-		return cluster, err
+		return nil, err
 	}
 
-	return cluster, nil
+	return newCluster, nil
 }
 
 // buildRoleBindingSubjects will generate a subject as per service account.

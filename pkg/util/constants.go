@@ -43,6 +43,14 @@ const (
 	// ExecutionControllerFinalizer is added to Work to ensure manifests propagated to member cluster
 	// is deleted before Work itself is deleted.
 	ExecutionControllerFinalizer = "karmada.io/execution-controller"
+
+	// BindingControllerFinalizer is added to ResourceBinding to ensure related Works are deleted
+	// before ResourceBinding itself is deleted.
+	BindingControllerFinalizer = "karmada.io/binding-controller"
+
+	// ClusterResourceBindingControllerFinalizer is added to ClusterResourceBinding to ensure related Works are deleted
+	// before ClusterResourceBinding itself is deleted.
+	ClusterResourceBindingControllerFinalizer = "karmada.io/cluster-resource-binding-controller"
 )
 
 const (
@@ -78,6 +86,8 @@ const (
 	EndpointSliceKind = "EndpointSlice"
 	// PersistentVolumeClaimKind indicated the target resource is a persistentvolumeclaim
 	PersistentVolumeClaimKind = "PersistentVolumeClaim"
+	// HorizontalPodAutoscalerKind indicated the target resource is a horizontalpodautoscaler
+	HorizontalPodAutoscalerKind = "HorizontalPodAutoscaler"
 
 	// ServiceExportKind indicates the target resource is a serviceexport crd
 	ServiceExportKind = "ServiceExport"

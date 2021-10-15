@@ -17,10 +17,19 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
+)
+
+const (
+	eventReasonCleanupWorkFailed      = "CleanupWorkFailed"
+	eventReasonSyncWorkFailed         = "SyncWorkFailed"
+	eventReasonSyncWorkSucceed        = "SyncWorkSucceed"
+	eventReasonAggregateStatusFailed  = "AggregateStatusFailed"
+	eventReasonAggregateStatusSucceed = "AggregateStatusSucceed"
 )
 
 var workPredicateFn = builder.WithPredicates(predicate.Funcs{
@@ -56,13 +65,13 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
-	var targetClusters []workv1alpha1.TargetCluster
+	var targetClusters []workv1alpha2.TargetCluster
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
-		bindingObj := binding.(*workv1alpha1.ResourceBinding)
+		bindingObj := binding.(*workv1alpha2.ResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
 	case apiextensionsv1.ClusterScoped:
-		bindingObj := binding.(*workv1alpha1.ClusterResourceBinding)
+		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
 	}
 
@@ -96,7 +105,8 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 			}
 		}
 
-		annotations, err := recordAppliedOverrides(cops, ops)
+		annotations := mergeAnnotations(clonedWorkload, binding, scope)
+		annotations, err = recordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
 			klog.Errorf("failed to record appliedOverrides, Error: %v", err)
 			return err
@@ -117,7 +127,7 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 	return nil
 }
 
-func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured, targetClusters []workv1alpha1.TargetCluster) (bool, *policyv1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
+func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured, targetClusters []workv1alpha2.TargetCluster) (bool, *policyv1alpha1.ReplicaSchedulingPolicy, map[string]int64, error) {
 	if helper.HasScheduledReplica(targetClusters) {
 		return true, nil, transScheduleResultToMap(targetClusters), nil
 	}
@@ -147,24 +157,38 @@ func applyReplicaSchedulingPolicy(workload *unstructured.Unstructured, desireRep
 
 func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
-	util.MergeLabel(workload, workv1alpha1.WorkNamespaceLabel, workNamespace)
-	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
-
+	util.MergeLabel(workload, workv1alpha2.WorkNamespaceLabel, workNamespace)
+	util.MergeLabel(workload, workv1alpha2.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
 	if scope == apiextensionsv1.NamespaceScoped {
-		util.MergeLabel(workload, workv1alpha1.ResourceBindingNamespaceLabel, binding.GetNamespace())
-		util.MergeLabel(workload, workv1alpha1.ResourceBindingNameLabel, binding.GetName())
-		workLabel[workv1alpha1.ResourceBindingNamespaceLabel] = binding.GetNamespace()
-		workLabel[workv1alpha1.ResourceBindingNameLabel] = binding.GetName()
+		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
+		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
 	} else {
-		util.MergeLabel(workload, workv1alpha1.ClusterResourceBindingLabel, binding.GetName())
-		workLabel[workv1alpha1.ClusterResourceBindingLabel] = binding.GetName()
+		util.MergeLabel(workload, workv1alpha2.ClusterResourceBindingReferenceKey, names.GenerateBindingReferenceKey("", binding.GetName()))
+		workLabel[workv1alpha2.ClusterResourceBindingReferenceKey] = names.GenerateBindingReferenceKey("", binding.GetName())
 	}
-
 	return workLabel
 }
 
-func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overridemanager.AppliedOverrides) (map[string]string, error) {
+func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	annotations := make(map[string]string)
+	if scope == apiextensionsv1.NamespaceScoped {
+		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNamespaceLabel, binding.GetNamespace())
+		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNameLabel, binding.GetName())
+		annotations[workv1alpha2.ResourceBindingNamespaceLabel] = binding.GetNamespace()
+		annotations[workv1alpha2.ResourceBindingNameLabel] = binding.GetName()
+	} else {
+		util.MergeAnnotation(workload, workv1alpha2.ClusterResourceBindingLabel, binding.GetName())
+		annotations[workv1alpha2.ClusterResourceBindingLabel] = binding.GetName()
+	}
+
+	return annotations
+}
+
+func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overridemanager.AppliedOverrides,
+	annotations map[string]string) (map[string]string, error) {
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
 
 	if cops != nil {
 		appliedBytes, err := cops.MarshalJSON()
@@ -189,7 +213,7 @@ func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overrid
 	return annotations, nil
 }
 
-func transScheduleResultToMap(scheduleResult []workv1alpha1.TargetCluster) map[string]int64 {
+func transScheduleResultToMap(scheduleResult []workv1alpha2.TargetCluster) map[string]int64 {
 	var desireReplicaInfos = make(map[string]int64, len(scheduleResult))
 	for _, clusterInfo := range scheduleResult {
 		desireReplicaInfos[clusterInfo.Name] = int64(clusterInfo.Replicas)
@@ -288,7 +312,7 @@ func calculateReplicas(c client.Client, policy *policyv1alpha1.ReplicaScheduling
 		allocatedReplicas += int32(desireReplicaInfos[clusterName])
 	}
 
-	if remainReplicas := policy.Spec.TotalReplicas - allocatedReplicas; remainReplicas > 0 {
+	if remainReplicas := policy.Spec.TotalReplicas - allocatedReplicas; remainReplicas > 0 && len(matchClusters) > 0 {
 		sortedClusters := helper.SortClusterByWeight(matchClusters)
 		for i := 0; remainReplicas > 0; i++ {
 			desireReplicaInfos[sortedClusters[i].ClusterName]++

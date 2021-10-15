@@ -149,3 +149,19 @@ caBundle: {{ print "{{ ca_crt }}" }}
 caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- end }}
 {{- end -}}
+
+{{- define "karmada.schedulerEstimator.podLabels" -}}
+{{- if .Values.schedulerEstimator.podLabels }}
+{{- range $key, $value := .Values.schedulerEstimator.podLabels}}
+{{ $key }}: {{ $value }}
+{{- end}}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.schedulerEstimator.labels" -}}
+{{- if .Values.schedulerEstimator.labels }}
+{{- range $key, $value := .Values.schedulerEstimator.labels}}
+{{ $key }}: {{ $value }}
+{{- end}}
+{{- end }}
+{{- end -}}

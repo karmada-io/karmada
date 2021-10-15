@@ -6,6 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -15,10 +16,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -54,12 +55,12 @@ func SortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
 }
 
 // IsBindingReady will check if resourceBinding/clusterResourceBinding is ready to build Work.
-func IsBindingReady(targetClusters []workv1alpha1.TargetCluster) bool {
+func IsBindingReady(targetClusters []workv1alpha2.TargetCluster) bool {
 	return len(targetClusters) != 0
 }
 
 // HasScheduledReplica checks if the scheduler has assigned replicas for each cluster.
-func HasScheduledReplica(scheduleResult []workv1alpha1.TargetCluster) bool {
+func HasScheduledReplica(scheduleResult []workv1alpha2.TargetCluster) bool {
 	for _, clusterResult := range scheduleResult {
 		if clusterResult.Replicas > 0 {
 			return true
@@ -69,7 +70,7 @@ func HasScheduledReplica(scheduleResult []workv1alpha1.TargetCluster) bool {
 }
 
 // GetBindingClusterNames will get clusterName list from bind clusters field
-func GetBindingClusterNames(targetClusters []workv1alpha1.TargetCluster) []string {
+func GetBindingClusterNames(targetClusters []workv1alpha2.TargetCluster) []string {
 	var clusterNames []string
 	for _, targetCluster := range targetClusters {
 		clusterNames = append(clusterNames, targetCluster.Name)
@@ -80,29 +81,51 @@ func GetBindingClusterNames(targetClusters []workv1alpha1.TargetCluster) []strin
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
 func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clusterNames []string, scope apiextensionsv1.ResourceScope) ([]workv1alpha1.Work, error) {
-	workList := &workv1alpha1.WorkList{}
+	var needJudgeWorks []workv1alpha1.Work
 	if scope == apiextensionsv1.NamespaceScoped {
-		selector := labels.SelectorFromSet(labels.Set{
-			workv1alpha1.ResourceBindingNamespaceLabel: bindingNamespace,
-			workv1alpha1.ResourceBindingNameLabel:      bindingName,
-		})
-
-		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
+		// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+		workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(labels.Set{
+			workv1alpha2.ResourceBindingNamespaceLabel: bindingNamespace,
+			workv1alpha2.ResourceBindingNameLabel:      bindingName,
+		}))
+		if err != nil {
+			klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", bindingNamespace, bindingName, err)
 			return nil, err
 		}
+		needJudgeWorks = append(needJudgeWorks, workList.Items...)
+
+		workList, err = GetWorksByLabelSelector(c, labels.SelectorFromSet(labels.Set{
+			workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(bindingNamespace, bindingName),
+		}))
+		if err != nil {
+			klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", bindingNamespace, bindingName, err)
+			return nil, err
+		}
+		needJudgeWorks = append(needJudgeWorks, workList.Items...)
 	} else {
-		selector := labels.SelectorFromSet(labels.Set{
-			workv1alpha1.ClusterResourceBindingLabel: bindingName,
-		})
-
-		if err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector}); err != nil {
+		// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+		workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(labels.Set{
+			workv1alpha2.ClusterResourceBindingLabel: bindingName,
+		}))
+		if err != nil {
+			klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", bindingName, err)
 			return nil, err
 		}
+		needJudgeWorks = append(needJudgeWorks, workList.Items...)
+
+		workList, err = GetWorksByLabelSelector(c, labels.SelectorFromSet(labels.Set{
+			workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", bindingName),
+		}))
+		if err != nil {
+			klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", bindingName, err)
+			return nil, err
+		}
+		needJudgeWorks = append(needJudgeWorks, workList.Items...)
 	}
 
 	var orphanWorks []workv1alpha1.Work
 	expectClusters := sets.NewString(clusterNames...)
-	for _, work := range workList.Items {
+	for _, work := range needJudgeWorks {
 		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
 		if err != nil {
 			klog.Errorf("Failed to get cluster name which Work %s/%s belongs to. Error: %v.",
@@ -118,18 +141,23 @@ func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clus
 
 // RemoveOrphanWorks will remove orphan works.
 func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
+	var errs []error
 	for workIndex, work := range works {
 		err := c.Delete(context.TODO(), &works[workIndex])
 		if err != nil {
-			return err
+			klog.Errorf("Failed to delete orphan work %s/%s, err is %v", work.GetNamespace(), work.GetName(), err)
+			errs = append(errs, err)
 		}
 		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
+	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
 	}
 	return nil
 }
 
 // FetchWorkload fetches the kubernetes resource to be propagated.
-func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, resource workv1alpha1.ObjectReference) (*unstructured.Unstructured, error) {
+func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, resource workv1alpha2.ObjectReference) (*unstructured.Unstructured, error) {
 	dynamicResource, err := restmapper.GetGroupVersionResource(restMapper,
 		schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind))
 	if err != nil {
@@ -150,16 +178,16 @@ func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, 
 }
 
 // GetClusterResourceBindings returns a ClusterResourceBindingList by labels.
-func GetClusterResourceBindings(c client.Client, ls labels.Set) (*workv1alpha1.ClusterResourceBindingList, error) {
-	bindings := &workv1alpha1.ClusterResourceBindingList{}
+func GetClusterResourceBindings(c client.Client, ls labels.Set) (*workv1alpha2.ClusterResourceBindingList, error) {
+	bindings := &workv1alpha2.ClusterResourceBindingList{}
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
 	return bindings, c.List(context.TODO(), bindings, listOpt)
 }
 
 // GetResourceBindings returns a ResourceBindingList by labels
-func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha1.ResourceBindingList, error) {
-	bindings := &workv1alpha1.ResourceBindingList{}
+func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha2.ResourceBindingList, error) {
+	bindings := &workv1alpha2.ResourceBindingList{}
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
 	return bindings, c.List(context.TODO(), bindings, listOpt)
@@ -173,32 +201,66 @@ func GetWorks(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 	return works, c.List(context.TODO(), works, listOpt)
 }
 
+// DeleteWorkByRBNamespaceAndName will delete all Work objects by ResourceBinding namespace and name.
+func DeleteWorkByRBNamespaceAndName(c client.Client, namespace, name string) error {
+	err := DeleteWorks(c, labels.Set{
+		workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(namespace, name),
+	})
+	if err != nil {
+		return err
+	}
+
+	// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+	return DeleteWorks(c, labels.Set{
+		workv1alpha2.ResourceBindingNamespaceLabel: namespace,
+		workv1alpha2.ResourceBindingNameLabel:      name,
+	})
+}
+
+// DeleteWorkByCRBName will delete all Work objects by ClusterResourceBinding name.
+func DeleteWorkByCRBName(c client.Client, name string) error {
+	err := DeleteWorks(c, labels.Set{
+		workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", name),
+	})
+	if err != nil {
+		return err
+	}
+
+	// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
+	return DeleteWorks(c, labels.Set{
+		workv1alpha2.ClusterResourceBindingLabel: name,
+	})
+}
+
 // DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(c client.Client, selector labels.Set) (controllerruntime.Result, error) {
+func DeleteWorks(c client.Client, selector labels.Set) error {
 	workList, err := GetWorks(c, selector)
 	if err != nil {
 		klog.Errorf("Failed to get works by label %v: %v", selector, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
 
 	var errs []error
 	for index, work := range workList.Items {
 		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
 			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
+			if apierrors.IsNotFound(err) {
+				continue
+			}
 			errs = append(errs, err)
 		}
 	}
 
 	if len(errs) > 0 {
-		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
+		return errors.NewAggregate(errs)
 	}
 
-	return controllerruntime.Result{}, nil
+	return nil
 }
 
 // GenerateNodeClaimByPodSpec will return a NodeClaim from PodSpec.
-func GenerateNodeClaimByPodSpec(podSpec *corev1.PodSpec) *workv1alpha1.NodeClaim {
-	nodeClaim := &workv1alpha1.NodeClaim{
+func GenerateNodeClaimByPodSpec(podSpec *corev1.PodSpec) *workv1alpha2.NodeClaim {
+	nodeClaim := &workv1alpha2.NodeClaim{
 		NodeSelector: podSpec.NodeSelector,
 		Tolerations:  podSpec.Tolerations,
 	}

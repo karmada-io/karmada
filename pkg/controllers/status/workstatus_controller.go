@@ -108,8 +108,39 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker("work-status", time.Second, util.GenerateKey, c.syncWorkStatus)
+	c.worker = util.NewAsyncWorker("work-status", time.Second, generateKey, c.syncWorkStatus)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
+}
+
+// generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
+func generateKey(obj interface{}) (util.QueueKey, error) {
+	resource := obj.(*unstructured.Unstructured)
+	cluster, err := getClusterNameFromLabel(resource)
+	if err != nil {
+		return "", err
+	}
+	// it happens when the obj not managed by Karmada.
+	if cluster == "" {
+		return "", nil
+	}
+
+	return keys.FederatedKeyFunc(cluster, obj)
+}
+
+// getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
+func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
+	workNamespace := util.GetLabelValue(resource.GetLabels(), workv1alpha1.WorkNamespaceLabel)
+	if len(workNamespace) == 0 {
+		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
+		return "", nil
+	}
+
+	cluster, err := names.GetClusterName(workNamespace)
+	if err != nil {
+		klog.Errorf("Failed to get cluster name from work namespace: %s, error: %v.", workNamespace, err)
+		return "", err
+	}
+	return cluster, nil
 }
 
 // syncWorkStatus will collect status of object referencing by key and update to work which holds the object.
@@ -126,12 +157,6 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 			return c.handleDeleteEvent(fedKey)
 		}
 		return err
-	}
-
-	if obj == nil {
-		// Ignore the object which not managed by current karmada.
-		klog.V(2).Infof("Ignore the event key %s which not managed by karmada.", key)
-		return nil
 	}
 
 	workNamespace := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
