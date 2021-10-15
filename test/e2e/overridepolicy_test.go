@@ -15,6 +15,7 @@ import (
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -36,7 +37,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
 		overridePolicy := helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
@@ -46,7 +47,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				Name:       deployment.Name,
 			},
 		}, policyv1alpha1.ClusterAffinity{
-			ClusterNames: clusterNames,
+			ClusterNames: framework.ClusterNames(),
 		}, policyv1alpha1.Overriders{
 			ImageOverrider: []policyv1alpha1.ImageOverrider{
 				{
@@ -68,10 +69,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Create(context.TODO(), propagationPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -89,21 +87,15 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Delete(context.TODO(), propagationPolicyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("check if deployment present on member clusters have correct image value", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					var deploymentInCluster *appsv1.Deployment
@@ -127,10 +119,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
 
 	})
@@ -152,7 +141,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
 		overridePolicy := helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
@@ -162,7 +151,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				Name:       pod.Name,
 			},
 		}, policyv1alpha1.ClusterAffinity{
-			ClusterNames: clusterNames,
+			ClusterNames: framework.ClusterNames(),
 		}, policyv1alpha1.Overriders{
 			ImageOverrider: []policyv1alpha1.ImageOverrider{
 				{
@@ -184,10 +173,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Create(context.TODO(), propagationPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -205,10 +191,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Delete(context.TODO(), propagationPolicyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
 		})
 
 		ginkgo.It("pod imageOverride testing", func() {
@@ -218,8 +201,8 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 			})
 
 			ginkgo.By("check if pod present on member clusters have correct image value", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					var podInClusters *corev1.Pod
@@ -269,7 +252,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
 		overridePolicy := helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
@@ -279,7 +262,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				Name:       deployment.Name,
 			},
 		}, policyv1alpha1.ClusterAffinity{
-			ClusterNames: clusterNames,
+			ClusterNames: framework.ClusterNames(),
 		}, policyv1alpha1.Overriders{
 			ImageOverrider: []policyv1alpha1.ImageOverrider{
 				{
@@ -294,10 +277,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Create(context.TODO(), propagationPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -315,21 +295,15 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Delete(context.TODO(), propagationPolicyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("check if deployment present on member clusters have correct image value", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					var deploymentInCluster *appsv1.Deployment
@@ -351,10 +325,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
 
 	})
@@ -378,11 +349,11 @@ var _ = ginkgo.Describe("OverridePolicy with nil resourceSelectors", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
 		overridePolicy := helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, nil, policyv1alpha1.ClusterAffinity{
-			ClusterNames: clusterNames,
+			ClusterNames: framework.ClusterNames(),
 		}, policyv1alpha1.Overriders{
 			ImageOverrider: []policyv1alpha1.ImageOverrider{
 				{
@@ -397,10 +368,7 @@ var _ = ginkgo.Describe("OverridePolicy with nil resourceSelectors", func() {
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Create(context.TODO(), propagationPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -418,21 +386,15 @@ var _ = ginkgo.Describe("OverridePolicy with nil resourceSelectors", func() {
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing propagationPolicy(%s/%s)", propagationPolicyNamespace, propagationPolicyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(propagationPolicyNamespace).Delete(context.TODO(), propagationPolicyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("check if deployment present on member clusters have correct image value", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					var deploymentInCluster *appsv1.Deployment
@@ -454,10 +416,7 @@ var _ = ginkgo.Describe("OverridePolicy with nil resourceSelectors", func() {
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
 
 	})

@@ -26,6 +26,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -64,27 +65,9 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			},
 		})
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				klog.Infof("created policy(%s/%s)", policyNamespace, policyName)
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("deployment propagation with label and group constraints testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deployment.Namespace, deployment.Name), func() {
-				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				klog.Infof("created deployment(%s/%s)", deployment.Namespace, deployment.Name)
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("collect the target clusters in resource binding", func() {
 				var err error
@@ -104,7 +87,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 
 			ginkgo.By("check if deployment present on right clusters", func() {
 				for _, targetClusterName := range targetClusterNames {
-					clusterClient := getClusterClient(targetClusterName)
+					clusterClient := framework.GetClusterClient(targetClusterName)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Check whether deployment(%s/%s) is present on cluster(%s)", deploymentNamespace, deploymentName, targetClusterName)
@@ -142,7 +125,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 
 			ginkgo.By("check if update has been synced to member clusters", func() {
 				for _, cluster := range groupMatchedClusters {
-					clusterClient := getClusterClient(cluster.Name)
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for deployment(%s/%s) synced on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
@@ -162,31 +145,8 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if deployment has been deleted from member clusters", func() {
-				for _, cluster := range groupMatchedClusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for deployment(%s/%s) disappear on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						if err != nil {
-							if apierrors.IsNotFound(err) {
-								return true, nil
-							}
-							return false, err
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 	ginkgo.Context("CustomResourceDefinition propagation testing", func() {
@@ -227,33 +187,10 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 		})
 		crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating crdPolicy(%s)", crdPolicy.Name), func() {
-				_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), crdPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing crdPolicy(%s)", crdPolicy.Name), func() {
-				err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Delete(context.TODO(), crdPolicy.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("crd with specified label and group constraints propagation testing", func() {
-			ginkgo.By(fmt.Sprintf("creating crd(%s)", crd.Name), func() {
-				unstructObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(crd)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				_, err = dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Create(context.TODO(), &unstructured.Unstructured{Object: unstructObj}, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("get crd(%s)", crd.Name), func() {
-				_, err := dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
+			framework.CreateCRD(dynamicClient, crd)
+			framework.GetCRD(dynamicClient, crd.Name)
 
 			ginkgo.By("collect the target clusters in cluster resource binding", func() {
 				bindingName := names.GenerateBindingName(crd.Kind, crd.Name)
@@ -287,7 +224,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 
 			ginkgo.By("check if crd present on right clusters", func() {
 				for _, targetClusterName := range targetClusterNames {
-					clusterDynamicClient := getClusterDynamicClient(targetClusterName)
+					clusterDynamicClient := framework.GetClusterDynamicClient(targetClusterName)
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for crd(%s) present on cluster(%s)", crd.Name, targetClusterName)
@@ -310,30 +247,9 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
 			})
 
-			ginkgo.By(fmt.Sprintf("removing crd(%s)", crd.Name), func() {
-				err := dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Delete(context.TODO(), crd.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if crd with specified label and group constraints disappeared from member clusters", func() {
-				for _, cluster := range groupMatchedClusters {
-					clusterDynamicClient := getClusterDynamicClient(cluster.Name)
-					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for crd(%s) disappeared on cluster(%s)\n", crd.Name, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterDynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
-						if err != nil {
-							if apierrors.IsNotFound(err) {
-								return true, nil
-							}
-							return false, err
-						}
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.RemoveCRD(dynamicClient, crd.Name)
+			framework.WaitCRDDisappearedOnClusters(framework.GetClusterNamesFromClusters(groupMatchedClusters), crd.Name)
+			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
 		})
 	})
 })
@@ -372,7 +288,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
@@ -380,19 +296,12 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 
 		ginkgo.It("replicas duplicated testing", func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("check if deployment's replicas are duplicate on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					gomega.Eventually(func() *int32 {
@@ -406,15 +315,8 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -434,45 +336,20 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
 			},
 		})
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("replicas duplicated testing when rescheduling", func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+
 			ginkgo.By("make sure deployment has been propagated to member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					gomega.Eventually(func() bool {
@@ -484,20 +361,10 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas", deploymentNamespace, deploymentName), func() {
-				updateReplicas := int32(2)
-				deployment.Spec.Replicas = &updateReplicas
-
-				gomega.Eventually(func() error {
-					_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-					return err
-				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
-				klog.Infof("Update deployment(%s/%s)'s replicas to %d", deploymentNamespace, deploymentName, *deployment.Spec.Replicas)
-			})
-
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
 			ginkgo.By("check if deployment's replicas have been updated on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					gomega.Eventually(func() *int32 {
@@ -510,6 +377,9 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					}, pollTimeout, pollInterval).Should(gomega.Equal(deployment.Spec.Replicas))
 				}
 			})
+
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -530,7 +400,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
@@ -539,22 +409,15 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 
 		ginkgo.It("replicas divided and weighted testing", func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
+			framework.CreatePropagationPolicy(karmadaClient, policy)
 			expectedReplicas := int32(2)
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				updateReplicas := expectedReplicas * int32(len(clusters))
-				deployment.Spec.Replicas = &updateReplicas
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			updateReplicas := expectedReplicas * int32(len(framework.Clusters()))
+			deployment.Spec.Replicas = &updateReplicas
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					gomega.Eventually(func() int32 {
@@ -568,15 +431,8 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -598,7 +454,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
@@ -606,63 +462,18 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			},
 		})
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
-			ginkgo.By("make sure deployment has been propagated to member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					gomega.Eventually(func() bool {
-						_, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-						return true
-					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
-				}
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			framework.WaitDeploymentPresentOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
 
 			expectedReplicas := int32(3)
-			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas to 3*len(clusters)", policyNamespace, policyName), func() {
-				updateReplicas := expectedReplicas * int32(len(clusters))
-				deployment.Spec.Replicas = &updateReplicas
-
-				gomega.Eventually(func() error {
-					_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-					return err
-				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
-			})
+			updateReplicas := expectedReplicas * int32(len(framework.Clusters()))
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateReplicas)
 
 			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					gomega.Eventually(func() int32 {
@@ -675,6 +486,9 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 				}
 			})
+
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
 	})
 
@@ -695,7 +509,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
@@ -707,7 +521,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		ginkgo.It("replicas divided and weighted testing", func() {
 			sumWeight := 0
 			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
-			for index, clusterName := range clusterNames {
+			for index, clusterName := range framework.ClusterNames() {
 				staticWeightList := policyv1alpha1.StaticClusterWeight{
 					TargetCluster: policyv1alpha1.ClusterAffinity{
 						ClusterNames: []string{clusterName},
@@ -721,24 +535,16 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			policy.Spec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList = staticWeightLists
 			klog.Infof("Sum weight of clusters is %d", sumWeight)
 
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				sumReplicas := int32(sumWeight)
-				deployment.Spec.Replicas = &sumReplicas
-
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			sumReplicas := int32(sumWeight)
+			deployment.Spec.Replicas = &sumReplicas
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
-				for index, cluster := range clusters {
+				for index, cluster := range framework.Clusters() {
 					expectedReplicas := int32(index + 1)
 
-					clusterClient := getClusterClient(cluster.Name)
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					gomega.Eventually(func() int32 {
@@ -752,15 +558,8 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 
 	})
@@ -783,7 +582,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
@@ -793,81 +592,49 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
-				for index, clusterName := range clusterNames {
-					staticWeightList := policyv1alpha1.StaticClusterWeight{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{clusterName},
-						},
-						Weight: int64(index + 1),
-					}
-					staticWeightLists = append(staticWeightLists, staticWeightList)
+			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
+			for index, clusterName := range framework.ClusterNames() {
+				staticWeightList := policyv1alpha1.StaticClusterWeight{
+					TargetCluster: policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{clusterName},
+					},
+					Weight: int64(index + 1),
 				}
-				klog.Infof("StaticWeightList of policy is %+v", staticWeightLists)
-				policy.Spec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList = staticWeightLists
-
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+				staticWeightLists = append(staticWeightLists, staticWeightList)
+			}
+			klog.Infof("StaticWeightList of policy is %+v", staticWeightLists)
+			policy.Spec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList = staticWeightLists
+			framework.CreatePropagationPolicy(karmadaClient, policy)
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreateDeployment(kubeClient, deployment)
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
-			ginkgo.By("make sure deployment has been propagated to member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+			framework.WaitDeploymentPresentOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
 
-					gomega.Eventually(func() bool {
-						_, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-						return true
-					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
-				}
-			})
-
-			ginkgo.By(fmt.Sprintf("Update deployment(%s/%s)'s replicas to 2*sumWeight", policyNamespace, policyName), func() {
-				sumWeight := 0
-				for index := range clusterNames {
-					sumWeight += index + 1
-				}
-				klog.Infof("sumWeight of clusters is %d", sumWeight)
-				updateReplicas := 2 * int32(sumWeight)
-				deployment.Spec.Replicas = &updateReplicas
-
-				gomega.Eventually(func() error {
-					_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-					return err
-				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
-			})
+			sumWeight := 0
+			for index := range framework.ClusterNames() {
+				sumWeight += index + 1
+			}
+			klog.Infof("sumWeight of clusters is %d", sumWeight)
+			updateReplicas := 2 * int32(sumWeight)
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateReplicas)
 
 			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
-				for index, cluster := range clusters {
+				for index, cluster := range framework.Clusters() {
 					expectedReplicas := 2 * int32(index+1)
 
-					clusterClient := getClusterClient(cluster.Name)
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					gomega.Eventually(func() int32 {

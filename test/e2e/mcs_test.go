@@ -15,13 +15,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog/v2"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
@@ -187,7 +186,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		},
 	}, policyv1alpha1.Placement{
 		ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-			ClusterNames: clusterNames,
+			ClusterNames: framework.ClusterNames(),
 		},
 	})
 	serviceImportPolicy := testhelper.NewClusterPropagationPolicy(serviceImportPolicyName, []policyv1alpha1.ResourceSelector{
@@ -198,66 +197,21 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		},
 	}, policyv1alpha1.Placement{
 		ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-			ClusterNames: clusterNames,
+			ClusterNames: framework.ClusterNames(),
 		},
 	})
 
 	ginkgo.BeforeEach(func() {
-		ginkgo.By(fmt.Sprintf("Create ClusterPropagationPolicy(%s) to Propagation ServiceExport CRD", serviceExportPolicy.Name), func() {
-			_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), serviceExportPolicy, metav1.CreateOptions{})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
-
-		ginkgo.By(fmt.Sprintf("Create ClusterPropagationPolicy(%s) to Propagation ServiceImport CRD", serviceImportPolicy.Name), func() {
-			_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), serviceImportPolicy, metav1.CreateOptions{})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
-
-		ginkgo.By("Wait ServiceExport CRD present on member clusters", func() {
-			err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-				clusters, err := fetchClusters(karmadaClient)
-				if err != nil {
-					return false, err
-				}
-				for _, cluster := range clusters {
-					if !helper.IsAPIEnabled(cluster.Status.APIEnablements, mcsv1alpha1.GroupVersion.String(), util.ServiceExportKind) {
-						klog.Infof("Waiting for CRD(%s) present on member cluster(%s)", util.ServiceExportKind, cluster.Name)
-						return false, nil
-					}
-				}
-				return true, nil
-			})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
-
-		ginkgo.By("Wait ServiceImport CRD present on member clusters", func() {
-			err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-				clusters, err := fetchClusters(karmadaClient)
-				if err != nil {
-					return false, err
-				}
-				for _, cluster := range clusters {
-					if !helper.IsAPIEnabled(cluster.Status.APIEnablements, mcsv1alpha1.GroupVersion.String(), util.ServiceImportKind) {
-						klog.Infof("Waiting for CRD(%s) present on member cluster(%s)", util.ServiceImportKind, cluster.Name)
-						return false, nil
-					}
-				}
-				return true, nil
-			})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
+		framework.CreateClusterPropagationPolicy(karmadaClient, serviceExportPolicy)
+		framework.CreateClusterPropagationPolicy(karmadaClient, serviceImportPolicy)
+		framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(), mcsv1alpha1.GroupVersion.String(), util.ServiceExportKind)
+		framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(), mcsv1alpha1.GroupVersion.String(), util.ServiceImportKind)
 	})
 
 	ginkgo.AfterEach(func() {
-		ginkgo.By(fmt.Sprintf("Delete ClusterPropagationPolicy %s", serviceExportPolicy.Name), func() {
-			err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Delete(context.TODO(), serviceExportPolicy.Name, metav1.DeleteOptions{})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
+		framework.RemoveClusterPropagationPolicy(karmadaClient, serviceImportPolicy.Name)
+		framework.RemoveClusterPropagationPolicy(karmadaClient, serviceExportPolicy.Name)
 
-		ginkgo.By(fmt.Sprintf("Delete ClusterPropagationPolicy %s", serviceImportPolicy.Name), func() {
-			err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Delete(context.TODO(), serviceImportPolicy.Name, metav1.DeleteOptions{})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		})
 		// Now the deletion of ClusterPropagationPolicy will not cause the deletion of related binding and workload on member clusters,
 		// so we do not need to wait the disappearance of ServiceExport CRD and ServiceImport CRD
 	})
@@ -266,7 +220,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		serviceExport, serviceImport, exportPolicy, importPolicy, demoDeployment, demoService := getPrepareInfo()
 
 		ginkgo.BeforeEach(func() {
-			exportClusterClient := getClusterClient(serviceExportClusterName)
+			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
 
 			ginkgo.By(fmt.Sprintf("Create Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName), func() {
@@ -296,7 +250,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		})
 
 		ginkgo.AfterEach(func() {
-			exportClusterClient := getClusterClient(serviceExportClusterName)
+			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
 
 			ginkgo.By(fmt.Sprintf("Delete Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName), func() {
@@ -311,7 +265,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		})
 
 		ginkgo.It("Export Service from source-clusters, import Service to destination-clusters", func() {
-			importClusterClient := getClusterClient(serviceImportClusterName)
+			importClusterClient := framework.GetClusterClient(serviceImportClusterName)
 			gomega.Expect(importClusterClient).ShouldNot(gomega.BeNil())
 
 			ginkgo.By(fmt.Sprintf("Create ServiceExport(%s/%s)", serviceExport.Namespace, serviceExport.Name), func() {
@@ -319,10 +273,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By(fmt.Sprintf("Create PropagationPolicy(%s/%s) to propagate ServiceExport", exportPolicy.Namespace, exportPolicy.Name), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(exportPolicy.Namespace).Create(context.TODO(), exportPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, exportPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlices collected to namespace(%s) in controller-plane", demoService.Namespace), func() {
 				gomega.Eventually(func() int {
@@ -344,10 +295,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By(fmt.Sprintf("Create PropagationPolicy(%s/%s) to propagate ServiveImport", importPolicy.Namespace, importPolicy.Name), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(importPolicy.Namespace).Create(context.TODO(), importPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, importPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait derived-service(%s/%s) exist in %s cluster", demoService.Namespace, names.GenerateDerivedServiceName(demoService.Name), serviceImportClusterName), func() {
 				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
@@ -410,15 +358,12 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 				err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				err = karmadaClient.PolicyV1alpha1().PropagationPolicies(exportPolicy.Namespace).Delete(context.TODO(), exportPolicy.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 				err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				err = karmadaClient.PolicyV1alpha1().PropagationPolicies(importPolicy.Namespace).Delete(context.TODO(), importPolicy.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
+
+			framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
+			framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
 		})
 	})
 
@@ -426,7 +371,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		serviceExport, serviceImport, exportPolicy, importPolicy, demoDeployment, demoService := getPrepareInfo()
 
 		ginkgo.BeforeEach(func() {
-			exportClusterClient := getClusterClient(serviceExportClusterName)
+			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
 
 			ginkgo.By(fmt.Sprintf("Create Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName), func() {
@@ -456,7 +401,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		})
 
 		ginkgo.AfterEach(func() {
-			exportClusterClient := getClusterClient(serviceExportClusterName)
+			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
 
 			ginkgo.By(fmt.Sprintf("Delete Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName), func() {
@@ -471,9 +416,9 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		})
 
 		ginkgo.It("Update Deployment's replicas", func() {
-			exportClusterClient := getClusterClient(serviceExportClusterName)
+			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
-			importClusterClient := getClusterClient(serviceImportClusterName)
+			importClusterClient := framework.GetClusterClient(serviceImportClusterName)
 			gomega.Expect(importClusterClient).ShouldNot(gomega.BeNil())
 
 			ginkgo.By(fmt.Sprintf("Create ServiceExport(%s/%s)", serviceExport.Namespace, serviceExport.Name), func() {
@@ -481,10 +426,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By(fmt.Sprintf("Create PropagationPolicy(%s/%s)", exportPolicy.Namespace, exportPolicy.Name), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(exportPolicy.Namespace).Create(context.TODO(), exportPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, exportPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlices collected to namespace(%s) in controller-plane", demoService.Namespace), func() {
 				gomega.Eventually(func() int {
@@ -506,10 +448,7 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By(fmt.Sprintf("Create PropagationPolicy(%s/%s) to propagate ServiveImport", importPolicy.Namespace, importPolicy.Name), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(importPolicy.Namespace).Create(context.TODO(), importPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, importPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlice exist in %s cluster", serviceImportClusterName), func() {
 				gomega.Eventually(func() int {
@@ -555,15 +494,12 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 				err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				err = karmadaClient.PolicyV1alpha1().PropagationPolicies(exportPolicy.Namespace).Delete(context.TODO(), exportPolicy.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 				err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				err = karmadaClient.PolicyV1alpha1().PropagationPolicies(importPolicy.Namespace).Delete(context.TODO(), importPolicy.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
+
+			framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
+			framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
 		})
 	})
 })
