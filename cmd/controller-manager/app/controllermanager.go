@@ -120,10 +120,11 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		skippedPropagatingNamespaces[ns] = struct{}{}
 	}
 
+	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:           discoverClientSet,
 		Client:                       mgr.GetClient(),
-		InformerManager:              informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan),
+		InformerManager:              controlPlaneInformerManager,
 		RESTMapper:                   mgr.GetRESTMapper(),
 		DynamicClient:                dynamicClientSet,
 		SkippedResourceConfig:        skippedResourceConfig,
@@ -183,10 +184,11 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	hpaController := &hpa.HorizontalPodAutoscalerController{
-		Client:        mgr.GetClient(),
-		DynamicClient: dynamicClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(hpa.ControllerName),
-		RESTMapper:    mgr.GetRESTMapper(),
+		Client:          mgr.GetClient(),
+		DynamicClient:   dynamicClientSet,
+		EventRecorder:   mgr.GetEventRecorderFor(hpa.ControllerName),
+		RESTMapper:      mgr.GetRESTMapper(),
+		InformerManager: controlPlaneInformerManager,
 	}
 	if err := hpaController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup hpa controller: %v", err)
@@ -205,6 +207,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
 		RESTMapper:      mgr.GetRESTMapper(),
 		OverrideManager: overrideManager,
+		InformerManager: controlPlaneInformerManager,
 	}
 	if err := bindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup binding controller: %v", err)
@@ -216,6 +219,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		EventRecorder:   mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
 		RESTMapper:      mgr.GetRESTMapper(),
 		OverrideManager: overrideManager,
+		InformerManager: controlPlaneInformerManager,
 	}
 	if err := clusterResourceBindingController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)

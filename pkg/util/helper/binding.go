@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -20,6 +21,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -157,7 +159,8 @@ func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
 }
 
 // FetchWorkload fetches the kubernetes resource to be propagated.
-func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, resource workv1alpha2.ObjectReference) (*unstructured.Unstructured, error) {
+func FetchWorkload(dynamicClient dynamic.Interface, informerManager informermanager.SingleClusterInformerManager,
+	restMapper meta.RESTMapper, resource workv1alpha2.ObjectReference) (*unstructured.Unstructured, error) {
 	dynamicResource, err := restmapper.GetGroupVersionResource(restMapper,
 		schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind))
 	if err != nil {
@@ -166,15 +169,34 @@ func FetchWorkload(dynamicClient dynamic.Interface, restMapper meta.RESTMapper, 
 		return nil, err
 	}
 
-	workload, err := dynamicClient.Resource(dynamicResource).Namespace(resource.Namespace).Get(context.TODO(),
-		resource.Name, metav1.GetOptions{})
+	var workload runtime.Object
+
+	if len(resource.Namespace) == 0 {
+		// cluster-scoped resource
+		workload, err = informerManager.Lister(dynamicResource).Get(resource.Name)
+	} else {
+		workload, err = informerManager.Lister(dynamicResource).ByNamespace(resource.Namespace).Get(resource.Name)
+	}
 	if err != nil {
-		klog.Errorf("Failed to get workload, kind: %s, namespace: %s, name: %s. Error: %v",
+		// fall back to call api server in case the cache has not been synchronized yet
+		klog.Warningf("Failed to get workload from cache, kind: %s, namespace: %s, name: %s. Error: %v. Fall back to call api server",
 			resource.Kind, resource.Namespace, resource.Name, err)
+		workload, err = dynamicClient.Resource(dynamicResource).Namespace(resource.Namespace).Get(context.TODO(),
+			resource.Name, metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("Failed to get workload from api server, kind: %s, namespace: %s, name: %s. Error: %v",
+				resource.Kind, resource.Namespace, resource.Name, err)
+			return nil, err
+		}
+	}
+
+	unstructuredWorkLoad, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	if err != nil {
+		klog.Errorf("Failed to transform object(%s/%s): %v", resource.Namespace, resource.Name, err)
 		return nil, err
 	}
 
-	return workload, nil
+	return &unstructured.Unstructured{Object: unstructuredWorkLoad}, nil
 }
 
 // GetClusterResourceBindings returns a ClusterResourceBindingList by labels.
