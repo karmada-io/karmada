@@ -3,7 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -373,7 +373,7 @@ func podLogs(ctx context.Context, k8s kubernetes.Interface, namespace, name stri
 		return "", err
 	}
 	defer logs.Close()
-	data, err := ioutil.ReadAll(logs)
+	data, err := io.ReadAll(logs)
 	if err != nil {
 		return "", err
 	}

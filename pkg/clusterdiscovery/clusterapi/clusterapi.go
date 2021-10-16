@@ -3,7 +3,7 @@ package clusterapi
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -200,7 +200,7 @@ func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 
 func generateKubeconfigFile(clusterName string, kubeconfigData []byte) (string, error) {
 	kubeconfigPath := fmt.Sprintf("/etc/%s.kubeconfig", clusterName)
-	err := ioutil.WriteFile(kubeconfigPath, kubeconfigData, 0600)
+	err := os.WriteFile(kubeconfigPath, kubeconfigData, 0600)
 	if err != nil {
 		klog.Errorf("Failed to write File %s: %v", kubeconfigPath, err)
 		return "", err
