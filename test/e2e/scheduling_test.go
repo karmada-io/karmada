@@ -9,6 +9,7 @@ import (
 	"github.com/onsi/gomega"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -90,6 +91,15 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				targetClusterNames, err = getTargetClusterNames(deployment)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				gomega.Expect(len(targetClusterNames) == minGroups).ShouldNot(gomega.BeFalse())
+			})
+
+			ginkgo.By("check if the scheduled condition is true", func() {
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+					rb, err := getResourceBinding(deployment)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					return meta.IsStatusConditionTrue(rb.Status.Conditions, workv1alpha2.Scheduled), nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By("check if deployment present on right clusters", func() {
@@ -264,6 +274,15 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					targetClusterNames = append(targetClusterNames, cluster.Name)
 				}
 				fmt.Printf("target clusters in cluster resource binding are %s\n", targetClusterNames)
+			})
+
+			ginkgo.By("check if the scheduled condition is true", func() {
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+					crb, err := getClusterResourceBinding(crd)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					return meta.IsStatusConditionTrue(crb.Status.Conditions, workv1alpha2.Scheduled), nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By("check if crd present on right clusters", func() {
@@ -864,3 +883,27 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 	})
 })
+
+// get the resource binding associated with the workload
+func getResourceBinding(workload interface{}) (*workv1alpha2.ResourceBinding, error) {
+	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	obj := unstructured.Unstructured{Object: uncastObj}
+	bindingName := names.GenerateBindingName(obj.GetKind(), obj.GetName())
+	binding := &workv1alpha2.ResourceBinding{}
+
+	err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: obj.GetNamespace(), Name: bindingName}, binding)
+	return binding, err
+}
+
+// get the cluster resource binding associated with the workload
+func getClusterResourceBinding(workload interface{}) (*workv1alpha2.ClusterResourceBinding, error) {
+	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	obj := unstructured.Unstructured{Object: uncastObj}
+	bindingName := names.GenerateBindingName(obj.GetKind(), obj.GetName())
+	binding := &workv1alpha2.ClusterResourceBinding{}
+
+	err = controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: bindingName}, binding)
+	return binding, err
+}
