@@ -152,6 +152,15 @@ var _ = ginkgo.Describe("failover testing", func() {
 				fmt.Printf("reschedule in %d target cluster\n", totalNum)
 			})
 
+			ginkgo.By("check if the scheduled condition is true", func() {
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+					rb, err := getResourceBinding(deployment)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					return meta.IsStatusConditionTrue(rb.Status.Conditions, workv1alpha2.Scheduled), nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
 			ginkgo.By("recover not ready cluster", func() {
 				for _, disabledCluster := range disabledClusters {
 					fmt.Printf("cluster %s is waiting for recovering\n", disabledCluster.Name)
