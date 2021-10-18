@@ -61,6 +61,12 @@ const (
 	Unknown ScheduleType = "Unknown"
 )
 
+const (
+	scheduleSuccessReason = "BindingScheduled"
+
+	scheduleSuccessMessage = "the binding has been scheduled"
+)
+
 // Failover indicates if the scheduler should performs re-scheduler in case of cluster failure.
 // TODO(RainbowMango): Remove the temporary solution by introducing feature flag
 var Failover bool
@@ -472,11 +478,11 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.Resour
 	}
 	binding.Annotations[util.PolicyPlacementAnnotation] = placementStr
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	binding, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	return nil
+	return s.updateBindingStatusIfNeeded(binding)
 }
 
 func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
@@ -501,11 +507,11 @@ func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv
 	}
 	binding.Annotations[util.PolicyPlacementAnnotation] = string(placement)
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), binding, metav1.UpdateOptions{})
+	binding, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	return nil
+	return s.updateClusterBindingStatusIfNeeded(binding)
 }
 
 func (s *Scheduler) handleErr(err error, key interface{}) {
@@ -674,11 +680,11 @@ func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *wor
 	clusterResourceBinding.Spec.Clusters = reScheduleResult.SuggestedClusters
 	klog.Infof("The final binding.Spec.Cluster values are: %v\n", clusterResourceBinding.Spec.Clusters)
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), clusterResourceBinding, metav1.UpdateOptions{})
+	clusterResourceBinding, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), clusterResourceBinding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	return nil
+	return s.updateClusterBindingStatusIfNeeded(clusterResourceBinding)
 }
 
 func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) error {
@@ -699,11 +705,11 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.Reso
 	resourceBinding.Spec.Clusters = reScheduleResult.SuggestedClusters
 	klog.Infof("The final binding.Spec.Cluster values are: %v\n", resourceBinding.Spec.Clusters)
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(resourceBinding.Namespace).Update(context.TODO(), resourceBinding, metav1.UpdateOptions{})
+	resourceBinding, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(resourceBinding.Namespace).Update(context.TODO(), resourceBinding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	return nil
+	return s.updateBindingStatusIfNeeded(resourceBinding)
 }
 
 func (s *Scheduler) scaleScheduleOne(key string) (err error) {
@@ -761,11 +767,11 @@ func (s *Scheduler) scaleScheduleResourceBinding(resourceBinding *workv1alpha2.R
 	}
 	binding.Annotations[util.PolicyPlacementAnnotation] = placementStr
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
+	binding, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	return nil
+	return s.updateBindingStatusIfNeeded(binding)
 }
 
 func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding,
@@ -792,11 +798,11 @@ func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *
 	}
 	binding.Annotations[util.PolicyPlacementAnnotation] = string(placement)
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), binding, metav1.UpdateOptions{})
+	binding, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	return nil
+	return s.updateClusterBindingStatusIfNeeded(binding)
 }
 
 func (s *Scheduler) getTypeFromResourceBindings(ns, name string) ScheduleType {
@@ -902,4 +908,48 @@ func (s *Scheduler) establishEstimatorConnections() {
 			klog.Error(err)
 		}
 	}
+}
+
+// updateBindingStatusIfNeeded sets the scheduled condition of ResourceBinding to true if needed
+func (s *Scheduler) updateBindingStatusIfNeeded(rb *workv1alpha2.ResourceBinding) error {
+	oldScheduledCondition := meta.FindStatusCondition(rb.Status.Conditions, workv1alpha2.Scheduled)
+	newScheduledCondition := metav1.Condition{
+		Type:    workv1alpha2.Scheduled,
+		Status:  metav1.ConditionTrue,
+		Reason:  scheduleSuccessReason,
+		Message: scheduleSuccessMessage,
+	}
+	if equality.Semantic.DeepEqual(oldScheduledCondition, newScheduledCondition) {
+		return nil
+	}
+
+	meta.SetStatusCondition(&rb.Status.Conditions, newScheduledCondition)
+	_, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).UpdateStatus(context.TODO(), rb, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Failed to update ResourceBinding status(%s/%s): %v", rb.Namespace, rb.Name, err)
+		return err
+	}
+	return nil
+}
+
+// updateClusterBindingStatusIfNeeded sets the scheduled condition of ClusterResourceBinding to true if needed
+func (s *Scheduler) updateClusterBindingStatusIfNeeded(crb *workv1alpha2.ClusterResourceBinding) error {
+	oldScheduledCondition := meta.FindStatusCondition(crb.Status.Conditions, workv1alpha2.Scheduled)
+	newScheduledCondition := metav1.Condition{
+		Type:    workv1alpha2.Scheduled,
+		Status:  metav1.ConditionTrue,
+		Reason:  scheduleSuccessReason,
+		Message: scheduleSuccessMessage,
+	}
+	if equality.Semantic.DeepEqual(oldScheduledCondition, newScheduledCondition) {
+		return nil
+	}
+
+	meta.SetStatusCondition(&crb.Status.Conditions, newScheduledCondition)
+	_, err := s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().UpdateStatus(context.TODO(), crb, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Failed to update ClusterResourceBinding status(%s): %v", crb.Name, err)
+		return err
+	}
+	return nil
 }

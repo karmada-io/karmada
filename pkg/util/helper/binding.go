@@ -55,8 +55,8 @@ func SortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
 }
 
 // IsBindingReady will check if resourceBinding/clusterResourceBinding is ready to build Work.
-func IsBindingReady(targetClusters []workv1alpha2.TargetCluster) bool {
-	return len(targetClusters) != 0
+func IsBindingReady(status *workv1alpha2.ResourceBindingStatus) bool {
+	return meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled)
 }
 
 // HasScheduledReplica checks if the scheduler has assigned replicas for each cluster.

@@ -65,7 +65,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 		return c.removeFinalizer(binding)
 	}
 
-	isReady := helper.IsBindingReady(binding.Spec.Clusters)
+	isReady := helper.IsBindingReady(&binding.Status)
 	if !isReady {
 		klog.Infof("ResourceBinding(%s/%s) is not ready to sync", binding.GetNamespace(), binding.GetName())
 		return controllerruntime.Result{}, nil
