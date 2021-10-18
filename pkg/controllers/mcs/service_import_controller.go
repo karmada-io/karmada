@@ -66,7 +66,7 @@ func (c *ServiceImportController) deleteDerivedService(svcImport types.Namespace
 	}
 
 	err = c.Client.Delete(context.TODO(), derivedSvc)
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Delete derived service(%s) failed, Error: %v", derivedSvcNamespacedName, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
