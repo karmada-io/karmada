@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-	"time"
 
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -106,7 +105,7 @@ func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *ServiceExportController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker("service-export", time.Second, nil, c.syncServiceExportOrEndpointSlice)
+	c.worker = util.NewAsyncWorker("service-export", nil, c.syncServiceExportOrEndpointSlice)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 

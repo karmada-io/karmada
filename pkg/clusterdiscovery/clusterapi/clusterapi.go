@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,7 +51,7 @@ func (d *ClusterDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	d.EventHandler = informermanager.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker("cluster-api cluster detector", time.Second, ClusterWideKeyFunc, d.Reconcile)
+	d.Processor = util.NewAsyncWorker("cluster-api cluster detector", ClusterWideKeyFunc, d.Reconcile)
 	d.Processor.Run(1, d.stopCh)
 	d.discoveryCluster()
 

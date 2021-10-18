@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -108,7 +107,7 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker("work-status", time.Second, generateKey, c.syncWorkStatus)
+	c.worker = util.NewAsyncWorker("work-status", generateKey, c.syncWorkStatus)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 

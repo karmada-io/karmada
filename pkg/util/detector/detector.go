@@ -81,9 +81,9 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
-	d.policyReconcileWorker = util.NewAsyncWorker("propagationPolicy reconciler", 1*time.Millisecond, ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
+	d.policyReconcileWorker = util.NewAsyncWorker("propagationPolicy reconciler", ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
 	d.policyReconcileWorker.Run(1, d.stopCh)
-	d.clusterPolicyReconcileWorker = util.NewAsyncWorker("clusterPropagationPolicy reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileClusterPropagationPolicy)
+	d.clusterPolicyReconcileWorker = util.NewAsyncWorker("clusterPropagationPolicy reconciler", ClusterWideKeyFunc, d.ReconcileClusterPropagationPolicy)
 	d.clusterPolicyReconcileWorker.Run(1, d.stopCh)
 
 	// watch and enqueue PropagationPolicy changes.
@@ -107,7 +107,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
 
 	// setup binding reconcile worker
-	d.bindingReconcileWorker = util.NewAsyncWorker("resourceBinding reconciler", time.Microsecond, ClusterWideKeyFunc, d.ReconcileResourceBinding)
+	d.bindingReconcileWorker = util.NewAsyncWorker("resourceBinding reconciler", ClusterWideKeyFunc, d.ReconcileResourceBinding)
 	d.bindingReconcileWorker.Run(1, d.stopCh)
 
 	// watch and enqueue ResourceBinding changes.
@@ -130,7 +130,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.InformerManager.ForResource(clusterResourceBindingGVR, clusterBindingHandler)
 
 	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker("resource detector", time.Microsecond, ClusterWideKeyFunc, d.Reconcile)
+	d.Processor = util.NewAsyncWorker("resource detector", ClusterWideKeyFunc, d.Reconcile)
 	d.Processor.Run(1, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
