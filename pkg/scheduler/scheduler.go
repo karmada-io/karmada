@@ -131,7 +131,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	if opts.EnableSchedulerEstimator {
 		sched.schedulerEstimatorCache = estimatorclient.NewSchedulerEstimatorCache()
 		sched.schedulerEstimatorPort = opts.SchedulerEstimatorPort
-		sched.schedulerEstimatorWorker = util.NewAsyncWorker("scheduler-estimator", 0, nil, sched.reconcileEstimatorConnection)
+		sched.schedulerEstimatorWorker = util.NewAsyncWorker("scheduler-estimator", nil, sched.reconcileEstimatorConnection)
 		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, opts.SchedulerEstimatorTimeout.Duration)
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}

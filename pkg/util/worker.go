@@ -1,12 +1,11 @@
 package util
 
 import (
-	"time"
+	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -48,17 +47,14 @@ type asyncWorker struct {
 	reconcileFunc ReconcileFunc
 	// queue allowing parallel processing of resources.
 	queue workqueue.RateLimitingInterface
-	// interval is the interval for process object in the queue.
-	interval time.Duration
 }
 
 // NewAsyncWorker returns a asyncWorker which can process resource periodic.
-func NewAsyncWorker(name string, interval time.Duration, keyFunc KeyFunc, reconcileFunc ReconcileFunc) AsyncWorker {
+func NewAsyncWorker(name string, keyFunc KeyFunc, reconcileFunc ReconcileFunc) AsyncWorker {
 	return &asyncWorker{
 		keyFunc:       keyFunc,
 		reconcileFunc: reconcileFunc,
 		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
-		interval:      interval,
 	}
 }
 
@@ -113,7 +109,7 @@ func (w *asyncWorker) worker() {
 
 func (w *asyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
 	for i := 0; i < workerNumber; i++ {
-		go wait.Until(w.worker, w.interval, stopChan)
+		go wait.Until(w.worker, 0, stopChan)
 	}
 	// Ensure all goroutines are cleaned up when the stop channel closes
 	go func() {
