@@ -63,7 +63,7 @@ func (o *objectWatcherImpl) Create(cluster *clusterv1alpha1.Cluster, desireObj *
 
 	gvr, err := restmapper.GetGroupVersionResource(o.RESTMapper, desireObj.GroupVersionKind())
 	if err != nil {
-		klog.Errorf("Failed to create resource(%s/%s) as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), err)
+		klog.Errorf("Failed to create resource(%s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
 		return err
 	}
 
@@ -88,7 +88,7 @@ func (o *objectWatcherImpl) Create(cluster *clusterv1alpha1.Cluster, desireObj *
 
 			return o.Update(cluster, desireObj, existObj)
 		}
-		klog.Errorf("Failed to create resource(kind=%s, %s/%s), err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
+		klog.Errorf("Failed to create resource(kind=%s, %s/%s) in cluster %s, err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
 		return err
 	}
 	klog.Infof("Created resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name)
@@ -107,19 +107,19 @@ func (o *objectWatcherImpl) Update(cluster *clusterv1alpha1.Cluster, desireObj, 
 
 	gvr, err := restmapper.GetGroupVersionResource(o.RESTMapper, desireObj.GroupVersionKind())
 	if err != nil {
-		klog.Errorf("Failed to update resource(%s/%s) as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), err)
+		klog.Errorf("Failed to update resource(%s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
 		return err
 	}
 
 	err = RetainClusterFields(desireObj, clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) : %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
+		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
 		return err
 	}
 
 	resource, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(context.TODO(), desireObj, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("Failed to update resource(kind=%s, %s/%s), err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
+		klog.Errorf("Failed to update resource(kind=%s, %s/%s) in cluster %s, err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
 		return err
 	}
 
@@ -139,7 +139,7 @@ func (o *objectWatcherImpl) Delete(cluster *clusterv1alpha1.Cluster, desireObj *
 
 	gvr, err := restmapper.GetGroupVersionResource(o.RESTMapper, desireObj.GroupVersionKind())
 	if err != nil {
-		klog.Errorf("Failed to delete resource(%s/%s) as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), err)
+		klog.Errorf("Failed to delete resource(%s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
 		return err
 	}
 
@@ -148,7 +148,7 @@ func (o *objectWatcherImpl) Delete(cluster *clusterv1alpha1.Cluster, desireObj *
 		err = nil
 	}
 	if err != nil {
-		klog.Errorf("Failed to delete resource %v, err is %v ", desireObj.GetName(), err)
+		klog.Errorf("Failed to delete resource %v in cluster %s, err is %v ", desireObj.GetName(), cluster.Name, err)
 		return err
 	}
 	klog.Infof("Deleted resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name)
@@ -218,8 +218,8 @@ func (o *objectWatcherImpl) NeedsUpdate(cluster *clusterv1alpha1.Cluster, desire
 	// get resource version
 	version, exist := o.getVersionRecord(cluster.Name, desiredObj.GroupVersionKind().String()+"/"+desiredObj.GetNamespace()+"/"+desiredObj.GetName())
 	if !exist {
-		klog.Errorf("Failed to update resource %v/%v for the version record does not exist", desiredObj.GetNamespace(), desiredObj.GetName())
-		return false, fmt.Errorf("failed to update resource %v/%v for the version record does not exist", desiredObj.GetNamespace(), desiredObj.GetName())
+		klog.Errorf("Failed to update resource %v/%v in cluster %s for the version record does not exist", desiredObj.GetNamespace(), desiredObj.GetName(), cluster.Name)
+		return false, fmt.Errorf("failed to update resource %v/%v in cluster %s for the version record does not exist", desiredObj.GetNamespace(), desiredObj.GetName(), cluster.Name)
 	}
 
 	return objectNeedsUpdate(desiredObj, clusterObj, version), nil
