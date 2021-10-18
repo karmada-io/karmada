@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -101,10 +102,14 @@ func (c *Controller) syncWork(cluster *clusterv1alpha1.Cluster, work *workv1alph
 
 	err := c.syncToClusters(cluster, work)
 	if err != nil {
-		klog.Errorf("Failed to sync work(%s) to cluster(%s): %v", work.Name, cluster.Name, err)
+		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, cluster.Name, err)
+		klog.Errorf(msg)
+		c.EventRecorder.Event(work, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, msg)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
+	msg := fmt.Sprintf("Sync work (%s) to cluster(%s) successful.", work.Name, cluster.Name)
+	klog.V(4).Infof(msg)
+	c.EventRecorder.Event(work, corev1.EventTypeNormal, workv1alpha1.EventReasonSyncWorkSucceed, msg)
 	return controllerruntime.Result{}, nil
 }
 
