@@ -95,10 +95,6 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	if !cluster.DeletionTimestamp.IsZero() {
-		return controllerruntime.Result{}, nil
-	}
-
 	// start syncing status only when the finalizer is present on the given Cluster to
 	// avoid conflict with cluster controller.
 	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
