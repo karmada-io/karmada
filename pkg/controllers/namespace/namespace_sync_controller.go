@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sigs.k8s.io/kind/pkg/errors"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -81,7 +83,6 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		klog.Errorf("Failed to build work for namespace %s. Error: %v.", namespace.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
 	return controllerruntime.Result{}, nil
 }
 
@@ -98,6 +99,8 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 }
 
 func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv1alpha1.Cluster) error {
+	var errs []error
+	var errClusters []string
 	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(namespace)
 	if err != nil {
 		klog.Errorf("Failed to transform namespace %s. Error: %v", namespace.GetName(), err)
@@ -109,7 +112,8 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 		workNamespace, err := names.GenerateExecutionSpaceName(cluster.Name)
 		if err != nil {
 			klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
-			return err
+			errs = append(errs, err)
+			continue
 		}
 
 		workName := names.GenerateWorkName(namespaceObj.GetKind(), namespaceObj.GetName(), namespaceObj.GetNamespace())
@@ -126,9 +130,21 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 		util.MergeLabel(namespaceObj, workv1alpha1.WorkNameLabel, workName)
 
 		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, namespaceObj); err != nil {
-			return err
+			msg := fmt.Sprintf("Failed to sync origin namespace %s to work object(%s,%s). Error: %v.", namespace.GetName(), workName, workNamespace, err)
+			klog.Errorf(msg)
+			errClusters = append(errClusters, cluster.Name)
+			errs = append(errs, err)
 		}
 	}
+	if len(errs) > 0 {
+		err := errors.NewAggregate(errs)
+		msg := fmt.Sprintf("Failed to sync namespace %s to cluster (%s). Error: %v.", namespace.GetName(), strings.Join(errClusters, ","), err)
+		c.EventRecorder.Event(namespace, corev1.EventTypeWarning, workv1alpha1.EventReasonApplyWorkFailed, msg)
+		return errors.Errorf(msg)
+	}
+	msg := fmt.Sprintf("Sync namespace %s to work object successful.", namespace.GetName())
+	klog.V(4).Infof(msg)
+	c.EventRecorder.Event(namespace, corev1.EventTypeNormal, workv1alpha1.EventReasonApplyWorkSucceed, msg)
 	return nil
 }
 

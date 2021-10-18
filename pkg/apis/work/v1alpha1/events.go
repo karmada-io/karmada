@@ -7,4 +7,10 @@ const (
 
 	// EventReasonSyncWorkSucceed indicates that Sync work succeed.
 	EventReasonSyncWorkSucceed = "SyncSucceed"
+
+	// EventReasonApplyWorkFailed indicates that apply work failed.
+	EventReasonApplyWorkFailed = "ApplyFailed"
+
+	// EventReasonApplyWorkSucceed indicates that apply work succeed.
+	EventReasonApplyWorkSucceed = "ApplySucceed"
 )
