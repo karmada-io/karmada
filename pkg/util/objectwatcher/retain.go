@@ -27,11 +27,12 @@ func RetainClusterFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 	targetKind := desiredObj.GetKind()
 	// Pass the same ResourceVersion as in the cluster object for update operation, otherwise operation will fail.
 	desiredObj.SetResourceVersion(clusterObj.GetResourceVersion())
-
 	// Retain finalizers since they will typically be set by
 	// controllers in a member cluster.  It is still possible to set the fields
 	// via overrides.
 	desiredObj.SetFinalizers(clusterObj.GetFinalizers())
+	// Retain deletionGracePeriodSeconds because field `metadata.deletionGracePeriodSeconds` is immutable, otherwise operation will fail.
+	desiredObj.SetDeletionGracePeriodSeconds(clusterObj.GetDeletionGracePeriodSeconds())
 	// Merge annotations since they will typically be set by controllers in a member cluster
 	// and be set by user in karmada-controller-plane.
 	util.MergeAnnotations(desiredObj, clusterObj)

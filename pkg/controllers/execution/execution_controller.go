@@ -77,8 +77,8 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 				return controllerruntime.Result{Requeue: true}, err
 			}
+			return c.removeFinalizer(work)
 		}
-		return c.removeFinalizer(work)
 	}
 
 	return c.syncWork(cluster, work)
