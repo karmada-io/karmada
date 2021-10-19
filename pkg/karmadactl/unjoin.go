@@ -42,14 +42,12 @@ func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 		Run: func(cmd *cobra.Command, args []string) {
 			err := opts.Complete(args)
 			if err != nil {
-				klog.Errorf("Error: %v", err)
-				return
+				klog.Fatalf("Error: %v", err)
 			}
 
 			err = RunUnjoin(cmdOut, karmadaConfig, opts)
 			if err != nil {
-				klog.Errorf("Error: %v", err)
-				return
+				klog.Fatalf("Error: %v", err)
 			}
 		},
 	}

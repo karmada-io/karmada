@@ -52,18 +52,16 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 		Run: func(cmd *cobra.Command, args []string) {
 			err := opts.Complete(args)
 			if err != nil {
-				klog.Errorf("Error: %v", err)
-				return
+				klog.Fatalf("Error: %v", err)
 			}
 
 			if errs := opts.Validate(); len(errs) != 0 {
-				klog.Error(utilerrors.NewAggregate(errs).Error())
-				return
+				klog.Fatalf("Error: %v", utilerrors.NewAggregate(errs).Error())
 			}
 
 			err = RunCordonOrUncordon(cmdOut, desiredCordon, karmadaConfig, opts)
 			if err != nil {
-				klog.Errorf("Error: %v", err)
+				klog.Fatalf("Error: %v", err)
 				return
 			}
 		},

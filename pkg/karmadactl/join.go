@@ -70,19 +70,16 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *c
 			// Set default values
 			err := opts.Complete(args)
 			if err != nil {
-				klog.Errorf("Error: %v", err)
-				return
+				klog.Fatalf("Error: %v", err)
 			}
 
 			if errs := opts.Validate(); len(errs) != 0 {
-				klog.Error(utilerrors.NewAggregate(errs).Error())
-				return
+				klog.Fatalf("Error: %v", utilerrors.NewAggregate(errs).Error())
 			}
 
 			err = RunJoin(cmdOut, karmadaConfig, opts)
 			if err != nil {
-				klog.Errorf("Error: %v", err)
-				return
+				klog.Fatalf("Error: %v", err)
 			}
 		},
 	}
