@@ -21,6 +21,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -30,10 +31,11 @@ const ControllerName = "hpa-controller"
 
 // HorizontalPodAutoscalerController is to sync HorizontalPodAutoscaler.
 type HorizontalPodAutoscalerController struct {
-	client.Client                   // used to operate HorizontalPodAutoscaler resources.
-	DynamicClient dynamic.Interface // used to fetch arbitrary resources.
-	EventRecorder record.EventRecorder
-	RESTMapper    meta.RESTMapper
+	client.Client                                                // used to operate HorizontalPodAutoscaler resources.
+	DynamicClient   dynamic.Interface                            // used to fetch arbitrary resources from api server.
+	InformerManager informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	EventRecorder   record.EventRecorder
+	RESTMapper      meta.RESTMapper
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -121,10 +123,25 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 	}
 
 	// Kind in CrossVersionObjectReference is not equal to the kind in bindingName, need to get obj from cache.
-	unstructuredWorkLoad, err := c.DynamicClient.Resource(dynamicResource).Namespace(namespace).Get(context.TODO(), objRef.Name, metav1.GetOptions{})
+	workload, err := c.InformerManager.Lister(dynamicResource).ByNamespace(namespace).Get(objRef.Name)
 	if err != nil {
+		// fall back to call api server in case the cache has not been synchronized yet
+		klog.Warningf("Failed to get workload from cache, kind: %s, namespace: %s, name: %s. Error: %v. Fall back to call api server",
+			objRef.Kind, namespace, objRef.Name, err)
+		workload, err = c.DynamicClient.Resource(dynamicResource).Namespace(namespace).Get(context.TODO(),
+			objRef.Name, metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("Failed to get workload from api server, kind: %s, namespace: %s, name: %s. Error: %v",
+				objRef.Kind, namespace, objRef.Name, err)
+			return nil, err
+		}
+	}
+	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	if err != nil {
+		klog.Errorf("Failed to transform object(%s/%s): %v", namespace, objRef.Name, err)
 		return nil, err
 	}
+	unstructuredWorkLoad := unstructured.Unstructured{Object: uncastObj}
 	bindingName := names.GenerateBindingName(unstructuredWorkLoad.GetKind(), unstructuredWorkLoad.GetName())
 	binding := &workv1alpha2.ResourceBinding{}
 	namespacedName := types.NamespacedName{

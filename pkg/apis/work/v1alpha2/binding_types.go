@@ -135,6 +135,12 @@ type AggregatedStatusItem struct {
 	AppliedMessage string `json:"appliedMessage,omitempty"`
 }
 
+// Conditions definition
+const (
+	// Scheduled represents the condition that the ResourceBinding or ClusterResourceBinding has been scheduled.
+	Scheduled string = "Scheduled"
+)
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ResourceBindingList contains a list of ResourceBinding.

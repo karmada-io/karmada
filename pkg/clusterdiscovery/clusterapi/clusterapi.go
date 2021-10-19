@@ -3,8 +3,7 @@ package clusterapi
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"time"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,7 +51,7 @@ func (d *ClusterDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	d.EventHandler = informermanager.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker("cluster-api cluster detector", time.Second, ClusterWideKeyFunc, d.Reconcile)
+	d.Processor = util.NewAsyncWorker("cluster-api cluster detector", ClusterWideKeyFunc, d.Reconcile)
 	d.Processor.Run(1, d.stopCh)
 	d.discoveryCluster()
 
@@ -200,7 +199,7 @@ func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 
 func generateKubeconfigFile(clusterName string, kubeconfigData []byte) (string, error) {
 	kubeconfigPath := fmt.Sprintf("/etc/%s.kubeconfig", clusterName)
-	err := ioutil.WriteFile(kubeconfigPath, kubeconfigData, 0600)
+	err := os.WriteFile(kubeconfigPath, kubeconfigData, 0600)
 	if err != nil {
 		klog.Errorf("Failed to write File %s: %v", kubeconfigPath, err)
 		return "", err

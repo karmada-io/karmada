@@ -130,12 +130,11 @@ func (c *Controller) removeCluster(cluster *clusterv1alpha1.Cluster) (controller
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	// make sure the given execution space has been deleted
-	existES, err := c.ensureRemoveExecutionSpace(cluster)
+	exist, err := c.ExecutionSpaceExistForCluster(cluster.Name)
 	if err != nil {
 		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
 		return controllerruntime.Result{Requeue: true}, err
-	} else if existES {
+	} else if exist {
 		return controllerruntime.Result{Requeue: true}, fmt.Errorf("requeuing operation until the execution space %v deleted, ", cluster.Name)
 	}
 
@@ -166,18 +165,18 @@ func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 	return nil
 }
 
-// ensureRemoveExecutionSpace makes sure the given execution space has been deleted
-func (c *Controller) ensureRemoveExecutionSpace(cluster *clusterv1alpha1.Cluster) (bool, error) {
-	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
+// ExecutionSpaceExistForCluster determine whether the execution space exists in the cluster
+func (c *Controller) ExecutionSpaceExistForCluster(clusterName string) (bool, error) {
+	executionSpaceName, err := names.GenerateExecutionSpaceName(clusterName)
 	if err != nil {
-		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
+		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", clusterName, err)
 		return false, err
 	}
 
 	executionSpaceObj := &corev1.Namespace{}
 	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if apierrors.IsNotFound(err) {
-		klog.V(2).Infof("Removed execution space(%s)", executionSpaceName)
+		klog.V(2).Infof("execution space(%s) no longer exists", executionSpaceName)
 		return false, nil
 	}
 	if err != nil {
