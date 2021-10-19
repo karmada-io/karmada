@@ -498,8 +498,11 @@ function util::add_routes() {
   IFS=$'\n'
   for n in $(kind get nodes --name "${1}"); do
     for r in $routes; do
-      echo "exec cmd in docker $n $r"
-      eval "docker exec $n $r"
+    	if [[ $r =~ .*[0-9]{1,}.* ]]
+	    then
+	        echo "exec cmd in docker $n $r"
+                eval "docker exec $n $r"
+      	fi
     done
   done
   unset IFS
