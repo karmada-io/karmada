@@ -36,6 +36,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // ScheduleType defines the schedule type of a binding object should be performed.
@@ -811,7 +812,7 @@ func (s *Scheduler) getTypeFromResourceBindings(ns, name string) ScheduleType {
 		return Unknown
 	}
 
-	if len(resourceBinding.Spec.Clusters) == 0 {
+	if !helper.IsBindingReady(&resourceBinding.Status) {
 		return FirstSchedule
 	}
 
@@ -842,7 +843,7 @@ func (s *Scheduler) getTypeFromClusterResourceBindings(name string) ScheduleType
 		return Unknown
 	}
 
-	if len(binding.Spec.Clusters) == 0 {
+	if !helper.IsBindingReady(&binding.Status) {
 		return FirstSchedule
 	}
 

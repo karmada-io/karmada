@@ -75,7 +75,7 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 					if index > 2 {
 						break
 					}
-					fmt.Printf("setting provider and region for cluster %v", cluster)
+					fmt.Printf("setting provider and region for cluster %v\n", cluster)
 					gomega.Eventually(func() error {
 						clusterObj := &clusterv1alpha1.Cluster{}
 						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
