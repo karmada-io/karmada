@@ -139,6 +139,10 @@ type AggregatedStatusItem struct {
 const (
 	// Scheduled represents the condition that the ResourceBinding or ClusterResourceBinding has been scheduled.
 	Scheduled string = "Scheduled"
+
+	// FullyApplied represents the condition that the resource referencing by ResourceBinding or ClusterResourceBinding
+	// has been applied to all scheduled clusters.
+	FullyApplied string = "FullyApplied"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
