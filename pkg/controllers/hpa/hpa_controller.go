@@ -169,7 +169,7 @@ func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
 	for i := range workList.Items {
 		work := &workList.Items[i]
 		if workName == work.Name {
-			if err := c.Client.Delete(context.TODO(), work); err != nil {
+			if err := c.Client.Delete(context.TODO(), work); err != nil && !apierrors.IsNotFound(err) {
 				klog.Errorf("Failed to delete work %s/%s: %v.", work.Namespace, work.Name, err)
 				return err
 			}

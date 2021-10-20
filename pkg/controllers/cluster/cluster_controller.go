@@ -161,7 +161,7 @@ func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 			Name: executionSpaceName,
 		},
 	}
-	if err := c.Client.Delete(context.TODO(), executionSpaceObj); err != nil {
+	if err := c.Client.Delete(context.TODO(), executionSpaceObj); err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Error while deleting namespace %s: %s", executionSpaceName, err)
 		return err
 	}
