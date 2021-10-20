@@ -34,6 +34,13 @@ func (in *ClusterAffinity) DeepCopyInto(out *ClusterAffinity) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.PropagatePriority != nil {
+		in, out := &in.PropagatePriority, &out.PropagatePriority
+		*out = make([]corev1.PreferredSchedulingTerm, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

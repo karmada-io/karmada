@@ -165,6 +165,107 @@ spec:
                               only "value". The requirements are ANDed.
                             type: object
                         type: object
+                      propagatePriority:
+                        description: PropagatePriority describes propagating preference
+                          priorities under the specified constraints. Clusters are
+                          descending sorted by weight and scheduler will try to propagate
+                          to the preferred clusters under the premise of constraints,
+                          e.g., SpreadConstraints, AvailableReplicas, etc. Note that
+                          the clusters who have more than one priority will only take
+                          effect with the greater one.
+                        items:
+                          description: An empty preferred scheduling term matches
+                            all objects with implicit weight 0 (i.e. it's a no-op).
+                            A null preferred scheduling term matches no objects (i.e.
+                            is also a no-op).
+                          properties:
+                            preference:
+                              description: A node selector term, associated with the
+                                corresponding weight.
+                              properties:
+                                matchExpressions:
+                                  description: A list of node selector requirements
+                                    by node's labels.
+                                  items:
+                                    description: A node selector requirement is a
+                                      selector that contains values, a key, and an
+                                      operator that relates the key and values.
+                                    properties:
+                                      key:
+                                        description: The label key that the selector
+                                          applies to.
+                                        type: string
+                                      operator:
+                                        description: Represents a key's relationship
+                                          to a set of values. Valid operators are
+                                          In, NotIn, Exists, DoesNotExist. Gt, and
+                                          Lt.
+                                        type: string
+                                      values:
+                                        description: An array of string values. If
+                                          the operator is In or NotIn, the values
+                                          array must be non-empty. If the operator
+                                          is Exists or DoesNotExist, the values array
+                                          must be empty. If the operator is Gt or
+                                          Lt, the values array must have a single
+                                          element, which will be interpreted as an
+                                          integer. This array is replaced during a
+                                          strategic merge patch.
+                                        items:
+                                          type: string
+                                        type: array
+                                    required:
+                                    - key
+                                    - operator
+                                    type: object
+                                  type: array
+                                matchFields:
+                                  description: A list of node selector requirements
+                                    by node's fields.
+                                  items:
+                                    description: A node selector requirement is a
+                                      selector that contains values, a key, and an
+                                      operator that relates the key and values.
+                                    properties:
+                                      key:
+                                        description: The label key that the selector
+                                          applies to.
+                                        type: string
+                                      operator:
+                                        description: Represents a key's relationship
+                                          to a set of values. Valid operators are
+                                          In, NotIn, Exists, DoesNotExist. Gt, and
+                                          Lt.
+                                        type: string
+                                      values:
+                                        description: An array of string values. If
+                                          the operator is In or NotIn, the values
+                                          array must be non-empty. If the operator
+                                          is Exists or DoesNotExist, the values array
+                                          must be empty. If the operator is Gt or
+                                          Lt, the values array must have a single
+                                          element, which will be interpreted as an
+                                          integer. This array is replaced during a
+                                          strategic merge patch.
+                                        items:
+                                          type: string
+                                        type: array
+                                    required:
+                                    - key
+                                    - operator
+                                    type: object
+                                  type: array
+                              type: object
+                            weight:
+                              description: Weight associated with matching the corresponding
+                                nodeSelectorTerm, in the range 1-100.
+                              format: int32
+                              type: integer
+                          required:
+                          - preference
+                          - weight
+                          type: object
+                        type: array
                     type: object
                   clusterTolerations:
                     description: ClusterTolerations represents the tolerations.
@@ -239,9 +340,9 @@ spec:
                         type: string
                       weightPreference:
                         description: WeightPreference describes weight for each cluster
-                          or for each group of cluster If ReplicaDivisionPreference
+                          or for each group of cluster. If ReplicaDivisionPreference
                           is set to "Weighted", and WeightPreference is not set, scheduler
-                          will weight all clusters the same.
+                          will weight all clusters by average.
                         properties:
                           dynamicWeight:
                             description: DynamicWeight specifies the factor to generates
@@ -371,6 +472,121 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                    propagatePriority:
+                                      description: PropagatePriority describes propagating
+                                        preference priorities under the specified
+                                        constraints. Clusters are descending sorted
+                                        by weight and scheduler will try to propagate
+                                        to the preferred clusters under the premise
+                                        of constraints, e.g., SpreadConstraints, AvailableReplicas,
+                                        etc. Note that the clusters who have more
+                                        than one priority will only take effect with
+                                        the greater one.
+                                      items:
+                                        description: An empty preferred scheduling
+                                          term matches all objects with implicit weight
+                                          0 (i.e. it's a no-op). A null preferred
+                                          scheduling term matches no objects (i.e.
+                                          is also a no-op).
+                                        properties:
+                                          preference:
+                                            description: A node selector term, associated
+                                              with the corresponding weight.
+                                            properties:
+                                              matchExpressions:
+                                                description: A list of node selector
+                                                  requirements by node's labels.
+                                                items:
+                                                  description: A node selector requirement
+                                                    is a selector that contains values,
+                                                    a key, and an operator that relates
+                                                    the key and values.
+                                                  properties:
+                                                    key:
+                                                      description: The label key that
+                                                        the selector applies to.
+                                                      type: string
+                                                    operator:
+                                                      description: Represents a key's
+                                                        relationship to a set of values.
+                                                        Valid operators are In, NotIn,
+                                                        Exists, DoesNotExist. Gt,
+                                                        and Lt.
+                                                      type: string
+                                                    values:
+                                                      description: An array of string
+                                                        values. If the operator is
+                                                        In or NotIn, the values array
+                                                        must be non-empty. If the
+                                                        operator is Exists or DoesNotExist,
+                                                        the values array must be empty.
+                                                        If the operator is Gt or Lt,
+                                                        the values array must have
+                                                        a single element, which will
+                                                        be interpreted as an integer.
+                                                        This array is replaced during
+                                                        a strategic merge patch.
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchFields:
+                                                description: A list of node selector
+                                                  requirements by node's fields.
+                                                items:
+                                                  description: A node selector requirement
+                                                    is a selector that contains values,
+                                                    a key, and an operator that relates
+                                                    the key and values.
+                                                  properties:
+                                                    key:
+                                                      description: The label key that
+                                                        the selector applies to.
+                                                      type: string
+                                                    operator:
+                                                      description: Represents a key's
+                                                        relationship to a set of values.
+                                                        Valid operators are In, NotIn,
+                                                        Exists, DoesNotExist. Gt,
+                                                        and Lt.
+                                                      type: string
+                                                    values:
+                                                      description: An array of string
+                                                        values. If the operator is
+                                                        In or NotIn, the values array
+                                                        must be non-empty. If the
+                                                        operator is Exists or DoesNotExist,
+                                                        the values array must be empty.
+                                                        If the operator is Gt or Lt,
+                                                        the values array must have
+                                                        a single element, which will
+                                                        be interpreted as an integer.
+                                                        This array is replaced during
+                                                        a strategic merge patch.
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                            type: object
+                                          weight:
+                                            description: Weight associated with matching
+                                              the corresponding nodeSelectorTerm,
+                                              in the range 1-100.
+                                            format: int32
+                                            type: integer
+                                        required:
+                                        - preference
+                                        - weight
+                                        type: object
+                                      type: array
                                   type: object
                                 weight:
                                   description: Weight expressing the preference to

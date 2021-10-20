@@ -197,6 +197,13 @@ type ClusterAffinity struct {
 	// ExcludedClusters is the list of clusters to be ignored.
 	// +optional
 	ExcludeClusters []string `json:"exclude,omitempty"`
+
+	// PropagatePriority describes propagating preference priorities under the specified constraints.
+	// Clusters are descending sorted by weight and scheduler will try to propagate to the preferred
+	// clusters under the premise of constraints, e.g., SpreadConstraints, AvailableReplicas, etc.
+	// Note that the clusters who have more than one priority will only take effect with the greater one.
+	// +optional
+	PropagatePriority []corev1.PreferredSchedulingTerm `json:"propagatePriority,omitempty"`
 }
 
 // ReplicaSchedulingType describes scheduling methods for the "replicas" in a resource.
@@ -242,8 +249,9 @@ type ReplicaSchedulingStrategy struct {
 	// +optional
 	ReplicaDivisionPreference ReplicaDivisionPreference `json:"replicaDivisionPreference,omitempty"`
 
-	// WeightPreference describes weight for each cluster or for each group of cluster
-	// If ReplicaDivisionPreference is set to "Weighted", and WeightPreference is not set, scheduler will weight all clusters the same.
+	// WeightPreference describes weight for each cluster or for each group of cluster.
+	// If ReplicaDivisionPreference is set to "Weighted", and WeightPreference is not set,
+	// scheduler will weight all clusters by average.
 	// +optional
 	WeightPreference *ClusterPreferences `json:"weightPreference,omitempty"`
 }

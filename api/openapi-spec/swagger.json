@@ -14546,6 +14546,14 @@
         "labelSelector": {
           "description": "LabelSelector is a filter to select member clusters by labels. If non-nil and non-empty, only the clusters match this filter will be selected.",
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector"
+        },
+        "propagatePriority": {
+          "description": "PropagatePriority describes propagating preference priorities under the specified constraints. Clusters are descending sorted by weight and scheduler will try to propagate to the preferred clusters under the premise of constraints, e.g., SpreadConstraints, AvailableReplicas, etc. Note that the clusters who have more than one priority will only take effect with the greater one.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/io.k8s.api.core.v1.PreferredSchedulingTerm"
+          }
         }
       }
     },
@@ -15262,7 +15270,7 @@
           "type": "string"
         },
         "weightPreference": {
-          "description": "WeightPreference describes weight for each cluster or for each group of cluster If ReplicaDivisionPreference is set to \"Weighted\", and WeightPreference is not set, scheduler will weight all clusters the same.",
+          "description": "WeightPreference describes weight for each cluster or for each group of cluster. If ReplicaDivisionPreference is set to \"Weighted\", and WeightPreference is not set, scheduler will weight all clusters by average.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterPreferences"
         }
       }
@@ -16297,6 +16305,27 @@
             "TCP",
             "UDP"
           ]
+        }
+      }
+    },
+    "io.k8s.api.core.v1.PreferredSchedulingTerm": {
+      "description": "An empty preferred scheduling term matches all objects with implicit weight 0 (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).",
+      "type": "object",
+      "required": [
+        "weight",
+        "preference"
+      ],
+      "properties": {
+        "preference": {
+          "description": "A node selector term, associated with the corresponding weight.",
+          "default": {},
+          "$ref": "#/definitions/io.k8s.api.core.v1.NodeSelectorTerm"
+        },
+        "weight": {
+          "description": "Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.",
+          "type": "integer",
+          "format": "int32",
+          "default": 0
         }
       }
     },

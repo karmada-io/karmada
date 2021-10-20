@@ -1663,11 +1663,25 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"propagatePriority": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PropagatePriority describes propagating preference priorities under the specified constraints. Clusters are descending sorted by weight and scheduler will try to propagate to the preferred clusters under the premise of constraints, e.g., SpreadConstraints, AvailableReplicas, etc. Note that the clusters who have more than one priority will only take effect with the greater one.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.PreferredSchedulingTerm"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector", "k8s.io/api/core/v1.PreferredSchedulingTerm", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -2792,7 +2806,7 @@ func schema_pkg_apis_policy_v1alpha1_ReplicaSchedulingStrategy(ref common.Refere
 					},
 					"weightPreference": {
 						SchemaProps: spec.SchemaProps{
-							Description: "WeightPreference describes weight for each cluster or for each group of cluster If ReplicaDivisionPreference is set to \"Weighted\", and WeightPreference is not set, scheduler will weight all clusters the same.",
+							Description: "WeightPreference describes weight for each cluster or for each group of cluster. If ReplicaDivisionPreference is set to \"Weighted\", and WeightPreference is not set, scheduler will weight all clusters by average.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPreferences"),
 						},
 					},
