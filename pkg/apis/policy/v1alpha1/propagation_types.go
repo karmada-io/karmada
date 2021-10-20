@@ -168,7 +168,7 @@ type ClusterAffinity struct {
 	ExcludeClusters []string `json:"exclude,omitempty"`
 }
 
-// ReplicaSchedulingType describes scheduling methods for the "replicas" in a resouce.
+// ReplicaSchedulingType describes scheduling methods for the "replicas" in a resource.
 type ReplicaSchedulingType string
 
 const (

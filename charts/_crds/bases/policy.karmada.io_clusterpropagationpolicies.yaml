@@ -244,6 +244,13 @@ spec:
                           is set to "Weighted", and WeightPreference is not set, scheduler
                           will weight all clusters the same.
                         properties:
+                          dynamicWeight:
+                            description: DynamicWeight specifies the factor to generates
+                              dynamic weight list. If specified, StaticWeightList
+                              will be ignored.
+                            enum:
+                            - AvailableReplicas
+                            type: string
                           staticWeightList:
                             description: StaticWeightList defines the static cluster
                               weight.
