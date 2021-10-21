@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -213,7 +212,7 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 		}
 
 		if err := g.getSecretTokenInKarmada(karmadaclient, g.Clusters[idx], clusterInfos); err != nil {
-			return errors.Wrap(err, "Method getSecretTokenInKarmada get Secret info in karmada failed, err is")
+			return fmt.Errorf("Method getSecretTokenInKarmada get Secret info in karmada failed, err is: %w", err)
 		}
 		f := getFactory(g.Clusters[idx], clusterInfos)
 		go g.getObjInfo(&wg, &mux, f, g.Clusters[idx], &objs, &allErrs, args)
@@ -396,11 +395,11 @@ type ClusterInfo struct {
 func clusterInfoInit(g *CommandGetOptions, karmadaConfig KarmadaConfig, clusterInfos map[string]*ClusterInfo) (*rest.Config, error) {
 	karmadaclient, err := karmadaConfig.GetRestConfig(g.KarmadaContext, g.KubeConfig)
 	if err != nil {
-		return nil, errors.Wrap(err, "Func GetRestConfig get karmada client failed, err is")
+		return nil, fmt.Errorf("Func GetRestConfig get karmada client failed, err is: %w", err)
 	}
 
 	if err := getClusterInKarmada(karmadaclient, clusterInfos); err != nil {
-		return nil, errors.Wrap(err, "Method getClusterInKarmada get cluster info in karmada failed, err is")
+		return nil, fmt.Errorf("Method getClusterInKarmada get cluster info in karmada failed, err is: %w", err)
 	}
 
 	if err := getRBInKarmada(g.Namespace, karmadaclient); err != nil {
