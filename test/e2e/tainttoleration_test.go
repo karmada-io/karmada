@@ -7,13 +7,13 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -45,21 +45,14 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 			ClusterTolerations: clusterTolerations,
 		})
 
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.BeforeEach(func() {
 			ginkgo.By("adding taints to clusters", func() {
-				for _, clusterName := range clusterNames {
+				for _, clusterName := range framework.ClusterNames() {
 					taints := constructAddedTaints(tolerationKey, clusterName)
 
 					gomega.Eventually(func() bool {
@@ -82,15 +75,8 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
 			ginkgo.By("removing taints in cluster", func() {
-				for _, clusterName := range clusterNames {
+				for _, clusterName := range framework.ClusterNames() {
 					gomega.Eventually(func() bool {
 						clusterObj := &clusterv1alpha1.Cluster{}
 						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
@@ -111,10 +97,8 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 		})
 
 		ginkgo.It("deployment with cluster tolerations testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deployment.Namespace, deployment.Name), func() {
-				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By(fmt.Sprintf("check if deployment(%s/%s) only scheduled to tolerated cluster(%s)", deploymentNamespace, deploymentName, tolerationValue), func() {
 				targetClusterNames, err := getTargetClusterNames(deployment)
@@ -123,10 +107,8 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 				gomega.Expect(targetClusterNames[0] == tolerationValue).Should(gomega.BeTrue())
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

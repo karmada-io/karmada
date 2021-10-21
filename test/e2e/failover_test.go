@@ -22,6 +22,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
@@ -65,33 +66,15 @@ var _ = ginkgo.Describe("failover testing", func() {
 			},
 		})
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("deployment failover testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				fmt.Printf("MaxGroups= %v, MinGroups= %v\n", maxGroups, minGroups)
-				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
 
-				fmt.Printf("View the results of the initial scheduling")
-				targetClusterNames, _ = getTargetClusterNames(deployment)
-				for _, clusterName := range targetClusterNames {
-					fmt.Printf("%s is the target cluster\n", clusterName)
-				}
-			})
+			fmt.Printf("View the results of the initial scheduling")
+			targetClusterNames, _ = getTargetClusterNames(deployment)
+			for _, clusterName := range targetClusterNames {
+				fmt.Printf("%s is the target cluster\n", clusterName)
+			}
 
 			ginkgo.By("set one cluster condition status to false", func() {
 				temp := numOfFailedClusters
@@ -131,7 +114,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 					// the target cluster should be overwritten to another available cluster
 					gomega.Expect(isDisabled(targetClusterName, disabledClusters)).Should(gomega.BeFalse())
 
-					clusterClient := getClusterClient(targetClusterName)
+					clusterClient := framework.GetClusterClient(targetClusterName)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Check whether deployment(%s/%s) is present on cluster(%s)", deploymentNamespace, deploymentName, targetClusterName)
@@ -185,10 +168,8 @@ var _ = ginkgo.Describe("failover testing", func() {
 				}
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })
@@ -280,7 +261,7 @@ func isDisabled(clusterName string, disabledClusters []*clusterv1alpha1.Cluster)
 
 // get the API endpoint of a specific cluster
 func getClusterAPIEndpoint(clusterName string) (apiEndpoint string) {
-	for _, cluster := range clusters {
+	for _, cluster := range framework.Clusters() {
 		if cluster.Name == clusterName {
 			apiEndpoint = cluster.Spec.APIEndpoint
 			fmt.Printf("original API endpoint of the cluster %s is %s\n", clusterName, apiEndpoint)

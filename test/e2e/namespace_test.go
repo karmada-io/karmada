@@ -16,6 +16,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -39,8 +40,8 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 
 		ginkgo.It("namespace should be propagated to member clusters", func() {
 			ginkgo.By("check if namespace appear in member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
@@ -70,8 +71,8 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 			})
 
 			ginkgo.By("check if namespace appear in member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
@@ -97,8 +98,8 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 			})
 
 			ginkgo.By(fmt.Sprintf("namespace(%s) shoud be disappeared", namespaceName), func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
