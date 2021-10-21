@@ -20,8 +20,9 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
-	"github.com/karmada-io/karmada/test/helper"
+	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 // failover testing is used to test the rescheduling situation when some initially scheduled clusters fail
@@ -32,7 +33,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
 		deploymentNamespace := testNamespace
 		deploymentName := policyName
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
+		deployment := testhelper.NewDeployment(deploymentNamespace, deploymentName)
 		maxGroups := 1
 		minGroups := 1
 		numOfFailedClusters := 1
@@ -41,7 +42,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 		var targetClusterNames []string
 
 		// set MaxGroups=MinGroups=1, label is location=CHN.
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: deployment.APIVersion,
 				Kind:       deployment.Kind,
@@ -250,7 +251,7 @@ func getTargetClusterNames(deployment *appsv1.Deployment) (targetClusterNames []
 			return false, err
 		}
 
-		if len(binding.Spec.Clusters) == 0 {
+		if !helper.IsBindingReady(&binding.Status) {
 			klog.Infof("The ResourceBinding(%s/%s) hasn't been scheduled.", binding.Namespace, binding.Name)
 			return false, nil
 		}
