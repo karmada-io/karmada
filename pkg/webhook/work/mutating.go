@@ -118,6 +118,7 @@ func removeIrrelevantField(workload *unstructured.Unstructured) error {
 		clusterIP, exist, _ := unstructured.NestedString(workload.Object, "spec", "clusterIP")
 		if exist && clusterIP != corev1.ClusterIPNone {
 			unstructured.RemoveNestedField(workload.Object, "spec", "clusterIP")
+			unstructured.RemoveNestedField(workload.Object, "spec", "clusterIPs")
 		}
 	}
 
