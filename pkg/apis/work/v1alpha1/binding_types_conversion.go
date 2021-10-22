@@ -88,8 +88,6 @@ func ConvertBindingStatusToHub(src *ResourceBindingStatus, dst *workv1alpha2.Res
 // ConvertBindingSpecFromHub converts ResourceBindingSpec from the Hub version.
 // This function intends to be shared by ResourceBinding and ClusterResourceBinding.
 func ConvertBindingSpecFromHub(src *workv1alpha2.ResourceBindingSpec, dst *ResourceBindingSpec) {
-	// TODO(RainbowMango): currently v1alpha1 has introduced break changes at PR#637 and PR#657, we can revert it back before
-	// next release and update the hub version to v1alpha2.
 	dst.Resource.APIVersion = src.Resource.APIVersion
 	dst.Resource.Kind = src.Resource.Kind
 	dst.Resource.Namespace = src.Resource.Namespace
