@@ -113,7 +113,7 @@ func (c *Controller) syncCluster(cluster *clusterv1alpha1.Cluster) (controllerru
 	// create execution space
 	err := c.createExecutionSpace(cluster)
 	if err != nil {
-		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", clusterv1alpha1.EventReasonRemoveExecutionSpaceFailed), err.Error())
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", clusterv1alpha1.EventReasonCreateExecutionSpaceFailed), err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
