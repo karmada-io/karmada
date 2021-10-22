@@ -9,5 +9,8 @@ source "${REPO_ROOT}"/hack/util.sh
 
 util::verify_go_version
 
-echo "vendor: running 'go mod vendor'"
+echo "running 'go mod tidy'"
+go mod tidy
+
+echo "running 'go mod vendor'"
 go mod vendor
