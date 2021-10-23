@@ -37,11 +37,11 @@ func WaitDeploymentPresentOnClusters(clusters []string, namespace, name string) 
 			gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 			klog.Infof("Waiting for deployment present on cluster(%s)", clusterName)
-			gomega.Eventually(func() bool {
+			gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 				_, err := clusterClient.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				g.Expect(err).NotTo(gomega.HaveOccurred())
 
-				return true
+				return true, nil
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 		}
 	})

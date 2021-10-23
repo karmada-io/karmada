@@ -55,10 +55,10 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 				for _, clusterName := range framework.ClusterNames() {
 					taints := constructAddedTaints(tolerationKey, clusterName)
 
-					gomega.Eventually(func() bool {
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 						clusterObj := &clusterv1alpha1.Cluster{}
 						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						clusterObj.Spec.Taints = append(clusterObj.Spec.Taints, taints...)
 						klog.Infof("update taints(%s) of cluster(%s)", clusterObj.Spec.Taints, clusterName)
@@ -66,9 +66,9 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 						err = controlPlaneClient.Update(context.TODO(), clusterObj)
 						if err != nil {
 							klog.Errorf("Failed to update cluster(%s), err: %v", clusterName, err)
-							return false
+							return false, err
 						}
-						return true
+						return true, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				}
 			})
@@ -77,10 +77,10 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 		ginkgo.AfterEach(func() {
 			ginkgo.By("removing taints in cluster", func() {
 				for _, clusterName := range framework.ClusterNames() {
-					gomega.Eventually(func() bool {
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 						clusterObj := &clusterv1alpha1.Cluster{}
 						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						clusterObj.Spec.Taints = removeTargetFromSource(clusterObj.Spec.Taints, constructAddedTaints(tolerationKey, clusterName))
 						klog.Infof("update taints(%s) of cluster(%s)", clusterObj.Spec.Taints, clusterName)
@@ -88,9 +88,9 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 						err = controlPlaneClient.Update(context.TODO(), clusterObj)
 						if err != nil {
 							klog.Errorf("Failed to update cluster(%s), err: %v", clusterName, err)
-							return false
+							return false, err
 						}
-						return true
+						return true, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				}
 			})

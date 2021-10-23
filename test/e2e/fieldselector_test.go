@@ -69,17 +69,18 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 						break
 					}
 					fmt.Printf("setting provider and region for cluster %v\n", cluster)
-					gomega.Eventually(func() error {
+					gomega.Eventually(func(g gomega.Gomega) {
 						clusterObj := &clusterv1alpha1.Cluster{}
 						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						originalClusterProviderInfo[cluster] = clusterObj.Spec.Provider
 						originalClusterRegionInfo[cluster] = clusterObj.Spec.Region
 						clusterObj.Spec.Provider = providerMap[index]
 						clusterObj.Spec.Region = regionMap[index]
-						return controlPlaneClient.Update(context.TODO(), clusterObj)
-					}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+						err = controlPlaneClient.Update(context.TODO(), clusterObj)
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 				}
 			})
 		})
@@ -91,15 +92,16 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 						break
 					}
 
-					gomega.Eventually(func() error {
+					gomega.Eventually(func(g gomega.Gomega) {
 						clusterObj := &clusterv1alpha1.Cluster{}
 						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						clusterObj.Spec.Provider = originalClusterProviderInfo[cluster]
 						clusterObj.Spec.Region = originalClusterRegionInfo[cluster]
-						return controlPlaneClient.Update(context.TODO(), clusterObj)
-					}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+						err = controlPlaneClient.Update(context.TODO(), clusterObj)
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 				}
 			})
 		})
