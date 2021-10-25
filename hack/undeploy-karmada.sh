@@ -38,5 +38,5 @@ kubectl delete ns karmada-system --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
 # clear configs about karmada-apiserver in kubeconfig
 kubectl config delete-cluster karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
-kubectl config delete-user karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
+kubectl config unset users.karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 kubectl config delete-context karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
