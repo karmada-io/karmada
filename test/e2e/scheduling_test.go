@@ -304,13 +304,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					gomega.Eventually(func() *int32 {
+					gomega.Eventually(func(g gomega.Gomega) (*int32, error) {
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, *deployment.Spec.Replicas))
-						return memberDeployment.Spec.Replicas
+						return memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(deployment.Spec.Replicas))
 				}
 			})
@@ -352,11 +352,10 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					gomega.Eventually(func() bool {
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 						_, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-						return true
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+						return true, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				}
 			})
@@ -367,13 +366,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					gomega.Eventually(func() *int32 {
+					gomega.Eventually(func(g gomega.Gomega) (*int32, error) {
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, *deployment.Spec.Replicas))
-						return memberDeployment.Spec.Replicas
+						return memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(deployment.Spec.Replicas))
 				}
 			})
@@ -420,13 +419,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					gomega.Eventually(func() int32 {
+					gomega.Eventually(func(g gomega.Gomega) (int32, error) {
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
-						return *memberDeployment.Spec.Replicas
+						return *memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 				}
 			})
@@ -476,13 +475,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					gomega.Eventually(func() int32 {
+					gomega.Eventually(func(g gomega.Gomega) (int32, error) {
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
-						return *memberDeployment.Spec.Replicas
+						return *memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 				}
 			})
@@ -547,13 +546,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					gomega.Eventually(func() int32 {
+					gomega.Eventually(func(g gomega.Gomega) (int32, error) {
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
-						return *memberDeployment.Spec.Replicas
+						return *memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 				}
 			})
@@ -637,13 +636,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					clusterClient := framework.GetClusterClient(cluster.Name)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					gomega.Eventually(func() int32 {
+					gomega.Eventually(func(g gomega.Gomega) (int32, error) {
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
 						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
-						return *memberDeployment.Spec.Replicas
+						return *memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 				}
 			})

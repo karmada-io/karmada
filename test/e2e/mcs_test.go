@@ -234,17 +234,17 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Wait Service(%s/%s)'s EndpointSlice exist in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName), func() {
-				gomega.Eventually(func() int {
+				gomega.Eventually(func(g gomega.Gomega) (int, error) {
 					endpointSlices, err := exportClusterClient.DiscoveryV1beta1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.Set{discoveryv1beta1.LabelServiceName: demoService.Name}.AsSelector().String(),
 					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).NotTo(gomega.HaveOccurred())
 
 					epNums := 0
 					for _, slice := range endpointSlices.Items {
 						epNums += len(slice.Endpoints)
 					}
-					return epNums
+					return epNums, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
 			})
 		})
@@ -276,17 +276,17 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, exportPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlices collected to namespace(%s) in controller-plane", demoService.Namespace), func() {
-				gomega.Eventually(func() int {
+				gomega.Eventually(func(g gomega.Gomega) (int, error) {
 					endpointSlices, err := kubeClient.DiscoveryV1beta1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.Set{discoveryv1beta1.LabelServiceName: names.GenerateDerivedServiceName(demoService.Name)}.AsSelector().String(),
 					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).NotTo(gomega.HaveOccurred())
 
 					epNums := 0
 					for _, slice := range endpointSlices.Items {
 						epNums += len(slice.Endpoints)
 					}
-					return epNums
+					return epNums, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
 			})
 
@@ -312,17 +312,17 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlices have been imported to %s cluster", serviceImportClusterName), func() {
-				gomega.Eventually(func() int {
+				gomega.Eventually(func(g gomega.Gomega) (int, error) {
 					endpointSlices, err := importClusterClient.DiscoveryV1beta1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.Set{discoveryv1beta1.LabelServiceName: names.GenerateDerivedServiceName(demoService.Name)}.AsSelector().String(),
 					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).NotTo(gomega.HaveOccurred())
 
 					epNums := 0
 					for _, slice := range endpointSlices.Items {
 						epNums += len(slice.Endpoints)
 					}
-					return epNums
+					return epNums, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
 			})
 
@@ -385,17 +385,17 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Wait Service(%s/%s)'s EndpointSlice exist in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName), func() {
-				gomega.Eventually(func() int {
+				gomega.Eventually(func(g gomega.Gomega) (int, error) {
 					endpointSlices, err := exportClusterClient.DiscoveryV1beta1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.Set{discoveryv1beta1.LabelServiceName: demoService.Name}.AsSelector().String(),
 					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).NotTo(gomega.HaveOccurred())
 
 					epNums := 0
 					for _, slice := range endpointSlices.Items {
 						epNums += len(slice.Endpoints)
 					}
-					return epNums
+					return epNums, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
 			})
 		})
@@ -429,17 +429,17 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, exportPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlices collected to namespace(%s) in controller-plane", demoService.Namespace), func() {
-				gomega.Eventually(func() int {
+				gomega.Eventually(func(g gomega.Gomega) (int, error) {
 					endpointSlices, err := kubeClient.DiscoveryV1beta1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.Set{discoveryv1beta1.LabelServiceName: names.GenerateDerivedServiceName(demoService.Name)}.AsSelector().String(),
 					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).NotTo(gomega.HaveOccurred())
 
 					epNums := 0
 					for _, slice := range endpointSlices.Items {
 						epNums += len(slice.Endpoints)
 					}
-					return epNums
+					return epNums, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
 			})
 
@@ -451,17 +451,17 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, importPolicy)
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlice exist in %s cluster", serviceImportClusterName), func() {
-				gomega.Eventually(func() int {
+				gomega.Eventually(func(g gomega.Gomega) (int, error) {
 					endpointSlices, err := importClusterClient.DiscoveryV1beta1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.Set{discoveryv1beta1.LabelServiceName: names.GenerateDerivedServiceName(demoService.Name)}.AsSelector().String(),
 					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).NotTo(gomega.HaveOccurred())
 
 					epNums := 0
 					for _, slice := range endpointSlices.Items {
 						epNums += len(slice.Endpoints)
 					}
-					return epNums
+					return epNums, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
 			})
 
@@ -476,17 +476,17 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlice update in %s cluster", serviceImportClusterName), func() {
-				gomega.Eventually(func() int {
+				gomega.Eventually(func(g gomega.Gomega) (int, error) {
 					endpointSlices, err := importClusterClient.DiscoveryV1beta1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
 						LabelSelector: labels.Set{discoveryv1beta1.LabelServiceName: names.GenerateDerivedServiceName(demoService.Name)}.AsSelector().String(),
 					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).NotTo(gomega.HaveOccurred())
 
 					epNums := 0
 					for _, slice := range endpointSlices.Items {
 						epNums += len(slice.Endpoints)
 					}
-					return epNums
+					return epNums, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(2))
 			})
 
