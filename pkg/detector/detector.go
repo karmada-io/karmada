@@ -129,7 +129,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, nil)
 	d.InformerManager.ForResource(clusterResourceBindingGVR, clusterBindingHandler)
 
-	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
+	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, nil)
 	d.Processor = util.NewAsyncWorker("resource detector", ClusterWideKeyFunc, d.Reconcile)
 	d.Processor.Run(1, d.stopCh)
 	go d.discoverResources(30 * time.Second)
@@ -319,11 +319,6 @@ func (d *ResourceDetector) OnAdd(obj interface{}) {
 // OnUpdate handles object update event and push the object to queue.
 func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 	d.OnAdd(newObj)
-}
-
-// OnDelete handles object delete event and push the object to queue.
-func (d *ResourceDetector) OnDelete(obj interface{}) {
-	d.OnAdd(obj)
 }
 
 // LookForMatchedPolicy tries to find a policy for object referenced by object key.
