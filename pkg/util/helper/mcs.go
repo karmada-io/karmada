@@ -4,10 +4,10 @@ import (
 	"context"
 
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -47,11 +47,14 @@ func GetEndpointSlices(c client.Client, ls labels.Set) (*discoveryv1beta1.Endpoi
 }
 
 // DeleteEndpointSlice will delete all EndpointSlice objects by labels.
-func DeleteEndpointSlice(c client.Client, selector labels.Set) (controllerruntime.Result, error) {
+func DeleteEndpointSlice(c client.Client, selector labels.Set) error {
 	endpointSliceList, err := GetEndpointSlices(c, selector)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
 		klog.Errorf("Failed to get endpointslices by label %v: %v", selector, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
 
 	var errs []error
@@ -63,8 +66,8 @@ func DeleteEndpointSlice(c client.Client, selector labels.Set) (controllerruntim
 	}
 
 	if len(errs) > 0 {
-		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
+		return errors.NewAggregate(errs)
 	}
 
-	return controllerruntime.Result{}, nil
+	return nil
 }
