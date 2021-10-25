@@ -395,31 +395,33 @@ func (s *Scheduler) scheduleNext() bool {
 
 	start := time.Now()
 
+	keys := key.(string)
+
 	var err error
-	switch s.getScheduleType(key.(string)) {
+	switch s.getScheduleType(keys) {
 	case FirstSchedule:
-		err = s.scheduleOne(key.(string))
-		klog.Infof("Start scheduling binding(%s)", key.(string))
+		err = s.scheduleOne(keys)
+		klog.Infof("Start scheduling binding(%s)", key)
 		metrics.BindingSchedule(string(FirstSchedule), metrics.SinceInSeconds(start), err)
 	case ReconcileSchedule: // share same logic with first schedule
-		err = s.scheduleOne(key.(string))
-		klog.Infof("Reschedule binding(%s) as placement changed", key.(string))
+		err = s.scheduleOne(keys)
+		klog.Infof("Reschedule binding(%s) as placement changed", keys)
 		metrics.BindingSchedule(string(ReconcileSchedule), metrics.SinceInSeconds(start), err)
 	case ScaleSchedule:
-		err = s.scaleScheduleOne(key.(string))
-		klog.Infof("Reschedule binding(%s) as replicas scaled down or scaled up", key.(string))
+		err = s.scaleScheduleOne(keys)
+		klog.Infof("Reschedule binding(%s) as replicas scaled down or scaled up", keys)
 		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
 	case FailoverSchedule:
 		if Failover {
-			err = s.rescheduleOne(key.(string))
-			klog.Infof("Reschedule binding(%s) as cluster failure", key.(string))
+			err = s.rescheduleOne(keys)
+			klog.Infof("Reschedule binding(%s) as cluster failure", keys)
 			metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
 		}
 	case AvoidSchedule:
-		klog.Infof("Don't need to schedule binding(%s)", key.(string))
+		klog.Infof("Don't need to schedule binding(%s)", keys)
 	default:
 		err = fmt.Errorf("unknow schedule type")
-		klog.Warningf("Failed to identify scheduler type for binding(%s)", key.(string))
+		klog.Warningf("Failed to identify scheduler type for binding(%s)", keys)
 	}
 
 	s.handleErr(err, key)
