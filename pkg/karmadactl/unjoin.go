@@ -251,7 +251,7 @@ func deleteClusterObject(controlPlaneKarmadaClient *karmadaclientset.Clientset, 
 	}
 
 	// make sure the given cluster object has been deleted
-	err = wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
+	err = wait.Poll(1*time.Second, 1*time.Minute, func() (done bool, err error) {
 		_, err = controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			return true, nil
