@@ -56,4 +56,8 @@ linters-settings:
 issues:
   # The list of ids of default excludes to include or disable. By default it's empty.
   include:
-    - EXC0002 # disable excluding of issues about comments from golint
+  # disable excluding of issues about comments from revive
+  # see https://golangci-lint.run/usage/configuration/#command-line-options for more info
+  - EXC0012
+  - EXC0013
+  - EXC0014
