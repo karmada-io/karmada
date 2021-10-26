@@ -1,0 +1,27 @@
+name: apis
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - '*' # Push events to matching v*, i.e. v1.0, v20.15.10
+jobs:
+  repo-dispatching:
+    if: ${{ github.repository == 'karmada-io/karmada' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - karmada/api
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1.1.3
+        with:
+          # A repo scoped GitHub Personal Access Token
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          # The full name of the repository to send the dispatch.
+          repository: ${{ matrix.repo }}
+          # A custom webhook event name.
+          event-type: sync-upstream
+          # JSON payload with extra information about the webhook event that your action or worklow may use.
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
