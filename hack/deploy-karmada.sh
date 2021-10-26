@@ -101,11 +101,10 @@ function generate_cert_secret {
 
 # install Karmada's APIs
 function installCRDs() {
+
     local crd_path=$1
-
-    kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
-
     kubectl kustomize "${crd_path}"/_crds | kubectl apply -f -
+
 }
 
 # generate cert
