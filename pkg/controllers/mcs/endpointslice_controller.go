@@ -38,10 +38,13 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Cleanup derived EndpointSlices after work has been removed.
-			return helper.DeleteEndpointSlice(c.Client, labels.Set{
+			err = helper.DeleteEndpointSlice(c.Client, labels.Set{
 				workv1alpha1.WorkNamespaceLabel: req.Namespace,
 				workv1alpha1.WorkNameLabel:      req.Name,
 			})
+			if err == nil {
+				return controllerruntime.Result{}, nil
+			}
 		}
 
 		return controllerruntime.Result{Requeue: true}, err
