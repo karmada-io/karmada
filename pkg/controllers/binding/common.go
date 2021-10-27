@@ -25,8 +25,9 @@ import (
 )
 
 const (
+	// FullyAppliedSuccessReason defines the name for the FullyAppliedSuccess condition.
 	FullyAppliedSuccessReason = "FullyAppliedSuccess"
-
+	// FullyAppliedSuccessMessage defines the message for the FullyAppliedSuccess condition.
 	FullyAppliedSuccessMessage = "All works have been successfully applied"
 )
 
