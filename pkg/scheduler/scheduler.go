@@ -68,10 +68,6 @@ const (
 	scheduleSuccessMessage = "the binding has been scheduled"
 )
 
-// Failover indicates if the scheduler should performs re-scheduler in case of cluster failure.
-// TODO(RainbowMango): Remove the temporary solution by introducing feature flag
-var Failover bool
-
 // Scheduler is the scheduler schema, which is used to schedule a specific resource to specific clusters
 type Scheduler struct {
 	DynamicClient          dynamic.Interface
@@ -98,6 +94,9 @@ type Scheduler struct {
 	schedulerEstimatorCache  *estimatorclient.SchedulerEstimatorCache
 	schedulerEstimatorPort   int
 	schedulerEstimatorWorker util.AsyncWorker
+
+	// Failover indicates if the scheduler should performs re-scheduler in case of cluster failure.
+	Failover bool
 }
 
 // NewScheduler instantiates a scheduler
@@ -134,6 +133,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		Algorithm:                algorithm,
 		schedulerCache:           schedulerCache,
 		enableSchedulerEstimator: opts.EnableSchedulerEstimator,
+		Failover:                 opts.Failover,
 	}
 	if opts.EnableSchedulerEstimator {
 		sched.schedulerEstimatorCache = estimatorclient.NewSchedulerEstimatorCache()
@@ -412,7 +412,7 @@ func (s *Scheduler) scheduleNext() bool {
 		klog.Infof("Reschedule binding(%s) as replicas scaled down or scaled up", keys)
 		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
 	case FailoverSchedule:
-		if Failover {
+		if s.Failover {
 			err = s.rescheduleOne(keys)
 			klog.Infof("Reschedule binding(%s) as cluster failure", keys)
 			metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
@@ -554,9 +554,9 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 
 	// Check if cluster becomes failure
 	if meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-		klog.Infof("Found cluster(%s) failure and failover flag is %v", newCluster.Name, Failover)
+		klog.Infof("Found cluster(%s) failure and failover flag is %v", newCluster.Name, s.Failover)
 
-		if Failover { // Trigger reschedule on cluster failure only when flag is true.
+		if s.Failover { // Trigger reschedule on cluster failure only when flag is true.
 			s.enqueueAffectedBinding(newCluster.Name)
 			s.enqueueAffectedClusterBinding(newCluster.Name)
 			return
