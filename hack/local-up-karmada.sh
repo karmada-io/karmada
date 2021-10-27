@@ -43,10 +43,11 @@ util::verify_go_version
 
 # install kind and kubectl
 kind_version=v0.11.1
+echo -n "Preparing: 'kind' existence check - "
 if util::cmd_exist kind; then
-  echo "kind exists"
+  echo "passed"
 else
-  echo "kind not exists, will install kind $kind_version"
+  echo "not pass"
   util::install_kind $kind_version
 fi
 # get arch name and os name in bootstrap
@@ -54,11 +55,13 @@ BS_ARCH=$(go env GOARCH)
 BS_OS=$(go env GOOS)
 # check arch and os name before installing
 util::install_environment_check "${BS_ARCH}" "${BS_OS}"
-# we choose v1.18.0, because in kubectl after versions 1.18 exist a bug which will give wrong output when using jsonpath.
-# bug details: https://github.com/kubernetes/kubernetes/pull/98057
-kubectl_version=v1.18.0
-util::install_kubectl $kubectl_version "${BS_ARCH}" "${BS_OS}"
-
+echo -n "Preparing: 'kubectl' existence check - "
+if util::cmd_exist kubectl; then
+  echo "passed"
+else
+  echo "not pass"
+  util::install_kubectl "" "${BS_ARCH}" "${BS_OS}"
+fi
 #step1. create host cluster and member clusters in parallel
 # host IP address: script parameter ahead of macOS IP
 if [[ -z "${HOST_IPADDRESS}" ]]; then
