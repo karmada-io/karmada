@@ -168,6 +168,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
+					Wait:              options.DefaultKarmadactlCommandDuration,
 				}
 				err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

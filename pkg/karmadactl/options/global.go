@@ -1,10 +1,17 @@
 package options
 
-import "github.com/spf13/pflag"
+import (
+	"time"
+
+	"github.com/spf13/pflag"
+)
 
 // DefaultKarmadaClusterNamespace defines the default namespace where the member cluster objects are stored.
 // The secret owns by cluster objects will be stored in the namespace too.
 const DefaultKarmadaClusterNamespace = "karmada-cluster"
+
+// DefaultKarmadactlCommandDuration defines the default timeout for karmadactl execute
+const DefaultKarmadactlCommandDuration = 60 * time.Second
 
 // GlobalCommandOptions holds the configuration shared by the all sub-commands of `karmadactl`.
 type GlobalCommandOptions struct {

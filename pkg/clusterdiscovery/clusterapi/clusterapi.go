@@ -198,6 +198,7 @@ func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 			DryRun:           false,
 		},
 		ClusterName: clusterName,
+		Wait:        options.DefaultKarmadactlCommandDuration,
 	}
 	err := karmadactl.UnJoinCluster(d.ControllerPlaneConfig, nil, opts)
 	if err != nil {
