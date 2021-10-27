@@ -107,11 +107,13 @@ function util::install_kubectl {
     local KUBECTL_VERSION=${1}
     local ARCH=${2}
     local OS=${3:-linux}
+    if [ -z "$KUBECTL_VERSION" ]; then
+      KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+    fi
     echo "Installing 'kubectl ${KUBECTL_VERSION}' for you"
     curl --retry 5 -sSLo ./kubectl -w "%{http_code}" https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl | grep '200' > /dev/null
     ret=$?
     if [ ${ret} -eq 0 ]; then
-        rm -rf "$(which kubectl 2> /dev/null)"
         chmod +x ./kubectl
         mkdir -p ~/.local/bin/
         mv ./kubectl ~/.local/bin/kubectl
@@ -134,11 +136,8 @@ function util::install_kind {
   curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200' > /dev/null
   ret=$?
   if [ ${ret} -eq 0 ]; then
-      rm -rf "$(which kind> /dev/null)"
       chmod +x ./kind
       mkdir -p ~/.local/bin/
-
-      rm -rf "$(which kind 2> /dev/null)"
       mv ./kind ~/.local/bin/kind
 
       export PATH=$PATH:~/.local/bin
