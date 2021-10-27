@@ -492,7 +492,7 @@ function util::get_load_balancer_ip() {
 #  - $3: the context in kubeconfig of the cluster wanted to be connected
 function util::add_routes() {
   unset IFS
-  routes=$(kubectl --kubeconfig ${2} --context ${3} get nodes -o jsonpath='{range .items[*]}ip route add {.spec.podCIDR} via {.status.addresses[?(.type=="InternalIP")].address}{"\n"}')
+  routes=$(kubectl --kubeconfig ${2} --context ${3} get nodes -o jsonpath='{range .items[*]}ip route add {.spec.podCIDR} via {.status.addresses[?(.type=="InternalIP")].address}{"\n"}{end}')
   echo "Connecting cluster ${1} to ${2}"
 
   IFS=$'\n'
