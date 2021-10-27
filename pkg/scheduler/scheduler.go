@@ -31,9 +31,6 @@ import (
 	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/apiinstalled"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -114,8 +111,8 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	schedulerCache := schedulercache.NewCache(clusterLister)
-	// TODO: make plugins as a flag
-	algorithm := core.NewGenericScheduler(schedulerCache, policyLister, []string{clusteraffinity.Name, tainttoleration.Name, apiinstalled.Name})
+
+	algorithm := core.NewGenericScheduler(schedulerCache, policyLister, opts.Plugins)
 	sched := &Scheduler{
 		DynamicClient:            dynamicClient,
 		KarmadaClient:            karmadaClient,
