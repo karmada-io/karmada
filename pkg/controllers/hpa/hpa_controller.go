@@ -16,6 +16,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/kind/pkg/errors"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -161,6 +162,7 @@ func (c *HorizontalPodAutoscalerController) SetupWithManager(mgr controllerrunti
 
 func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
 	workList := &workv1alpha1.WorkList{}
+	var errs []error
 	if err := c.List(context.TODO(), workList); err != nil {
 		klog.Errorf("Failed to list works: %v.", err)
 		return err
@@ -171,9 +173,12 @@ func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
 		if workName == work.Name {
 			if err := c.Client.Delete(context.TODO(), work); err != nil && !apierrors.IsNotFound(err) {
 				klog.Errorf("Failed to delete work %s/%s: %v.", work.Namespace, work.Name, err)
-				return err
+				errs = append(errs, err)
 			}
 		}
+	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
 	}
 	return nil
 }
