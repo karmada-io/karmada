@@ -11,5 +11,4 @@ spec:
       clientConfig:
         url: https://karmada-webhook.karmada-system.svc:443/convert
         caBundle: {{caBundle}}
-      # TODO(RainbowMango): After we update controller-runtime to v0.10+, then we can remove `v1beta1`
-      conversionReviewVersions: ["v1beta1", "v1"]
+      conversionReviewVersions: ["v1"]
