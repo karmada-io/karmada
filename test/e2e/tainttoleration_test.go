@@ -101,10 +101,12 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By(fmt.Sprintf("check if deployment(%s/%s) only scheduled to tolerated cluster(%s)", deploymentNamespace, deploymentName, tolerationValue), func() {
-				targetClusterNames, err := getTargetClusterNames(deployment)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				gomega.Expect(len(targetClusterNames) == 1).Should(gomega.BeTrue())
-				gomega.Expect(targetClusterNames[0] == tolerationValue).Should(gomega.BeTrue())
+				gomega.Eventually(func(g gomega.Gomega) {
+					targetClusterNames, err := getTargetClusterNames(deployment)
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(len(targetClusterNames) == 1).Should(gomega.BeTrue())
+					g.Expect(targetClusterNames[0] == tolerationValue).Should(gomega.BeTrue())
+				}, pollTimeout, pollInterval).Should(gomega.Succeed())
 			})
 
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
