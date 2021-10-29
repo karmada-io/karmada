@@ -44,6 +44,12 @@ spec:
                 description: Preferences describes weight for each cluster or for
                   each group of cluster.
                 properties:
+                  dynamicWeight:
+                    description: DynamicWeight specifies the factor to generates dynamic
+                      weight list. If specified, StaticWeightList will be ignored.
+                    enum:
+                    - AvailableReplicas
+                    type: string
                   staticWeightList:
                     description: StaticWeightList defines the static cluster weight.
                     items:
