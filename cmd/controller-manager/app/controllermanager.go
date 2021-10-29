@@ -38,6 +38,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
+
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
@@ -47,11 +49,13 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "karmada-controller-manager",
 		Long: `The karmada controller manager runs a bunch of controllers`,
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := Run(ctx, opts); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				os.Exit(1)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// validate options
+			if errs := opts.Validate(); len(errs) != 0 {
+				return utilerrors.NewAggregate(errs)
 			}
+
+			return Run(ctx, opts)
 		},
 	}
 
@@ -110,11 +114,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
 	overrideManager := overridemanager.New(mgr.GetClient())
 	skippedResourceConfig := util.NewSkippedResourceConfig()
-	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
-		// TODO(RainbowMango): the parameter should be checked earlier.
-		// Consider add validation to 'options.Options'
-		panic(err)
-	}
+
 	skippedPropagatingNamespaces := map[string]struct{}{}
 	for _, ns := range opts.SkippedPropagatingNamespaces {
 		skippedPropagatingNamespaces[ns] = struct{}{}
