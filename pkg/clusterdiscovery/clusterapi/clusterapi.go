@@ -7,7 +7,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -116,7 +115,7 @@ func (d *ClusterDetector) Reconcile(key util.QueueKey) error {
 	}
 
 	if ok && clusterPhase == string(clusterapiv1alpha4.ClusterPhaseProvisioned) {
-		return d.joinClusterAPICluster(clusterWideKey.Name)
+		return d.joinClusterAPICluster(clusterWideKey)
 	}
 
 	return nil
@@ -147,13 +146,13 @@ func (d *ClusterDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (
 	return &unstructured.Unstructured{Object: uncastObj}, nil
 }
 
-func (d *ClusterDetector) joinClusterAPICluster(clusterName string) error {
-	klog.Infof("Begin to join cluster-api's Cluster(%s) to karmada", clusterName)
+func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideKey) error {
+	klog.Infof("Begin to join cluster-api's Cluster(%s) to karmada", clusterWideKey.Name)
 
 	secret := &corev1.Secret{}
 	secretKey := types.NamespacedName{
-		Namespace: metav1.NamespaceDefault,
-		Name:      names.GenerateClusterAPISecretName(clusterName),
+		Namespace: clusterWideKey.Namespace,
+		Name:      names.GenerateClusterAPISecretName(clusterWideKey.Name),
 	}
 	err := d.ClusterAPIClient.Get(context.TODO(), secretKey, secret)
 	if err != nil {
@@ -165,7 +164,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterName string) error {
 		return err
 	}
 
-	kubeconfigPath, err := generateKubeconfigFile(clusterName, secret.Data["value"])
+	kubeconfigPath, err := generateKubeconfigFile(clusterWideKey.Name, secret.Data["value"])
 	if err != nil {
 		return err
 	}
@@ -175,13 +174,13 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterName string) error {
 		klog.Fatalf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
 	}
 
-	err = karmadactl.JoinCluster(d.ControllerPlaneConfig, clusterRestConfig, options.DefaultKarmadaClusterNamespace, clusterName, false)
+	err = karmadactl.JoinCluster(d.ControllerPlaneConfig, clusterRestConfig, options.DefaultKarmadaClusterNamespace, clusterWideKey.Name, false)
 	if err != nil {
-		klog.Errorf("Failed to join cluster-api's cluster(%s): %v", clusterName, err)
+		klog.Errorf("Failed to join cluster-api's cluster(%s): %v", clusterWideKey.Name, err)
 		return err
 	}
 
-	klog.Infof("End to join cluster-api's Cluster(%s) to karmada", clusterName)
+	klog.Infof("End to join cluster-api's Cluster(%s) to karmada", clusterWideKey.Name)
 	return nil
 }
 
