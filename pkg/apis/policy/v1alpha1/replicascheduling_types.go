@@ -62,21 +62,16 @@ type DynamicWeightFactor string
 
 const (
 	// DynamicWeightByAvailableReplicas represents the cluster weight list should be generated according to
-	// available resource(available replicas). e.g.
-	// The scheduler has selected 3 clusters(A/B/C) and should divide 12 replicas to them.
-	//
-	// Workload:
-	//   Desired replica: 12
-	//
-	// Cluster:
-	//   A:
-	//     Max available replica: 6
-	//   B:
-	//     Max available replica: 12
-	//   C:
-	//     Max available replica: 18
-	//
-	// The weight of cluster A:B:C will be 6:12:18(equals to 1:2:3). At last, the assignment would be 'A: 2, B: 4, C: 6'.
+	// available resource (available replicas).
+	// Example:
+	//   The scheduler selected 3 clusters (A/B/C) and should divide 12 replicas to them.
+	//   Workload:
+	//     Desired replica: 12
+	//   Cluster:
+	//     A: Max available replica: 6
+	//     B: Max available replica: 12
+	//     C: Max available replica: 18
+	//   The weight of cluster A:B:C will be 6:12:18 (equals to 1:2:3). At last, the assignment would be 'A: 2, B: 4, C: 6'.
 	DynamicWeightByAvailableReplicas DynamicWeightFactor = "AvailableReplicas"
 )
 
