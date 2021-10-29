@@ -11,6 +11,7 @@ import (
 var (
 	instance MultiClusterInformerManager
 	once     sync.Once
+	stopOnce sync.Once
 	stopCh   chan struct{}
 )
 
@@ -28,7 +29,7 @@ func GetInstance() MultiClusterInformerManager {
 
 // StopInstance will stop the shared MultiClusterInformerManager instance.
 func StopInstance() {
-	once.Do(func() {
+	stopOnce.Do(func() {
 		close(stopCh)
 	})
 }
