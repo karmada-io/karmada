@@ -160,35 +160,35 @@ func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOpti
 		return err
 	}
 
-	return JoinCluster(controlPlaneRestConfig, clusterConfig, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
+	return JoinCluster(controlPlaneRestConfig, clusterConfig, opts)
 }
 
 // JoinCluster join the cluster into karmada.
-func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, clusterNamespace, clusterName string, dryRun bool) (err error) {
+func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts CommandJoinOption) (err error) {
 	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
 	clusterKubeClient := kubeclient.NewForConfigOrDie(clusterConfig)
 
 	klog.V(1).Infof("joining cluster config. endpoint: %s", clusterConfig.Host)
 
 	// ensure namespace where the cluster object be stored exists in control plane.
-	if _, err = ensureNamespaceExist(controlPlaneKubeClient, clusterNamespace, dryRun); err != nil {
+	if _, err = ensureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
 		return err
 	}
 
-	clusterSecret, err := generateSecretInMemberCluster(clusterKubeClient, clusterNamespace, clusterName, dryRun)
+	clusterSecret, err := generateSecretInMemberCluster(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
 	if err != nil {
 		return err
 	}
 
-	if dryRun {
+	if opts.DryRun {
 		return nil
 	}
 
 	// create secret in control plane
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: clusterNamespace,
-			Name:      clusterName,
+			Namespace: opts.ClusterNamespace,
+			Name:      opts.ClusterName,
 		},
 		Data: map[string][]byte{
 			clusterv1alpha1.SecretCADataKey: clusterSecret.Data["ca.crt"],
@@ -201,7 +201,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, clusterName
 		return err
 	}
 
-	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, clusterName, *secret)
+	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts.ClusterName, *secret)
 	if err != nil {
 		return err
 	}
