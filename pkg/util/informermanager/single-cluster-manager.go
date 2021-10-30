@@ -46,6 +46,9 @@ type SingleClusterInformerManager interface {
 	// WaitForCacheSync waits for all caches to populate.
 	WaitForCacheSync() map[schema.GroupVersionResource]bool
 
+	// WaitForCacheSyncWithTimeout waits for all caches to populate with a definitive timeout.
+	WaitForCacheSyncWithTimeout(cacheSyncTimeout time.Duration) map[schema.GroupVersionResource]bool
+
 	// Context returns the single cluster context.
 	Context() context.Context
 }
@@ -136,9 +139,20 @@ func (s *singleClusterInformerManagerImpl) Stop() {
 }
 
 func (s *singleClusterInformerManagerImpl) WaitForCacheSync() map[schema.GroupVersionResource]bool {
+	return s.waitForCacheSync(s.ctx)
+}
+
+func (s *singleClusterInformerManagerImpl) WaitForCacheSyncWithTimeout(cacheSyncTimeout time.Duration) map[schema.GroupVersionResource]bool {
+	ctx, cancel := context.WithTimeout(s.ctx, cacheSyncTimeout)
+	defer cancel()
+
+	return s.waitForCacheSync(ctx)
+}
+
+func (s *singleClusterInformerManagerImpl) waitForCacheSync(ctx context.Context) map[schema.GroupVersionResource]bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	res := s.informerFactory.WaitForCacheSync(s.ctx.Done())
+	res := s.informerFactory.WaitForCacheSync(ctx.Done())
 	for resource, synced := range res {
 		if _, exist := s.syncedInformers[resource]; !exist && synced {
 			s.syncedInformers[resource] = struct{}{}

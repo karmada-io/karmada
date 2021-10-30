@@ -118,16 +118,6 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	// get or create informer for pods and nodes in member cluster
-	clusterInformerManager, err := c.buildInformerForCluster(cluster)
-	if err != nil {
-		klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
-		return controllerruntime.Result{Requeue: true}, err
-	}
-
-	// init the lease controller for every cluster
-	c.initLeaseController(clusterInformerManager.Context(), cluster)
-
 	var currentClusterStatus = clusterv1alpha1.ClusterStatus{}
 
 	var online, healthy bool
@@ -146,8 +136,19 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 		klog.V(2).Infof("Cluster(%s) still offline after retry, ensuring offline is set.", cluster.Name)
 		currentClusterStatus.Conditions = generateReadyCondition(false, false)
 		setTransitionTime(&cluster.Status, &currentClusterStatus)
+		c.InformerManager.Stop(cluster.Name)
 		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 	}
+
+	// get or create informer for pods and nodes in member cluster
+	clusterInformerManager, err := c.buildInformerForCluster(cluster)
+	if err != nil {
+		klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	// init the lease controller for every cluster
+	c.initLeaseController(clusterInformerManager.Context(), cluster)
 
 	clusterVersion, err := getKubernetesVersion(clusterClient)
 	if err != nil {
@@ -227,17 +228,24 @@ func (c *ClusterStatusController) buildInformerForCluster(cluster *clusterv1alph
 	}
 
 	c.InformerManager.Start(cluster.Name)
-	synced := c.InformerManager.WaitForCacheSync(cluster.Name)
-	if synced == nil {
-		klog.Errorf("The informer factory for cluster(%s) does not exist.", cluster.Name)
-		return nil, fmt.Errorf("informer factory for cluster(%s) does not exist", cluster.Name)
-	}
-	for _, gvr := range gvrs {
-		if !synced[gvr] {
-			klog.Errorf("Informer for %s hasn't synced.", gvr)
-			return nil, fmt.Errorf("informer for %s hasn't synced", gvr)
+
+	if err := func() error {
+		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, util.CacheSyncTimeout)
+		if synced == nil {
+			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
 		}
+		for _, gvr := range gvrs {
+			if !synced[gvr] {
+				return fmt.Errorf("informer for %s hasn't synced", gvr)
+			}
+		}
+		return nil
+	}(); err != nil {
+		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", cluster.Name, err)
+		c.InformerManager.Stop(cluster.Name)
+		return nil, err
 	}
+
 	return singleClusterInformerManager, nil
 }
 

@@ -1,5 +1,7 @@
 package util
 
+import "time"
+
 const (
 	// ServiceNamespaceLabel is added to work object, which is report by member cluster, to specify service namespace associated with EndpointSlice.
 	ServiceNamespaceLabel = "endpointslice.karmada.io/namespace"
@@ -124,4 +126,9 @@ type ContextKey string
 const (
 	// ContextKeyObject is the context value key of a resource.
 	ContextKeyObject ContextKey = "object"
+)
+
+const (
+	// CacheSyncTimeout refers to the time limit set on waiting for cache to sync
+	CacheSyncTimeout = 30 * time.Second
 )

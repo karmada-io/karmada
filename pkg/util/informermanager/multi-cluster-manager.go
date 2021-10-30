@@ -57,6 +57,10 @@ type MultiClusterInformerManager interface {
 	// WaitForCacheSync waits for all caches to populate.
 	// Should call after 'ForCluster', otherwise no-ops.
 	WaitForCacheSync(cluster string) map[schema.GroupVersionResource]bool
+
+	// WaitForCacheSyncWithTimeout waits for all caches to populate with a definitive timeout.
+	// Should call after 'ForCluster', otherwise no-ops.
+	WaitForCacheSyncWithTimeout(cluster string, cacheSyncTimeout time.Duration) map[schema.GroupVersionResource]bool
 }
 
 // NewMultiClusterInformerManager constructs a new instance of multiClusterInformerManagerImpl.
@@ -131,4 +135,12 @@ func (m *multiClusterInformerManagerImpl) WaitForCacheSync(cluster string) map[s
 		return nil
 	}
 	return manager.WaitForCacheSync()
+}
+
+func (m *multiClusterInformerManagerImpl) WaitForCacheSyncWithTimeout(cluster string, cacheSyncTimeout time.Duration) map[schema.GroupVersionResource]bool {
+	manager, exist := m.getManager(cluster)
+	if !exist {
+		return nil
+	}
+	return manager.WaitForCacheSyncWithTimeout(cacheSyncTimeout)
 }
