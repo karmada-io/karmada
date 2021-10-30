@@ -173,8 +173,14 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 	if err != nil {
 		klog.Fatalf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
 	}
-
-	err = karmadactl.JoinCluster(d.ControllerPlaneConfig, clusterRestConfig, options.DefaultKarmadaClusterNamespace, clusterWideKey.Name, false)
+	opts := karmadactl.CommandJoinOption{
+		GlobalCommandOptions: options.GlobalCommandOptions{
+			ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+			DryRun:           false,
+		},
+		ClusterName: clusterWideKey.Name,
+	}
+	err = karmadactl.JoinCluster(d.ControllerPlaneConfig, clusterRestConfig, opts)
 	if err != nil {
 		klog.Errorf("Failed to join cluster-api's cluster(%s): %v", clusterWideKey.Name, err)
 		return err
@@ -186,7 +192,14 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 
 func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 	klog.Infof("Begin to unJoin cluster-api's Cluster(%s) to karmada", clusterName)
-	err := karmadactl.UnJoinCluster(d.ControllerPlaneConfig, nil, options.DefaultKarmadaClusterNamespace, clusterName, false, false)
+	opts := karmadactl.CommandUnjoinOption{
+		GlobalCommandOptions: options.GlobalCommandOptions{
+			ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+			DryRun:           false,
+		},
+		ClusterName: clusterName,
+	}
+	err := karmadactl.UnJoinCluster(d.ControllerPlaneConfig, nil, opts)
 	if err != nil {
 		klog.Errorf("Failed to unJoin cluster-api's cluster(%s): %v", clusterName, err)
 		return err
