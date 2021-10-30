@@ -173,8 +173,6 @@ spec:
                       - weight
                       type: object
                     type: array
-                required:
-                - staticWeightList
                 type: object
               resourceSelectors:
                 description: ResourceSelectors used to select resources.
