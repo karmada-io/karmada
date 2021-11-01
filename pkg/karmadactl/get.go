@@ -61,9 +61,15 @@ func NewCmdGet(out io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
 		Use:                   "get [NAME | -l label | -n namespace]  [flags]",
 		DisableFlagsInUseLine: true,
 		Short:                 getShort,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(cmd, args))
-			cmdutil.CheckErr(o.Run(karmadaConfig, cmd, args))
+		SilenceUsage:          true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Complete(cmd, args); err != nil {
+				return err
+			}
+			if err := o.Run(karmadaConfig, cmd, args); err != nil {
+				return err
+			}
+			return nil
 		},
 	}
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "default", "-n=namespace or -n namespace")

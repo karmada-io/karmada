@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/pflag"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -40,23 +39,22 @@ func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 	opts := CommandUnjoinOption{}
 
 	cmd := &cobra.Command{
-		Use:     "unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:   unjoinShort,
-		Long:    unjoinLong,
-		Example: getUnjoinExample(cmdStr),
-		Run: func(cmd *cobra.Command, args []string) {
-			err := opts.Complete(args)
-			if err != nil {
-				klog.Fatalf("Error: %v", err)
+		Use:          "unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
+		Short:        unjoinShort,
+		Long:         unjoinLong,
+		Example:      getUnjoinExample(cmdStr),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := opts.Complete(args); err != nil {
+				return err
 			}
-			if errs := opts.Validate(); len(errs) != 0 {
-				klog.Fatalf("Error: %v", utilerrors.NewAggregate(errs).Error())
+			if err := opts.Validate(); err != nil {
+				return err
 			}
-
-			err = RunUnjoin(cmdOut, karmadaConfig, opts)
-			if err != nil {
-				klog.Fatalf("Error: %v", err)
+			if err := RunUnjoin(cmdOut, karmadaConfig, opts); err != nil {
+				return err
 			}
+			return nil
 		},
 	}
 
@@ -106,13 +104,11 @@ func (j *CommandUnjoinOption) Complete(args []string) error {
 }
 
 // Validate ensures that command unjoin options are valid.
-func (j *CommandUnjoinOption) Validate() []error {
-	var errs []error
-
+func (j *CommandUnjoinOption) Validate() error {
 	if j.Wait < 0 {
-		errs = append(errs, fmt.Errorf(" --wait %v  must be a positive duration, e.g. 1m0s ", j.Wait))
+		return fmt.Errorf(" --wait %v  must be a positive duration, e.g. 1m0s ", j.Wait)
 	}
-	return errs
+	return nil
 }
 
 // AddFlags adds flags to the specified FlagSet.

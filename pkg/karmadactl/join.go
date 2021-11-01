@@ -15,7 +15,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -33,6 +32,7 @@ var (
 	joinShort   = `Register a cluster to control plane`
 	joinLong    = `Join registers a cluster to control plane.`
 	joinExample = `
+# Join cluster into karamada control plane
 %s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
 `
 )
@@ -62,25 +62,22 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *c
 	opts := CommandJoinOption{}
 
 	cmd := &cobra.Command{
-		Use:     "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:   joinShort,
-		Long:    joinLong,
-		Example: fmt.Sprintf(joinExample, cmdStr),
-		Run: func(cmd *cobra.Command, args []string) {
-			// Set default values
-			err := opts.Complete(args)
-			if err != nil {
-				klog.Fatalf("Error: %v", err)
+		Use:          "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
+		Short:        joinShort,
+		Long:         joinLong,
+		Example:      fmt.Sprintf(joinExample, cmdStr),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := opts.Complete(args); err != nil {
+				return err
 			}
-
-			if errs := opts.Validate(); len(errs) != 0 {
-				klog.Fatalf("Error: %v", utilerrors.NewAggregate(errs).Error())
+			if err := opts.Validate(); err != nil {
+				return err
 			}
-
-			err = RunJoin(cmdOut, karmadaConfig, opts)
-			if err != nil {
-				klog.Fatalf("Error: %v", err)
+			if err := RunJoin(cmdOut, karmadaConfig, opts); err != nil {
+				return err
 			}
+			return nil
 		},
 	}
 
@@ -121,13 +118,12 @@ func (j *CommandJoinOption) Complete(args []string) error {
 }
 
 // Validate checks option and return a slice of found errs.
-func (j *CommandJoinOption) Validate() []error {
-	var errs []error
+func (j *CommandJoinOption) Validate() error {
 	if errMsgs := validation.ValidateClusterName(j.ClusterName); len(errMsgs) != 0 {
-		errs = append(errs, fmt.Errorf("invalid cluster name(%s): %s", j.ClusterName, strings.Join(errMsgs, ";")))
+		return fmt.Errorf("invalid cluster name(%s): %s", j.ClusterName, strings.Join(errMsgs, ";"))
 	}
 
-	return errs
+	return nil
 }
 
 // AddFlags adds flags to the specified FlagSet.
