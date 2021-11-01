@@ -106,6 +106,10 @@ const (
 	SpecField = "spec"
 	// ReplicasField indicates the 'replicas' field of a resource
 	ReplicasField = "replicas"
+	// ParallelismField indicates the 'parallelism' field of a job
+	ParallelismField = "parallelism"
+	// CompletionsField indicates the 'completions' field of a job
+	CompletionsField = "completions"
 	// TemplateField indicates the 'template' field of a resource
 	TemplateField = "template"
 )

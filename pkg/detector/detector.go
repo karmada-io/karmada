@@ -680,8 +680,23 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 
 // GetReplicaDeclaration get the replicas and resource requirements of a Deployment object
 func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (*workv1alpha2.ReplicaRequirements, int32, error) {
-	if object.GetKind() == util.DeploymentKind {
+	switch object.GetKind() {
+	case util.DeploymentKind:
 		replicas, ok, err := unstructured.NestedInt64(object.Object, util.SpecField, util.ReplicasField)
+		if !ok || err != nil {
+			return nil, 0, err
+		}
+		podTemplate, ok, err := unstructured.NestedMap(object.Object, util.SpecField, util.TemplateField)
+		if !ok || err != nil {
+			return nil, 0, err
+		}
+		replicaRequirements, err := d.getReplicaRequirements(podTemplate)
+		if err != nil {
+			return nil, 0, err
+		}
+		return replicaRequirements, int32(replicas), nil
+	case util.JobKind:
+		replicas, ok, err := unstructured.NestedInt64(object.Object, util.SpecField, util.ParallelismField)
 		if !ok || err != nil {
 			return nil, 0, err
 		}

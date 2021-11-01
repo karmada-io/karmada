@@ -63,6 +63,8 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 })
 
 // ensureWork ensure Work to be created or updated.
+// TODO(Garrybest): clean up the code to fix cyclomatic complexity
+//nolint:gocyclo
 func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope) error {
 	var targetClusters []workv1alpha2.TargetCluster
 	switch scope {
@@ -79,7 +81,21 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 		return err
 	}
 
-	for _, targetCluster := range targetClusters {
+	var jobCompletions []workv1alpha2.TargetCluster
+	var jobHasCompletions = false
+	if workload.GetKind() == util.JobKind {
+		completions, found, err := unstructured.NestedInt64(workload.Object, util.SpecField, util.CompletionsField)
+		if err != nil {
+			return err
+		}
+		if found {
+			jobCompletions = util.DivideReplicasByTargetCluster(targetClusters, int32(completions))
+			jobHasCompletions = true
+		}
+	}
+
+	for i := range targetClusters {
+		targetCluster := targetClusters[i]
 		clonedWorkload := workload.DeepCopy()
 		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
 		if err != nil {
@@ -96,11 +112,29 @@ func ensureWork(c client.Client, workload *unstructured.Unstructured, overrideMa
 		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
 
 		if clonedWorkload.GetKind() == util.DeploymentKind && (referenceRSP != nil || hasScheduledReplica) {
-			err = applyReplicaSchedulingPolicy(clonedWorkload, desireReplicaInfos[targetCluster.Name])
+			err = applyReplicaSchedulingPolicy(clonedWorkload, desireReplicaInfos[targetCluster.Name], util.ReplicasField)
 			if err != nil {
 				klog.Errorf("failed to apply ReplicaSchedulingPolicy for %s/%s/%s in cluster %s, err is: %v",
 					clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
 				return err
+			}
+		}
+		if clonedWorkload.GetKind() == util.JobKind && hasScheduledReplica {
+			err = applyReplicaSchedulingPolicy(clonedWorkload, desireReplicaInfos[targetCluster.Name], util.ParallelismField)
+			if err != nil {
+				klog.Errorf("failed to apply Parallelism for %s/%s/%s in cluster %s, err is: %v",
+					clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
+				return err
+			}
+			// For a work queue Job that usually leaves .spec.completions unset, in that case, we skip setting this field.
+			// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
+			if jobHasCompletions {
+				err = applyReplicaSchedulingPolicy(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField)
+				if err != nil {
+					klog.Errorf("failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
+						clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
+					return err
+				}
 			}
 		}
 
@@ -140,13 +174,13 @@ func getRSPAndReplicaInfos(c client.Client, workload *unstructured.Unstructured,
 	return false, referenceRSP, desireReplicaInfos, nil
 }
 
-func applyReplicaSchedulingPolicy(workload *unstructured.Unstructured, desireReplica int64) error {
-	_, ok, err := unstructured.NestedInt64(workload.Object, util.SpecField, util.ReplicasField)
+func applyReplicaSchedulingPolicy(workload *unstructured.Unstructured, desireReplica int64, field string) error {
+	_, ok, err := unstructured.NestedInt64(workload.Object, util.SpecField, field)
 	if err != nil {
 		return err
 	}
 	if ok {
-		err := unstructured.SetNestedField(workload.Object, desireReplica, util.SpecField, util.ReplicasField)
+		err := unstructured.SetNestedField(workload.Object, desireReplica, util.SpecField, field)
 		if err != nil {
 			return err
 		}

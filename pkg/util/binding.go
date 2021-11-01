@@ -58,6 +58,33 @@ func ConvertToClusterNames(clusters []workv1alpha2.TargetCluster) sets.String {
 	return clusterNames
 }
 
+// DivideReplicasByTargetCluster will divide the sum number by the weight of target clusters.
+func DivideReplicasByTargetCluster(clusters []workv1alpha2.TargetCluster, sum int32) []workv1alpha2.TargetCluster {
+	sumWeight := int32(0)
+	allocatedReplicas := int32(0)
+	res := make([]workv1alpha2.TargetCluster, len(clusters))
+	for i := range clusters {
+		sumWeight += clusters[i].Replicas
+	}
+	for i := range clusters {
+		res[i].Name = clusters[i].Name
+		if sumWeight > 0 {
+			res[i].Replicas = clusters[i].Replicas * sum / sumWeight
+		}
+		allocatedReplicas += res[i].Replicas
+	}
+	if remainReplicas := sum - allocatedReplicas; remainReplicas > 0 {
+		for i := 0; remainReplicas > 0; i++ {
+			if i == len(res) {
+				i = 0
+			}
+			res[i].Replicas++
+			remainReplicas--
+		}
+	}
+	return res
+}
+
 // MergeTargetClusters will merge the replicas in two TargetCluster
 func MergeTargetClusters(old, new []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
 	// oldMap is a map of the result for the old replicas so that it can be merged with the new result easily
