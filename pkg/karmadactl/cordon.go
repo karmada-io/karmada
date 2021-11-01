@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/klog/v2"
 
@@ -45,25 +44,19 @@ const (
 func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
-		Use:     "cordon CLUSTER",
-		Short:   cordonShort,
-		Long:    cordonLong,
-		Example: fmt.Sprintf(cordonExample, cmdStr),
-		Run: func(cmd *cobra.Command, args []string) {
-			err := opts.Complete(args)
-			if err != nil {
-				klog.Fatalf("Error: %v", err)
+		Use:          "cordon CLUSTER",
+		Short:        cordonShort,
+		Long:         cordonLong,
+		Example:      fmt.Sprintf(cordonExample, cmdStr),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := opts.Complete(args); err != nil {
+				return err
 			}
-
-			if errs := opts.Validate(); len(errs) != 0 {
-				klog.Fatalf("Error: %v", utilerrors.NewAggregate(errs).Error())
+			if err := RunCordonOrUncordon(cmdOut, desiredCordon, karmadaConfig, opts); err != nil {
+				return err
 			}
-
-			err = RunCordonOrUncordon(cmdOut, desiredCordon, karmadaConfig, opts)
-			if err != nil {
-				klog.Fatalf("Error: %v", err)
-				return
-			}
+			return nil
 		},
 	}
 
@@ -74,28 +67,19 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
-		Use:     "uncordon CLUSTER",
-		Short:   uncordonShort,
-		Long:    uncordonLong,
-		Example: fmt.Sprintf(uncordonExample, cmdStr),
-		Run: func(cmd *cobra.Command, args []string) {
-			// Set default values
-			err := opts.Complete(args)
-			if err != nil {
-				klog.Errorf("Error: %v", err)
-				return
+		Use:          "uncordon CLUSTER",
+		Short:        uncordonShort,
+		Long:         uncordonLong,
+		Example:      fmt.Sprintf(uncordonExample, cmdStr),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := opts.Complete(args); err != nil {
+				return err
 			}
-
-			if errs := opts.Validate(); len(errs) != 0 {
-				klog.Error(utilerrors.NewAggregate(errs).Error())
-				return
+			if err := RunCordonOrUncordon(cmdOut, desiredUnCordon, karmadaConfig, opts); err != nil {
+				return err
 			}
-
-			err = RunCordonOrUncordon(cmdOut, desiredUnCordon, karmadaConfig, opts)
-			if err != nil {
-				klog.Errorf("Error: %v", err)
-				return
-			}
+			return nil
 		},
 	}
 
@@ -126,12 +110,6 @@ func (o *CommandCordonOption) Complete(args []string) error {
 	}
 	o.ClusterName = args[0]
 	return nil
-}
-
-// Validate checks option and return a slice of found errs.
-func (o *CommandCordonOption) Validate() []error {
-	var errs []error
-	return errs
 }
 
 // AddFlags adds flags to the specified FlagSet.
