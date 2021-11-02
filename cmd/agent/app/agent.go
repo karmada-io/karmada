@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -81,6 +82,11 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)
+		return err
+	}
+
+	if err := controllerManager.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		klog.Errorf("failed to add health check endpoint: %v", err)
 		return err
 	}
 
