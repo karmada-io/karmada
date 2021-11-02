@@ -60,6 +60,9 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 		},
 	}
 
+	flags := cmd.Flags()
+	opts.AddFlags(flags)
+
 	return cmd
 }
 
@@ -82,6 +85,9 @@ func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string
 			return nil
 		},
 	}
+
+	flags := cmd.Flags()
+	opts.AddFlags(flags)
 
 	return cmd
 }
