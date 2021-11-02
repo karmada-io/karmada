@@ -26,7 +26,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
-	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
@@ -192,13 +191,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 	if err := hpaController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup hpa controller: %v", err)
-	}
-
-	policyController := &propagationpolicy.Controller{
-		Client: mgr.GetClient(),
-	}
-	if err := policyController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup policy controller: %v", err)
 	}
 
 	bindingController := &binding.ResourceBindingController{
