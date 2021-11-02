@@ -80,6 +80,17 @@ func GetBindingClusterNames(targetClusters []workv1alpha2.TargetCluster) []strin
 	return clusterNames
 }
 
+// GetUsedBindingClusterNames will get used clusterName list from bind clusters field
+func GetUsedBindingClusterNames(targetClusters []workv1alpha2.TargetCluster) []string {
+	var usedClusterNames []string
+	for _, targetCluster := range targetClusters {
+		if targetCluster.Replicas > 0 {
+			usedClusterNames = append(usedClusterNames, targetCluster.Name)
+		}
+	}
+	return usedClusterNames
+}
+
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
 func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clusterNames []string, scope apiextensionsv1.ResourceScope) ([]workv1alpha1.Work, error) {
