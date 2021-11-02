@@ -54,7 +54,7 @@ var (
 )
 
 // NewCmdGet New get command
-func NewCmdGet(out io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
+func NewCmdGet(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
 	o := NewCommandGetOptions("karmadactl", ioStreams)
 	cmd := &cobra.Command{
@@ -62,6 +62,7 @@ func NewCmdGet(out io.Writer, karmadaConfig KarmadaConfig) *cobra.Command {
 		DisableFlagsInUseLine: true,
 		Short:                 getShort,
 		SilenceUsage:          true,
+		Example:               getExample(parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(cmd, args); err != nil {
 				return err
@@ -548,4 +549,24 @@ func Exists(path string) bool {
 		return os.IsExist(err)
 	}
 	return true
+}
+
+// getExample get examples by cmd type
+func getExample(parentCommand string) string {
+	example := `
+# List all pods in ps output format` + "\n" +
+		fmt.Sprintf("%s get pods", parentCommand) + `
+
+# List a single replicasets controller with specified NAME in ps output format ` + "\n" +
+		fmt.Sprintf("%s get replicasets nginx", parentCommand) + `
+
+# List deployments in JSON output format, in the "v1" version of the "apps" API group ` + "\n" +
+		fmt.Sprintf("%s get deployments.v1.apps ", parentCommand) + `
+
+# List all replication controllers and services together in ps output format ` + "\n" +
+		fmt.Sprintf("%s get rs,services", parentCommand) + `
+
+# List one or more resources by their type and names ` + "\n" +
+		fmt.Sprintf("%s get rs/nginx-cb87b6d88 service/kubernetes", parentCommand)
+	return example
 }

@@ -19,12 +19,12 @@ var (
 )
 
 // NewKarmadaCtlCommand creates the `karmadactl` command.
-func NewKarmadaCtlCommand(out io.Writer, cmdUse, cmdStr string) *cobra.Command {
+func NewKarmadaCtlCommand(out io.Writer, cmdUse, parentCommand string) *cobra.Command {
 	// Parent command to which all sub-commands are added.
 	rootCmd := &cobra.Command{
 		Use:   cmdUse,
-		Short: fmt.Sprintf(rootCmdShort, cmdStr),
-		Long:  fmt.Sprintf(rootCmdLong, cmdStr),
+		Short: fmt.Sprintf(rootCmdShort, parentCommand),
+		Long:  fmt.Sprintf(rootCmdLong, parentCommand),
 
 		RunE: runHelp,
 	}
@@ -42,12 +42,12 @@ func NewKarmadaCtlCommand(out io.Writer, cmdUse, cmdStr string) *cobra.Command {
 	_ = flag.CommandLine.Parse(nil)
 
 	karmadaConfig := NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-	rootCmd.AddCommand(NewCmdJoin(out, karmadaConfig, cmdStr))
-	rootCmd.AddCommand(NewCmdUnjoin(out, karmadaConfig, cmdStr))
-	rootCmd.AddCommand(sharedcommand.NewCmdVersion(out, cmdStr))
-	rootCmd.AddCommand(NewCmdCordon(out, karmadaConfig, cmdStr))
-	rootCmd.AddCommand(NewCmdUncordon(out, karmadaConfig, cmdStr))
-	rootCmd.AddCommand(NewCmdGet(out, karmadaConfig))
+	rootCmd.AddCommand(NewCmdJoin(out, karmadaConfig, parentCommand))
+	rootCmd.AddCommand(NewCmdUnjoin(out, karmadaConfig, parentCommand))
+	rootCmd.AddCommand(sharedcommand.NewCmdVersion(out, parentCommand))
+	rootCmd.AddCommand(NewCmdCordon(out, karmadaConfig, parentCommand))
+	rootCmd.AddCommand(NewCmdUncordon(out, karmadaConfig, parentCommand))
+	rootCmd.AddCommand(NewCmdGet(out, karmadaConfig, parentCommand))
 
 	return rootCmd
 }
