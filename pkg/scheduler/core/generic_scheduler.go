@@ -346,8 +346,10 @@ func (g *genericScheduler) calAvailableReplicas(clusters []*clusterv1alpha1.Clus
 
 	// Get the minimum value of MaxAvailableReplicas in terms of all estimators.
 	estimators := estimatorclient.GetReplicaEstimators()
+	ctx := context.WithValue(context.TODO(), util.ContextKeyObject,
+		fmt.Sprintf("kind=%s, name=%s/%s", spec.Resource.Kind, spec.Resource.Namespace, spec.Resource.Name))
 	for _, estimator := range estimators {
-		res, err := estimator.MaxAvailableReplicas(clusters, spec.ReplicaRequirements)
+		res, err := estimator.MaxAvailableReplicas(ctx, clusters, spec.ReplicaRequirements)
 		if err != nil {
 			klog.Errorf("Max cluster available replicas error: %v", err)
 			continue

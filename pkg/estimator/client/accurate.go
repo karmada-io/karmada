@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/metadata"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
@@ -34,8 +36,8 @@ func NewSchedulerEstimator(cache *SchedulerEstimatorCache, timeout time.Duration
 }
 
 // MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by calling karmada-scheduler-estimator.
-func (se *SchedulerEstimator) MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
-	return getClusterReplicasConcurrently(clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
+func (se *SchedulerEstimator) MaxAvailableReplicas(parentCtx context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
+	return getClusterReplicasConcurrently(parentCtx, clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
 		return se.maxAvailableReplicas(ctx, cluster, replicaRequirements.DeepCopy())
 	})
 }
@@ -66,10 +68,16 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 	return res.MaxReplicas, nil
 }
 
-func getClusterReplicasConcurrently(clusters []*clusterv1alpha1.Cluster, timeout time.Duration, getClusterReplicas getClusterReplicasFunc) ([]workv1alpha2.TargetCluster, error) {
-	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func getClusterReplicasConcurrently(parentCtx context.Context, clusters []*clusterv1alpha1.Cluster,
+	timeout time.Duration, getClusterReplicas getClusterReplicasFunc) ([]workv1alpha2.TargetCluster, error) {
+	// add object information into gRPC metadata
+	if u, ok := parentCtx.Value(util.ContextKeyObject).(string); ok {
+		parentCtx = metadata.AppendToOutgoingContext(parentCtx, string(util.ContextKeyObject), u)
+	}
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
+
+	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(clusters))

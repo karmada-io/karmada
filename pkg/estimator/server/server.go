@@ -8,6 +8,7 @@ import (
 
 	"github.com/kr/pretty"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	infov1 "k8s.io/client-go/informers/core/v1"
@@ -20,6 +21,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	nodeutil "github.com/karmada-io/karmada/pkg/estimator/server/nodes"
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -132,7 +134,16 @@ func (es *AccurateSchedulerEstimatorServer) Start(ctx context.Context) error {
 // MaxAvailableReplicas is the implementation of gRPC interface. It will return the
 // max available replicas that a cluster could accommodate based on its requirements.
 func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Context, request *pb.MaxAvailableReplicasRequest) (response *pb.MaxAvailableReplicasResponse, rerr error) {
-	defer traceMaxAvailableReplicas(time.Now(), request)(&response, &rerr)
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		klog.Warningf("No metadata from context.")
+	}
+	var object string
+	if m := md.Get(string(util.ContextKeyObject)); len(m) != 0 {
+		object = m[0]
+	}
+
+	defer traceMaxAvailableReplicas(object, time.Now(), request)(&response, &rerr)
 
 	if request.Cluster != es.clusterName {
 		return nil, fmt.Errorf("cluster name does not match, got: %s, desire: %s", request.Cluster, es.clusterName)
@@ -188,13 +199,13 @@ func (es *AccurateSchedulerEstimatorServer) waitForCacheSync(stopCh <-chan struc
 	)
 }
 
-func traceMaxAvailableReplicas(start time.Time, request *pb.MaxAvailableReplicasRequest) func(response **pb.MaxAvailableReplicasResponse, err *error) {
-	klog.V(4).Infof("Begin calculating cluster available replicas, request: %s", pretty.Sprint(*request))
+func traceMaxAvailableReplicas(object string, start time.Time, request *pb.MaxAvailableReplicasRequest) func(response **pb.MaxAvailableReplicasResponse, err *error) {
+	klog.V(4).Infof("Begin calculating cluster available replicas of resource(%s), request: %s", object, pretty.Sprint(*request))
 	return func(response **pb.MaxAvailableReplicasResponse, err *error) {
 		if *err != nil {
 			klog.Errorf("Failed to calculate cluster available replicas: %v", *err)
 			return
 		}
-		klog.Infof("Finish calculating cluster available replicas, max replicas: %d, time elapsed: %s", (*response).MaxReplicas, time.Since(start))
+		klog.Infof("Finish calculating cluster available replicas of resource(%s), max replicas: %d, time elapsed: %s", object, (*response).MaxReplicas, time.Since(start))
 	}
 }

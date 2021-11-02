@@ -1,6 +1,8 @@
 package client
 
 import (
+	"context"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
@@ -16,7 +18,7 @@ var (
 
 // ReplicaEstimator is an estimator which estimates the maximum replicas that can be applied to the target cluster.
 type ReplicaEstimator interface {
-	MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error)
+	MaxAvailableReplicas(ctx context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error)
 }
 
 // GetReplicaEstimators returns all replica estimators.
