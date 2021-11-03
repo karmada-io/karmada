@@ -67,7 +67,7 @@ type ResourceDetector struct {
 	RESTMapper meta.RESTMapper
 
 	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
-	waitingObjects map[keys.ClusterWideKey]struct{}
+	waitingObjects map[schema.GroupVersionKind]map[keys.ClusterWideKey]struct{}
 	// waitingLock is the lock for waitingObjects operation.
 	waitingLock sync.RWMutex
 
@@ -77,7 +77,7 @@ type ResourceDetector struct {
 // Start runs the detector, never stop until stopCh closed.
 func (d *ResourceDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting resource detector.")
-	d.waitingObjects = make(map[keys.ClusterWideKey]struct{})
+	d.waitingObjects = make(map[schema.GroupVersionKind]map[keys.ClusterWideKey]struct{})
 	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
@@ -716,17 +716,22 @@ func (d *ResourceDetector) getReplicaRequirements(object map[string]interface{})
 func (d *ResourceDetector) AddWaiting(objectKey keys.ClusterWideKey) {
 	d.waitingLock.Lock()
 	defer d.waitingLock.Unlock()
-
-	d.waitingObjects[objectKey] = struct{}{}
-	klog.V(1).Infof("Add object(%s) to waiting list, length of list is: %d", objectKey.String(), len(d.waitingObjects))
+	gvk := objectKey.GroupVersionKind()
+	keyMap, ok := d.waitingObjects[gvk]
+	if !ok {
+		keyMap = make(map[keys.ClusterWideKey]struct{}, 1)
+		d.waitingObjects[gvk] = keyMap
+	}
+	keyMap[objectKey] = struct{}{}
+	klog.V(1).Infof("Add object(%s) to waiting list, there are %d kinds of resource, length of %v is %d",
+		objectKey.String(), len(d.waitingObjects), gvk, len(keyMap))
 }
 
 // RemoveWaiting removes object's key from waiting list.
 func (d *ResourceDetector) RemoveWaiting(objectKey keys.ClusterWideKey) {
 	d.waitingLock.Lock()
 	defer d.waitingLock.Unlock()
-
-	delete(d.waitingObjects, objectKey)
+	delete(d.waitingObjects[objectKey.GroupVersionKind()], objectKey)
 }
 
 // GetMatching gets objects keys in waiting list that matches one of resource selectors.
@@ -736,18 +741,16 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 
 	var matchedResult []keys.ClusterWideKey
 
-	for waitKey := range d.waitingObjects {
-		waitObj, err := d.GetUnstructuredObject(waitKey)
-		if err != nil {
-			// all object in waiting list should exist. Just print a log to trace.
-			klog.Errorf("Failed to get object(%s), error: %v", waitKey.String(), err)
-			continue
-		}
-
-		for _, rs := range resourceSelectors {
+	for _, rs := range resourceSelectors {
+		for waitKey := range d.waitingObjects[schema.FromAPIVersionAndKind(rs.APIVersion, rs.Kind)] {
+			waitObj, err := d.GetUnstructuredObject(waitKey)
+			if err != nil {
+				// all object in waiting list should exist. Just print a log to trace.
+				klog.Errorf("Failed to get object(%s), error: %v", waitKey.String(), err)
+				continue
+			}
 			if util.ResourceMatches(waitObj, rs) {
 				matchedResult = append(matchedResult, waitKey)
-				break
 			}
 		}
 	}
