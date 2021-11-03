@@ -137,7 +137,7 @@ spec:
       restartPolicy: Never
       initContainers:
       - name: init
-        image: cfssl/cfssl
+        image: {{ .Values.preInstallJob.initContainerImage }}
         workingDir: /opt/mount
         command:
         - /bin/sh
@@ -172,7 +172,7 @@ spec:
           mountPath: /opt/configs
       containers:
       - name: pre-install
-        image: bitnami/kubectl:latest
+        image: {{ .Values.preInstallJob.preInstallContainerImage }}
         workingDir: /opt/mount
         command:
         - /bin/sh

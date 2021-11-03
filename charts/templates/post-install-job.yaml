@@ -79,7 +79,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: post-install
-        image: bitnami/kubectl:latest
+        image: {{ .Values.postInstallJob.postInstallContainerImage }}
         command:
         - /bin/sh
         - -c
