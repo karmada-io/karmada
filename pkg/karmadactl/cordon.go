@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -225,37 +224,34 @@ func RunCordonOrUncordon(_ io.Writer, desired int, karmadaConfig KarmadaConfig, 
 	// Get control plane kube-apiserver client
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KubeConfig)
 	if err != nil {
-		klog.Errorf("Failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
+		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
 			opts.KarmadaContext, opts.KubeConfig, err)
-		return err
 	}
 
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	cluster, err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), opts.ClusterName, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("Failed to %s cluster. error: %v", cordonOrUncordon, err)
+		return err
 	}
 
 	cordonHelper := NewCordonHelper(cluster)
 	if !cordonHelper.UpdateIfRequired(desired) {
-		klog.Infof("%s cluster %s", cluster.Name, alreadyStr(desired))
+		fmt.Printf("%s cluster %s\n", cluster.Name, alreadyStr(desired))
 		return nil
 	}
 
 	if !opts.DryRun {
 		err, patchErr := cordonHelper.PatchOrReplace(controlPlaneKarmadaClient)
 		if patchErr != nil {
-			klog.Errorf("Failed to %s cluster. error: %v", cordonOrUncordon, patchErr)
 			return patchErr
 		}
 		if err != nil {
-			klog.Errorf("Failed to %s cluster. error: %v", cordonOrUncordon, err)
 			return err
 		}
 	}
 
-	klog.Infof("%s cluster %sed", cluster.Name, cordonOrUncordon)
+	fmt.Printf("%s cluster %sed\n", cluster.Name, cordonOrUncordon)
 	return nil
 }
 
