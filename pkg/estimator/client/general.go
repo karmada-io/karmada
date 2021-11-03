@@ -1,6 +1,8 @@
 package client
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -21,7 +23,7 @@ func NewGeneralEstimator() *GeneralEstimator {
 }
 
 // MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by cluster ResourceSummary.
-func (ge *GeneralEstimator) MaxAvailableReplicas(clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
+func (ge *GeneralEstimator) MaxAvailableReplicas(ctx context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
 	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 	for i, cluster := range clusters {
 		maxReplicas := ge.maxAvailableReplicas(cluster, replicaRequirements)
