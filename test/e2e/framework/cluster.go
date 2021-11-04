@@ -165,11 +165,11 @@ func isClusterMeetRequirements(clusters []*clusterv1alpha1.Cluster) (bool, error
 
 func newClusterClientSet(controlPlaneClient client.Client, c *clusterv1alpha1.Cluster) (*util.ClusterClient, *util.DynamicClusterClient, error) {
 	if c.Spec.SyncMode == clusterv1alpha1.Push {
-		clusterClient, err := util.NewClusterClientSet(c, controlPlaneClient, nil)
+		clusterClient, err := util.NewClusterClientSet(c.Name, controlPlaneClient, nil)
 		if err != nil {
 			return nil, nil, err
 		}
-		clusterDynamicClient, err := util.NewClusterDynamicClientSet(c, controlPlaneClient)
+		clusterDynamicClient, err := util.NewClusterDynamicClientSet(c.Name, controlPlaneClient)
 		if err != nil {
 			return nil, nil, err
 		}

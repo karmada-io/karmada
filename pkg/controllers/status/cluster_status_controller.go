@@ -61,8 +61,8 @@ type ClusterStatusController struct {
 	PredicateFunc               predicate.Predicate
 	InformerManager             informermanager.MultiClusterInformerManager
 	StopChan                    <-chan struct{}
-	ClusterClientSetFunc        func(*clusterv1alpha1.Cluster, client.Client, *util.ClientOption) (*util.ClusterClient, error)
-	ClusterDynamicClientSetFunc func(c *clusterv1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterClientSetFunc        func(string, client.Client, *util.ClientOption) (*util.ClusterClient, error)
+	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 	// ClusterClientOption holds the attributes that should be injected to a Kubernetes client.
 	ClusterClientOption *util.ClientOption
 
@@ -112,7 +112,7 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	// create a ClusterClient for the given member cluster
-	clusterClient, err := c.ClusterClientSetFunc(cluster, c.Client, c.ClusterClientOption)
+	clusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 	if err != nil {
 		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", cluster.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
@@ -204,7 +204,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 func (c *ClusterStatusController) buildInformerForCluster(cluster *clusterv1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
-		clusterClient, err := c.ClusterDynamicClientSetFunc(cluster, c.Client)
+		clusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client)
 		if err != nil {
 			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
 			return nil, err

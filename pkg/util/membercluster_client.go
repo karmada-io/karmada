@@ -46,13 +46,13 @@ type ClientOption struct {
 }
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
-func NewClusterClientSet(c *clusterv1alpha1.Cluster, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
-	clusterConfig, err := buildClusterConfig(c, client)
+func NewClusterClientSet(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
+	clusterConfig, err := buildClusterConfig(clusterName, client)
 	if err != nil {
 		return nil, err
 	}
 
-	var clusterClientSet = ClusterClient{ClusterName: c.Name}
+	var clusterClientSet = ClusterClient{ClusterName: clusterName}
 
 	if clusterConfig != nil {
 		if clientOption != nil {
@@ -65,13 +65,13 @@ func NewClusterClientSet(c *clusterv1alpha1.Cluster, client client.Client, clien
 }
 
 // NewClusterClientSetForAgent returns a ClusterClient for the given member cluster which will be used in karmada agent.
-func NewClusterClientSetForAgent(c *clusterv1alpha1.Cluster, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
+func NewClusterClientSetForAgent(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
 	}
 
-	var clusterClientSet = ClusterClient{ClusterName: c.Name}
+	var clusterClientSet = ClusterClient{ClusterName: clusterName}
 
 	if clusterConfig != nil {
 		if clientOption != nil {
@@ -84,12 +84,12 @@ func NewClusterClientSetForAgent(c *clusterv1alpha1.Cluster, client client.Clien
 }
 
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
-func NewClusterDynamicClientSet(c *clusterv1alpha1.Cluster, client client.Client) (*DynamicClusterClient, error) {
-	clusterConfig, err := buildClusterConfig(c, client)
+func NewClusterDynamicClientSet(clusterName string, client client.Client) (*DynamicClusterClient, error) {
+	clusterConfig, err := buildClusterConfig(clusterName, client)
 	if err != nil {
 		return nil, err
 	}
-	var clusterClientSet = DynamicClusterClient{ClusterName: c.Name}
+	var clusterClientSet = DynamicClusterClient{ClusterName: clusterName}
 
 	if clusterConfig != nil {
 		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
@@ -98,12 +98,12 @@ func NewClusterDynamicClientSet(c *clusterv1alpha1.Cluster, client client.Client
 }
 
 // NewClusterDynamicClientSetForAgent returns a dynamic client for the given member cluster which will be used in karmada agent.
-func NewClusterDynamicClientSetForAgent(c *clusterv1alpha1.Cluster, client client.Client) (*DynamicClusterClient, error) {
+func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client) (*DynamicClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
 	}
-	var clusterClientSet = DynamicClusterClient{ClusterName: c.Name}
+	var clusterClientSet = DynamicClusterClient{ClusterName: clusterName}
 
 	if clusterConfig != nil {
 		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
@@ -111,8 +111,11 @@ func NewClusterDynamicClientSetForAgent(c *clusterv1alpha1.Cluster, client clien
 	return &clusterClientSet, nil
 }
 
-func buildClusterConfig(cluster *clusterv1alpha1.Cluster, client client.Client) (*rest.Config, error) {
-	clusterName := cluster.Name
+func buildClusterConfig(clusterName string, client client.Client) (*rest.Config, error) {
+	cluster, err := GetCluster(client, clusterName)
+	if err != nil {
+		return nil, err
+	}
 	apiEndpoint := cluster.Spec.APIEndpoint
 	if apiEndpoint == "" {
 		return nil, fmt.Errorf("the api endpoint of cluster %s is empty", clusterName)
