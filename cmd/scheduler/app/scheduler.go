@@ -32,11 +32,23 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "karmada-scheduler",
 		Long: `The karmada scheduler binds resources to the clusters it manages.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := run(opts, stopChan); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				os.Exit(1)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// validate options
+			if errs := opts.Validate(); len(errs) != 0 {
+				return errs.ToAggregate()
 			}
+			if err := run(opts, stopChan); err != nil {
+				return err
+			}
+			return nil
+		},
+		Args: func(cmd *cobra.Command, args []string) error {
+			for _, arg := range args {
+				if len(arg) > 0 {
+					return fmt.Errorf("%q does not take any arguments, got %q", cmd.CommandPath(), args)
+				}
+			}
+			return nil
 		},
 	}
 
