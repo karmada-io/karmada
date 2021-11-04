@@ -113,6 +113,10 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
 	overrideManager := overridemanager.New(mgr.GetClient())
 	skippedResourceConfig := util.NewSkippedResourceConfig()
+	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
+		// The program will never go here because the parameters have been checked
+		return
+	}
 
 	skippedPropagatingNamespaces := map[string]struct{}{}
 	for _, ns := range opts.SkippedPropagatingNamespaces {
