@@ -17,6 +17,15 @@ components: []
   #   "schedulerEstimator"
   # ]
 
+## pre-install job config
+preInstallJob:
+  initContainerImage: cfssl/cfssl
+  preInstallContainerImage: bitnami/kubectl:latest
+
+## post-install job config
+postInstallJob:
+  postInstallContainerImage: bitnami/kubectl:latest
+
 ## karmada certificate config
 certs:
   ## @param certs.mode "auto" and "custom" are provided
