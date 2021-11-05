@@ -83,6 +83,11 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
+	if !util.IsClusterReady(&cluster.Status) {
+		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+	}
+
 	return c.buildResourceInformers(cluster, work)
 }
 
@@ -391,17 +396,24 @@ func (c *WorkStatusController) registerInformersAndStart(cluster *clusterv1alpha
 	}
 
 	c.InformerManager.Start(cluster.Name)
-	synced := c.InformerManager.WaitForCacheSync(cluster.Name)
-	if synced == nil {
-		klog.Errorf("No informerFactory for cluster %s exist.", cluster.Name)
-		return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
-	}
-	for gvr := range gvrTargets {
-		if !synced[gvr] {
-			klog.Errorf("Informer for %s hasn't synced.", gvr)
-			return fmt.Errorf("informer for %s hasn't synced", gvr)
+
+	if err := func() error {
+		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, util.CacheSyncTimeout)
+		if synced == nil {
+			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
 		}
+		for gvr := range gvrTargets {
+			if !synced[gvr] {
+				return fmt.Errorf("informer for %s hasn't synced", gvr)
+			}
+		}
+		return nil
+	}(); err != nil {
+		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", cluster.Name, err)
+		c.InformerManager.Stop(cluster.Name)
+		return err
 	}
+
 	return nil
 }
 
