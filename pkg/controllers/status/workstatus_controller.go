@@ -116,11 +116,11 @@ func generateKey(obj interface{}) (util.QueueKey, error) {
 	resource := obj.(*unstructured.Unstructured)
 	cluster, err := getClusterNameFromLabel(resource)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	// it happens when the obj not managed by Karmada.
+	// return a nil key when the obj not managed by Karmada, which will be discarded before putting to queue.
 	if cluster == "" {
-		return "", nil
+		return nil, nil
 	}
 
 	return keys.FederatedKeyFunc(cluster, obj)
