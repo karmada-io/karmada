@@ -37,7 +37,7 @@ Export `KUBECONFIG` and switch to `karmada apiserver`:
 Then, install `karmadactl` command and join the member cluster:
 
 ```
-# go get github.com/karmada-io/karmada/cmd/karmadactl
+# go install github.com/karmada-io/karmada/cmd/karmadactl
 
 # karmadactl join cluster1 --cluster-kubeconfig=$HOME/.kube/cluster1.config
 ```

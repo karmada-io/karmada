@@ -386,6 +386,7 @@ golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+## explicit
 golang.org/x/term
 # golang.org/x/text v0.3.6
 golang.org/x/text/encoding

@@ -12,6 +12,7 @@ run:
   # "/" will be replaced by current OS file path separator to properly work
   # on Windows.
   skip-dirs:
+  - hack/tools/preferredimports # This code is directly lifted from the Kubernetes codebase, skip checking
 
   # default is true. Enables skipping of directories:
   #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
