@@ -191,7 +191,7 @@ func TestDefaultSkippedResourceConfigGroupParse(t *testing.T) {
 		{
 			input: "",
 			out: []string{
-				"cluster.karmada.io", "policy.karmada.io", "work.karmada.io",
+				"cluster.karmada.io", "policy.karmada.io", "work.karmada.io", "events.k8s.io",
 			}},
 	}
 	for _, test := range tests {
@@ -201,6 +201,35 @@ func TestDefaultSkippedResourceConfigGroupParse(t *testing.T) {
 		}
 		for i, o := range test.out {
 			ok := r.GroupDisabled(o)
+			if !ok {
+				t.Errorf("%d: unexpected error: %v", i, o)
+			}
+		}
+		ok := r.GroupDisabled("")
+		if ok {
+			t.Error("unexpected error: v1")
+		}
+	}
+}
+
+func TestDefaultSkippedResourceConfigGroupVersionKindParse(t *testing.T) {
+	tests := []struct {
+		input string
+		out   []schema.GroupVersionKind
+	}{
+		{
+			input: "",
+			out: []schema.GroupVersionKind{
+				corev1EventGVK,
+			}},
+	}
+	for _, test := range tests {
+		r := NewSkippedResourceConfig()
+		if err := r.Parse(test.input); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		for i, o := range test.out {
+			ok := r.GroupVersionKindDisabled(o)
 			if !ok {
 				t.Errorf("%d: unexpected error: %v", i, o)
 			}

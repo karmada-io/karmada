@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	eventsv1 "k8s.io/api/events/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -21,6 +22,12 @@ type SkippedResourceConfig struct {
 	GroupVersionKinds map[schema.GroupVersionKind]struct{}
 }
 
+var corev1EventGVK = schema.GroupVersionKind{
+	Group:   "",
+	Version: "v1",
+	Kind:    "Event",
+}
+
 // NewSkippedResourceConfig to create SkippedResourceConfig
 func NewSkippedResourceConfig() *SkippedResourceConfig {
 	r := &SkippedResourceConfig{
@@ -32,6 +39,10 @@ func NewSkippedResourceConfig() *SkippedResourceConfig {
 	r.DisableGroup(clusterv1alpha1.GroupVersion.Group)
 	r.DisableGroup(policyv1alpha1.GroupVersion.Group)
 	r.DisableGroup(workv1alpha1.GroupVersion.Group)
+
+	// disable event by default
+	r.DisableGroup(eventsv1.GroupName)
+	r.DisableGroupVersionKind(corev1EventGVK)
 	return r
 }
 
@@ -146,4 +157,9 @@ func (r *SkippedResourceConfig) GroupDisabled(g string) bool {
 // DisableGroup to disable group.
 func (r *SkippedResourceConfig) DisableGroup(g string) {
 	r.Groups[g] = struct{}{}
+}
+
+// DisableGroupVersionKind to disable GroupVersionKind.
+func (r *SkippedResourceConfig) DisableGroupVersionKind(gvk schema.GroupVersionKind) {
+	r.GroupVersionKinds[gvk] = struct{}{}
 }
