@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
+
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
 // These are different resource units.
@@ -375,6 +377,27 @@ func MakeNodeWithTaints(node string, milliCPU, memory, pods, ephemeralStorage in
 					Message:           "kubelet is posting ready status",
 					LastHeartbeatTime: metav1.Now(),
 				},
+			},
+		},
+	}
+}
+
+// NewCluster will build a Cluster.
+func NewCluster(name string) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+	}
+}
+
+// NewClusterWithResource will build a Cluster with resource.
+func NewClusterWithResource(name string, allocatable, allocating, allocated corev1.ResourceList) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Status: clusterv1alpha1.ClusterStatus{
+			ResourceSummary: &clusterv1alpha1.ResourceSummary{
+				Allocatable: allocatable,
+				Allocating:  allocating,
+				Allocated:   allocated,
 			},
 		},
 	}
