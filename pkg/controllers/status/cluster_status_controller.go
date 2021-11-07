@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -37,11 +38,12 @@ const (
 	// ControllerName is the controller name that will be used when reporting events.
 	ControllerName            = "cluster-status-controller"
 	clusterReady              = "ClusterReady"
-	clusterHealthy            = "cluster is reachable and health endpoint responded with ok"
+	clusterHealthy            = "cluster is healthy and ready to accept workloads"
 	clusterNotReady           = "ClusterNotReady"
 	clusterUnhealthy          = "cluster is reachable but health endpoint responded without ok"
 	clusterNotReachableReason = "ClusterNotReachable"
 	clusterNotReachableMsg    = "cluster is not reachable"
+	statusCollectionFailed    = "StatusCollectionFailed"
 	// clusterStatusRetryInterval specifies the interval between two retries.
 	clusterStatusRetryInterval = 500 * time.Millisecond
 	// clusterStatusRetryTimeout specifies the maximum time to wait for cluster status.
@@ -111,14 +113,14 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 }
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+	var currentClusterStatus = clusterv1alpha1.ClusterStatus{}
+
 	// create a ClusterClient for the given member cluster
 	clusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 	if err != nil {
 		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", cluster.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to create a ClusterClient: %v", err))
 	}
-
-	var currentClusterStatus = clusterv1alpha1.ClusterStatus{}
 
 	var online, healthy bool
 	// in case of cluster offline, retry a few times to avoid network unstable problems.
@@ -134,9 +136,10 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	// error indicates that retry timeout, update cluster status immediately and return.
 	if err != nil {
 		klog.V(2).Infof("Cluster(%s) still offline after retry, ensuring offline is set.", cluster.Name)
-		currentClusterStatus.Conditions = generateReadyCondition(false, false)
-		setTransitionTime(&cluster.Status, &currentClusterStatus)
 		c.InformerManager.Stop(cluster.Name)
+		readyCondition := generateReadyCondition(false, false)
+		setTransitionTime(cluster.Status.Conditions, &readyCondition)
+		meta.SetStatusCondition(&currentClusterStatus.Conditions, readyCondition)
 		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 	}
 
@@ -144,7 +147,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	clusterInformerManager, err := c.buildInformerForCluster(cluster)
 	if err != nil {
 		klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
-		return controllerruntime.Result{Requeue: true}, err
+		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to get or create informer: %v", err))
 	}
 
 	// init the lease controller for every cluster
@@ -152,36 +155,41 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 
 	clusterVersion, err := getKubernetesVersion(clusterClient)
 	if err != nil {
-		klog.Errorf("Failed to get server version of the member cluster: %v, err is : %v", cluster.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to get kubernetes version: %v", err))
 	}
 
 	// get the list of APIs installed in the member cluster
 	apiEnables, err := getAPIEnablements(clusterClient)
 	if err != nil {
-		klog.Errorf("Failed to get APIs installed in the member cluster: %v, err is : %v", cluster.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to get the list of APIs installed in the member cluster: %v", err))
 	}
 
 	nodes, err := listNodes(clusterInformerManager)
 	if err != nil {
-		klog.Errorf("Failed to list nodes of cluster(%s), err: %v", cluster.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to list nodes: %v", err))
 	}
 
 	pods, err := listPods(clusterInformerManager)
 	if err != nil {
-		klog.Errorf("Failed to list pods of cluster(%s), err: %v", cluster.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to list pods: %v", err))
 	}
 
-	currentClusterStatus.Conditions = generateReadyCondition(online, healthy)
-	setTransitionTime(&cluster.Status, &currentClusterStatus)
 	currentClusterStatus.KubernetesVersion = clusterVersion
 	currentClusterStatus.APIEnablements = apiEnables
 	currentClusterStatus.NodeSummary = getNodeSummary(nodes)
 	currentClusterStatus.ResourceSummary = getResourceSummary(nodes, pods)
 
+	readyCondition := generateReadyCondition(online, healthy)
+	setTransitionTime(cluster.Status.Conditions, &readyCondition)
+	meta.SetStatusCondition(&currentClusterStatus.Conditions, readyCondition)
+
+	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
+}
+
+func (c *ClusterStatusController) setStatusCollectionFailedCondition(cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus, message string) (controllerruntime.Result, error) {
+	readyCondition := util.NewCondition(clusterv1alpha1.ClusterConditionReady, statusCollectionFailed, message, metav1.ConditionFalse)
+	setTransitionTime(cluster.Status.Conditions, &readyCondition)
+	meta.SetStatusCondition(&currentClusterStatus.Conditions, readyCondition)
 	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 }
 
@@ -304,54 +312,22 @@ func healthEndpointCheck(client *clientset.Clientset, path string) (int, error) 
 	return healthStatus, resp.Error()
 }
 
-func generateReadyCondition(online, healthy bool) []metav1.Condition {
-	var conditions []metav1.Condition
-	currentTime := metav1.Now()
-
-	newClusterOfflineCondition := metav1.Condition{
-		Type:               clusterv1alpha1.ClusterConditionReady,
-		Status:             metav1.ConditionFalse,
-		Reason:             clusterNotReachableReason,
-		Message:            clusterNotReachableMsg,
-		LastTransitionTime: currentTime,
-	}
-
-	newClusterReadyCondition := metav1.Condition{
-		Type:               clusterv1alpha1.ClusterConditionReady,
-		Status:             metav1.ConditionTrue,
-		Reason:             clusterReady,
-		Message:            clusterHealthy,
-		LastTransitionTime: currentTime,
-	}
-
-	newClusterNotReadyCondition := metav1.Condition{
-		Type:               clusterv1alpha1.ClusterConditionReady,
-		Status:             metav1.ConditionFalse,
-		Reason:             clusterNotReady,
-		Message:            clusterUnhealthy,
-		LastTransitionTime: currentTime,
-	}
-
+func generateReadyCondition(online, healthy bool) metav1.Condition {
 	if !online {
-		conditions = append(conditions, newClusterOfflineCondition)
-	} else {
-		if !healthy {
-			conditions = append(conditions, newClusterNotReadyCondition)
-		} else {
-			conditions = append(conditions, newClusterReadyCondition)
-		}
+		return util.NewCondition(clusterv1alpha1.ClusterConditionReady, clusterNotReachableReason, clusterNotReachableMsg, metav1.ConditionFalse)
+	}
+	if !healthy {
+		return util.NewCondition(clusterv1alpha1.ClusterConditionReady, clusterNotReady, clusterUnhealthy, metav1.ConditionFalse)
 	}
 
-	return conditions
+	return util.NewCondition(clusterv1alpha1.ClusterConditionReady, clusterReady, clusterHealthy, metav1.ConditionTrue)
 }
 
-func setTransitionTime(oldClusterStatus, newClusterStatus *clusterv1alpha1.ClusterStatus) {
-	// preserve the last transition time if the status of member cluster not changed
-	if util.IsClusterReady(oldClusterStatus) == util.IsClusterReady(newClusterStatus) {
-		if len(oldClusterStatus.Conditions) != 0 {
-			for i := 0; i < len(newClusterStatus.Conditions); i++ {
-				newClusterStatus.Conditions[i].LastTransitionTime = oldClusterStatus.Conditions[0].LastTransitionTime
-			}
+func setTransitionTime(existingConditions []metav1.Condition, newCondition *metav1.Condition) {
+	// preserve the last transition time if the status of given condition not changed
+	if existingCondition := meta.FindStatusCondition(existingConditions, newCondition.Type); existingCondition != nil {
+		if existingCondition.Status == newCondition.Status {
+			newCondition.LastTransitionTime = existingCondition.LastTransitionTime
 		}
 	}
 }
