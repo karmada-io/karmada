@@ -380,8 +380,6 @@ spec:
                               - weight
                               type: object
                             type: array
-                        required:
-                        - staticWeightList
                         type: object
                     type: object
                   spreadConstraints:

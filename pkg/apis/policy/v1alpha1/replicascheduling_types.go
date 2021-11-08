@@ -35,8 +35,8 @@ type ReplicaSchedulingSpec struct {
 // ClusterPreferences describes weight for each cluster or for each group of cluster.
 type ClusterPreferences struct {
 	// StaticWeightList defines the static cluster weight.
-	// +required
-	StaticWeightList []StaticClusterWeight `json:"staticWeightList"`
+	// +optional
+	StaticWeightList []StaticClusterWeight `json:"staticWeightList,omitempty"`
 	// DynamicWeight specifies the factor to generates dynamic weight list.
 	// If specified, StaticWeightList will be ignored.
 	// +kubebuilder:validation:Enum=AvailableReplicas
