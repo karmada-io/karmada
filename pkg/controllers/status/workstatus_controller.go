@@ -44,7 +44,7 @@ type WorkStatusController struct {
 	worker               util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
 	ObjectWatcher        objectwatcher.ObjectWatcher
 	PredicateFunc        predicate.Predicate
-	ClusterClientSetFunc func(c *clusterv1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -193,20 +193,14 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	cluster, err := util.GetCluster(c.Client, clusterName)
-	if err != nil {
-		klog.Errorf("Failed to the get given member cluster %s", clusterName)
-		return err
-	}
-
 	// compare version to determine if need to update resource
-	needUpdate, err := c.ObjectWatcher.NeedsUpdate(cluster, desireObj, obj)
+	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desireObj, obj)
 	if err != nil {
 		return err
 	}
 
 	if needUpdate {
-		if err := c.ObjectWatcher.Update(cluster, desireObj, obj); err != nil {
+		if err := c.ObjectWatcher.Update(clusterName, desireObj, obj); err != nil {
 			klog.Errorf("Update %s failed: %v", fedKey.String(), err)
 			return err
 		}
@@ -263,12 +257,7 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 			manifest.GetNamespace() == workloadKey.Namespace &&
 			manifest.GetName() == workloadKey.Name {
 			klog.Infof("recreating %s", workloadKey.String())
-			cluster, err := util.GetCluster(c.Client, workloadKey.Cluster)
-			if err != nil {
-				klog.Errorf("Failed to the get given member cluster %s", workloadKey.Cluster)
-				return err
-			}
-			return c.ObjectWatcher.Create(cluster, manifest)
+			return c.ObjectWatcher.Create(workloadKey.Cluster, manifest)
 		}
 	}
 	return nil
@@ -444,7 +433,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 	//  the cache in informer manager should be updated.
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster, c.Client)
+		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client)
 		if err != nil {
 			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
 			return nil, err

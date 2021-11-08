@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -69,11 +68,15 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		klog.Errorf("Failed to get the given member cluster %s", clusterName)
 		return controllerruntime.Result{Requeue: true}, err
 	}
+	if !util.IsClusterReady(&cluster.Status) {
+		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+	}
 
 	if !work.DeletionTimestamp.IsZero() {
 		applied := helper.IsResourceApplied(&work.Status)
 		if applied {
-			err := c.tryDeleteWorkload(cluster, work)
+			err := c.tryDeleteWorkload(clusterName, work)
 			if err != nil {
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 				return controllerruntime.Result{Requeue: true}, err
@@ -82,7 +85,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return c.removeFinalizer(work)
 	}
 
-	return c.syncWork(cluster, work)
+	return c.syncWork(clusterName, work)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -94,20 +97,15 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		Complete(c)
 }
 
-func (c *Controller) syncWork(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) (controllerruntime.Result, error) {
-	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
-		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
-	}
-
-	err := c.syncToClusters(cluster, work)
+func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+	err := c.syncToClusters(clusterName, work)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, cluster.Name, err)
+		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, clusterName, err)
 		klog.Errorf(msg)
 		c.EventRecorder.Event(work, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, msg)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-	msg := fmt.Sprintf("Sync work (%s) to cluster(%s) successful.", work.Name, cluster.Name)
+	msg := fmt.Sprintf("Sync work (%s) to cluster(%s) successful.", work.Name, clusterName)
 	klog.V(4).Infof(msg)
 	c.EventRecorder.Event(work, corev1.EventTypeNormal, workv1alpha1.EventReasonSyncWorkSucceed, msg)
 	return controllerruntime.Result{}, nil
@@ -115,13 +113,7 @@ func (c *Controller) syncWork(cluster *clusterv1alpha1.Cluster, work *workv1alph
 
 // tryDeleteWorkload tries to delete resource in the given member cluster.
 // Abort deleting when the member cluster is unready, otherwise we can't unjoin the member cluster when the member cluster is unready
-func (c *Controller) tryDeleteWorkload(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) error {
-	// Do not clean up resource in the given member cluster if the status of the given member cluster is unready
-	if !util.IsClusterReady(&cluster.Status) {
-		klog.Infof("Do not clean up resource in the given member cluster if the status of the given member cluster %s is unready", cluster.Name)
-		return nil
-	}
-
+func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Work) error {
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
@@ -130,9 +122,9 @@ func (c *Controller) tryDeleteWorkload(cluster *clusterv1alpha1.Cluster, work *w
 			return err
 		}
 
-		err = c.ObjectWatcher.Delete(cluster, workload)
+		err = c.ObjectWatcher.Delete(clusterName, workload)
 		if err != nil {
-			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", cluster.Name, err)
+			klog.Errorf("Failed to delete resource in the given member cluster %v, err is %v", clusterName, err)
 			return err
 		}
 	}
@@ -155,7 +147,7 @@ func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime
 }
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToClusters(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) error {
+func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work) error {
 	var errs []error
 	syncSucceedNum := 0
 	for _, manifest := range work.Spec.Workload.Manifests {
@@ -169,16 +161,16 @@ func (c *Controller) syncToClusters(cluster *clusterv1alpha1.Cluster, work *work
 
 		applied := helper.IsResourceApplied(&work.Status)
 		if applied {
-			err = c.tryUpdateWorkload(cluster, workload)
+			err = c.tryUpdateWorkload(clusterName, workload)
 			if err != nil {
-				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
 		} else {
-			err = c.tryCreateWorkload(cluster, workload)
+			err = c.tryCreateWorkload(clusterName, workload)
 			if err != nil {
-				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
@@ -206,8 +198,8 @@ func (c *Controller) syncToClusters(cluster *clusterv1alpha1.Cluster, work *work
 	return nil
 }
 
-func (c *Controller) tryUpdateWorkload(cluster *clusterv1alpha1.Cluster, workload *unstructured.Unstructured) error {
-	fedKey, err := keys.FederatedKeyFunc(cluster.Name, workload)
+func (c *Controller) tryUpdateWorkload(clusterName string, workload *unstructured.Unstructured) error {
+	fedKey, err := keys.FederatedKeyFunc(clusterName, workload)
 	if err != nil {
 		klog.Errorf("Failed to get FederatedKey %s, error: %v", workload.GetName(), err)
 		return err
@@ -219,24 +211,24 @@ func (c *Controller) tryUpdateWorkload(cluster *clusterv1alpha1.Cluster, workloa
 			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
 			return err
 		}
-		err = c.tryCreateWorkload(cluster, workload)
+		err = c.tryCreateWorkload(clusterName, workload)
 		if err != nil {
-			klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+			klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 			return err
 		}
 		return nil
 	}
 
-	err = c.ObjectWatcher.Update(cluster, workload, clusterObj)
+	err = c.ObjectWatcher.Update(clusterName, workload, clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", cluster.Name, err)
+		klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", clusterName, err)
 		return err
 	}
 	return nil
 }
 
-func (c *Controller) tryCreateWorkload(cluster *clusterv1alpha1.Cluster, workload *unstructured.Unstructured) error {
-	return c.ObjectWatcher.Create(cluster, workload)
+func (c *Controller) tryCreateWorkload(clusterName string, workload *unstructured.Unstructured) error {
+	return c.ObjectWatcher.Create(clusterName, workload)
 }
 
 // updateAppliedCondition update the Applied condition for the given Work
