@@ -9,6 +9,7 @@ import (
 
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	cluster "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/cluster"
+	config "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/config"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
 	policy "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/policy"
 	work "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/work"
@@ -159,12 +160,17 @@ type SharedInformerFactory interface {
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
 	Cluster() cluster.Interface
+	Config() config.Interface
 	Policy() policy.Interface
 	Work() work.Interface
 }
 
 func (f *sharedInformerFactory) Cluster() cluster.Interface {
 	return cluster.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Config() config.Interface {
+	return config.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Policy() policy.Interface {
