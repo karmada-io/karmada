@@ -1,9 +1,10 @@
 package main
 
 import (
+	"os"
+
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/component-base/logs"
-	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app"
 )
@@ -15,6 +16,6 @@ func main() {
 	stopChan := apiserver.SetupSignalHandler()
 
 	if err := app.NewSchedulerCommand(stopChan).Execute(); err != nil {
-		klog.Fatal(err.Error())
+		os.Exit(1)
 	}
 }
