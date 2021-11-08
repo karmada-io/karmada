@@ -11,7 +11,7 @@ const (
 )
 
 var (
-	// FeatureGate is a shared global scheduler FeatureGate.
+	// FeatureGate is a shared global FeatureGate.
 	FeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()
 
 	defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
