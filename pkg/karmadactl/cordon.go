@@ -171,13 +171,12 @@ func (c *CordonHelper) hasUnschedulerTaint() bool {
 
 // PatchOrReplace uses given karmada clientset to update the cluster unschedulable scheduler, either by patching or
 // updating the given cluster object; it may return error if the object cannot be encoded as
-// JSON, or if either patch or update calls fail; it will also return a second error
-// whenever creating a patch has failed
-func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clientset) (error, error) {
+// JSON, or if either patch or update calls fail; it will also return error whenever creating a patch has failed
+func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clientset) error {
 	client := controlPlaneClient.ClusterV1alpha1().Clusters()
 	oldData, err := json.Marshal(c.cluster)
 	if err != nil {
-		return err, nil
+		return err
 	}
 
 	unschedulerTaint := corev1.Taint{
@@ -201,16 +200,16 @@ func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clien
 
 	newData, err := json.Marshal(c.cluster)
 	if err != nil {
-		return err, nil
+		return err
 	}
 
-	patchBytes, patchErr := strategicpatch.CreateTwoWayMergePatch(oldData, newData, c.cluster)
-	if patchErr == nil {
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, c.cluster)
+	if err == nil {
 		_, err = client.Patch(context.TODO(), c.cluster.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	} else {
 		_, err = client.Update(context.TODO(), c.cluster, metav1.UpdateOptions{})
 	}
-	return err, patchErr
+	return err
 }
 
 // RunCordonOrUncordon exec marks the cluster unschedulable or schedulable according to desired.
@@ -242,10 +241,7 @@ func RunCordonOrUncordon(_ io.Writer, desired int, karmadaConfig KarmadaConfig, 
 	}
 
 	if !opts.DryRun {
-		err, patchErr := cordonHelper.PatchOrReplace(controlPlaneKarmadaClient)
-		if patchErr != nil {
-			return patchErr
-		}
+		err := cordonHelper.PatchOrReplace(controlPlaneKarmadaClient)
 		if err != nil {
 			return err
 		}
