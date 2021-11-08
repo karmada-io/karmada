@@ -149,7 +149,7 @@ function print_success() {
   echo "Please use 'kubectl config use-context karmada-host/karmada-apiserver' to switch the host and control plane cluster."
   echo -e "\nTo manage your member clusters, run:"
   echo -e "  export KUBECONFIG=${MEMBER_CLUSTER_KUBECONFIG}"
-    echo "Please use 'kubectl config use-context member1/member2/member3' to switch to the different member cluster."
+  echo "Please use 'kubectl config use-context member1/member2/member3' to switch to the different member cluster."
 }
 
 print_success
