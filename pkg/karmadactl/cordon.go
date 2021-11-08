@@ -65,7 +65,7 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 	return cmd
 }
 
-// NewCmdUncordon defines the `cordon` command that mark cluster as schedulable.
+// NewCmdUncordon defines the `uncordon` command that mark cluster as schedulable.
 func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{

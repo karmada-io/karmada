@@ -902,6 +902,7 @@ func (s *Scheduler) establishEstimatorConnections() {
 	clusterList, err := s.KarmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.Errorf("Cannot list all clusters when establish all cluster estimator connections: %v", err)
+		return
 	}
 	for i := range clusterList.Items {
 		if err = estimatorclient.EstablishConnection(clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorPort); err != nil {
