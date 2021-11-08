@@ -160,6 +160,7 @@ func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
 		if err != nil {
 			klog.Errorf("Failed to delete orphan work %s/%s, err is %v", work.GetNamespace(), work.GetName(), err)
 			errs = append(errs, err)
+			continue
 		}
 		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
 	}
