@@ -14,7 +14,7 @@ spec:
     listKind: ResourceExploringWebhookConfigurationList
     plural: resourceexploringwebhookconfigurations
     singular: resourceexploringwebhookconfiguration
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
