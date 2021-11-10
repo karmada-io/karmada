@@ -171,7 +171,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 
 	clusterRestConfig, err := d.KarmadaConfig.GetRestConfig("", kubeconfigPath)
 	if err != nil {
-		klog.Fatalf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
+		klog.Exitf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
 	}
 	opts := karmadactl.CommandJoinOption{
 		GlobalCommandOptions: options.GlobalCommandOptions{

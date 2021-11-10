@@ -123,7 +123,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster status controller: %v", err)
+		klog.Exitf("Failed to setup cluster status controller: %v", err)
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent)
@@ -136,7 +136,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		InformerManager: informermanager.GetInstance(),
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup execution controller: %v", err)
+		klog.Exitf("Failed to setup execution controller: %v", err)
 	}
 
 	workStatusController := &status.WorkStatusController{
@@ -152,7 +152,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup work status controller: %v", err)
+		klog.Exitf("Failed to setup work status controller: %v", err)
 	}
 
 	serviceExportController := &mcs.ServiceExportController{
@@ -167,7 +167,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+		klog.Exitf("Failed to setup ServiceExport controller: %v", err)
 	}
 
 	// Ensure the InformerManager stops when the stop channel closes

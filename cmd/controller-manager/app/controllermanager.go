@@ -133,7 +133,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
-		klog.Fatalf("Failed to setup resource detector: %v", err)
+		klog.Exitf("Failed to setup resource detector: %v", err)
 	}
 
 	setupClusterAPIClusterDetector(mgr, opts, stopChan)
@@ -146,7 +146,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
 	}
 	if err := clusterController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster controller: %v", err)
+		klog.Exitf("Failed to setup cluster controller: %v", err)
 	}
 
 	clusterPredicateFunc := predicate.Funcs{
@@ -182,7 +182,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster status controller: %v", err)
+		klog.Exitf("Failed to setup cluster status controller: %v", err)
 	}
 
 	hpaController := &hpa.HorizontalPodAutoscalerController{
@@ -193,7 +193,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		InformerManager: controlPlaneInformerManager,
 	}
 	if err := hpaController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup hpa controller: %v", err)
+		klog.Exitf("Failed to setup hpa controller: %v", err)
 	}
 
 	bindingController := &binding.ResourceBindingController{
@@ -205,7 +205,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		InformerManager: controlPlaneInformerManager,
 	}
 	if err := bindingController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup binding controller: %v", err)
+		klog.Exitf("Failed to setup binding controller: %v", err)
 	}
 
 	clusterResourceBindingController := &binding.ClusterResourceBindingController{
@@ -217,7 +217,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		InformerManager: controlPlaneInformerManager,
 	}
 	if err := clusterResourceBindingController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
+		klog.Exitf("Failed to setup cluster resource binding controller: %v", err)
 	}
 
 	executionController := &execution.Controller{
@@ -229,7 +229,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		InformerManager: informermanager.GetInstance(),
 	}
 	if err := executionController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup execution controller: %v", err)
+		klog.Exitf("Failed to setup execution controller: %v", err)
 	}
 
 	workStatusController := &status.WorkStatusController{
@@ -245,7 +245,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup work status controller: %v", err)
+		klog.Exitf("Failed to setup work status controller: %v", err)
 	}
 
 	namespaceSyncController := &namespace.Controller{
@@ -254,7 +254,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
 	}
 	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
+		klog.Exitf("Failed to setup namespace sync controller: %v", err)
 	}
 
 	serviceExportController := &mcs.ServiceExportController{
@@ -269,7 +269,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+		klog.Exitf("Failed to setup ServiceExport controller: %v", err)
 	}
 
 	endpointSliceController := &mcs.EndpointSliceController{
@@ -277,7 +277,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		EventRecorder: mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
 	}
 	if err := endpointSliceController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup EndpointSlice controller: %v", err)
+		klog.Exitf("Failed to setup EndpointSlice controller: %v", err)
 	}
 
 	serviceImportController := &mcs.ServiceImportController{
@@ -285,7 +285,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
 	}
 	if err := serviceImportController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
+		klog.Exitf("Failed to setup ServiceImport controller: %v", err)
 	}
 
 	// Ensure the InformerManager stops when the stop channel closes
@@ -306,12 +306,12 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 	karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 	clusterAPIRestConfig, err := karmadaConfig.GetRestConfig(opts.ClusterAPIContext, opts.ClusterAPIKubeconfig)
 	if err != nil {
-		klog.Fatalf("Failed to get cluster-api management cluster rest config. context: %s, kubeconfig: %s, err: %v", opts.ClusterAPIContext, opts.ClusterAPIKubeconfig, err)
+		klog.Exitf("Failed to get cluster-api management cluster rest config. context: %s, kubeconfig: %s, err: %v", opts.ClusterAPIContext, opts.ClusterAPIKubeconfig, err)
 	}
 
 	clusterAPIClient, err := gclient.NewForConfig(clusterAPIRestConfig)
 	if err != nil {
-		klog.Fatalf("Failed to get config from clusterAPIRestConfig: %v", err)
+		klog.Exitf("Failed to get config from clusterAPIRestConfig: %v", err)
 	}
 
 	clusterAPIClusterDetector := &clusterapi.ClusterDetector{
@@ -322,7 +322,7 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, stopChan),
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {
-		klog.Fatalf("Failed to setup cluster-api cluster detector: %v", err)
+		klog.Exitf("Failed to setup cluster-api cluster detector: %v", err)
 	}
 
 	klog.Infof("Success to setup cluster-api cluster detector")

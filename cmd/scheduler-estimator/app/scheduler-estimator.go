@@ -67,5 +67,5 @@ func serveHealthz(address string) {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	klog.Fatal(http.ListenAndServe(address, nil))
+	klog.Exit(http.ListenAndServe(address, nil))
 }

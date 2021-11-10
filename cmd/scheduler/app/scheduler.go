@@ -115,7 +115,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: sched.Run,
 			OnStoppedLeading: func() {
-				klog.Fatalf("leaderelection lost")
+				klog.Exitf("leaderelection lost")
 			},
 		},
 	})
@@ -131,5 +131,5 @@ func serveHealthzAndMetrics(address string) {
 
 	http.Handle("/metrics", promhttp.Handler())
 
-	klog.Fatal(http.ListenAndServe(address, nil))
+	klog.Exit(http.ListenAndServe(address, nil))
 }
