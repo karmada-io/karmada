@@ -260,11 +260,17 @@ func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clust
 	err = wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
 		serviceAccount, err := clusterKubeClient.CoreV1().ServiceAccounts(serviceAccountObj.Namespace).Get(context.TODO(), serviceAccountObj.Name, metav1.GetOptions{})
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			}
 			klog.Errorf("Failed to retrieve service account(%s/%s) from cluster, err: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
 			return false, err
 		}
 		clusterSecret, err = util.GetTargetSecret(clusterKubeClient, serviceAccount.Secrets, corev1.SecretTypeServiceAccountToken, clusterNamespace)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			}
 			return false, err
 		}
 
