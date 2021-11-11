@@ -192,11 +192,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 func registerWithControlPlaneAPIServer(controlPlaneRestConfig *restclient.Config, memberClusterName string) error {
 	client := gclient.NewForConfigOrDie(controlPlaneRestConfig)
+	kubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	namespaceObj := &corev1.Namespace{}
 	namespaceObj.Name = util.NamespaceClusterLease
 
-	if err := util.CreateNamespaceIfNotExist(client, namespaceObj); err != nil {
+	if _, err := util.CreateNamespace(kubeClient, namespaceObj); err != nil {
 		klog.Errorf("Failed to create namespace(%s) object, error: %v", namespaceObj.Name, err)
 		return err
 	}

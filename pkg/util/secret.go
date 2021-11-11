@@ -65,7 +65,7 @@ func DeleteSecret(client kubeclient.Interface, namespace, name string) error {
 func PatchSecret(client kubeclient.Interface, namespace, name string, pt types.PatchType, patchSecretBody *corev1.Secret) error {
 	patchSecretByte, err := json.Marshal(patchSecretBody)
 	if err != nil {
-		klog.Errorf("failed to marshal patch body of secret object %v into JSON: %v", patchSecretByte, err)
+		klog.Errorf("failed to marshal patch body of secret object %v into JSON: %v", patchSecretBody, err)
 		return err
 	}
 
