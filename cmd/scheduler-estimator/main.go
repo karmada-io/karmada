@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	_ "sigs.k8s.io/controller-runtime/pkg/metrics"
-
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/component-base/logs"
 
