@@ -21,6 +21,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -306,4 +307,19 @@ func GenerateNodeClaimByPodSpec(podSpec *corev1.PodSpec) *workv1alpha2.NodeClaim
 		return nil
 	}
 	return nodeClaim
+}
+
+// GenerateReplicaRequirements generates replica requirements for node and resources.
+func GenerateReplicaRequirements(podTemplate *corev1.PodTemplateSpec) *workv1alpha2.ReplicaRequirements {
+	nodeClaim := GenerateNodeClaimByPodSpec(&podTemplate.Spec)
+	resourceRequest := util.EmptyResource().AddPodRequest(&podTemplate.Spec).ResourceList()
+
+	if nodeClaim != nil || resourceRequest != nil {
+		return &workv1alpha2.ReplicaRequirements{
+			NodeClaim:       nodeClaim,
+			ResourceRequest: resourceRequest,
+		}
+	}
+
+	return nil
 }

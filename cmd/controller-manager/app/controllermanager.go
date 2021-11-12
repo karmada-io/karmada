@@ -28,6 +28,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
+	"github.com/karmada-io/karmada/pkg/crdexplorer"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -123,6 +124,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
+
+	crdExplorer := crdexplorer.NewCustomResourceExplorer("", controlPlaneInformerManager)
+	if err := mgr.Add(crdExplorer); err != nil {
+		klog.Fatalf("Failed to setup custom resource explorer: %v", err)
+	}
+
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:           discoverClientSet,
 		Client:                       mgr.GetClient(),
@@ -131,6 +138,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		DynamicClient:                dynamicClientSet,
 		SkippedResourceConfig:        skippedResourceConfig,
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		ResourceExplorer:             crdExplorer,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)

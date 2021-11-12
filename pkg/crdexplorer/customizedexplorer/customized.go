@@ -41,6 +41,12 @@ func NewCustomizedExplorer(kubeconfig string, informer informermanager.SingleClu
 	}, nil
 }
 
+// HookEnabled tells if any hook exist for specific resource type and operation type.
+func (e *CustomizedExplorer) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.OperationType) bool {
+	// TODO(RainbowMango): Check if any hook configured
+	return false
+}
+
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 // return matched value to indicate whether there is a matching hook.
 func (e *CustomizedExplorer) GetReplicas(ctx context.Context, operation configv1alpha1.OperationType,
