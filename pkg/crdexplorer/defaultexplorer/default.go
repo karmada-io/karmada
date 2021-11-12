@@ -43,19 +43,18 @@ func (e *DefaultExplorer) HookEnabled(kind schema.GroupVersionKind, operationTyp
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 func (e *DefaultExplorer) GetReplicas(object runtime.Object) (int32, *workv1alpha2.ReplicaRequirements, error) {
-	_, exist := e.replicaHandlers[object.GetObjectKind().GroupVersionKind()]
+	handler, exist := e.replicaHandlers[object.GetObjectKind().GroupVersionKind()]
 	if !exist {
 		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("defalut explorer for operation %s not found", configv1alpha1.ExploreReplica)
 	}
-	return e.replicaHandlers[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)](object)
+	return handler(object)
 }
 
 // GetHealthy tells if the object in healthy state.
 func (e *DefaultExplorer) GetHealthy(object runtime.Object) (bool, error) {
-	// judge object type, and then get correct kind.
-	_, exist := e.healthyHandlers[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)]
+	handler, exist := e.healthyHandlers[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)]
 	if !exist {
 		return false, fmt.Errorf("defalut explorer for operation %s not found", configv1alpha1.ExploreHealthy)
 	}
-	return e.healthyHandlers[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)](object)
+	return handler(object)
 }
