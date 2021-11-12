@@ -1,12 +1,9 @@
 package defaultexplorer
 
 import (
-	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
@@ -16,7 +13,7 @@ import (
 )
 
 // replicaExplorer is the function that used to parse replica and requirements from object.
-type replicaExplorer func(object runtime.Object) (int32, *workv1alpha2.ReplicaRequirements, error)
+type replicaExplorer func(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error)
 
 func getAllDefaultReplicaExplorer() map[schema.GroupVersionKind]replicaExplorer {
 	explorers := make(map[schema.GroupVersionKind]replicaExplorer)
@@ -25,15 +22,10 @@ func getAllDefaultReplicaExplorer() map[schema.GroupVersionKind]replicaExplorer 
 	return explorers
 }
 
-func deployReplicaExplorer(object runtime.Object) (int32, *workv1alpha2.ReplicaRequirements, error) {
-	unstructuredObj, ok := object.(*unstructured.Unstructured)
-	if !ok {
-		return 0, nil, fmt.Errorf("unexpected object type, requires unstructured")
-	}
-
-	deploy, err := helper.ConvertToDeployment(unstructuredObj)
+func deployReplicaExplorer(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+	deploy, err := helper.ConvertToDeployment(object)
 	if err != nil {
-		klog.Errorf("Failed to convert object(%s), err", object.GetObjectKind().GroupVersionKind().String(), err)
+		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
 		return 0, nil, err
 	}
 
@@ -46,15 +38,10 @@ func deployReplicaExplorer(object runtime.Object) (int32, *workv1alpha2.ReplicaR
 	return replica, requirement, nil
 }
 
-func jobReplicaExplorer(object runtime.Object) (int32, *workv1alpha2.ReplicaRequirements, error) {
-	unstructuredObj, ok := object.(*unstructured.Unstructured)
-	if !ok {
-		return 0, nil, fmt.Errorf("unexpected object type, requires unstructured")
-	}
-
-	job, err := helper.ConvertToJob(unstructuredObj)
+func jobReplicaExplorer(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+	job, err := helper.ConvertToJob(object)
 	if err != nil {
-		klog.Errorf("Failed to convert object(%s), err", object.GetObjectKind().GroupVersionKind().String(), err)
+		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
 		return 0, nil, err
 	}
 

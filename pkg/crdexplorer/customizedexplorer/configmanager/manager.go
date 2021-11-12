@@ -5,10 +5,16 @@ import (
 	"sort"
 	"sync/atomic"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 )
 
@@ -26,10 +32,9 @@ type ConfigManager interface {
 
 // exploreConfigManager collect the resource explore webhook configuration.
 type exploreConfigManager struct {
-	configuration              *atomic.Value
-	lister                     cache.GenericLister
-	hasSynced                  func() bool
-	initialConfigurationSynced *atomic.Value
+	configuration *atomic.Value
+	lister        cache.GenericLister
+	initialSynced *atomic.Value
 }
 
 // HookAccessors return all configured resource explore webhook.
@@ -39,20 +44,32 @@ func (m *exploreConfigManager) HookAccessors() []WebhookAccessor {
 
 // HasSynced return true when the manager is synced with existing configuration.
 func (m *exploreConfigManager) HasSynced() bool {
+	if m.initialSynced.Load().(bool) {
+		return true
+	}
+
+	if configuration, err := m.lister.List(labels.Everything()); err == nil && len(configuration) == 0 {
+		// the empty list we initially stored is valid to use.
+		// Setting initialSynced to true, so subsequent checks
+		// would be able to take the fast path on the atomic boolean in a
+		// cluster without any webhooks configured.
+		m.initialSynced.Store(true)
+		// the informer has synced, and we don't have any items
+		return true
+	}
 	return false
 }
 
 // NewExploreConfigManager return a new exploreConfigManager with resourceexploringwebhookconfigurations handlers.
 func NewExploreConfigManager(inform informermanager.SingleClusterInformerManager) ConfigManager {
 	manager := &exploreConfigManager{
-		configuration:              &atomic.Value{},
-		lister:                     inform.Lister(resourceExploringWebhookConfigurationsGVR),
-		hasSynced:                  func() bool { return inform.IsInformerSynced(resourceExploringWebhookConfigurationsGVR) },
-		initialConfigurationSynced: &atomic.Value{},
+		configuration: &atomic.Value{},
+		lister:        inform.Lister(resourceExploringWebhookConfigurationsGVR),
+		initialSynced: &atomic.Value{},
 	}
 
 	manager.configuration.Store([]WebhookAccessor{})
-	manager.initialConfigurationSynced.Store(false)
+	manager.initialSynced.Store(false)
 
 	configHandlers := informermanager.NewHandlerOnEvents(
 		func(_ interface{}) { manager.updateConfiguration() },
@@ -64,31 +81,43 @@ func NewExploreConfigManager(inform informermanager.SingleClusterInformerManager
 }
 
 func (m *exploreConfigManager) updateConfiguration() {
-	//configurations, err := m.lister.List(labels.Everything())
-	//if err != nil {
-	//	utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))
-	//	return
-	//}
-	configurations := make([]configv1alpha1.ResourceExploringWebhookConfiguration, 0)
+	configurations, err := m.lister.List(labels.Everything())
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))
+		return
+	}
 
-	m.configuration.Store(mergeResourceExploreWebhookConfigurations(configurations))
-	m.initialConfigurationSynced.Store(true)
+	configs := make([]*configv1alpha1.ResourceExploringWebhookConfiguration, 0)
+	for _, c := range configurations {
+		unstructuredConfig, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c)
+		if err != nil {
+			klog.Errorf("Failed to transform ResourceExploringWebhookConfiguration: %w", err)
+			return
+		}
+
+		config, err := helper.ConvertToResourceExploringWebhookConfiguration(&unstructured.Unstructured{Object: unstructuredConfig})
+		if err != nil {
+			klog.Errorf("Failed to convert object(%s), err", config.GroupVersionKind().String(), err)
+			return
+		}
+		configs = append(configs, config)
+	}
+
+	m.configuration.Store(mergeResourceExploreWebhookConfigurations(configs))
+	m.initialSynced.Store(true)
 }
 
-func mergeResourceExploreWebhookConfigurations(configurations []configv1alpha1.ResourceExploringWebhookConfiguration) []WebhookAccessor {
+func mergeResourceExploreWebhookConfigurations(configurations []*configv1alpha1.ResourceExploringWebhookConfiguration) []WebhookAccessor {
 	sort.SliceStable(configurations, func(i, j int) bool {
 		return configurations[i].Name < configurations[j].Name
 	})
 
-	accessors := make([]WebhookAccessor, len(configurations))
-	for _, config := range configurations {
-		names := map[string]int{}
-		for index, hook := range config.Webhooks {
-			uid := fmt.Sprintf("%s/%s/%d", config.Name, hook.Name, names[hook.Name])
-			names[hook.Name]++
-			accessors = append(accessors, NewResourceExploringAccessor(uid, config.Name, &config.Webhooks[index]))
+	var accessors []WebhookAccessor
+	for ci, config := range configurations {
+		for hi, hook := range config.Webhooks {
+			uid := fmt.Sprintf("%s/%s", config.Name, hook.Name)
+			accessors = append(accessors, NewResourceExploringAccessor(uid, config.Name, &configurations[ci].Webhooks[hi]))
 		}
 	}
-
 	return accessors
 }
