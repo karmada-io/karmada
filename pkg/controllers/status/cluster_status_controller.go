@@ -431,7 +431,7 @@ func getNodeSummary(nodes []*corev1.Node) *clusterv1alpha1.NodeSummary {
 	readyNum := 0
 
 	for _, node := range nodes {
-		if getReadyStatusForNode(node.Status) {
+		if helper.NodeReady(node) {
 			readyNum++
 		}
 	}
@@ -478,17 +478,6 @@ func convertObjectsToPods(podList []runtime.Object) ([]*corev1.Pod, error) {
 		pods = append(pods, pod)
 	}
 	return pods, nil
-}
-
-func getReadyStatusForNode(nodeStatus corev1.NodeStatus) bool {
-	for _, condition := range nodeStatus.Conditions {
-		if condition.Type == corev1.NodeReady {
-			if condition.Status == corev1.ConditionTrue {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func getClusterAllocatable(nodeList []*corev1.Node) (allocatable corev1.ResourceList) {
