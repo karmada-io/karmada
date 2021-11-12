@@ -33,11 +33,23 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "karmada-webhook",
 		Long: `Start a karmada webhook server`,
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := Run(ctx, opts); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				os.Exit(1)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// validate options
+			if errs := opts.Validate(); len(errs) != 0 {
+				return errs.ToAggregate()
 			}
+			if err := Run(ctx, opts); err != nil {
+				return err
+			}
+			return nil
+		},
+		Args: func(cmd *cobra.Command, args []string) error {
+			for _, arg := range args {
+				if len(arg) > 0 {
+					return fmt.Errorf("%q does not take any arguments, got %q", cmd.CommandPath(), args)
+				}
+			}
+			return nil
 		},
 	}
 
