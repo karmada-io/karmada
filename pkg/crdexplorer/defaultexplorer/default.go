@@ -15,7 +15,7 @@ import (
 // DefaultExplorer contains all default operation explorer factory
 // for exploring common resource.
 type DefaultExplorer struct {
-	replicaHandlers map[schema.GroupVersionKind]replicaFactory
+	replicaHandlers map[schema.GroupVersionKind]replicaExplorer
 	packingHandlers map[schema.GroupVersionKind]packingFactory
 	healthyHandlers map[schema.GroupVersionKind]healthyFactory
 }
@@ -29,10 +29,21 @@ func NewDefaultExplorer() *DefaultExplorer {
 	}
 }
 
+// HookEnabled tells if any hook exist for specific resource type and operation type.
+func (e *DefaultExplorer) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.OperationType) bool {
+	switch operationType {
+	case configv1alpha1.ExploreReplica:
+		if _, exist := e.replicaHandlers[kind]; exist {
+			return true
+		}
+		// TODO(RainbowMango): more cases should be added here
+	}
+	return false
+}
+
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 func (e *DefaultExplorer) GetReplicas(object runtime.Object) (int32, *workv1alpha2.ReplicaRequirements, error) {
-	// judge object type, and then get correct kind.
-	_, exist := e.replicaHandlers[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)]
+	_, exist := e.replicaHandlers[object.GetObjectKind().GroupVersionKind()]
 	if !exist {
 		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("defalut explorer for operation %s not found", configv1alpha1.ExploreReplica)
 	}

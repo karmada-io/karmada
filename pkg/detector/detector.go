@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,8 +25,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/crdexplorer"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -49,6 +50,9 @@ type ResourceDetector struct {
 	Processor                    util.AsyncWorker
 	SkippedResourceConfig        *util.SkippedResourceConfig
 	SkippedPropagatingNamespaces map[string]struct{}
+	// ResourceExplorer knows the details of resource structure.
+	ResourceExplorer crdexplorer.CustomResourceExplorer
+
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
 	policyReconcileWorker   util.AsyncWorker
@@ -617,10 +621,6 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 // BuildResourceBinding builds a desired ResourceBinding for object.
 func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha2.ResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
-	replicaRequirements, replicas, err := d.GetReplicaDeclaration(object)
-	if err != nil {
-		return nil, err
-	}
 	propagationBinding := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
@@ -639,9 +639,17 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 				Name:            object.GetName(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
-			ReplicaRequirements: replicaRequirements,
-			Replicas:            replicas,
 		},
+	}
+
+	if d.ResourceExplorer.HookEnabled(object.GroupVersionKind(), configv1alpha1.ExploreReplica) {
+		replicas, replicaRequirements, err := d.ResourceExplorer.GetReplicas(object)
+		if err != nil {
+			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
+			return nil, err
+		}
+		propagationBinding.Spec.Replicas = replicas
+		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
 	}
 
 	return propagationBinding, nil
@@ -650,10 +658,6 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
 func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha2.ClusterResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
-	replicaRequirements, replicas, err := d.GetReplicaDeclaration(object)
-	if err != nil {
-		return nil, err
-	}
 	binding := &workv1alpha2.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
@@ -670,61 +674,20 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 				Name:            object.GetName(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
-			ReplicaRequirements: replicaRequirements,
-			Replicas:            replicas,
 		},
 	}
 
+	if d.ResourceExplorer.HookEnabled(object.GroupVersionKind(), configv1alpha1.ExploreReplica) {
+		replicas, replicaRequirements, err := d.ResourceExplorer.GetReplicas(object)
+		if err != nil {
+			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
+			return nil, err
+		}
+		binding.Spec.Replicas = replicas
+		binding.Spec.ReplicaRequirements = replicaRequirements
+	}
+
 	return binding, nil
-}
-
-// GetReplicaDeclaration get the replicas and resource requirements of a Deployment object
-func (d *ResourceDetector) GetReplicaDeclaration(object *unstructured.Unstructured) (*workv1alpha2.ReplicaRequirements, int32, error) {
-	switch object.GetKind() {
-	case util.DeploymentKind:
-		replicas, ok, err := unstructured.NestedInt64(object.Object, util.SpecField, util.ReplicasField)
-		if !ok || err != nil {
-			return nil, 0, err
-		}
-		podTemplate, ok, err := unstructured.NestedMap(object.Object, util.SpecField, util.TemplateField)
-		if !ok || err != nil {
-			return nil, 0, err
-		}
-		replicaRequirements, err := d.getReplicaRequirements(podTemplate)
-		if err != nil {
-			return nil, 0, err
-		}
-		return replicaRequirements, int32(replicas), nil
-	case util.JobKind:
-		replicas, ok, err := unstructured.NestedInt64(object.Object, util.SpecField, util.ParallelismField)
-		if !ok || err != nil {
-			return nil, 0, err
-		}
-		podTemplate, ok, err := unstructured.NestedMap(object.Object, util.SpecField, util.TemplateField)
-		if !ok || err != nil {
-			return nil, 0, err
-		}
-		replicaRequirements, err := d.getReplicaRequirements(podTemplate)
-		if err != nil {
-			return nil, 0, err
-		}
-		return replicaRequirements, int32(replicas), nil
-	}
-	return nil, 0, nil
-}
-
-func (d *ResourceDetector) getReplicaRequirements(object map[string]interface{}) (*workv1alpha2.ReplicaRequirements, error) {
-	var podTemplateSpec *corev1.PodTemplateSpec
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &podTemplateSpec)
-	if err != nil {
-		return nil, err
-	}
-	res := util.EmptyResource().AddPodRequest(&podTemplateSpec.Spec)
-	replicaRequirements := &workv1alpha2.ReplicaRequirements{
-		NodeClaim:       helper.GenerateNodeClaimByPodSpec(&podTemplateSpec.Spec),
-		ResourceRequest: res.ResourceList(),
-	}
-	return replicaRequirements, nil
 }
 
 // AddWaiting adds object's key to waiting list.

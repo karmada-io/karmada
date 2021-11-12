@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -17,6 +18,8 @@ import (
 type CustomResourceExplorer interface {
 	// Start starts running the component and will never stop running until the context is closed or an error occurs.
 	Start(ctx context.Context) (err error)
+	// HookEnabled tells if any hook exist for specific resource type and operation type.
+	HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.OperationType) bool
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 	GetReplicas(object runtime.Object) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
 	// GetHealthy tells if the object in healthy state.
@@ -25,8 +28,8 @@ type CustomResourceExplorer interface {
 	// other common method
 }
 
-// NewCustomResourceExplore return a new CustomResourceExplorer object.
-func NewCustomResourceExplore(kubeconfig string, informer informermanager.SingleClusterInformerManager) CustomResourceExplorer {
+// NewCustomResourceExplorer builds a new CustomResourceExplorer object.
+func NewCustomResourceExplorer(kubeconfig string, informer informermanager.SingleClusterInformerManager) CustomResourceExplorer {
 	return &customResourceExplorerImpl{
 		kubeconfig: kubeconfig,
 		informer:   informer,
@@ -56,6 +59,11 @@ func (i *customResourceExplorerImpl) Start(ctx context.Context) (err error) {
 	<-ctx.Done()
 	klog.Infof("Stopped as stopCh closed.")
 	return nil
+}
+
+// HookEnabled tells if any hook exist for specific resource type and operation type.
+func (i *customResourceExplorerImpl) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.OperationType) bool {
+	return i.customizedExplorer.HookEnabled(kind, operationType) || i.defaultExplorer.HookEnabled(kind, operationType)
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
