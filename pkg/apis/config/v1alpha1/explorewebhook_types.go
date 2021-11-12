@@ -77,6 +77,9 @@ type RuleWithOperations struct {
 type OperationType string
 
 const (
+	// OperationAll indicates math all OperationType.
+	OperationAll OperationType = "*"
+
 	// ExploreReplica indicates that karmada want to figure out the replica declaration of a specific object.
 	// Only necessary for those resource types that have replica declaration, like Deployment or similar custom resources.
 	ExploreReplica OperationType = "ExploreReplica"
