@@ -129,7 +129,7 @@ func validateRuleWithOperations(ruleWithOperations *configv1alpha1.RuleWithOpera
 			allErrors = append(allErrors, field.NotSupported(fldPath.Child("operations").Index(i), operation, supportedOperationType.List()))
 		}
 	}
-	allErrors = append(allErrors, validateRule(&ruleWithOperations.Rule, fldPath, false)...)
+	allErrors = append(allErrors, validateRule(&ruleWithOperations.Rule, fldPath)...)
 	return allErrors
 }
 

@@ -18,8 +18,8 @@ type ConfigV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *ConfigV1alpha1Client) ResourceExploringWebhookConfigurations(namespace string) ResourceExploringWebhookConfigurationInterface {
-	return newResourceExploringWebhookConfigurations(c, namespace)
+func (c *ConfigV1alpha1Client) ResourceExploringWebhookConfigurations() ResourceExploringWebhookConfigurationInterface {
+	return newResourceExploringWebhookConfigurations(c)
 }
 
 // NewForConfig creates a new ConfigV1alpha1Client for the given config.

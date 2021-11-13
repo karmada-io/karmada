@@ -130,16 +130,29 @@ spec:
                       are valid.
                     properties:
                       apiGroups:
-                        description: APIGroups is the API groups the resources belong
+                        description: "APIGroups is the API groups the resources belong
                           to. '*' is all groups. If '*' is present, the length of
-                          the slice must be one. Required.
+                          the slice must be one. For example:  [\"apps\", \"batch\",
+                          \"example.io\"] means matches 3 groups.  [\"*\"] means matches
+                          all group \n Note: The group cloud be empty, e.g the 'core'
+                          group of kubernetes, in that case use [\"\"]."
                         items:
                           type: string
                         type: array
                       apiVersions:
-                        description: APIVersions is the API versions the resources
-                          belong to. '*' is all versions. If '*' is present, the length
-                          of the slice must be one. Required.
+                        description: 'APIVersions is the API versions the resources
+                          belong to. ''*'' is all versions. If ''*'' is present, the
+                          length of the slice must be one. For example:  ["v1alpha1",
+                          "v1beta1"] means matches 2 versions.  ["*"] means matches
+                          all versions.'
+                        items:
+                          type: string
+                        type: array
+                      kinds:
+                        description: 'Kinds is a list of resources this rule applies
+                          to. If ''*'' is present, the length of the slice must be
+                          one. For example:  ["Deployment", "Pod"] means matches Deployment
+                          and Pod.  ["*"] means apply to all resources.'
                         items:
                           type: string
                         type: array
@@ -151,29 +164,10 @@ spec:
                             request.
                           type: string
                         type: array
-                      resources:
-                        description: "Resources is a list of resources this rule applies
-                          to. \n For example: 'pods' means pods. 'pods/log' means
-                          the log subresource of pods. '*' means all resources, but
-                          not subresources. 'pods/*' means all subresources of pods.
-                          '*/scale' means all scale subresources. '*/*' means all
-                          resources and their subresources. \n If wildcard is present,
-                          the validation rule will ensure resources do not overlap
-                          with each other. \n Depending on the enclosing object, subresources
-                          might not be allowed. Required."
-                        items:
-                          type: string
-                        type: array
-                      scope:
-                        description: scope specifies the scope of this rule. Valid
-                          values are "Cluster", "Namespaced", and "*" "Cluster" means
-                          that only cluster-scoped resources will match this rule.
-                          Namespace API objects are cluster-scoped. "Namespaced" means
-                          that only namespaced resources will match this rule. "*"
-                          means that there are no scope restrictions. Subresources
-                          match the scope of their parent resource. Default is "*".
-                        type: string
                     required:
+                    - apiGroups
+                    - apiVersions
+                    - kinds
                     - operations
                     type: object
                   type: array
