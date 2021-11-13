@@ -168,18 +168,30 @@ func (r *Resource) SetScalar(name corev1.ResourceName, quantity int64) {
 
 // ResourceList returns a resource list of this resource.
 func (r *Resource) ResourceList() corev1.ResourceList {
-	result := corev1.ResourceList{
-		corev1.ResourceCPU:              *resource.NewMilliQuantity(r.MilliCPU, resource.DecimalSI),
-		corev1.ResourceMemory:           *resource.NewQuantity(r.Memory, resource.BinarySI),
-		corev1.ResourceEphemeralStorage: *resource.NewQuantity(r.EphemeralStorage, resource.BinarySI),
-		corev1.ResourcePods:             *resource.NewQuantity(r.AllowedPodNumber, resource.DecimalSI),
+	result := corev1.ResourceList{}
+	if r.MilliCPU > 0 {
+		result[corev1.ResourceCPU] = *resource.NewMilliQuantity(r.MilliCPU, resource.DecimalSI)
+	}
+	if r.Memory > 0 {
+		result[corev1.ResourceMemory] = *resource.NewQuantity(r.Memory, resource.BinarySI)
+	}
+	if r.EphemeralStorage > 0 {
+		result[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(r.EphemeralStorage, resource.BinarySI)
+	}
+	if r.AllowedPodNumber > 0 {
+		result[corev1.ResourcePods] = *resource.NewQuantity(r.AllowedPodNumber, resource.DecimalSI)
 	}
 	for rName, rQuant := range r.ScalarResources {
-		if resourcehelper.IsHugePageResourceName(rName) {
-			result[rName] = *resource.NewQuantity(rQuant, resource.BinarySI)
-		} else {
-			result[rName] = *resource.NewQuantity(rQuant, resource.DecimalSI)
+		if rQuant > 0 {
+			if resourcehelper.IsHugePageResourceName(rName) {
+				result[rName] = *resource.NewQuantity(rQuant, resource.BinarySI)
+			} else {
+				result[rName] = *resource.NewQuantity(rQuant, resource.DecimalSI)
+			}
 		}
+	}
+	if len(result) == 0 {
+		return nil
 	}
 	return result
 }
