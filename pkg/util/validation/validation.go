@@ -25,6 +25,9 @@ const LabelValueMaxLength int = 63
 // - Length must be less than 48 characters.
 //   * Since cluster name used to generate execution namespace by adding a prefix, so reserve 15 characters for the prefix.
 func ValidateClusterName(name string) []string {
+	if len(name) == 0 {
+		return []string{"must be not empty"}
+	}
 	if len(name) > clusterNameMaxLength {
 		return []string{fmt.Sprintf("must be no more than %d characters", clusterNameMaxLength)}
 	}
