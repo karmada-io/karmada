@@ -69,8 +69,8 @@ type RuleWithOperations struct {
 	Operations []OperationType `json:"operations"`
 
 	// Rule is embedded, it describes other criteria of the rule, like
-	// APIGroups, APIVersions, Resources, etc.
-	admissionregistrationv1.Rule `json:",inline"`
+	// APIGroups, APIVersions, Kinds, etc.
+	Rule `json:",inline"`
 }
 
 // OperationType specifies an operation for a request.
@@ -111,6 +111,35 @@ const (
 	// together, like Deployment depends on ConfigMap/Secret.
 	ExploreDependencies OperationType = "ExploreDependencies"
 )
+
+// Rule is a tuple of APIGroups, APIVersion, and Kinds.
+type Rule struct {
+	// APIGroups is the API groups the resources belong to. '*' is all groups.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	//  ["apps", "batch", "example.io"] means matches 3 groups.
+	//  ["*"] means matches all group
+	//
+	// Note: The group cloud be empty, e.g the 'core' group of kubernetes, in that case use [""].
+	// +required
+	APIGroups []string `json:"apiGroups"`
+
+	// APIVersions is the API versions the resources belong to. '*' is all versions.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	//  ["v1alpha1", "v1beta1"] means matches 2 versions.
+	//  ["*"] means matches all versions.
+	// +required
+	APIVersions []string `json:"apiVersions"`
+
+	// Kinds is a list of resources this rule applies to.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	//  ["Deployment", "Pod"] means matches Deployment and Pod.
+	//  ["*"] means apply to all resources.
+	// +required
+	Kinds []string `json:"kinds"`
+}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
