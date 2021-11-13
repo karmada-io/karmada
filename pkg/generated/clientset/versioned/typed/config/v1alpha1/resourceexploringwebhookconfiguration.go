@@ -17,7 +17,7 @@ import (
 // ResourceExploringWebhookConfigurationsGetter has a method to return a ResourceExploringWebhookConfigurationInterface.
 // A group's client should implement this interface.
 type ResourceExploringWebhookConfigurationsGetter interface {
-	ResourceExploringWebhookConfigurations(namespace string) ResourceExploringWebhookConfigurationInterface
+	ResourceExploringWebhookConfigurations() ResourceExploringWebhookConfigurationInterface
 }
 
 // ResourceExploringWebhookConfigurationInterface has methods to work with ResourceExploringWebhookConfiguration resources.
@@ -36,14 +36,12 @@ type ResourceExploringWebhookConfigurationInterface interface {
 // resourceExploringWebhookConfigurations implements ResourceExploringWebhookConfigurationInterface
 type resourceExploringWebhookConfigurations struct {
 	client rest.Interface
-	ns     string
 }
 
 // newResourceExploringWebhookConfigurations returns a ResourceExploringWebhookConfigurations
-func newResourceExploringWebhookConfigurations(c *ConfigV1alpha1Client, namespace string) *resourceExploringWebhookConfigurations {
+func newResourceExploringWebhookConfigurations(c *ConfigV1alpha1Client) *resourceExploringWebhookConfigurations {
 	return &resourceExploringWebhookConfigurations{
 		client: c.RESTClient(),
-		ns:     namespace,
 	}
 }
 
@@ -51,7 +49,6 @@ func newResourceExploringWebhookConfigurations(c *ConfigV1alpha1Client, namespac
 func (c *resourceExploringWebhookConfigurations) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceExploringWebhookConfiguration, err error) {
 	result = &v1alpha1.ResourceExploringWebhookConfiguration{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("resourceexploringwebhookconfigurations").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -68,7 +65,6 @@ func (c *resourceExploringWebhookConfigurations) List(ctx context.Context, opts 
 	}
 	result = &v1alpha1.ResourceExploringWebhookConfigurationList{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("resourceexploringwebhookconfigurations").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -85,7 +81,6 @@ func (c *resourceExploringWebhookConfigurations) Watch(ctx context.Context, opts
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Namespace(c.ns).
 		Resource("resourceexploringwebhookconfigurations").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -96,7 +91,6 @@ func (c *resourceExploringWebhookConfigurations) Watch(ctx context.Context, opts
 func (c *resourceExploringWebhookConfigurations) Create(ctx context.Context, resourceExploringWebhookConfiguration *v1alpha1.ResourceExploringWebhookConfiguration, opts v1.CreateOptions) (result *v1alpha1.ResourceExploringWebhookConfiguration, err error) {
 	result = &v1alpha1.ResourceExploringWebhookConfiguration{}
 	err = c.client.Post().
-		Namespace(c.ns).
 		Resource("resourceexploringwebhookconfigurations").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(resourceExploringWebhookConfiguration).
@@ -109,7 +103,6 @@ func (c *resourceExploringWebhookConfigurations) Create(ctx context.Context, res
 func (c *resourceExploringWebhookConfigurations) Update(ctx context.Context, resourceExploringWebhookConfiguration *v1alpha1.ResourceExploringWebhookConfiguration, opts v1.UpdateOptions) (result *v1alpha1.ResourceExploringWebhookConfiguration, err error) {
 	result = &v1alpha1.ResourceExploringWebhookConfiguration{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("resourceexploringwebhookconfigurations").
 		Name(resourceExploringWebhookConfiguration.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -122,7 +115,6 @@ func (c *resourceExploringWebhookConfigurations) Update(ctx context.Context, res
 // Delete takes name of the resourceExploringWebhookConfiguration and deletes it. Returns an error if one occurs.
 func (c *resourceExploringWebhookConfigurations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("resourceexploringwebhookconfigurations").
 		Name(name).
 		Body(&opts).
@@ -137,7 +129,6 @@ func (c *resourceExploringWebhookConfigurations) DeleteCollection(ctx context.Co
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("resourceexploringwebhookconfigurations").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -150,7 +141,6 @@ func (c *resourceExploringWebhookConfigurations) DeleteCollection(ctx context.Co
 func (c *resourceExploringWebhookConfigurations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceExploringWebhookConfiguration, err error) {
 	result = &v1alpha1.ResourceExploringWebhookConfiguration{}
 	err = c.client.Patch(pt).
-		Namespace(c.ns).
 		Resource("resourceexploringwebhookconfigurations").
 		Name(name).
 		SubResource(subresources...).

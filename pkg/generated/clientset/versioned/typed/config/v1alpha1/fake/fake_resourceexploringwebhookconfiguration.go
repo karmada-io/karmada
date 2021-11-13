@@ -17,7 +17,6 @@ import (
 // FakeResourceExploringWebhookConfigurations implements ResourceExploringWebhookConfigurationInterface
 type FakeResourceExploringWebhookConfigurations struct {
 	Fake *FakeConfigV1alpha1
-	ns   string
 }
 
 var resourceexploringwebhookconfigurationsResource = schema.GroupVersionResource{Group: "config.karmada.io", Version: "v1alpha1", Resource: "resourceexploringwebhookconfigurations"}
@@ -27,8 +26,7 @@ var resourceexploringwebhookconfigurationsKind = schema.GroupVersionKind{Group: 
 // Get takes name of the resourceExploringWebhookConfiguration, and returns the corresponding resourceExploringWebhookConfiguration object, and an error if there is any.
 func (c *FakeResourceExploringWebhookConfigurations) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceExploringWebhookConfiguration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(resourceexploringwebhookconfigurationsResource, c.ns, name), &v1alpha1.ResourceExploringWebhookConfiguration{})
-
+		Invokes(testing.NewRootGetAction(resourceexploringwebhookconfigurationsResource, name), &v1alpha1.ResourceExploringWebhookConfiguration{})
 	if obj == nil {
 		return nil, err
 	}
@@ -38,8 +36,7 @@ func (c *FakeResourceExploringWebhookConfigurations) Get(ctx context.Context, na
 // List takes label and field selectors, and returns the list of ResourceExploringWebhookConfigurations that match those selectors.
 func (c *FakeResourceExploringWebhookConfigurations) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ResourceExploringWebhookConfigurationList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(resourceexploringwebhookconfigurationsResource, resourceexploringwebhookconfigurationsKind, c.ns, opts), &v1alpha1.ResourceExploringWebhookConfigurationList{})
-
+		Invokes(testing.NewRootListAction(resourceexploringwebhookconfigurationsResource, resourceexploringwebhookconfigurationsKind, opts), &v1alpha1.ResourceExploringWebhookConfigurationList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -60,15 +57,13 @@ func (c *FakeResourceExploringWebhookConfigurations) List(ctx context.Context, o
 // Watch returns a watch.Interface that watches the requested resourceExploringWebhookConfigurations.
 func (c *FakeResourceExploringWebhookConfigurations) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(resourceexploringwebhookconfigurationsResource, c.ns, opts))
-
+		InvokesWatch(testing.NewRootWatchAction(resourceexploringwebhookconfigurationsResource, opts))
 }
 
 // Create takes the representation of a resourceExploringWebhookConfiguration and creates it.  Returns the server's representation of the resourceExploringWebhookConfiguration, and an error, if there is any.
 func (c *FakeResourceExploringWebhookConfigurations) Create(ctx context.Context, resourceExploringWebhookConfiguration *v1alpha1.ResourceExploringWebhookConfiguration, opts v1.CreateOptions) (result *v1alpha1.ResourceExploringWebhookConfiguration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(resourceexploringwebhookconfigurationsResource, c.ns, resourceExploringWebhookConfiguration), &v1alpha1.ResourceExploringWebhookConfiguration{})
-
+		Invokes(testing.NewRootCreateAction(resourceexploringwebhookconfigurationsResource, resourceExploringWebhookConfiguration), &v1alpha1.ResourceExploringWebhookConfiguration{})
 	if obj == nil {
 		return nil, err
 	}
@@ -78,8 +73,7 @@ func (c *FakeResourceExploringWebhookConfigurations) Create(ctx context.Context,
 // Update takes the representation of a resourceExploringWebhookConfiguration and updates it. Returns the server's representation of the resourceExploringWebhookConfiguration, and an error, if there is any.
 func (c *FakeResourceExploringWebhookConfigurations) Update(ctx context.Context, resourceExploringWebhookConfiguration *v1alpha1.ResourceExploringWebhookConfiguration, opts v1.UpdateOptions) (result *v1alpha1.ResourceExploringWebhookConfiguration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(resourceexploringwebhookconfigurationsResource, c.ns, resourceExploringWebhookConfiguration), &v1alpha1.ResourceExploringWebhookConfiguration{})
-
+		Invokes(testing.NewRootUpdateAction(resourceexploringwebhookconfigurationsResource, resourceExploringWebhookConfiguration), &v1alpha1.ResourceExploringWebhookConfiguration{})
 	if obj == nil {
 		return nil, err
 	}
@@ -89,14 +83,13 @@ func (c *FakeResourceExploringWebhookConfigurations) Update(ctx context.Context,
 // Delete takes name of the resourceExploringWebhookConfiguration and deletes it. Returns an error if one occurs.
 func (c *FakeResourceExploringWebhookConfigurations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(resourceexploringwebhookconfigurationsResource, c.ns, name), &v1alpha1.ResourceExploringWebhookConfiguration{})
-
+		Invokes(testing.NewRootDeleteAction(resourceexploringwebhookconfigurationsResource, name), &v1alpha1.ResourceExploringWebhookConfiguration{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeResourceExploringWebhookConfigurations) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(resourceexploringwebhookconfigurationsResource, c.ns, listOpts)
+	action := testing.NewRootDeleteCollectionAction(resourceexploringwebhookconfigurationsResource, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.ResourceExploringWebhookConfigurationList{})
 	return err
@@ -105,8 +98,7 @@ func (c *FakeResourceExploringWebhookConfigurations) DeleteCollection(ctx contex
 // Patch applies the patch and returns the patched resourceExploringWebhookConfiguration.
 func (c *FakeResourceExploringWebhookConfigurations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceExploringWebhookConfiguration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(resourceexploringwebhookconfigurationsResource, c.ns, name, pt, data, subresources...), &v1alpha1.ResourceExploringWebhookConfiguration{})
-
+		Invokes(testing.NewRootPatchSubresourceAction(resourceexploringwebhookconfigurationsResource, name, pt, data, subresources...), &v1alpha1.ResourceExploringWebhookConfiguration{})
 	if obj == nil {
 		return nil, err
 	}

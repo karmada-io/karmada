@@ -15,8 +15,9 @@ type ResourceExploringWebhookConfigurationLister interface {
 	// List lists all ResourceExploringWebhookConfigurations in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.ResourceExploringWebhookConfiguration, err error)
-	// ResourceExploringWebhookConfigurations returns an object that can list and get ResourceExploringWebhookConfigurations.
-	ResourceExploringWebhookConfigurations(namespace string) ResourceExploringWebhookConfigurationNamespaceLister
+	// Get retrieves the ResourceExploringWebhookConfiguration from the index for a given name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*v1alpha1.ResourceExploringWebhookConfiguration, error)
 	ResourceExploringWebhookConfigurationListerExpansion
 }
 
@@ -38,41 +39,9 @@ func (s *resourceExploringWebhookConfigurationLister) List(selector labels.Selec
 	return ret, err
 }
 
-// ResourceExploringWebhookConfigurations returns an object that can list and get ResourceExploringWebhookConfigurations.
-func (s *resourceExploringWebhookConfigurationLister) ResourceExploringWebhookConfigurations(namespace string) ResourceExploringWebhookConfigurationNamespaceLister {
-	return resourceExploringWebhookConfigurationNamespaceLister{indexer: s.indexer, namespace: namespace}
-}
-
-// ResourceExploringWebhookConfigurationNamespaceLister helps list and get ResourceExploringWebhookConfigurations.
-// All objects returned here must be treated as read-only.
-type ResourceExploringWebhookConfigurationNamespaceLister interface {
-	// List lists all ResourceExploringWebhookConfigurations in the indexer for a given namespace.
-	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ResourceExploringWebhookConfiguration, err error)
-	// Get retrieves the ResourceExploringWebhookConfiguration from the indexer for a given namespace and name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ResourceExploringWebhookConfiguration, error)
-	ResourceExploringWebhookConfigurationNamespaceListerExpansion
-}
-
-// resourceExploringWebhookConfigurationNamespaceLister implements the ResourceExploringWebhookConfigurationNamespaceLister
-// interface.
-type resourceExploringWebhookConfigurationNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all ResourceExploringWebhookConfigurations in the indexer for a given namespace.
-func (s resourceExploringWebhookConfigurationNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.ResourceExploringWebhookConfiguration, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.ResourceExploringWebhookConfiguration))
-	})
-	return ret, err
-}
-
-// Get retrieves the ResourceExploringWebhookConfiguration from the indexer for a given namespace and name.
-func (s resourceExploringWebhookConfigurationNamespaceLister) Get(name string) (*v1alpha1.ResourceExploringWebhookConfiguration, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+// Get retrieves the ResourceExploringWebhookConfiguration from the index for a given name.
+func (s *resourceExploringWebhookConfigurationLister) Get(name string) (*v1alpha1.ResourceExploringWebhookConfiguration, error) {
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}

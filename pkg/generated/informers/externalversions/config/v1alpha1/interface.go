@@ -25,5 +25,5 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 
 // ResourceExploringWebhookConfigurations returns a ResourceExploringWebhookConfigurationInformer.
 func (v *version) ResourceExploringWebhookConfigurations() ResourceExploringWebhookConfigurationInformer {
-	return &resourceExploringWebhookConfigurationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+	return &resourceExploringWebhookConfigurationInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
