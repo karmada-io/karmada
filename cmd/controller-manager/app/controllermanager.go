@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -51,7 +50,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
-				return utilerrors.NewAggregate(errs)
+				return errs.ToAggregate()
 			}
 
 			return Run(ctx, opts)
