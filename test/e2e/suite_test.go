@@ -57,6 +57,7 @@ const (
 	updatePodImage           = "nginx:latest"
 	updateCRnamespace        = "e2e-test"
 	updateBackoffLimit       = 3
+	updateParallelism        = 3
 )
 
 var (
