@@ -85,8 +85,8 @@ func (in *ExploreResponse) DeepCopyInto(out *ExploreResponse) {
 		*out = make([]DependentObjectReference, len(*in))
 		copy(*out, *in)
 	}
-	if in.Status != nil {
-		in, out := &in.Status, &out.Status
+	if in.RawStatus != nil {
+		in, out := &in.RawStatus, &out.RawStatus
 		*out = new(runtime.RawExtension)
 		(*in).DeepCopyInto(*out)
 	}

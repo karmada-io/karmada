@@ -124,7 +124,7 @@ func extractResponseFromV1alpha1ExploreReview(response *configv1alpha1.ExploreRe
 		Dependencies:        response.Dependencies,
 		Patch:               response.Patch,
 		PatchType:           *response.PatchType,
-		Status:              *response.Status,
+		RawStatus:           *response.RawStatus,
 		Healthy:             *response.Healthy,
 	}
 }

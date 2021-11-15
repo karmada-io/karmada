@@ -24,6 +24,6 @@ type ResponseAttributes struct {
 	Dependencies        []configv1alpha1.DependentObjectReference
 	Patch               []byte
 	PatchType           configv1alpha1.PatchType
-	Status              runtime.RawExtension
+	RawStatus           runtime.RawExtension
 	Healthy             bool
 }
