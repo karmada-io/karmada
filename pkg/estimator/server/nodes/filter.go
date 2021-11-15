@@ -10,6 +10,7 @@ import (
 	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // ListNodesByNodeClaim returns all nodes that match the node claim.
@@ -76,7 +77,7 @@ func FilterSchedulableNodes(nodes []*corev1.Node, tolerations []corev1.Toleratio
 		if node.Spec.Unschedulable {
 			continue
 		}
-		if !IsNodeReady(node.Status.Conditions) {
+		if !helper.NodeReady(node) {
 			continue
 		}
 		if _, isUntolerated := schedcorev1.FindMatchingUntoleratedTaint(node.Spec.Taints, tolerations, filterPredicate); isUntolerated {
@@ -85,14 +86,4 @@ func FilterSchedulableNodes(nodes []*corev1.Node, tolerations []corev1.Toleratio
 		matchedNodes = append(matchedNodes, node)
 	}
 	return matchedNodes, nil
-}
-
-// IsNodeReady checks whether the node condition is ready.
-func IsNodeReady(nodeStatus []corev1.NodeCondition) bool {
-	for i := range nodeStatus {
-		if nodeStatus[i].Type == corev1.NodeReady {
-			return nodeStatus[i].Status == corev1.ConditionTrue
-		}
-	}
-	return false
 }
