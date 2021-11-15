@@ -69,6 +69,15 @@ type ExploreResponse struct {
 	// +required
 	UID types.UID `json:"uid"`
 
+	// Successful indicates whether the request be processed successfully.
+	// +required
+	Successful bool `json:"successful"`
+
+	// Status contains extra details information about why the request not successful.
+	// This filed is not consulted in any way if "Successful" is "true".
+	// +optional
+	Status *RequestStatus `json:"status,omitempty"`
+
 	// The patch body. We only support "JSONPatch" currently which implements RFC 6902.
 	// +optional
 	Patch []byte `json:"patch,omitempty"`
@@ -100,6 +109,17 @@ type ExploreResponse struct {
 	// Healthy represents the referencing object's healthy status.
 	// +optional
 	Healthy *bool `json:"healthy,omitempty"`
+}
+
+// RequestStatus holds the status of a request.
+type RequestStatus struct {
+	// Message is human-readable description of the status of this operation.
+	// +optional
+	Message string `json:"message,omitempty"`
+
+	// Code is the HTTP return code of this status.
+	// +optional
+	Code int32 `json:"code,omitempty"`
 }
 
 // PatchType is the type of patch being used to represent the mutated object
