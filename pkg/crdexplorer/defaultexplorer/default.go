@@ -3,13 +3,11 @@ package defaultexplorer
 import (
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // DefaultExplorer contains all default operation explorer factory
@@ -42,8 +40,8 @@ func (e *DefaultExplorer) HookEnabled(kind schema.GroupVersionKind, operationTyp
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
-func (e *DefaultExplorer) GetReplicas(object runtime.Object) (int32, *workv1alpha2.ReplicaRequirements, error) {
-	handler, exist := e.replicaHandlers[object.GetObjectKind().GroupVersionKind()]
+func (e *DefaultExplorer) GetReplicas(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+	handler, exist := e.replicaHandlers[object.GroupVersionKind()]
 	if !exist {
 		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("defalut explorer for operation %s not found", configv1alpha1.ExploreReplica)
 	}
@@ -51,8 +49,8 @@ func (e *DefaultExplorer) GetReplicas(object runtime.Object) (int32, *workv1alph
 }
 
 // GetHealthy tells if the object in healthy state.
-func (e *DefaultExplorer) GetHealthy(object runtime.Object) (bool, error) {
-	handler, exist := e.healthyHandlers[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)]
+func (e *DefaultExplorer) GetHealthy(object *unstructured.Unstructured) (bool, error) {
+	handler, exist := e.healthyHandlers[object.GroupVersionKind()]
 	if !exist {
 		return false, fmt.Errorf("defalut explorer for operation %s not found", configv1alpha1.ExploreHealthy)
 	}

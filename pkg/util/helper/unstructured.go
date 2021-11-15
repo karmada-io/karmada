@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
@@ -115,6 +116,16 @@ func ConvertToJob(obj *unstructured.Unstructured) (*batchv1.Job, error) {
 // ConvertToEndpointSlice converts a EndpointSlice object from unstructured to typed.
 func ConvertToEndpointSlice(obj *unstructured.Unstructured) (*discoveryv1beta1.EndpointSlice, error) {
 	typedObj := &discoveryv1beta1.EndpointSlice{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToResourceExploringWebhookConfiguration converts a ResourceExploringWebhookConfiguration object from unstructured to typed.
+func ConvertToResourceExploringWebhookConfiguration(obj *unstructured.Unstructured) (*configv1alpha1.ResourceExploringWebhookConfiguration, error) {
+	typedObj := &configv1alpha1.ResourceExploringWebhookConfiguration{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}
