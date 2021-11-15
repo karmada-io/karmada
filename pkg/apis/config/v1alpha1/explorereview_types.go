@@ -93,9 +93,9 @@ type ExploreResponse struct {
 	// +optional
 	Dependencies []DependentObjectReference `json:"dependencies,omitempty"`
 
-	// Status represents the referencing object's status.
+	// RawStatus represents the referencing object's status.
 	// +optional
-	Status *runtime.RawExtension `json:"status,omitempty"`
+	RawStatus *runtime.RawExtension `json:"rawStatus,omitempty"`
 
 	// Healthy represents the referencing object's healthy status.
 	// +optional
