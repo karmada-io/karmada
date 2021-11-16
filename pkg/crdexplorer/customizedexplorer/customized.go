@@ -260,5 +260,12 @@ func (e *CustomizedExplorer) callHook(ctx context.Context, hook configmanager.We
 		}
 	}
 
+	if !res.Successful {
+		return nil, &webhookutil.ErrCallingWebhook{
+			WebhookName: hook.GetUID(),
+			Reason:      fmt.Errorf("webhook call failed, get status code: %d, msg: %s", res.Status.Code, res.Status.Message),
+		}
+	}
+
 	return res, nil
 }
