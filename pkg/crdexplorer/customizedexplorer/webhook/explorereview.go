@@ -50,7 +50,7 @@ func CreateV1alpha1ExploreReview(uid types.UID, attributes *RequestAttributes) *
 }
 
 // VerifyExploreReview checks the validity of the provided explore review object, and returns ResponseAttributes,
-// or an error if the provided admission review was not valid.
+// or an error if the provided explore review was not valid.
 func VerifyExploreReview(uid types.UID, operation configv1alpha1.OperationType, review runtime.Object) (response *ResponseAttributes, err error) {
 	switch r := review.(type) {
 	case *configv1alpha1.ExploreReview:
@@ -62,41 +62,59 @@ func VerifyExploreReview(uid types.UID, operation configv1alpha1.OperationType, 
 			return nil, fmt.Errorf("expected response.uid %q, got %q", uid, r.Response.UID)
 		}
 
-		v1alpha1GVK := configv1alpha1.SchemeGroupVersion.WithKind("ExploreReview")
-		if r.GroupVersionKind() != v1alpha1GVK {
-			return nil, fmt.Errorf("expected webhook response of %v, got %v", v1alpha1GVK.String(), r.GroupVersionKind().String())
-		}
-
-		if err := verifyExploreResponse(operation, r.Response); err != nil {
+		res, err := verifyExploreResponse(operation, r.Response)
+		if err != nil {
 			return nil, err
 		}
-		return extractResponseFromV1alpha1ExploreReview(r.Response), nil
+		return res, nil
 	default:
 		return nil, fmt.Errorf("unexpected response type %T", review)
 	}
 }
 
-func verifyExploreResponse(operation configv1alpha1.OperationType, response *configv1alpha1.ExploreResponse) error {
+func verifyExploreResponse(operation configv1alpha1.OperationType, response *configv1alpha1.ExploreResponse) (*ResponseAttributes, error) {
+	res := &ResponseAttributes{}
+
+	res.Successful = response.Successful
+	if !response.Successful {
+		if response.Status == nil {
+			return nil, fmt.Errorf("webhook require response.status when response.successful is false")
+		}
+		res.Status = *response.Status
+		return res, nil
+	}
+
 	switch operation {
 	case configv1alpha1.ExploreReplica:
 		if response.Replicas == nil {
-			return fmt.Errorf("webhook returned nil response.replicas")
+			return nil, fmt.Errorf("webhook returned nil response.replicas")
 		}
-		return nil
+		res.Replicas = *response.Replicas
+		res.ReplicaRequirements = response.ReplicaRequirements
+		return res, nil
 	case configv1alpha1.ExploreDependencies:
-		return nil
+		res.Dependencies = response.Dependencies
+		return res, nil
 	case configv1alpha1.ExplorePacking, configv1alpha1.ExploreReplicaRevising,
 		configv1alpha1.ExploreRetaining, configv1alpha1.ExploreStatusAggregating:
-		return verifyExploreResponseWithPatch(response)
+		err := verifyExploreResponseWithPatch(response)
+		if err != nil {
+			return nil, err
+		}
+		res.Patch = response.Patch
+		res.PatchType = *response.PatchType
+		return res, nil
 	case configv1alpha1.ExploreStatus:
-		return nil
+		res.RawStatus = *response.RawStatus
+		return res, nil
 	case configv1alpha1.ExploreHealthy:
 		if response.Healthy == nil {
-			return fmt.Errorf("webhook returned nil response.healthy")
+			return nil, fmt.Errorf("webhook returned nil response.healthy")
 		}
-		return nil
+		res.Healthy = *response.Healthy
+		return res, nil
 	default:
-		return fmt.Errorf("input wrong operation type: %s", operation)
+		return nil, fmt.Errorf("input wrong operation type: %s", operation)
 	}
 }
 
@@ -115,16 +133,4 @@ func verifyExploreResponseWithPatch(response *configv1alpha1.ExploreResponse) er
 		return fmt.Errorf("webhook returned invalid response.patchType of %q", patchType)
 	}
 	return nil
-}
-
-func extractResponseFromV1alpha1ExploreReview(response *configv1alpha1.ExploreResponse) *ResponseAttributes {
-	return &ResponseAttributes{
-		Replicas:            *response.Replicas,
-		ReplicaRequirements: response.ReplicaRequirements,
-		Dependencies:        response.Dependencies,
-		Patch:               response.Patch,
-		PatchType:           *response.PatchType,
-		RawStatus:           *response.RawStatus,
-		Healthy:             *response.Healthy,
-	}
 }
