@@ -142,7 +142,17 @@ func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.U
 		return err
 	}
 
-	err = dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Delete(context.TODO(), desireObj.GetName(), metav1.DeleteOptions{})
+	// Set deletion strategy to background explicitly even though it's the default strategy for most of the resources.
+	// The reason for this is to fix the exception case that Kubernetes does on Job(batch/v1).
+	// In kubernetes, the Job's default deletion strategy is "Orphan", that will cause the "Pods" created by "Job"
+	// still exist after "Job" has been deleted.
+	// Refer to https://github.com/karmada-io/karmada/issues/969 for more details.
+	deleteBackground := metav1.DeletePropagationBackground
+	deleteOption := metav1.DeleteOptions{
+		PropagationPolicy: &deleteBackground,
+	}
+
+	err = dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Delete(context.TODO(), desireObj.GetName(), deleteOption)
 	if apierrors.IsNotFound(err) {
 		err = nil
 	}
