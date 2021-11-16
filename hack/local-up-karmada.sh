@@ -32,15 +32,25 @@ KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 if [[ -n ${CHINA_MAINLAND:-} ]]; then
 export GOPROXY=https://goproxy.cn,direct # set domestic go proxy
 # set mirror registry of k8s.gcr.io
-sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${REPO_ROOT}/artifacts/deploy/karmada-etcd.yaml
-sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${REPO_ROOT}/artifacts/deploy/karmada-apiserver.yaml
-sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml
+registry_files=( # Yaml files that contain image host 'k8s.gcr.io' need to be replaced
+  "artifacts/deploy/karmada-etcd.yaml"
+  "artifacts/deploy/karmada-apiserver.yaml"
+  "artifacts/deploy/kube-controller-manager.yaml"
+)
+for registry_file in "${registry_files[@]}"; do
+  sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${REPO_ROOT}/${registry_file}
+done
 # set mirror registry in the dockerfile of components of karmada
-sed -i "2a RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories\n" ${REPO_ROOT}/cluster/images/karmada-controller-manager/Dockerfile
-sed -i "2a RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories\n" ${REPO_ROOT}/cluster/images/karmada-agent/Dockerfile
-sed -i "2a RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories\n" ${REPO_ROOT}/cluster/images/karmada-scheduler-estimator/Dockerfile
-sed -i "2a RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories\n" ${REPO_ROOT}/cluster/images/karmada-scheduler/Dockerfile
-sed -i "2a RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories\n" ${REPO_ROOT}/cluster/images/karmada-webhook/Dockerfile
+dockerfile_list=( # Dockerfile files need to be replaced
+  "cluster/images/karmada-controller-manager/Dockerfile"
+  "cluster/images/karmada-agent/Dockerfile"
+  "cluster/images/karmada-scheduler-estimator/Dockerfile"
+  "cluster/images/karmada-scheduler/Dockerfile"
+  "cluster/images/karmada-webhook/Dockerfile"
+)
+for dockerfile in "${dockerfile_list[@]}"; do
+  grep 'mirrors.ustc.edu.cn' ${REPO_ROOT}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.7#FROM alpine:3.7\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories#" ${REPO_ROOT}/${dockerfile}
+done
 fi
 
 # Make sure go exists and the go version is a viable version.
