@@ -5,6 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -14,7 +15,7 @@ import (
 // for exploring common resource.
 type DefaultExplorer struct {
 	replicaHandlers   map[schema.GroupVersionKind]replicaExplorer
-	retentionHandlers map[schema.GroupVersionKind]RetentionExplorer
+	retentionHandlers map[schema.GroupVersionKind]retentionExplorer
 }
 
 // NewDefaultExplorer return a new DefaultExplorer.
@@ -39,6 +40,8 @@ func (e *DefaultExplorer) HookEnabled(kind schema.GroupVersionKind, operationTyp
 
 		// TODO(RainbowMango): more cases should be added here
 	}
+
+	klog.V(4).Infof("Hook is not enabled: %q in %q is not supported.", kind, operationType)
 	return false
 }
 
@@ -55,7 +58,7 @@ func (e *DefaultExplorer) GetReplicas(object *unstructured.Unstructured) (int32,
 func (e *DefaultExplorer) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
 	handler, exist := e.retentionHandlers[desired.GroupVersionKind()]
 	if !exist {
-		return nil, fmt.Errorf("default explorer for operation %s not found", configv1alpha1.ExploreRetaining)
+		return nil, fmt.Errorf("default retain explorer for %q not found", desired.GroupVersionKind())
 	}
 
 	return handler(desired, observed)
