@@ -38,6 +38,11 @@ deepcopy-gen \
   --input-dirs=github.com/karmada-io/karmada/pkg/apis/config/v1alpha1 \
   --output-package=github.com/karmada-io/karmada/pkg/apis/config/v1alpha1 \
   --output-file-base=zz_generated.deepcopy
+deepcopy-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs=github.com/karmada-io/karmada/examples/customresourceexplorer/apis/workload/v1alpha1 \
+  --output-package=github.com/karmada-io/karmada/examples/customresourceexplorer/apis/workload/v1alpha1 \
+  --output-file-base=zz_generated.deepcopy
 
 echo "Generating with register-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/register-gen
@@ -66,6 +71,11 @@ register-gen \
   --input-dirs=github.com/karmada-io/karmada/pkg/apis/config/v1alpha1 \
   --output-package=github.com/karmada-io/karmada/pkg/apis/config/v1alpha1 \
   --output-file-base=zz_generated.register
+register-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs=github.com/karmada-io/karmada/examples/customresourceexplorer/apis/workload/v1alpha1 \
+  --output-package=github.com/karmada-io/karmada/examples/customresourceexplorer/apis/workload/v1alpha1 \
+  --output-file-base=zz_generated.register
 
 echo "Generating with client-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen
@@ -91,3 +101,4 @@ informer-gen \
   --versioned-clientset-package=github.com/karmada-io/karmada/pkg/generated/clientset/versioned \
   --listers-package=github.com/karmada-io/karmada/pkg/generated/listers \
   --output-package=github.com/karmada-io/karmada/pkg/generated/informers
+
