@@ -18,12 +18,15 @@ import (
 type CustomResourceExplorer interface {
 	// Start starts running the component and will never stop running until the context is closed or an error occurs.
 	Start(ctx context.Context) (err error)
+
 	// HookEnabled tells if any hook exist for specific resource type and operation type.
 	HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.OperationType) bool
+
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
-	// GetHealthy tells if the object in healthy state.
-	GetHealthy(object *unstructured.Unstructured) (healthy bool, err error)
+
+	// Retain returns the objects that based on the "desired" object but with values retained from the "cluster" object.
+	Retain(desired *unstructured.Unstructured, cluster *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
 
 	// other common method
 }
@@ -90,22 +93,8 @@ func (i *customResourceExplorerImpl) GetReplicas(object *unstructured.Unstructur
 	return
 }
 
-// GetHealthy tells if the object in healthy state.
-func (i *customResourceExplorerImpl) GetHealthy(object *unstructured.Unstructured) (healthy bool, err error) {
-	klog.V(4).Infof("Begin to get healthy for request object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+func (i *customResourceExplorerImpl) Retain(desired *unstructured.Unstructured, cluster *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
+	// TODO(RainbowMango): consult to the dynamic webhooks first.
 
-	var hookEnabled bool
-	healthy, hookEnabled, err = i.customizedExplorer.GetHealthy(context.TODO(), &webhook.RequestAttributes{
-		Operation: configv1alpha1.ExploreHealthy,
-		Object:    object,
-	})
-	if err != nil {
-		return
-	}
-	if hookEnabled {
-		return
-	}
-
-	healthy, err = i.defaultExplorer.GetHealthy(object)
-	return
+	return i.defaultExplorer.Retain(desired, cluster)
 }
