@@ -31,7 +31,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
@@ -447,7 +447,7 @@ func (g *CommandGetOptions) transformRequests(req *rest.Request) {
 }
 
 func getRBInKarmada(namespace string, config *rest.Config) error {
-	resourceList := &workv1alpha1.ResourceBindingList{}
+	resourceList := &workv1alpha2.ResourceBindingList{}
 	gClient, err := gclient.NewForConfig(config)
 	if err != nil {
 		return err
