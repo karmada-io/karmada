@@ -141,7 +141,7 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 }
 
 func (o *overrideManagerImpl) getMatchingClusterOverridePolicies(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.ClusterOverridePolicy {
-	resourceMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0)
+	resourceMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0, len(policies))
 	for _, policy := range policies {
 		if policy.Spec.ResourceSelectors == nil {
 			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
@@ -153,7 +153,7 @@ func (o *overrideManagerImpl) getMatchingClusterOverridePolicies(policies []poli
 		}
 	}
 
-	clusterMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0)
+	clusterMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0, len(resourceMatchingPolicies))
 	for _, policy := range resourceMatchingPolicies {
 		if policy.Spec.TargetCluster == nil {
 			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
@@ -176,7 +176,7 @@ func (o *overrideManagerImpl) getMatchingClusterOverridePolicies(policies []poli
 }
 
 func (o *overrideManagerImpl) getMatchingOverridePolicies(policies []policyv1alpha1.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.OverridePolicy {
-	resourceMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0)
+	resourceMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0, len(policies))
 	for _, policy := range policies {
 		if policy.Spec.ResourceSelectors == nil {
 			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
@@ -188,7 +188,7 @@ func (o *overrideManagerImpl) getMatchingOverridePolicies(policies []policyv1alp
 		}
 	}
 
-	clusterMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0)
+	clusterMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0, len(resourceMatchingPolicies))
 	for _, policy := range resourceMatchingPolicies {
 		if policy.Spec.TargetCluster == nil {
 			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
