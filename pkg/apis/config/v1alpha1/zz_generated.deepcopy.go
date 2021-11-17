@@ -32,6 +32,11 @@ func (in *ExploreRequest) DeepCopyInto(out *ExploreRequest) {
 	*out = *in
 	out.Kind = in.Kind
 	in.Object.DeepCopyInto(&out.Object)
+	if in.ObservedObject != nil {
+		in, out := &in.ObservedObject, &out.ObservedObject
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.DesiredReplicas != nil {
 		in, out := &in.DesiredReplicas, &out.DesiredReplicas
 		*out = new(int32)

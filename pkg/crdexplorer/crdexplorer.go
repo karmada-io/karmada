@@ -25,8 +25,8 @@ type CustomResourceExplorer interface {
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
 
-	// Retain returns the objects that based on the "desired" object but with values retained from the "cluster" object.
-	Retain(desired *unstructured.Unstructured, cluster *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
+	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
+	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
 
 	// other common method
 }
@@ -93,6 +93,7 @@ func (i *customResourceExplorerImpl) GetReplicas(object *unstructured.Unstructur
 	return
 }
 
+// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 func (i *customResourceExplorerImpl) Retain(desired *unstructured.Unstructured, cluster *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
 	// TODO(RainbowMango): consult to the dynamic webhooks first.
 
