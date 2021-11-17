@@ -15,10 +15,15 @@ import (
 
 // GetTargetSecret will get secrets(type=targetType, namespace=targetNamespace) from a list of secret references.
 func GetTargetSecret(client kubeclient.Interface, secretReferences []corev1.ObjectReference, targetType corev1.SecretType, targetNamespace string) (*corev1.Secret, error) {
+	var errNotFound error
 	for _, objectReference := range secretReferences {
 		klog.V(2).Infof("checking secret: %s/%s", targetNamespace, objectReference.Name)
 		secret, err := client.CoreV1().Secrets(targetNamespace).Get(context.TODO(), objectReference.Name, metav1.GetOptions{})
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				errNotFound = err
+				continue
+			}
 			return nil, err
 		}
 
@@ -27,7 +32,10 @@ func GetTargetSecret(client kubeclient.Interface, secretReferences []corev1.Obje
 		}
 	}
 
-	return nil, fmt.Errorf("no specific secret found in namespace: %s", targetNamespace)
+	if errNotFound == nil {
+		return nil, fmt.Errorf("no specific secret found in namespace: %s", targetNamespace)
+	}
+	return nil, errNotFound
 }
 
 // CreateSecret just try to create the secret.
