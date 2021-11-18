@@ -51,12 +51,12 @@ func (e *DefaultExplorer) GetReplicas(object *unstructured.Unstructured) (int32,
 	return handler(object)
 }
 
-// Retain returns the objects that based on the "desired" object but with values retained from the "cluster" object.
-func (e *DefaultExplorer) Retain(desired *unstructured.Unstructured, cluster *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
+// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
+func (e *DefaultExplorer) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
 	handler, exist := e.retentionHandlers[desired.GroupVersionKind()]
 	if !exist {
 		return nil, fmt.Errorf("default explorer for operation %s not found", configv1alpha1.ExploreRetaining)
 	}
 
-	return handler(desired, cluster)
+	return handler(desired, observed)
 }

@@ -52,6 +52,11 @@ type ExploreRequest struct {
 	// +optional
 	Object runtime.RawExtension `json:"object,omitempty"`
 
+	// ObservedObject is the object observed from the kube-apiserver of member clusters.
+	// Not nil only when OperationType is ExploreRetaining.
+	// +optional
+	ObservedObject *runtime.RawExtension `json:"observedObject,omitempty"`
+
 	// DesiredReplicas represents the desired pods number which webhook should revise with.
 	// It'll be set only if OperationType is ExploreReplicaRevising.
 	// +optional
