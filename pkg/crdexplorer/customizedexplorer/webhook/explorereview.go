@@ -29,7 +29,7 @@ func CreateExploreReview(versions []string, attributes *RequestAttributes) (uid 
 
 // CreateV1alpha1ExploreReview creates an ExploreReview for the provided RequestAttributes.
 func CreateV1alpha1ExploreReview(uid types.UID, attributes *RequestAttributes) *configv1alpha1.ExploreReview {
-	return &configv1alpha1.ExploreReview{
+	review := &configv1alpha1.ExploreReview{
 		Request: &configv1alpha1.ExploreRequest{
 			UID: uid,
 			Kind: metav1.GroupVersionKind{
@@ -47,6 +47,11 @@ func CreateV1alpha1ExploreReview(uid types.UID, attributes *RequestAttributes) *
 			AggregatedStatus: attributes.AggregatedStatus,
 		},
 	}
+
+	if attributes.ObservedObj != nil {
+		review.Request.ObservedObject = &runtime.RawExtension{Object: attributes.ObservedObj.DeepCopyObject()}
+	}
+	return review
 }
 
 // VerifyExploreReview checks the validity of the provided explore review object, and returns ResponseAttributes,

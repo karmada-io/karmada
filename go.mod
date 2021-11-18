@@ -14,6 +14,7 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/tools v0.1.2
+	gomodules.xyz/jsonpatch/v2 v2.2.0
 	google.golang.org/grpc v1.38.0
 	k8s.io/api v0.22.2
 	k8s.io/apiextensions-apiserver v0.22.2

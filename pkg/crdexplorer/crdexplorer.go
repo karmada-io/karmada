@@ -94,8 +94,8 @@ func (i *customResourceExplorerImpl) GetReplicas(object *unstructured.Unstructur
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
-func (i *customResourceExplorerImpl) Retain(desired *unstructured.Unstructured, cluster *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
+func (i *customResourceExplorerImpl) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
 	// TODO(RainbowMango): consult to the dynamic webhooks first.
 
-	return i.defaultExplorer.Retain(desired, cluster)
+	return i.defaultExplorer.Retain(desired, observed)
 }

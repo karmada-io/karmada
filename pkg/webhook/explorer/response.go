@@ -1,7 +1,10 @@
 package explorer
 
 import (
+	"encoding/json"
 	"net/http"
+
+	"gomodules.xyz/jsonpatch/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
@@ -37,6 +40,32 @@ func ValidationResponse(successful bool, msg string) Response {
 				Code:    int32(code),
 				Message: msg,
 			},
+		},
+	}
+}
+
+// PatchResponseFromRaw takes 2 byte arrays and returns a new response with patch.
+func PatchResponseFromRaw(original, current []byte) Response {
+	patches, err := jsonpatch.CreatePatch(original, current)
+	if err != nil {
+		return Errored(http.StatusInternalServerError, err)
+	}
+
+	if len(patches) == 0 {
+		return Succeeded("")
+	}
+
+	patch, err := json.Marshal(patches)
+	if err != nil {
+		return Errored(http.StatusInternalServerError, err)
+	}
+
+	patchType := configv1alpha1.PatchTypeJSONPatch
+	return Response{
+		ExploreResponse: configv1alpha1.ExploreResponse{
+			Successful: true,
+			Patch:      patch,
+			PatchType:  &patchType,
 		},
 	}
 }

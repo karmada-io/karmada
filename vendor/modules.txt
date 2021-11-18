@@ -429,6 +429,7 @@ golang.org/x/tools/internal/imports
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
 # gomodules.xyz/jsonpatch/v2 v2.2.0
+## explicit
 gomodules.xyz/jsonpatch/v2
 # google.golang.org/appengine v1.6.7
 google.golang.org/appengine/internal
