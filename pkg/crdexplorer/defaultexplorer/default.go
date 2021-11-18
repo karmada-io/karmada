@@ -41,7 +41,7 @@ func (e *DefaultExplorer) HookEnabled(kind schema.GroupVersionKind, operationTyp
 		// TODO(RainbowMango): more cases should be added here
 	}
 
-	klog.V(4).Infof("Hook is not enabled: %q in %q is not supported.", kind, operationType)
+	klog.V(4).Infof("Default explorer is not enabled for kind %q with operation %q.", kind, operationType)
 	return false
 }
 
