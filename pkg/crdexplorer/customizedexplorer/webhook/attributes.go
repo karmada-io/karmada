@@ -13,6 +13,7 @@ import (
 type RequestAttributes struct {
 	Operation        configv1alpha1.OperationType
 	Object           *unstructured.Unstructured
+	ObservedObj      *unstructured.Unstructured
 	ReplicasSet      int32
 	AggregatedStatus []workv1alpha1.AggregatedStatusItem
 }
