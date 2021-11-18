@@ -109,7 +109,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet)
+
 	overrideManager := overridemanager.New(mgr.GetClient())
 	skippedResourceConfig := util.NewSkippedResourceConfig()
 	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
@@ -128,6 +128,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := mgr.Add(crdExplorer); err != nil {
 		klog.Fatalf("Failed to setup custom resource explorer: %v", err)
 	}
+
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, crdExplorer)
 
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:           discoverClientSet,

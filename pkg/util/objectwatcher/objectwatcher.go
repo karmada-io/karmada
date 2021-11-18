@@ -14,7 +14,9 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/crdexplorer"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -41,15 +43,17 @@ type objectWatcherImpl struct {
 	KubeClientSet        client.Client
 	VersionRecord        map[string]map[string]string
 	ClusterClientSetFunc ClientSetFunc
+	resourceExplorer     crdexplorer.CustomResourceExplorer
 }
 
 // NewObjectWatcher returns an instance of ObjectWatcher
-func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc) ObjectWatcher {
+func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc, explorer crdexplorer.CustomResourceExplorer) ObjectWatcher {
 	return &objectWatcherImpl{
 		KubeClientSet:        kubeClientSet,
 		VersionRecord:        make(map[string]map[string]string),
 		RESTMapper:           restMapper,
 		ClusterClientSetFunc: clusterClientSetFunc,
+		resourceExplorer:     explorer,
 	}
 }
 
@@ -97,6 +101,25 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 	return nil
 }
 
+func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	// Pass the same ResourceVersion as in the cluster object for update operation, otherwise operation will fail.
+	desired.SetResourceVersion(observed.GetResourceVersion())
+
+	// Retain finalizers since they will typically be set by
+	// controllers in a member cluster.  It is still possible to set the fields
+	// via overrides.
+	desired.SetFinalizers(observed.GetFinalizers())
+	// Merge annotations since they will typically be set by controllers in a member cluster
+	// and be set by user in karmada-controller-plane.
+	util.MergeAnnotations(desired, observed)
+
+	if o.resourceExplorer.HookEnabled(desired, configv1alpha1.ExploreRetaining) {
+		return o.resourceExplorer.Retain(desired, observed)
+	}
+
+	return desired, nil
+}
+
 func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured) error {
 	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
 	if err != nil {
@@ -110,7 +133,7 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 		return err
 	}
 
-	err = RetainClusterFields(desireObj, clusterObj)
+	desireObj, err = o.retainClusterFields(desireObj, clusterObj)
 	if err != nil {
 		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err
