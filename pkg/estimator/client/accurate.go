@@ -49,16 +49,17 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 	}
 
 	req := &pb.MaxAvailableReplicasRequest{
-		Cluster: cluster,
-		ReplicaRequirements: pb.ReplicaRequirements{
-			ResourceRequest: replicaRequirements.ResourceRequest,
-		},
+		Cluster:             cluster,
+		ReplicaRequirements: pb.ReplicaRequirements{},
 	}
-	if replicaRequirements.NodeClaim != nil {
-		req.ReplicaRequirements.NodeClaim = &pb.NodeClaim{
-			NodeAffinity: replicaRequirements.NodeClaim.HardNodeAffinity,
-			NodeSelector: replicaRequirements.NodeClaim.NodeSelector,
-			Tolerations:  replicaRequirements.NodeClaim.Tolerations,
+	if replicaRequirements != nil {
+		req.ReplicaRequirements.ResourceRequest = replicaRequirements.ResourceRequest
+		if replicaRequirements.NodeClaim != nil {
+			req.ReplicaRequirements.NodeClaim = &pb.NodeClaim{
+				NodeAffinity: replicaRequirements.NodeClaim.HardNodeAffinity,
+				NodeSelector: replicaRequirements.NodeClaim.NodeSelector,
+				Tolerations:  replicaRequirements.NodeClaim.Tolerations,
+			}
 		}
 	}
 	res, err := client.MaxAvailableReplicas(ctx, req)

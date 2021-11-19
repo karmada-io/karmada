@@ -65,10 +65,12 @@ func ConvertBindingSpecToHub(src *ResourceBindingSpec, dst *workv1alpha2.Resourc
 	dst.Resource.Name = src.Resource.Name
 	dst.Resource.ResourceVersion = src.Resource.ResourceVersion
 
-	if dst.ReplicaRequirements == nil {
-		dst.ReplicaRequirements = &workv1alpha2.ReplicaRequirements{}
+	if src.Resource.ReplicaResourceRequirements != nil {
+		if dst.ReplicaRequirements == nil {
+			dst.ReplicaRequirements = &workv1alpha2.ReplicaRequirements{}
+		}
+		dst.ReplicaRequirements.ResourceRequest = src.Resource.ReplicaResourceRequirements
 	}
-	dst.ReplicaRequirements.ResourceRequest = src.Resource.ReplicaResourceRequirements
 	dst.Replicas = src.Resource.Replicas
 
 	for i := range src.Clusters {
