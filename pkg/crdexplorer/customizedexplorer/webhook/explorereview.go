@@ -125,7 +125,7 @@ func verifyExploreResponse(operation configv1alpha1.OperationType, response *con
 
 func verifyExploreResponseWithPatch(response *configv1alpha1.ExploreResponse) error {
 	if len(response.Patch) == 0 && response.PatchType == nil {
-		return fmt.Errorf("webhook returned empty response.patch and nil response.patchType")
+		return nil
 	}
 	if response.PatchType == nil {
 		return fmt.Errorf("webhook returned nil response.patchType")

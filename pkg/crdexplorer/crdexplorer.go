@@ -2,7 +2,9 @@ package crdexplorer
 
 import (
 	"context"
+	"fmt"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
 
@@ -95,7 +97,49 @@ func (i *customResourceExplorerImpl) GetReplicas(object *unstructured.Unstructur
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 func (i *customResourceExplorerImpl) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
-	// TODO(RainbowMango): consult to the dynamic webhooks first.
+	klog.V(4).Infof("Begin to retain object: %v %s/%s.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
+
+	var hookEnabled bool
+	var patch []byte
+	var patchType configv1alpha1.PatchType
+	patch, patchType, hookEnabled, err = i.customizedExplorer.Retain(context.TODO(), &webhook.RequestAttributes{
+		Operation:   configv1alpha1.ExploreRetaining,
+		Object:      desired,
+		ObservedObj: observed,
+	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return applyPatch(desired, patch, patchType)
+	}
 
 	return i.defaultExplorer.Retain(desired, observed)
+}
+
+func applyPatch(desired *unstructured.Unstructured, patch []byte, patchType configv1alpha1.PatchType) (*unstructured.Unstructured, error) {
+	switch patchType {
+	case configv1alpha1.PatchTypeJSONPatch:
+		patchObj, err := jsonpatch.DecodePatch(patch)
+		if err != nil {
+			return nil, err
+		}
+		if len(patchObj) == 0 {
+			return desired, nil
+		}
+
+		objectJSONBytes, err := desired.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		patchedObjectJSONBytes, err := patchObj.Apply(objectJSONBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		err = desired.UnmarshalJSON(patchedObjectJSONBytes)
+		return desired, err
+	default:
+		return nil, fmt.Errorf("return patch type %s is not support", patchType)
+	}
 }

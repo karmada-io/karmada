@@ -57,6 +57,10 @@ func (e *CustomizedExplorer) HookEnabled(attributes *webhook.RequestAttributes) 
 	}
 
 	hook := e.getFirstRelevantHook(attributes)
+	if hook == nil {
+		klog.V(4).Infof("Hook explorer is not enabled for kind %q with operation %q.",
+			attributes.Object.GroupVersionKind(), attributes.Operation)
+	}
 	return hook != nil
 }
 
@@ -75,24 +79,9 @@ func (e *CustomizedExplorer) GetReplicas(ctx context.Context, attributes *webhoo
 	return response.Replicas, response.ReplicaRequirements, matched, nil
 }
 
-// GetDependencies return the dependencies of request object.
+// Retain returns the patch that based on the "desired" object but with values retained from the "observed" object.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedExplorer) GetDependencies(ctx context.Context, attributes *webhook.RequestAttributes) (dependencies []configv1alpha1.DependentObjectReference, matched bool, err error) {
-	var response *webhook.ResponseAttributes
-	response, matched, err = e.explore(ctx, attributes)
-	if err != nil {
-		return
-	}
-	if !matched {
-		return
-	}
-
-	return response.Dependencies, matched, nil
-}
-
-// PackObject return the patch body that package resource template with request object.
-// return matched value to indicate whether there is a matching hook.
-func (e *CustomizedExplorer) PackObject(ctx context.Context, attributes *webhook.RequestAttributes) (patch []byte, patchType configv1alpha1.PatchType, matched bool, err error) {
+func (e *CustomizedExplorer) Retain(ctx context.Context, attributes *webhook.RequestAttributes) (patch []byte, patchType configv1alpha1.PatchType, matched bool, err error) {
 	var response *webhook.ResponseAttributes
 	response, matched, err = e.explore(ctx, attributes)
 	if err != nil {
@@ -103,21 +92,6 @@ func (e *CustomizedExplorer) PackObject(ctx context.Context, attributes *webhook
 	}
 
 	return response.Patch, response.PatchType, matched, nil
-}
-
-// GetHealthy tells if the object in healthy state.
-// return matched value to indicate whether there is a matching hook.
-func (e *CustomizedExplorer) GetHealthy(ctx context.Context, attributes *webhook.RequestAttributes) (healthy, matched bool, err error) {
-	var response *webhook.ResponseAttributes
-	response, matched, err = e.explore(ctx, attributes)
-	if err != nil {
-		return
-	}
-	if !matched {
-		return
-	}
-
-	return response.Healthy, matched, nil
 }
 
 func (e *CustomizedExplorer) getFirstRelevantHook(attributes *webhook.RequestAttributes) configmanager.WebhookAccessor {
