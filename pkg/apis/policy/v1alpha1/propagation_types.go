@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // +genclient
@@ -212,9 +213,22 @@ type ReplicaSchedulingStrategy struct {
 	ReplicaDivisionPreference ReplicaDivisionPreference `json:"replicaDivisionPreference,omitempty"`
 
 	// WeightPreference describes weight for each cluster or for each group of cluster
-	// If ReplicaDivisionPreference is set to "Weighted", and WeightPreference is not set, scheduler will weight all clusters the same.
+	// If ReplicaDivisionPreference is set to "Weighted", and the WeightPreference is not set,
+	// scheduler will weight all clusters by average.
 	// +optional
 	WeightPreference *ClusterPreferences `json:"weightPreference,omitempty"`
+
+	// MaxLossy indicates a proportion or a number of reduced replicas that can be tolerated to schedule
+	// when the resource is not enough.
+	// If set to 0, the replicas will be scheduled until the selected clusters have enough resources
+	// to produce all the replicas. If set to 50%, the replicas will be scheduled until the selected
+	// clusters have enough resources to produce half of the replicas. If set to 100%, even if the selected
+	// clusters does not have enough resources, all the replicas will still be scheduled anyway. In this
+	// mode, users just want to schedule their replicas as many as possible. Note that this field only
+	// has an effect when ReplicaSchedulingType is Divided and ClusterPreferences is not Static.
+	// Defaulted to 0, which means we schedule all replicas only if the resource is enough.
+	// +optional
+	MaxLossy *intstr.IntOrString `json:"maxLossy,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
