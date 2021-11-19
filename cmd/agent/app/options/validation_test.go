@@ -52,7 +52,7 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 				ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
 				ClusterLeaseRenewIntervalFraction: 0.25,
 			},
-			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterName"), "", "clusterName cannot be empty")},
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterName"), "", "must be not empty")},
 		},
 		"invalid ClusterStatusUpdateFrequency": {
 			opt: Options{
