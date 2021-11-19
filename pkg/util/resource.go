@@ -6,8 +6,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
-	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
+
+	"github.com/karmada-io/karmada/pkg/util/resourcehelper"
 )
 
 // Resource is a collection of compute resource.
@@ -40,7 +40,7 @@ func NewResource(rl corev1.ResourceList) *Resource {
 		case corev1.ResourceEphemeralStorage:
 			r.EphemeralStorage += rQuant.Value()
 		default:
-			if schedutil.IsScalarResourceName(rName) {
+			if resourcehelper.IsScalarResourceName(rName) {
 				r.AddScalar(rName, rQuant.Value())
 			}
 		}
@@ -65,7 +65,7 @@ func (r *Resource) Add(rl corev1.ResourceList) {
 		case corev1.ResourceEphemeralStorage:
 			r.EphemeralStorage += rQuant.Value()
 		default:
-			if schedutil.IsScalarResourceName(rName) {
+			if resourcehelper.IsScalarResourceName(rName) {
 				r.AddScalar(rName, rQuant.Value())
 			}
 		}
@@ -102,7 +102,7 @@ func (r *Resource) Sub(rl corev1.ResourceList) error {
 			}
 			r.EphemeralStorage -= ephemeralStorage
 		default:
-			if schedutil.IsScalarResourceName(rName) {
+			if resourcehelper.IsScalarResourceName(rName) {
 				rScalar, ok := r.ScalarResources[rName]
 				scalar := rQuant.Value()
 				if !ok {
@@ -143,7 +143,7 @@ func (r *Resource) SetMaxResource(rl corev1.ResourceList) {
 				r.AllowedPodNumber = pods
 			}
 		default:
-			if schedutil.IsScalarResourceName(rName) {
+			if resourcehelper.IsScalarResourceName(rName) {
 				if value := rQuant.Value(); value > r.ScalarResources[rName] {
 					r.SetScalar(rName, value)
 				}
@@ -175,7 +175,7 @@ func (r *Resource) ResourceList() corev1.ResourceList {
 		corev1.ResourcePods:             *resource.NewQuantity(r.AllowedPodNumber, resource.DecimalSI),
 	}
 	for rName, rQuant := range r.ScalarResources {
-		if v1helper.IsHugePageResourceName(rName) {
+		if resourcehelper.IsHugePageResourceName(rName) {
 			result[rName] = *resource.NewQuantity(rQuant, resource.BinarySI)
 		} else {
 			result[rName] = *resource.NewQuantity(rQuant, resource.DecimalSI)
@@ -202,7 +202,7 @@ func (r *Resource) MaxDivided(rl corev1.ResourceList) int64 {
 				res = MinInt64(res, r.EphemeralStorage/ephemeralStorage)
 			}
 		default:
-			if schedutil.IsScalarResourceName(rName) {
+			if resourcehelper.IsScalarResourceName(rName) {
 				rScalar, ok := r.ScalarResources[rName]
 				if !ok {
 					return 0
