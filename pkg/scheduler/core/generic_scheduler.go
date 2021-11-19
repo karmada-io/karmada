@@ -11,7 +11,6 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	lister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
@@ -32,21 +31,17 @@ type ScheduleResult struct {
 }
 
 type genericScheduler struct {
-	schedulerCache cache.Cache
-	// TODO: move it into schedulerCache
-	policyLister      lister.PropagationPolicyLister
+	schedulerCache    cache.Cache
 	scheduleFramework framework.Framework
 }
 
 // NewGenericScheduler creates a genericScheduler object.
 func NewGenericScheduler(
 	schedCache cache.Cache,
-	policyLister lister.PropagationPolicyLister,
 	plugins []string,
 ) ScheduleAlgorithm {
 	return &genericScheduler{
 		schedulerCache:    schedCache,
-		policyLister:      policyLister,
 		scheduleFramework: runtime.NewFramework(plugins),
 	}
 }
