@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-interpreter-webhook-example
+  namespace: karmada-system
+  labels:
+    app: karmada-interpreter-webhook-example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: karmada-interpreter-webhook-example
+  template:
+    metadata:
+      labels:
+        app: karmada-interpreter-webhook-example
+    spec:
+      serviceAccountName: karmada-interpreter-webhook-example
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+        - name: karmada-interpreter-webhook-example
+          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-interpreter-webhook-example:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/karmada-interpreter-webhook-example
+            - --kubeconfig=/etc/kubeconfig
+            - --bind-address=0.0.0.0
+            - --secure-port=8445
+            - --cert-dir=/var/serving-cert
+            - --v=4
+          ports:
+            - containerPort: 8445
+          volumeMounts:
+            - name: kubeconfig
+              subPath: kubeconfig
+              mountPath: /etc/kubeconfig
+            - name: cert
+              mountPath: /var/serving-cert
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8445
+              scheme: HTTPS
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig
+        - name: cert
+          secret:
+            secretName: webhook-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-interpreter-webhook-example
+  namespace: karmada-system
+spec:
+  selector:
+    app: karmada-interpreter-webhook-example
+  ports:
+    - port: 443
+      targetPort: 8445
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: karmada-interpreter-webhook-example
+  namespace: karmada-system
