@@ -37,6 +37,7 @@ The `bases`,`patches`and `kustomization.yaml` now located at `charts/_crds` dire
 #### Manual Upgrade API
 
 **Step 1: Get the Webhook CA certificate**
+
 The CA certificate will be injected into `patches` before building the final CRD.
 We can retrieve it from the `MutatingWebhookConfiguration` or `ValidatingWebhookConfiguration` configurations, e.g:
 ```bash
@@ -50,6 +51,7 @@ sed -i'' -e "s/{{caBundle}}/${ca_string}/g" ./"charts/_crds/patches/webhook_in_c
 ```
 
 **Step2: Build final CRD**
+
 Generate the final CRD by `kubectl kustomize` command, e.g:
 ```bash
 kubectl kustomize ./charts/_crds 
@@ -66,3 +68,4 @@ Components upgrading is composed of image version update and possible command ar
 
 ## Details Upgrading Instruction
 ### [v0.8 to v0.9](./v0.8-v0.9.md)
+### [v0.9 to v0.10](./v0.9-v0.10.md)
