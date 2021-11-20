@@ -34,6 +34,10 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 		Use:  "karmada-webhook",
 		Long: `Start a karmada webhook server`,
 		Run: func(cmd *cobra.Command, args []string) {
+			if errs := opts.Validate(); len(errs) != 0 {
+				fmt.Fprintf(os.Stderr, "configuration is invalid: %s\n", errs.ToAggregate())
+				os.Exit(1)
+			}
 			if err := Run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
