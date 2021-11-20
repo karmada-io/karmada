@@ -1,17 +1,20 @@
 ---
-title: Resource Exploring Webhook
+title: Resource Interpreter Webhook
 authors:
 - "@RainbowMango"
 reviewers:
-- "@TBD"
+- "@kevin-wangzefeng"
+- "@lynnsong"
+- "@pigletfly"
+- "@Garrybest"
 approvers:
-- "@TBD"
+- "@kevin-wangzefeng"
 
 creation-date: 2021-10-18
 
 ---
 
-# Resource Exploring Webhook
+# Resource Interpreter Webhook
 
 ## Summary
 
@@ -44,14 +47,14 @@ custom resources, Karmada has to learn the structure of the custom resource.
 I have a custom resource which extremely similar with `deployments`, it has a `replica` field as well, I want to `divide`
 the replicas to multiple clusters by declaring a `ReplicaScheduling` rule.
 
-> In this scenario, as lack of knowledge of the custom resource, Karmada can't grab it's `replica`.
+> Without this framework, as lack of knowledge of the custom resource, Karmada can't grab it's `replica`.
 
 #### As a user, I want to customize the retain method for my CRD resources.
 
 I have a custom resource which reconciling by a controller running in member clusters. The controllers would make changes
-to the resource(such as update status), I wish Karmada could retain the changes make by my controller.
+to the resource(such as update some fields in .spec), I wish Karmada could retain the changes made by my controller.
 
-> In this sceanrio, as lack of knowledge of the custom resource, Karmada might can't retain the custom resource correctly.
+> Without this framework, as lack of knowledge of the custom resource, Karmada might can't retain the custom resource correctly.
 > Thus, the resource might be changed back and forth by Karmada and it's controller.
 
 ### Notes/Constraints/Caveats (Optional)
@@ -60,30 +63,33 @@ to the resource(such as update status), I wish Karmada could retain the changes 
 
 ## Design Details
 
-Inspire of the [Kubernetes Admission webhook][1], we propose a webhook called `ResourceExploringWebhook` which contains:
-- A configuration API `ResourceExploringWebhookConfiguration` to declare the enabled webhooks.
-- A review API `ExploreReview` to declare the request and response between Karmada and webhooks.
+Inspire of the [Kubernetes Admission webhook][1], we propose a webhook called `ResourceInterpreterWebhook` which contains:
+- A configuration API `ResourceInterpreterWebhookConfiguration` to declare the enabled webhooks.
+- A message API `ResourceInterpreterContext` to declare the request and response between Karmada and webhooks.
 
-In the `ResourceExploringWebhookConfiguration` API, the `OperationType` represents the request that Karmada might call
-the webhooks in the whole propagating process.
+In the `ResourceInterpreterWebhookConfiguration` API, the `InterpreterOperation` represents the request that Karmada 
+might call the webhooks in the whole propagating process.
 
-![operations](resource-exploring-webhook.png)
+![operations](resource-interpreter-webhook.png)
 
-### New ResourceExploringWebhookConfiguration API
+### New ResourceInterpreterWebhookConfiguration API
 
 We propose a new CR in `config.karmada.io` group.
 
 ```golang
-type ResourceExploringWebhookConfiguration struct {
+// ResourceInterpreterWebhookConfiguration describes the configuration of webhooks which take the responsibility to
+// tell karmada the details of the resource object, especially for custom resources.
+type ResourceInterpreterWebhookConfiguration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+
 	// Webhooks is a list of webhooks and the affected resources and operations.
 	// +required
-	Webhooks []ResourceExploringWebhook `json:"webhooks"`
+	Webhooks []ResourceInterpreterWebhook `json:"webhooks"`
 }
 
-// ResourceExploringWebhook describes the webhook as well as the resources and operations it applies to.
-type ResourceExploringWebhook struct {
+// ResourceInterpreterWebhook describes the webhook as well as the resources and operations it applies to.
+type ResourceInterpreterWebhook struct {
 	// Name is the full-qualified name of the webhook.
 	// +required
 	Name string `json:"name"`
@@ -97,11 +103,6 @@ type ResourceExploringWebhook struct {
 	// +optional
 	Rules []RuleWithOperations `json:"rules,omitempty"`
 
-	// FailurePolicy defines how unrecognized errors from the webhook are handled,
-	// allowed values are Ignore or Fail. Defaults to Fail.
-	// +optional
-	FailurePolicy *admissionregistrationv1.FailurePolicyType `json:"failurePolicy,omitempty"`
-
 	// TimeoutSeconds specifies the timeout for this webhook. After the timeout passes,
 	// the webhook call will be ignored or the API call will fail based on the
 	// failure policy.
@@ -110,14 +111,14 @@ type ResourceExploringWebhook struct {
 	// +optional
 	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
 
-	// ExploreReviewVersions is an ordered list of preferred `ExploreReview`
+	// InterpreterContextVersions is an ordered list of preferred `ResourceInterpreterContext`
 	// versions the Webhook expects. Karmada will try to use first version in
 	// the list which it supports. If none of the versions specified in this list
 	// supported by Karmada, validation will fail for this object.
 	// If a persisted webhook configuration specifies allowed versions and does not
 	// include any versions known to the Karmada, calls to the webhook will fail
 	// and be subject to the failure policy.
-	ExploreReviewVersions []string `json:"exploreReviewVersions"`
+	InterpreterContextVersions []string `json:"interpreterContextVersions"`
 }
 
 // RuleWithOperations is a tuple of Operations and Resources. It is recommended to make
@@ -126,68 +127,100 @@ type RuleWithOperations struct {
 	// Operations is the operations the hook cares about.
 	// If '*' is present, the length of the slice must be one.
 	// +required
-	Operations []OperationType `json:"operations"`
+	Operations []InterpreterOperation `json:"operations"`
 
 	// Rule is embedded, it describes other criteria of the rule, like
-	// APIGroups, APIVersions, Resources, etc.
-	admissionregistrationv1.Rule `json:",inline"`
+	// APIGroups, APIVersions, Kinds, etc.
+	Rule `json:",inline"`
 }
 
-// OperationType specifies an operation for a request.
-type OperationType string
+// InterpreterOperation specifies an operation for a request.
+type InterpreterOperation string
 
 const (
-	// ExploreReplica indicates that karmada want to figure out the replica declaration of a specific object.
+	// InterpreterOperationAll indicates math all InterpreterOperation.
+	InterpreterOperationAll InterpreterOperation = "*"
+
+	// InterpreterOperationInterpretReplica indicates that karmada want to figure out the replica declaration of a specific object.
 	// Only necessary for those resource types that have replica declaration, like Deployment or similar custom resources.
-	ExploreReplica OperationType = "ExploreReplica"
+	InterpreterOperationInterpretReplica InterpreterOperation = "InterpretReplica"
 
-	// ExploreStatus indicates that karmada want to figure out how to get the status.
+	// InterpreterOperationReviseReplica indicates that karmada request webhook to modify the replica.
+	InterpreterOperationReviseReplica InterpreterOperation = "ReviseReplica"
+
+	// InterpreterOperationInterpretStatus indicates that karmada want to figure out how to get the status.
 	// Only necessary for those resource types that define their status in a special path(not '.status').
-	ExploreStatus OperationType = "ExploreStatus"
+	InterpreterOperationInterpretStatus InterpreterOperation = "InterpretStatus"
 
-	// ExplorePacking indicates that karmada want to figure out how to package resource template to Work.
-	ExplorePacking OperationType = "ExplorePacking"
+	// InterpreterOperationPrune indicates that karmada want to figure out how to package resource template to Work.
+	InterpreterOperationPrune InterpreterOperation = "Prune"
 
-	// ExploreReplicaRevising indicates that karmada request webhook to modify the replica.
-	ExploreReplicaRevising OperationType = "ExploreReplicaRevising"
-
-	// ExploreRetaining indicates that karmada request webhook to retain the desired resource template.
+	// InterpreterOperationRetain indicates that karmada request webhook to retain the desired resource template.
 	// Only necessary for those resources which specification will be updated by their controllers running in member cluster.
-	ExploreRetaining OperationType = "ExploreRetaining"
+	InterpreterOperationRetain InterpreterOperation = "Retain"
 
-	// ExploreStatusAggregating indicates that karmada want to figure out how to aggregate status to resource template.
+	// InterpreterOperationAggregateStatus indicates that karmada want to figure out how to aggregate status to resource template.
 	// Only necessary for those resource types that want to aggregate status to resource template.
-	ExploreStatusAggregating OperationType = "ExploreStatusAggregating"
+	InterpreterOperationAggregateStatus InterpreterOperation = "AggregateStatus"
 
-	// ExploreHealthy indicates that karmada want to figure out the healthy status of a specific object.
+	// InterpreterOperationInterpretHealthy indicates that karmada want to figure out the healthy status of a specific object.
 	// Only necessary for those resource types that have and want to reflect their healthy status.
-	ExploreHealthy OperationType = "ExploreHealthy"
+	InterpreterOperationInterpretHealthy InterpreterOperation = "InterpretHealthy"
 
-	// ExploreDependencies indicates that karmada want to figure out the dependencies of a specific object.
+	// InterpreterOperationInterpretDependency indicates that karmada want to figure out the dependencies of a specific object.
 	// Only necessary for those resource types that have dependencies resources and expect the dependencies be propagated
 	// together, like Deployment depends on ConfigMap/Secret.
-	ExploreDependencies OperationType = "ExploreDependencies"
+	InterpreterOperationInterpretDependency InterpreterOperation = "InterpretDependency"
 )
+
+// Rule is a tuple of APIGroups, APIVersion, and Kinds.
+type Rule struct {
+	// APIGroups is the API groups the resources belong to. '*' is all groups.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	//  ["apps", "batch", "example.io"] means matches 3 groups.
+	//  ["*"] means matches all group
+	//
+	// Note: The group cloud be empty, e.g the 'core' group of kubernetes, in that case use [""].
+	// +required
+	APIGroups []string `json:"apiGroups"`
+
+	// APIVersions is the API versions the resources belong to. '*' is all versions.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	//  ["v1alpha1", "v1beta1"] means matches 2 versions.
+	//  ["*"] means matches all versions.
+	// +required
+	APIVersions []string `json:"apiVersions"`
+
+	// Kinds is a list of resources this rule applies to.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	//  ["Deployment", "Pod"] means matches Deployment and Pod.
+	//  ["*"] means apply to all resources.
+	// +required
+	Kinds []string `json:"kinds"`
+}
 ```
 
-### New ExploreReview API
+### New ResourceInterpreterContext API
 
 ```golang
-
-// ExploreReview describes an explore review request and response.
-type ExploreReview struct {
+// ResourceInterpreterContext describes an interpreter context request and response.
+type ResourceInterpreterContext struct {
 	metav1.TypeMeta `json:",inline"`
-	// Request describes the attributes for the explore request.
+
+	// Request describes the attributes for the interpreter request.
 	// +optional
-	Request *ExploreRequest `json:"request,omitempty"`
-	
-    // Response describes the attributes for the explore response.
-    // +optional
-    Response *ExploreResponse `json:"response,omitempty"`
+	Request *ResourceInterpreterRequest `json:"request,omitempty"`
+
+	// Response describes the attributes for the interpreter response.
+	// +optional
+	Response *ResourceInterpreterResponse `json:"response,omitempty"`
 }
 
-// ExploreRequest describes the explore.Attributes for the explore request.
-type ExploreRequest struct {
+// ResourceInterpreterRequest describes the interpreter.Attributes for the interpreter request.
+type ResourceInterpreterRequest struct {
 	// UID is an identifier for the individual request/response.
 	// The UID is meant to track the round trip (request/response) between the karmada and the WebHook, not the user request.
 	// It is suitable for correlating log entries between the webhook and karmada, for either auditing or debugging.
@@ -208,49 +241,42 @@ type ExploreRequest struct {
 
 	// Operation is the operation being performed.
 	// +required
-	Operation OperationType `json:"operation"`
+	Operation InterpreterOperation `json:"operation"`
 
 	// Object is the object from the incoming request.
 	// +optional
 	Object runtime.RawExtension `json:"object,omitempty"`
 
+	// ObservedObject is the object observed from the kube-apiserver of member clusters.
+	// Not nil only when InterpreterOperation is InterpreterOperationRetain.
+	// +optional
+	ObservedObject *runtime.RawExtension `json:"observedObject,omitempty"`
+
 	// DesiredReplicas represents the desired pods number which webhook should revise with.
-	// It'll be set only if OperationType is ExploreReplicaRevising.
+	// It'll be set only if InterpreterOperation is InterpreterOperationReviseReplica.
 	// +optional
 	DesiredReplicas *int32 `json:"replicas,omitempty"`
 
 	// AggregatedStatus represents status list of the resource running in each member cluster.
 	// +optional
-	AggregatedStatus []AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
+	AggregatedStatus []workv1alpha1.AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
 }
 
-// AggregatedStatusItem represents status of the resource running in a member cluster.
-type AggregatedStatusItem struct {
-	// ClusterName represents the member cluster name which the resource deployed on.
-	// +required
-	ClusterName string `json:"clusterName"`
-
-	// Status reflects running status of current manifest.
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +optional
-	Status *runtime.RawExtension `json:"status,omitempty"`
-	// Applied represents if the resource referencing by ResourceBinding or ClusterResourceBinding
-	// is successfully applied on the cluster.
-	// +optional
-	Applied bool `json:"applied,omitempty"`
-
-	// AppliedMessage is a human readable message indicating details about the applied status.
-	// This is usually holds the error message in case of apply failed.
-	// +optional
-	AppliedMessage string `json:"appliedMessage,omitempty"`
-}
-
-// ExploreResponse describes an explore response.
-type ExploreResponse struct {
+// ResourceInterpreterResponse describes an interpreter response.
+type ResourceInterpreterResponse struct {
 	// UID is an identifier for the individual request/response.
-	// This must be copied over from the corresponding ExploreRequest.
+	// This must be copied over from the corresponding ResourceInterpreterRequest.
 	// +required
 	UID types.UID `json:"uid"`
+
+	// Successful indicates whether the request be processed successfully.
+	// +required
+	Successful bool `json:"successful"`
+
+	// Status contains extra details information about why the request not successful.
+	// This filed is not consulted in any way if "Successful" is "true".
+	// +optional
+	Status *RequestStatus `json:"status,omitempty"`
 
 	// The patch body. We only support "JSONPatch" currently which implements RFC 6902.
 	// +optional
@@ -261,64 +287,48 @@ type ExploreResponse struct {
 	PatchType *PatchType `json:"patchType,omitempty" protobuf:"bytes,5,opt,name=patchType"`
 
 	// ReplicaRequirements represents the requirements required by each replica.
-	// Required if OperationType is ExploreReplica.
+	// Required if InterpreterOperation is InterpreterOperationInterpretReplica.
 	// +optional
-	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
+	ReplicaRequirements *workv1alpha2.ReplicaRequirements `json:"replicaRequirements,omitempty"`
 
 	// Replicas represents the number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified.
-	// Required if OperationType is ExploreReplica.
+	// Required if InterpreterOperation is InterpreterOperationInterpretReplica.
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Dependencies represents the reference of dependencies object.
-	// Required if OperationType is ExploreDependencies.
+	// Required if InterpreterOperation is InterpreterOperationInterpretDependency.
 	// +optional
 	Dependencies []DependentObjectReference `json:"dependencies,omitempty"`
 
-	// Status represents the referencing object's status.
+	// RawStatus represents the referencing object's status.
 	// +optional
-	Status *runtime.RawExtension `json:"status,omitempty"`
+	RawStatus *runtime.RawExtension `json:"rawStatus,omitempty"`
 
 	// Healthy represents the referencing object's healthy status.
 	// +optional
 	Healthy *bool `json:"healthy,omitempty"`
 }
 
+// RequestStatus holds the status of a request.
+type RequestStatus struct {
+	// Message is human-readable description of the status of this operation.
+	// +optional
+	Message string `json:"message,omitempty"`
+
+	// Code is the HTTP return code of this status.
+	// +optional
+	Code int32 `json:"code,omitempty"`
+}
+
 // PatchType is the type of patch being used to represent the mutated object
 type PatchType string
 
 const (
+	// PatchTypeJSONPatch represents the JSONType.
 	PatchTypeJSONPatch PatchType = "JSONPatch"
 )
-
-// ReplicaRequirements represents the requirements required by each replica.
-type ReplicaRequirements struct {
-	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
-	// +optional
-	NodeClaim *NodeClaim `json:"nodeClaim,omitempty"`
-
-	// ResourceRequest represents the resources required by each replica.
-	// +optional
-	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
-}
-
-// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
-type NodeClaim struct {
-	// A node selector represents the union of the results of one or more label queries over a set of
-	// nodes; that is, it represents the OR of the selectors represented by the node selector terms.
-	// Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-	// is included here because it has a hard limit on pod scheduling.
-	// +optional
-	HardNodeAffinity *corev1.NodeSelector `json:"hardNodeAffinity,omitempty"`
-	// NodeSelector is a selector which must be true for the pod to fit on a node.
-	// Selector which must match a node's labels for the pod to be scheduled on that node.
-	// +optional
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-	// If specified, the pod's tolerations.
-	// +optional
-	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
-}
 
 // DependentObjectReference contains enough information to locate the referenced object inside current cluster.
 type DependentObjectReference struct {
@@ -346,49 +356,47 @@ type DependentObjectReference struct {
 ### Example
 #### Configuration
 The example below show two webhooks configuration.
-The `foo.example.com` webhook serves for `foos` under `foo.example.com` group and implemented `ExploreRetaining` and 
-`ExploreHealthy` operations.
-The `bar.example.com` webhook serves for `bars` under `bar.example.com` group and implemented `ExploreDependencies` and 
-`ExploreHealthy` operations.
+The `foo.example.com` webhook serves for `foos` under `foo.example.com` group and implemented `Retain` and 
+`InterpretHealthy` operations.
+The `bar.example.com` webhook serves for `bars` under `bar.example.com` group and implemented `InterpretDependency` and 
+`InterpretHealthy` operations.
 
 ```yaml
 apiVersion: config.karmada.io/v1alpha1
-kind: ResourceExploringWebhookConfiguration
+kind: ResourceInterpreterWebhookConfiguration
 metadata:
   name: example
 webhooks:
   - name: foo.example.com
     rules:
-      - operations: ["ExploreRetaining", "ExploreHealthy"]
+      - operations: ["Retain", "InterpretHealthy"]
         apiGroups: ["foo.example.com"]
         apiVersions: ["*"]
-        resources: ["foos"]
+        kinds: ["Foo"]
         scope: "Namespaced"
     clientConfig:
       url: https://xxx:443/explore-foo
       caBundle: {{caBundle}}
-    failurePolicy: Fail
     exploreReviewVersions: ["v1alpha1"]
     timeoutSeconds: 3
   - name: bar.example.com
     rules:
-      - operations: ["ExploreDependencies", "ExploreHealthy"]
+      - operations: ["InterpretDependency", "InterpretHealthy"]
         apiGroups: ["bar.example.com"]
         apiVersions: ["*"]
-        resources: ["bars"]
+        kinds: ["Bar"]
         scope: "Cluster"
     clientConfig:
       url: https://xxx:443/explore-bar
       caBundle: {{caBundle}}
-    failurePolicy: Fail
     exploreReviewVersions: ["v1alpha1"]
     timeoutSeconds: 3
 ```
 #### Request and Response
-Take `ExploreHealthy` for example, Karmada will send the request like:
+Take `InterpretHealthy` for example, Karmada will send the request like:
 ```yaml
 apiVersion: config.karmada.io/v1alpha1
-kind: ExploreReview
+kind: ResourceInterpreterContext
 request:
   - uid: xxx
   - Kind:
@@ -397,14 +405,14 @@ request:
       Kind: Foo
   - name: foo
   - namespace: default
-  - operation: ExploreHealthy
+  - operation: InterpretHealthy
   - object: <raw data of the object>
 ```
 
 And the response like:
 ```yaml
 apiVersion: config.karmada.io/v1alpha1
-kind: ExploreReview
+kind: ResourceInterpreterContext
 response:
   - uid: xxx(same uid in the request)
   - healthy: true
