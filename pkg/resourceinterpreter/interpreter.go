@@ -1,4 +1,4 @@
-package crdexplorer
+package resourceinterpreter
 
 import (
 	"context"
@@ -10,18 +10,18 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/crdexplorer/customizedexplorer"
-	"github.com/karmada-io/karmada/pkg/crdexplorer/customizedexplorer/webhook"
-	"github.com/karmada-io/karmada/pkg/crdexplorer/defaultexplorer"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 )
 
-// CustomResourceExplorer manages both default and customized webhooks to explore custom resource structure.
-type CustomResourceExplorer interface {
+// ResourceInterpreter manages both default and customized webhooks to interpret custom resource structure.
+type ResourceInterpreter interface {
 	// Start starts running the component and will never stop running until the context is closed or an error occurs.
 	Start(ctx context.Context) (err error)
 
-	// HookEnabled tells if any hook exist for specific resource type and operation type.
+	// HookEnabled tells if any hook exist for specific resource type and operation.
 	HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.InterpreterOperation) bool
 
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
@@ -33,32 +33,32 @@ type CustomResourceExplorer interface {
 	// other common method
 }
 
-// NewCustomResourceExplorer builds a new CustomResourceExplorer object.
-func NewCustomResourceExplorer(kubeconfig string, informer informermanager.SingleClusterInformerManager) CustomResourceExplorer {
-	return &customResourceExplorerImpl{
+// NewResourceInterpreter builds a new ResourceInterpreter object.
+func NewResourceInterpreter(kubeconfig string, informer informermanager.SingleClusterInformerManager) ResourceInterpreter {
+	return &customResourceInterpreterImpl{
 		kubeconfig: kubeconfig,
 		informer:   informer,
 	}
 }
 
-type customResourceExplorerImpl struct {
+type customResourceInterpreterImpl struct {
 	kubeconfig string
 	informer   informermanager.SingleClusterInformerManager
 
-	customizedExplorer *customizedexplorer.CustomizedExplorer
-	defaultExplorer    *defaultexplorer.DefaultExplorer
+	customizedInterpreter *customizedinterpreter.CustomizedInterpreter
+	defaultInterpreter    *defaultinterpreter.DefaultInterpreter
 }
 
 // Start starts running the component and will never stop running until the context is closed or an error occurs.
-func (i *customResourceExplorerImpl) Start(ctx context.Context) (err error) {
-	klog.Infof("Starting custom resource explorer.")
+func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
+	klog.Infof("Starting custom resource interpreter.")
 
-	i.customizedExplorer, err = customizedexplorer.NewCustomizedExplorer(i.kubeconfig, i.informer)
+	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter(i.kubeconfig, i.informer)
 	if err != nil {
 		return
 	}
 
-	i.defaultExplorer = defaultexplorer.NewDefaultExplorer()
+	i.defaultInterpreter = defaultinterpreter.NewDefaultInterpreter()
 
 	i.informer.Start()
 	<-ctx.Done()
@@ -66,21 +66,21 @@ func (i *customResourceExplorerImpl) Start(ctx context.Context) (err error) {
 	return nil
 }
 
-// HookEnabled tells if any hook exist for specific resource type and operation type.
-func (i *customResourceExplorerImpl) HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.InterpreterOperation) bool {
+// HookEnabled tells if any hook exist for specific resource type and operation.
+func (i *customResourceInterpreterImpl) HookEnabled(object *unstructured.Unstructured, operation configv1alpha1.InterpreterOperation) bool {
 	attributes := &webhook.RequestAttributes{
-		Operation: operationType,
+		Operation: operation,
 		Object:    object,
 	}
-	return i.customizedExplorer.HookEnabled(attributes) || i.defaultExplorer.HookEnabled(object.GroupVersionKind(), operationType)
+	return i.customizedInterpreter.HookEnabled(attributes) || i.defaultInterpreter.HookEnabled(object.GroupVersionKind(), operation)
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
-func (i *customResourceExplorerImpl) GetReplicas(object *unstructured.Unstructured) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
+func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstructured) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
 	klog.V(4).Infof("Begin to get replicas for request object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
 	var hookEnabled bool
-	replica, requires, hookEnabled, err = i.customizedExplorer.GetReplicas(context.TODO(), &webhook.RequestAttributes{
+	replica, requires, hookEnabled, err = i.customizedInterpreter.GetReplicas(context.TODO(), &webhook.RequestAttributes{
 		Operation: configv1alpha1.InterpreterOperationInterpretReplica,
 		Object:    object,
 	})
@@ -91,19 +91,19 @@ func (i *customResourceExplorerImpl) GetReplicas(object *unstructured.Unstructur
 		return
 	}
 
-	replica, requires, err = i.defaultExplorer.GetReplicas(object)
+	replica, requires, err = i.defaultInterpreter.GetReplicas(object)
 	return
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
-func (i *customResourceExplorerImpl) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
+func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
 	klog.V(4).Infof("Begin to retain object: %v %s/%s.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
 
 	var hookEnabled bool
 	var patch []byte
 	var patchType configv1alpha1.PatchType
-	patch, patchType, hookEnabled, err = i.customizedExplorer.Retain(context.TODO(), &webhook.RequestAttributes{
-		Operation:   configv1alpha1.InterpreterOperationRetention,
+	patch, patchType, hookEnabled, err = i.customizedInterpreter.Retain(context.TODO(), &webhook.RequestAttributes{
+		Operation:   configv1alpha1.InterpreterOperationRetain,
 		Object:      desired,
 		ObservedObj: observed,
 	})
@@ -114,10 +114,11 @@ func (i *customResourceExplorerImpl) Retain(desired *unstructured.Unstructured, 
 		return applyPatch(desired, patch, patchType)
 	}
 
-	return i.defaultExplorer.Retain(desired, observed)
+	return i.defaultInterpreter.Retain(desired, observed)
 }
 
-func applyPatch(desired *unstructured.Unstructured, patch []byte, patchType configv1alpha1.PatchType) (*unstructured.Unstructured, error) {
+// applyPatch uses patchType mode to patch object.
+func applyPatch(object *unstructured.Unstructured, patch []byte, patchType configv1alpha1.PatchType) (*unstructured.Unstructured, error) {
 	switch patchType {
 	case configv1alpha1.PatchTypeJSONPatch:
 		patchObj, err := jsonpatch.DecodePatch(patch)
@@ -125,10 +126,10 @@ func applyPatch(desired *unstructured.Unstructured, patch []byte, patchType conf
 			return nil, err
 		}
 		if len(patchObj) == 0 {
-			return desired, nil
+			return object, nil
 		}
 
-		objectJSONBytes, err := desired.MarshalJSON()
+		objectJSONBytes, err := object.MarshalJSON()
 		if err != nil {
 			return nil, err
 		}
@@ -137,8 +138,8 @@ func applyPatch(desired *unstructured.Unstructured, patch []byte, patchType conf
 			return nil, err
 		}
 
-		err = desired.UnmarshalJSON(patchedObjectJSONBytes)
-		return desired, err
+		err = object.UnmarshalJSON(patchedObjectJSONBytes)
+		return object, err
 	default:
 		return nil, fmt.Errorf("return patch type %s is not support", patchType)
 	}

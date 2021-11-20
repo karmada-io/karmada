@@ -7,7 +7,6 @@ package v1alpha1
 import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	v1 "k8s.io/api/admissionregistration/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -180,18 +179,13 @@ func (in *ResourceInterpreterWebhook) DeepCopyInto(out *ResourceInterpreterWebho
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.FailurePolicy != nil {
-		in, out := &in.FailurePolicy, &out.FailurePolicy
-		*out = new(v1.FailurePolicyType)
-		**out = **in
-	}
 	if in.TimeoutSeconds != nil {
 		in, out := &in.TimeoutSeconds, &out.TimeoutSeconds
 		*out = new(int32)
 		**out = **in
 	}
-	if in.ExploreReviewVersions != nil {
-		in, out := &in.ExploreReviewVersions, &out.ExploreReviewVersions
+	if in.InterpreterContextVersions != nil {
+		in, out := &in.InterpreterContextVersions, &out.InterpreterContextVersions
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

@@ -1,4 +1,4 @@
-package customizedexplorer
+package customizedinterpreter
 
 import (
 	"context"
@@ -15,20 +15,20 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/crdexplorer/customizedexplorer/configmanager"
-	"github.com/karmada-io/karmada/pkg/crdexplorer/customizedexplorer/webhook"
-	crdexplorerutil "github.com/karmada-io/karmada/pkg/util/crdexplorer"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/configmanager"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	interpreterutil "github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
-// CustomizedExplorer explore custom resource with webhook configuration.
-type CustomizedExplorer struct {
+// CustomizedInterpreter interpret custom resource with webhook configuration.
+type CustomizedInterpreter struct {
 	hookManager   configmanager.ConfigManager
 	configManager *webhookutil.ClientManager
 }
 
-// NewCustomizedExplorer return a new CustomizedExplorer.
-func NewCustomizedExplorer(kubeconfig string, informer informermanager.SingleClusterInformerManager) (*CustomizedExplorer, error) {
+// NewCustomizedInterpreter return a new CustomizedInterpreter.
+func NewCustomizedInterpreter(kubeconfig string, informer informermanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
 	cm, err := webhookutil.NewClientManager(
 		[]schema.GroupVersion{configv1alpha1.SchemeGroupVersion},
 		configv1alpha1.AddToScheme,
@@ -43,14 +43,14 @@ func NewCustomizedExplorer(kubeconfig string, informer informermanager.SingleClu
 	cm.SetAuthenticationInfoResolver(authInfoResolver)
 	cm.SetServiceResolver(webhookutil.NewDefaultServiceResolver())
 
-	return &CustomizedExplorer{
+	return &CustomizedInterpreter{
 		hookManager:   configmanager.NewExploreConfigManager(informer),
 		configManager: &cm,
 	}, nil
 }
 
 // HookEnabled tells if any hook exist for specific resource type and operation type.
-func (e *CustomizedExplorer) HookEnabled(attributes *webhook.RequestAttributes) bool {
+func (e *CustomizedInterpreter) HookEnabled(attributes *webhook.RequestAttributes) bool {
 	if !e.hookManager.HasSynced() {
 		klog.Errorf("not yet ready to handle request")
 		return false
@@ -58,7 +58,7 @@ func (e *CustomizedExplorer) HookEnabled(attributes *webhook.RequestAttributes) 
 
 	hook := e.getFirstRelevantHook(attributes)
 	if hook == nil {
-		klog.V(4).Infof("Hook explorer is not enabled for kind %q with operation %q.",
+		klog.V(4).Infof("Hook interpreter is not enabled for kind %q with operation %q.",
 			attributes.Object.GroupVersionKind(), attributes.Operation)
 	}
 	return hook != nil
@@ -66,9 +66,9 @@ func (e *CustomizedExplorer) HookEnabled(attributes *webhook.RequestAttributes) 
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedExplorer) GetReplicas(ctx context.Context, attributes *webhook.RequestAttributes) (replica int32, requires *workv1alpha2.ReplicaRequirements, matched bool, err error) {
+func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *webhook.RequestAttributes) (replica int32, requires *workv1alpha2.ReplicaRequirements, matched bool, err error) {
 	var response *webhook.ResponseAttributes
-	response, matched, err = e.explore(ctx, attributes)
+	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
 		return
 	}
@@ -81,9 +81,9 @@ func (e *CustomizedExplorer) GetReplicas(ctx context.Context, attributes *webhoo
 
 // Retain returns the patch that based on the "desired" object but with values retained from the "observed" object.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedExplorer) Retain(ctx context.Context, attributes *webhook.RequestAttributes) (patch []byte, patchType configv1alpha1.PatchType, matched bool, err error) {
+func (e *CustomizedInterpreter) Retain(ctx context.Context, attributes *webhook.RequestAttributes) (patch []byte, patchType configv1alpha1.PatchType, matched bool, err error) {
 	var response *webhook.ResponseAttributes
-	response, matched, err = e.explore(ctx, attributes)
+	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
 		return
 	}
@@ -94,7 +94,7 @@ func (e *CustomizedExplorer) Retain(ctx context.Context, attributes *webhook.Req
 	return response.Patch, response.PatchType, matched, nil
 }
 
-func (e *CustomizedExplorer) getFirstRelevantHook(attributes *webhook.RequestAttributes) configmanager.WebhookAccessor {
+func (e *CustomizedInterpreter) getFirstRelevantHook(attributes *webhook.RequestAttributes) configmanager.WebhookAccessor {
 	relevantHooks := make([]configmanager.WebhookAccessor, 0)
 	for _, hook := range e.hookManager.HookAccessors() {
 		if shouldCallHook(hook, attributes) {
@@ -113,7 +113,7 @@ func (e *CustomizedExplorer) getFirstRelevantHook(attributes *webhook.RequestAtt
 	return relevantHooks[0]
 }
 
-func (e *CustomizedExplorer) explore(ctx context.Context, attributes *webhook.RequestAttributes) (*webhook.ResponseAttributes, bool, error) {
+func (e *CustomizedInterpreter) interpret(ctx context.Context, attributes *webhook.RequestAttributes) (*webhook.ResponseAttributes, bool, error) {
 	if !e.hookManager.HasSynced() {
 		return nil, false, fmt.Errorf("not yet ready to handle request")
 	}
@@ -158,7 +158,7 @@ func (e *CustomizedExplorer) explore(ctx context.Context, attributes *webhook.Re
 
 func shouldCallHook(hook configmanager.WebhookAccessor, attributes *webhook.RequestAttributes) bool {
 	for _, rule := range hook.GetRules() {
-		matcher := crdexplorerutil.Matcher{
+		matcher := interpreterutil.Matcher{
 			Operation: attributes.Operation,
 			Object:    attributes.Object,
 			Rule:      rule,
@@ -170,8 +170,8 @@ func shouldCallHook(hook configmanager.WebhookAccessor, attributes *webhook.Requ
 	return false
 }
 
-func (e *CustomizedExplorer) callHook(ctx context.Context, hook configmanager.WebhookAccessor, attributes *webhook.RequestAttributes) (*webhook.ResponseAttributes, error) {
-	uid, req, err := webhook.CreateExploreReview(hook.GetExploreReviewVersions(), attributes)
+func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager.WebhookAccessor, attributes *webhook.RequestAttributes) (*webhook.ResponseAttributes, error) {
+	uid, req, err := webhook.CreateResourceInterpreterContext(hook.GetInterpreterContextVersions(), attributes)
 	if err != nil {
 		return nil, &webhookutil.ErrCallingWebhook{
 			WebhookName: hook.GetUID(),
@@ -187,7 +187,7 @@ func (e *CustomizedExplorer) callHook(ctx context.Context, hook configmanager.We
 		}
 	}
 
-	trace := utiltrace.New("Call resource explore webhook",
+	trace := utiltrace.New("Call resource interpret webhook",
 		utiltrace.Field{Key: "configuration", Value: hook.GetConfigurationName()},
 		utiltrace.Field{Key: "webhook", Value: hook.GetName()},
 		utiltrace.Field{Key: "kind", Value: attributes.Object.GroupVersionKind()},
@@ -226,7 +226,7 @@ func (e *CustomizedExplorer) callHook(ctx context.Context, hook configmanager.We
 	trace.Step("Request completed")
 
 	var res *webhook.ResponseAttributes
-	res, err = webhook.VerifyExploreReview(uid, attributes.Operation, response)
+	res, err = webhook.VerifyResourceInterpreterContext(uid, attributes.Operation, response)
 	if err != nil {
 		return nil, &webhookutil.ErrCallingWebhook{
 			WebhookName: hook.GetUID(),

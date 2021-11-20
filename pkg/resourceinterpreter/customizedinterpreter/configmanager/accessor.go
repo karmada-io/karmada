@@ -22,12 +22,10 @@ type WebhookAccessor interface {
 	GetClientConfig() admissionregistrationv1.WebhookClientConfig
 	// GetRules gets the webhook Rules field.
 	GetRules() []configv1alpha1.RuleWithOperations
-	// GetFailurePolicy gets the webhook FailurePolicy field.
-	GetFailurePolicy() *admissionregistrationv1.FailurePolicyType
 	// GetTimeoutSeconds gets the webhook TimeoutSeconds field.
 	GetTimeoutSeconds() *int32
-	// GetExploreReviewVersions gets the webhook ExploreReviewVersions field.
-	GetExploreReviewVersions() []string
+	// GetInterpreterContextVersions gets the webhook InterpreterContextVersions field.
+	GetInterpreterContextVersions() []string
 
 	// GetRESTClient gets the webhook client.
 	GetRESTClient(clientManager *webhookutil.ClientManager) (*rest.RESTClient, error)
@@ -73,19 +71,14 @@ func (a *resourceExploringAccessor) GetRules() []configv1alpha1.RuleWithOperatio
 	return a.Rules
 }
 
-// GetFailurePolicy gets the webhook FailurePolicy field.
-func (a *resourceExploringAccessor) GetFailurePolicy() *admissionregistrationv1.FailurePolicyType {
-	return a.FailurePolicy
-}
-
 // GetTimeoutSeconds gets the webhook TimeoutSeconds field.
 func (a *resourceExploringAccessor) GetTimeoutSeconds() *int32 {
 	return a.TimeoutSeconds
 }
 
-// GetExploreReviewVersions gets the webhook ExploreReviewVersions field.
-func (a *resourceExploringAccessor) GetExploreReviewVersions() []string {
-	return a.ExploreReviewVersions
+// GetExploreReviewVersions gets the webhook InterpreterContextVersions field.
+func (a *resourceExploringAccessor) GetInterpreterContextVersions() []string {
+	return a.InterpreterContextVersions
 }
 
 // GetRESTClient gets the webhook client.

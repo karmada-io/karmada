@@ -37,11 +37,6 @@ type ResourceInterpreterWebhook struct {
 	// +optional
 	Rules []RuleWithOperations `json:"rules,omitempty"`
 
-	// FailurePolicy defines how unrecognized errors from the webhook are handled,
-	// allowed values are Ignore or Fail. Defaults to Fail.
-	// +optional
-	FailurePolicy *admissionregistrationv1.FailurePolicyType `json:"failurePolicy,omitempty"`
-
 	// TimeoutSeconds specifies the timeout for this webhook. After the timeout passes,
 	// the webhook call will be ignored or the API call will fail based on the
 	// failure policy.
@@ -50,14 +45,14 @@ type ResourceInterpreterWebhook struct {
 	// +optional
 	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
 
-	// ExploreReviewVersions is an ordered list of preferred `ResourceInterpreterContext`
+	// InterpreterContextVersions is an ordered list of preferred `ResourceInterpreterContext`
 	// versions the Webhook expects. Karmada will try to use first version in
 	// the list which it supports. If none of the versions specified in this list
 	// supported by Karmada, validation will fail for this object.
 	// If a persisted webhook configuration specifies allowed versions and does not
 	// include any versions known to the Karmada, calls to the webhook will fail
 	// and be subject to the failure policy.
-	ExploreReviewVersions []string `json:"exploreReviewVersions"`
+	InterpreterContextVersions []string `json:"interpreterContextVersions"`
 }
 
 // RuleWithOperations is a tuple of Operations and Resources. It is recommended to make
@@ -94,9 +89,9 @@ const (
 	// InterpreterOperationPrune indicates that karmada want to figure out how to package resource template to Work.
 	InterpreterOperationPrune InterpreterOperation = "Prune"
 
-	// InterpreterOperationRetention indicates that karmada request webhook to retain the desired resource template.
+	// InterpreterOperationRetain indicates that karmada request webhook to retain the desired resource template.
 	// Only necessary for those resources which specification will be updated by their controllers running in member cluster.
-	InterpreterOperationRetention InterpreterOperation = "Retention"
+	InterpreterOperationRetain InterpreterOperation = "Retain"
 
 	// InterpreterOperationAggregateStatus indicates that karmada want to figure out how to aggregate status to resource template.
 	// Only necessary for those resource types that want to aggregate status to resource template.

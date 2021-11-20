@@ -1,4 +1,4 @@
-package explorer
+package interpreter
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
-// Decoder knows how to decode the contents of an explorer
+// Decoder knows how to decode the contents of an resource interpreter
 // request into a concrete object.
 type Decoder struct {
 	codecs serializer.CodecFactory

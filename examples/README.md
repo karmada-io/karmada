@@ -1,4 +1,4 @@
 # Examples
 
-### Custom Resource Explorer
-This example implements a new CustomResourceDefinition(CRD), `Workload`, and creates a custom resource explorer webhook.
+### Resource Interpreter
+This example implements a new CustomResourceDefinition(CRD), `Workload`, and creates a resource interpreter webhook.

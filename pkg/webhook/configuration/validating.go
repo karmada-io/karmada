@@ -1,4 +1,4 @@
-package crdexplorer
+package configuration
 
 import (
 	"context"
@@ -62,19 +62,13 @@ func (v *ValidatingAdmission) InjectDecoder(d *admission.Decoder) error {
 	return nil
 }
 
-var supportedOperationType = sets.NewString(
+var supportedInterpreterOperation = sets.NewString(
 	string(configv1alpha1.InterpreterOperationAll),
 	string(configv1alpha1.InterpreterOperationInterpretReplica),
-	string(configv1alpha1.InterpreterOperationInterpretStatus),
-	string(configv1alpha1.InterpreterOperationPrune),
-	string(configv1alpha1.InterpreterOperationReviseReplica),
-	string(configv1alpha1.InterpreterOperationRetention),
-	string(configv1alpha1.InterpreterOperationAggregateStatus),
-	string(configv1alpha1.InterpreterOperationInterpretHealthy),
-	string(configv1alpha1.InterpreterOperationInterpretDependency),
+	string(configv1alpha1.InterpreterOperationRetain),
 )
 
-var acceptedExploreReviewVersions = []string{configv1alpha1.GroupVersion.Version}
+var acceptedInterpreterContextVersions = []string{configv1alpha1.GroupVersion.Version}
 
 func validateWebhook(hook *configv1alpha1.ResourceInterpreterWebhook, fldPath *field.Path) field.ErrorList {
 	var allErrors field.ErrorList
@@ -83,10 +77,6 @@ func validateWebhook(hook *configv1alpha1.ResourceInterpreterWebhook, fldPath *f
 
 	for i := range hook.Rules {
 		allErrors = append(allErrors, validateRuleWithOperations(&hook.Rules[i], fldPath.Child("rules").Index(i))...)
-	}
-
-	if hook.FailurePolicy != nil && !supportedFailurePolicies.Has(string(*hook.FailurePolicy)) {
-		allErrors = append(allErrors, field.NotSupported(fldPath.Child("matchPolicy"), *hook.FailurePolicy, supportedFailurePolicies.List()))
 	}
 
 	if hook.TimeoutSeconds != nil && (*hook.TimeoutSeconds > 30 || *hook.TimeoutSeconds < 1) {
@@ -103,7 +93,7 @@ func validateWebhook(hook *configv1alpha1.ResourceInterpreterWebhook, fldPath *f
 		allErrors = append(allErrors, webhook.ValidateWebhookService(fldPath.Child("clientConfig").Child("service"), cc.Service.Name, cc.Service.Namespace, cc.Service.Path, *cc.Service.Port)...)
 	}
 
-	allErrors = append(allErrors, validateExploreReviewVersions(hook.ExploreReviewVersions, fldPath.Child("exploreReviewVersions"))...)
+	allErrors = append(allErrors, validateInterpreterContextVersions(hook.InterpreterContextVersions, fldPath.Child("interpreterContextVersions"))...)
 	return allErrors
 }
 
@@ -125,20 +115,20 @@ func validateRuleWithOperations(ruleWithOperations *configv1alpha1.RuleWithOpera
 		allErrors = append(allErrors, field.Invalid(fldPath.Child("operations"), ruleWithOperations.Operations, "if '*' is present, must not specify other operations"))
 	}
 	for i, operation := range ruleWithOperations.Operations {
-		if !supportedOperationType.Has(string(operation)) {
-			allErrors = append(allErrors, field.NotSupported(fldPath.Child("operations").Index(i), operation, supportedOperationType.List()))
+		if !supportedInterpreterOperation.Has(string(operation)) {
+			allErrors = append(allErrors, field.NotSupported(fldPath.Child("operations").Index(i), operation, supportedInterpreterOperation.List()))
 		}
 	}
 	allErrors = append(allErrors, validateRule(&ruleWithOperations.Rule, fldPath)...)
 	return allErrors
 }
 
-func validateExploreReviewVersions(versions []string, fldPath *field.Path) field.ErrorList {
+func validateInterpreterContextVersions(versions []string, fldPath *field.Path) field.ErrorList {
 	allErrors := field.ErrorList{}
 
-	// Currently, only v1alpha1 accepted in ExploreReviewVersions
+	// Currently, only v1alpha1 accepted in InterpreterContextVersions
 	if len(versions) < 1 {
-		allErrors = append(allErrors, field.Required(fldPath, fmt.Sprintf("must specify one of %v", strings.Join(acceptedExploreReviewVersions, ", "))))
+		allErrors = append(allErrors, field.Required(fldPath, fmt.Sprintf("must specify one of %v", strings.Join(acceptedInterpreterContextVersions, ", "))))
 	} else {
 		visited := map[string]bool{}
 		hasAcceptedVersion := false
@@ -158,14 +148,14 @@ func validateExploreReviewVersions(versions []string, fldPath *field.Path) field
 		if !hasAcceptedVersion {
 			allErrors = append(allErrors, field.Invalid(
 				fldPath, versions,
-				fmt.Sprintf("must include at least one of %v", strings.Join(acceptedExploreReviewVersions, ", "))))
+				fmt.Sprintf("must include at least one of %v", strings.Join(acceptedInterpreterContextVersions, ", "))))
 		}
 	}
 	return allErrors
 }
 
 func isAcceptedExploreReviewVersions(v string) bool {
-	for _, version := range acceptedExploreReviewVersions {
+	for _, version := range acceptedInterpreterContextVersions {
 		if v == version {
 			return true
 		}

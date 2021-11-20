@@ -1,4 +1,4 @@
-package explorer
+package interpreter
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
-// Request defines the input for an explorer handler.
+// Request defines the input for an interpreter handler.
 // It contains information to identify the object in
 // question (kind, name, namespace), as well as the
 // operation in request(e.g. InterpreterOperationInterpretReplica, InterpreterOperationPrune,
@@ -18,7 +18,7 @@ type Request struct {
 	configv1alpha1.ResourceInterpreterRequest
 }
 
-// Response is the output of an explorer handler.
+// Response is the output of an interpreter handler.
 type Response struct {
 	configv1alpha1.ResourceInterpreterResponse
 }

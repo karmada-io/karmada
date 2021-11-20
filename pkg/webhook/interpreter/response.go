@@ -1,4 +1,4 @@
-package explorer
+package interpreter
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ func Succeeded(msg string) Response {
 	return ValidationResponse(true, msg)
 }
 
-// ValidationResponse returns a response for handle a explore request.
+// ValidationResponse returns a response for handle a interpret request.
 func ValidationResponse(successful bool, msg string) Response {
 	code := http.StatusForbidden
 	if successful {

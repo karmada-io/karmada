@@ -100,8 +100,8 @@ spec:
                         and query parameters (\"?...\") are not allowed, either."
                       type: string
                   type: object
-                exploreReviewVersions:
-                  description: ExploreReviewVersions is an ordered list of preferred
+                interpreterContextVersions:
+                  description: InterpreterContextVersions is an ordered list of preferred
                     `ResourceInterpreterContext` versions the Webhook expects. Karmada
                     will try to use first version in the list which it supports. If
                     none of the versions specified in this list supported by Karmada,
@@ -112,11 +112,6 @@ spec:
                   items:
                     type: string
                   type: array
-                failurePolicy:
-                  description: FailurePolicy defines how unrecognized errors from
-                    the webhook are handled, allowed values are Ignore or Fail. Defaults
-                    to Fail.
-                  type: string
                 name:
                   description: Name is the full-qualified name of the webhook.
                   type: string
@@ -180,7 +175,7 @@ spec:
                   type: integer
               required:
               - clientConfig
-              - exploreReviewVersions
+              - interpreterContextVersions
               - name
               type: object
             type: array

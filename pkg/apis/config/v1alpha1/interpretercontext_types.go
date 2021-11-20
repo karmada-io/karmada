@@ -11,20 +11,20 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ResourceInterpreterContext describes an explore review request and response.
+// ResourceInterpreterContext describes an interpreter context request and response.
 type ResourceInterpreterContext struct {
 	metav1.TypeMeta `json:",inline"`
 
-	// Request describes the attributes for the explore request.
+	// Request describes the attributes for the interpreter request.
 	// +optional
 	Request *ResourceInterpreterRequest `json:"request,omitempty"`
 
-	// Response describes the attributes for the explore response.
+	// Response describes the attributes for the interpreter response.
 	// +optional
 	Response *ResourceInterpreterResponse `json:"response,omitempty"`
 }
 
-// ResourceInterpreterRequest describes the explore.Attributes for the explore request.
+// ResourceInterpreterRequest describes the interpreter.Attributes for the interpreter request.
 type ResourceInterpreterRequest struct {
 	// UID is an identifier for the individual request/response.
 	// The UID is meant to track the round trip (request/response) between the karmada and the WebHook, not the user request.
@@ -53,7 +53,7 @@ type ResourceInterpreterRequest struct {
 	Object runtime.RawExtension `json:"object,omitempty"`
 
 	// ObservedObject is the object observed from the kube-apiserver of member clusters.
-	// Not nil only when InterpreterOperation is InterpreterOperationRetention.
+	// Not nil only when InterpreterOperation is InterpreterOperationRetain.
 	// +optional
 	ObservedObject *runtime.RawExtension `json:"observedObject,omitempty"`
 
@@ -67,7 +67,7 @@ type ResourceInterpreterRequest struct {
 	AggregatedStatus []workv1alpha1.AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
 }
 
-// ResourceInterpreterResponse describes an explore response.
+// ResourceInterpreterResponse describes an interpreter response.
 type ResourceInterpreterResponse struct {
 	// UID is an identifier for the individual request/response.
 	// This must be copied over from the corresponding ResourceInterpreterRequest.

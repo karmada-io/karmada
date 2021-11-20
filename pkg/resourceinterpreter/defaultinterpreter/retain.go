@@ -1,4 +1,4 @@
-package defaultexplorer
+package defaultinterpreter
 
 import (
 	"fmt"
@@ -13,17 +13,17 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// retentionExplorer is the function that retains values from "observed" object.
-type retentionExplorer func(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
+// retentionInterpreter is the function that retains values from "observed" object.
+type retentionInterpreter func(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
 
-func getAllDefaultRetentionExplorer() map[schema.GroupVersionKind]retentionExplorer {
-	explorers := make(map[schema.GroupVersionKind]retentionExplorer)
-	explorers[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = retainPodFields
-	explorers[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = retainServiceFields
-	explorers[corev1.SchemeGroupVersion.WithKind(util.ServiceAccountKind)] = retainServiceAccountFields
-	explorers[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = retainPersistentVolumeClaimFields
-	explorers[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = retainJobSelectorFields
-	return explorers
+func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionInterpreter {
+	s := make(map[schema.GroupVersionKind]retentionInterpreter)
+	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = retainPodFields
+	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = retainServiceFields
+	s[corev1.SchemeGroupVersion.WithKind(util.ServiceAccountKind)] = retainServiceAccountFields
+	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = retainPersistentVolumeClaimFields
+	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = retainJobSelectorFields
+	return s
 }
 
 /*

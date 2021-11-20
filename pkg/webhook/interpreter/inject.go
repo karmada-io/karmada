@@ -1,4 +1,4 @@
-package explorer
+package interpreter
 
 // DecoderInjector is used by the ControllerManager to inject decoder into webhook handlers.
 type DecoderInjector interface {

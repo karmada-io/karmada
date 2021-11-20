@@ -1,4 +1,4 @@
-package defaultexplorer
+package defaultinterpreter
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
@@ -12,17 +12,17 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// replicaExplorer is the function that used to parse replica and requirements from object.
-type replicaExplorer func(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error)
+// replicaInterpreter is the function that used to parse replica and requirements from object.
+type replicaInterpreter func(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error)
 
-func getAllDefaultReplicaExplorer() map[schema.GroupVersionKind]replicaExplorer {
-	explorers := make(map[schema.GroupVersionKind]replicaExplorer)
-	explorers[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = deployReplicaExplorer
-	explorers[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = jobReplicaExplorer
-	return explorers
+func getAllDefaultReplicaInterpreter() map[schema.GroupVersionKind]replicaInterpreter {
+	s := make(map[schema.GroupVersionKind]replicaInterpreter)
+	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = deployReplica
+	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = jobReplica
+	return s
 }
 
-func deployReplicaExplorer(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+func deployReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
 	deploy, err := helper.ConvertToDeployment(object)
 	if err != nil {
 		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
@@ -38,7 +38,7 @@ func deployReplicaExplorer(object *unstructured.Unstructured) (int32, *workv1alp
 	return replica, requirement, nil
 }
 
-func jobReplicaExplorer(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+func jobReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
 	job, err := helper.ConvertToJob(object)
 	if err != nil {
 		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)

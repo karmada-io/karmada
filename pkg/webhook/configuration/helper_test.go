@@ -1,4 +1,4 @@
-package crdexplorer
+package configuration
 
 import (
 	"strings"

@@ -21,7 +21,7 @@ import (
 var resourceExploringWebhookConfigurationsGVR = schema.GroupVersionResource{
 	Group:    configv1alpha1.GroupVersion.Group,
 	Version:  configv1alpha1.GroupVersion.Version,
-	Resource: "resourceexploringwebhookconfigurations",
+	Resource: "resourceinterpreterwebhookconfigurations",
 }
 
 // ConfigManager can list dynamic webhooks.
@@ -30,20 +30,20 @@ type ConfigManager interface {
 	HasSynced() bool
 }
 
-// exploreConfigManager collect the resource explore webhook configuration.
-type exploreConfigManager struct {
+// interpreterConfigManager collect the resource interpreter webhook configuration.
+type interpreterConfigManager struct {
 	configuration *atomic.Value
 	lister        cache.GenericLister
 	initialSynced *atomic.Value
 }
 
-// HookAccessors return all configured resource explore webhook.
-func (m *exploreConfigManager) HookAccessors() []WebhookAccessor {
+// HookAccessors return all configured resource interpreter webhook.
+func (m *interpreterConfigManager) HookAccessors() []WebhookAccessor {
 	return m.configuration.Load().([]WebhookAccessor)
 }
 
 // HasSynced return true when the manager is synced with existing configuration.
-func (m *exploreConfigManager) HasSynced() bool {
+func (m *interpreterConfigManager) HasSynced() bool {
 	if m.initialSynced.Load().(bool) {
 		return true
 	}
@@ -60,9 +60,9 @@ func (m *exploreConfigManager) HasSynced() bool {
 	return false
 }
 
-// NewExploreConfigManager return a new exploreConfigManager with resourceexploringwebhookconfigurations handlers.
+// NewExploreConfigManager return a new interpreterConfigManager with resourceinterpreterwebhookconfigurations handlers.
 func NewExploreConfigManager(inform informermanager.SingleClusterInformerManager) ConfigManager {
-	manager := &exploreConfigManager{
+	manager := &interpreterConfigManager{
 		configuration: &atomic.Value{},
 		lister:        inform.Lister(resourceExploringWebhookConfigurationsGVR),
 		initialSynced: &atomic.Value{},
@@ -80,7 +80,7 @@ func NewExploreConfigManager(inform informermanager.SingleClusterInformerManager
 	return manager
 }
 
-func (m *exploreConfigManager) updateConfiguration() {
+func (m *interpreterConfigManager) updateConfiguration() {
 	configurations, err := m.lister.List(labels.Everything())
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))

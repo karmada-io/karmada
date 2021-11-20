@@ -1,4 +1,4 @@
-package crdexplorer
+package configuration
 
 import (
 	"fmt"
@@ -59,12 +59,12 @@ func TestIsAcceptedExploreReviewVersions(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "is accepted explore review versions",
-			version:  acceptedExploreReviewVersions[0],
+			name:     "is accepted interpreter context versions",
+			version:  acceptedInterpreterContextVersions[0],
 			expected: true,
 		},
 		{
-			name:     "is not accepted explore review versions",
+			name:     "is not accepted interpreter context versions",
 			version:  "",
 			expected: false,
 		},
@@ -140,7 +140,7 @@ func TestValidateRuleWithOperations(t *testing.T) {
 }
 
 func TestValidateExploreReviewVersions(t *testing.T) {
-	fldPath := field.NewPath("webhooks").Child("exploreReviewVersions")
+	fldPath := field.NewPath("webhooks").Child("interpreterContextVersions")
 
 	tests := []struct {
 		name          string
@@ -150,7 +150,7 @@ func TestValidateExploreReviewVersions(t *testing.T) {
 		{
 			name:          "no versions",
 			versions:      nil,
-			expectedError: fmt.Sprintf("must specify one of %v", strings.Join(acceptedExploreReviewVersions, ", ")),
+			expectedError: fmt.Sprintf("must specify one of %v", strings.Join(acceptedInterpreterContextVersions, ", ")),
 		},
 		{
 			name:          "duplicate versions",
@@ -160,7 +160,7 @@ func TestValidateExploreReviewVersions(t *testing.T) {
 		{
 			name:          "invalid versions",
 			versions:      []string{"test", "test"},
-			expectedError: fmt.Sprintf("must include at least one of %v", strings.Join(acceptedExploreReviewVersions, ", ")),
+			expectedError: fmt.Sprintf("must include at least one of %v", strings.Join(acceptedInterpreterContextVersions, ", ")),
 		},
 		{
 			name:          "invalid DNS (RFC 1035) label",
@@ -171,7 +171,7 @@ func TestValidateExploreReviewVersions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			errs := validateExploreReviewVersions(test.versions, fldPath)
+			errs := validateInterpreterContextVersions(test.versions, fldPath)
 			err := errs.ToAggregate()
 			if err != nil {
 				if e, a := test.expectedError, err.Error(); !strings.Contains(a, e) || e == "" {
@@ -188,7 +188,6 @@ func TestValidateExploreReviewVersions(t *testing.T) {
 
 func TestValidateWebhook(t *testing.T) {
 	fldPath := field.NewPath("webhooks")
-	policy := admissionregistrationv1.FailurePolicyType("fake policy")
 
 	tests := []struct {
 		name          string
@@ -212,13 +211,6 @@ func TestValidateWebhook(t *testing.T) {
 				},
 			},
 			expectedError: "operations: Required value",
-		},
-		{
-			name: "invalid policy",
-			hook: &configv1alpha1.ResourceInterpreterWebhook{
-				FailurePolicy: &policy,
-			},
-			expectedError: "matchPolicy",
 		},
 		{
 			name: "invalid timeout",
@@ -257,11 +249,11 @@ func TestValidateWebhook(t *testing.T) {
 			expectedError: "service name is required",
 		},
 		{
-			name: "invalid explore review versions",
+			name: "invalid interpreter context versions",
 			hook: &configv1alpha1.ResourceInterpreterWebhook{
-				ExploreReviewVersions: []string{""},
+				InterpreterContextVersions: []string{""},
 			},
-			expectedError: fmt.Sprintf("must include at least one of %v", strings.Join(acceptedExploreReviewVersions, ", ")),
+			expectedError: fmt.Sprintf("must include at least one of %v", strings.Join(acceptedInterpreterContextVersions, ", ")),
 		},
 	}
 

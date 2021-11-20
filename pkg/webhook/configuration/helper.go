@@ -1,16 +1,9 @@
-package crdexplorer
+package configuration
 
 import (
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-)
-
-var supportedFailurePolicies = sets.NewString(
-	string(admissionregistrationv1.Ignore),
-	string(admissionregistrationv1.Fail),
 )
 
 func hasWildcard(slice []string) bool {
