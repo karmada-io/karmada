@@ -203,7 +203,7 @@ Resources:
 If you have questions, feel free to reach out to us in the following ways:
 
 - [mailing list](https://groups.google.com/forum/#!forum/karmada)
-- [slack](https://join.slack.com/t/karmada-io/shared_invite/zt-omhy1wfa-LmAkCLfpDMnBjVXp3_U~0w)
+- [slack](https://slack.cncf.io/) (#karmada channel)
 - [twitter](https://twitter.com/karmada_io)
 
 ## Contributing
