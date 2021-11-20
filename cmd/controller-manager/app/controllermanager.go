@@ -27,9 +27,9 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
-	"github.com/karmada-io/karmada/pkg/crdexplorer"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -124,12 +124,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 
-	crdExplorer := crdexplorer.NewCustomResourceExplorer("", controlPlaneInformerManager)
-	if err := mgr.Add(crdExplorer); err != nil {
-		klog.Fatalf("Failed to setup custom resource explorer: %v", err)
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter("", controlPlaneInformerManager)
+	if err := mgr.Add(resourceInterpreter); err != nil {
+		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
 	}
 
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, crdExplorer)
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
 
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:           discoverClientSet,
@@ -139,7 +139,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		DynamicClient:                dynamicClientSet,
 		SkippedResourceConfig:        skippedResourceConfig,
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
-		ResourceExplorer:             crdExplorer,
+		ResourceInterpreter:          resourceInterpreter,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)

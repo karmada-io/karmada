@@ -28,7 +28,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/crdexplorer"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -50,8 +50,8 @@ type ResourceDetector struct {
 	Processor                    util.AsyncWorker
 	SkippedResourceConfig        *util.SkippedResourceConfig
 	SkippedPropagatingNamespaces map[string]struct{}
-	// ResourceExplorer knows the details of resource structure.
-	ResourceExplorer crdexplorer.CustomResourceExplorer
+	// ResourceInterpreter knows the details of resource structure.
+	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
@@ -642,8 +642,8 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 		},
 	}
 
-	if d.ResourceExplorer.HookEnabled(object, configv1alpha1.ExploreReplica) {
-		replicas, replicaRequirements, err := d.ResourceExplorer.GetReplicas(object)
+	if d.ResourceInterpreter.HookEnabled(object, configv1alpha1.InterpreterOperationInterpretReplica) {
+		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
 			return nil, err
@@ -677,8 +677,8 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		},
 	}
 
-	if d.ResourceExplorer.HookEnabled(object, configv1alpha1.ExploreReplica) {
-		replicas, replicaRequirements, err := d.ResourceExplorer.GetReplicas(object)
+	if d.ResourceInterpreter.HookEnabled(object, configv1alpha1.InterpreterOperationInterpretReplica) {
+		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
 			return nil, err

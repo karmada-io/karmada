@@ -10,7 +10,7 @@ import (
 
 type ConfigV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	ResourceExploringWebhookConfigurationsGetter
+	ResourceInterpreterWebhookConfigurationsGetter
 }
 
 // ConfigV1alpha1Client is used to interact with features provided by the config.karmada.io group.
@@ -18,8 +18,8 @@ type ConfigV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *ConfigV1alpha1Client) ResourceExploringWebhookConfigurations() ResourceExploringWebhookConfigurationInterface {
-	return newResourceExploringWebhookConfigurations(c)
+func (c *ConfigV1alpha1Client) ResourceInterpreterWebhookConfigurations() ResourceInterpreterWebhookConfigurationInterface {
+	return newResourceInterpreterWebhookConfigurations(c)
 }
 
 // NewForConfig creates a new ConfigV1alpha1Client for the given config.

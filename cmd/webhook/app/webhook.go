@@ -20,7 +20,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 	"github.com/karmada-io/karmada/pkg/webhook/cluster"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
-	"github.com/karmada-io/karmada/pkg/webhook/crdexplorer"
+	"github.com/karmada-io/karmada/pkg/webhook/configuration"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/work"
@@ -79,7 +79,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.MutatingAdmission{}})
 	hookServer.Register("/mutate-work", &webhook.Admission{Handler: &work.MutatingAdmission{}})
 	hookServer.Register("/convert", &conversion.Webhook{})
-	hookServer.Register("/validate-resourceexploringwebhookconfiguration", &webhook.Admission{Handler: &crdexplorer.ValidatingAdmission{}})
+	hookServer.Register("/validate-resourceinterpreterwebhookconfiguration", &webhook.Admission{Handler: &configuration.ValidatingAdmission{}})
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.

@@ -120,10 +120,10 @@ webhooks:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["config.karmada.io"]
         apiVersions: ["*"]
-        resources: ["resourceexploringwebhookconfigurations"]
+        resources: ["resourceinterpreterwebhookconfigurations"]
         scope: "Cluster"
     clientConfig:
-      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/validate-resourceexploringwebhookconfiguration
+      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/validate-resourceinterpreterwebhookconfiguration
       {{- include "karmada.webhook.caBundle" . | nindent 6 }}
     failurePolicy: Fail
     sideEffects: None

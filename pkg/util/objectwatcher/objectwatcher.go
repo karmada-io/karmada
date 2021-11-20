@@ -16,7 +16,7 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/crdexplorer"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -43,17 +43,17 @@ type objectWatcherImpl struct {
 	KubeClientSet        client.Client
 	VersionRecord        map[string]map[string]string
 	ClusterClientSetFunc ClientSetFunc
-	resourceExplorer     crdexplorer.CustomResourceExplorer
+	resourceInterpreter  resourceinterpreter.ResourceInterpreter
 }
 
 // NewObjectWatcher returns an instance of ObjectWatcher
-func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc, explorer crdexplorer.CustomResourceExplorer) ObjectWatcher {
+func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc, interpreter resourceinterpreter.ResourceInterpreter) ObjectWatcher {
 	return &objectWatcherImpl{
 		KubeClientSet:        kubeClientSet,
 		VersionRecord:        make(map[string]map[string]string),
 		RESTMapper:           restMapper,
 		ClusterClientSetFunc: clusterClientSetFunc,
-		resourceExplorer:     explorer,
+		resourceInterpreter:  interpreter,
 	}
 }
 
@@ -113,8 +113,8 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	// and be set by user in karmada-controller-plane.
 	util.MergeAnnotations(desired, observed)
 
-	if o.resourceExplorer.HookEnabled(desired, configv1alpha1.ExploreRetaining) {
-		return o.resourceExplorer.Retain(desired, observed)
+	if o.resourceInterpreter.HookEnabled(desired, configv1alpha1.InterpreterOperationRetain) {
+		return o.resourceInterpreter.Retain(desired, observed)
 	}
 
 	return desired, nil

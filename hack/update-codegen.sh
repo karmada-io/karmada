@@ -40,8 +40,8 @@ deepcopy-gen \
   --output-file-base=zz_generated.deepcopy
 deepcopy-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/karmada-io/karmada/examples/customresourceexplorer/apis/workload/v1alpha1 \
-  --output-package=github.com/karmada-io/karmada/examples/customresourceexplorer/apis/workload/v1alpha1 \
+  --input-dirs=github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1 \
+  --output-package=github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1 \
   --output-file-base=zz_generated.deepcopy
 
 echo "Generating with register-gen"
@@ -73,8 +73,8 @@ register-gen \
   --output-file-base=zz_generated.register
 register-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/karmada-io/karmada/examples/customresourceexplorer/apis/workload/v1alpha1 \
-  --output-package=github.com/karmada-io/karmada/examples/customresourceexplorer/apis/workload/v1alpha1 \
+  --input-dirs=github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1 \
+  --output-package=github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1 \
   --output-file-base=zz_generated.register
 
 echo "Generating with client-gen"

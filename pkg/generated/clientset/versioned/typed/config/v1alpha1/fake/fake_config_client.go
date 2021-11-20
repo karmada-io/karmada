@@ -12,8 +12,8 @@ type FakeConfigV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeConfigV1alpha1) ResourceExploringWebhookConfigurations() v1alpha1.ResourceExploringWebhookConfigurationInterface {
-	return &FakeResourceExploringWebhookConfigurations{c}
+func (c *FakeConfigV1alpha1) ResourceInterpreterWebhookConfigurations() v1alpha1.ResourceInterpreterWebhookConfigurationInterface {
+	return &FakeResourceInterpreterWebhookConfigurations{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

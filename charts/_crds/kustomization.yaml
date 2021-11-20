@@ -10,7 +10,7 @@ resources:
 - bases/work.karmada.io_resourcebindings.yaml
 - bases/work.karmada.io_clusterresourcebindings.yaml
 - bases/work.karmada.io_works.yaml
-- bases/config.karmada.io_resourceexploringwebhookconfigurations.yaml
+- bases/config.karmada.io_resourceinterpreterwebhookconfigurations.yaml
 
 patchesStrategicMerge:
 - patches/webhook_in_resourcebindings.yaml
