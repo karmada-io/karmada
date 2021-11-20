@@ -135,7 +135,7 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 
 	desireObj, err = o.retainClusterFields(desireObj, clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName, err)
 		return err
 	}
 
