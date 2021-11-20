@@ -12,7 +12,7 @@ import (
 // Errored creates a new Response for error-handling a request.
 func Errored(code int32, err error) Response {
 	return Response{
-		ExploreResponse: configv1alpha1.ExploreResponse{
+		ResourceInterpreterResponse: configv1alpha1.ResourceInterpreterResponse{
 			Successful: false,
 			Status: &configv1alpha1.RequestStatus{
 				Code:    code,
@@ -34,7 +34,7 @@ func ValidationResponse(successful bool, msg string) Response {
 		code = http.StatusOK
 	}
 	return Response{
-		ExploreResponse: configv1alpha1.ExploreResponse{
+		ResourceInterpreterResponse: configv1alpha1.ResourceInterpreterResponse{
 			Successful: successful,
 			Status: &configv1alpha1.RequestStatus{
 				Code:    int32(code),
@@ -62,7 +62,7 @@ func PatchResponseFromRaw(original, current []byte) Response {
 
 	patchType := configv1alpha1.PatchTypeJSONPatch
 	return Response{
-		ExploreResponse: configv1alpha1.ExploreResponse{
+		ResourceInterpreterResponse: configv1alpha1.ResourceInterpreterResponse{
 			Successful: true,
 			Patch:      patch,
 			PatchType:  &patchType,

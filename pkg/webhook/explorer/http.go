@@ -51,9 +51,9 @@ func (wh *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := Request{}
-	er := configv1alpha1.ExploreReview{}
+	er := configv1alpha1.ResourceInterpreterContext{}
 	// avoid an extra copy
-	er.Request = &request.ExploreRequest
+	er.Request = &request.ResourceInterpreterRequest
 	_, _, err = admissionCodecs.UniversalDeserializer().Decode(body, nil, &er)
 	if err != nil {
 		klog.Errorf("unable to decode the request: %w", err)
@@ -69,13 +69,13 @@ func (wh *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // writeResponse writes response to w generically, i.e. without encoding GVK information.
 func (wh *Webhook) writeResponse(w io.Writer, response Response) {
-	wh.writeExploreResponse(w, configv1alpha1.ExploreReview{
-		Response: &response.ExploreResponse,
+	wh.writeExploreResponse(w, configv1alpha1.ResourceInterpreterContext{
+		Response: &response.ResourceInterpreterResponse,
 	})
 }
 
 // writeExploreResponse writes ar to w.
-func (wh *Webhook) writeExploreResponse(w io.Writer, review configv1alpha1.ExploreReview) {
+func (wh *Webhook) writeExploreResponse(w io.Writer, review configv1alpha1.ResourceInterpreterContext) {
 	if err := json.NewEncoder(w).Encode(review); err != nil {
 		klog.Errorf("unable to encode the response: %w", err)
 		wh.writeResponse(w, Errored(http.StatusInternalServerError, err))

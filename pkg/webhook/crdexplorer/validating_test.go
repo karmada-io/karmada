@@ -18,7 +18,7 @@ func int32Ptr(i int32) *int32 { return &i }
 func TestHasWildcardOperation(t *testing.T) {
 	tests := []struct {
 		name       string
-		operations []configv1alpha1.OperationType
+		operations []configv1alpha1.InterpreterOperation
 		expected   bool
 	}{
 		{
@@ -28,15 +28,15 @@ func TestHasWildcardOperation(t *testing.T) {
 		},
 		{
 			name: "has wildcard operation",
-			operations: []configv1alpha1.OperationType{
-				configv1alpha1.OperationAll,
+			operations: []configv1alpha1.InterpreterOperation{
+				configv1alpha1.InterpreterOperationAll,
 			},
 			expected: true,
 		},
 		{
 			name: "no have wildcard operation",
-			operations: []configv1alpha1.OperationType{
-				configv1alpha1.ExploreReplica,
+			operations: []configv1alpha1.InterpreterOperation{
+				configv1alpha1.InterpreterOperationInterpretReplica,
 			},
 			expected: false,
 		},
@@ -82,7 +82,7 @@ func TestIsAcceptedExploreReviewVersions(t *testing.T) {
 
 func TestValidateRuleWithOperations(t *testing.T) {
 	fldPath := field.NewPath("webhooks").Child("rules")
-	notSupportedOperation := []configv1alpha1.OperationType{(configv1alpha1.OperationType)("notsupported")}
+	notSupportedOperation := []configv1alpha1.InterpreterOperation{(configv1alpha1.InterpreterOperation)("notsupported")}
 
 	tests := []struct {
 		name               string
@@ -97,9 +97,9 @@ func TestValidateRuleWithOperations(t *testing.T) {
 		{
 			name: "2 operations with wildcard",
 			ruleWithOperations: &configv1alpha1.RuleWithOperations{
-				Operations: []configv1alpha1.OperationType{
-					configv1alpha1.OperationAll,
-					configv1alpha1.ExploreReplica,
+				Operations: []configv1alpha1.InterpreterOperation{
+					configv1alpha1.InterpreterOperationAll,
+					configv1alpha1.InterpreterOperationInterpretReplica,
 				},
 			},
 			expectedError: "if '*' is present, must not specify other operations",
@@ -112,8 +112,8 @@ func TestValidateRuleWithOperations(t *testing.T) {
 		{
 			name: "not validated rule",
 			ruleWithOperations: &configv1alpha1.RuleWithOperations{
-				Operations: []configv1alpha1.OperationType{
-					configv1alpha1.OperationAll,
+				Operations: []configv1alpha1.InterpreterOperation{
+					configv1alpha1.InterpreterOperationAll,
 				},
 				Rule: configv1alpha1.Rule{
 					APIGroups: []string{""},
@@ -192,22 +192,22 @@ func TestValidateWebhook(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		hook          *configv1alpha1.ResourceExploringWebhook
+		hook          *configv1alpha1.ResourceInterpreterWebhook
 		expectedError string
 	}{
 		{
 			name: "not qualified domain name",
-			hook: &configv1alpha1.ResourceExploringWebhook{
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				Name: "",
 			},
 			expectedError: "webhooks.name: Required value",
 		},
 		{
 			name: "invalid rules",
-			hook: &configv1alpha1.ResourceExploringWebhook{
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				Rules: []configv1alpha1.RuleWithOperations{
 					{
-						Operations: []configv1alpha1.OperationType{},
+						Operations: []configv1alpha1.InterpreterOperation{},
 					},
 				},
 			},
@@ -215,28 +215,28 @@ func TestValidateWebhook(t *testing.T) {
 		},
 		{
 			name: "invalid policy",
-			hook: &configv1alpha1.ResourceExploringWebhook{
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				FailurePolicy: &policy,
 			},
 			expectedError: "matchPolicy",
 		},
 		{
 			name: "invalid timeout",
-			hook: &configv1alpha1.ResourceExploringWebhook{
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				TimeoutSeconds: int32Ptr(60),
 			},
 			expectedError: "the timeout value must be between 1 and 30 seconds",
 		},
 		{
 			name: "ClientConfig: exactly one of url or service is required",
-			hook: &configv1alpha1.ResourceExploringWebhook{
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{},
 			},
 			expectedError: "exactly one of url or service is required",
 		},
 		{
 			name: "ClientConfig: invalid URL",
-			hook: &configv1alpha1.ResourceExploringWebhook{
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
 					URL: strPtr(""),
 				},
@@ -245,7 +245,7 @@ func TestValidateWebhook(t *testing.T) {
 		},
 		{
 			name: "ClientConfig: invalid service",
-			hook: &configv1alpha1.ResourceExploringWebhook{
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
 					Service: &admissionregistrationv1.ServiceReference{
 						Name: "",
@@ -258,7 +258,7 @@ func TestValidateWebhook(t *testing.T) {
 		},
 		{
 			name: "invalid explore review versions",
-			hook: &configv1alpha1.ResourceExploringWebhook{
+			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				ExploreReviewVersions: []string{""},
 			},
 			expectedError: fmt.Sprintf("must include at least one of %v", strings.Join(acceptedExploreReviewVersions, ", ")),

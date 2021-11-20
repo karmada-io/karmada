@@ -11,19 +11,19 @@ import (
 // +kubebuilder:resource:scope="Cluster"
 // +kubebuilder:storageversion
 
-// ResourceExploringWebhookConfiguration describes the configuration of webhooks which take the responsibility to
+// ResourceInterpreterWebhookConfiguration describes the configuration of webhooks which take the responsibility to
 // tell karmada the details of the resource object, especially for custom resources.
-type ResourceExploringWebhookConfiguration struct {
+type ResourceInterpreterWebhookConfiguration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Webhooks is a list of webhooks and the affected resources and operations.
 	// +required
-	Webhooks []ResourceExploringWebhook `json:"webhooks"`
+	Webhooks []ResourceInterpreterWebhook `json:"webhooks"`
 }
 
-// ResourceExploringWebhook describes the webhook as well as the resources and operations it applies to.
-type ResourceExploringWebhook struct {
+// ResourceInterpreterWebhook describes the webhook as well as the resources and operations it applies to.
+type ResourceInterpreterWebhook struct {
 	// Name is the full-qualified name of the webhook.
 	// +required
 	Name string `json:"name"`
@@ -50,7 +50,7 @@ type ResourceExploringWebhook struct {
 	// +optional
 	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
 
-	// ExploreReviewVersions is an ordered list of preferred `ExploreReview`
+	// ExploreReviewVersions is an ordered list of preferred `ResourceInterpreterContext`
 	// versions the Webhook expects. Karmada will try to use first version in
 	// the list which it supports. If none of the versions specified in this list
 	// supported by Karmada, validation will fail for this object.
@@ -66,50 +66,50 @@ type RuleWithOperations struct {
 	// Operations is the operations the hook cares about.
 	// If '*' is present, the length of the slice must be one.
 	// +required
-	Operations []OperationType `json:"operations"`
+	Operations []InterpreterOperation `json:"operations"`
 
 	// Rule is embedded, it describes other criteria of the rule, like
 	// APIGroups, APIVersions, Kinds, etc.
 	Rule `json:",inline"`
 }
 
-// OperationType specifies an operation for a request.
-type OperationType string
+// InterpreterOperation specifies an operation for a request.
+type InterpreterOperation string
 
 const (
-	// OperationAll indicates math all OperationType.
-	OperationAll OperationType = "*"
+	// InterpreterOperationAll indicates math all InterpreterOperation.
+	InterpreterOperationAll InterpreterOperation = "*"
 
-	// ExploreReplica indicates that karmada want to figure out the replica declaration of a specific object.
+	// InterpreterOperationInterpretReplica indicates that karmada want to figure out the replica declaration of a specific object.
 	// Only necessary for those resource types that have replica declaration, like Deployment or similar custom resources.
-	ExploreReplica OperationType = "ExploreReplica"
+	InterpreterOperationInterpretReplica InterpreterOperation = "InterpretReplica"
 
-	// ExploreStatus indicates that karmada want to figure out how to get the status.
+	// InterpreterOperationReviseReplica indicates that karmada request webhook to modify the replica.
+	InterpreterOperationReviseReplica InterpreterOperation = "ReviseReplica"
+
+	// InterpreterOperationInterpretStatus indicates that karmada want to figure out how to get the status.
 	// Only necessary for those resource types that define their status in a special path(not '.status').
-	ExploreStatus OperationType = "ExploreStatus"
+	InterpreterOperationInterpretStatus InterpreterOperation = "InterpretStatus"
 
-	// ExplorePacking indicates that karmada want to figure out how to package resource template to Work.
-	ExplorePacking OperationType = "ExplorePacking"
+	// InterpreterOperationPrune indicates that karmada want to figure out how to package resource template to Work.
+	InterpreterOperationPrune InterpreterOperation = "Prune"
 
-	// ExploreReplicaRevising indicates that karmada request webhook to modify the replica.
-	ExploreReplicaRevising OperationType = "ExploreReplicaRevising"
-
-	// ExploreRetaining indicates that karmada request webhook to retain the desired resource template.
+	// InterpreterOperationRetention indicates that karmada request webhook to retain the desired resource template.
 	// Only necessary for those resources which specification will be updated by their controllers running in member cluster.
-	ExploreRetaining OperationType = "ExploreRetaining"
+	InterpreterOperationRetention InterpreterOperation = "Retention"
 
-	// ExploreStatusAggregating indicates that karmada want to figure out how to aggregate status to resource template.
+	// InterpreterOperationAggregateStatus indicates that karmada want to figure out how to aggregate status to resource template.
 	// Only necessary for those resource types that want to aggregate status to resource template.
-	ExploreStatusAggregating OperationType = "ExploreStatusAggregating"
+	InterpreterOperationAggregateStatus InterpreterOperation = "AggregateStatus"
 
-	// ExploreHealthy indicates that karmada want to figure out the healthy status of a specific object.
+	// InterpreterOperationInterpretHealthy indicates that karmada want to figure out the healthy status of a specific object.
 	// Only necessary for those resource types that have and want to reflect their healthy status.
-	ExploreHealthy OperationType = "ExploreHealthy"
+	InterpreterOperationInterpretHealthy InterpreterOperation = "InterpretHealthy"
 
-	// ExploreDependencies indicates that karmada want to figure out the dependencies of a specific object.
+	// InterpreterOperationInterpretDependency indicates that karmada want to figure out the dependencies of a specific object.
 	// Only necessary for those resource types that have dependencies resources and expect the dependencies be propagated
 	// together, like Deployment depends on ConfigMap/Secret.
-	ExploreDependencies OperationType = "ExploreDependencies"
+	InterpreterOperationInterpretDependency InterpreterOperation = "InterpretDependency"
 )
 
 // Rule is a tuple of APIGroups, APIVersion, and Kinds.
@@ -143,11 +143,11 @@ type Rule struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ResourceExploringWebhookConfigurationList contains a list of ResourceExploringWebhookConfiguration.
-type ResourceExploringWebhookConfigurationList struct {
+// ResourceInterpreterWebhookConfigurationList contains a list of ResourceInterpreterWebhookConfiguration.
+type ResourceInterpreterWebhookConfigurationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	// Items holds a list of ResourceExploringWebhookConfiguration.
-	Items []ResourceExploringWebhookConfiguration `json:"items"`
+	// Items holds a list of ResourceInterpreterWebhookConfiguration.
+	Items []ResourceInterpreterWebhookConfiguration `json:"items"`
 }

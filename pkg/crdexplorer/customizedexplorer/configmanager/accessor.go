@@ -34,7 +34,7 @@ type WebhookAccessor interface {
 }
 
 type resourceExploringAccessor struct {
-	*configv1alpha1.ResourceExploringWebhook
+	*configv1alpha1.ResourceInterpreterWebhook
 	uid               string
 	configurationName string
 
@@ -44,8 +44,8 @@ type resourceExploringAccessor struct {
 }
 
 // NewResourceExploringAccessor create an accessor for webhook.
-func NewResourceExploringAccessor(uid, configurationName string, hook *configv1alpha1.ResourceExploringWebhook) WebhookAccessor {
-	return &resourceExploringAccessor{uid: uid, configurationName: configurationName, ResourceExploringWebhook: hook}
+func NewResourceExploringAccessor(uid, configurationName string, hook *configv1alpha1.ResourceInterpreterWebhook) WebhookAccessor {
+	return &resourceExploringAccessor{uid: uid, configurationName: configurationName, ResourceInterpreterWebhook: hook}
 }
 
 // GetUID gets a string that uniquely identifies the webhook.
@@ -97,7 +97,7 @@ func (a *resourceExploringAccessor) GetRESTClient(clientManager *webhookutil.Cli
 }
 
 // hookClientConfigForWebhook construct a webhookutil.ClientConfig using an admissionregistrationv1.WebhookClientConfig
-// to access v1alpha1.ResourceExploringWebhook. webhookutil.ClientConfig is used to create a HookClient
+// to access v1alpha1.ResourceInterpreterWebhook. webhookutil.ClientConfig is used to create a HookClient
 // and the purpose of the config struct is to share that with other packages that need to create a HookClient.
 func hookClientConfigForWebhook(hookName string, config admissionregistrationv1.WebhookClientConfig) webhookutil.ClientConfig {
 	clientConfig := webhookutil.ClientConfig{Name: hookName, CABundle: config.CABundle}

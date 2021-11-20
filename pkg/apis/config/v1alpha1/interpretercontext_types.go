@@ -11,21 +11,21 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ExploreReview describes an explore review request and response.
-type ExploreReview struct {
+// ResourceInterpreterContext describes an explore review request and response.
+type ResourceInterpreterContext struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// Request describes the attributes for the explore request.
 	// +optional
-	Request *ExploreRequest `json:"request,omitempty"`
+	Request *ResourceInterpreterRequest `json:"request,omitempty"`
 
 	// Response describes the attributes for the explore response.
 	// +optional
-	Response *ExploreResponse `json:"response,omitempty"`
+	Response *ResourceInterpreterResponse `json:"response,omitempty"`
 }
 
-// ExploreRequest describes the explore.Attributes for the explore request.
-type ExploreRequest struct {
+// ResourceInterpreterRequest describes the explore.Attributes for the explore request.
+type ResourceInterpreterRequest struct {
 	// UID is an identifier for the individual request/response.
 	// The UID is meant to track the round trip (request/response) between the karmada and the WebHook, not the user request.
 	// It is suitable for correlating log entries between the webhook and karmada, for either auditing or debugging.
@@ -46,19 +46,19 @@ type ExploreRequest struct {
 
 	// Operation is the operation being performed.
 	// +required
-	Operation OperationType `json:"operation"`
+	Operation InterpreterOperation `json:"operation"`
 
 	// Object is the object from the incoming request.
 	// +optional
 	Object runtime.RawExtension `json:"object,omitempty"`
 
 	// ObservedObject is the object observed from the kube-apiserver of member clusters.
-	// Not nil only when OperationType is ExploreRetaining.
+	// Not nil only when InterpreterOperation is InterpreterOperationRetention.
 	// +optional
 	ObservedObject *runtime.RawExtension `json:"observedObject,omitempty"`
 
 	// DesiredReplicas represents the desired pods number which webhook should revise with.
-	// It'll be set only if OperationType is ExploreReplicaRevising.
+	// It'll be set only if InterpreterOperation is InterpreterOperationReviseReplica.
 	// +optional
 	DesiredReplicas *int32 `json:"replicas,omitempty"`
 
@@ -67,10 +67,10 @@ type ExploreRequest struct {
 	AggregatedStatus []workv1alpha1.AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
 }
 
-// ExploreResponse describes an explore response.
-type ExploreResponse struct {
+// ResourceInterpreterResponse describes an explore response.
+type ResourceInterpreterResponse struct {
 	// UID is an identifier for the individual request/response.
-	// This must be copied over from the corresponding ExploreRequest.
+	// This must be copied over from the corresponding ResourceInterpreterRequest.
 	// +required
 	UID types.UID `json:"uid"`
 
@@ -92,18 +92,18 @@ type ExploreResponse struct {
 	PatchType *PatchType `json:"patchType,omitempty" protobuf:"bytes,5,opt,name=patchType"`
 
 	// ReplicaRequirements represents the requirements required by each replica.
-	// Required if OperationType is ExploreReplica.
+	// Required if InterpreterOperation is InterpreterOperationInterpretReplica.
 	// +optional
 	ReplicaRequirements *workv1alpha2.ReplicaRequirements `json:"replicaRequirements,omitempty"`
 
 	// Replicas represents the number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified.
-	// Required if OperationType is ExploreReplica.
+	// Required if InterpreterOperation is InterpreterOperationInterpretReplica.
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Dependencies represents the reference of dependencies object.
-	// Required if OperationType is ExploreDependencies.
+	// Required if InterpreterOperation is InterpreterOperationInterpretDependency.
 	// +optional
 	Dependencies []DependentObjectReference `json:"dependencies,omitempty"`
 

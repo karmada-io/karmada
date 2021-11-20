@@ -11,7 +11,7 @@ import (
 
 // RequestAttributes contains the attributes that call webhook.
 type RequestAttributes struct {
-	Operation        configv1alpha1.OperationType
+	Operation        configv1alpha1.InterpreterOperation
 	Object           *unstructured.Unstructured
 	ObservedObj      *unstructured.Unstructured
 	ReplicasSet      int32

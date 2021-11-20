@@ -8,8 +8,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// ResourceExploringWebhookConfigurations returns a ResourceExploringWebhookConfigurationInformer.
-	ResourceExploringWebhookConfigurations() ResourceExploringWebhookConfigurationInformer
+	// ResourceInterpreterWebhookConfigurations returns a ResourceInterpreterWebhookConfigurationInformer.
+	ResourceInterpreterWebhookConfigurations() ResourceInterpreterWebhookConfigurationInformer
 }
 
 type version struct {
@@ -23,7 +23,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// ResourceExploringWebhookConfigurations returns a ResourceExploringWebhookConfigurationInformer.
-func (v *version) ResourceExploringWebhookConfigurations() ResourceExploringWebhookConfigurationInformer {
-	return &resourceExploringWebhookConfigurationInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+// ResourceInterpreterWebhookConfigurations returns a ResourceInterpreterWebhookConfigurationInformer.
+func (v *version) ResourceInterpreterWebhookConfigurations() ResourceInterpreterWebhookConfigurationInformer {
+	return &resourceInterpreterWebhookConfigurationInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

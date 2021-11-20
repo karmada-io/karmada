@@ -87,11 +87,11 @@ func (m *exploreConfigManager) updateConfiguration() {
 		return
 	}
 
-	configs := make([]*configv1alpha1.ResourceExploringWebhookConfiguration, 0)
+	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, 0)
 	for _, c := range configurations {
 		unstructuredConfig, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c)
 		if err != nil {
-			klog.Errorf("Failed to transform ResourceExploringWebhookConfiguration: %w", err)
+			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: %w", err)
 			return
 		}
 
@@ -107,7 +107,7 @@ func (m *exploreConfigManager) updateConfiguration() {
 	m.initialSynced.Store(true)
 }
 
-func mergeResourceExploreWebhookConfigurations(configurations []*configv1alpha1.ResourceExploringWebhookConfiguration) []WebhookAccessor {
+func mergeResourceExploreWebhookConfigurations(configurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration) []WebhookAccessor {
 	sort.SliceStable(configurations, func(i, j int) bool {
 		return configurations[i].Name < configurations[j].Name
 	})

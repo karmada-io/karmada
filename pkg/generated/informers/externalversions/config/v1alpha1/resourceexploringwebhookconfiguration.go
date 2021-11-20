@@ -28,14 +28,14 @@ type resourceExploringWebhookConfigurationInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
-// NewResourceExploringWebhookConfigurationInformer constructs a new informer for ResourceExploringWebhookConfiguration type.
+// NewResourceExploringWebhookConfigurationInformer constructs a new informer for ResourceInterpreterWebhookConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewResourceExploringWebhookConfigurationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewFilteredResourceExploringWebhookConfigurationInformer(client, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredResourceExploringWebhookConfigurationInformer constructs a new informer for ResourceExploringWebhookConfiguration type.
+// NewFilteredResourceExploringWebhookConfigurationInformer constructs a new informer for ResourceInterpreterWebhookConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredResourceExploringWebhookConfigurationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
@@ -54,7 +54,7 @@ func NewFilteredResourceExploringWebhookConfigurationInformer(client versioned.I
 				return client.ConfigV1alpha1().ResourceExploringWebhookConfigurations().Watch(context.TODO(), options)
 			},
 		},
-		&configv1alpha1.ResourceExploringWebhookConfiguration{},
+		&configv1alpha1.ResourceInterpreterWebhookConfiguration{},
 		resyncPeriod,
 		indexers,
 	)
@@ -65,7 +65,7 @@ func (f *resourceExploringWebhookConfigurationInformer) defaultInformer(client v
 }
 
 func (f *resourceExploringWebhookConfigurationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&configv1alpha1.ResourceExploringWebhookConfiguration{}, f.defaultInformer)
+	return f.factory.InformerFor(&configv1alpha1.ResourceInterpreterWebhookConfiguration{}, f.defaultInformer)
 }
 
 func (f *resourceExploringWebhookConfigurationInformer) Lister() v1alpha1.ResourceExploringWebhookConfigurationLister {

@@ -642,7 +642,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 		},
 	}
 
-	if d.ResourceExplorer.HookEnabled(object, configv1alpha1.ExploreReplica) {
+	if d.ResourceExplorer.HookEnabled(object, configv1alpha1.InterpreterOperationInterpretReplica) {
 		replicas, replicaRequirements, err := d.ResourceExplorer.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
@@ -677,7 +677,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		},
 	}
 
-	if d.ResourceExplorer.HookEnabled(object, configv1alpha1.ExploreReplica) {
+	if d.ResourceExplorer.HookEnabled(object, configv1alpha1.InterpreterOperationInterpretReplica) {
 		replicas, replicaRequirements, err := d.ResourceExplorer.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)

@@ -22,8 +22,8 @@ func NewDecoder(scheme *runtime.Scheme) *Decoder {
 	}
 }
 
-// Decode decodes the inlined object in the ExploreRequest into the passed-in runtime.Object.
-// If you want to decode the ObservedObject in the ExploreRequest, use DecodeRaw.
+// Decode decodes the inlined object in the ResourceInterpreterRequest into the passed-in runtime.Object.
+// If you want to decode the ObservedObject in the ResourceInterpreterRequest, use DecodeRaw.
 // It errors out if req.Object.Raw is empty i.e. containing 0 raw bytes.
 func (d *Decoder) Decode(req Request, into runtime.Object) error {
 	if len(req.Object.Raw) == 0 {

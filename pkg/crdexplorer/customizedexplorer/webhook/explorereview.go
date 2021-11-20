@@ -11,7 +11,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
-// CreateExploreReview returns the unique request uid, the ExploreReview object to send the webhook,
+// CreateExploreReview returns the unique request uid, the ResourceInterpreterContext object to send the webhook,
 // or an error if the webhook does not support receiving any of the versions we know to send.
 func CreateExploreReview(versions []string, attributes *RequestAttributes) (uid types.UID, request runtime.Object, err error) {
 	for _, version := range versions {
@@ -23,14 +23,14 @@ func CreateExploreReview(versions []string, attributes *RequestAttributes) (uid 
 		}
 	}
 
-	err = fmt.Errorf("webhook does not accept known ExploreReview versions (v1alpha1)")
+	err = fmt.Errorf("webhook does not accept known ResourceInterpreterContext versions (v1alpha1)")
 	return
 }
 
-// CreateV1alpha1ExploreReview creates an ExploreReview for the provided RequestAttributes.
-func CreateV1alpha1ExploreReview(uid types.UID, attributes *RequestAttributes) *configv1alpha1.ExploreReview {
-	review := &configv1alpha1.ExploreReview{
-		Request: &configv1alpha1.ExploreRequest{
+// CreateV1alpha1ExploreReview creates an ResourceInterpreterContext for the provided RequestAttributes.
+func CreateV1alpha1ExploreReview(uid types.UID, attributes *RequestAttributes) *configv1alpha1.ResourceInterpreterContext {
+	review := &configv1alpha1.ResourceInterpreterContext{
+		Request: &configv1alpha1.ResourceInterpreterRequest{
 			UID: uid,
 			Kind: metav1.GroupVersionKind{
 				Group:   attributes.Object.GroupVersionKind().Group,
@@ -56,9 +56,9 @@ func CreateV1alpha1ExploreReview(uid types.UID, attributes *RequestAttributes) *
 
 // VerifyExploreReview checks the validity of the provided explore review object, and returns ResponseAttributes,
 // or an error if the provided explore review was not valid.
-func VerifyExploreReview(uid types.UID, operation configv1alpha1.OperationType, review runtime.Object) (response *ResponseAttributes, err error) {
+func VerifyExploreReview(uid types.UID, operation configv1alpha1.InterpreterOperation, review runtime.Object) (response *ResponseAttributes, err error) {
 	switch r := review.(type) {
-	case *configv1alpha1.ExploreReview:
+	case *configv1alpha1.ResourceInterpreterContext:
 		if r.Response == nil {
 			return nil, fmt.Errorf("webhook resonse was absent")
 		}
@@ -77,7 +77,7 @@ func VerifyExploreReview(uid types.UID, operation configv1alpha1.OperationType, 
 	}
 }
 
-func verifyExploreResponse(operation configv1alpha1.OperationType, response *configv1alpha1.ExploreResponse) (*ResponseAttributes, error) {
+func verifyExploreResponse(operation configv1alpha1.InterpreterOperation, response *configv1alpha1.ResourceInterpreterResponse) (*ResponseAttributes, error) {
 	res := &ResponseAttributes{}
 
 	res.Successful = response.Successful
@@ -90,18 +90,18 @@ func verifyExploreResponse(operation configv1alpha1.OperationType, response *con
 	}
 
 	switch operation {
-	case configv1alpha1.ExploreReplica:
+	case configv1alpha1.InterpreterOperationInterpretReplica:
 		if response.Replicas == nil {
 			return nil, fmt.Errorf("webhook returned nil response.replicas")
 		}
 		res.Replicas = *response.Replicas
 		res.ReplicaRequirements = response.ReplicaRequirements
 		return res, nil
-	case configv1alpha1.ExploreDependencies:
+	case configv1alpha1.InterpreterOperationInterpretDependency:
 		res.Dependencies = response.Dependencies
 		return res, nil
-	case configv1alpha1.ExplorePacking, configv1alpha1.ExploreReplicaRevising,
-		configv1alpha1.ExploreRetaining, configv1alpha1.ExploreStatusAggregating:
+	case configv1alpha1.InterpreterOperationPrune, configv1alpha1.InterpreterOperationReviseReplica,
+		configv1alpha1.InterpreterOperationRetention, configv1alpha1.InterpreterOperationAggregateStatus:
 		err := verifyExploreResponseWithPatch(response)
 		if err != nil {
 			return nil, err
@@ -109,10 +109,10 @@ func verifyExploreResponse(operation configv1alpha1.OperationType, response *con
 		res.Patch = response.Patch
 		res.PatchType = *response.PatchType
 		return res, nil
-	case configv1alpha1.ExploreStatus:
+	case configv1alpha1.InterpreterOperationInterpretStatus:
 		res.RawStatus = *response.RawStatus
 		return res, nil
-	case configv1alpha1.ExploreHealthy:
+	case configv1alpha1.InterpreterOperationInterpretHealthy:
 		if response.Healthy == nil {
 			return nil, fmt.Errorf("webhook returned nil response.healthy")
 		}
@@ -123,7 +123,7 @@ func verifyExploreResponse(operation configv1alpha1.OperationType, response *con
 	}
 }
 
-func verifyExploreResponseWithPatch(response *configv1alpha1.ExploreResponse) error {
+func verifyExploreResponseWithPatch(response *configv1alpha1.ResourceInterpreterResponse) error {
 	if len(response.Patch) == 0 && response.PatchType == nil {
 		return nil
 	}

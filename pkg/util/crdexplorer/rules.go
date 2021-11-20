@@ -13,7 +13,7 @@ const (
 
 // Matcher determines if the Object matches the Rule.
 type Matcher struct {
-	Operation configv1alpha1.OperationType
+	Operation configv1alpha1.InterpreterOperation
 	Rule      configv1alpha1.RuleWithOperations
 	Object    *unstructured.Unstructured
 }
@@ -25,7 +25,7 @@ func (m *Matcher) Matches() bool {
 
 func (m *Matcher) operation() bool {
 	for _, op := range m.Rule.Operations {
-		if op == configv1alpha1.OperationAll || op == m.Operation {
+		if op == configv1alpha1.InterpreterOperationAll || op == m.Operation {
 			return true
 		}
 	}

@@ -16,7 +16,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
-// ValidatingAdmission validates ResourceExploringWebhookConfiguration object when creating/updating.
+// ValidatingAdmission validates ResourceInterpreterWebhookConfiguration object when creating/updating.
 type ValidatingAdmission struct {
 	decoder *admission.Decoder
 }
@@ -28,13 +28,13 @@ var _ admission.DecoderInjector = &ValidatingAdmission{}
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
-	configuration := &configv1alpha1.ResourceExploringWebhookConfiguration{}
+	configuration := &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
 
 	err := v.decoder.Decode(req, configuration)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	klog.V(2).Infof("Validating ResourceExploringWebhookConfiguration(%s) for request: %s", configuration.Name, req.Operation)
+	klog.V(2).Infof("Validating ResourceInterpreterWebhookConfiguration(%s) for request: %s", configuration.Name, req.Operation)
 
 	var allErrors field.ErrorList
 	hookNames := sets.NewString()
@@ -63,20 +63,20 @@ func (v *ValidatingAdmission) InjectDecoder(d *admission.Decoder) error {
 }
 
 var supportedOperationType = sets.NewString(
-	string(configv1alpha1.OperationAll),
-	string(configv1alpha1.ExploreReplica),
-	string(configv1alpha1.ExploreStatus),
-	string(configv1alpha1.ExplorePacking),
-	string(configv1alpha1.ExploreReplicaRevising),
-	string(configv1alpha1.ExploreRetaining),
-	string(configv1alpha1.ExploreStatusAggregating),
-	string(configv1alpha1.ExploreHealthy),
-	string(configv1alpha1.ExploreDependencies),
+	string(configv1alpha1.InterpreterOperationAll),
+	string(configv1alpha1.InterpreterOperationInterpretReplica),
+	string(configv1alpha1.InterpreterOperationInterpretStatus),
+	string(configv1alpha1.InterpreterOperationPrune),
+	string(configv1alpha1.InterpreterOperationReviseReplica),
+	string(configv1alpha1.InterpreterOperationRetention),
+	string(configv1alpha1.InterpreterOperationAggregateStatus),
+	string(configv1alpha1.InterpreterOperationInterpretHealthy),
+	string(configv1alpha1.InterpreterOperationInterpretDependency),
 )
 
 var acceptedExploreReviewVersions = []string{configv1alpha1.GroupVersion.Version}
 
-func validateWebhook(hook *configv1alpha1.ResourceExploringWebhook, fldPath *field.Path) field.ErrorList {
+func validateWebhook(hook *configv1alpha1.ResourceInterpreterWebhook, fldPath *field.Path) field.ErrorList {
 	var allErrors field.ErrorList
 	// hook.Name must be fully qualified
 	allErrors = append(allErrors, validation.IsFullyQualifiedDomainName(fldPath.Child("name"), hook.Name)...)
@@ -107,9 +107,9 @@ func validateWebhook(hook *configv1alpha1.ResourceExploringWebhook, fldPath *fie
 	return allErrors
 }
 
-func hasWildcardOperation(operations []configv1alpha1.OperationType) bool {
+func hasWildcardOperation(operations []configv1alpha1.InterpreterOperation) bool {
 	for _, o := range operations {
-		if o == configv1alpha1.OperationAll {
+		if o == configv1alpha1.InterpreterOperationAll {
 			return true
 		}
 	}

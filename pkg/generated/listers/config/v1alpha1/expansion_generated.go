@@ -2,6 +2,6 @@
 
 package v1alpha1
 
-// ResourceExploringWebhookConfigurationListerExpansion allows custom methods to be added to
-// ResourceExploringWebhookConfigurationLister.
-type ResourceExploringWebhookConfigurationListerExpansion interface{}
+// ResourceInterpreterWebhookConfigurationListerExpansion allows custom methods to be added to
+// ResourceInterpreterWebhookConfigurationLister.
+type ResourceInterpreterWebhookConfigurationListerExpansion interface{}

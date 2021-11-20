@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.6.2
   creationTimestamp: null
-  name: resourceexploringwebhookconfigurations.config.karmada.io
+  name: resourceinterpreterwebhookconfigurations.config.karmada.io
 spec:
   group: config.karmada.io
   names:
-    kind: ResourceExploringWebhookConfiguration
-    listKind: ResourceExploringWebhookConfigurationList
-    plural: resourceexploringwebhookconfigurations
-    singular: resourceexploringwebhookconfiguration
+    kind: ResourceInterpreterWebhookConfiguration
+    listKind: ResourceInterpreterWebhookConfigurationList
+    plural: resourceinterpreterwebhookconfigurations
+    singular: resourceinterpreterwebhookconfiguration
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ResourceExploringWebhookConfiguration describes the configuration
+        description: ResourceInterpreterWebhookConfiguration describes the configuration
           of webhooks which take the responsibility to tell karmada the details of
           the resource object, especially for custom resources.
         properties:
@@ -39,7 +39,7 @@ spec:
             description: Webhooks is a list of webhooks and the affected resources
               and operations.
             items:
-              description: ResourceExploringWebhook describes the webhook as well
+              description: ResourceInterpreterWebhook describes the webhook as well
                 as the resources and operations it applies to.
               properties:
                 clientConfig:
@@ -102,10 +102,10 @@ spec:
                   type: object
                 exploreReviewVersions:
                   description: ExploreReviewVersions is an ordered list of preferred
-                    `ExploreReview` versions the Webhook expects. Karmada will try
-                    to use first version in the list which it supports. If none of
-                    the versions specified in this list supported by Karmada, validation
-                    will fail for this object. If a persisted webhook configuration
+                    `ResourceInterpreterContext` versions the Webhook expects. Karmada
+                    will try to use first version in the list which it supports. If
+                    none of the versions specified in this list supported by Karmada,
+                    validation will fail for this object. If a persisted webhook configuration
                     specifies allowed versions and does not include any versions known
                     to the Karmada, calls to the webhook will fail and be subject
                     to the failure policy.
@@ -160,8 +160,8 @@ spec:
                         description: Operations is the operations the hook cares about.
                           If '*' is present, the length of the slice must be one.
                         items:
-                          description: OperationType specifies an operation for a
-                            request.
+                          description: InterpreterOperation specifies an operation
+                            for a request.
                           type: string
                         type: array
                     required:

@@ -27,13 +27,13 @@ func NewDefaultExplorer() *DefaultExplorer {
 }
 
 // HookEnabled tells if any hook exist for specific resource type and operation type.
-func (e *DefaultExplorer) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.OperationType) bool {
+func (e *DefaultExplorer) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool {
 	switch operationType {
-	case configv1alpha1.ExploreReplica:
+	case configv1alpha1.InterpreterOperationInterpretReplica:
 		if _, exist := e.replicaHandlers[kind]; exist {
 			return true
 		}
-	case configv1alpha1.ExploreRetaining:
+	case configv1alpha1.InterpreterOperationRetention:
 		if _, exist := e.retentionHandlers[kind]; exist {
 			return true
 		}
@@ -49,7 +49,7 @@ func (e *DefaultExplorer) HookEnabled(kind schema.GroupVersionKind, operationTyp
 func (e *DefaultExplorer) GetReplicas(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
 	handler, exist := e.replicaHandlers[object.GroupVersionKind()]
 	if !exist {
-		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("defalut explorer for operation %s not found", configv1alpha1.ExploreReplica)
+		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("defalut explorer for operation %s not found", configv1alpha1.InterpreterOperationInterpretReplica)
 	}
 	return handler(object)
 }

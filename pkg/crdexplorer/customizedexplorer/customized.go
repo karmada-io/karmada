@@ -175,7 +175,7 @@ func (e *CustomizedExplorer) callHook(ctx context.Context, hook configmanager.We
 	if err != nil {
 		return nil, &webhookutil.ErrCallingWebhook{
 			WebhookName: hook.GetUID(),
-			Reason:      fmt.Errorf("could not create ExploreReview objects: %w", err),
+			Reason:      fmt.Errorf("could not create ResourceInterpreterContext objects: %w", err),
 		}
 	}
 
@@ -215,7 +215,7 @@ func (e *CustomizedExplorer) callHook(ctx context.Context, hook configmanager.We
 		}
 	}
 
-	response := &configv1alpha1.ExploreReview{}
+	response := &configv1alpha1.ResourceInterpreterContext{}
 	err = r.Do(ctx).Into(response)
 	if err != nil {
 		return nil, &webhookutil.ErrCallingWebhook{

@@ -123,9 +123,9 @@ func ConvertToEndpointSlice(obj *unstructured.Unstructured) (*discoveryv1beta1.E
 	return typedObj, nil
 }
 
-// ConvertToResourceExploringWebhookConfiguration converts a ResourceExploringWebhookConfiguration object from unstructured to typed.
-func ConvertToResourceExploringWebhookConfiguration(obj *unstructured.Unstructured) (*configv1alpha1.ResourceExploringWebhookConfiguration, error) {
-	typedObj := &configv1alpha1.ResourceExploringWebhookConfiguration{}
+// ConvertToResourceExploringWebhookConfiguration converts a ResourceInterpreterWebhookConfiguration object from unstructured to typed.
+func ConvertToResourceExploringWebhookConfiguration(obj *unstructured.Unstructured) (*configv1alpha1.ResourceInterpreterWebhookConfiguration, error) {
+	typedObj := &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}

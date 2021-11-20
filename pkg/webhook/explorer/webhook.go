@@ -12,19 +12,19 @@ import (
 // Request defines the input for an explorer handler.
 // It contains information to identify the object in
 // question (kind, name, namespace), as well as the
-// operation in request(e.g. ExploreReplica, ExplorePacking,
+// operation in request(e.g. InterpreterOperationInterpretReplica, InterpreterOperationPrune,
 // etc), and the object itself.
 type Request struct {
-	configv1alpha1.ExploreRequest
+	configv1alpha1.ResourceInterpreterRequest
 }
 
 // Response is the output of an explorer handler.
 type Response struct {
-	configv1alpha1.ExploreResponse
+	configv1alpha1.ResourceInterpreterResponse
 }
 
 // Complete populates any fields that are yet to be set in
-// the underlying ExploreResponse, It mutates the response.
+// the underlying ResourceInterpreterResponse, It mutates the response.
 func (r *Response) Complete(req Request) {
 	r.UID = req.UID
 
@@ -37,9 +37,9 @@ func (r *Response) Complete(req Request) {
 	}
 }
 
-// Handler can handle an ExploreRequest.
+// Handler can handle an ResourceInterpreterRequest.
 type Handler interface {
-	// Handle yields a response to an ExploreRequest.
+	// Handle yields a response to an ResourceInterpreterRequest.
 	//
 	// The supplied context is extracted from the received http.Request, allowing wrapping
 	// http.Handlers to inject values into and control cancellation of downstream request processing.
@@ -61,7 +61,7 @@ func NewWebhook(handler Handler, decoder *Decoder) *Webhook {
 	return &Webhook{handler: handler}
 }
 
-// Handle processes ExploreRequest.
+// Handle processes ResourceInterpreterRequest.
 func (wh *Webhook) Handle(ctx context.Context, req Request) Response {
 	resp := wh.handler.Handle(ctx, req)
 	resp.Complete(req)

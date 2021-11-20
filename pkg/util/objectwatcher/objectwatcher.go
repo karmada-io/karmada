@@ -113,7 +113,7 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	// and be set by user in karmada-controller-plane.
 	util.MergeAnnotations(desired, observed)
 
-	if o.resourceExplorer.HookEnabled(desired, configv1alpha1.ExploreRetaining) {
+	if o.resourceExplorer.HookEnabled(desired, configv1alpha1.InterpreterOperationRetention) {
 		return o.resourceExplorer.Retain(desired, observed)
 	}
 

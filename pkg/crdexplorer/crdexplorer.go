@@ -22,7 +22,7 @@ type CustomResourceExplorer interface {
 	Start(ctx context.Context) (err error)
 
 	// HookEnabled tells if any hook exist for specific resource type and operation type.
-	HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.OperationType) bool
+	HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.InterpreterOperation) bool
 
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
@@ -67,7 +67,7 @@ func (i *customResourceExplorerImpl) Start(ctx context.Context) (err error) {
 }
 
 // HookEnabled tells if any hook exist for specific resource type and operation type.
-func (i *customResourceExplorerImpl) HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.OperationType) bool {
+func (i *customResourceExplorerImpl) HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.InterpreterOperation) bool {
 	attributes := &webhook.RequestAttributes{
 		Operation: operationType,
 		Object:    object,
@@ -81,7 +81,7 @@ func (i *customResourceExplorerImpl) GetReplicas(object *unstructured.Unstructur
 
 	var hookEnabled bool
 	replica, requires, hookEnabled, err = i.customizedExplorer.GetReplicas(context.TODO(), &webhook.RequestAttributes{
-		Operation: configv1alpha1.ExploreReplica,
+		Operation: configv1alpha1.InterpreterOperationInterpretReplica,
 		Object:    object,
 	})
 	if err != nil {
@@ -103,7 +103,7 @@ func (i *customResourceExplorerImpl) Retain(desired *unstructured.Unstructured, 
 	var patch []byte
 	var patchType configv1alpha1.PatchType
 	patch, patchType, hookEnabled, err = i.customizedExplorer.Retain(context.TODO(), &webhook.RequestAttributes{
-		Operation:   configv1alpha1.ExploreRetaining,
+		Operation:   configv1alpha1.InterpreterOperationRetention,
 		Object:      desired,
 		ObservedObj: observed,
 	})
