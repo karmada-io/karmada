@@ -105,7 +105,7 @@ test:
 	go test --race --v ./pkg/...
 	go test --race --v ./cmd/...
 
-images: image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook image-karmada-agent image-karmada-scheduler-estimator
+images: image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook image-karmada-agent image-karmada-scheduler-estimator image-karmada-interpreter-webhook-example
 
 image-karmada-controller-manager: karmada-controller-manager
 	VERSION=$(VERSION) hack/docker.sh karmada-controller-manager
