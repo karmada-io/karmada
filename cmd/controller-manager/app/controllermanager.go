@@ -3,8 +3,9 @@ package app
 import (
 	"context"
 	"flag"
-	"fmt"
+	"net"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
@@ -77,7 +78,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		LeaderElectionID:           opts.LeaderElection.ResourceName,
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
-		HealthProbeBindAddress:     fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort),
+		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
 		LivenessEndpointName:       "/healthz",
 	})
 	if err != nil {

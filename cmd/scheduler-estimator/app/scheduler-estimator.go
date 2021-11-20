@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -45,7 +47,7 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 
 func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-scheduler-estimator version: %s", version.Get())
-	go serveHealthz(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
+	go serveHealthz(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {

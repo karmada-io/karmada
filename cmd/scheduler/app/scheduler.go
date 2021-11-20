@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -60,7 +62,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 
 func run(opts *options.Options, stopChan <-chan struct{}) error {
 	klog.Infof("karmada-scheduler version: %s", version.Get())
-	go serveHealthzAndMetrics(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
+	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {
