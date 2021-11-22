@@ -25,6 +25,12 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "karmada-interpreter-webhook-example",
 		Run: func(cmd *cobra.Command, args []string) {
+			// validate options
+			if errs := opts.Validate(); len(errs) != 0 {
+				fmt.Fprintf(os.Stderr, "configuration is not valid: %v\n", errs.ToAggregate())
+				os.Exit(1)
+			}
+
 			if err := Run(ctx, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
