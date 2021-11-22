@@ -162,23 +162,9 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 	workFn := handler.MapFunc(
 		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
-
-			// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
-			labels := a.GetLabels()
-			crNamespace, namespaceExist := labels[workv1alpha2.ResourceBindingNamespaceLabel]
-			crName, nameExist := labels[workv1alpha2.ResourceBindingNameLabel]
-			if namespaceExist && nameExist {
-				requests = append(requests, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Namespace: crNamespace,
-						Name:      crName,
-					},
-				})
-			}
-
 			annotations := a.GetAnnotations()
-			crNamespace, namespaceExist = annotations[workv1alpha2.ResourceBindingNamespaceLabel]
-			crName, nameExist = annotations[workv1alpha2.ResourceBindingNameLabel]
+			crNamespace, namespaceExist := annotations[workv1alpha2.ResourceBindingNamespaceLabel]
+			crName, nameExist := annotations[workv1alpha2.ResourceBindingNameLabel]
 			if namespaceExist && nameExist {
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{

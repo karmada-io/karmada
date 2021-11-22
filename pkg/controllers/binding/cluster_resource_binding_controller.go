@@ -157,20 +157,8 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 	workFn := handler.MapFunc(
 		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
-
-			// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
-			labels := a.GetLabels()
-			crbName, nameExist := labels[workv1alpha2.ClusterResourceBindingLabel]
-			if nameExist {
-				requests = append(requests, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name: crbName,
-					},
-				})
-			}
-
 			annotations := a.GetAnnotations()
-			crbName, nameExist = annotations[workv1alpha2.ClusterResourceBindingLabel]
+			crbName, nameExist := annotations[workv1alpha2.ClusterResourceBindingLabel]
 			if nameExist {
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{
