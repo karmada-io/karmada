@@ -18,10 +18,11 @@
 .vscode/
 
 # karamada binary
+/karmadactl
 /karmada-agent
 /karmada-controller-manager
+/karmada-interpreter-webhook-example
 /karmada-scheduler
-/karmada-webhook
-/karmadactl
-/kubectl-karmada
 /karmada-scheduler-estimator
+/karmada-webhook
+/kubectl-karmada
