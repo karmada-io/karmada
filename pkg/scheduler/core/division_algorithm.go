@@ -65,16 +65,14 @@ func divideReplicasByStaticWeight(clusters []*clusterv1alpha1.Cluster, weightLis
 		allocatedReplicas += int32(desireReplicaInfos[clusterName])
 	}
 
-	if remainReplicas := replicas - allocatedReplicas; remainReplicas > 0 {
-		sortedClusters := helper.SortClusterByWeight(matchClusters)
-		for i := 0; remainReplicas > 0; i++ {
-			desireReplicaInfos[sortedClusters[i].ClusterName]++
-			remainReplicas--
-			if i == len(desireReplicaInfos) {
-				i = 0
-			}
-		}
+	clusterWeights := helper.SortClusterByWeight(matchClusters)
+
+	var clusterNames []string
+	for _, clusterWeightInfo := range clusterWeights {
+		clusterNames = append(clusterNames, clusterWeightInfo.ClusterName)
 	}
+
+	divideRemainingReplicas(int(replicas-allocatedReplicas), desireReplicaInfos, clusterNames)
 
 	for _, cluster := range clusters {
 		if _, exist := matchClusters[cluster.Name]; !exist {
@@ -129,22 +127,18 @@ func divideReplicasByAggregation(clusterAvailableReplicas []workv1alpha2.TargetC
 
 func divideReplicasByAvailableReplica(clusterAvailableReplicas []workv1alpha2.TargetCluster, replicas int32,
 	clustersMaxReplicas int32, unusedClusters ...string) []workv1alpha2.TargetCluster {
-	desireReplicaInfos := make(map[string]int32)
+	desireReplicaInfos := make(map[string]int64)
 	allocatedReplicas := int32(0)
 	for _, clusterInfo := range clusterAvailableReplicas {
-		desireReplicaInfos[clusterInfo.Name] = clusterInfo.Replicas * replicas / clustersMaxReplicas
-		allocatedReplicas += desireReplicaInfos[clusterInfo.Name]
+		desireReplicaInfos[clusterInfo.Name] = int64(clusterInfo.Replicas * replicas / clustersMaxReplicas)
+		allocatedReplicas += int32(desireReplicaInfos[clusterInfo.Name])
 	}
 
-	if remainReplicas := replicas - allocatedReplicas; remainReplicas > 0 {
-		for i := 0; remainReplicas > 0; i++ {
-			desireReplicaInfos[clusterAvailableReplicas[i].Name]++
-			remainReplicas--
-			if i == len(desireReplicaInfos) {
-				i = 0
-			}
-		}
+	var clusterNames []string
+	for _, targetCluster := range clusterAvailableReplicas {
+		clusterNames = append(clusterNames, targetCluster.Name)
 	}
+	divideRemainingReplicas(int(replicas-allocatedReplicas), desireReplicaInfos, clusterNames)
 
 	// For scaling up
 	for _, cluster := range unusedClusters {
@@ -156,10 +150,33 @@ func divideReplicasByAvailableReplica(clusterAvailableReplicas []workv1alpha2.Ta
 	targetClusters := make([]workv1alpha2.TargetCluster, len(desireReplicaInfos))
 	i := 0
 	for key, value := range desireReplicaInfos {
-		targetClusters[i] = workv1alpha2.TargetCluster{Name: key, Replicas: value}
+		targetClusters[i] = workv1alpha2.TargetCluster{Name: key, Replicas: int32(value)}
 		i++
 	}
 	return targetClusters
+}
+
+// divideRemainingReplicas divide remaining Replicas to clusters and calculate desiredReplicaInfos
+func divideRemainingReplicas(remainingReplicas int, desiredReplicaInfos map[string]int64, clusterNames []string) {
+	if remainingReplicas <= 0 {
+		return
+	}
+
+	clusterSize := len(clusterNames)
+	if remainingReplicas < clusterSize {
+		for i := 0; i < remainingReplicas; i++ {
+			desiredReplicaInfos[clusterNames[i]]++
+		}
+	} else {
+		avg, residue := remainingReplicas/clusterSize, remainingReplicas%clusterSize
+		for i := 0; i < clusterSize; i++ {
+			if i < residue {
+				desiredReplicaInfos[clusterNames[i]] += int64(avg) + 1
+			} else {
+				desiredReplicaInfos[clusterNames[i]] += int64(avg)
+			}
+		}
+	}
 }
 
 func scaleScheduleByReplicaDivisionPreference(spec *workv1alpha2.ResourceBindingSpec, preference policyv1alpha1.ReplicaDivisionPreference,
