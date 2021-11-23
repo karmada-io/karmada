@@ -76,3 +76,27 @@ func TestGetClusterName(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateBindingReferenceKey(t *testing.T) {
+	tests := []struct {
+		name      string
+		namespace string
+	}{
+		{name: "mytest-deployment",
+			namespace: "prod-xxx",
+		},
+		{name: "mytest-deployment",
+			namespace: "qa-xxx",
+		},
+	}
+	result := map[string]struct{}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GenerateBindingReferenceKey(tt.namespace, tt.name)
+			if _, ok := result[got]; ok {
+				t.Errorf("duplicate key found %v", got)
+			}
+			result[got] = struct{}{}
+		})
+	}
+}
