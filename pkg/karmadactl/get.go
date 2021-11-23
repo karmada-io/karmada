@@ -76,6 +76,8 @@ func NewCmdGet(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string)
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "default", "-n=namespace or -n namespace")
 	cmd.Flags().StringVarP(&o.LabelSelector, "labels", "l", "", "-l=label or -l label")
 	cmd.Flags().StringSliceVarP(&o.Clusters, "clusters", "C", []string{}, "-C=member1,member2")
+	cmd.Flags().StringVar(&o.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster are stored.")
+
 	o.GlobalCommandOptions.AddFlags(cmd.Flags())
 	return cmd
 }
@@ -84,6 +86,9 @@ func NewCmdGet(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string)
 type CommandGetOptions struct {
 	// global flags
 	options.GlobalCommandOptions
+
+	// ClusterNamespace holds the namespace name where the member cluster objects are stored.
+	ClusterNamespace string
 
 	Clusters []string
 
