@@ -61,7 +61,7 @@ func GenerateBindingName(kind, name string) string {
 // GenerateBindingReferenceKey will generate the key of binding object with the hash of its namespace and name.
 func GenerateBindingReferenceKey(namespace, name string) string {
 	var bindingName string
-	if len(namespace) == 0 {
+	if len(namespace) > 0 {
 		bindingName = namespace + "-" + name
 	} else {
 		bindingName = name
