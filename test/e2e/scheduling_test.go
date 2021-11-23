@@ -7,6 +7,8 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -33,7 +35,7 @@ import (
 // BasicPropagation focus on basic propagation functionality testing.
 var _ = ginkgo.Describe("propagation with label and group constraints testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
-		var groupMatchedClusters []*clusterv1alpha1.Cluster
+		var groupMatchedClusters []string
 		var targetClusterNames []string
 		policyNamespace := testNamespace
 		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
@@ -70,9 +72,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("collect the target clusters in resource binding", func() {
-				var err error
-				targetClusterNames, err = getTargetClusterNames(deployment)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 				gomega.Expect(len(targetClusterNames) == minGroups).ShouldNot(gomega.BeFalse())
 			})
 
@@ -87,63 +87,21 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 
 			ginkgo.By("check if deployment present on right clusters", func() {
 				for _, targetClusterName := range targetClusterNames {
-					clusterClient := framework.GetClusterClient(targetClusterName)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Check whether deployment(%s/%s) is present on cluster(%s)", deploymentNamespace, deploymentName, targetClusterName)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						if err != nil {
-							if apierrors.IsNotFound(err) {
-								return false, nil
-							}
-							return false, err
-						}
-						targetCluster, _ := util.GetCluster(controlPlaneClient, targetClusterName)
-						groupMatchedClusters = append(groupMatchedClusters, targetCluster)
-						fmt.Printf("Deployment(%s/%s) is present on cluster(%s).\n", deploymentNamespace, deploymentName, targetClusterName)
-						return true, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					framework.WaitDeploymentPresentOnClusterFitWith(targetClusterName, deployment.Namespace, deployment.Name,
+						func(deployment *appsv1.Deployment) bool {
+							return true
+						})
+					groupMatchedClusters = append(groupMatchedClusters, targetClusterName)
 				}
 				fmt.Printf("there are %d target clusters\n", len(groupMatchedClusters))
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
 			})
 
-			ginkgo.By("updating deployment", func() {
-				patch := map[string]interface{}{
-					"spec": map[string]interface{}{
-						"replicas": pointer.Int32Ptr(updateDeploymentReplicas),
-					},
-				}
-				bytes, err := json.Marshal(patch)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				_, err = kubeClient.AppsV1().Deployments(deploymentNamespace).Patch(context.TODO(), deploymentName, types.StrategicMergePatchType, bytes, metav1.PatchOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if update has been synced to member clusters", func() {
-				for _, cluster := range groupMatchedClusters {
-					clusterClient := framework.GetClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for deployment(%s/%s) synced on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						dep, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						if err != nil {
-							return false, err
-						}
-
-						if *dep.Spec.Replicas == updateDeploymentReplicas {
-							return true, nil
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
+			framework.WaitDeploymentPresentOnClustersFitWith(groupMatchedClusters, deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return *deployment.Spec.Replicas == updateDeploymentReplicas
+				})
 
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
@@ -253,7 +211,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 		})
 	})
 	ginkgo.Context("Job propagation testing", func() {
-		var groupMatchedClusters []*clusterv1alpha1.Cluster
+		var groupMatchedClusters []string
 		var targetClusterNames []string
 		policyNamespace := testNamespace
 		policyName := jobNamePrefix + rand.String(RandomStrLength)
@@ -321,63 +279,24 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 
 			ginkgo.By("check if job present on right clusters", func() {
 				for _, targetClusterName := range targetClusterNames {
-					clusterClient := framework.GetClusterClient(targetClusterName)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Check whether job(%s/%s) is present on cluster(%s)", jobNamespace, jobName, targetClusterName)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
-						if err != nil {
-							if apierrors.IsNotFound(err) {
-								return false, nil
-							}
-							return false, err
-						}
-						targetCluster, _ := util.GetCluster(controlPlaneClient, targetClusterName)
-						groupMatchedClusters = append(groupMatchedClusters, targetCluster)
-						fmt.Printf("Job(%s/%s) is present on cluster(%s).\n", jobNamespace, jobName, targetClusterName)
-						return true, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					framework.WaitJobPresentOnClusterFitWith(targetClusterName, job.Namespace, job.Name,
+						func(job *batchv1.Job) bool {
+							return true
+						})
+					groupMatchedClusters = append(groupMatchedClusters, targetClusterName)
 				}
 				fmt.Printf("there are %d target clusters\n", len(groupMatchedClusters))
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
 			})
 
-			ginkgo.By("updating Job", func() {
-				patch := map[string]interface{}{
-					"spec": map[string]interface{}{
-						"parallelism": pointer.Int32Ptr(updateParallelism),
-					},
-				}
-				bytes, err := json.Marshal(patch)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				_, err = kubeClient.BatchV1().Jobs(jobNamespace).Patch(context.TODO(), jobName, types.StrategicMergePatchType, bytes, metav1.PatchOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if update has been synced to member clusters", func() {
-				for _, cluster := range groupMatchedClusters {
-					clusterClient := framework.GetClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for job(%s/%s) synced on cluster(%s)", jobNamespace, jobName, cluster.Name)
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-						memberJob, err := clusterClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
-						if err != nil {
-							return false, err
-						}
-
-						if *memberJob.Spec.Parallelism == updateParallelism {
-							return true, nil
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			patch := map[string]interface{}{"spec": map[string]interface{}{"parallelism": pointer.Int32Ptr(updateParallelism)}}
+			bytes, err := json.Marshal(patch)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			framework.UpdateJobWithPatchBytes(kubeClient, job.Namespace, job.Name, bytes, types.StrategicMergePatchType)
+			framework.WaitJobPresentOnClustersFitWith(groupMatchedClusters, job.Namespace, job.Name,
+				func(job *batchv1.Job) bool {
+					return *job.Spec.Parallelism == updateParallelism
+				})
 
 			framework.RemoveJob(kubeClient, job.Namespace, job.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
@@ -430,21 +349,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
 
-			ginkgo.By("check if deployment's replicas are duplicate on member clusters", func() {
-				for _, cluster := range framework.Clusters() {
-					clusterClient := framework.GetClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					gomega.Eventually(func(g gomega.Gomega) (*int32, error) {
-						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						g.Expect(err).NotTo(gomega.HaveOccurred())
-
-						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
-							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, *deployment.Spec.Replicas))
-						return memberDeployment.Spec.Replicas, nil
-					}, pollTimeout, pollInterval).Should(gomega.Equal(deployment.Spec.Replicas))
-				}
-			})
+			klog.Infof("check if deployment's replicas are duplicate on member clusters")
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deploy *appsv1.Deployment) bool {
+					klog.Infof(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d, expected: %d.",
+						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, *deployment.Spec.Replicas))
+					return *deploy.Spec.Replicas == *deployment.Spec.Replicas
+				})
 
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
@@ -478,35 +389,20 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
 
-			ginkgo.By("make sure deployment has been propagated to member clusters", func() {
-				for _, cluster := range framework.Clusters() {
-					clusterClient := framework.GetClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-						_, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						g.Expect(err).NotTo(gomega.HaveOccurred())
-						return true, nil
-					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
-				}
-			})
+			klog.Infof("make sure deployment has been propagated to member clusters")
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return true
+				})
 
 			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
-			ginkgo.By("check if deployment's replicas have been updated on member clusters", func() {
-				for _, cluster := range framework.Clusters() {
-					clusterClient := framework.GetClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					gomega.Eventually(func(g gomega.Gomega) (*int32, error) {
-						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						g.Expect(err).NotTo(gomega.HaveOccurred())
-
-						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
-							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, *deployment.Spec.Replicas))
-						return memberDeployment.Spec.Replicas, nil
-					}, pollTimeout, pollInterval).Should(gomega.Equal(deployment.Spec.Replicas))
-				}
-			})
+			klog.Infof("check if deployment's replicas have been updated on member clusters")
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deploy *appsv1.Deployment) bool {
+					klog.Infof(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d, expected: %d.",
+						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, *deployment.Spec.Replicas))
+					return *deploy.Spec.Replicas == *deployment.Spec.Replicas
+				})
 
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
@@ -545,21 +441,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			deployment.Spec.Replicas = &updateReplicas
 			framework.CreateDeployment(kubeClient, deployment)
 
-			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
-				for _, cluster := range framework.Clusters() {
-					clusterClient := framework.GetClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					gomega.Eventually(func(g gomega.Gomega) (int32, error) {
-						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						g.Expect(err).NotTo(gomega.HaveOccurred())
-
-						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
-							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
-						return *memberDeployment.Spec.Replicas, nil
-					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
-				}
-			})
+			klog.Infof("check if deployment's replicas are divided equally on member clusters")
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deploy *appsv1.Deployment) bool {
+					klog.Infof(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d, expected: %d.",
+						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, expectedReplicas))
+					return *deploy.Spec.Replicas == expectedReplicas
+				})
 
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
@@ -595,27 +483,22 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
-			framework.WaitDeploymentPresentOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return true
+				})
 
 			expectedReplicas := int32(3)
 			updateReplicas := expectedReplicas * int32(len(framework.Clusters()))
 			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateReplicas)
 
-			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
-				for _, cluster := range framework.Clusters() {
-					clusterClient := framework.GetClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					gomega.Eventually(func(g gomega.Gomega) (int32, error) {
-						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						g.Expect(err).NotTo(gomega.HaveOccurred())
-
-						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
-							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
-						return *memberDeployment.Spec.Replicas, nil
-					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
-				}
-			})
+			klog.Infof("check if deployment's replicas are divided equally on member clusters")
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deploy *appsv1.Deployment) bool {
+					klog.Infof(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d, expected: %d.",
+						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, expectedReplicas))
+					return *deploy.Spec.Replicas == expectedReplicas
+				})
 
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
@@ -681,7 +564,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())
 
-						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
+						klog.Infof(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
 						return *memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
@@ -750,7 +633,10 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
-			framework.WaitDeploymentPresentOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return true
+				})
 
 			sumWeight := 0
 			for index := range framework.ClusterNames() {
@@ -771,7 +657,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 						memberDeployment, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())
 
-						klog.Info(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
+						klog.Infof(fmt.Sprintf("Deployment(%s/%s)'s replcas is %d on cluster(%s), expected: %d.",
 							deploymentNamespace, deploymentName, *memberDeployment.Spec.Replicas, cluster.Name, expectedReplicas))
 						return *memberDeployment.Spec.Replicas, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
@@ -843,7 +729,7 @@ var _ = ginkgo.Describe("[JobReplicaScheduling] JobReplicaSchedulingStrategy tes
 						memberJob, err := clusterClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())
 
-						klog.Info(fmt.Sprintf("Job(%s/%s)'s parallelism is %d on cluster(%s), expected: %d.",
+						klog.Infof(fmt.Sprintf("Job(%s/%s)'s parallelism is %d on cluster(%s), expected: %d.",
 							jobNamespace, jobName, *memberJob.Spec.Parallelism, cluster.Name, expectedReplicas))
 						return *memberJob.Spec.Parallelism, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))

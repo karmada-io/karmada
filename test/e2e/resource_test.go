@@ -2,16 +2,13 @@ package e2e
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -64,18 +61,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By("updating deployment replicas", func() {
-				patch := map[string]interface{}{
-					"spec": map[string]interface{}{
-						"replicas": pointer.Int32Ptr(updateDeploymentReplicas),
-					},
-				}
-				bytes, err := json.Marshal(patch)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				_, err = kubeClient.AppsV1().Deployments(deploymentNamespace).Patch(context.TODO(), deploymentName, types.StrategicMergePatchType, bytes, metav1.PatchOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
 
 			ginkgo.By("check if deployment status has been update whit new collection", func() {
 				wantedReplicas := updateDeploymentReplicas * int32(len(framework.Clusters()))

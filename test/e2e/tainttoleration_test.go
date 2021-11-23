@@ -102,8 +102,7 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 
 			ginkgo.By(fmt.Sprintf("check if deployment(%s/%s) only scheduled to tolerated cluster(%s)", deploymentNamespace, deploymentName, tolerationValue), func() {
 				gomega.Eventually(func(g gomega.Gomega) {
-					targetClusterNames, err := getTargetClusterNames(deployment)
-					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					g.Expect(len(targetClusterNames) == 1).Should(gomega.BeTrue())
 					g.Expect(targetClusterNames[0] == tolerationValue).Should(gomega.BeTrue())
 				}, pollTimeout, pollInterval).Should(gomega.Succeed())
