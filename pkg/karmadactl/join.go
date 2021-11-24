@@ -99,6 +99,9 @@ type CommandJoinOption struct {
 
 	// ClusterKubeConfig is the cluster's kubeconfig path.
 	ClusterKubeConfig string
+
+	// ClusterProvider is the cluster's provider.
+	ClusterProvider string
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -134,6 +137,7 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
+	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster.")
 }
 
 // RunJoin is the implementation of the 'join' command.
@@ -194,7 +198,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return fmt.Errorf("failed to create secret in control plane. error: %v", err)
 	}
 
-	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts.ClusterName, *secret)
+	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts, *secret)
 	if err != nil {
 		return err
 	}
@@ -278,14 +282,18 @@ func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clust
 	return clusterSecret, nil
 }
 
-func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Config, clusterName string, secret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
+func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Config, opts CommandJoinOption, secret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
 	clusterObj := &clusterv1alpha1.Cluster{}
-	clusterObj.Name = clusterName
+	clusterObj.Name = opts.ClusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Push
 	clusterObj.Spec.APIEndpoint = clusterConfig.Host
 	clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
 		Namespace: secret.Namespace,
 		Name:      secret.Name,
+	}
+
+	if opts.ClusterProvider != "" {
+		clusterObj.Spec.Provider = opts.ClusterProvider
 	}
 
 	if clusterConfig.TLSClientConfig.Insecure {
@@ -303,7 +311,7 @@ func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Co
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneConfig)
 	cluster, err := CreateClusterObject(controlPlaneKarmadaClient, clusterObj, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster object. cluster name: %s, error: %v", clusterName, err)
+		return nil, fmt.Errorf("failed to create cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
 	}
 
 	return cluster, nil
