@@ -6,7 +6,7 @@ name: Build Release
 jobs:
   release-assests:
     name: release kubectl-karmada
-    runs-on: ubuntu-18.04    
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
         include:
@@ -22,7 +22,7 @@ jobs:
     - uses: actions/checkout@master
     - name: Set up Go
       uses: actions/setup-go@v2
-      with: 
+      with:
         go-version: 1.16
     - name: Making kubectl-karmada
       run: make kubectl-karmada
@@ -35,4 +35,12 @@ jobs:
       if: ${{ !env.ACT }}
       uses: softprops/action-gh-release@v1
       with:
-        files: ./kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz   
+        files: ./kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz
+  update-krew-index:
+    needs: release-assests
+    name: Update krew-index
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@master
+    - name: Update new version in krew-index
+      uses: rajatjindal/krew-release-bot@v0.0.40
