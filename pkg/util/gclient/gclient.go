@@ -9,6 +9,7 @@ import (
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -20,6 +21,7 @@ var aggregatedScheme = runtime.NewScheme()
 func init() {
 	var _ = scheme.AddToScheme(aggregatedScheme)             // add Kubernetes schemes
 	var _ = clusterv1alpha1.AddToScheme(aggregatedScheme)    // add cluster schemes
+	var _ = configv1alpha1.AddToScheme(aggregatedScheme)     // add config v1alpha1 schemes
 	var _ = policyv1alpha1.AddToScheme(aggregatedScheme)     // add propagation schemes
 	var _ = workv1alpha1.AddToScheme(aggregatedScheme)       // add work v1alpha1 schemes
 	var _ = workv1alpha2.AddToScheme(aggregatedScheme)       // add work v1alpha2 schemes
