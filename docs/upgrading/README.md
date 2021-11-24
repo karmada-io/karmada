@@ -67,5 +67,10 @@ Components upgrading is composed of image version update and possible command ar
 > For the argument changes please refer to `Details Upgrading Instruction` below.
 
 ## Details Upgrading Instruction
+
+The following instructions are for minor version upgrades. Cross-version upgrades are not recommended.
+And it is recommended to use the latest patch version when upgrading, for example, if you are upgrading from 
+v1.1.x to v1.2.x and the available patch versions are v1.2.0, v1.2.1 and v1.2.2, then select v1.2.2.
+
 ### [v0.8 to v0.9](./v0.8-v0.9.md)
 ### [v0.9 to v0.10](./v0.9-v0.10.md)
