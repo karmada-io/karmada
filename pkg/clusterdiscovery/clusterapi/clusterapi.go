@@ -15,6 +15,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	clusterapiv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4"
+	clusterapiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	secretutil "sigs.k8s.io/cluster-api/util/secret"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl"
@@ -22,12 +24,16 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
-	"github.com/karmada-io/karmada/pkg/util/names"
+)
+
+const (
+	resourceCluster = "clusters"
 )
 
 var (
 	clusterGVRs = []schema.GroupVersionResource{
-		{Group: clusterapiv1alpha4.GroupVersion.Group, Version: clusterapiv1alpha4.GroupVersion.Version, Resource: "clusters"},
+		{Group: clusterapiv1alpha4.GroupVersion.Group, Version: clusterapiv1alpha4.GroupVersion.Version, Resource: resourceCluster},
+		{Group: clusterapiv1beta1.GroupVersion.Group, Version: clusterapiv1beta1.GroupVersion.Version, Resource: resourceCluster},
 	}
 )
 
@@ -126,7 +132,7 @@ func (d *ClusterDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (
 	objectGVR := schema.GroupVersionResource{
 		Group:    objectKey.Group,
 		Version:  objectKey.Version,
-		Resource: "clusters",
+		Resource: resourceCluster,
 	}
 
 	object, err := d.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
@@ -152,7 +158,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 	secret := &corev1.Secret{}
 	secretKey := types.NamespacedName{
 		Namespace: clusterWideKey.Namespace,
-		Name:      names.GenerateClusterAPISecretName(clusterWideKey.Name),
+		Name:      secretutil.Name(clusterWideKey.Name, secretutil.Kubeconfig),
 	}
 	err := d.ClusterAPIClient.Get(context.TODO(), secretKey, secret)
 	if err != nil {
@@ -164,7 +170,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 		return err
 	}
 
-	kubeconfigPath, err := generateKubeconfigFile(clusterWideKey.Name, secret.Data["value"])
+	kubeconfigPath, err := generateKubeconfigFile(clusterWideKey.Name, secret.Data[secretutil.KubeconfigDataName])
 	if err != nil {
 		return err
 	}

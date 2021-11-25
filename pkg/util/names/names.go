@@ -108,8 +108,3 @@ func GenerateDerivedServiceName(serviceName string) string {
 func GenerateEstimatorServiceName(clusterName string) string {
 	return fmt.Sprintf("%s-%s", estimatorServicePrefix, clusterName)
 }
-
-// GenerateClusterAPISecretName generates the secret name of cluster authentication in cluster-api.
-func GenerateClusterAPISecretName(clusterName string) string {
-	return fmt.Sprintf("%s-kubeconfig", clusterName)
-}
