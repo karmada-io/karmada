@@ -101,9 +101,11 @@ function generate_cert_secret {
 
 # install Karmada's APIs
 function installCRDs() {
+    local crd_path=$1
+
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
-    kubectl kustomize "${REPO_ROOT}/charts/_crds" | kubectl apply -f -
+    kubectl kustomize "${crd_path}"/_crds | kubectl apply -f -
 }
 
 # generate cert
@@ -197,9 +199,13 @@ then
   recover_kubeconfig
   exit 1
 fi
-util::fill_cabundle "${ROOT_CA_FILE}" "${REPO_ROOT}/charts/_crds/patches/webhook_in_resourcebindings.yaml"
-util::fill_cabundle "${ROOT_CA_FILE}" "${REPO_ROOT}/charts/_crds/patches/webhook_in_clusterresourcebindings.yaml"
-installCRDs
+
+TEMP_PATH_CRDS=$(mktemp -d)
+cp -rf "${REPO_ROOT}"/charts/_crds "${TEMP_PATH_CRDS}"
+util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_resourcebindings.yaml"
+util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_clusterresourcebindings.yaml"
+installCRDs "${TEMP_PATH_CRDS}"
+rm -rf "${TEMP_PATH_CRDS}"
 
 # deploy webhook configurations on karmada apiserver
 util::deploy_webhook_configuration "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
