@@ -24,20 +24,7 @@ import (
 func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ResourceBinding, workload *unstructured.Unstructured) error {
 	var targetWorks []workv1alpha1.Work
 
-	// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
 	workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(
-		labels.Set{
-			workv1alpha2.ResourceBindingNamespaceLabel: binding.Namespace,
-			workv1alpha2.ResourceBindingNameLabel:      binding.Name,
-		},
-	))
-	if err != nil {
-		klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
-		return err
-	}
-	targetWorks = append(targetWorks, workList.Items...)
-
-	workList, err = GetWorksByLabelSelector(c, labels.SelectorFromSet(
 		labels.Set{
 			workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(binding.Namespace, binding.Name),
 		},
@@ -72,19 +59,7 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ClusterResourceBinding, workload *unstructured.Unstructured) error {
 	var targetWorks []workv1alpha1.Work
 
-	// TODO: Delete this logic in the next release to prevent incompatibility when upgrading the current release (v0.10.0).
 	workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(
-		labels.Set{
-			workv1alpha2.ClusterResourceBindingLabel: binding.Name,
-		},
-	))
-	if err != nil {
-		klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", binding.Name, err)
-		return err
-	}
-	targetWorks = append(targetWorks, workList.Items...)
-
-	workList, err = GetWorksByLabelSelector(c, labels.SelectorFromSet(
 		labels.Set{
 			workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", binding.Name),
 		},
