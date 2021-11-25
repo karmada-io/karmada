@@ -17,24 +17,17 @@ AGENT_POD_LABEL="karmada-agent"
 
 MIN_Go_VERSION=go1.16.0
 
-# This function installs a Go tools by 'go get' command.
+# This function installs a Go tools by 'go install' command.
 # Parameters:
 #  - $1: package name, such as "sigs.k8s.io/controller-tools/cmd/controller-gen"
 #  - $2: package version, such as "v0.4.1"
-# Note:
-#   Since 'go get' command will resolve and add dependencies to current module, that may update 'go.mod' and 'go.sum' file.
-#   So we use a temporary directory to install the tools.
 function util::install_tools() {
 	local package="$1"
 	local version="$2"
 
-	temp_path=$(mktemp -d)
-	pushd "${temp_path}" >/dev/null
-	GO111MODULE=on go get "${package}"@"${version}"
+	GO111MODULE=on go install "${package}"@"${version}"
 	GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 	export PATH=$PATH:$GOPATH/bin
-	popd >/dev/null
-	rm -rf "${temp_path}"
 }
 
 
@@ -82,7 +75,7 @@ function util::cmd_must_exist_cfssl {
     CFSSLJSON_BIN="${GOPATH}/bin/cfssljson"
     if [[ ! -x ${CFSSL_BIN} || ! -x ${CFSSLJSON_BIN} ]]; then
       echo "Failed to download 'cfssl'. Please install cfssl and cfssljson and verify they are in \$PATH."
-      echo "Hint: export PATH=\$PATH:\$GOPATH/bin; go get -u github.com/cloudflare/cfssl/cmd/..."
+      echo "Hint: export PATH=\$PATH:\$GOPATH/bin; go install github.com/cloudflare/cfssl/cmd/..."
       exit 1
     fi
 }

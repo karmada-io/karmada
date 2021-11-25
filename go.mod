@@ -13,6 +13,7 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
+	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
 	golang.org/x/tools v0.1.2
 	gomodules.xyz/jsonpatch/v2 v2.2.0
 	google.golang.org/grpc v1.38.0
