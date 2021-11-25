@@ -26,6 +26,17 @@ const (
 	// external objects(bootstrap and infrastructure providers).
 	ClusterLabelName = "cluster.x-k8s.io/cluster-name"
 
+	// ClusterTopologyLabelName is the label set on all the object which are managed as part of a ClusterTopology.
+	// Deprecated: use ClusterTopologyOwnedLabel instead.
+	ClusterTopologyLabelName = "cluster.x-k8s.io/topology"
+
+	// ClusterTopologyOwnedLabel is the label set on all the object which are managed as part of a ClusterTopology.
+	ClusterTopologyOwnedLabel = "topology.cluster.x-k8s.io/owned"
+
+	// ClusterTopologyMachineDeploymentLabelName is the label set on the generated  MachineDeployment objects
+	// to track the name of the MachineDeployment topology it represents.
+	ClusterTopologyMachineDeploymentLabelName = "topology.cluster.x-k8s.io/deployment-name"
+
 	// ProviderLabelName is the label set on components in the provider manifest.
 	// This label allows to easily identify all the components belonging to a provider; the clusterctl
 	// tool uses this label for implementing provider's lifecycle operations.
@@ -94,6 +105,11 @@ const (
 	ManagedByAnnotation = "cluster.x-k8s.io/managed-by"
 )
 
+const (
+	// TemplateSuffix is the object kind suffix used by template types.
+	TemplateSuffix = "Template"
+)
+
 var (
 	// ZeroDuration is a zero value of the metav1.Duration type.
 	ZeroDuration = metav1.Duration{}
@@ -101,7 +117,13 @@ var (
 
 const (
 	// MachineNodeNameIndex is used by the Machine Controller to index Machines by Node name, and add a watch on Nodes.
+	// Deprecated: Use api/v1alpha4/index.MachineNodeNameField instead.
 	MachineNodeNameIndex = "status.nodeRef.name"
+
+	// MachineProviderIDIndex is used to index Machines by ProviderID. It's useful to find Machines
+	// in a management cluster from Nodes in a workload cluster.
+	// Deprecated: Use api/v1alpha4/index.MachineProviderIDField instead.
+	MachineProviderIDIndex = "spec.providerID"
 )
 
 // MachineAddressType describes a valid MachineAddress type.

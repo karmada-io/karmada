@@ -60,6 +60,85 @@ type ClusterSpec struct {
 	// for provisioning infrastructure for a cluster in said provider.
 	// +optional
 	InfrastructureRef *corev1.ObjectReference `json:"infrastructureRef,omitempty"`
+
+	// This encapsulates the topology for the cluster.
+	// NOTE: It is required to enable the ClusterTopology
+	// feature gate flag to activate managed topologies support;
+	// this feature is highly experimental, and parts of it might still be not implemented.
+	// +optional
+	Topology *Topology `json:"topology,omitempty"`
+}
+
+// Topology encapsulates the information of the managed resources.
+type Topology struct {
+	// The name of the ClusterClass object to create the topology.
+	Class string `json:"class"`
+
+	// The Kubernetes version of the cluster.
+	Version string `json:"version"`
+
+	// RolloutAfter performs a rollout of the entire cluster one component at a time,
+	// control plane first and then machine deployments.
+	// +optional
+	RolloutAfter *metav1.Time `json:"rolloutAfter,omitempty"`
+
+	// ControlPlane describes the cluster control plane.
+	// +optional
+	ControlPlane ControlPlaneTopology `json:"controlPlane"`
+
+	// Workers encapsulates the different constructs that form the worker nodes
+	// for the cluster.
+	// +optional
+	Workers *WorkersTopology `json:"workers,omitempty"`
+}
+
+// ControlPlaneTopology specifies the parameters for the control plane nodes in the cluster.
+type ControlPlaneTopology struct {
+	// Metadata is the metadata applied to the machines of the ControlPlane.
+	// At runtime this metadata is merged with the corresponding metadata from the ClusterClass.
+	//
+	// This field is supported if and only if the control plane provider template
+	// referenced in the ClusterClass is Machine based.
+	Metadata ObjectMeta `json:"metadata,omitempty"`
+
+	// Replicas is the number of control plane nodes.
+	// If the value is nil, the ControlPlane object is created without the number of Replicas
+	// and it's assumed that the control plane controller does not implement support for this field.
+	// When specified against a control plane provider that lacks support for this field, this value will be ignored.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+}
+
+// WorkersTopology represents the different sets of worker nodes in the cluster.
+type WorkersTopology struct {
+	// MachineDeployments is a list of machine deployments in the cluster.
+	MachineDeployments []MachineDeploymentTopology `json:"machineDeployments,omitempty"`
+}
+
+// MachineDeploymentTopology specifies the different parameters for a set of worker nodes in the topology.
+// This set of nodes is managed by a MachineDeployment object whose lifecycle is managed by the Cluster controller.
+type MachineDeploymentTopology struct {
+	// Metadata is the metadata applied to the machines of the MachineDeployment.
+	// At runtime this metadata is merged with the corresponding metadata from the ClusterClass.
+	Metadata ObjectMeta `json:"metadata,omitempty"`
+
+	// Class is the name of the MachineDeploymentClass used to create the set of worker nodes.
+	// This should match one of the deployment classes defined in the ClusterClass object
+	// mentioned in the `Cluster.Spec.Class` field.
+	Class string `json:"class"`
+
+	// Name is the unique identifier for this MachineDeploymentTopology.
+	// The value is used with other unique identifiers to create a MachineDeployment's Name
+	// (e.g. cluster's name, etc). In case the name is greater than the allowed maximum length,
+	// the values are hashed together.
+	Name string `json:"name"`
+
+	// Replicas is the number of worker nodes belonging to this set.
+	// If the value is nil, the MachineDeployment is created without the number of Replicas (defaulting to zero)
+	// and it's assumed that an external entity (like cluster autoscaler) is responsible for the management
+	// of this value.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // ANCHOR_END: ClusterSpec
@@ -198,8 +277,8 @@ func (v APIEndpoint) String() string {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=clusters,shortName=cl,scope=Namespaced,categories=cluster-api
-// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time duration since creation of Cluster"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase",description="Cluster status such as Pending/Provisioning/Provisioned/Deleting/Failed"
 
 // Cluster is the Schema for the clusters API.
