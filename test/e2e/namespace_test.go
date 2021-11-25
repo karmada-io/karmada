@@ -145,9 +145,9 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
 					GlobalCommandOptions: options.GlobalCommandOptions{
-						ClusterNamespace: "karmada-cluster",
-						DryRun:           false,
+						DryRun: false,
 					},
+					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
@@ -162,9 +162,9 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandUnjoinOption{
 					GlobalCommandOptions: options.GlobalCommandOptions{
-						ClusterNamespace: "karmada-cluster",
-						DryRun:           false,
+						DryRun: false,
 					},
+					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,

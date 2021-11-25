@@ -175,10 +175,10 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 	}
 	opts := karmadactl.CommandJoinOption{
 		GlobalCommandOptions: options.GlobalCommandOptions{
-			ClusterNamespace: options.DefaultKarmadaClusterNamespace,
-			DryRun:           false,
+			DryRun: false,
 		},
-		ClusterName: clusterWideKey.Name,
+		ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+		ClusterName:      clusterWideKey.Name,
 	}
 	err = karmadactl.JoinCluster(d.ControllerPlaneConfig, clusterRestConfig, opts)
 	if err != nil {
@@ -194,11 +194,11 @@ func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 	klog.Infof("Begin to unJoin cluster-api's Cluster(%s) to karmada", clusterName)
 	opts := karmadactl.CommandUnjoinOption{
 		GlobalCommandOptions: options.GlobalCommandOptions{
-			ClusterNamespace: options.DefaultKarmadaClusterNamespace,
-			DryRun:           false,
+			DryRun: false,
 		},
-		ClusterName: clusterName,
-		Wait:        options.DefaultKarmadactlCommandDuration,
+		ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+		ClusterName:      clusterName,
+		Wait:             options.DefaultKarmadactlCommandDuration,
 	}
 	err := karmadactl.UnJoinCluster(d.ControllerPlaneConfig, nil, opts)
 	if err != nil {

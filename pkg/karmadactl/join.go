@@ -91,6 +91,9 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *c
 type CommandJoinOption struct {
 	options.GlobalCommandOptions
 
+	// ClusterNamespace holds the namespace name where the member cluster objects are stored.
+	ClusterNamespace string
+
 	// ClusterName is the cluster's name that we are going to join with.
 	ClusterName string
 
@@ -129,6 +132,8 @@ func (j *CommandJoinOption) Validate() error {
 // AddFlags adds flags to the specified FlagSet.
 func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	j.GlobalCommandOptions.AddFlags(flags)
+
+	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster are stored.")
 
 	flags.StringVar(&j.ClusterContext, "cluster-context", "",
 		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
