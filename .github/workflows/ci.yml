@@ -9,6 +9,8 @@ jobs:
     name: lint
     runs-on: ubuntu-18.04
     steps:
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
       - name: checkout code
         uses: actions/checkout@v2
       - name: install Go
@@ -21,6 +23,8 @@ jobs:
         run: hack/verify-staticcheck.sh
       - name: import alias
         run: hack/verify-import-aliases.sh
+      - name: protobuf
+        run: hack/verify-estimator-protobuf.sh
   codegen:
     name: codegen
     runs-on: ubuntu-18.04
