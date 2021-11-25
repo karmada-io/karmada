@@ -38,13 +38,14 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 		return 0
 	}
 
-	allowedPodNumber := resourceSummary.Allocatable.Pods().Value() - resourceSummary.Allocated.Pods().Value() - resourceSummary.Allocating.Pods().Value()
-	// When too many pods have been created, scheduling will fail so that the allocating pods number may be huge.
-	// If allowedPodNumber is less than 0, we don't allow more pods to be created.
-	if allowedPodNumber <= 0 {
+	maximumReplicas := getAllowedPodNumber(resourceSummary)
+	if maximumReplicas <= 0 {
 		return 0
 	}
-	maximumReplicas := allowedPodNumber
+
+	if replicaRequirements == nil {
+		return int32(maximumReplicas)
+	}
 
 	for key, value := range replicaRequirements.ResourceRequest {
 		requestedQuantity := value.Value()
@@ -84,4 +85,24 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 	}
 
 	return int32(maximumReplicas)
+}
+
+func getAllowedPodNumber(resourceSummary *clusterv1alpha1.ResourceSummary) int64 {
+	var allocatable, allocated, allocating int64
+	if resourceSummary.Allocatable != nil {
+		allocatable = resourceSummary.Allocatable.Pods().Value()
+	}
+	if resourceSummary.Allocated != nil {
+		allocated = resourceSummary.Allocated.Pods().Value()
+	}
+	if resourceSummary.Allocating != nil {
+		allocating = resourceSummary.Allocating.Pods().Value()
+	}
+	allowedPodNumber := allocatable - allocated - allocating
+	// When too many pods have been created, scheduling will fail so that the allocating pods number may be huge.
+	// If allowedPodNumber is less than 0, we don't allow more pods to be created.
+	if allowedPodNumber <= 0 {
+		return 0
+	}
+	return allowedPodNumber
 }
