@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -266,8 +267,11 @@ func (c *ClusterResourceBindingController) updateFullyAppliedCondition(binding *
 		Message: FullyAppliedSuccessMessage,
 	}
 
-	meta.SetStatusCondition(&binding.Status.Conditions, newBindingFullyAppliedCondition)
-	err := c.Client.Status().Update(context.TODO(), binding)
-
-	return err
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, binding); err != nil {
+			return err
+		}
+		meta.SetStatusCondition(&binding.Status.Conditions, newBindingFullyAppliedCondition)
+		return c.Status().Update(context.TODO(), binding)
+	})
 }

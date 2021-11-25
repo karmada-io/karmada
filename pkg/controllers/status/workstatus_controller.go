@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -288,14 +289,13 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		manifestStatus.Status = rawExtension
 	}
 
-	work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
-
-	if err := c.Client.Status().Update(context.TODO(), work); err != nil {
-		klog.Errorf("Failed to reflect status to work(%s/%s): %v", work.Namespace, work.Name, err)
-		return err
-	}
-
-	return nil
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, work); err != nil {
+			return err
+		}
+		work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
+		return c.Status().Update(context.TODO(), work)
+	})
 }
 
 func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {
