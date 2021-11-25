@@ -123,6 +123,12 @@ const (
 
 	// WaitingExternalHookReason (Severity=Info) provide evidence that we are waiting for an external hook to complete.
 	WaitingExternalHookReason = "WaitingExternalHook"
+
+	// VolumeDetachSucceededCondition reports a machine waiting for volumes to be detached.
+	VolumeDetachSucceededCondition ConditionType = "VolumeDetachSucceeded"
+
+	// WaitingForVolumeDetachReason (Severity=Info) provide evidence that a machine node waiting for volumes to be attached.
+	WaitingForVolumeDetachReason = "WaitingForVolumeDetach"
 )
 
 const (
@@ -200,4 +206,48 @@ const (
 	// TooManyUnhealthyReason is the reason used when too many Machines are unhealthy and the MachineHealthCheck is blocked
 	// from making any further remediations.
 	TooManyUnhealthyReason = "TooManyUnhealthy"
+)
+
+// Conditions and condition Reasons for  MachineDeployments
+
+const (
+	// MachineDeploymentAvailableCondition means the MachineDeployment is available, that is, at least the minimum available
+	// machines required (i.e. Spec.Replicas-MaxUnavailable when MachineDeploymentStrategyType = RollingUpdate) are up and running for at least minReadySeconds.
+	MachineDeploymentAvailableCondition ConditionType = "Available"
+
+	// WaitingForAvailableMachinesReason (Severity=Warning) reflects the fact that the required minimum number of machines for a machinedeployment are not available.
+	WaitingForAvailableMachinesReason = "WaitingForAvailableMachines"
+)
+
+// Conditions and condition Reasons for  MachineSets
+
+const (
+	// MachinesCreatedCondition documents that the machines controlled by the MachineSet are created.
+	// When this condition is false, it indicates that there was an error when cloning the infrastructure/bootstrap template or
+	// when generating the machine object.
+	MachinesCreatedCondition ConditionType = "MachinesCreated"
+
+	// MachinesReadyCondition reports an aggregate of current status of the machines controlled by the MachineSet.
+	MachinesReadyCondition ConditionType = "MachinesReady"
+
+	// BootstrapTemplateCloningFailedReason (Severity=Error) documents a MachineSet failing to
+	// clone the bootstrap template.
+	BootstrapTemplateCloningFailedReason = "BootstrapTemplateCloningFailed"
+
+	// InfrastructureTemplateCloningFailedReason (Severity=Error) documents a MachineSet failing to
+	// clone the infrastructure template.
+	InfrastructureTemplateCloningFailedReason = "InfrastructureTemplateCloningFailed"
+
+	// MachineCreationFailedReason (Severity=Error) documents a MachineSet failing to
+	// generate a machine object.
+	MachineCreationFailedReason = "MachineCreationFailed"
+
+	// ResizedCondition documents a MachineSet is resizing the set of controlled machines.
+	ResizedCondition ConditionType = "Resized"
+
+	// ScalingUpReason (Severity=Info) documents a MachineSet is increasing the number of replicas.
+	ScalingUpReason = "ScalingUp"
+
+	// ScalingDownReason (Severity=Info) documents a MachineSet is decreasing the number of replicas.
+	ScalingDownReason = "ScalingDown"
 )

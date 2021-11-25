@@ -1355,6 +1355,13 @@ func SetsockoptTpacketReq3(fd, level, opt int, tp *TpacketReq3) error {
 	return setsockopt(fd, level, opt, unsafe.Pointer(tp), unsafe.Sizeof(*tp))
 }
 
+func SetsockoptTCPRepairOpt(fd, level, opt int, o []TCPRepairOpt) (err error) {
+	if len(o) == 0 {
+		return EINVAL
+	}
+	return setsockopt(fd, level, opt, unsafe.Pointer(&o[0]), uintptr(SizeofTCPRepairOpt*len(o)))
+}
+
 // Keyctl Commands (http://man7.org/linux/man-pages/man2/keyctl.2.html)
 
 // KeyctlInt calls keyctl commands in which each argument is an int.

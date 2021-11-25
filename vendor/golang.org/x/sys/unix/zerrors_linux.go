@@ -2548,6 +2548,14 @@ const (
 	TCOFLUSH                                    = 0x1
 	TCOOFF                                      = 0x0
 	TCOON                                       = 0x1
+	TCPOPT_EOL                                  = 0x0
+	TCPOPT_MAXSEG                               = 0x2
+	TCPOPT_NOP                                  = 0x1
+	TCPOPT_SACK                                 = 0x5
+	TCPOPT_SACK_PERMITTED                       = 0x4
+	TCPOPT_TIMESTAMP                            = 0x8
+	TCPOPT_TSTAMP_HDR                           = 0x101080a
+	TCPOPT_WINDOW                               = 0x3
 	TCP_CC_INFO                                 = 0x1a
 	TCP_CM_INQ                                  = 0x24
 	TCP_CONGESTION                              = 0xd
