@@ -226,3 +226,14 @@ func GetClusterNamesFromClusters(clusters []*clusterv1alpha1.Cluster) []string {
 	}
 	return clusterNames
 }
+
+// WaitClusterFitWith wait cluster fit with fit func.
+func WaitClusterFitWith(c client.Client, clusterName string, fit func(cluster *clusterv1alpha1.Cluster) bool) {
+	gomega.Eventually(func() (bool, error) {
+		currentCluster, err := util.GetCluster(c, clusterName)
+		if err != nil {
+			return false, err
+		}
+		return fit(currentCluster), nil
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}

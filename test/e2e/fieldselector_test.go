@@ -111,8 +111,7 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("check whether deployment is scheduled to clusters which meeting the fieldSelector requirements", func() {
-				targetClusterNames, err := getTargetClusterNames(deployment)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 				gomega.Expect(len(targetClusterNames) == 1).Should(gomega.BeTrue())
 				gomega.Expect(targetClusterNames[0] == desiredScheduleResult).Should(gomega.BeTrue())
 			})
