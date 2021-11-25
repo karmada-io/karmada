@@ -191,7 +191,7 @@ func TestDefaultSkippedResourceConfigGroupParse(t *testing.T) {
 		{
 			input: "",
 			out: []string{
-				"cluster.karmada.io", "policy.karmada.io", "work.karmada.io", "events.k8s.io",
+				"cluster.karmada.io", "policy.karmada.io", "work.karmada.io", "config.karmada.io", "events.k8s.io",
 			}},
 	}
 	for _, test := range tests {
