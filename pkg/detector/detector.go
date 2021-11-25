@@ -3,7 +3,6 @@ package detector
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -357,23 +356,19 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 		policyList = append(policyList, policy)
 	}
 
-	matchedPolicies := make([]*policyv1alpha1.PropagationPolicy, 0)
+	var matchedPolicy *policyv1alpha1.PropagationPolicy
 	for _, policy := range policyList {
 		if util.ResourceMatchSelectors(object, policy.Spec.ResourceSelectors...) {
-			matchedPolicies = append(matchedPolicies, policy)
+			matchedPolicy = GetHigherPriorityPropagationPolicy(matchedPolicy, policy)
 		}
 	}
 
-	sort.Slice(matchedPolicies, func(i, j int) bool {
-		return matchedPolicies[i].Name < matchedPolicies[j].Name
-	})
-
-	if len(matchedPolicies) == 0 {
+	if matchedPolicy == nil {
 		klog.V(2).Infof("no propagationpolicy match for resource(%s)", objectKey)
 		return nil, nil
 	}
-	klog.V(2).Infof("Matched policy(%s/%s) for resource(%s)", matchedPolicies[0].Namespace, matchedPolicies[0].Name, objectKey)
-	return matchedPolicies[0], nil
+	klog.V(2).Infof("Matched policy(%s/%s) for resource(%s)", matchedPolicy.Namespace, matchedPolicy.Name, objectKey)
+	return matchedPolicy, nil
 }
 
 // LookForMatchedClusterPolicy tries to find a ClusterPropagationPolicy for object referenced by object key.
@@ -399,23 +394,19 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 		policyList = append(policyList, policy)
 	}
 
-	matchedClusterPolicies := make([]*policyv1alpha1.ClusterPropagationPolicy, 0)
+	var matchedClusterPolicy *policyv1alpha1.ClusterPropagationPolicy
 	for _, policy := range policyList {
 		if util.ResourceMatchSelectors(object, policy.Spec.ResourceSelectors...) {
-			matchedClusterPolicies = append(matchedClusterPolicies, policy)
+			matchedClusterPolicy = GetHigherPriorityClusterPropagationPolicy(matchedClusterPolicy, policy)
 		}
 	}
 
-	sort.Slice(matchedClusterPolicies, func(i, j int) bool {
-		return matchedClusterPolicies[i].Name < matchedClusterPolicies[j].Name
-	})
-
-	if len(matchedClusterPolicies) == 0 {
+	if matchedClusterPolicy == nil {
 		klog.V(2).Infof("no propagationpolicy match for resource(%s)", objectKey)
 		return nil, nil
 	}
-	klog.V(2).Infof("Matched cluster policy(%s) for resource(%s)", matchedClusterPolicies[0].Name, objectKey)
-	return matchedClusterPolicies[0], nil
+	klog.V(2).Infof("Matched cluster policy(%s) for resource(%s)", matchedClusterPolicy.Name, objectKey)
+	return matchedClusterPolicy, nil
 }
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
