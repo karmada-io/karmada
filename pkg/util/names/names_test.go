@@ -1,6 +1,14 @@
 package names
 
-import "testing"
+import (
+	"fmt"
+	"hash/fnv"
+	"testing"
+
+	"k8s.io/apimachinery/pkg/util/rand"
+
+	hashutil "github.com/karmada-io/karmada/pkg/util/hash"
+)
 
 func TestGenerateExecutionSpaceName(t *testing.T) {
 	type args struct {
@@ -82,11 +90,17 @@ func TestGenerateBindingReferenceKey(t *testing.T) {
 		name      string
 		namespace string
 	}{
-		{name: "mytest-deployment",
+		{
+			name:      "mytest-deployment",
 			namespace: "prod-xxx",
 		},
-		{name: "mytest-deployment",
+		{
+			name:      "mytest-deployment",
 			namespace: "qa-xxx",
+		},
+		{
+			name:      "mytest-deployment",
+			namespace: "",
 		},
 	}
 	result := map[string]struct{}{}
@@ -98,5 +112,175 @@ func TestGenerateBindingReferenceKey(t *testing.T) {
 			}
 			result[got] = struct{}{}
 		})
+	}
+}
+
+func TestGenerateBindingName(t *testing.T) {
+	tests := []struct {
+		testCase string
+		kind     string
+		name     string
+		expect   string
+	}{
+		{
+			testCase: "uppercase kind",
+			kind:     "Pods",
+			name:     "pod",
+			expect:   "pod-pods",
+		},
+		{
+			testCase: "uppercase name",
+			kind:     "pods",
+			name:     "Pod",
+			expect:   "pod-pods",
+		},
+		{
+			testCase: "lowercase name",
+			kind:     "pods",
+			name:     "Pod",
+			expect:   "pod-pods",
+		},
+	}
+	for _, test := range tests {
+		if result := GenerateBindingName(test.kind, test.name); result != test.expect {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.testCase, test.expect, result)
+		}
+	}
+}
+
+func TestGenerateWorkName(t *testing.T) {
+	tests := []struct {
+		testCase  string
+		kind      string
+		name      string
+		namespace string
+		workname  string
+	}{
+		{
+			testCase:  "empty namespace",
+			kind:      "Pod",
+			name:      "pod",
+			namespace: "",
+			workname:  "pod-pod",
+		},
+		{
+			testCase:  "non nil namespace",
+			kind:      "pods",
+			name:      "Pod",
+			namespace: "default",
+			workname:  "default-pod-pods",
+		},
+	}
+
+	for _, test := range tests {
+		got := GenerateWorkName(test.kind, test.name, test.namespace)
+
+		hash := fnv.New32a()
+		hashutil.DeepHashObject(hash, test.workname)
+		if result := fmt.Sprintf("%s-%s", test.name, rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))); result != got {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.testCase, result, got)
+		}
+	}
+}
+
+func TestGenerateServiceAccountName(t *testing.T) {
+	tests := []struct {
+		name        string
+		clusterName string
+		expected    string
+	}{
+		{
+			name:        "non empty clusterName",
+			clusterName: "cluster1",
+			expected:    "karmada-cluster1",
+		},
+	}
+	for _, test := range tests {
+		got := GenerateServiceAccountName(test.clusterName)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
+
+func TestGenerateRoleName(t *testing.T) {
+	tests := []struct {
+		name               string
+		serviceAccountName string
+		expected           string
+	}{
+		{
+			name:               "non empty serviceAccountName",
+			serviceAccountName: "account",
+			expected:           "karmada-controller-manager:account",
+		},
+	}
+	for _, test := range tests {
+		got := GenerateRoleName(test.serviceAccountName)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
+
+func TestGenerateEndpointSliceName(t *testing.T) {
+	tests := []struct {
+		name              string
+		endpointSliceName string
+		cluster           string
+		expected          string
+	}{
+		{
+			name:              "",
+			endpointSliceName: "endpoint",
+			cluster:           "cluster",
+			expected:          "imported-cluster-endpoint",
+		},
+	}
+	for _, test := range tests {
+		got := GenerateEndpointSliceName(test.endpointSliceName, test.cluster)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
+
+func TestGenerateDerivedServiceName(t *testing.T) {
+	tests := []struct {
+		name        string
+		serviceName string
+		expected    string
+	}{
+		{
+			name:        "",
+			serviceName: "service",
+			expected:    "derived-service",
+		},
+	}
+	for _, test := range tests {
+		got := GenerateDerivedServiceName(test.serviceName)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
+
+func TestGenerateEstimatorServiceName(t *testing.T) {
+	tests := []struct {
+		name        string
+		clusterName string
+		expected    string
+	}{
+		{
+			name:        "",
+			clusterName: "cluster",
+			expected:    "karmada-scheduler-estimator-cluster",
+		},
+	}
+	for _, test := range tests {
+		got := GenerateEstimatorServiceName(test.clusterName)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
 	}
 }
