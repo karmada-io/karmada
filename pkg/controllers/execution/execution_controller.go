@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -241,7 +242,11 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		LastTransitionTime: metav1.Now(),
 	}
 
-	meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
-	err := c.Client.Status().Update(context.TODO(), work)
-	return err
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, work); err != nil {
+			return err
+		}
+		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
+		return c.Status().Update(context.TODO(), work)
+	})
 }
