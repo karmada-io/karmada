@@ -89,6 +89,12 @@ karmada-interpreter-webhook-example: $(SOURCES)
 		-o karmada-interpreter-webhook-example \
 		examples/customresourceinterpreter/webhook/main.go
 
+karmada-backend: $(SOURCES)
+    CGO_ENABLED=0 GOOS=$(GOOS) go build \
+        -ldflags $(LDFLAGS) \
+        -o karmada-backend \
+        cmd/backend/main.go
+
 clean:
 	rm -rf karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
 
@@ -125,6 +131,9 @@ image-karmada-scheduler-estimator: karmada-scheduler-estimator
 
 image-karmada-interpreter-webhook-example: karmada-interpreter-webhook-example
 	VERSION=$(VERSION) hack/docker.sh karmada-interpreter-webhook-example
+
+image-karmada-backend: karmada-backend
+    VERSION=$(VERSION) hack/docker.sh karmada-backend
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"

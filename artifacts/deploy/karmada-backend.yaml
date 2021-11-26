@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-backend
+  namespace: karmada-system
+  labels:
+    app: karmada-backend
+spec:
+  selector:
+    matchLabels:
+      app: karmada-backend
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: karmada-backend
+    spec:
+      containers:
+        - image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-backend:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/karmada-backend
+          volumeMounts:
+            - name: kubeconfig
+              subPath: kubeconfig
+              mountPath: /etc/kubeconfig
+          name: karmada-backend
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          #            resources:
+          #              limits:
+          #                cpu: 100m
+          #                memory: 100Mi
+          #              requests:
+          #                cpu: 50m
+          #                memory: 50Mi
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-backend
+  namespace: karmada-system
+  labels:
+    app: karmada-backend
+spec:
+  type: NodePort
+  ports:
+    - name: api
+      port: 8080
+      protocol: TCP
+      nodePort: 38080
+#      targetPort: 8080
+  selector:
+    app: karmada-backend

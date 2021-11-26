@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
 	github.com/evanphx/json-patch/v5 v5.2.0
+	github.com/gin-gonic/gin v1.7.7
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/uuid v1.1.2
 	github.com/kr/pretty v0.3.0
