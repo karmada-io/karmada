@@ -126,6 +126,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 		util.MergeLabel(namespaceObj, workv1alpha1.WorkNameLabel, workName)
 
 		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, namespaceObj); err != nil {
+			c.EventRecorder.Event(namespace, corev1.EventTypeWarning, "FailedToCreateWork", err.Error())
 			return err
 		}
 	}

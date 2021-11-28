@@ -94,6 +94,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if err = c.Client.Create(context.TODO(), newDerivedService); err != nil {
+				c.EventRecorder.Event(svcImport, corev1.EventTypeWarning, "CreateDerivedServiceFailed", err.Error())
 				klog.Errorf("Create derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
 				return controllerruntime.Result{Requeue: true}, err
 			}
@@ -109,6 +110,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 
 	err = c.Client.Update(context.TODO(), newDerivedService)
 	if err != nil {
+		c.EventRecorder.Event(svcImport, corev1.EventTypeWarning, "UpdateDerivedServiceFailed", err.Error())
 		klog.Errorf("Update derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
