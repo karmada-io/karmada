@@ -55,12 +55,6 @@ const (
 
 	// FailoverSchedule means one of the cluster a binding object associated with becomes failure.
 	FailoverSchedule ScheduleType = "FailoverSchedule"
-
-	// AvoidSchedule means don't need to trigger scheduler.
-	AvoidSchedule ScheduleType = "AvoidSchedule"
-
-	// Unknown means can't detect the schedule type
-	Unknown ScheduleType = "Unknown"
 )
 
 const (
@@ -370,18 +364,6 @@ func (s *Scheduler) getClusterPlacement(crb *workv1alpha2.ClusterResourceBinding
 	return placement, string(placementBytes), nil
 }
 
-func (s *Scheduler) getScheduleType(key string) ScheduleType {
-	ns, name, err := cache.SplitMetaNamespaceKey(key)
-	if err != nil {
-		return Unknown
-	}
-
-	if len(ns) > 0 {
-		return s.getTypeFromResourceBindings(ns, name)
-	}
-	return s.getTypeFromClusterResourceBindings(name)
-}
-
 func (s *Scheduler) scheduleNext() bool {
 	key, shutdown := s.queue.Get()
 	if shutdown {
@@ -390,82 +372,135 @@ func (s *Scheduler) scheduleNext() bool {
 	}
 	defer s.queue.Done(key)
 
-	start := time.Now()
-
-	keys := key.(string)
-
-	var err error
-	switch s.getScheduleType(keys) {
-	case FirstSchedule:
-		err = s.scheduleOne(keys)
-		klog.Infof("Start scheduling binding(%s)", key)
-		metrics.BindingSchedule(string(FirstSchedule), metrics.SinceInSeconds(start), err)
-	case ReconcileSchedule: // share same logic with first schedule
-		err = s.scheduleOne(keys)
-		klog.Infof("Reschedule binding(%s) as placement changed", keys)
-		metrics.BindingSchedule(string(ReconcileSchedule), metrics.SinceInSeconds(start), err)
-	case ScaleSchedule:
-		err = s.scaleScheduleOne(keys)
-		klog.Infof("Reschedule binding(%s) as replicas scaled down or scaled up", keys)
-		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
-	case FailoverSchedule:
-		if features.FeatureGate.Enabled(features.Failover) {
-			err = s.rescheduleOne(keys)
-			klog.Infof("Reschedule binding(%s) as cluster failure", keys)
-			metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
-		}
-	case AvoidSchedule:
-		klog.Infof("Don't need to schedule binding(%s)", keys)
-	default:
-		err = fmt.Errorf("unknow schedule type")
-		klog.Warningf("Failed to identify scheduler type for binding(%s)", keys)
-	}
-
+	err := s.doSchedule(key.(string))
 	s.handleErr(err, key)
 	return true
 }
 
-func (s *Scheduler) scheduleOne(key string) (err error) {
-	klog.V(4).Infof("begin scheduling ResourceBinding %s", key)
-	defer klog.V(4).Infof("end scheduling ResourceBinding %s: %v", key, err)
-
+func (s *Scheduler) doSchedule(key string) error {
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
+	if len(ns) > 0 {
+		return s.doScheduleBinding(ns, name)
+	}
+	return s.doScheduleClusterBinding(name)
+}
 
-	if ns == "" {
-		clusterResourceBinding, err := s.clusterBindingLister.Get(name)
+func (s *Scheduler) doScheduleBinding(namespace, name string) error {
+	rb, err := s.bindingLister.ResourceBindings(namespace).Get(name)
+	if err != nil {
 		if apierrors.IsNotFound(err) {
+			// the binding does not exist, do nothing
 			return nil
 		}
-
-		clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
-
-		clusterPolicy, err := s.clusterPolicyLister.Get(clusterPolicyName)
-		if err != nil {
-			return err
-		}
-
-		return s.scheduleClusterResourceBinding(clusterResourceBinding, clusterPolicy)
+		return err
 	}
-	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-	if apierrors.IsNotFound(err) {
+
+	start := time.Now()
+	if !helper.IsBindingReady(&rb.Status) {
+		// the binding has not been scheduled, need schedule
+		klog.Infof("Start scheduling ResourceBinding(%s/%s)", namespace, name)
+		err = s.scheduleResourceBinding(rb)
+		metrics.BindingSchedule(string(FirstSchedule), metrics.SinceInSeconds(start), err)
+		return err
+	}
+	policyPlacement, policyPlacementStr, err := s.getPlacement(rb)
+	if err != nil {
+		return err
+	}
+	appliedPlacement := util.GetLabelValue(rb.Annotations, util.PolicyPlacementAnnotation)
+	if policyPlacementStr != appliedPlacement {
+		// policy placement changed, need reschedule
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as placement changed", namespace, name)
+		err = s.scheduleResourceBinding(rb)
+		metrics.BindingSchedule(string(ReconcileSchedule), metrics.SinceInSeconds(start), err)
+		return err
+	}
+	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&rb.Spec, policyPlacement.ReplicaScheduling) {
+		// binding replicas changed, need reschedule
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as replicas scaled down or scaled up", namespace, name)
+		err = s.scaleScheduleResourceBinding(rb)
+		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
+		return err
+	}
+	// TODO(dddddai): reschedule bindings on cluster change
+	if s.allClustersInReadyState(rb.Spec.Clusters) {
+		klog.Infof("Don't need to schedule ResourceBinding(%s/%s)", namespace, name)
 		return nil
 	}
+	if features.FeatureGate.Enabled(features.Failover) {
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster failure", namespace, name)
+		err = s.rescheduleResourceBinding(rb)
+		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
+		return err
+	}
+	return nil
+}
 
-	return s.scheduleResourceBinding(resourceBinding)
+func (s *Scheduler) doScheduleClusterBinding(name string) error {
+	crb, err := s.clusterBindingLister.Get(name)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// the binding does not exist, do nothing
+			return nil
+		}
+		return err
+	}
+
+	start := time.Now()
+	if !helper.IsBindingReady(&crb.Status) {
+		// the binding has not been scheduled, need schedule
+		klog.Infof("Start scheduling ClusterResourceBinding(%s)", name)
+		err = s.scheduleClusterResourceBinding(crb)
+		metrics.BindingSchedule(string(FirstSchedule), metrics.SinceInSeconds(start), err)
+		return err
+	}
+	policyPlacement, policyPlacementStr, err := s.getClusterPlacement(crb)
+	if err != nil {
+		return err
+	}
+	appliedPlacement := util.GetLabelValue(crb.Annotations, util.PolicyPlacementAnnotation)
+	if policyPlacementStr != appliedPlacement {
+		// policy placement changed, need reschedule
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as placement changed", name)
+		err = s.scheduleClusterResourceBinding(crb)
+		metrics.BindingSchedule(string(ReconcileSchedule), metrics.SinceInSeconds(start), err)
+		return err
+	}
+	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&crb.Spec, policyPlacement.ReplicaScheduling) {
+		// binding replicas changed, need reschedule
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as replicas scaled down or scaled up", name)
+		err = s.scaleScheduleClusterResourceBinding(crb)
+		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
+		return err
+	}
+	// TODO(dddddai): reschedule bindings on cluster change
+	if s.allClustersInReadyState(crb.Spec.Clusters) {
+		klog.Infof("Don't need to schedule ClusterResourceBinding(%s)", name)
+		return nil
+	}
+	if features.FeatureGate.Enabled(features.Failover) {
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as cluster failure", name)
+		err = s.rescheduleClusterResourceBinding(crb)
+		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
+		return err
+	}
+	return nil
 }
 
 func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) (err error) {
+	klog.V(4).InfoS("Begin scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
+	defer klog.V(4).InfoS("End scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
+
 	placement, placementStr, err := s.getPlacement(resourceBinding)
 	if err != nil {
 		return err
 	}
-
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec)
 	if err != nil {
-		klog.V(2).Infof("failed scheduling ResourceBinding %s/%s: %v", resourceBinding.Namespace, resourceBinding.Name, err)
+		klog.V(2).Infof("Failed scheduling ResourceBinding %s/%s: %v", resourceBinding.Namespace, resourceBinding.Name, err)
 		return err
 	}
 	klog.V(4).Infof("ResourceBinding %s/%s scheduled to clusters %v", resourceBinding.Namespace, resourceBinding.Name, scheduleResult.SuggestedClusters)
@@ -485,10 +520,18 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.Resour
 	return s.updateBindingStatusIfNeeded(binding)
 }
 
-func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
+func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) (err error) {
+	klog.V(4).InfoS("Begin scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
+	defer klog.V(4).InfoS("End scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
+
+	clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
+	policy, err := s.clusterPolicyLister.Get(clusterPolicyName)
+	if err != nil {
+		return err
+	}
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
 	if err != nil {
-		klog.V(2).Infof("failed scheduling ClusterResourceBinding %s: %v", clusterResourceBinding.Name, err)
+		klog.V(2).Infof("Failed scheduling ClusterResourceBinding %s: %v", clusterResourceBinding.Name, err)
 		return err
 	}
 	klog.V(4).Infof("ClusterResourceBinding %s scheduled to clusters %v", clusterResourceBinding.Name, scheduleResult.SuggestedClusters)
@@ -530,7 +573,7 @@ func (s *Scheduler) addCluster(obj interface{}) {
 		klog.Errorf("cannot convert to Cluster: %v", obj)
 		return
 	}
-	klog.V(3).Infof("add event for cluster %s", cluster.Name)
+	klog.V(3).Infof("Add event for cluster %s", cluster.Name)
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.AddRateLimited(cluster.Name)
@@ -543,7 +586,7 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 		klog.Errorf("cannot convert newObj to Cluster: %v", newObj)
 		return
 	}
-	klog.V(3).Infof("update event for cluster %s", newCluster.Name)
+	klog.V(3).Infof("Update event for cluster %s", newCluster.Name)
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.AddRateLimited(newCluster.Name)
@@ -577,7 +620,7 @@ func (s *Scheduler) deleteCluster(obj interface{}) {
 		klog.Errorf("cannot convert to clusterv1alpha1.Cluster: %v", t)
 		return
 	}
-	klog.V(3).Infof("delete event for cluster %s", cluster.Name)
+	klog.V(3).Infof("Delete event for cluster %s", cluster.Name)
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.AddRateLimited(cluster.Name)
@@ -626,49 +669,16 @@ func (s *Scheduler) enqueueAffectedClusterBinding(notReadyClusterName string) {
 	}
 }
 
-// rescheduleOne.
-func (s *Scheduler) rescheduleOne(key string) (err error) {
-	ns, name, err := cache.SplitMetaNamespaceKey(key)
-	if err != nil {
-		return err
-	}
-
-	// ClusterResourceBinding object
-	if ns == "" {
-		klog.Infof("begin rescheduling ClusterResourceBinding %s", name)
-		defer klog.Infof("end rescheduling ClusterResourceBinding %s", name)
-
-		clusterResourceBinding, err := s.clusterBindingLister.Get(name)
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		crBinding := clusterResourceBinding.DeepCopy()
-		return s.rescheduleClusterResourceBinding(crBinding)
-	}
-
-	// ResourceBinding object
-	if len(ns) > 0 {
-		klog.Infof("begin rescheduling ResourceBinding %s %s", ns, name)
-		defer klog.Infof("end rescheduling ResourceBinding %s: %s", ns, name)
-
-		resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		binding := resourceBinding.DeepCopy()
-		return s.rescheduleResourceBinding(binding)
-	}
-	return nil
-}
-
 func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) error {
+	klog.V(4).InfoS("Begin rescheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
+	defer klog.V(4).InfoS("End rescheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
+
 	policyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
 	policy, err := s.clusterPolicyLister.Get(policyName)
 	if err != nil {
 		klog.Errorf("Failed to get policy by policyName(%s): Error: %v", policyName, err)
 		return err
 	}
-
 	reScheduleResult, err := s.Algorithm.FailoverSchedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
 	if err != nil {
 		return err
@@ -688,12 +698,14 @@ func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *wor
 }
 
 func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) error {
+	klog.V(4).InfoS("Begin rescheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
+	defer klog.V(4).InfoS("End rescheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
+
 	placement, _, err := s.getPlacement(resourceBinding)
 	if err != nil {
 		klog.Errorf("Failed to get placement by resourceBinding(%s/%s): Error: %v", resourceBinding.Namespace, resourceBinding.Name, err)
 		return err
 	}
-
 	reScheduleResult, err := s.Algorithm.FailoverSchedule(context.TODO(), &placement, &resourceBinding.Spec)
 	if err != nil {
 		return err
@@ -712,48 +724,17 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.Reso
 	return s.updateBindingStatusIfNeeded(resourceBinding)
 }
 
-func (s *Scheduler) scaleScheduleOne(key string) (err error) {
-	klog.V(4).Infof("begin scale scheduling ResourceBinding %s", key)
-	defer klog.V(4).Infof("end scale scheduling ResourceBinding %s: %v", key, err)
-
-	ns, name, err := cache.SplitMetaNamespaceKey(key)
-	if err != nil {
-		return err
-	}
-
-	if ns == "" {
-		clusterResourceBinding, err := s.clusterBindingLister.Get(name)
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-
-		clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
-
-		clusterPolicy, err := s.clusterPolicyLister.Get(clusterPolicyName)
-		if err != nil {
-			return err
-		}
-
-		return s.scaleScheduleClusterResourceBinding(clusterResourceBinding, clusterPolicy)
-	}
-
-	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-	if apierrors.IsNotFound(err) {
-		return nil
-	}
-
-	return s.scaleScheduleResourceBinding(resourceBinding)
-}
-
 func (s *Scheduler) scaleScheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) (err error) {
+	klog.V(4).InfoS("Begin scale scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
+	defer klog.V(4).InfoS("End scale scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
+
 	placement, placementStr, err := s.getPlacement(resourceBinding)
 	if err != nil {
 		return err
 	}
-
 	scheduleResult, err := s.Algorithm.ScaleSchedule(context.TODO(), &placement, &resourceBinding.Spec)
 	if err != nil {
-		klog.V(2).Infof("failed rescheduling ResourceBinding %s/%s after replicas changes: %v", resourceBinding.Namespace, resourceBinding.Name, err)
+		klog.V(2).Infof("Failed rescheduling ResourceBinding %s/%s after replicas changes: %v", resourceBinding.Namespace, resourceBinding.Name, err)
 		return err
 	}
 
@@ -774,11 +755,18 @@ func (s *Scheduler) scaleScheduleResourceBinding(resourceBinding *workv1alpha2.R
 	return s.updateBindingStatusIfNeeded(binding)
 }
 
-func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding,
-	policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
+func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) (err error) {
+	klog.V(4).InfoS("Begin scale scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
+	defer klog.V(4).InfoS("End scale scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
+
+	clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
+	policy, err := s.clusterPolicyLister.Get(clusterPolicyName)
+	if err != nil {
+		return err
+	}
 	scheduleResult, err := s.Algorithm.ScaleSchedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
 	if err != nil {
-		klog.V(2).Infof("failed rescheduling ClusterResourceBinding %s after replicas scaled down: %v", clusterResourceBinding.Name, err)
+		klog.V(2).Infof("Failed rescheduling ClusterResourceBinding %s after replicas scaled down: %v", clusterResourceBinding.Name, err)
 		return err
 	}
 
@@ -803,67 +791,6 @@ func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *
 		return err
 	}
 	return s.updateClusterBindingStatusIfNeeded(binding)
-}
-
-func (s *Scheduler) getTypeFromResourceBindings(ns, name string) ScheduleType {
-	resourceBinding, err := s.bindingLister.ResourceBindings(ns).Get(name)
-	if apierrors.IsNotFound(err) {
-		return Unknown
-	}
-
-	if !helper.IsBindingReady(&resourceBinding.Status) {
-		return FirstSchedule
-	}
-
-	policyPlacement, policyPlacementStr, err := s.getPlacement(resourceBinding)
-	if err != nil {
-		return Unknown
-	}
-
-	appliedPlacement := util.GetLabelValue(resourceBinding.Annotations, util.PolicyPlacementAnnotation)
-
-	if policyPlacementStr != appliedPlacement {
-		return ReconcileSchedule
-	}
-
-	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&resourceBinding.Spec, policyPlacement.ReplicaScheduling) {
-		return ScaleSchedule
-	}
-
-	if s.allClustersInReadyState(resourceBinding.Spec.Clusters) {
-		return AvoidSchedule
-	}
-	return FailoverSchedule
-}
-
-func (s *Scheduler) getTypeFromClusterResourceBindings(name string) ScheduleType {
-	binding, err := s.clusterBindingLister.Get(name)
-	if apierrors.IsNotFound(err) {
-		return Unknown
-	}
-
-	if !helper.IsBindingReady(&binding.Status) {
-		return FirstSchedule
-	}
-
-	appliedPlacement := util.GetLabelValue(binding.Annotations, util.PolicyPlacementAnnotation)
-	policyPlacement, policyPlacementStr, err := s.getClusterPlacement(binding)
-	if err != nil {
-		return Unknown
-	}
-
-	if policyPlacementStr != appliedPlacement {
-		return ReconcileSchedule
-	}
-
-	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&binding.Spec, policyPlacement.ReplicaScheduling) {
-		return ScaleSchedule
-	}
-
-	if s.allClustersInReadyState(binding.Spec.Clusters) {
-		return AvoidSchedule
-	}
-	return FailoverSchedule
 }
 
 func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha2.TargetCluster) bool {
