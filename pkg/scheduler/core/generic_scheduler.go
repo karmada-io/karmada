@@ -21,7 +21,6 @@ import (
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
 	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
-	ScaleSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
 	FailoverSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
 }
 
@@ -198,7 +197,11 @@ func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*c
 	return feasibleClusters
 }
 
-func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy, object *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
+func (g *genericScheduler) assignReplicas(
+	clusters []*clusterv1alpha1.Cluster,
+	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
+	object *workv1alpha2.ResourceBindingSpec,
+) ([]workv1alpha2.TargetCluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, time.Now())
 	if len(clusters) == 0 {
 		return nil, fmt.Errorf("no clusters available to schedule")
@@ -207,23 +210,29 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 
 	if object.Replicas > 0 && replicaSchedulingStrategy != nil {
 		switch replicaSchedulingStrategy.ReplicaSchedulingType {
+		// 1. Duplicated Scheduling
 		case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
 			for i, cluster := range clusters {
 				targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
 			}
 			return targetClusters, nil
+		// 2. Divided Scheduling
 		case policyv1alpha1.ReplicaSchedulingTypeDivided:
 			switch replicaSchedulingStrategy.ReplicaDivisionPreference {
+			// 2.1 Weighted Scheduling
 			case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
 				// If ReplicaDivisionPreference is set to "Weighted" and WeightPreference is not set,
 				// scheduler will weight all clusters averagely.
 				if replicaSchedulingStrategy.WeightPreference == nil {
 					replicaSchedulingStrategy.WeightPreference = getDefaultWeightPreference(clusters)
 				}
+				// 2.1.1 Dynamic Weighted Scheduling (by resource)
 				if len(replicaSchedulingStrategy.WeightPreference.DynamicWeight) != 0 {
 					return divideReplicasByDynamicWeight(clusters, replicaSchedulingStrategy.WeightPreference.DynamicWeight, object)
 				}
+				// 2.1.2 Static Weighted Scheduling
 				return divideReplicasByStaticWeight(clusters, replicaSchedulingStrategy.WeightPreference.StaticWeightList, object.Replicas)
+			// 2.2 Aggregated scheduling (by resource)
 			case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
 				return divideReplicasByResource(clusters, object, policyv1alpha1.ReplicaDivisionPreferenceAggregated)
 			default:
@@ -238,58 +247,6 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
 	}
 	return targetClusters, nil
-}
-
-func (g *genericScheduler) ScaleSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
-	spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
-	clustersWithReplicas, err := g.assignScaleReplicas(ctx, placement, spec)
-	if err != nil {
-		return result, fmt.Errorf("failed to assignReplicas: %v", err)
-	}
-	result.SuggestedClusters = clustersWithReplicas
-
-	return result, nil
-}
-
-func (g *genericScheduler) assignScaleReplicas(ctx context.Context, placement *policyv1alpha1.Placement,
-	spec *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
-	newTargetClusters := make([]workv1alpha2.TargetCluster, len(spec.Clusters))
-	strategy := placement.ReplicaScheduling
-
-	if spec.Replicas > 0 {
-		switch strategy.ReplicaSchedulingType {
-		case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
-			for i, cluster := range spec.Clusters {
-				newTargetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: spec.Replicas}
-			}
-			return newTargetClusters, nil
-		case policyv1alpha1.ReplicaSchedulingTypeDivided:
-			switch strategy.ReplicaDivisionPreference {
-			case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
-				preSelectedClusters := getPreSelected(spec.Clusters, g.schedulerCache)
-				if strategy.WeightPreference == nil {
-					// if ReplicaDivisionPreference is set to "Weighted" and WeightPreference is not set, scheduler will weight all clusters the same.
-					strategy.WeightPreference = getDefaultWeightPreference(preSelectedClusters)
-				}
-				if len(strategy.WeightPreference.DynamicWeight) != 0 {
-					return scaleScheduleByReplicaDivisionPreference(spec, strategy.ReplicaDivisionPreference, preSelectedClusters)
-				}
-				return divideReplicasByStaticWeight(preSelectedClusters, strategy.WeightPreference.StaticWeightList, spec.Replicas)
-			case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
-				preSelectedClusters := getPreSelected(spec.Clusters, g.schedulerCache)
-				return scaleScheduleByReplicaDivisionPreference(spec, strategy.ReplicaDivisionPreference, preSelectedClusters)
-			default:
-				return nil, fmt.Errorf("undefined replica division preference: %s", strategy.ReplicaDivisionPreference)
-			}
-		default:
-			return nil, fmt.Errorf("undefined replica scheduling type: %s", strategy.ReplicaSchedulingType)
-		}
-	}
-
-	for i, cluster := range spec.Clusters {
-		newTargetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
-	}
-	return newTargetClusters, nil
 }
 
 func (g *genericScheduler) FailoverSchedule(ctx context.Context, placement *policyv1alpha1.Placement,

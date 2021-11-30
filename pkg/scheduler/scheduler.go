@@ -428,7 +428,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) error {
 	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&rb.Spec, policyPlacement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ResourceBinding(%s/%s) as replicas scaled down or scaled up", namespace, name)
-		err = s.scaleScheduleResourceBinding(rb)
+		err = s.scheduleResourceBinding(rb)
 		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
@@ -489,7 +489,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) error {
 	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&crb.Spec, policyPlacement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as replicas scaled down or scaled up", name)
-		err = s.scaleScheduleClusterResourceBinding(crb)
+		err = s.scheduleClusterResourceBinding(crb)
 		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
@@ -738,77 +738,6 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.Reso
 	klog.Infof("The final binding.Spec.Cluster values are: %v\n", resourceBinding.Spec.Clusters)
 
 	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(resourceBinding.Namespace).Update(context.TODO(), resourceBinding, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Scheduler) scaleScheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) (err error) {
-	klog.V(4).InfoS("Begin scale scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
-	defer klog.V(4).InfoS("End scale scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
-
-	placement, placementStr, err := s.getPlacement(resourceBinding)
-	if err != nil {
-		return err
-	}
-	scheduleResult, err := s.Algorithm.ScaleSchedule(context.TODO(), &placement, &resourceBinding.Spec)
-	if err != nil {
-		klog.V(2).Infof("Failed rescheduling ResourceBinding %s/%s after replicas changes: %v", resourceBinding.Namespace, resourceBinding.Name, err)
-		return err
-	}
-
-	klog.V(4).Infof("ResourceBinding %s/%s scheduled to clusters %v", resourceBinding.Namespace, resourceBinding.Name, scheduleResult.SuggestedClusters)
-
-	binding := resourceBinding.DeepCopy()
-	binding.Spec.Clusters = scheduleResult.SuggestedClusters
-
-	if binding.Annotations == nil {
-		binding.Annotations = make(map[string]string)
-	}
-	binding.Annotations[util.PolicyPlacementAnnotation] = placementStr
-
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Scheduler) scaleScheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) (err error) {
-	klog.V(4).InfoS("Begin scale scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
-	defer klog.V(4).InfoS("End scale scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
-
-	clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
-	policy, err := s.clusterPolicyLister.Get(clusterPolicyName)
-	if err != nil {
-		return err
-	}
-	scheduleResult, err := s.Algorithm.ScaleSchedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
-	if err != nil {
-		klog.V(2).Infof("Failed rescheduling ClusterResourceBinding %s after replicas scaled down: %v", clusterResourceBinding.Name, err)
-		return err
-	}
-
-	klog.V(4).Infof("ClusterResourceBinding %s scheduled to clusters %v", clusterResourceBinding.Name, scheduleResult.SuggestedClusters)
-
-	binding := clusterResourceBinding.DeepCopy()
-	binding.Spec.Clusters = scheduleResult.SuggestedClusters
-
-	placement, err := json.Marshal(policy.Spec.Placement)
-	if err != nil {
-		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
-		return err
-	}
-
-	if binding.Annotations == nil {
-		binding.Annotations = make(map[string]string)
-	}
-	binding.Annotations[util.PolicyPlacementAnnotation] = string(placement)
-
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), binding, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
