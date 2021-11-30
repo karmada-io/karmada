@@ -13,7 +13,6 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
-	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -76,39 +75,47 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	return availableTargetClusters
 }
 
-func getPreSelected(targetClusters []workv1alpha2.TargetCluster, schedulerCache cache.Cache) []*clusterv1alpha1.Cluster {
-	var preSelectedClusters []*clusterv1alpha1.Cluster
-	clusterInfoSnapshot := schedulerCache.Snapshot()
-	for _, targetCluster := range targetClusters {
-		for _, cluster := range clusterInfoSnapshot.GetClusters() {
-			if targetCluster.Name == cluster.Cluster().Name {
-				preSelectedClusters = append(preSelectedClusters, cluster.Cluster())
+// findOutScheduledCluster will return a name set of clusters
+// which are a part of `feasibleClusters` and have non-zero replicas.
+func findOutScheduledCluster(tcs []workv1alpha2.TargetCluster, candidates []*clusterv1alpha1.Cluster) sets.String {
+	res := sets.NewString()
+	if len(tcs) == 0 {
+		return res
+	}
+	for _, targetCluster := range tcs {
+		// must have non-zero replicas
+		if targetCluster.Replicas <= 0 {
+			continue
+		}
+		// must in `candidates`
+		for _, cluster := range candidates {
+			if targetCluster.Name == cluster.Name {
+				res.Insert(targetCluster.Name)
 				break
 			}
 		}
 	}
-	return preSelectedClusters
+	return res
 }
 
-// presortClusterList is used to make sure preUsedClusterNames are in front of the other clusters in the list of
+// resortClusterList is used to make sure scheduledClusterNames are in front of the other clusters in the list of
 // clusterAvailableReplicas so that we can assign new replicas to them preferentially when scale up.
-// Note that preUsedClusterNames have none items during first scheduler
-func presortClusterList(clusterAvailableReplicas []workv1alpha2.TargetCluster, preUsedClusterNames ...string) []workv1alpha2.TargetCluster {
-	if len(preUsedClusterNames) == 0 {
+// Note that scheduledClusterNames have none items during first scheduler
+func resortClusterList(clusterAvailableReplicas []workv1alpha2.TargetCluster, scheduledClusterNames sets.String) []workv1alpha2.TargetCluster {
+	if scheduledClusterNames.Len() == 0 {
 		return clusterAvailableReplicas
 	}
-	preUsedClusterSet := sets.NewString(preUsedClusterNames...)
 	var preUsedCluster []workv1alpha2.TargetCluster
 	var unUsedCluster []workv1alpha2.TargetCluster
 	for i := range clusterAvailableReplicas {
-		if preUsedClusterSet.Has(clusterAvailableReplicas[i].Name) {
+		if scheduledClusterNames.Has(clusterAvailableReplicas[i].Name) {
 			preUsedCluster = append(preUsedCluster, clusterAvailableReplicas[i])
 		} else {
 			unUsedCluster = append(unUsedCluster, clusterAvailableReplicas[i])
 		}
 	}
 	clusterAvailableReplicas = append(preUsedCluster, unUsedCluster...)
-	klog.V(4).Infof("resorted target cluster: %v", clusterAvailableReplicas)
+	klog.V(4).Infof("Resorted target cluster: %v", clusterAvailableReplicas)
 	return clusterAvailableReplicas
 }
 
