@@ -259,12 +259,13 @@ func startBindingController(ctx ControllerContext) (enabled bool, err error) {
 
 func startExecutionController(ctx ControllerContext) (enabled bool, err error) {
 	executionController := &execution.Controller{
-		Client:          ctx.Mgr.GetClient(),
-		EventRecorder:   ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:      ctx.Mgr.GetRESTMapper(),
-		ObjectWatcher:   ctx.ObjectWatcher,
-		PredicateFunc:   helper.NewExecutionPredicate(ctx.Mgr),
-		InformerManager: informermanager.GetInstance(),
+		Client:               ctx.Mgr.GetClient(),
+		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:           ctx.Mgr.GetRESTMapper(),
+		ObjectWatcher:        ctx.ObjectWatcher,
+		PredicateFunc:        helper.NewExecutionPredicate(ctx.Mgr),
+		InformerManager:      informermanager.GetInstance(),
+		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err

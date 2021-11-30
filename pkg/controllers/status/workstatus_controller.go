@@ -159,7 +159,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	obj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
+	obj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return c.handleDeleteEvent(fedKey)
