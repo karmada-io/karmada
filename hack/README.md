@@ -39,6 +39,13 @@ ensures development quality.
 
 - [`deploy-karmada-agent.sh`](deploy-karmada-agent.sh) This script will install Karmada Agent to the specific cluster.
 
+- [`deploy-scheduler-estimator.sh`](deploy-scheduler-estimator.sh) This script will only install Karmada Scheduler 
+  Estimator to the specific cluster. Please follow the [instruction](../docs/scheduler-estimator.md) for more details.
+
+- [`deploy-agent-and-estimator.sh`](deploy-agent-and-estimator.sh) This script will install Karmada Agent and Karmada 
+  Scheduler Estimator to the specific cluster together. If applied, there is no need to use the extra `deploy-karmada-agent.sh`
+  and `deploy-scheduler-estimator.sh` script.
+
 - [`undeploy-karmada.sh`](undeploy-karmada.sh) This script will uninstall Karmada from the specific cluster.
   It will uninstall Karmada from your local environment default. If you installed Karmada with `remote-up-karmada.sh`,
   please use it like this: `hack/undeploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME>`, the same parameters as you input at
