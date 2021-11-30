@@ -92,10 +92,8 @@ type CommandGetOptions struct {
 
 	Clusters []string
 
-	PrintFlags             *get.PrintFlags
-	ToPrinter              func(*meta.RESTMapping, *bool, bool, bool) (printers.ResourcePrinterFunc, error)
-	IsHumanReadablePrinter bool
-	PrintWithOpenAPICols   bool
+	PrintFlags *get.PrintFlags
+	ToPrinter  func(*meta.RESTMapping, *bool, bool, bool) (printers.ResourcePrinterFunc, error)
 
 	CmdParent string
 
@@ -112,8 +110,6 @@ type CommandGetOptions struct {
 	Namespace         string
 	ExplicitNamespace bool
 
-	ServerPrint bool
-
 	NoHeaders      bool
 	Sort           bool
 	IgnoreNotFound bool
@@ -126,20 +122,15 @@ type CommandGetOptions struct {
 func NewCommandGetOptions(parent string, streams genericclioptions.IOStreams) *CommandGetOptions {
 	return &CommandGetOptions{
 		PrintFlags: get.NewGetPrintFlags(),
-
-		CmdParent: parent,
-
-		IOStreams:   streams,
-		ChunkSize:   500,
-		ServerPrint: true,
+		CmdParent:  parent,
+		IOStreams:  streams,
+		ChunkSize:  500,
 	}
 }
 
 // Complete takes the command arguments and infers any remaining options.
 func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
 	newScheme := gclient.NewSchema()
-	// human readable printers have special conversion rules, so we determine if we're using one.
-	g.IsHumanReadablePrinter = true
 
 	// check karmada config path
 	env := os.Getenv("KUBECONFIG")
@@ -174,9 +165,8 @@ func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
 			return nil, err
 		}
 
-		if g.ServerPrint {
-			printer = &get.TablePrinter{Delegate: printer}
-		}
+		printer = &get.TablePrinter{Delegate: printer}
+
 		return printer.PrintObj, nil
 	}
 	return nil
@@ -437,14 +427,6 @@ func getFactory(clusterName string, clusterInfos map[string]*ClusterInfo) cmduti
 }
 
 func (g *CommandGetOptions) transformRequests(req *rest.Request) {
-	// We need full objects if printing with openapi columns
-	if g.PrintWithOpenAPICols {
-		return
-	}
-	if !g.ServerPrint || !g.IsHumanReadablePrinter {
-		return
-	}
-
 	req.SetHeader("Accept", strings.Join([]string{
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName),
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1beta1.SchemeGroupVersion.Version, metav1beta1.GroupName),

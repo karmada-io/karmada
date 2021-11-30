@@ -8,7 +8,6 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,6 +15,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 var (
@@ -60,7 +60,7 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 	}
 
 	flags := cmd.Flags()
-	opts.AddFlags(flags)
+	opts.GlobalCommandOptions.AddFlags(flags)
 
 	return cmd
 }
@@ -93,15 +93,8 @@ func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string
 
 // CommandCordonOption holds all command options for cordon and uncordon
 type CommandCordonOption struct {
-	// KubeConfig holds the control plane KUBECONFIG file path.
-	KubeConfig string
-
-	// ClusterContext is the name of the cluster context in control plane KUBECONFIG file.
-	// Default value is the current-context.
-	KarmadaContext string
-
-	// DryRun tells if run the command in dry-run mode, without making any server requests.
-	DryRun bool
+	// global flags
+	options.GlobalCommandOptions
 
 	// ClusterName is the cluster's name that we are going to join with.
 	ClusterName string
@@ -115,13 +108,6 @@ func (o *CommandCordonOption) Complete(args []string) error {
 	}
 	o.ClusterName = args[0]
 	return nil
-}
-
-// AddFlags adds flags to the specified FlagSet.
-func (o *CommandCordonOption) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Path to the control plane kubeconfig file.")
-	flags.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in control plane kubeconfig file.")
-	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
 // CordonHelper wraps functionality to cordon/uncordon cluster
