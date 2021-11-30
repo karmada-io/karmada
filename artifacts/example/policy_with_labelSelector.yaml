@@ -16,11 +16,10 @@ spec:
     clusterAffinity:
       clusterNames:
         - cluster1
+        - cluster2
         - cluster3
-      exclude:
-        - cluster1
     spreadConstraints:
       - spreadByLabel: failuredomain.kubernetes.io/zone
-        maxGroups: 3
-        minGroups: 3
+        maxGroups: 2
+        minGroups: 2
   schedulerName: default
