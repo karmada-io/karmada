@@ -1,8 +1,9 @@
 package core
 
 import (
-	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/clock"
+
+	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
 )
 
 // NewEvaluators returns the list of static evaluators that manage more than counts

@@ -5,13 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/klog/v2"
-
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
-	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
-
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -19,6 +12,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
+
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
 )
 
 type eventType int
@@ -125,7 +124,7 @@ func (qm *QuotaMonitor) controllerFor(resource schema.GroupVersionResource) (cac
 			case schema.GroupResource{Resource: "resourcebindings"}:
 				oldResourceBinding := oldObj.(*workv1alpha2.ResourceBinding)
 				newResourceBinding := newObj.(*workv1alpha2.ResourceBinding)
-				notifyUpdate = oldResourceBinding.Spec.Resource.Replicas != newResourceBinding.Spec.Resource.Replicas
+				notifyUpdate = oldResourceBinding.Spec.Replicas != newResourceBinding.Spec.Replicas
 			}
 			if notifyUpdate {
 				event := &event{

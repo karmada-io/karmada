@@ -4,10 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	quotav1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
@@ -18,6 +14,11 @@ import (
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
+
+	quotav1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
 )
 
 // the name used for object count quota
@@ -80,7 +81,7 @@ var validationSet = sets.NewString(
 	string(corev1.ResourceLimitsMemory),
 )
 
-// NewPodEvaluator returns an evaluator that can evaluate pods
+// NewResourceBindingEvaluator returns an evaluator that can evaluate pods
 func NewResourceBindingEvaluator(f quota.ListerForResourceFunc, clock clock.Clock) quota.Evaluator {
 	listFuncByNamespace := generic.ListResourceUsingListerFunc(f, workv1alpha2.SchemeGroupVersion.WithResource("resourcebindings"))
 	ResourceBindingEvaluator := &ResourceBindingEvaluator{listFuncByNamespace: listFuncByNamespace, clock: clock}
@@ -212,6 +213,7 @@ func (p *ResourceBindingEvaluator) UsageStats(options quota.UsageStatsOptions) (
 // verifies we implement the required interface.
 var _ quota.Evaluator = &ResourceBindingEvaluator{}
 
+// ForReplicasResources return request * replicas
 func ForReplicasResources(request corev1.ResourceList, replicas int) corev1.ResourceList {
 	result := corev1.ResourceList{}
 	for name, quantity := range request {
@@ -321,10 +323,10 @@ func ResourceBindingMatchesScopeFunc(selector corev1.ScopedResourceSelectorRequi
 	return false, nil
 }
 
-// PodUsageFunc returns the quota usage for a pod.
-// A pod is charged for quota if the following are not true.
-//  - pod has a terminal phase (failed or succeeded)
-//  - pod has been marked for deletion and grace period has expired
+// ResourceBindingUsageFunc  returns the quota usage for a ResourceBinding.
+// A ResourceBinding is charged for quota if the following are not true.
+//  - ResourceBinding has a terminal phase (failed or succeeded)
+//  - ResourceBinding has been marked for deletion and grace period has expired
 func ResourceBindingUsageFunc(obj runtime.Object) (corev1.ResourceList, error) {
 	binding, err := ToResourcebindingOrError(obj)
 	if err != nil {
@@ -389,18 +391,17 @@ func resourcebindingMatchesSelector(binding *workv1alpha2.ResourceBinding, selec
 	return false, nil
 }
 
-// trans Object to workv1alpha2.ResourceBinding
+// ToResourcebindingOrError trans Object to workv1alpha2.ResourceBinding
 func ToResourcebindingOrError(obj runtime.Object) (*workv1alpha2.ResourceBinding, error) {
-	resourcebinding := &workv1alpha2.ResourceBinding{}
 	switch t := obj.(type) {
 	case *workv1alpha2.ResourceBinding:
-		resourcebinding = t
-		return resourcebinding, nil
+		return t, nil
 	default:
 		return nil, fmt.Errorf("expect *workv1alpha2.ResourceBinding, got %v", t)
 	}
 }
 
+// IsResourcebindingHasRequest return true if the Resourcebinding has request
 func IsResourcebindingHasRequest(resourcebinding *workv1alpha2.ResourceBinding) bool {
 	if resourcebinding.Spec.Replicas == 0 || resourcebinding.Spec.ReplicaRequirements == nil {
 		klog.Infof("the resoucebinding[%s/%s] has no resource request. Replicas:[%d]",

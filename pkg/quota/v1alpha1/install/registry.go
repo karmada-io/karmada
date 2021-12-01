@@ -1,10 +1,11 @@
 package install
 
 import (
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/karmada-io/karmada/pkg/quota/v1alpha1/evaluator/core"
 	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // NewQuotaConfigurationForAdmission returns a quota configuration for admission control.

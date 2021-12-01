@@ -3,7 +3,8 @@ package v1alpha1
 import (
 	"encoding/json"
 
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+
 	admissionv1 "k8s.io/api/admission/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,11 +14,6 @@ import (
 	"k8s.io/apiserver/pkg/apis/audit"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/klog/v2"
-)
-
-const (
-	KindStatefulSet = "StatefulSet"
-	KindDeployment  = "Deployment"
 )
 
 // AttributesImpl implements k8s.io/apiserver/pkg/admission.Admission
@@ -105,7 +101,7 @@ func unmarshalObject(kind string, raw []byte) (runtime.Object, error) {
 
 	switch kind {
 	case "ResourceBinding":
-		obj = &workv1alpha2.ResourceBinding{}
+		obj = &v1alpha2.ResourceBinding{}
 	case "Service":
 		obj = &corev1.Service{}
 	case "PersistentVolumeClaim":
@@ -132,7 +128,7 @@ func (a *AttributesImpl) GetUserInfo() user.Info {
 	return ConverUserInfo(a.UserInfo)
 }
 
-// AddAnnotations adds given annotation
+// AddAnnotation adds given annotation
 func (a *AttributesImpl) AddAnnotation(key, value string) error {
 	return nil
 }

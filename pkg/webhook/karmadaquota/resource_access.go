@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	v1alpha1lster "github.com/karmada-io/karmada/pkg/generated/listers/quota/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apiserver/pkg/storage/etcd3"
 	"k8s.io/utils/lru"
+
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	v1alpha1lster "github.com/karmada-io/karmada/pkg/generated/listers/quota/v1alpha1"
 )
 
 // QuotaAccessor abstracts the get/set logic from the rest of the Evaluator.  This could be a test stub, a straight passthrough,

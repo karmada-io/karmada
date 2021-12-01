@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"time"
 
+	admissionatr "k8s.io/apiserver/pkg/admission"
+	resourcequotaapi "k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
-	admissionatr "k8s.io/apiserver/pkg/admission"
-	resourcequotaapi "k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota"
-	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // ValidatingAdmission validates resourcequota object when creating/updating/deleting.
@@ -29,7 +30,7 @@ var _ admission.DecoderInjector = &ValidatingAdmission{}
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
-	err := v.QuotaAdmission.Validate(nil, quota.ConvertAdmissionRequestToAttributes(&req.AdmissionRequest), nil)
+	err := v.QuotaAdmission.Validate(context.TODO(), quota.ConvertAdmissionRequestToAttributes(&req.AdmissionRequest), nil)
 	if err != nil {
 		errMsg := fmt.Sprintf("resource Validate failed, err: %s", err)
 		klog.V(2).Infof(errMsg)

@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
-	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
-	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
@@ -14,6 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/client-go/tools/cache"
+
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
+	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
 )
 
 // InformerForResourceFunc knows how to provision an informer
@@ -290,7 +291,6 @@ var _ quota.Evaluator = &objectCountEvaluator{}
 func NewObjectCountEvaluator(
 	groupResource schema.GroupResource, listFuncByNamespace ListFuncByNamespace,
 	alias corev1.ResourceName) quota.Evaluator {
-
 	resourceNames := []corev1.ResourceName{ObjectCountQuotaResourceNameFor(groupResource)}
 	if len(alias) > 0 {
 		resourceNames = append(resourceNames, alias)

@@ -3,14 +3,15 @@ package karmadaquota
 import (
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
+
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	"github.com/karmada-io/karmada/pkg/quota/v1alpha1/install"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog/v2"
 )
 
-// NewWebhookServer creates new WebhookServer
+// NewKarmadaQuotaWebhook creates new WebhookServer
 func NewKarmadaQuotaWebhook(karmadaClient karmadaclientset.Interface) *QuotaAdmission {
 	informerFactory := informerfactory.NewSharedInformerFactory(karmadaClient, 5*time.Minute)
 	quota, err := NewKarmadaQuota(nil, 5, wait.NeverStop)

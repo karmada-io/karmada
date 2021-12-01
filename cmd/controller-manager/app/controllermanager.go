@@ -302,7 +302,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	if err := karmadaquota.StartKarmadaQuotaController(karmadaClient); err != nil {
-		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
+		klog.Fatalf("Failed to start KarmadaQuota controller: %v", err)
 	}
 	// Ensure the InformerManager stops when the stop channel closes
 	go func() {

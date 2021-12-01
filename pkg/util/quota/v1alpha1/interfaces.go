@@ -1,12 +1,13 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
 )
 
 // UsageStatsOptions is an options structs that describes how stats should be calculated

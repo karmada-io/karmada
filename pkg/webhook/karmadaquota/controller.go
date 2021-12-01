@@ -7,11 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/klog/v2"
-
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
-	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -23,6 +18,11 @@ import (
 	"k8s.io/apiserver/pkg/admission"
 	resourcequotaapi "k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
+
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
+	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
 )
 
 // Evaluator is used to see if quota constraints are satisfied.
@@ -199,6 +199,7 @@ func (e *quotaEvaluator) checkAttributes(ns string, admissionAttributes []*admis
 //    updates failed on conflict errors and we have retries left, re-get the failed quota from our cache for the latest version
 //    and recurse into this method with the subset.  It's safe for us to evaluate ONLY the subset, because the other quota
 //    documents for these waiters have already been evaluated.  Step 1, will mark all the ones that should already have succeeded.
+//nolint:gocyclo
 func (e *quotaEvaluator) checkQuotas(quotas []v1alpha1.KarmadaQuota, admissionAttributes []*admissionWaiter, remainingRetries int) {
 	// yet another copy to compare against originals to see if we actually have deltas
 	originalQuotas, err := copyQuotas(quotas)
@@ -376,9 +377,7 @@ func getMatchedLimitedScopes(evaluator quota.Evaluator, inputObject runtime.Obje
 			klog.ErrorS(err, "Error while matching limited Scopes")
 			return []corev1.ScopedResourceSelectorRequirement{}, err
 		}
-		for _, scope := range matched {
-			scopes = append(scopes, scope)
-		}
+		scopes = append(scopes, matched...)
 	}
 	return scopes, nil
 }
@@ -394,6 +393,7 @@ func (e *quotaEvaluator) checkRequest(quotas []v1alpha1.KarmadaQuota, a admissio
 }
 
 // CheckRequest is a static version of quotaEvaluator.checkRequest, possible to be called from outside.
+//nolint:gocyclo
 func CheckRequest(quotas []v1alpha1.KarmadaQuota, a admission.Attributes, evaluator quota.Evaluator,
 	limited []resourcequotaapi.LimitedResource) ([]v1alpha1.KarmadaQuota, error) {
 	if !evaluator.Handles(a) {
@@ -438,9 +438,7 @@ func CheckRequest(quotas []v1alpha1.KarmadaQuota, a admission.Attributes, evalua
 		if err != nil {
 			return nil, fmt.Errorf("error matching scopes of quota %s, err: %v", resourceQuota.Name, err)
 		}
-		for _, scope := range localRestrictedScopes {
-			restrictedScopes = append(restrictedScopes, scope)
-		}
+		restrictedScopes = append(restrictedScopes, localRestrictedScopes...)
 
 		match, err := evaluator.Matches(&resourceQuota, inputObject)
 		if err != nil {
@@ -580,9 +578,7 @@ func getScopeSelectorsFromQuota(quota v1alpha1.KarmadaQuota) []corev1.ScopedReso
 			Operator:  corev1.ScopeSelectorOpExists})
 	}
 	if quota.Spec.ScopeSelector != nil {
-		for _, scopeSelector := range quota.Spec.ScopeSelector.MatchExpressions {
-			selectors = append(selectors, scopeSelector)
-		}
+		selectors = append(selectors, quota.Spec.ScopeSelector.MatchExpressions...)
 	}
 	return selectors
 }

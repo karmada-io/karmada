@@ -2,25 +2,16 @@ package karmadaquota
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"reflect"
 	"sync"
 	"time"
 
-	"k8s.io/klog/v2"
-
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	v1alpha1client "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/quota/v1alpha1"
-	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
-	v1alpha1lster "github.com/karmada-io/karmada/pkg/generated/listers/quota/v1alpha1"
-	quotainstall "github.com/karmada-io/karmada/pkg/quota/v1alpha1/install"
-	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -31,6 +22,16 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
+
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	v1alpha1client "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/quota/v1alpha1"
+	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	v1alpha1lster "github.com/karmada-io/karmada/pkg/generated/listers/quota/v1alpha1"
+	quotainstall "github.com/karmada-io/karmada/pkg/quota/v1alpha1/install"
+	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/quota/v1alpha1/generic"
 )
 
 // NamespacedResourcesFunc knows how to discover namespaced resources.
@@ -40,9 +41,11 @@ type NamespacedResourcesFunc func() ([]*metav1.APIResourceList, error)
 // that may require quota to be recalculated.
 type ReplenishmentFunc func(groupResource schema.GroupResource, namespace string)
 
+// ResyncPeriodFunc is a signal
 type ResyncPeriodFunc func() time.Duration
 
 var (
+	// KeyFunc is the func key of DeletionHandlingMetaNamespaceKeyFunc
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 )
 
@@ -72,6 +75,7 @@ type Controller struct {
 	workerLock sync.RWMutex
 }
 
+// StartKarmadaQuotaController start a new work for karmadaquota
 func StartKarmadaQuotaController(karmadaClient karmadaclientset.Interface) error {
 	discoveryFunc := karmadaClient.Discovery().ServerPreferredNamespacedResources
 	informerFactory := informerfactory.NewSharedInformerFactory(karmadaClient, 5*time.Minute)
@@ -301,7 +305,7 @@ func (rq *Controller) syncKarmadaQuotaFromKey(key string) (err error) {
 		return err
 	}
 	KarmadaQuota, err := rq.rqLister.KarmadaQuotas(namespace).Get(name)
-	if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		klog.Infof("Resource quota has been deleted %v", key)
 		return nil
 	}
@@ -378,7 +382,7 @@ func (rq *Controller) replenishQuota(groupResource schema.GroupResource, namespa
 
 	// check if this namespace even has a quota...
 	KarmadaQuotas, err := rq.rqLister.KarmadaQuotas(namespace).List(labels.Everything())
-	if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		utilruntime.HandleError(fmt.Errorf("quota controller could not find KarmadaQuota associated with namespace: %s, could take up to %v before a quota replenishes", namespace, rq.resyncPeriod()))
 		return
 	}
@@ -527,9 +531,14 @@ func StaticResyncPeriodFunc(resyncPeriod time.Duration) ResyncPeriodFunc {
 	}
 }
 
+// ResyncPeriod return a random time.Duration
 func ResyncPeriod(resyncPeriod time.Duration) func() time.Duration {
 	return func() time.Duration {
-		factor := rand.Float64() + 1
+		dice, err := rand.Int(rand.Reader, big.NewInt(6))
+		if err != nil {
+			fmt.Println(err)
+		}
+		factor := float64(dice.Int64()) + 1
 		return time.Duration(float64(resyncPeriod) * factor)
 	}
 }

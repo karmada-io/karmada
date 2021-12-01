@@ -3,8 +3,9 @@ package generic
 import (
 	"sync"
 
-	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	quota "github.com/karmada-io/karmada/pkg/util/quota/v1alpha1"
 )
 
 // implements a basic registry
