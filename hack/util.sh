@@ -126,6 +126,7 @@ function util::install_kind {
   os_name=$(go env GOOS)
   local arch_name
   arch_name=$(go env GOARCH)
+  echo "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}"
   curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200' > /dev/null
   ret=$?
   if [ ${ret} -eq 0 ]; then

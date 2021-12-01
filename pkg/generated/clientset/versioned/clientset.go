@@ -8,6 +8,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	quotav1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/quota/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
@@ -20,6 +21,7 @@ type Interface interface {
 	ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface
 	ConfigV1alpha1() configv1alpha1.ConfigV1alpha1Interface
 	PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface
+	QuotaV1alpha1() quotav1alpha1.QuotaV1alpha1Interface
 	WorkV1alpha1() workv1alpha1.WorkV1alpha1Interface
 	WorkV1alpha2() workv1alpha2.WorkV1alpha2Interface
 }
@@ -31,6 +33,7 @@ type Clientset struct {
 	clusterV1alpha1 *clusterv1alpha1.ClusterV1alpha1Client
 	configV1alpha1  *configv1alpha1.ConfigV1alpha1Client
 	policyV1alpha1  *policyv1alpha1.PolicyV1alpha1Client
+	quotaV1alpha1   *quotav1alpha1.QuotaV1alpha1Client
 	workV1alpha1    *workv1alpha1.WorkV1alpha1Client
 	workV1alpha2    *workv1alpha2.WorkV1alpha2Client
 }
@@ -48,6 +51,11 @@ func (c *Clientset) ConfigV1alpha1() configv1alpha1.ConfigV1alpha1Interface {
 // PolicyV1alpha1 retrieves the PolicyV1alpha1Client
 func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
 	return c.policyV1alpha1
+}
+
+// QuotaV1alpha1 retrieves the QuotaV1alpha1Client
+func (c *Clientset) QuotaV1alpha1() quotav1alpha1.QuotaV1alpha1Interface {
+	return c.quotaV1alpha1
 }
 
 // WorkV1alpha1 retrieves the WorkV1alpha1Client
@@ -93,6 +101,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.quotaV1alpha1, err = quotav1alpha1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 	cs.workV1alpha1, err = workv1alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -116,6 +128,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.clusterV1alpha1 = clusterv1alpha1.NewForConfigOrDie(c)
 	cs.configV1alpha1 = configv1alpha1.NewForConfigOrDie(c)
 	cs.policyV1alpha1 = policyv1alpha1.NewForConfigOrDie(c)
+	cs.quotaV1alpha1 = quotav1alpha1.NewForConfigOrDie(c)
 	cs.workV1alpha1 = workv1alpha1.NewForConfigOrDie(c)
 	cs.workV1alpha2 = workv1alpha2.NewForConfigOrDie(c)
 
@@ -129,6 +142,7 @@ func New(c rest.Interface) *Clientset {
 	cs.clusterV1alpha1 = clusterv1alpha1.New(c)
 	cs.configV1alpha1 = configv1alpha1.New(c)
 	cs.policyV1alpha1 = policyv1alpha1.New(c)
+	cs.quotaV1alpha1 = quotav1alpha1.New(c)
 	cs.workV1alpha1 = workv1alpha1.New(c)
 	cs.workV1alpha2 = workv1alpha2.New(c)
 

@@ -15,12 +15,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 	"github.com/karmada-io/karmada/pkg/webhook/cluster"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/configuration"
+	"github.com/karmada-io/karmada/pkg/webhook/karmadaquota"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/work"
@@ -81,6 +83,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 		return err
 	}
 
+	karmadaClient := karmadaclientset.NewForConfigOrDie(config)
+	KarmadaQuotaAdmission := karmadaquota.NewKarmadaQuotaWebhook(karmadaClient)
+
 	klog.Info("registering webhooks to the webhook server")
 	hookServer := hookManager.GetWebhookServer()
 	hookServer.Register("/validate-cluster", &webhook.Admission{Handler: &cluster.ValidatingAdmission{}})
@@ -92,6 +97,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-work", &webhook.Admission{Handler: &work.MutatingAdmission{}})
 	hookServer.Register("/convert", &conversion.Webhook{})
 	hookServer.Register("/validate-resourceinterpreterwebhookconfiguration", &webhook.Admission{Handler: &configuration.ValidatingAdmission{}})
+	hookServer.Register("/validate-karmadaquota", &webhook.Admission{Handler: &karmadaquota.ValidatingAdmission{QuotaAdmission: KarmadaQuotaAdmission}})
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.

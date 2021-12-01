@@ -11,6 +11,7 @@ resources:
 - bases/work.karmada.io_clusterresourcebindings.yaml
 - bases/work.karmada.io_works.yaml
 - bases/config.karmada.io_resourceinterpreterwebhookconfigurations.yaml
+- bases/quota.karmada.io_karmadaquotas.yaml
 
 patchesStrategicMerge:
 - patches/webhook_in_resourcebindings.yaml

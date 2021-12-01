@@ -25,10 +25,12 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
+	"github.com/karmada-io/karmada/pkg/controllers/karmadaquota"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/detector"
+	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -111,6 +113,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 
+	karmadaClient := versioned.NewForConfigOrDie(restConfig)
 	overrideManager := overridemanager.New(mgr.GetClient())
 	skippedResourceConfig := util.NewSkippedResourceConfig()
 	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
@@ -298,6 +301,9 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
 	}
 
+	if err := karmadaquota.StartKarmadaQuotaController(karmadaClient); err != nil {
+		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
+	}
 	// Ensure the InformerManager stops when the stop channel closes
 	go func() {
 		<-stopChan

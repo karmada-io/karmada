@@ -12,6 +12,7 @@ import (
 	config "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/config"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
 	policy "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/policy"
+	quota "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/quota"
 	work "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/work"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -162,6 +163,7 @@ type SharedInformerFactory interface {
 	Cluster() cluster.Interface
 	Config() config.Interface
 	Policy() policy.Interface
+	Quota() quota.Interface
 	Work() work.Interface
 }
 
@@ -175,6 +177,10 @@ func (f *sharedInformerFactory) Config() config.Interface {
 
 func (f *sharedInformerFactory) Policy() policy.Interface {
 	return policy.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Quota() quota.Interface {
+	return quota.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Work() work.Interface {

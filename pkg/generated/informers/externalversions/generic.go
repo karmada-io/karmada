@@ -8,6 +8,7 @@ import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	quotav1alpha1 "github.com/karmada-io/karmada/pkg/apis/quota/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -59,6 +60,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationPolicies().Informer()}, nil
 	case policyv1alpha1.SchemeGroupVersion.WithResource("replicaschedulingpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().ReplicaSchedulingPolicies().Informer()}, nil
+
+		// Group=quota.karmada.io, Version=v1alpha1
+	case quotav1alpha1.SchemeGroupVersion.WithResource("karmadaquotas"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Quota().V1alpha1().KarmadaQuotas().Informer()}, nil
 
 		// Group=work.karmada.io, Version=v1alpha1
 	case workv1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"):

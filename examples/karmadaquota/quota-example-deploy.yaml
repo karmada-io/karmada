@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: namespace-quota-example
+---
+apiVersion: quota.karmada.io/v1alpha1
+kind: KarmadaQuota
+metadata:
+  name: quota1
+  namespace: namespace-quota-example
+spec:
+  hard:
+    cpu: "10"
+    memory: 20Gi
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: namespace1-pp
+  namespace: namespace-quota-example
+spec:
+  placement:
+    replicaScheduling:
+      replicaDivisionPreference: Weighted
+      replicaSchedulingType: Divided
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    namespace: namespace-quota-example
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    namespace: namespace-quota-example

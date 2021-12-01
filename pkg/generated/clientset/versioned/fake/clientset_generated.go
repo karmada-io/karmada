@@ -10,6 +10,8 @@ import (
 	fakeconfigv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/config/v1alpha1/fake"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	fakepolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1/fake"
+	quotav1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/quota/v1alpha1"
+	fakequotav1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/quota/v1alpha1/fake"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	fakeworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1/fake"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha2"
@@ -84,6 +86,11 @@ func (c *Clientset) ConfigV1alpha1() configv1alpha1.ConfigV1alpha1Interface {
 // PolicyV1alpha1 retrieves the PolicyV1alpha1Client
 func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
 	return &fakepolicyv1alpha1.FakePolicyV1alpha1{Fake: &c.Fake}
+}
+
+// QuotaV1alpha1 retrieves the QuotaV1alpha1Client
+func (c *Clientset) QuotaV1alpha1() quotav1alpha1.QuotaV1alpha1Interface {
+	return &fakequotav1alpha1.FakeQuotaV1alpha1{Fake: &c.Fake}
 }
 
 // WorkV1alpha1 retrieves the WorkV1alpha1Client
