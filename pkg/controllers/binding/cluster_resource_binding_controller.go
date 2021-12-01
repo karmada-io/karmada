@@ -8,12 +8,10 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -139,17 +137,6 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
 	}
 
-	fullyAppliedCondition := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.FullyApplied)
-	if fullyAppliedCondition == nil {
-		if len(binding.Spec.Clusters) == len(binding.Status.AggregatedStatus) && areWorksFullyApplied(binding.Status.AggregatedStatus) {
-			err := c.updateFullyAppliedCondition(binding)
-			if err != nil {
-				klog.Errorf("Failed to update FullyApplied status for given clusterResourceBinding(%s), Error: %v", binding.Name, err)
-				return controllerruntime.Result{Requeue: true}, err
-			}
-		}
-	}
-
 	return controllerruntime.Result{}, nil
 }
 
@@ -244,22 +231,4 @@ func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() hand
 		}
 		return requests
 	}
-}
-
-// updateFullyAppliedCondition update the FullyApplied condition for the given ClusterResourceBinding
-func (c *ClusterResourceBindingController) updateFullyAppliedCondition(binding *workv1alpha2.ClusterResourceBinding) error {
-	newBindingFullyAppliedCondition := metav1.Condition{
-		Type:    workv1alpha2.FullyApplied,
-		Status:  metav1.ConditionTrue,
-		Reason:  FullyAppliedSuccessReason,
-		Message: FullyAppliedSuccessMessage,
-	}
-
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, binding); err != nil {
-			return err
-		}
-		meta.SetStatusCondition(&binding.Status.Conditions, newBindingFullyAppliedCondition)
-		return c.Status().Update(context.TODO(), binding)
-	})
 }
