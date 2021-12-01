@@ -2,7 +2,6 @@ package namespace
 
 import (
 	"context"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,12 +29,7 @@ import (
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName              = "namespace-sync-controller"
-	namespaceKarmadaSystem      = "karmada-system"
-	namespaceKarmadaCluster     = "karmada-cluster"
-	namespaceDefault            = "default"
-	karmadaExecutionSpacePrefix = "karmada-es-"
-	kubeSystemNamespacePrefix   = "kube-"
+	ControllerName = "namespace-sync-controller"
 )
 
 // Controller is to sync Work.
@@ -86,8 +80,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 }
 
 func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
-	if namespace == namespaceKarmadaCluster || namespace == namespaceKarmadaSystem || namespace == namespaceDefault ||
-		strings.HasPrefix(namespace, karmadaExecutionSpacePrefix) || strings.HasPrefix(namespace, kubeSystemNamespacePrefix) {
+	if names.IsReservedNamespace(namespace) || namespace == names.NamespaceDefault {
 		return false
 	}
 

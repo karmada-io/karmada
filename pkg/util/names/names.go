@@ -16,16 +16,16 @@ const (
 	// - kube-public
 	// - kube-node-lease
 	KubernetesReservedNSPrefix = "kube-"
-
-	// KarmadaReservedNSPrefix is the prefix of namespace which reserved by Karmada system, such as:
-	// - karmada-system
-	// - karmada-cluster
-	// - karmada-es-*
-	KarmadaReservedNSPrefix = "karmada-"
+	//NamespaceKarmadaSystem is reserved namespace
+	NamespaceKarmadaSystem = "karmada-system"
+	//NamespaceKarmadaCluster is reserved namespace
+	NamespaceKarmadaCluster = "karmada-cluster"
+	//NamespaceDefault is reserved namespace
+	NamespaceDefault = "default"
 )
 
-// executionSpacePrefix is the prefix of execution space
-const executionSpacePrefix = "karmada-es-"
+// ExecutionSpacePrefix is the prefix of execution space
+const ExecutionSpacePrefix = "karmada-es-"
 
 // endpointSlicePrefix is the prefix of collected EndpointSlice from member clusters.
 const endpointSlicePrefix = "imported"
@@ -41,16 +41,16 @@ func GenerateExecutionSpaceName(clusterName string) (string, error) {
 	if clusterName == "" {
 		return "", fmt.Errorf("the member cluster name is empty")
 	}
-	executionSpace := executionSpacePrefix + clusterName
+	executionSpace := ExecutionSpacePrefix + clusterName
 	return executionSpace, nil
 }
 
 // GetClusterName returns member cluster name for the given execution space
 func GetClusterName(executionSpaceName string) (string, error) {
-	if !strings.HasPrefix(executionSpaceName, executionSpacePrefix) {
+	if !strings.HasPrefix(executionSpaceName, ExecutionSpacePrefix) {
 		return "", fmt.Errorf("the execution space name is in wrong format")
 	}
-	return strings.TrimPrefix(executionSpaceName, executionSpacePrefix), nil
+	return strings.TrimPrefix(executionSpaceName, ExecutionSpacePrefix), nil
 }
 
 // GenerateBindingName will generate binding name by kind and name
@@ -107,4 +107,12 @@ func GenerateDerivedServiceName(serviceName string) string {
 // GenerateEstimatorServiceName generates the gRPC scheduler estimator service name which belongs to a cluster.
 func GenerateEstimatorServiceName(clusterName string) string {
 	return fmt.Sprintf("%s-%s", estimatorServicePrefix, clusterName)
+}
+
+// IsReservedNamespace return whether it is a reserved namespace
+func IsReservedNamespace(namespace string) bool {
+	return namespace == NamespaceKarmadaSystem ||
+		namespace == NamespaceKarmadaCluster ||
+		strings.HasPrefix(namespace, ExecutionSpacePrefix) ||
+		strings.HasPrefix(namespace, KubernetesReservedNSPrefix)
 }

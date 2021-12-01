@@ -3,7 +3,6 @@ package detector
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -283,8 +282,7 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 		return false
 	}
 
-	if strings.HasPrefix(clusterWideKey.Namespace, names.KubernetesReservedNSPrefix) ||
-		strings.HasPrefix(clusterWideKey.Namespace, names.KarmadaReservedNSPrefix) {
+	if names.IsReservedNamespace(clusterWideKey.Namespace) {
 		return false
 	}
 
