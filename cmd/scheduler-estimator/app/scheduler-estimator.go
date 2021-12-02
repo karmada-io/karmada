@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -47,7 +48,7 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 
 func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-scheduler-estimator version: %s", version.Get())
-	go serveHealthz(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
+	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {
@@ -67,11 +68,13 @@ func run(ctx context.Context, opts *options.Options) error {
 	return nil
 }
 
-func serveHealthz(address string) {
+func serveHealthzAndMetrics(address string) {
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+
+	http.Handle("/metrics", promhttp.Handler())
 
 	klog.Fatal(http.ListenAndServe(address, nil))
 }

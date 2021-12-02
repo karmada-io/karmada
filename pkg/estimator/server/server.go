@@ -19,6 +19,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
 	nodeutil "github.com/karmada-io/karmada/pkg/estimator/server/nodes"
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -150,13 +151,17 @@ func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Con
 	}
 
 	// Step 1: Get all matched nodes by node claim
+	startTime := time.Now()
 	nodes, err := nodeutil.ListNodesByNodeClaim(es.nodeLister, request.ReplicaRequirements.NodeClaim)
+	metrics.UpdateEstimatingAlgorithmLatency(err, metrics.EstimatingTypeMaxAvailableReplicas, metrics.EstimatingStepListNodesByNodeClaim, startTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find matched nodes: %v", err)
 	}
 
 	// Step 2: Calculate cluster max available replicas by filtered nodes
+	startTime = time.Now()
 	maxReplicas := es.maxAvailableReplicas(nodes, request.ReplicaRequirements.ResourceRequest)
+	metrics.UpdateEstimatingAlgorithmLatency(nil, metrics.EstimatingTypeMaxAvailableReplicas, metrics.EstimatingStepMaxAvailableReplicas, startTime)
 
 	return &pb.MaxAvailableReplicasResponse{MaxReplicas: maxReplicas}, nil
 }
@@ -202,6 +207,8 @@ func (es *AccurateSchedulerEstimatorServer) waitForCacheSync(stopCh <-chan struc
 func traceMaxAvailableReplicas(object string, start time.Time, request *pb.MaxAvailableReplicasRequest) func(response **pb.MaxAvailableReplicasResponse, err *error) {
 	klog.V(4).Infof("Begin calculating cluster available replicas of resource(%s), request: %s", object, pretty.Sprint(*request))
 	return func(response **pb.MaxAvailableReplicasResponse, err *error) {
+		metrics.CountRequests(*err, metrics.EstimatingTypeMaxAvailableReplicas)
+		metrics.UpdateEstimatingAlgorithmLatency(*err, metrics.EstimatingTypeMaxAvailableReplicas, metrics.EstimatingStepTotal, start)
 		if *err != nil {
 			klog.Errorf("Failed to calculate cluster available replicas: %v", *err)
 			return
