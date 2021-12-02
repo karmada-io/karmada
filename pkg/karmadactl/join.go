@@ -220,6 +220,8 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return fmt.Errorf("failed to patch secret %s/%s, error: %v", secret.Namespace, secret.Name, err)
 	}
 
+	fmt.Printf("cluster(%s) is joined successfully\n", opts.ClusterName)
+
 	return nil
 }
 
@@ -314,9 +316,9 @@ func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Co
 	}
 
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneConfig)
-	cluster, err := CreateClusterObject(controlPlaneKarmadaClient, clusterObj, false)
+	cluster, err := CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
+		return nil, fmt.Errorf("failed to create cluster(%s) object. error: %v", opts.ClusterName, err)
 	}
 
 	return cluster, nil
@@ -422,18 +424,14 @@ func ensureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 }
 
 // CreateClusterObject create cluster object in karmada control plane
-func CreateClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster, errorOnExisting bool) (*clusterv1alpha1.Cluster, error) {
+func CreateClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
 	cluster, exist, err := GetCluster(controlPlaneClient, clusterObj.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster(%s), error: %v", clusterObj.Name, err)
+		return nil, err
 	}
 
 	if exist {
-		if errorOnExisting {
-			return cluster, fmt.Errorf("failed to create cluster(%s) as it's already exist", clusterObj.Name)
-		}
-		klog.V(1).Infof("create cluster(%s) succeed as already exist.", clusterObj.Name)
-		return cluster, nil
+		return cluster, fmt.Errorf("cluster(%s) already exist", clusterObj.Name)
 	}
 
 	if cluster, err = CreateCluster(controlPlaneClient, clusterObj); err != nil {
