@@ -4,8 +4,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/karmada-io/karmada/pkg/util"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -38,14 +40,11 @@ func StopInstance() {
 // custom resources defined by CustomResourceDefinition, across multi-cluster.
 type MultiClusterInformerManager interface {
 	// ForCluster builds an informer manager for a specific cluster.
-	ForCluster(cluster string, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager
+	ForCluster(cluster string, client client.Client, dynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error), defaultResync time.Duration) (SingleClusterInformerManager, error)
 
 	// GetSingleClusterManager gets the informer manager for a specific cluster.
 	// The informer manager should be created before, otherwise, nil will be returned.
 	GetSingleClusterManager(cluster string) SingleClusterInformerManager
-
-	// IsManagerExist checks if the informer manager for the cluster already created.
-	IsManagerExist(cluster string) bool
 
 	// Start will run all informers for a specific cluster.
 	// Should call after 'ForCluster', otherwise no-ops.
@@ -77,60 +76,66 @@ type multiClusterInformerManagerImpl struct {
 	lock     sync.RWMutex
 }
 
-func (m *multiClusterInformerManagerImpl) getManager(cluster string) (SingleClusterInformerManager, bool) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	manager, exist := m.managers[cluster]
-	return manager, exist
-}
-
-func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager {
-	// If informer manager already exist, just return
-	if manager, exist := m.getManager(cluster); exist {
-		return manager
-	}
-
+func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client client.Client, dynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error), defaultResync time.Duration) (SingleClusterInformerManager, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh)
+
+	// If informer manager already exist, just return
+	if manager, exist := m.managers[cluster]; exist {
+		return manager, nil
+	}
+
+	dynamicClusterClient, err := dynamicClientSetFunc(cluster, client)
+	if err != nil {
+		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster)
+		return nil, err
+	}
+
+	manager := NewSingleClusterInformerManager(dynamicClusterClient.DynamicClientSet, defaultResync, m.stopCh)
 	m.managers[cluster] = manager
-	return manager
+	return manager, nil
 }
 
 func (m *multiClusterInformerManagerImpl) GetSingleClusterManager(cluster string) SingleClusterInformerManager {
-	if manager, exist := m.getManager(cluster); exist {
-		return manager
+	m.lock.RLock()
+	manager, exist := m.managers[cluster]
+	m.lock.RUnlock()
+	if !exist {
+		return nil
 	}
-	return nil
-}
 
-func (m *multiClusterInformerManagerImpl) IsManagerExist(cluster string) bool {
-	_, exist := m.getManager(cluster)
-	return exist
+	return manager
 }
 
 func (m *multiClusterInformerManagerImpl) Start(cluster string) {
 	// if informer manager haven't been created, just return with no-ops.
-	manager, exist := m.getManager(cluster)
+	m.lock.RLock()
+	manager, exist := m.managers[cluster]
+	m.lock.RUnlock()
 	if !exist {
 		return
 	}
+
 	manager.Start()
 }
 
 func (m *multiClusterInformerManagerImpl) Stop(cluster string) {
-	manager, exist := m.getManager(cluster)
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	manager, exist := m.managers[cluster]
 	if !exist {
 		return
 	}
 	manager.Stop()
-	m.lock.Lock()
-	defer m.lock.Unlock()
+
 	delete(m.managers, cluster)
 }
 
 func (m *multiClusterInformerManagerImpl) WaitForCacheSync(cluster string) map[schema.GroupVersionResource]bool {
-	manager, exist := m.getManager(cluster)
+	m.lock.RLock()
+	manager, exist := m.managers[cluster]
+	m.lock.RUnlock()
 	if !exist {
 		return nil
 	}
@@ -138,7 +143,9 @@ func (m *multiClusterInformerManagerImpl) WaitForCacheSync(cluster string) map[s
 }
 
 func (m *multiClusterInformerManagerImpl) WaitForCacheSyncWithTimeout(cluster string, cacheSyncTimeout time.Duration) map[schema.GroupVersionResource]bool {
-	manager, exist := m.getManager(cluster)
+	m.lock.RLock()
+	manager, exist := m.managers[cluster]
+	m.lock.RUnlock()
 	if !exist {
 		return nil
 	}

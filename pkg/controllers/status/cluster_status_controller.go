@@ -211,14 +211,9 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 // buildInformerForCluster builds informer manager for cluster if it doesn't exist, then constructs informers for node
 // and pod and start it. If the informer manager exist, return it.
 func (c *ClusterStatusController) buildInformerForCluster(cluster *clusterv1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
-	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
-	if singleClusterInformerManager == nil {
-		clusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client)
-		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
-			return nil, err
-		}
-		singleClusterInformerManager = c.InformerManager.ForCluster(clusterClient.ClusterName, clusterClient.DynamicClientSet, 0)
+	singleClusterInformerManager, err := c.InformerManager.ForCluster(cluster.Name, c.Client, c.ClusterDynamicClientSetFunc, 0)
+	if err != nil {
+		return nil, err
 	}
 
 	gvrs := []schema.GroupVersionResource{nodeGVR, podGVR}

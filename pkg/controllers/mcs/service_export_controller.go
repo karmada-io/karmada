@@ -153,14 +153,9 @@ func (c *ServiceExportController) buildResourceInformers(cluster *clusterv1alpha
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
 // and start it.
 func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1alpha1.Cluster) error {
-	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
-	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client)
-		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
-			return err
-		}
-		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)
+	singleClusterInformerManager, err := c.InformerManager.ForCluster(cluster.Name, c.Client, c.ClusterDynamicClientSetFunc, 0)
+	if err != nil {
+		return err
 	}
 
 	gvrTargets := []schema.GroupVersionResource{

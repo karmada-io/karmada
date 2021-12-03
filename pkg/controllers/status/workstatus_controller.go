@@ -431,15 +431,11 @@ func (c *WorkStatusController) getGVRsFromWork(work *workv1alpha1.Work) (map[sch
 func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
 	// TODO(chenxianpao): If cluster A is removed, then a new cluster that name also is A joins karmada,
 	//  the cache in informer manager should be updated.
-	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
-	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client)
-		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
-			return nil, err
-		}
-		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)
+	singleClusterInformerManager, err := c.InformerManager.ForCluster(cluster.Name, c.Client, c.ClusterClientSetFunc, 0)
+	if err != nil {
+		return nil, err
 	}
+
 	return singleClusterInformerManager, nil
 }
 
