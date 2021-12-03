@@ -52,7 +52,7 @@ func InitClusterInformation(karmadaClient karmada.Interface, controlPlaneClient 
 	pullModeClusters, err = fetchPullBasedClusters()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	clusters, err = fetchClusters(karmadaClient)
+	clusters, err = FetchClusters(karmadaClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	var meetRequirement bool
@@ -114,8 +114,8 @@ func fetchPullBasedClusters() (map[string]string, error) {
 	return pullBasedClustersMap, nil
 }
 
-// fetchClusters will fetch all member clusters we have.
-func fetchClusters(client karmada.Interface) ([]*clusterv1alpha1.Cluster, error) {
+// FetchClusters will fetch all member clusters we have.
+func FetchClusters(client karmada.Interface) ([]*clusterv1alpha1.Cluster, error) {
 	clusterList, err := client.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err

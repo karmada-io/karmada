@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
@@ -72,7 +73,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 
 			ginkgo.By("collect the target clusters in resource binding", func() {
 				targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-				gomega.Expect(len(targetClusterNames) == minGroups).ShouldNot(gomega.BeFalse())
+				gomega.Expect(len(targetClusterNames) == minGroups).Should(gomega.BeTrue())
 			})
 
 			ginkgo.By("check if the scheduled condition is true", func() {
@@ -93,7 +94,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 					groupMatchedClusters = append(groupMatchedClusters, targetClusterName)
 				}
 				fmt.Printf("there are %d target clusters\n", len(groupMatchedClusters))
-				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
+				gomega.Expect(minGroups == len(groupMatchedClusters)).Should(gomega.BeTrue())
 			})
 
 			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
@@ -101,6 +102,48 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				func(deployment *appsv1.Deployment) bool {
 					return *deployment.Spec.Replicas == updateDeploymentReplicas
 				})
+
+			ginkgo.By("update propagation policy to spread by label", func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				policy.Spec.Placement.SpreadConstraints[0] = policyv1alpha1.SpreadConstraint{
+					SpreadByLabel: "sync-mode",
+					MaxGroups:     maxGroups,
+					MinGroups:     minGroups,
+				}
+				framework.CreatePropagationPolicy(karmadaClient, policy)
+			})
+
+			ginkgo.By("check if deployment present on right clusters", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+					// check if group count is correct
+					groups := sets.NewString()
+					for _, targetClusterName := range targetClusterNames {
+						cluster, err := util.GetCluster(controlPlaneClient, targetClusterName)
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+						groups.Insert(cluster.Labels["sync-mode"])
+					}
+					fmt.Printf("there are %d groups, expected:%d\n", groups.Len(), maxGroups)
+					g.Expect(groups.Len() == maxGroups).Should(gomega.BeTrue())
+
+					// check if deployment present on right clusters
+					var expectedClusters []string
+					clusters, err := framework.FetchClusters(karmadaClient)
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+					for group := range groups {
+						for _, cluster := range clusters {
+							if cluster.Labels["sync-mode"] == group {
+								expectedClusters = append(expectedClusters, cluster.Name)
+							}
+						}
+					}
+
+					framework.WaitDeploymentPresentOnClustersFitWith(expectedClusters, deployment.Namespace, deployment.Name,
+						func(deployment *appsv1.Deployment) bool {
+							return true
+						})
+				}, pollTimeout, pollInterval).Should(gomega.Succeed())
+			})
 
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
@@ -573,7 +616,6 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
-
 	})
 
 	// Case 6: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
