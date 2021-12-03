@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	mapset "github.com/deckarep/golang-set"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -27,9 +28,6 @@ type SingleClusterInformerManager interface {
 	// - The informer has started(by method 'Start').
 	// - The informer's cache has been synced.
 	IsInformerSynced(resource schema.GroupVersionResource) bool
-
-	// IsHandlerExist checks if handler already added to a the informer that watches the 'resource'.
-	IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool
 
 	// Lister returns a generic lister used to get 'resource' from informer's store.
 	// The informer for 'resource' will be created if not exist, but without any event handler.
@@ -60,7 +58,7 @@ func NewSingleClusterInformerManager(client dynamic.Interface, defaultResync tim
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
 		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
-		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
+		syncedInformers: mapset.NewSet(),
 		ctx:             ctx,
 		cancel:          cancel,
 	}
@@ -72,67 +70,35 @@ type singleClusterInformerManagerImpl struct {
 
 	informerFactory dynamicinformer.DynamicSharedInformerFactory
 
-	syncedInformers map[schema.GroupVersionResource]struct{}
+	syncedInformers mapset.Set
 
 	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
 
 	lock sync.RWMutex
-
-	lockForResource sync.Mutex
 }
 
 func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
-	s.lockForResource.Lock()
-	defer s.lockForResource.Unlock()
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 
 	// if handler already exist, just return, nothing changed.
-	if s.IsHandlerExist(resource, handler) {
-		return
-	}
-
-	s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
-	s.appendHandler(resource, handler)
-}
-
-func (s *singleClusterInformerManagerImpl) IsInformerSynced(resource schema.GroupVersionResource) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
-	_, exist := s.syncedInformers[resource]
-	return exist
-}
-
-func (s *singleClusterInformerManagerImpl) IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
-	handlers, exist := s.handlers[resource]
-	if !exist {
-		return false
-	}
-
-	for _, h := range handlers {
+	for _, h := range s.handlers[resource] {
 		if h == handler {
-			return true
+			return
 		}
 	}
 
-	return false
+	s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
+
+	s.handlers[resource] = append(s.handlers[resource], handler)
+}
+
+func (s *singleClusterInformerManagerImpl) IsInformerSynced(resource schema.GroupVersionResource) bool {
+	return s.syncedInformers.Contains(resource)
 }
 
 func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) cache.GenericLister {
 	return s.informerFactory.ForResource(resource).Lister()
-}
-
-func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	// assume the handler list exist, caller should ensure for that.
-	handlers := s.handlers[resource]
-
-	// assume the handler not exist in it, caller should ensure for that.
-	s.handlers[resource] = append(handlers, handler)
 }
 
 func (s *singleClusterInformerManagerImpl) Start() {
@@ -155,12 +121,10 @@ func (s *singleClusterInformerManagerImpl) WaitForCacheSyncWithTimeout(cacheSync
 }
 
 func (s *singleClusterInformerManagerImpl) waitForCacheSync(ctx context.Context) map[schema.GroupVersionResource]bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	res := s.informerFactory.WaitForCacheSync(ctx.Done())
 	for resource, synced := range res {
-		if _, exist := s.syncedInformers[resource]; !exist && synced {
-			s.syncedInformers[resource] = struct{}{}
+		if !s.IsInformerSynced(resource) && synced {
+			s.syncedInformers.Add(resource)
 		}
 	}
 	return res

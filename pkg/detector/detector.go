@@ -149,7 +149,7 @@ func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
 		newResources := GetDeletableResources(d.DiscoveryClientSet)
 		for r := range newResources {
-			if d.InformerManager.IsHandlerExist(r, d.EventHandler) || d.gvrDisabled(r) {
+			if d.gvrDisabled(r) {
 				continue
 			}
 			klog.Infof("Setup informer for %s", r.String())

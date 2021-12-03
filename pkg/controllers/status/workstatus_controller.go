@@ -375,7 +375,7 @@ func (c *WorkStatusController) registerInformersAndStart(cluster *clusterv1alpha
 
 	allSynced := true
 	for gvr := range gvrTargets {
-		if !singleClusterInformerManager.IsInformerSynced(gvr) || !singleClusterInformerManager.IsHandlerExist(gvr, c.getEventHandler()) {
+		if !singleClusterInformerManager.IsInformerSynced(gvr) {
 			allSynced = false
 			singleClusterInformerManager.ForResource(gvr, c.getEventHandler())
 		}

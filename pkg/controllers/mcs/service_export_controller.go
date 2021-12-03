@@ -170,7 +170,7 @@ func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1al
 
 	allSynced := true
 	for _, gvr := range gvrTargets {
-		if !singleClusterInformerManager.IsInformerSynced(gvr) || !singleClusterInformerManager.IsHandlerExist(gvr, c.getEventHandler(cluster.Name)) {
+		if !singleClusterInformerManager.IsInformerSynced(gvr) {
 			allSynced = false
 			singleClusterInformerManager.ForResource(gvr, c.getEventHandler(cluster.Name))
 		}

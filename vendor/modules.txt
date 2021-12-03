@@ -31,6 +31,9 @@ github.com/coreos/go-systemd/v22/daemon
 github.com/coreos/go-systemd/v22/journal
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/deckarep/golang-set v1.7.1
+## explicit
+github.com/deckarep/golang-set
 # github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
 ## explicit
 github.com/distribution/distribution/v3/digestset
