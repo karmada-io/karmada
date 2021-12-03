@@ -4,6 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // +genclient
@@ -63,6 +64,10 @@ type ObjectReference struct {
 
 	// Name represents the name of the referent.
 	Name string `json:"name"`
+
+	// UID of the referent.
+	// +optional
+	UID types.UID `json:"uid,omitempty"`
 
 	// ResourceVersion represents the internal version of the referenced object, that can be used by clients to
 	// determine when object has changed.

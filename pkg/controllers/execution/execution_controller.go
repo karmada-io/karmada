@@ -165,6 +165,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			err = c.tryUpdateWorkload(clusterName, workload)
 			if err != nil {
 				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+				c.EventRecorder.Eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
@@ -172,10 +173,12 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			err = c.tryCreateWorkload(clusterName, workload)
 			if err != nil {
 				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+				c.EventRecorder.Eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
 		}
+		c.EventRecorder.Eventf(workload, corev1.EventTypeNormal, workv1alpha1.EventReasonSyncWorkSucceed, "Successfully applied resource(%v/%v) to cluster %s", workload.GetNamespace(), workload.GetName(), clusterName)
 		syncSucceedNum++
 	}
 

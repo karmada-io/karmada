@@ -12,4 +12,12 @@ const (
 	EventReasonAggregateStatusFailed = "AggregateStatusFailed"
 	// EventReasonAggregateStatusSucceed indicates that aggregate status succeed.
 	EventReasonAggregateStatusSucceed = "AggregateStatusSucceed"
+	// EventReasonApplyPolicyFailed indicates that apply policy for resource failed.
+	EventReasonApplyPolicyFailed = "ApplyPolicyFailed"
+	// EventReasonApplyPolicySucceed indicates that apply policy for resource succeed.
+	EventReasonApplyPolicySucceed = "ApplyPolicySucceed"
+	// EventReasonScheduleBindingFailed indicates that schedule binding failed.
+	EventReasonScheduleBindingFailed = "ScheduleBindingFailed"
+	// EventReasonScheduleBindingSucceed indicates that schedule binding succeed.
+	EventReasonScheduleBindingSucceed = "ScheduleBindingSucceed"
 )
