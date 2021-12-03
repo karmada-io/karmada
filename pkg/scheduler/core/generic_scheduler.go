@@ -143,6 +143,8 @@ func (g *genericScheduler) runSpreadConstraintsFilter(clusters []*clusterv1alpha
 		spreadGroup.InitialGroupRecord(spreadConstraint)
 		if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster {
 			g.groupByFieldCluster(clusters, spreadConstraint, spreadGroup)
+		} else if len(spreadConstraint.SpreadByLabel) > 0 {
+			g.groupByLabel(clusters, spreadConstraint.SpreadByLabel, spreadConstraint, spreadGroup)
 		}
 	}
 }
@@ -150,6 +152,13 @@ func (g *genericScheduler) runSpreadConstraintsFilter(clusters []*clusterv1alpha
 func (g *genericScheduler) groupByFieldCluster(clusters []*clusterv1alpha1.Cluster, spreadConstraint policyv1alpha1.SpreadConstraint, spreadGroup *util.SpreadGroup) {
 	for _, cluster := range clusters {
 		clusterGroup := cluster.Name
+		spreadGroup.GroupRecord[spreadConstraint][clusterGroup] = append(spreadGroup.GroupRecord[spreadConstraint][clusterGroup], cluster)
+	}
+}
+
+func (g *genericScheduler) groupByLabel(clusters []*clusterv1alpha1.Cluster, key string, spreadConstraint policyv1alpha1.SpreadConstraint, spreadGroup *util.SpreadGroup) {
+	for _, cluster := range clusters {
+		clusterGroup := cluster.Labels[key]
 		spreadGroup.GroupRecord[spreadConstraint][clusterGroup] = append(spreadGroup.GroupRecord[spreadConstraint][clusterGroup], cluster)
 	}
 }
@@ -166,27 +175,25 @@ func (g *genericScheduler) calSpreadResult(spreadGroup *util.SpreadGroup) []*clu
 func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*clusterv1alpha1.Cluster {
 	var feasibleClusters []*clusterv1alpha1.Cluster
 	for spreadConstraint, clusterGroups := range spreadGroup.GroupRecord {
-		if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster {
-			if len(clusterGroups) < spreadConstraint.MinGroups {
-				return nil
+		if len(clusterGroups) < spreadConstraint.MinGroups {
+			return nil
+		}
+
+		if len(clusterGroups) <= spreadConstraint.MaxGroups {
+			for _, v := range clusterGroups {
+				feasibleClusters = append(feasibleClusters, v...)
+			}
+			break
+		}
+
+		if spreadConstraint.MaxGroups > 0 && len(clusterGroups) > spreadConstraint.MaxGroups {
+			var groups []string
+			for group := range clusterGroups {
+				groups = append(groups, group)
 			}
 
-			if len(clusterGroups) <= spreadConstraint.MaxGroups {
-				for _, v := range clusterGroups {
-					feasibleClusters = append(feasibleClusters, v...)
-				}
-				break
-			}
-
-			if spreadConstraint.MaxGroups > 0 && len(clusterGroups) > spreadConstraint.MaxGroups {
-				var groups []string
-				for group := range clusterGroups {
-					groups = append(groups, group)
-				}
-
-				for i := 0; i < spreadConstraint.MaxGroups; i++ {
-					feasibleClusters = append(feasibleClusters, clusterGroups[groups[i]]...)
-				}
+			for i := 0; i < spreadConstraint.MaxGroups; i++ {
+				feasibleClusters = append(feasibleClusters, clusterGroups[groups[i]]...)
 			}
 		}
 	}
