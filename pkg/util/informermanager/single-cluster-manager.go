@@ -77,9 +77,14 @@ type singleClusterInformerManagerImpl struct {
 	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
 
 	lock sync.RWMutex
+
+	lockForResource sync.Mutex
 }
 
 func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
+	s.lockForResource.Lock()
+	defer s.lockForResource.Unlock()
+
 	// if handler already exist, just return, nothing changed.
 	if s.IsHandlerExist(resource, handler) {
 		return
