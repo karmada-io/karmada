@@ -178,10 +178,10 @@ nginx   2/2     2            2           20s
 
 |                        | Kubernetes 1.15 | Kubernetes 1.16 | Kubernetes 1.17 | Kubernetes 1.18 | Kubernetes 1.19 | Kubernetes 1.20 | Kubernetes 1.21 |
 |------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
-| Karmada v0.6           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | -               |
-| Karmada v0.7          | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | -               |
 | Karmada v0.8           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
-| Karmada HEAD (master) | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+| Karmada v0.9           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+| Karmada v0.10          | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+| Karmada HEAD (master)  | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
 
 Key:
 * `✓` Karmada and the Kubernetes version are exactly compatible.
