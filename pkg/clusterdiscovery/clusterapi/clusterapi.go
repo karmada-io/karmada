@@ -82,7 +82,7 @@ func (d *ClusterDetector) OnAdd(obj interface{}) {
 	if !ok {
 		return
 	}
-	d.Processor.EnqueueRateLimited(runtimeObj)
+	d.Processor.Enqueue(runtimeObj)
 }
 
 // OnUpdate handles object update event and push the object to queue.

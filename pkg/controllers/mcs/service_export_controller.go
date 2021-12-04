@@ -221,7 +221,7 @@ func (c *ServiceExportController) genHandlerAddFunc(clusterName string) func(obj
 			klog.Warningf("Failed to generate key for obj: %s", curObj.GetObjectKind().GroupVersionKind())
 			return
 		}
-		c.worker.AddRateLimited(key)
+		c.worker.Add(key)
 	}
 }
 
@@ -234,7 +234,7 @@ func (c *ServiceExportController) genHandlerUpdateFunc(clusterName string) func(
 				klog.Warningf("Failed to generate key for obj: %s", curObj.GetObjectKind().GroupVersionKind())
 				return
 			}
-			c.worker.AddRateLimited(key)
+			c.worker.Add(key)
 		}
 	}
 }
@@ -254,7 +254,7 @@ func (c *ServiceExportController) genHandlerDeleteFunc(clusterName string) func(
 			klog.Warningf("Failed to generate key for obj: %s", oldObj.GetObjectKind().GroupVersionKind())
 			return
 		}
-		c.worker.AddRateLimited(key)
+		c.worker.Add(key)
 	}
 }
 

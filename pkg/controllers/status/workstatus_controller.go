@@ -106,7 +106,7 @@ func (c *WorkStatusController) buildResourceInformers(cluster *clusterv1alpha1.C
 // getEventHandler return callback function that knows how to handle events from the member cluster.
 func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 	if c.eventHandler == nil {
-		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.worker.EnqueueRateLimited)
+		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.worker.Enqueue)
 	}
 	return c.eventHandler
 }

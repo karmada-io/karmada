@@ -563,7 +563,7 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 		return
 	}
 
-	s.queue.AddRateLimited(key)
+	s.queue.Add(key)
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
 
@@ -576,7 +576,7 @@ func (s *Scheduler) addCluster(obj interface{}) {
 	klog.V(3).Infof("Add event for cluster %s", cluster.Name)
 
 	if s.enableSchedulerEstimator {
-		s.schedulerEstimatorWorker.AddRateLimited(cluster.Name)
+		s.schedulerEstimatorWorker.Add(cluster.Name)
 	}
 }
 
@@ -589,7 +589,7 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 	klog.V(3).Infof("Update event for cluster %s", newCluster.Name)
 
 	if s.enableSchedulerEstimator {
-		s.schedulerEstimatorWorker.AddRateLimited(newCluster.Name)
+		s.schedulerEstimatorWorker.Add(newCluster.Name)
 	}
 
 	// Check if cluster becomes failure
@@ -623,7 +623,7 @@ func (s *Scheduler) deleteCluster(obj interface{}) {
 	klog.V(3).Infof("Delete event for cluster %s", cluster.Name)
 
 	if s.enableSchedulerEstimator {
-		s.schedulerEstimatorWorker.AddRateLimited(cluster.Name)
+		s.schedulerEstimatorWorker.Add(cluster.Name)
 	}
 }
 
