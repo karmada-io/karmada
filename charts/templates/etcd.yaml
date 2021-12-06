@@ -1,3 +1,12 @@
+{{- define "etcd.initial.clusters" -}}
+  {{- $uri := "" -}}
+  {{- $ns := include "karmada.namespace" . -}}
+  {{- range $index := until (.Values.etcd.internal.replicaCount | int) -}}
+    {{- $node := printf "etcd-%d=http://etcd-%d.etcd.%s.svc.%s:2380," $index $index $ns $.Values.clusterDomain }}
+    {{- $uri = printf "%s%s" $uri $node -}}
+  {{- end -}}
+  {{- printf $uri | trimSuffix "," | quote -}}
+{{- end }}
 {{- if and (eq .Values.etcd.mode "internal") (eq .Values.installMode "host")}}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -46,6 +55,11 @@ spec:
             periodSeconds: 60
             successThreshold: 1
             timeoutSeconds: 10
+          env:
+            - name: KARMADA_ETCD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           ports:
             - containerPort: 2369
               name: client
@@ -53,6 +67,8 @@ spec:
             - containerPort: 2370
               name: server
               protocol: TCP
+          resources:
+          {{- toYaml .Values.etcd.internal.resources | nindent 12 }}
           volumeMounts:
             - mountPath: /var/lib/etcd
               name: etcd-data
@@ -62,7 +78,7 @@ spec:
           command:
             - /usr/local/bin/etcd
             - --name
-            - etcd0
+            - $(KARMADA_ETCD_NAME)
             - --listen-peer-urls
             - http://0.0.0.0:2380
             - --listen-client-urls
@@ -70,7 +86,7 @@ spec:
             - --advertise-client-urls
             - https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
             - --initial-cluster
-            - etcd0=http://etcd-0.etcd.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2380
+            - {{ include "etcd.initial.clusters" . }}
             - --initial-cluster-state
             - new
             - --cert-file=/etc/kubernetes/pki/etcd/karmada.crt
@@ -82,10 +98,23 @@ spec:
         - name: etcd-cert
           secret:
             secretName: {{ include "karmada.name" . }}-cert
+        {{- if eq .Values.etcd.internal.storageType "hostPath" }}
         - hostPath:
-            path: /var/lib/karmada-etcd
+            path: /var/lib/{{ include "karmada.namespace" . }}/karmada-etcd
             type: DirectoryOrCreate
           name: etcd-data
+        {{- end}}
+  {{- if eq .Values.etcd.internal.storageType "pvc"}}
+  volumeClaimTemplates:
+    - metadata:
+        name: etcd-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: {{ .Values.etcd.internal.pvc.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.etcd.internal.pvc.size }}
+  {{- end}}
 ---
 apiVersion: v1
 kind: Service

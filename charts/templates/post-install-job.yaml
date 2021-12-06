@@ -80,6 +80,7 @@ spec:
       containers:
       - name: post-install
         image: {{ .Values.postInstallJob.postInstallContainerImage }}
+        imagePullPolicy: IfNotPresent
         command:
         - /bin/sh
         - -c

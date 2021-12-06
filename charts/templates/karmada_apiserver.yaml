@@ -104,9 +104,13 @@ spec:
             - name: etcd-cert
               mountPath: /etc/etcd/pki
               readOnly: true
+      {{- if .Values.apiServer.hostNetwork }}
       dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
       enableServiceLinks: true
+      {{- if .Values.apiServer.hostNetwork }}
       hostNetwork: true
+      {{- end }}
       preemptionPolicy: PreemptLowerPriority
       priority: 2000001000
       priorityClassName: system-node-critical
@@ -146,9 +150,12 @@ metadata:
   labels:
   {{- include "karmada.apiserver.labels" . | nindent 4}}
 spec:
-  type: ClusterIP
+  type: {{ .Values.apiServer.serviceType }}
   ports:
     - name: {{ $name }}-apiserver
+      {{- if and (eq .Values.apiServer.serviceType "NodePort") (.Values.apiServer.nodePort) }}
+      nodePort: {{ .Values.apiServer.nodePort }}
+      {{- end }}
       port: 5443
       protocol: TCP
       targetPort: 5443

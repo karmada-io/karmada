@@ -122,6 +122,10 @@ $ helm install karmada-scheduler-estimator -n karmada-system ./charts
 |`etcd.internal.image.repository`| Image of the etcd |`"k8s.gcr.io/etcd"`|
 |`etcd.internal.image.pullPolicy`| Image pull policy of the etcd |`"IfNotPresent"`|
 |`etcd.internal.image.tag`| Image tag of the etcd |`"3.4.13-0"`|
+|`etcd.internal.storageType`| StorageType of the etcd, accepts "hostPath", "pvc" |`"hostPath"`|
+|`etcd.internal.pvc.storageClass`| StorageClass of the etcd, takes effect when `etcd.internal.storageType` is "pvc" |`""`|
+|`etcd.internal.pvc.size`| Storage size of the etcd, takes effect when `etcd.internal.storageType` is "pvc" |`""`|
+|`etcd.internal.resources`| Resource quota of the etcd |`{}`|
 |`agent.clusterName`| Name of the member cluster |`""`|
 |`agent.kubeconfig.caCrt`| CA CRT of the karmada certificate |`""`|
 |`agent.kubeconfig.crt`| CRT of the karmada certificate |`""`|
@@ -184,9 +188,12 @@ $ helm install karmada-scheduler-estimator -n karmada-system ./charts
 |`apiServer.image.tag`| Image tag of the karmada-apiserver |`"v1.19.1"`|
 |`apiServer.image.pullPolicy`| Image pull policy of the karmada-apiserver |`"IfNotPresent"`|
 |`apiServer.resources`| Resource quota of the karmada-apiserver |`{}`|
+|`apiServer.hostNetwork`| Deploy karmada-apiserver with hostNetwork. If there are multiple karmadas in one cluster, you'd better set it to "false" |`"true"`|
 |`apiServer.nodeSelector`| Node selector of the karmada-apiserver |`{}`|
 |`apiServer.affinity`| Affinity of the karmada-apiserver |`{}`|
 |`apiServer.tolerations`| Tolerations of the karmada-apiserver |`[]`|
+|`apiServer.serviceType`| Service type of apiserver, accepts "ClusterIP", "NodePort", "LoadBalancer" |`"ClusterIP"`|
+|`apiServer.nodePort`| Node port for apiserver, takes effect when `apiServer.serviceType` is "NodePort". If no port is specified, the nodePort will be automatically assigned. |`0`|
 |`kubeControllerManager.labels`| Labels of the kube-controller-manager deployment |`{"app": "kube-controller-manager"}`|
 |`kubeControllerManager.replicaCount`| Target replicas of the kube-controller-manager |`1`|
 |`kubeControllerManager.podLabels`| Labels of the kube-controller-manager pods |`{}`|
