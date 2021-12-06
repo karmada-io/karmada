@@ -19,4 +19,5 @@ labels: kind/bug
 
 **Environment**:
 - Karmada version:
+- kubectl-karmada or karmadactl version (the result of `kubectl-karmada version` or `karmadactl version`):
 - Others:
