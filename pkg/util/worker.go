@@ -10,18 +10,24 @@ import (
 const (
 	// maxRetries is the number of times a resource will be retried before it is dropped out of the queue.
 	// With the current rate-limiter in use (5ms*2^(maxRetries-1)) the following numbers represent the times
-	// a resource is going to be requeued:
+	// a resource is going to be re-queued:
 	//
 	// 5ms, 10ms, 20ms, 40ms, 80ms, 160ms, 320ms, 640ms, 1.3s, 2.6s, 5.1s, 10.2s, 20.4s, 41s, 82s
 	maxRetries = 15
 )
 
-// AsyncWorker is a worker to process resources periodic with a rateLimitingQueue.
+// AsyncWorker maintains a rate limiting queue and the items in the queue will be reconciled by a "ReconcileFunc".
+// The item will be re-queued if "ReconcileFunc" returns an error, maximum re-queue times defined by "maxRetries" above,
+// after that the item will be discarded from the queue.
 type AsyncWorker interface {
-	// Add adds item to queue.
+	// Add adds the 'item' to queue immediately(without any delay).
 	Add(item interface{})
-	// Enqueue generates the key for objects then adds the key as an item to queue.
+
+	// Enqueue generates the key of 'obj' according to a 'KeyFunc' then adds the key as an item to queue by 'Add'.
 	Enqueue(obj runtime.Object)
+
+	// Run starts a certain number of concurrent workers to reconcile the items and will never stop until 'stopChan'
+	// is closed.
 	Run(workerNumber int, stopChan <-chan struct{})
 }
 
