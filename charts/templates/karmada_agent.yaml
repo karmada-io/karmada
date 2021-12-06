@@ -110,6 +110,8 @@ spec:
           volumeMounts:
             - name: kubeconfig
               mountPath: /etc/kubeconfig
+          resources:
+          {{- toYaml .Values.agent.resources | nindent 12 }}
       volumes:
         - name: kubeconfig
           secret:
