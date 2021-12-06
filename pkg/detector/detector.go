@@ -314,7 +314,7 @@ func (d *ResourceDetector) OnAdd(obj interface{}) {
 	if !ok {
 		return
 	}
-	d.Processor.EnqueueRateLimited(runtimeObj)
+	d.Processor.Enqueue(runtimeObj)
 }
 
 // OnUpdate handles object update event and push the object to queue.
@@ -730,7 +730,7 @@ func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}) {
 	}
 
 	klog.V(2).Infof("Create PropagationPolicy(%s)", key)
-	d.policyReconcileWorker.AddRateLimited(key)
+	d.policyReconcileWorker.Add(key)
 }
 
 // OnPropagationPolicyUpdate handles object update event and push the object to queue.
@@ -746,7 +746,7 @@ func (d *ResourceDetector) OnPropagationPolicyDelete(obj interface{}) {
 	}
 
 	klog.V(2).Infof("Delete PropagationPolicy(%s)", key)
-	d.policyReconcileWorker.AddRateLimited(key)
+	d.policyReconcileWorker.Add(key)
 }
 
 // ReconcilePropagationPolicy handles PropagationPolicy resource changes.
@@ -788,7 +788,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}) {
 	}
 
 	klog.V(2).Infof("Create ClusterPropagationPolicy(%s)", key)
-	d.clusterPolicyReconcileWorker.AddRateLimited(key)
+	d.clusterPolicyReconcileWorker.Add(key)
 }
 
 // OnClusterPropagationPolicyUpdate handles object update event and push the object to queue.
@@ -804,7 +804,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyDelete(obj interface{}) {
 	}
 
 	klog.V(2).Infof("Delete ClusterPropagationPolicy(%s)", key)
-	d.clusterPolicyReconcileWorker.AddRateLimited(key)
+	d.clusterPolicyReconcileWorker.Add(key)
 }
 
 // ReconcileClusterPropagationPolicy handles ClusterPropagationPolicy resource changes.
@@ -937,7 +937,7 @@ func (d *ResourceDetector) HandlePropagationPolicyCreation(policy *policyv1alpha
 
 	for _, key := range matchedKeys {
 		d.RemoveWaiting(key)
-		d.Processor.AddRateLimited(key)
+		d.Processor.Add(key)
 	}
 
 	return nil
@@ -961,7 +961,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreation(policy *policy
 
 	for _, key := range matchedKeys {
 		d.RemoveWaiting(key)
-		d.Processor.AddRateLimited(key)
+		d.Processor.Add(key)
 	}
 
 	return nil
@@ -974,7 +974,7 @@ func (d *ResourceDetector) OnResourceBindingAdd(obj interface{}) {
 		return
 	}
 
-	d.bindingReconcileWorker.AddRateLimited(key)
+	d.bindingReconcileWorker.Add(key)
 }
 
 // OnResourceBindingUpdate handles object update event and push the object to queue.

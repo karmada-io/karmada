@@ -18,10 +18,10 @@ const (
 
 // AsyncWorker is a worker to process resources periodic with a rateLimitingQueue.
 type AsyncWorker interface {
-	// AddRateLimited adds item to queue.
-	AddRateLimited(item interface{})
-	// EnqueueRateLimited generates the key for objects then adds the key as an item to queue.
-	EnqueueRateLimited(obj runtime.Object)
+	// Add adds item to queue.
+	Add(item interface{})
+	// Enqueue generates the key for objects then adds the key as an item to queue.
+	Enqueue(obj runtime.Object)
 	Run(workerNumber int, stopChan <-chan struct{})
 }
 
@@ -57,7 +57,7 @@ func NewAsyncWorker(name string, keyFunc KeyFunc, reconcileFunc ReconcileFunc) A
 	}
 }
 
-func (w *asyncWorker) EnqueueRateLimited(obj runtime.Object) {
+func (w *asyncWorker) Enqueue(obj runtime.Object) {
 	key, err := w.keyFunc(obj)
 	if err != nil {
 		klog.Warningf("Failed to generate key for obj: %s", obj.GetObjectKind().GroupVersionKind())
@@ -68,16 +68,16 @@ func (w *asyncWorker) EnqueueRateLimited(obj runtime.Object) {
 		return
 	}
 
-	w.AddRateLimited(key)
+	w.Add(key)
 }
 
-func (w *asyncWorker) AddRateLimited(item interface{}) {
+func (w *asyncWorker) Add(item interface{}) {
 	if item == nil {
 		klog.Warningf("Ignore nil item from queue")
 		return
 	}
 
-	w.queue.AddRateLimited(item)
+	w.queue.Add(item)
 }
 
 func (w *asyncWorker) handleError(err error, key interface{}) {
