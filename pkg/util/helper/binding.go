@@ -57,8 +57,8 @@ func SortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
 	return p
 }
 
-// IsBindingReady will check if resourceBinding/clusterResourceBinding is ready to build Work.
-func IsBindingReady(status *workv1alpha2.ResourceBindingStatus) bool {
+// IsBindingScheduled will check if resourceBinding/clusterResourceBinding is successfully scheduled.
+func IsBindingScheduled(status *workv1alpha2.ResourceBindingStatus) bool {
 	return meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled)
 }
 
