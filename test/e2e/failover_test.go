@@ -35,7 +35,7 @@ var _ = ginkgo.Describe("failover testing", func() {
 		minGroups := 1
 		numOfFailedClusters := 1
 
-		// set MaxGroups=MinGroups=1, label is location=CHN.
+		// set MaxGroups=MinGroups=1, label is sync-mode=Push.
 		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: deployment.APIVersion,
@@ -85,20 +85,21 @@ var _ = ginkgo.Describe("failover testing", func() {
 			})
 
 			ginkgo.By("check whether deployment of failed cluster is rescheduled to other available cluster", func() {
-				totalNum := 0
+				gomega.Eventually(func(g gomega.Gomega) {
+					totalNum := 0
+					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+					for _, targetClusterName := range targetClusterNames {
+						// the target cluster should be overwritten to another available cluster
+						g.Expect(isDisabled(targetClusterName, disabledClusters)).Should(gomega.BeFalse())
 
-				targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-				for _, targetClusterName := range targetClusterNames {
-					// the target cluster should be overwritten to another available cluster
-					gomega.Expect(isDisabled(targetClusterName, disabledClusters)).Should(gomega.BeFalse())
-
-					framework.WaitDeploymentPresentOnClusterFitWith(targetClusterName, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
-							return true
-						})
-					totalNum++
-				}
-				gomega.Expect(totalNum == minGroups).Should(gomega.BeTrue())
+						framework.WaitDeploymentPresentOnClusterFitWith(targetClusterName, deployment.Namespace, deployment.Name,
+							func(deployment *appsv1.Deployment) bool {
+								return true
+							})
+						totalNum++
+					}
+					g.Expect(totalNum == maxGroups).Should(gomega.BeTrue())
+				}, pollTimeout, pollInterval).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("check if the scheduled condition is true", func() {

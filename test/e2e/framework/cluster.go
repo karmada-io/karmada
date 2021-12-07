@@ -67,7 +67,7 @@ func InitClusterInformation(karmadaClient karmada.Interface, controlPlaneClient 
 		clusterClients = append(clusterClients, clusterClient)
 		clusterDynamicClients = append(clusterDynamicClients, clusterDynamicClient)
 
-		err = setClusterLabel(controlPlaneClient, cluster.Name)
+		err = SetClusterLabel(controlPlaneClient, cluster.Name)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	}
 	gomega.Expect(clusterNames).Should(gomega.HaveLen(len(clusters)))
@@ -190,8 +190,8 @@ func newClusterClientSet(controlPlaneClient client.Client, c *clusterv1alpha1.Cl
 	return &clusterClientSet, &clusterDynamicClientSet, nil
 }
 
-// setClusterLabel set cluster label of E2E
-func setClusterLabel(c client.Client, clusterName string) error {
+// SetClusterLabel set cluster label of E2E
+func SetClusterLabel(c client.Client, clusterName string) error {
 	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
 		clusterObj := &clusterv1alpha1.Cluster{}
 		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
