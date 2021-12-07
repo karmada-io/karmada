@@ -1,0 +1,76 @@
+package app
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"k8s.io/klog/v2"
+
+	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/webhook/interpreter"
+)
+
+// Check if our workloadInterpreter implements necessary interface
+var _ interpreter.Handler = &workloadInterpreter{}
+var _ interpreter.DecoderInjector = &workloadInterpreter{}
+
+// workloadInterpreter explore resource with request operation.
+type workloadInterpreter struct {
+	decoder *interpreter.Decoder
+}
+
+// Handle implements interpreter.Handler interface.
+// It yields a response to an ExploreRequest.
+func (e *workloadInterpreter) Handle(ctx context.Context, req interpreter.Request) interpreter.Response {
+	workload := &workloadv1alpha1.Workload{}
+	err := e.decoder.Decode(req, workload)
+	if err != nil {
+		return interpreter.Errored(http.StatusBadRequest, err)
+	}
+	klog.Infof("Explore workload(%s/%s) for request: %s", workload.GetNamespace(), workload.GetName(), req.Operation)
+
+	switch req.Operation {
+	case configv1alpha1.InterpreterOperationInterpretReplica:
+		return e.responseWithExploreReplica(workload)
+	case configv1alpha1.InterpreterOperationRetain:
+		return e.responseWithExploreRetaining(workload, req)
+	default:
+		return interpreter.Errored(http.StatusBadRequest, fmt.Errorf("wrong request operation type: %s", req.Operation))
+	}
+}
+
+// InjectDecoder implements interpreter.DecoderInjector interface.
+func (e *workloadInterpreter) InjectDecoder(d *interpreter.Decoder) {
+	e.decoder = d
+}
+
+func (e *workloadInterpreter) responseWithExploreReplica(workload *workloadv1alpha1.Workload) interpreter.Response {
+	res := interpreter.Succeeded("")
+	res.Replicas = workload.Spec.Replicas
+	return res
+}
+
+func (e *workloadInterpreter) responseWithExploreRetaining(desiredWorkload *workloadv1alpha1.Workload, req interpreter.Request) interpreter.Response {
+	if req.ObservedObject == nil {
+		err := fmt.Errorf("nil observedObject in exploreReview with operation type: %s", req.Operation)
+		return interpreter.Errored(http.StatusBadRequest, err)
+	}
+	observerWorkload := &workloadv1alpha1.Workload{}
+	err := e.decoder.DecodeRaw(*req.ObservedObject, observerWorkload)
+	if err != nil {
+		return interpreter.Errored(http.StatusBadRequest, err)
+	}
+
+	// Suppose we want to retain the `.spec.paused` field of the actual observed workload object in member cluster,
+	// and prevent from being overwritten by karmada controller-plane.
+	wantedWorkload := desiredWorkload.DeepCopy()
+	wantedWorkload.Spec.Paused = observerWorkload.Spec.Paused
+	marshaledBytes, err := json.Marshal(wantedWorkload)
+	if err != nil {
+		return interpreter.Errored(http.StatusInternalServerError, err)
+	}
+	return interpreter.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
+}

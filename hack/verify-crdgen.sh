@@ -6,8 +6,8 @@ set -o pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-DIFFROOT="${SCRIPT_ROOT}/artifacts/deploy"
-TMP_DIFFROOT="${SCRIPT_ROOT}/_tmp/artifacts/deploy"
+DIFFROOT="${SCRIPT_ROOT}/charts/_crds/bases"
+TMP_DIFFROOT="${SCRIPT_ROOT}/_tmp/charts/_crds/bases"
 _tmp="${SCRIPT_ROOT}/_tmp"
 
 cleanup() {
@@ -22,7 +22,9 @@ cp -a "${DIFFROOT}"/* "${TMP_DIFFROOT}"
 
 bash "${SCRIPT_ROOT}/hack/update-crdgen.sh"
 echo "diffing ${DIFFROOT} against freshly generated files"
+
 ret=0
+
 diff -Naupr "${DIFFROOT}" "${TMP_DIFFROOT}" || ret=$?
 cp -a "${TMP_DIFFROOT}"/* "${DIFFROOT}"
 if [[ $ret -eq 0 ]]

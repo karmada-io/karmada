@@ -1,0 +1,60 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: karmada
+spec:
+  description: |
+    Karmada (Kubernetes Armada) is a Kubernetes management system that enables
+    you to run your cloud-native applications across multiple Kubernetes
+    clusters and clouds, with no changes to your applications. By speaking
+    Kubernetes-native APIs and providing advanced scheduling capabilities,
+    Karmada enables truly open, multi-cloud Kubernetes.
+    This cli tools controls a federation of Karmada clusters.
+  homepage: https://github.com/karmada-io/karmada
+  platforms:
+  - bin: kubectl-karmada
+    files:
+    - from: kubectl-karmada
+      to: .
+    - from: LICENSE
+      to: .
+    selector:
+      matchLabels:
+        arch: arm64
+        os: linux
+    {{addURIAndSha "https://github.com/karmada-io/karmada/releases/download/{{ .TagName }}/kubectl-karmada-linux-arm64.tgz" .TagName }}
+  - bin: kubectl-karmada
+    files:
+    - from: kubectl-karmada
+      to: .
+    - from: LICENSE
+      to: .
+    selector:
+      matchLabels:
+        arch: arm64
+        os: darwin
+    {{addURIAndSha "https://github.com/karmada-io/karmada/releases/download/{{ .TagName }}/kubectl-karmada-darwin-arm64.tgz" .TagName }}
+  - bin: kubectl-karmada
+    files:
+    - from: kubectl-karmada
+      to: .
+    - from: LICENSE
+      to: .
+    selector:
+      matchLabels:
+        arch: amd64
+        os: linux
+    {{addURIAndSha "https://github.com/karmada-io/karmada/releases/download/{{ .TagName }}/kubectl-karmada-linux-amd64.tgz" .TagName }}
+  - bin: kubectl-karmada
+    files:
+    - from: kubectl-karmada
+      to: .
+    - from: LICENSE
+      to: .
+    selector:
+      matchLabels:
+        arch: amd64
+        os: darwin
+    {{addURIAndSha "https://github.com/karmada-io/karmada/releases/download/{{ .TagName }}/kubectl-karmada-darwin-amd64.tgz" .TagName }}
+  shortDescription: Manage clusters with Karmada federation.
+  version: {{ .TagName }}

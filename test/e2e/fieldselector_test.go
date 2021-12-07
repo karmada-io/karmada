@@ -7,13 +7,13 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -55,84 +55,69 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames:  clusterNames,
+				ClusterNames:  framework.ClusterNames(),
 				FieldSelector: filedSelector,
 			},
-		})
-
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
 		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By("setting provider and region for clusters", func() {
 				providerMap := []string{"huaweicloud", "huaweicloud", "kind"}
 				regionMap := []string{"cn-south-1", "cn-north-1", "cn-east-1"}
-				for index, cluster := range clusterNames {
+				for index, cluster := range framework.ClusterNames() {
 					if index > 2 {
 						break
 					}
-					fmt.Printf("setting provider and region for cluster %v", cluster)
-					clusterObj := &clusterv1alpha1.Cluster{}
-					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					fmt.Printf("setting provider and region for cluster %v\n", cluster)
+					gomega.Eventually(func(g gomega.Gomega) {
+						clusterObj := &clusterv1alpha1.Cluster{}
+						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
+						g.Expect(err).NotTo(gomega.HaveOccurred())
 
-					originalClusterProviderInfo[cluster] = clusterObj.Spec.Provider
-					originalClusterRegionInfo[cluster] = clusterObj.Spec.Region
-					clusterObj.Spec.Provider = providerMap[index]
-					clusterObj.Spec.Region = regionMap[index]
-
-					err = controlPlaneClient.Update(context.TODO(), clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						originalClusterProviderInfo[cluster] = clusterObj.Spec.Provider
+						originalClusterRegionInfo[cluster] = clusterObj.Spec.Region
+						clusterObj.Spec.Provider = providerMap[index]
+						clusterObj.Spec.Region = regionMap[index]
+						err = controlPlaneClient.Update(context.TODO(), clusterObj)
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 				}
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 
 		ginkgo.AfterEach(func() {
 			ginkgo.By("recovering provider and region for clusters", func() {
-				for index, cluster := range clusterNames {
+				for index, cluster := range framework.ClusterNames() {
 					if index > 2 {
 						break
 					}
-					clusterObj := &clusterv1alpha1.Cluster{}
-					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-					clusterObj.Spec.Provider = originalClusterProviderInfo[cluster]
-					clusterObj.Spec.Region = originalClusterRegionInfo[cluster]
-					err = controlPlaneClient.Update(context.TODO(), clusterObj)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Eventually(func(g gomega.Gomega) {
+						clusterObj := &clusterv1alpha1.Cluster{}
+						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: cluster}, clusterObj)
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+
+						clusterObj.Spec.Provider = originalClusterProviderInfo[cluster]
+						clusterObj.Spec.Region = originalClusterRegionInfo[cluster]
+						err = controlPlaneClient.Update(context.TODO(), clusterObj)
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 				}
 			})
 		})
 
 		ginkgo.It("propagation with fieldSelector testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
 
 			ginkgo.By("check whether deployment is scheduled to clusters which meeting the fieldSelector requirements", func() {
-				targetClusterNames, err := getTargetClusterNames(deployment)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 				gomega.Expect(len(targetClusterNames) == 1).Should(gomega.BeTrue())
 				gomega.Expect(targetClusterNames[0] == desiredScheduleResult).Should(gomega.BeTrue())
 			})
 
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

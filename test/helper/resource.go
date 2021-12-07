@@ -4,12 +4,26 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
+
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+)
+
+// These are different resource units.
+const (
+	ResourceUnitZero             int64 = 0
+	ResourceUnitCPU              int64 = 1000
+	ResourceUnitMem              int64 = 1024 * 1024 * 1024
+	ResourceUnitPod              int64 = 1
+	ResourceUnitEphemeralStorage int64 = 1024 * 1024 * 1024
+	ResourceUnitGPU              int64 = 1
 )
 
 // NewDeployment will build a deployment object.
@@ -207,6 +221,183 @@ func NewCustomResource(apiVersion, kind, namespace, name string) *unstructured.U
 					{"name": "cluster1"},
 					{"name": "cluster2"},
 				},
+			},
+		},
+	}
+}
+
+// NewJob will build a job object.
+func NewJob(namespace string, name string) *batchv1.Job {
+	return &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "batch/v1",
+			Kind:       "Job",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:    "pi",
+						Image:   "perl",
+						Command: []string{"perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"},
+					}},
+					RestartPolicy: corev1.RestartPolicyNever,
+				},
+			},
+			BackoffLimit: pointer.Int32Ptr(4),
+		},
+	}
+}
+
+// NewResourceList will build a ResourceList.
+func NewResourceList(milliCPU, memory, ephemeralStorage int64) corev1.ResourceList {
+	return corev1.ResourceList{
+		corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+		corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.DecimalSI),
+		corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+	}
+}
+
+// NewPodWithRequest will build a Pod with resource request.
+func NewPodWithRequest(pod, node string, milliCPU, memory, ephemeralStorage int64) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: pod},
+		Spec: corev1.PodSpec{
+			NodeName: node,
+			Containers: []corev1.Container{
+				{
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+							corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.DecimalSI),
+							corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+						},
+					},
+				},
+			},
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodRunning,
+		},
+	}
+}
+
+// NewNode will build a ready node with resource.
+func NewNode(node string, milliCPU, memory, pods, ephemeralStorage int64) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: node},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Conditions: []corev1.NodeCondition{
+				{
+					Type:              corev1.NodeReady,
+					Status:            corev1.ConditionTrue,
+					Reason:            "KubeletReady",
+					Message:           "kubelet is posting ready status",
+					LastHeartbeatTime: metav1.Now(),
+				},
+			},
+		},
+	}
+}
+
+// MakeNodeWithLabels will build a ready node with resource and labels.
+func MakeNodeWithLabels(node string, milliCPU, memory, pods, ephemeralStorage int64, labels map[string]string) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: node, Labels: labels},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Conditions: []corev1.NodeCondition{
+				{
+					Type:              corev1.NodeReady,
+					Status:            corev1.ConditionTrue,
+					Reason:            "KubeletReady",
+					Message:           "kubelet is posting ready status",
+					LastHeartbeatTime: metav1.Now(),
+				},
+			},
+		},
+	}
+}
+
+// MakeNodeWithTaints will build a ready node with resource and taints.
+func MakeNodeWithTaints(node string, milliCPU, memory, pods, ephemeralStorage int64, taints []corev1.Taint) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: node},
+		Spec: corev1.NodeSpec{
+			Taints: taints,
+		},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(memory, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(pods, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeralStorage, resource.BinarySI),
+			},
+			Conditions: []corev1.NodeCondition{
+				{
+					Type:              corev1.NodeReady,
+					Status:            corev1.ConditionTrue,
+					Reason:            "KubeletReady",
+					Message:           "kubelet is posting ready status",
+					LastHeartbeatTime: metav1.Now(),
+				},
+			},
+		},
+	}
+}
+
+// NewCluster will build a Cluster.
+func NewCluster(name string) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+	}
+}
+
+// NewClusterWithResource will build a Cluster with resource.
+func NewClusterWithResource(name string, allocatable, allocating, allocated corev1.ResourceList) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Status: clusterv1alpha1.ClusterStatus{
+			ResourceSummary: &clusterv1alpha1.ResourceSummary{
+				Allocatable: allocatable,
+				Allocating:  allocating,
+				Allocated:   allocated,
 			},
 		},
 	}

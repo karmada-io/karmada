@@ -242,6 +242,14 @@ func applyPolicyOverriders(rawObj *unstructured.Unstructured, overriders policyv
 	if err != nil {
 		return err
 	}
+	// patch command
+	if err := applyCommandOverriders(rawObj, overriders.CommandOverrider); err != nil {
+		return err
+	}
+	// patch args
+	if err := applyArgsOverriders(rawObj, overriders.ArgsOverrider); err != nil {
+		return err
+	}
 
 	return applyJSONPatch(rawObj, parseJSONPatchesByPlaintext(overriders.Plaintext))
 }
@@ -250,10 +258,43 @@ func applyImageOverriders(rawObj *unstructured.Unstructured, imageOverriders []p
 	for index := range imageOverriders {
 		patches, err := buildPatches(rawObj, &imageOverriders[index])
 		if err != nil {
+			klog.Errorf("Build patches with imageOverrides err: %v", err)
 			return err
 		}
 
 		klog.V(4).Infof("Parsed JSON patches by imageOverriders(%+v): %+v", imageOverriders[index], patches)
+		if err = applyJSONPatch(rawObj, patches); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func applyCommandOverriders(rawObj *unstructured.Unstructured, commandOverriders []policyv1alpha1.CommandArgsOverrider) error {
+	for index := range commandOverriders {
+		patches, err := buildCommandArgsPatches(CommandString, rawObj, &commandOverriders[index])
+		if err != nil {
+			return err
+		}
+
+		klog.V(4).Infof("Parsed JSON patches by commandOverriders(%+v): %+v", commandOverriders[index], patches)
+		if err = applyJSONPatch(rawObj, patches); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func applyArgsOverriders(rawObj *unstructured.Unstructured, argsOverriders []policyv1alpha1.CommandArgsOverrider) error {
+	for index := range argsOverriders {
+		patches, err := buildCommandArgsPatches(ArgsString, rawObj, &argsOverriders[index])
+		if err != nil {
+			return err
+		}
+
+		klog.V(4).Infof("Parsed JSON patches by argsOverriders(%+v): %+v", argsOverriders[index], patches)
 		if err = applyJSONPatch(rawObj, patches); err != nil {
 			return err
 		}

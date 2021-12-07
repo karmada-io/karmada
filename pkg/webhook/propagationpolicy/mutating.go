@@ -41,10 +41,15 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 	}
 
 	if len(policy.Name) > validation.LabelValueMaxLength {
-		return admission.Errored(http.StatusBadRequest, fmt.Errorf("PropagationPolicy's name and should be no more than %d characters", validation.LabelValueMaxLength))
+		return admission.Errored(http.StatusBadRequest, fmt.Errorf("PropagationPolicy's name should be no more than %d characters", validation.LabelValueMaxLength))
 	}
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
+
+	addedResourceSelectors := helper.GetFollowedResourceSelectorsWhenMatchServiceImport(policy.Spec.ResourceSelectors)
+	if addedResourceSelectors != nil {
+		policy.Spec.ResourceSelectors = append(policy.Spec.ResourceSelectors, addedResourceSelectors...)
+	}
 
 	marshaledBytes, err := json.Marshal(policy)
 	if err != nil {

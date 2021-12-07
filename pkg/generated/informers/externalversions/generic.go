@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -42,6 +44,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	case v1alpha1.SchemeGroupVersion.WithResource("clusters"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Cluster().V1alpha1().Clusters().Informer()}, nil
 
+		// Group=config.karmada.io, Version=v1alpha1
+	case configv1alpha1.SchemeGroupVersion.WithResource("resourceinterpreterwebhookconfigurations"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ResourceInterpreterWebhookConfigurations().Informer()}, nil
+
 		// Group=policy.karmada.io, Version=v1alpha1
 	case policyv1alpha1.SchemeGroupVersion.WithResource("clusteroverridepolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().ClusterOverridePolicies().Informer()}, nil
@@ -61,6 +67,12 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha1().ResourceBindings().Informer()}, nil
 	case workv1alpha1.SchemeGroupVersion.WithResource("works"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha1().Works().Informer()}, nil
+
+		// Group=work.karmada.io, Version=v1alpha2
+	case v1alpha2.SchemeGroupVersion.WithResource("clusterresourcebindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha2().ClusterResourceBindings().Informer()}, nil
+	case v1alpha2.SchemeGroupVersion.WithResource("resourcebindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Work().V1alpha2().ResourceBindings().Informer()}, nil
 
 	}
 

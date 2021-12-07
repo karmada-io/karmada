@@ -1,0 +1,17 @@
+name: FOSSA
+on:
+  # Run this workflow every time a new commit pushed to upstream/fork repository.
+  # Run workflow on fork repository will help contributors find and resolve issues before sending a PR.
+  push:
+  pull_request:
+jobs:
+  fossa:
+    name: FOSSA
+    runs-on: ubuntu-18.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+      - name: Run FOSSA scan and upload build data
+        uses: fossas/fossa-action@v1
+        with:
+          api-key: 7ac0174603e25cb0a4b3ebd2e131a89f

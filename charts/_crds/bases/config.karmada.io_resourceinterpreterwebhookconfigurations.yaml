@@ -1,0 +1,192 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
+  name: resourceinterpreterwebhookconfigurations.config.karmada.io
+spec:
+  group: config.karmada.io
+  names:
+    kind: ResourceInterpreterWebhookConfiguration
+    listKind: ResourceInterpreterWebhookConfigurationList
+    plural: resourceinterpreterwebhookconfigurations
+    singular: resourceinterpreterwebhookconfiguration
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ResourceInterpreterWebhookConfiguration describes the configuration
+          of webhooks which take the responsibility to tell karmada the details of
+          the resource object, especially for custom resources.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          webhooks:
+            description: Webhooks is a list of webhooks and the affected resources
+              and operations.
+            items:
+              description: ResourceInterpreterWebhook describes the webhook as well
+                as the resources and operations it applies to.
+              properties:
+                clientConfig:
+                  description: ClientConfig defines how to communicate with the hook.
+                  properties:
+                    caBundle:
+                      description: '`caBundle` is a PEM encoded CA bundle which will
+                        be used to validate the webhook''s server certificate. If
+                        unspecified, system trust roots on the apiserver are used.'
+                      format: byte
+                      type: string
+                    service:
+                      description: "`service` is a reference to the service for this
+                        webhook. Either `service` or `url` must be specified. \n If
+                        the webhook is running within the cluster, then you should
+                        use `service`."
+                      properties:
+                        name:
+                          description: '`name` is the name of the service. Required'
+                          type: string
+                        namespace:
+                          description: '`namespace` is the namespace of the service.
+                            Required'
+                          type: string
+                        path:
+                          description: '`path` is an optional URL path which will
+                            be sent in any request to this service.'
+                          type: string
+                        port:
+                          description: If specified, the port on the service that
+                            hosting webhook. Default to 443 for backward compatibility.
+                            `port` should be a valid port number (1-65535, inclusive).
+                          format: int32
+                          type: integer
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    url:
+                      description: "`url` gives the location of the webhook, in standard
+                        URL form (`scheme://host:port/path`). Exactly one of `url`
+                        or `service` must be specified. \n The `host` should not refer
+                        to a service running in the cluster; use the `service` field
+                        instead. The host might be resolved via external DNS in some
+                        apiservers (e.g., `kube-apiserver` cannot resolve in-cluster
+                        DNS as that would be a layering violation). `host` may also
+                        be an IP address. \n Please note that using `localhost` or
+                        `127.0.0.1` as a `host` is risky unless you take great care
+                        to run this webhook on all hosts which run an apiserver which
+                        might need to make calls to this webhook. Such installs are
+                        likely to be non-portable, i.e., not easy to turn up in a
+                        new cluster. \n The scheme must be \"https\"; the URL must
+                        begin with \"https://\". \n A path is optional, and if present
+                        may be any string permissible in a URL. You may use the path
+                        to pass an arbitrary string to the webhook, for example, a
+                        cluster identifier. \n Attempting to use a user or basic auth
+                        e.g. \"user:password@\" is not allowed. Fragments (\"#...\")
+                        and query parameters (\"?...\") are not allowed, either."
+                      type: string
+                  type: object
+                interpreterContextVersions:
+                  description: InterpreterContextVersions is an ordered list of preferred
+                    `ResourceInterpreterContext` versions the Webhook expects. Karmada
+                    will try to use first version in the list which it supports. If
+                    none of the versions specified in this list supported by Karmada,
+                    validation will fail for this object. If a persisted webhook configuration
+                    specifies allowed versions and does not include any versions known
+                    to the Karmada, calls to the webhook will fail and be subject
+                    to the failure policy.
+                  items:
+                    type: string
+                  type: array
+                name:
+                  description: Name is the full-qualified name of the webhook.
+                  type: string
+                rules:
+                  description: Rules describes what operations on what resources the
+                    webhook cares about. The webhook cares about an operation if it
+                    matches any Rule.
+                  items:
+                    description: RuleWithOperations is a tuple of Operations and Resources.
+                      It is recommended to make sure that all the tuple expansions
+                      are valid.
+                    properties:
+                      apiGroups:
+                        description: "APIGroups is the API groups the resources belong
+                          to. '*' is all groups. If '*' is present, the length of
+                          the slice must be one. For example:  [\"apps\", \"batch\",
+                          \"example.io\"] means matches 3 groups.  [\"*\"] means matches
+                          all group \n Note: The group cloud be empty, e.g the 'core'
+                          group of kubernetes, in that case use [\"\"]."
+                        items:
+                          type: string
+                        type: array
+                      apiVersions:
+                        description: 'APIVersions is the API versions the resources
+                          belong to. ''*'' is all versions. If ''*'' is present, the
+                          length of the slice must be one. For example:  ["v1alpha1",
+                          "v1beta1"] means matches 2 versions.  ["*"] means matches
+                          all versions.'
+                        items:
+                          type: string
+                        type: array
+                      kinds:
+                        description: 'Kinds is a list of resources this rule applies
+                          to. If ''*'' is present, the length of the slice must be
+                          one. For example:  ["Deployment", "Pod"] means matches Deployment
+                          and Pod.  ["*"] means apply to all resources.'
+                        items:
+                          type: string
+                        type: array
+                      operations:
+                        description: Operations is the operations the hook cares about.
+                          If '*' is present, the length of the slice must be one.
+                        items:
+                          description: InterpreterOperation specifies an operation
+                            for a request.
+                          type: string
+                        type: array
+                    required:
+                    - apiGroups
+                    - apiVersions
+                    - kinds
+                    - operations
+                    type: object
+                  type: array
+                timeoutSeconds:
+                  description: TimeoutSeconds specifies the timeout for this webhook.
+                    After the timeout passes, the webhook call will be ignored or
+                    the API call will fail based on the failure policy. The timeout
+                    value must be between 1 and 30 seconds. Default to 10 seconds.
+                  format: int32
+                  type: integer
+              required:
+              - clientConfig
+              - interpreterContextVersions
+              - name
+              type: object
+            type: array
+        required:
+        - webhooks
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

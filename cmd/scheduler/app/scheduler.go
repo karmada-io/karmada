@@ -4,10 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -20,6 +23,8 @@ import (
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/scheduler"
+	"github.com/karmada-io/karmada/pkg/version"
+	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
 // NewSchedulerCommand creates a *cobra.Command object with default parameters
@@ -27,28 +32,43 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "scheduler",
+		Use:  "karmada-scheduler",
 		Long: `The karmada scheduler binds resources to the clusters it manages.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := run(opts, stopChan); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				os.Exit(1)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// validate options
+			if errs := opts.Validate(); len(errs) != 0 {
+				return errs.ToAggregate()
 			}
+			if err := run(opts, stopChan); err != nil {
+				return err
+			}
+			return nil
+		},
+		Args: func(cmd *cobra.Command, args []string) error {
+			for _, arg := range args {
+				if len(arg) > 0 {
+					return fmt.Errorf("%q does not take any arguments, got %q", cmd.CommandPath(), args)
+				}
+			}
+			return nil
 		},
 	}
 
 	opts.AddFlags(cmd.Flags())
+	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-scheduler"))
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	return cmd
 }
 
 func run(opts *options.Options, stopChan <-chan struct{}) error {
-	go serveHealthz(fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort))
+	klog.Infof("karmada-scheduler version: %s", version.Get())
+	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
+	restConfig.QPS, restConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
@@ -60,8 +80,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		cancel()
 	}()
 
-	scheduler.Failover = opts.Failover
-	sched := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet)
+	sched := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet, opts)
 	if !opts.LeaderElection.LeaderElect {
 		sched.Run(ctx)
 		return fmt.Errorf("scheduler exited")
@@ -80,7 +99,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 
 	rl, err := resourcelock.New(opts.LeaderElection.ResourceLock,
 		opts.LeaderElection.ResourceNamespace,
-		"karmada-scheduler",
+		opts.LeaderElection.ResourceName,
 		leaderElectionClient.CoreV1(),
 		leaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
@@ -106,11 +125,13 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	return nil
 }
 
-func serveHealthz(address string) {
+func serveHealthzAndMetrics(address string) {
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+
+	http.Handle("/metrics", promhttp.Handler())
 
 	klog.Fatal(http.ListenAndServe(address, nil))
 }

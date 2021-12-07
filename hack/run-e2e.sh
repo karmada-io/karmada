@@ -16,6 +16,16 @@ KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
 KARMADA_APISERVER_KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG:-"$KUBECONFIG_PATH/karmada.config"}
 PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS:-"member3:$KUBECONFIG_PATH/members.config"}
 
+# KARMADA_RUNNING_ON_KIND indicates if current testing against on karmada that installed on a kind cluster.
+# Defaults to true.
+# For kind cluster, the kind related logs will be collected after the testing.
+KARMADA_RUNNING_ON_KIND=${KARMADA_RUNNING_ON_KIND:-true}
+
+KARMADA_HOST_CLUSTER_NAME=${KARMADA_HOST_CLUSTER_NAME:-"karmada-host"}
+
+ARTIFACTS_PATH=${ARTIFACTS_PATH:-"${HOME}/karmada-e2e-logs"}
+mkdir -p "$ARTIFACTS_PATH"
+
 # Install ginkgo
 GO111MODULE=on go install github.com/onsi/ginkgo/ginkgo
 
@@ -23,5 +33,21 @@ GO111MODULE=on go install github.com/onsi/ginkgo/ginkgo
 export KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG}
 export PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS}
 
+set +e
 ginkgo -v -race -failFast ./test/e2e/
+TESTING_RESULT=$?
 
+# Collect logs
+echo "Collect logs to $ARTIFACTS_PATH..."
+cp "$KARMADA_APISERVER_KUBECONFIG" "$ARTIFACTS_PATH"
+
+if [ "$KARMADA_RUNNING_ON_KIND" = true ]; then
+  echo "Collecting $KARMADA_HOST_CLUSTER_NAME logs..."
+  mkdir -p "$ARTIFACTS_PATH/$KARMADA_HOST_CLUSTER_NAME"
+  kind export logs --name="$KARMADA_HOST_CLUSTER_NAME" "$ARTIFACTS_PATH/$KARMADA_HOST_CLUSTER_NAME"
+fi
+
+echo "Collected logs at $ARTIFACTS_PATH:"
+ls -al "$ARTIFACTS_PATH"
+
+exit $TESTING_RESULT

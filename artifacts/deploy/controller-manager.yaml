@@ -29,7 +29,7 @@ spec:
             - --bind-address=0.0.0.0
             - --cluster-status-update-frequency=10s
             - --secure-port=10357
-            - --v=2
+            - --v=4
           volumeMounts:
           - name: kubeconfig
             subPath: kubeconfig
@@ -38,4 +38,3 @@ spec:
         - name: kubeconfig
           secret:
             secretName: kubeconfig
-

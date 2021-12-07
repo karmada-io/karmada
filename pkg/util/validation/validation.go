@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kubevalidation "k8s.io/apimachinery/pkg/util/validation"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -25,6 +25,9 @@ const LabelValueMaxLength int = 63
 // - Length must be less than 48 characters.
 //   * Since cluster name used to generate execution namespace by adding a prefix, so reserve 15 characters for the prefix.
 func ValidateClusterName(name string) []string {
+	if len(name) == 0 {
+		return []string{"must be not empty"}
+	}
 	if len(name) > clusterNameMaxLength {
 		return []string{fmt.Sprintf("must be no more than %d characters", clusterNameMaxLength)}
 	}
@@ -63,7 +66,7 @@ func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) er
 		}
 
 		switch matchExpression.Operator {
-		case v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn:
+		case corev1.NodeSelectorOpIn, corev1.NodeSelectorOpNotIn:
 		default:
 			return fmt.Errorf("unsupported operator %q, must be In or NotIn", matchExpression.Operator)
 		}

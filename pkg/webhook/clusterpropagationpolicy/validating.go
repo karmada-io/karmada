@@ -41,13 +41,13 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 		if !equality.Semantic.DeepEqual(policy.Spec.ResourceSelectors, oldPolicy.Spec.ResourceSelectors) {
-			klog.Info(helper.DenyReasonResourceSelectorsModify)
+			klog.Error(helper.DenyReasonResourceSelectorsModify)
 			return admission.Denied(helper.DenyReasonResourceSelectorsModify)
 		}
 	}
 
 	if err := helper.ValidateSpreadConstraint(policy.Spec.Placement.SpreadConstraints); err != nil {
-		klog.Info(err)
+		klog.Error(err)
 		return admission.Denied(err.Error())
 	}
 

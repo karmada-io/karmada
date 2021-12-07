@@ -7,7 +7,7 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -16,6 +16,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -24,38 +25,15 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 	ginkgo.When("create a namespace in karmada-apiserver", func() {
 		namespaceName := "karmada-e2e-ns-" + rand.String(3)
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("Creating namespace: %s", namespaceName), func() {
-				namespace := helper.NewNamespace(namespaceName)
-				_, err := util.CreateNamespace(kubeClient, namespace)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			namespace := helper.NewNamespace(namespaceName)
+			framework.CreateNamespace(kubeClient, namespace)
 		})
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("Deleting namespace: %s", namespaceName), func() {
-				err := util.DeleteNamespace(kubeClient, namespaceName)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveNamespace(kubeClient, namespaceName)
 		})
 
 		ginkgo.It("namespace should be propagated to member clusters", func() {
-			ginkgo.By("check if namespace appear in member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return false, nil
-							}
-							return false, err
-						}
-						return true, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), namespaceName)
 		})
 	})
 
@@ -63,53 +41,14 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 		namespaceName := "karmada-e2e-ns-" + rand.String(3)
 
 		ginkgo.It("namespace should be propagated to member clusters", func() {
-			ginkgo.By(fmt.Sprintf("Creating namespace: %s", namespaceName), func() {
-				namespace := helper.NewNamespace(namespaceName)
-				_, err := util.CreateNamespace(kubeClient, namespace)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if namespace appear in member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
-						if err != nil {
-							return false, err
-						}
-						return true, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			namespace := helper.NewNamespace(namespaceName)
+			framework.CreateNamespace(kubeClient, namespace)
+			framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), namespaceName)
 		})
 
 		ginkgo.It("namespace should be removed from member clusters", func() {
-
-			ginkgo.By(fmt.Sprintf("Deleting namespace: %s", namespaceName), func() {
-				err := util.DeleteNamespace(kubeClient, namespaceName)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("namespace(%s) shoud be disappeared", namespaceName), func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return true, nil
-							}
-						}
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.RemoveNamespace(kubeClient, namespaceName)
+			framework.WaitNamespaceDisappearOnClusters(framework.ClusterNames(), namespaceName)
 		})
 	})
 
@@ -122,11 +61,8 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 
 		namespaceName := "karmada-e2e-ns-" + rand.String(3)
 		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("Creating namespace: %s", namespaceName), func() {
-				namespace := helper.NewNamespace(namespaceName)
-				_, err := util.CreateNamespace(kubeClient, namespace)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			namespace := helper.NewNamespace(namespaceName)
+			framework.CreateNamespace(kubeClient, namespace)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -141,9 +77,9 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
 					GlobalCommandOptions: options.GlobalCommandOptions{
-						ClusterNamespace: "karmada-cluster",
-						DryRun:           false,
+						DryRun: false,
 					},
+					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
@@ -158,12 +94,13 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandUnjoinOption{
 					GlobalCommandOptions: options.GlobalCommandOptions{
-						ClusterNamespace: "karmada-cluster",
-						DryRun:           false,
+						DryRun: false,
 					},
+					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
+					Wait:              options.DefaultKarmadactlCommandDuration,
 				}
 				err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -179,22 +116,19 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 		})
 
 		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("Deleting namespace: %s", namespaceName), func() {
-				err := util.DeleteNamespace(kubeClient, namespaceName)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.RemoveNamespace(kubeClient, namespaceName)
 		})
 
 		ginkgo.It("namespace should be propagated to new created clusters", func() {
 			ginkgo.By(fmt.Sprintf("waiting namespace(%s) present on cluster: %s", namespaceName, clusterName), func() {
 				clusterJoined, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				clusterClient, err := util.NewClusterClientSet(clusterJoined, controlPlaneClient)
+				clusterClient, err := util.NewClusterClientSet(clusterJoined.Name, controlPlaneClient, nil)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+				err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 					_, err = clusterClient.KubeClient.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 					if err != nil {
-						if errors.IsNotFound(err) {
+						if apierrors.IsNotFound(err) {
 							return false, nil
 						}
 						return false, err

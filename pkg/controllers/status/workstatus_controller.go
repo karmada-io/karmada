@@ -5,21 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -45,7 +45,7 @@ type WorkStatusController struct {
 	worker               util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
 	ObjectWatcher        objectwatcher.ObjectWatcher
 	PredicateFunc        predicate.Predicate
-	ClusterClientSetFunc func(c *v1alpha1.Cluster, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -57,7 +57,7 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
 
@@ -84,12 +84,17 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
+	if !util.IsClusterReady(&cluster.Status) {
+		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+	}
+
 	return c.buildResourceInformers(cluster, work)
 }
 
 // buildResourceInformers builds informer dynamically for managed resources in member cluster.
 // The created informer watches resource change and then sync to the relevant Work object.
-func (c *WorkStatusController) buildResourceInformers(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *WorkStatusController) buildResourceInformers(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	err := c.registerInformersAndStart(cluster, work)
 	if err != nil {
 		klog.Errorf("Failed to register informer for Work %s/%s. Error: %v.", work.GetNamespace(), work.GetName(), err)
@@ -101,15 +106,46 @@ func (c *WorkStatusController) buildResourceInformers(cluster *v1alpha1.Cluster,
 // getEventHandler return callback function that knows how to handle events from the member cluster.
 func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 	if c.eventHandler == nil {
-		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.worker.EnqueueRateLimited)
+		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.worker.Enqueue)
 	}
 	return c.eventHandler
 }
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker("work-status", time.Second, util.GenerateKey, c.syncWorkStatus)
+	c.worker = util.NewAsyncWorker("work-status", generateKey, c.syncWorkStatus)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
+}
+
+// generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
+func generateKey(obj interface{}) (util.QueueKey, error) {
+	resource := obj.(*unstructured.Unstructured)
+	cluster, err := getClusterNameFromLabel(resource)
+	if err != nil {
+		return nil, err
+	}
+	// return a nil key when the obj not managed by Karmada, which will be discarded before putting to queue.
+	if cluster == "" {
+		return nil, nil
+	}
+
+	return keys.FederatedKeyFunc(cluster, obj)
+}
+
+// getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
+func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
+	workNamespace := util.GetLabelValue(resource.GetLabels(), workv1alpha1.WorkNamespaceLabel)
+	if len(workNamespace) == 0 {
+		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
+		return "", nil
+	}
+
+	cluster, err := names.GetClusterName(workNamespace)
+	if err != nil {
+		klog.Errorf("Failed to get cluster name from work namespace: %s, error: %v.", workNamespace, err)
+		return "", err
+	}
+	return cluster, nil
 }
 
 // syncWorkStatus will collect status of object referencing by key and update to work which holds the object.
@@ -120,22 +156,16 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	obj, err := c.getObjectFromCache(fedKey)
+	obj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return c.handleDeleteEvent(fedKey)
 		}
 		return err
 	}
 
-	if obj == nil {
-		// Ignore the object which not managed by current karmada.
-		klog.V(2).Infof("Ignore the event key %s which not managed by karmada.", key)
-		return nil
-	}
-
-	workNamespace := util.GetLabelValue(obj.GetLabels(), util.WorkNamespaceLabel)
-	workName := util.GetLabelValue(obj.GetLabels(), util.WorkNameLabel)
+	workNamespace := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
+	workName := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNameLabel)
 	if len(workNamespace) == 0 || len(workName) == 0 {
 		klog.Infof("Ignore object(%s) which not managed by karmada.", fedKey.String())
 		return nil
@@ -144,7 +174,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 	workObject := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: workNamespace, Name: workName}, workObject); err != nil {
 		// Stop processing if resource no longer exist.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 
@@ -164,20 +194,14 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	cluster, err := util.GetCluster(c.Client, clusterName)
-	if err != nil {
-		klog.Errorf("Failed to the get given member cluster %s", clusterName)
-		return err
-	}
-
 	// compare version to determine if need to update resource
-	needUpdate, err := c.ObjectWatcher.NeedsUpdate(cluster, desireObj, obj)
+	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desireObj, obj)
 	if err != nil {
 		return err
 	}
 
 	if needUpdate {
-		if err := c.ObjectWatcher.Update(cluster, desireObj, obj); err != nil {
+		if err := c.ObjectWatcher.Update(clusterName, desireObj, obj); err != nil {
 			klog.Errorf("Update %s failed: %v", fedKey.String(), err)
 			return err
 		}
@@ -206,7 +230,7 @@ func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(context.TODO(), client.ObjectKey{Namespace: executionSpace, Name: workName}, work); err != nil {
 		// stop processing as the work object has been removed, assume it's a normal delete operation.
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 
@@ -234,12 +258,7 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 			manifest.GetNamespace() == workloadKey.Namespace &&
 			manifest.GetName() == workloadKey.Name {
 			klog.Infof("recreating %s", workloadKey.String())
-			cluster, err := util.GetCluster(c.Client, workloadKey.Cluster)
-			if err != nil {
-				klog.Errorf("Failed to the get given member cluster %s", workloadKey.Cluster)
-				return err
-			}
-			return c.ObjectWatcher.Create(cluster, manifest)
+			return c.ObjectWatcher.Create(workloadKey.Cluster, manifest)
 		}
 	}
 	return nil
@@ -247,15 +266,10 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 
 // reflectStatus grabs cluster object's running status then updates to it's owner object(Work).
 func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
-	// Stop processing if resource(such as ConfigMap,Secret,ClusterRole, etc.) doesn't contain 'spec.status' fields.
-	statusMap, exist, err := unstructured.NestedMap(clusterObj.Object, "status")
+	statusMap, _, err := unstructured.NestedMap(clusterObj.Object, "status")
 	if err != nil {
 		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
 		return err
-	}
-	if !exist || statusMap == nil {
-		klog.V(2).Infof("Ignore resources(%s) without status.", clusterObj.GetKind())
-		return nil
 	}
 
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)
@@ -263,19 +277,25 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		return err
 	}
 
-	rawExtension, err := c.buildStatusRawExtension(statusMap)
-	if err != nil {
-		return err
-	}
-
 	manifestStatus := workv1alpha1.ManifestStatus{
 		Identifier: *identifier,
-		Status:     *rawExtension,
 	}
 
-	work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
+	if statusMap != nil {
+		rawExtension, err := c.buildStatusRawExtension(statusMap)
+		if err != nil {
+			return err
+		}
+		manifestStatus.Status = rawExtension
+	}
 
-	return c.Client.Status().Update(context.TODO(), work)
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, work); err != nil {
+			return err
+		}
+		work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
+		return c.Status().Update(context.TODO(), work)
+	})
 }
 
 func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {
@@ -340,37 +360,9 @@ func (c *WorkStatusController) getRawManifest(manifests []workv1alpha1.Manifest,
 	return nil, fmt.Errorf("no such manifest exist")
 }
 
-// getObjectFromCache gets full object information from cache by key in worker queue.
-func (c *WorkStatusController) getObjectFromCache(key keys.FederatedKey) (*unstructured.Unstructured, error) {
-	gvr, err := restmapper.GetGroupVersionResource(c.RESTMapper, key.GroupVersionKind())
-	if err != nil {
-		klog.Errorf("Failed to get GVR from GVK %s. Error: %v", key.GroupVersionKind(), err)
-		return nil, err
-	}
-
-	singleClusterManager := c.InformerManager.GetSingleClusterManager(key.Cluster)
-	if singleClusterManager == nil {
-		return nil, nil
-	}
-	var obj runtime.Object
-	lister := singleClusterManager.Lister(gvr)
-	obj, err = lister.Get(key.NamespaceKey())
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, err
-		}
-
-		// print logs only for real error.
-		klog.Errorf("Failed to get obj %s. error: %v.", key.String(), err)
-
-		return nil, err
-	}
-	return obj.(*unstructured.Unstructured), nil
-}
-
 // registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
 // and start it.
-func (c *WorkStatusController) registerInformersAndStart(cluster *v1alpha1.Cluster, work *workv1alpha1.Work) error {
+func (c *WorkStatusController) registerInformersAndStart(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) error {
 	singleClusterInformerManager, err := c.getSingleClusterManager(cluster)
 	if err != nil {
 		return err
@@ -381,22 +373,36 @@ func (c *WorkStatusController) registerInformersAndStart(cluster *v1alpha1.Clust
 		return err
 	}
 
+	allSynced := true
 	for gvr := range gvrTargets {
-		singleClusterInformerManager.ForResource(gvr, c.getEventHandler())
-	}
-
-	c.InformerManager.Start(cluster.Name, c.StopChan)
-	synced := c.InformerManager.WaitForCacheSync(cluster.Name, c.StopChan)
-	if synced == nil {
-		klog.Errorf("No informerFactory for cluster %s exist.", cluster.Name)
-		return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
-	}
-	for gvr := range gvrTargets {
-		if !synced[gvr] {
-			klog.Errorf("Informer for %s hasn't synced.", gvr)
-			return fmt.Errorf("informer for %s hasn't synced", gvr)
+		if !singleClusterInformerManager.IsInformerSynced(gvr) || !singleClusterInformerManager.IsHandlerExist(gvr, c.getEventHandler()) {
+			allSynced = false
+			singleClusterInformerManager.ForResource(gvr, c.getEventHandler())
 		}
 	}
+	if allSynced {
+		return nil
+	}
+
+	c.InformerManager.Start(cluster.Name)
+
+	if err := func() error {
+		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, util.CacheSyncTimeout)
+		if synced == nil {
+			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
+		}
+		for gvr := range gvrTargets {
+			if !synced[gvr] {
+				return fmt.Errorf("informer for %s hasn't synced", gvr)
+			}
+		}
+		return nil
+	}(); err != nil {
+		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", cluster.Name, err)
+		c.InformerManager.Stop(cluster.Name)
+		return err
+	}
+
 	return nil
 }
 
@@ -422,12 +428,12 @@ func (c *WorkStatusController) getGVRsFromWork(work *workv1alpha1.Work) (map[sch
 
 // getSingleClusterManager gets singleClusterInformerManager with clusterName.
 // If manager is not exist, create it, otherwise gets it from map.
-func (c *WorkStatusController) getSingleClusterManager(cluster *v1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
+func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
 	// TODO(chenxianpao): If cluster A is removed, then a new cluster that name also is A joins karmada,
 	//  the cache in informer manager should be updated.
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster, c.Client)
+		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client)
 		if err != nil {
 			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
 			return nil, err

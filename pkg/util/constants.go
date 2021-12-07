@@ -1,29 +1,21 @@
 package util
 
+import "time"
+
 const (
-	// PropagationPolicyNamespaceLabel is added to objects to specify associated PropagationPolicy namespace.
-	PropagationPolicyNamespaceLabel = "propagationpolicy.karmada.io/namespace"
+	// ServiceNamespaceLabel is added to work object, which is report by member cluster, to specify service namespace associated with EndpointSlice.
+	ServiceNamespaceLabel = "endpointslice.karmada.io/namespace"
 
-	// PropagationPolicyNameLabel is added to objects to specify associated PropagationPolicy's name.
-	PropagationPolicyNameLabel = "propagationpolicy.karmada.io/name"
+	// ServiceNameLabel is added to work object, which is report by member cluster, to specify service name associated with EndpointSlice.
+	ServiceNameLabel = "endpointslice.karmada.io/name"
 
-	// ClusterPropagationPolicyLabel is added to objects to specify associated ClusterPropagationPolicy.
-	ClusterPropagationPolicyLabel = "clusterpropagationpolicy.karmada.io/name"
-
-	// ResourceBindingNamespaceLabel is added to objects to specify associated ResourceBinding's namespace.
-	ResourceBindingNamespaceLabel = "resourcebinding.karmada.io/namespace"
-
-	// ResourceBindingNameLabel is added to objects to specify associated ResourceBinding's name.
-	ResourceBindingNameLabel = "resourcebinding.karmada.io/name"
-
-	// ClusterResourceBindingLabel is added to objects to specify associated ClusterResourceBinding.
-	ClusterResourceBindingLabel = "clusterresourcebinding.karmada.io/name"
-
-	// WorkNamespaceLabel is added to objects to specify associated Work's namespace.
-	WorkNamespaceLabel = "work.karmada.io/namespace"
-
-	// WorkNameLabel is added to objects to specify associated Work's name.
-	WorkNameLabel = "work.karmada.io/name"
+	// PropagationInstruction is used to mark a resource(like Work) propagation instruction.
+	// Valid values includes:
+	// - suppressed: indicates that the resource should not be propagated.
+	//
+	// Note: This instruction is intended to set on Work objects to indicate the Work should be ignored by
+	// execution controller. The instruction maybe deprecated once we extend the Work API and no other scenario want this.
+	PropagationInstruction = "propagation.karmada.io/instruction"
 )
 
 // Define annotations used by karmada system.
@@ -53,6 +45,14 @@ const (
 	// ExecutionControllerFinalizer is added to Work to ensure manifests propagated to member cluster
 	// is deleted before Work itself is deleted.
 	ExecutionControllerFinalizer = "karmada.io/execution-controller"
+
+	// BindingControllerFinalizer is added to ResourceBinding to ensure related Works are deleted
+	// before ResourceBinding itself is deleted.
+	BindingControllerFinalizer = "karmada.io/binding-controller"
+
+	// ClusterResourceBindingControllerFinalizer is added to ClusterResourceBinding to ensure related Works are deleted
+	// before ClusterResourceBinding itself is deleted.
+	ClusterResourceBindingControllerFinalizer = "karmada.io/cluster-resource-binding-controller"
 )
 
 const (
@@ -70,6 +70,10 @@ const (
 	DeploymentKind = "Deployment"
 	// ServiceKind indicates the target resource is a service
 	ServiceKind = "Service"
+	// IngressKind indicates the target resource is a ingress
+	IngressKind = "Ingress"
+	// JobKind indicates the target resource is a job
+	JobKind = "Job"
 	// PodKind indicates the target resource is a pod
 	PodKind = "Pod"
 	// ServiceAccountKind indicates the target resource is a serviceaccount
@@ -78,4 +82,57 @@ const (
 	ReplicaSetKind = "ReplicaSet"
 	// StatefulSetKind indicates the target resource is a statefulset
 	StatefulSetKind = "StatefulSet"
+	// DaemonSetKind indicates the target resource is a daemonset
+	DaemonSetKind = "DaemonSet"
+	// EndpointSliceKind indicates the target resource is a endpointslice
+	EndpointSliceKind = "EndpointSlice"
+	// PersistentVolumeClaimKind indicated the target resource is a persistentvolumeclaim
+	PersistentVolumeClaimKind = "PersistentVolumeClaim"
+	// HorizontalPodAutoscalerKind indicated the target resource is a horizontalpodautoscaler
+	HorizontalPodAutoscalerKind = "HorizontalPodAutoscaler"
+
+	// ServiceExportKind indicates the target resource is a serviceexport crd
+	ServiceExportKind = "ServiceExport"
+	// ServiceImportKind indicates the target resource is a serviceimport crd
+	ServiceImportKind = "ServiceImport"
+
+	// CRDKind indicated the target resource is a CustomResourceDefinition
+	CRDKind = "CustomResourceDefinition"
+)
+
+// Define resource filed
+const (
+	// SpecField indicates the 'spec' field of a resource
+	SpecField = "spec"
+	// ReplicasField indicates the 'replicas' field of a resource
+	ReplicasField = "replicas"
+	// ParallelismField indicates the 'parallelism' field of a job
+	ParallelismField = "parallelism"
+	// CompletionsField indicates the 'completions' field of a job
+	CompletionsField = "completions"
+	// TemplateField indicates the 'template' field of a resource
+	TemplateField = "template"
+)
+
+const (
+	// PropagationInstructionSuppressed indicates that the resource should not be propagated.
+	PropagationInstructionSuppressed = "suppressed"
+)
+
+const (
+	// NamespaceKarmadaSystem is the karmada system namespace.
+	NamespaceKarmadaSystem = "karmada-system"
+)
+
+// ContextKey is the key of context.
+type ContextKey string
+
+const (
+	// ContextKeyObject is the context value key of a resource.
+	ContextKeyObject ContextKey = "object"
+)
+
+const (
+	// CacheSyncTimeout refers to the time limit set on waiting for cache to sync
+	CacheSyncTimeout = 30 * time.Second
 )

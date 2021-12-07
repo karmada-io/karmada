@@ -111,3 +111,17 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: config.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["config.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["resourceinterpreterwebhookconfigurations"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-resourceinterpreterwebhookconfiguration
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3

@@ -8,7 +8,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // MutatingAdmission mutates API request if necessary.
@@ -22,7 +22,7 @@ var _ admission.DecoderInjector = &MutatingAdmission{}
 
 // Handle yields a response to an AdmissionRequest.
 func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
-	policy := &v1alpha1.OverridePolicy{}
+	policy := &policyv1alpha1.OverridePolicy{}
 
 	err := a.decoder.Decode(req, policy)
 	if err != nil {

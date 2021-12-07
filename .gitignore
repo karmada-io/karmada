@@ -16,3 +16,13 @@
 
 .idea/
 .vscode/
+
+# karamada binary
+/karmadactl
+/karmada-agent
+/karmada-controller-manager
+/karmada-interpreter-webhook-example
+/karmada-scheduler
+/karmada-scheduler-estimator
+/karmada-webhook
+/kubectl-karmada

@@ -15,24 +15,28 @@ KARMADA_SCHEDULER_LABEL="karmada-scheduler"
 KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 
-# This function installs a Go tools by 'go get' command.
+MIN_Go_VERSION=go1.16.0
+
+# This function installs a Go tools by 'go install' command.
 # Parameters:
 #  - $1: package name, such as "sigs.k8s.io/controller-tools/cmd/controller-gen"
 #  - $2: package version, such as "v0.4.1"
-# Note:
-#   Since 'go get' command will resolve and add dependencies to current module, that may update 'go.mod' and 'go.sum' file.
-#   So we use a temporary directory to install the tools.
 function util::install_tools() {
 	local package="$1"
 	local version="$2"
 
-	temp_path=$(mktemp -d)
-	pushd "${temp_path}" >/dev/null
-	GO111MODULE=on go get "${package}"@"${version}"
+	GO111MODULE=on go install "${package}"@"${version}"
 	GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 	export PATH=$PATH:$GOPATH/bin
-	popd >/dev/null
-	rm -rf "${temp_path}"
+}
+
+
+function util::cmd_exist {
+  local CMD=$(command -v ${1})
+  if [[ ! -x ${CMD} ]]; then
+    return 1
+  fi
+  return 0
 }
 
 # util::cmd_must_exist check whether command is installed.
@@ -40,6 +44,17 @@ function util::cmd_must_exist {
     local CMD=$(command -v ${1})
     if [[ ! -x ${CMD} ]]; then
       echo "Please install ${1} and verify they are in \$PATH."
+      exit 1
+    fi
+}
+
+function util::verify_go_version {
+    local go_version
+    IFS=" " read -ra go_version <<< "$(GOFLAGS='' go version)"
+    if [[ "${MIN_Go_VERSION}" != $(echo -e "${MIN_Go_VERSION}\n${go_version[2]}" | sort -s -t. -k 1,1 -k 2,2n -k 3,3n | head -n1) && "${go_version[2]}" != "devel" ]]; then
+      echo "Detected go version: ${go_version[*]}."
+      echo "Karmada requires ${MIN_Go_VERSION} or greater."
+      echo "Please install ${MIN_Go_VERSION} or later."
       exit 1
     fi
 }
@@ -60,9 +75,69 @@ function util::cmd_must_exist_cfssl {
     CFSSLJSON_BIN="${GOPATH}/bin/cfssljson"
     if [[ ! -x ${CFSSL_BIN} || ! -x ${CFSSLJSON_BIN} ]]; then
       echo "Failed to download 'cfssl'. Please install cfssl and cfssljson and verify they are in \$PATH."
-      echo "Hint: export PATH=\$PATH:\$GOPATH/bin; go get -u github.com/cloudflare/cfssl/cmd/..."
+      echo "Hint: export PATH=\$PATH:\$GOPATH/bin; go install github.com/cloudflare/cfssl/cmd/..."
       exit 1
     fi
+}
+
+# util::install_environment_check will check OS and ARCH before installing
+# ARCH support list: amd64,arm64
+# OS support list: linux,darwin
+function util::install_environment_check {
+    local ARCH=${1:-}
+    local OS=${2:-}
+    if [[ "$ARCH" =~ ^(amd64|arm64)$ ]]; then
+        if [[ "$OS" =~ ^(linux|darwin)$ ]]; then
+            return 0
+        fi
+    fi
+    echo "Sorry, Karmada installation does not support $ARCH/$OS at the moment"
+    exit 1
+}
+
+# util::install_kubectl will install the given version kubectl
+function util::install_kubectl {
+    local KUBECTL_VERSION=${1}
+    local ARCH=${2}
+    local OS=${3:-linux}
+    if [ -z "$KUBECTL_VERSION" ]; then
+      KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+    fi
+    echo "Installing 'kubectl ${KUBECTL_VERSION}' for you"
+    curl --retry 5 -sSLo ./kubectl -w "%{http_code}" https://dl.k8s.io/release/"$KUBECTL_VERSION"/bin/"$OS"/"$ARCH"/kubectl | grep '200' > /dev/null
+    ret=$?
+    if [ ${ret} -eq 0 ]; then
+        chmod +x ./kubectl
+        mkdir -p ~/.local/bin/
+        mv ./kubectl ~/.local/bin/kubectl
+
+        export PATH=$PATH:~/.local/bin
+    else
+        echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
+        exit 1
+    fi
+}
+
+# util::install_kind will install the given version kind
+function util::install_kind {
+  local kind_version=${1}
+  echo "Installing 'kind ${kind_version}' for you"
+  local os_name
+  os_name=$(go env GOOS)
+  local arch_name
+  arch_name=$(go env GOARCH)
+  curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200' > /dev/null
+  ret=$?
+  if [ ${ret} -eq 0 ]; then
+      chmod +x ./kind
+      mkdir -p ~/.local/bin/
+      mv ./kind ~/.local/bin/kind
+
+      export PATH=$PATH:~/.local/bin
+  else
+      echo "Failed to install kind, can not download the binary file at https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}"
+      exit 1
+  fi
 }
 
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose
@@ -216,9 +291,13 @@ function util::wait_pod_ready() {
 
     echo "wait the $pod_label ready..."
     set +e
-    util::kubectl_with_retry wait --for=condition=Ready --timeout=200s pods -l app=${pod_label} -n ${pod_namespace}
+    util::kubectl_with_retry wait --for=condition=Ready --timeout=30s pods -l app=${pod_label} -n ${pod_namespace}
     ret=$?
     set -e
+    if [ $ret -ne 0 ];then
+      echo "kubectl describe info:"
+      kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
+    fi
     return ${ret}
 }
 
@@ -226,11 +305,11 @@ function util::wait_pod_ready() {
 # tolerate kubectl command failure that may happen before the pod is created by  StatefulSet/Deployment.
 function util::kubectl_with_retry() {
     local ret=0
-    for i in `seq 1 30`; do
+    for i in {1..10}; do
         kubectl "$@"
         ret=$?
         if [[ ${ret} -ne 0 ]]; then
-            echo "kubectl $@ failed, retrying"
+            echo "kubectl $@ failed, retrying(${i} times)"
             sleep 1
             continue
         else
@@ -255,12 +334,34 @@ function util::create_cluster() {
   local kubeconfig=${2}
   local kind_image=${3}
   local log_path=${4}
+  local cluster_config=${5:-}
 
   mkdir -p ${log_path}
   rm -rf "${log_path}/${cluster_name}.log"
   rm -f "${kubeconfig}"
-  nohup kind delete cluster --name="${cluster_name}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
+  nohup kind delete cluster --name="${cluster_name}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
   echo "Creating cluster ${cluster_name}"
+}
+
+# This function returns the IP address of a docker instance
+# Parameters:
+#  - $1: docker instance name
+
+function util::get_docker_native_ipaddress(){
+  local container_name=$1
+  docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${container_name}"
+}
+
+# This function returns the IP address and port of a specific docker instance's host IP
+# Parameters:
+#  - $1: docker instance name
+# Note:
+#   Use for getting host IP and port for cluster
+#   "6443/tcp" assumes that API server port is 6443 and protocol is TCP
+
+function util::get_docker_host_ip_port(){
+  local container_name=$1
+  docker inspect --format='{{range $key, $value := index .NetworkSettings.Ports "6443/tcp"}}{{if eq $key 0}}{{$value.HostIp}}:{{$value.HostPort}}{{end}}{{end}}' "${container_name}"
 }
 
 # util::check_clusters_ready checks if a cluster is ready, if not, wait until timeout
@@ -269,12 +370,35 @@ function util::check_clusters_ready() {
   local context_name=${2}
 
   echo "Waiting for kubeconfig file ${kubeconfig_path} and clusters ${context_name} to be ready..."
-  util::wait_file_exist ${kubeconfig_path} 300
+  util::wait_file_exist "${kubeconfig_path}" 300
+  util::wait_for_condition 'running' "docker inspect --format='{{.State.Status}}' ${context_name}-control-plane &> /dev/null" 300
+
   kubectl config rename-context "kind-${context_name}" "${context_name}" --kubeconfig="${kubeconfig_path}"
-  container_ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${context_name}-control-plane")
-  kubectl config set-cluster "kind-${context_name}" --server="https://${container_ip}:6443" --kubeconfig="${kubeconfig_path}"
+
+  local os_name
+  os_name=$(go env GOOS)
+  local container_ip_port
+  case $os_name in
+    linux) container_ip_port=$(util::get_docker_native_ipaddress "${context_name}-control-plane")":6443"
+    ;;
+    darwin) container_ip_port=$(util::get_docker_host_ip_port "${context_name}-control-plane")
+    ;;
+    *)
+        echo "OS ${os_name} does NOT support for getting container ip in installation script"
+        exit 1
+  esac
+  kubectl config set-cluster "kind-${context_name}" --server="https://${container_ip_port}" --kubeconfig="${kubeconfig_path}"
 
   util::wait_for_condition 'ok' "kubectl --kubeconfig ${kubeconfig_path} --context ${context_name} get --raw=/healthz &> /dev/null" 300
+}
+
+# This function gets api server's ip from kubeconfig by context name
+function util::get_apiserver_ip_from_kubeconfig(){
+  local context_name=$1
+  local cluster_name apiserver_url
+  cluster_name=$(kubectl config view --template='{{ range $_, $value := .contexts }}{{if eq $value.name '"\"${context_name}\""'}}{{$value.context.cluster}}{{end}}{{end}}')
+  apiserver_url=$(kubectl config view --template='{{range $_, $value := .clusters }}{{if eq $value.name '"\"${cluster_name}\""'}}{{$value.cluster.server}}{{end}}{{end}}')
+  echo "${apiserver_url}" | awk -F/ '{print $3}' | sed 's/:.*//'
 }
 
 # This function deploys webhook configuration
@@ -287,11 +411,119 @@ function util::deploy_webhook_configuration() {
   local ca_file=$1
   local conf=$2
 
-  local ca_string=$(sudo cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+  local ca_string=$(cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
 
   local temp_path=$(mktemp -d)
   cp -rf "${conf}" "${temp_path}/temp.yaml"
-  sed -i "s/{{caBundle}}/${ca_string}/g" "${temp_path}/temp.yaml"
+  sed -i'' -e "s/{{caBundle}}/${ca_string}/g" "${temp_path}/temp.yaml"
   kubectl apply -f "${temp_path}/temp.yaml"
   rm -rf "${temp_path}"
+}
+
+function util::fill_cabundle() {
+  local ca_file=$1
+  local conf=$2
+
+  local ca_string=$(sudo cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+  sed -i'' -e "s/{{caBundle}}/${ca_string}/g" "${conf}"
+}
+
+# util::wait_service_external_ip give a service external ip when it is ready, if not, wait until timeout
+# Parameters:
+#  - $1: service name in k8s
+#  - $2: namespace
+SERVICE_EXTERNAL_IP=''
+function util::wait_service_external_ip() {
+  local service_name=$1
+  local namespace=$2
+  local external_ip
+  local tmp
+  for tmp in {1..30}; do
+    set +e
+    external_ip=$(kubectl get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.ip}} {{end}}" | xargs)
+    set -e
+    if [[ -z "$external_ip" ]]; then
+      echo "wait the external ip of ${service_name} ready..."
+      sleep 6
+      continue
+    else
+      SERVICE_EXTERNAL_IP="${external_ip}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# util::get_load_balancer_ip get a valid load balancer ip from k8s service's 'loadBalancer' , if not, wait until timeout
+# call 'util::wait_service_external_ip' before using this function
+function util::get_load_balancer_ip() {
+  local tmp
+  local first_ip
+  if [[ -n "${SERVICE_EXTERNAL_IP}" ]]; then
+    first_ip=$(echo "${SERVICE_EXTERNAL_IP}" | awk '{print $1}') #temporarily choose the first one
+    for tmp in {1..10}; do
+      set +e
+      connect_test=$(curl -s -k -m 5 https://"${first_ip}":5443/readyz)
+      set -e
+      if [[ "${connect_test}" = "ok" ]]; then
+        echo "${first_ip}"
+        return 0
+      else
+        sleep 3
+        continue
+      fi
+    done
+  fi
+  return 1
+}
+
+# util::add_routes will add routes for given kind cluster
+# Parameters:
+#  - $1: name of the kind cluster want to add routes
+#  - $2: the kubeconfig path of the cluster wanted to be connected
+#  - $3: the context in kubeconfig of the cluster wanted to be connected
+function util::add_routes() {
+  unset IFS
+  routes=$(kubectl --kubeconfig ${2} --context ${3} get nodes -o jsonpath='{range .items[*]}ip route add {.spec.podCIDR} via {.status.addresses[?(.type=="InternalIP")].address}{"\n"}{end}')
+  echo "Connecting cluster ${1} to ${2}"
+
+  IFS=$'\n'
+  for n in $(kind get nodes --name "${1}"); do
+    for r in $routes; do
+      echo "exec cmd in docker $n $r"
+      eval "docker exec $n $r"
+    done
+  done
+  unset IFS
+}
+
+# util::get_macos_ipaddress will get ip address on macos interactively, store to 'MAC_NIC_IPADDRESS' if available
+MAC_NIC_IPADDRESS=''
+function util::get_macos_ipaddress() {
+  if [[ $(go env GOOS) = "darwin" ]]; then
+    tmp_ip=$(ipconfig getifaddr en0 || true)
+    echo ""
+    echo " Detected that you are installing Karmada on macOS "
+    echo ""
+    echo "It needs a Macintosh IP address to bind Karmada API Server(port 5443),"
+    echo "so that member clusters can access it from docker containers, please"
+    echo -n "input an available IP, "
+    if [[ -z ${tmp_ip} ]]; then
+      echo "you can use the command 'ifconfig' to look for one"
+      tips_msg="[Enter IP address]:"
+    else
+      echo "default IP will be en0 inet addr if exists"
+      tips_msg="[Enter for default ${tmp_ip}]:"
+    fi
+    read -r -p "${tips_msg}" MAC_NIC_IPADDRESS
+    MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-$tmp_ip}
+    if [[ "${MAC_NIC_IPADDRESS}" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
+      echo "Using IP address: ${MAC_NIC_IPADDRESS}"
+    else
+      echo -e "\nError: you input an invalid IP address"
+      exit 1
+    fi
+  else # non-macOS
+    MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-}
+  fi
 }

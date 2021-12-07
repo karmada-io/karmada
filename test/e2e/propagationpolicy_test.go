@@ -7,11 +7,13 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -20,7 +22,8 @@ import (
 	"k8s.io/utils/pointer"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/test/helper"
+	"github.com/karmada-io/karmada/test/e2e/framework"
+	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 // BasicPropagation focus on basic propagation functionality testing.
@@ -31,8 +34,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		deploymentNamespace := testNamespace
 		deploymentName := policyName
 
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+		deployment := testhelper.NewDeployment(deploymentNamespace, deploymentName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: deployment.APIVersion,
 				Kind:       deployment.Kind,
@@ -40,110 +43,27 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("deployment propagation testing", func() {
-			ginkgo.By(fmt.Sprintf("creating deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				_, err := kubeClient.AppsV1().Deployments(testNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return true
+				})
 
-			ginkgo.By("check if deployment present on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return *deployment.Spec.Replicas == updateDeploymentReplicas
+				})
 
-					klog.Infof("Waiting for deployment(%s/%s) present on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return false, nil
-							}
-							return false, err
-						}
-						return true, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
-
-			ginkgo.By("updating deployment", func() {
-				patch := map[string]interface{}{
-					"spec": map[string]interface{}{
-						"replicas": pointer.Int32Ptr(updateDeploymentReplicas),
-					},
-				}
-				bytes, err := json.Marshal(patch)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				_, err = kubeClient.AppsV1().Deployments(deploymentNamespace).Patch(context.TODO(), deploymentName, types.StrategicMergePatchType, bytes, metav1.PatchOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if update has been synced to member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for deployment(%s/%s) synced on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						dep, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						if err != nil {
-							return false, err
-						}
-
-						if *dep.Spec.Replicas == updateDeploymentReplicas {
-							return true, nil
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
-
-			ginkgo.By(fmt.Sprintf("removing deployment(%s/%s)", deploymentNamespace, deploymentName), func() {
-				err := kubeClient.AppsV1().Deployments(testNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if deployment has been deleted from member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for deployment(%s/%s) disappear on cluster(%s)", deploymentNamespace, deploymentName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return true, nil
-							}
-							return false, err
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -153,8 +73,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		serviceNamespace := policyNamespace
 		serviceName := policyName
 
-		service := helper.NewService(serviceNamespace, serviceName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+		service := testhelper.NewService(serviceNamespace, serviceName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: service.APIVersion,
 				Kind:       service.Kind,
@@ -162,112 +82,29 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("service propagation testing", func() {
-			ginkgo.By(fmt.Sprintf("creating service(%s/%s)", serviceNamespace, serviceName), func() {
-				_, err := kubeClient.CoreV1().Services(serviceNamespace).Create(context.TODO(), service, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateService(kubeClient, service)
+			framework.WaitServicePresentOnClustersFitWith(framework.ClusterNames(), service.Namespace, service.Name,
+				func(service *corev1.Service) bool {
+					return true
+				})
 
-			ginkgo.By("check if service present on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+			patch := []map[string]interface{}{{"op": "replace", "path": "/spec/ports/0/port", "value": updateServicePort}}
+			framework.UpdateServiceWithPatch(kubeClient, service.Namespace, service.Name, patch, types.JSONPatchType)
 
-					klog.Infof("Waiting for service(%s/%s) present on cluster(%s)", serviceNamespace, serviceName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return false, nil
-							}
-							return false, err
-						}
-						return true, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.WaitServicePresentOnClustersFitWith(framework.ClusterNames(), service.Namespace, service.Name,
+				func(service *corev1.Service) bool {
+					return service.Spec.Ports[0].Port == updateServicePort
+				})
 
-			ginkgo.By("updating service", func() {
-				patch := []map[string]interface{}{
-					{
-						"op":    "replace",
-						"path":  "/spec/ports/0/port",
-						"value": updateServicePort,
-					},
-				}
-				bytes, err := json.Marshal(patch)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				_, err = kubeClient.CoreV1().Services(serviceNamespace).Patch(context.TODO(), serviceName, types.JSONPatchType, bytes, metav1.PatchOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if update has been synced to member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for service(%s/%s) synced on cluster(%s)", serviceNamespace, serviceName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						service, err := clusterClient.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
-						if err != nil {
-							return false, err
-						}
-
-						if service.Spec.Ports[0].Port == updateServicePort {
-							return true, nil
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
-
-			ginkgo.By(fmt.Sprintf("removing service(%s/%s)", serviceNamespace, serviceName), func() {
-				err := kubeClient.CoreV1().Services(serviceNamespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if service has been deleted from member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for service(%s/%s) disappear on cluster(%s)", serviceNamespace, serviceName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return true, nil
-							}
-							return false, err
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.RemoveService(kubeClient, service.Namespace, service.Name)
+			framework.WaitServiceDisappearOnClusters(framework.ClusterNames(), service.Namespace, service.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -277,8 +114,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 		podNamespace := policyNamespace
 		podName := policyName
 
-		pod := helper.NewPod(podNamespace, podName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+		pod := testhelper.NewPod(podNamespace, podName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: pod.APIVersion,
 				Kind:       pod.Kind,
@@ -286,112 +123,29 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating policy(%s/%s)", policyNamespace, policyName), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Create(context.TODO(), policy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing policy(%s/%s)", policyNamespace, policyName), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(policyNamespace).Delete(context.TODO(), policyName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("pod propagation testing", func() {
-			ginkgo.By(fmt.Sprintf("creating pod(%s/%s)", podNamespace, podName), func() {
-				_, err := kubeClient.CoreV1().Pods(podNamespace).Create(context.TODO(), pod, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreatePod(kubeClient, pod)
+			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
+				func(pod *corev1.Pod) bool {
+					return true
+				})
 
-			ginkgo.By("check if pod present on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+			patch := []map[string]interface{}{{"op": "replace", "path": "/spec/containers/0/image", "value": updatePodImage}}
+			framework.UpdatePodWithPatch(kubeClient, pod.Namespace, pod.Name, patch, types.JSONPatchType)
 
-					klog.Infof("Waiting for pod(%s/%s) present on cluster(%s)", podNamespace, podName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.CoreV1().Pods(podNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return false, nil
-							}
-							return false, err
-						}
-						return true, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
+				func(pod *corev1.Pod) bool {
+					return pod.Spec.Containers[0].Image == updatePodImage
+				})
 
-			ginkgo.By("updating pod", func() {
-				patch := []map[string]interface{}{
-					{
-						"op":    "replace",
-						"path":  "/spec/containers/0/image",
-						"value": updatePodImage,
-					},
-				}
-				bytes, err := json.Marshal(patch)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				_, err = kubeClient.CoreV1().Pods(podNamespace).Patch(context.TODO(), podName, types.JSONPatchType, bytes, metav1.PatchOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if update has been synced to member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for pod(%s/%s) synced on cluster(%s)", podNamespace, podName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						pod, err := clusterClient.CoreV1().Pods(podNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
-						if err != nil {
-							return false, err
-						}
-
-						if pod.Spec.Containers[0].Image == updatePodImage {
-							return true, nil
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
-
-			ginkgo.By(fmt.Sprintf("removing pod(%s/%s)", podNamespace, podName), func() {
-				err := kubeClient.CoreV1().Pods(podNamespace).Delete(context.TODO(), podName, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By("check if pod has been deleted from member clusters", func() {
-				for _, cluster := range clusters {
-					clusterClient := getClusterClient(cluster.Name)
-					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-					klog.Infof("Waiting for pod(%s/%s) disappear on cluster(%s)", podNamespace, podName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
-						_, err = clusterClient.CoreV1().Pods(podNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
-						if err != nil {
-							if errors.IsNotFound(err) {
-								return true, nil
-							}
-							return false, err
-						}
-
-						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
-			})
+			framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
+			framework.WaitPodDisappearOnClusters(framework.ClusterNames(), pod.Namespace, pod.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -404,8 +158,8 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			Plural:   fmt.Sprintf("foo%ss", randStr),
 			Singular: fmt.Sprintf("foo%s", randStr),
 		}
-		crd := helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-		crdPolicy := helper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+		crd := testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+		crdPolicy := testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: crd.APIVersion,
 				Kind:       crd.Kind,
@@ -413,18 +167,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
-		crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
 		crNamespace := testNamespace
 		crName := crdNamePrefix + rand.String(RandomStrLength)
 		crGVR := schema.GroupVersionResource{Group: crd.Spec.Group, Version: "v1alpha1", Resource: crd.Spec.Names.Plural}
 
 		crAPIVersion := fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
-		cr := helper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
-		crPolicy := helper.NewPropagationPolicy(crNamespace, crName, []policyv1alpha1.ResourceSelector{
+		cr := testhelper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
+		crPolicy := testhelper.NewPropagationPolicy(crNamespace, crName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: crAPIVersion,
 				Kind:       crd.Spec.Names.Kind,
@@ -432,72 +185,34 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			},
 		}, policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: clusterNames,
+				ClusterNames: framework.ClusterNames(),
 			},
 		})
 
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating crdPolicy(%s)", crdPolicy.Name), func() {
-				_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), crdPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("creating crd(%s)", crd.Name), func() {
-				unstructObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(crd)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				_, err = dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Create(context.TODO(), &unstructured.Unstructured{Object: unstructObj}, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("get crd(%s)", crd.Name), func() {
-				_, err := dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Get(context.TODO(), crd.Name, metav1.GetOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.BeforeEach(func() {
-			ginkgo.By(fmt.Sprintf("creating crPolicy(%s/%s)", crPolicy.Namespace, crPolicy.Name), func() {
-				_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(crPolicy.Namespace).Create(context.TODO(), crPolicy, metav1.CreateOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing crPolicy(%s/%s)", crPolicy.Namespace, crPolicy.Name), func() {
-				err := karmadaClient.PolicyV1alpha1().PropagationPolicies(crPolicy.Namespace).Delete(context.TODO(), crPolicy.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By(fmt.Sprintf("removing crdPolicy(%s)", crdPolicy.Name), func() {
-				err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Delete(context.TODO(), crdPolicy.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			ginkgo.By(fmt.Sprintf("removing crd(%s)", crd.Name), func() {
-				err := dynamicClient.Resource(crdGVR).Namespace(crd.Namespace).Delete(context.TODO(), crd.Name, metav1.DeleteOptions{})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-		})
-
 		ginkgo.It("namespaceScoped cr propagation testing", func() {
+			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
+			framework.CreateCRD(dynamicClient, crd)
+			framework.GetCRD(dynamicClient, crd.Name)
+			framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(),
+				fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1"), crd.Spec.Names.Kind)
+
+			framework.CreatePropagationPolicy(karmadaClient, crPolicy)
+
 			ginkgo.By(fmt.Sprintf("creating cr(%s/%s)", crNamespace, crName), func() {
 				_, err := dynamicClient.Resource(crGVR).Namespace(crNamespace).Create(context.TODO(), cr, metav1.CreateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By("check if cr present on member clusters", func() {
-				for _, cluster := range clusters {
-					clusterDynamicClient := getClusterDynamicClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterDynamicClient := framework.GetClusterDynamicClient(cluster.Name)
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for cr(%s/%s) present on cluster(%s)", crNamespace, crName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = clusterDynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return false, nil
 							}
 							return false, err
@@ -524,12 +239,12 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			})
 
 			ginkgo.By("check if update has been synced to member clusters", func() {
-				for _, cluster := range clusters {
-					clusterDynamicClient := getClusterDynamicClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterDynamicClient := framework.GetClusterDynamicClient(cluster.Name)
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for cr(%s/%s) synced on cluster(%s)", crNamespace, crName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						cr, err := dynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
 							return false, err
@@ -555,15 +270,15 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			})
 
 			ginkgo.By("check if cr has been deleted from member clusters", func() {
-				for _, cluster := range clusters {
-					clusterDynamicClient := getClusterDynamicClient(cluster.Name)
+				for _, cluster := range framework.Clusters() {
+					clusterDynamicClient := framework.GetClusterDynamicClient(cluster.Name)
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
 					klog.Infof("Waiting for cr(%s/%s) disappear on cluster(%s)", crNamespace, crName, cluster.Name)
-					err := wait.Poll(pollInterval, pollTimeout, func() (done bool, err error) {
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
 						_, err = dynamicClient.Resource(crGVR).Namespace(crNamespace).Get(context.TODO(), crName, metav1.GetOptions{})
 						if err != nil {
-							if errors.IsNotFound(err) {
+							if apierrors.IsNotFound(err) {
 								return true, nil
 							}
 							return false, err
@@ -574,6 +289,55 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 			})
+
+			framework.RemovePropagationPolicy(karmadaClient, crPolicy.Namespace, crPolicy.Name)
+
+			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
+			framework.RemoveCRD(dynamicClient, crd.Name)
+		})
+	})
+
+	ginkgo.Context("Job propagation testing", func() {
+		policyNamespace := testNamespace
+		policyName := jobNamePrefix + rand.String(RandomStrLength)
+		jobNamespace := testNamespace
+		jobName := policyName
+
+		job := testhelper.NewJob(jobNamespace, jobName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: job.APIVersion,
+				Kind:       job.Kind,
+				Name:       job.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: framework.ClusterNames(),
+			},
+		})
+
+		ginkgo.It("job propagation testing", func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateJob(kubeClient, job)
+
+			framework.WaitJobPresentOnClustersFitWith(framework.ClusterNames(), job.Namespace, job.Name,
+				func(job *batchv1.Job) bool {
+					return true
+				})
+
+			patch := []map[string]interface{}{{"op": "replace", "path": "/spec/backoffLimit", "value": pointer.Int32Ptr(updateBackoffLimit)}}
+			bytes, err := json.Marshal(patch)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			framework.UpdateJobWithPatchBytes(kubeClient, job.Namespace, job.Name, bytes, types.JSONPatchType)
+
+			framework.WaitJobPresentOnClustersFitWith(framework.ClusterNames(), job.Namespace, job.Name,
+				func(job *batchv1.Job) bool {
+					return *job.Spec.BackoffLimit == updateBackoffLimit
+				})
+
+			framework.RemoveJob(kubeClient, job.Namespace, job.Name)
+			framework.WaitJobDisappearOnClusters(framework.ClusterNames(), job.Namespace, job.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

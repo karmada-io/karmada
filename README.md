@@ -8,6 +8,7 @@
 [![LICENSE](https://img.shields.io/github/license/karmada-io/karmada.svg)](/LICENSE)
 [![Releases](https://img.shields.io/github/release/karmada-io/karmada/all.svg)](https://github.com/karmada-io/karmada/releases)
 [![Slack](https://img.shields.io/badge/slack-join-brightgreen)](https://join.slack.com/t/karmada-io/shared_invite/zt-omhy1wfa-LmAkCLfpDMnBjVXp3_U~0w)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5301/badge)](https://bestpractices.coreinfrastructure.org/projects/5301)
 
 ## Karmada: Open, Multi-Cloud, Multi-Cluster Kubernetes Orchestration
 
@@ -16,6 +17,9 @@ Karmada (Kubernetes Armada) is a Kubernetes management system that enables you t
 Karmada aims to provide turnkey automation for multi-cluster application management in multi-cloud and hybrid cloud scenarios,
 with key features such as centralized multi-cloud management, high availability, failure recovery, and traffic scheduling.
 
+![cncf_logo](docs/images/cncf-logo.png)
+
+Karmada is a sandbox project of the [Cloud Native Computing Foundation](https://cncf.io/) (CNCF).
 
 ## Why Karmada:
 - __K8s Native API Compatible__
@@ -60,7 +64,7 @@ The Karmada Control Plane consists of the following components:
 
 ETCD stores the karmada API objects, the API Server is the REST endpoint all other components talk to, and the Karmada Controller Manager perform operations based on the API objects you create through the API server.
 
-The Karmada Controller Manager runs the various controllers,  the controllers watch karmada objects and then talk to the underlying clusters’ API servers to create regular Kubernetes resources.
+The Karmada Controller Manager runs the various controllers,  the controllers watch karmada objects and then talk to the underlying clusters' API servers to create regular Kubernetes resources.
 
 1. Cluster Controller: attach kubernetes clusters to Karmada for managing the lifecycle of the clusters by creating cluster object.
 
@@ -93,14 +97,8 @@ This guide will cover:
 - Join a member cluster to `karmada` control plane.
 - Propagate an application by `karmada`.
 
-### Demo
-
-There are several demonstrations of common cases.
-
-![Demo](docs/images/demo-3in1.svg)
-
 ### Prerequisites
-- [Go](https://golang.org/) version v1.14+
+- [Go](https://golang.org/) version v1.16+
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
 - [kind](https://kind.sigs.k8s.io/) version v0.9.0+
 
@@ -108,113 +106,50 @@ There are several demonstrations of common cases.
 
 #### 1. Clone this repo to your machine:
 ```
-# git clone https://github.com/karmada-io/karmada
+git clone https://github.com/karmada-io/karmada
 ```
 
 #### 2. Change to karmada directory:
 ```
-# cd karmada
+cd karmada
 ```
 
 #### 3. Deploy and run karmada control plane:
 
-Choose a way:
-- [I have not any cluster](#31-i-have-not-any-cluster)
-- [I have present cluster for installing](#32-i-have-present-cluster-for-installing)
-
-
-##### 3.1. I have not any cluster
-
-run the following script: (It will create a host cluster by kind)
+run the following script:
 
 ```
 # hack/local-up-karmada.sh
 ```
-The script `hack/local-up-karmada.sh` will do following tasks for you:
+This script will do following tasks for you:
 - Start a Kubernetes cluster to run the karmada control plane, aka. the `host cluster`.
 - Build karmada control plane components based on a current codebase.
 - Deploy karmada control plane components on `host cluster`.
+- Create member clusters and join to Karmada.
 
 If everything goes well, at the end of the script output, you will see similar messages as follows:
 ```
 Local Karmada is running.
 
-Kubeconfig for karmada in file: /root/.kube/karmada.config, so you can run:
-  export KUBECONFIG="/root/.kube/karmada.config"
-Or use kubectl with --kubeconfig=/root/.kube/karmada.config
-Please use 'kubectl config use-context <Context_Name>' to switch cluster to operate,
-the following is context intro:
-  ------------------------------------------------------
-  |    Context Name   |          Purpose               |
-  |----------------------------------------------------|
-  | karmada-host      | the cluster karmada install in |
-  |----------------------------------------------------|
-  | karmada-apiserver | karmada control plane          |
-  ------------------------------------------------------
+To start using your karmada, run:
+  export KUBECONFIG="$HOME/.kube/karmada.config"
+Please use 'kubectl config use-context karmada-host/karmada-apiserver' to switch the host and control plane cluster.
+
+To manage your member clusters, run:
+  export KUBECONFIG="$HOME/.kube/members.config"
+Please use 'kubectl config use-context member1/member2/member3' to switch to the different member cluster.
 ```
 
-There are two contexts you can switch after the script run are:
+There are two contexts about karmada:
 - karmada-apiserver `kubectl config use-context karmada-apiserver`
 - karmada-host `kubectl config use-context karmada-host`
 
-The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karamda control plane, while `karmada-host` is only used for debugging karmada installation with host cluster, you can check all clusters at any time by run: `kubectl config view` and switch by `kubectl config use-context [CONTEXT_NAME]`
+The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karmada control plane, while `karmada-host` is only used for debugging karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
 
-##### 3.2. I have present cluster for installing
-Before run the following script, please make sure you are in the node or master of the cluster to install:
-```
-# hack/remote-up-karmada.sh <kubeconfig> <context_name>
-```
-`kubeconfig` is your cluster's kubeconfig that you want to install to
 
-`context_name` is the name of context in 'kubeconfig'
+### Demo
 
-If everything goes well, at the end of the script output, you will see similar messages as follows:
-```
-Karmada is installed.
-
-Kubeconfig for karmada in file: /root/.kube/karmada.config, so you can run:
-  export KUBECONFIG="/root/.kube/karmada.config"
-Or use kubectl with --kubeconfig=/root/.kube/karmada.config
-Please use 'kubectl config use-context karmada-apiserver' to switch the cluster of karmada control plane
-And use 'kubectl config use-context your-host' for debugging karmada installation
-```
-#### Tips
-- Please make sure you can access google cloud registry: k8s.gcr.io
-- Install script will download golang package, if your server is in the mainland China, you may set go proxy like this `export GOPROXY=https://goproxy.cn`
-
-### Join member cluster
-In the following steps, we are going to create a member cluster and then join the cluster to
-karmada control plane.
-
-#### 1. Create member cluster
-We are going to create a cluster named `member1` and we want the `KUBECONFIG` file
-in `$HOME/.kube/karmada.config`. Run following command:
-```
-# hack/create-cluster.sh member1 $HOME/.kube/karmada.config
-```
-The script `hack/create-cluster.sh` will create a standalone cluster by kind.
-
-#### 2. Join member cluster to karmada control plane
-The command `karmadactl` will help to join the member cluster to karmada control plane,
-before that, we should switch to karmada apiserver:
-```
-# kubectl config use-context karmada-apiserver
-```
-
-Then, install `karmadactl` command and join the member cluster:
-```
-# go get github.com/karmada-io/karmada/cmd/karmadactl
-# karmadactl join member1 --cluster-kubeconfig=$HOME/.kube/karmada.config
-```
-The `karmadactl join` command will create a `Cluster` object to reflect the member cluster.
-
-### 3. Check member cluster status
-Now, check the member clusters from karmada control plane by following command:
-```
-# kubectl get clusters
-NAME      VERSION   MODE   READY   AGE
-member1   v1.20.2   Push   True    66s
-```
+![Demo](docs/images/sample-nginx.svg)
 
 ### Propagate application
 In the following steps, we are going to propagate a deployment by karmada.
@@ -222,22 +157,36 @@ In the following steps, we are going to propagate a deployment by karmada.
 #### 1. Create nginx deployment in karmada.
 First, create a [deployment](samples/nginx/deployment.yaml) named `nginx`:
 ```
-# kubectl create -f samples/nginx/deployment.yaml
+kubectl create -f samples/nginx/deployment.yaml
 ```
 
 #### 2. Create PropagationPolicy that will propagate nginx to member cluster
 Then, we need create a policy to drive the deployment to our member cluster.
 ```
-# kubectl create -f samples/nginx/propagationpolicy.yaml
+kubectl create -f samples/nginx/propagationpolicy.yaml
 ```
 
 #### 3. Check the deployment status from karmada
 You can check deployment status from karmada, don't need to access member cluster:
 ```
-# kubectl get deployment
+$ kubectl get deployment
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   1/1     1            1           43s
+nginx   2/2     2            2           20s
 ```
+
+## Kubernetes compatibility
+
+|                        | Kubernetes 1.15 | Kubernetes 1.16 | Kubernetes 1.17 | Kubernetes 1.18 | Kubernetes 1.19 | Kubernetes 1.20 | Kubernetes 1.21 |
+|------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| Karmada v0.8           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+| Karmada v0.9           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+| Karmada v0.10          | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+| Karmada HEAD (master)  | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               |
+
+Key:
+* `✓` Karmada and the Kubernetes version are exactly compatible.
+* `+` Karmada has features or API objects that may not be present in the Kubernetes version.
+* `-` The Kubernetes version has features or API objects that Karmada can't use.
 
 ## Meeting
 
@@ -245,15 +194,16 @@ Regular Community Meeting:
 * Tuesday at 14:30 CST(China Standard Time)(biweekly). [Convert to your timezone.](https://www.thetimezoneconverter.com/?t=14%3A30&tz=GMT%2B8&)
 
 Resources:
-- [Meeting notes and agenda](https://docs.google.com/document/d/1y6YLVC-v7cmVAdbjedoyR5WL0-q45DBRXTvz5_I7bkA/edit)
+- [Meeting Notes and Agenda](https://docs.google.com/document/d/1y6YLVC-v7cmVAdbjedoyR5WL0-q45DBRXTvz5_I7bkA/edit)
 - [Meeting Calendar](https://calendar.google.com/calendar/embed?src=karmadaoss%40gmail.com&ctz=Asia%2FShanghai) | [Subscribe](https://calendar.google.com/calendar/u/1?cid=a2FybWFkYW9zc0BnbWFpbC5jb20)
+- [Meeting Link](https://zoom.com/my/karmada)
 
 ## Contact
 
 If you have questions, feel free to reach out to us in the following ways:
 
 - [mailing list](https://groups.google.com/forum/#!forum/karmada)
-- [slack](https://join.slack.com/t/karmada-io/shared_invite/zt-omhy1wfa-LmAkCLfpDMnBjVXp3_U~0w)
+- [slack](https://cloud-native.slack.com/archives/C02MUF8QXUN) | [Join](https://slack.cncf.io/)
 - [twitter](https://twitter.com/karmada_io)
 
 ## Contributing

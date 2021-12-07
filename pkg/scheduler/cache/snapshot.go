@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -37,4 +39,26 @@ func (s *Snapshot) GetReadyClusters() []*framework.ClusterInfo {
 	}
 
 	return readyClusterInfoList
+}
+
+// GetReadyClusterNames returns the clusterNames in ready status.
+func (s *Snapshot) GetReadyClusterNames() sets.String {
+	readyClusterNames := sets.NewString()
+	for _, c := range s.clusterInfoList {
+		if util.IsClusterReady(&c.Cluster().Status) {
+			readyClusterNames.Insert(c.Cluster().Name)
+		}
+	}
+
+	return readyClusterNames
+}
+
+// GetCluster returns the given clusters.
+func (s *Snapshot) GetCluster(clusterName string) *framework.ClusterInfo {
+	for _, c := range s.clusterInfoList {
+		if c.Cluster().Name == clusterName {
+			return c
+		}
+	}
+	return nil
 }

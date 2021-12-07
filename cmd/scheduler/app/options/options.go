@@ -7,11 +7,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
+
+	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
-	defaultBindAddress = "0.0.0.0"
-	defaultPort        = 10351
+	defaultBindAddress   = "0.0.0.0"
+	defaultPort          = 10351
+	defaultEstimatorPort = 10352
 )
 
 var (
@@ -30,19 +34,30 @@ type Options struct {
 	// SecurePort is the port that the server serves at.
 	SecurePort int
 
-	// Failover indicates if scheduler should reschedule on cluster failure.
-	Failover bool
+	// KubeAPIQPS is the QPS to use while talking with karmada-apiserver.
+	KubeAPIQPS float32
+	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
+	KubeAPIBurst int
+
+	// EnableSchedulerEstimator represents whether the accurate scheduler estimator should be enabled.
+	EnableSchedulerEstimator bool
+	// SchedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
+	SchedulerEstimatorTimeout metav1.Duration
+	// SchedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
+	SchedulerEstimatorPort int
 }
 
 // NewOptions builds an default scheduler options.
 func NewOptions() *Options {
 	return &Options{
 		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-			LeaderElect:   false,
-			ResourceLock:  resourcelock.LeasesResourceLock,
-			LeaseDuration: defaultElectionLeaseDuration,
-			RenewDeadline: defaultElectionRenewDeadline,
-			RetryPeriod:   defaultElectionRetryPeriod,
+			LeaderElect:       true,
+			ResourceLock:      resourcelock.LeasesResourceLock,
+			ResourceNamespace: util.NamespaceKarmadaSystem,
+			ResourceName:      "karmada-scheduler",
+			LeaseDuration:     defaultElectionLeaseDuration,
+			RenewDeadline:     defaultElectionRenewDeadline,
+			RetryPeriod:       defaultElectionRetryPeriod,
 		},
 	}
 }
@@ -53,11 +68,16 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 		return
 	}
 
-	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", false, "Enable leader election, which must be true when running multi instances.")
-	fs.StringVar(&o.LeaderElection.ResourceNamespace, "lock-namespace", "", "Define the namespace of the lock object.")
+	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Enable leader election, which must be true when running multi instances.")
+	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", util.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
 	fs.StringVar(&o.KubeConfig, "kubeconfig", o.KubeConfig, "Path to a KubeConfig. Only required if out-of-cluster.")
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server. Overrides any value in KubeConfig. Only required if out-of-cluster.")
 	fs.StringVar(&o.BindAddress, "bind-address", defaultBindAddress, "The IP address on which to listen for the --secure-port port.")
 	fs.IntVar(&o.SecurePort, "secure-port", defaultPort, "The secure port on which to serve HTTPS.")
-	fs.BoolVar(&o.Failover, "failover", false, "Reschedule on cluster failure.")
+	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	fs.BoolVar(&o.EnableSchedulerEstimator, "enable-scheduler-estimator", false, "Enable calling cluster scheduler estimator for adjusting replicas.")
+	fs.DurationVar(&o.SchedulerEstimatorTimeout.Duration, "scheduler-estimator-timeout", 3*time.Second, "Specifies the timeout period of calling the scheduler estimator service.")
+	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
+	features.FeatureGate.AddFlag(fs)
 }

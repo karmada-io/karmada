@@ -1,0 +1,310 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
+  name: clusters.cluster.karmada.io
+spec:
+  group: cluster.karmada.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.kubernetesVersion
+      name: Version
+      type: string
+    - jsonPath: .spec.syncMode
+      name: Mode
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Cluster represents the desire state and status of a member cluster.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec represents the specification of the desired behavior
+              of member cluster.
+            properties:
+              apiEndpoint:
+                description: The API endpoint of the member cluster. This can be a
+                  hostname, hostname:port, IP or IP:port.
+                type: string
+              insecureSkipTLSVerification:
+                description: InsecureSkipTLSVerification indicates that the karmada
+                  control plane should not confirm the validity of the serving certificate
+                  of the cluster it is connecting to. This will make the HTTPS connection
+                  between the karmada control plane and the member cluster insecure.
+                  Defaults to false.
+                type: boolean
+              provider:
+                description: Provider represents the cloud provider name of the member
+                  cluster.
+                type: string
+              proxyURL:
+                description: 'ProxyURL is the proxy URL for the cluster. If not empty,
+                  the karmada control plane will use this proxy to talk to the cluster.
+                  More details please refer to: https://github.com/kubernetes/client-go/issues/351'
+                type: string
+              region:
+                description: Region represents the region of the member cluster locate
+                  in.
+                type: string
+              secretRef:
+                description: 'SecretRef represents the secret contains mandatory credentials
+                  to access the member cluster. The secret should hold credentials
+                  as follows: - secret.data.token - secret.data.caBundle'
+                properties:
+                  name:
+                    description: Name is the name of resource being referenced.
+                    type: string
+                  namespace:
+                    description: Namespace is the namespace for the resource being
+                      referenced.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              syncMode:
+                description: SyncMode describes how a cluster sync resources from
+                  karmada control plane.
+                enum:
+                - Push
+                - Pull
+                type: string
+              taints:
+                description: Taints attached to the member cluster. Taints on the
+                  cluster have the "effect" on any resource that does not tolerate
+                  the Taint.
+                items:
+                  description: The node this Taint is attached to has the "effect"
+                    on any pod that does not tolerate the Taint.
+                  properties:
+                    effect:
+                      description: Required. The effect of the taint on pods that
+                        do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule
+                        and NoExecute.
+                      type: string
+                    key:
+                      description: Required. The taint key to be applied to a node.
+                      type: string
+                    timeAdded:
+                      description: TimeAdded represents the time at which the taint
+                        was added. It is only written for NoExecute taints.
+                      format: date-time
+                      type: string
+                    value:
+                      description: The taint value corresponding to the taint key.
+                      type: string
+                  required:
+                  - effect
+                  - key
+                  type: object
+                type: array
+              zone:
+                description: Zone represents the zone of the member cluster locate
+                  in.
+                type: string
+            required:
+            - syncMode
+            type: object
+          status:
+            description: Status represents the status of member cluster.
+            properties:
+              apiEnablements:
+                description: APIEnablements represents the list of APIs installed
+                  in the member cluster.
+                items:
+                  description: APIEnablement is a list of API resource, it is used
+                    to expose the name of the resources supported in a specific group
+                    and version.
+                  properties:
+                    groupVersion:
+                      description: GroupVersion is the group and version this APIEnablement
+                        is for.
+                      type: string
+                    resources:
+                      description: Resources is a list of APIResource.
+                      items:
+                        description: APIResource specifies the name and kind names
+                          for the resource.
+                        properties:
+                          kind:
+                            description: Kind is the kind for the resource (e.g. 'Deployment'
+                              is the kind for resource 'deployments')
+                            type: string
+                          name:
+                            description: Name is the plural name of the resource.
+                            type: string
+                        required:
+                        - kind
+                        - name
+                        type: object
+                      type: array
+                  required:
+                  - groupVersion
+                  type: object
+                type: array
+              conditions:
+                description: Conditions is an array of current cluster conditions.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    type FooStatus struct{     // Represents the observations of a
+                    foo's current state.     // Known .status.conditions.type are:
+                    \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type
+                    \    // +patchStrategy=merge     // +listType=map     // +listMapKey=type
+                    \    Conditions []metav1.Condition `json:\"conditions,omitempty\"
+                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`
+                    \n     // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              kubernetesVersion:
+                description: KubernetesVersion represents version of the member cluster.
+                type: string
+              nodeSummary:
+                description: NodeSummary represents the summary of nodes status in
+                  the member cluster.
+                properties:
+                  readyNum:
+                    description: ReadyNum is the number of ready nodes in the cluster.
+                    format: int32
+                    type: integer
+                  totalNum:
+                    description: TotalNum is the total number of nodes in the cluster.
+                    format: int32
+                    type: integer
+                type: object
+              resourceSummary:
+                description: ResourceSummary represents the summary of resources in
+                  the member cluster.
+                properties:
+                  allocatable:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: Allocatable represents the resources of a cluster
+                      that are available for scheduling. Total amount of allocatable
+                      resources on all nodes.
+                    type: object
+                  allocated:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: Allocated represents the resources of a cluster that
+                      have been scheduled. Total amount of required resources of all
+                      Pods that have been scheduled to nodes.
+                    type: object
+                  allocating:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: Allocating represents the resources of a cluster
+                      that are pending for scheduling. Total amount of required resources
+                      of all Pods that are waiting for scheduling.
+                    type: object
+                type: object
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

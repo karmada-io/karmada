@@ -1,59 +1,56 @@
 package cache
 
 import (
-	"sync"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
 // Cache is an interface for scheduler internal cache.
 type Cache interface {
-	AddCluster(cluster *v1alpha1.Cluster)
-	UpdateCluster(cluster *v1alpha1.Cluster)
-	DeleteCluster(cluster *v1alpha1.Cluster)
+	AddCluster(cluster *clusterv1alpha1.Cluster)
+	UpdateCluster(cluster *clusterv1alpha1.Cluster)
+	DeleteCluster(cluster *clusterv1alpha1.Cluster)
 	// Snapshot returns a snapshot of the current clusters info
 	Snapshot() *Snapshot
 }
 
 type schedulerCache struct {
-	mutex    sync.RWMutex
-	clusters map[string]*v1alpha1.Cluster
+	clusterLister clusterlister.ClusterLister
 }
 
 // NewCache instantiates a cache used only by scheduler.
-func NewCache() Cache {
+func NewCache(clusterLister clusterlister.ClusterLister) Cache {
 	return &schedulerCache{
-		clusters: make(map[string]*v1alpha1.Cluster),
+		clusterLister: clusterLister,
 	}
 }
 
-func (c *schedulerCache) AddCluster(cluster *v1alpha1.Cluster) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.clusters[cluster.Name] = cluster
+// AddCluster does nothing since clusterLister would synchronize automatically
+func (c *schedulerCache) AddCluster(cluster *clusterv1alpha1.Cluster) {
 }
 
-func (c *schedulerCache) UpdateCluster(cluster *v1alpha1.Cluster) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.clusters[cluster.Name] = cluster
+// UpdateCluster does nothing since clusterLister would synchronize automatically
+func (c *schedulerCache) UpdateCluster(cluster *clusterv1alpha1.Cluster) {
 }
 
-func (c *schedulerCache) DeleteCluster(cluster *v1alpha1.Cluster) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	delete(c.clusters, cluster.Name)
+// DeleteCluster does nothing since clusterLister would synchronize automatically
+func (c *schedulerCache) DeleteCluster(cluster *clusterv1alpha1.Cluster) {
 }
 
 // TODO: need optimization, only clone when necessary
 func (c *schedulerCache) Snapshot() *Snapshot {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-
+	clusters, err := c.clusterLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("Failed to list clusters: %v", err)
+		return nil
+	}
 	out := NewEmptySnapshot()
-	out.clusterInfoList = make([]*framework.ClusterInfo, 0, len(c.clusters))
-	for _, cluster := range c.clusters {
+	out.clusterInfoList = make([]*framework.ClusterInfo, 0, len(clusters))
+	for _, cluster := range clusters {
 		cloned := cluster.DeepCopy()
 		out.clusterInfoList = append(out.clusterInfoList, framework.NewClusterInfo(cloned))
 	}

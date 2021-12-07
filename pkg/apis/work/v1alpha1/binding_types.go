@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -54,12 +55,23 @@ type ObjectReference struct {
 	// determine when object has changed.
 	// +optional
 	ResourceVersion string `json:"resourceVersion,omitempty"`
+
+	// ReplicaResourceRequirements represents the resources required by each replica.
+	// +optional
+	ReplicaResourceRequirements corev1.ResourceList `json:"resourcePerReplicas,omitempty"`
+
+	// Replicas represents the replica number of the referencing resource.
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
 }
 
 // TargetCluster represents the identifier of a member cluster.
 type TargetCluster struct {
 	// Name of target cluster.
 	Name string `json:"name"`
+	// Replicas in target cluster
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
 }
 
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
@@ -75,11 +87,22 @@ type ResourceBindingStatus struct {
 // AggregatedStatusItem represents status of the resource running in a member cluster.
 type AggregatedStatusItem struct {
 	// ClusterName represents the member cluster name which the resource deployed on.
+	// +required
 	ClusterName string `json:"clusterName"`
 
 	// Status reflects running status of current manifest.
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Status runtime.RawExtension `json:",inline"`
+	// +optional
+	Status *runtime.RawExtension `json:"status,omitempty"`
+	// Applied represents if the resource referencing by ResourceBinding or ClusterResourceBinding
+	// is successfully applied on the cluster.
+	// +optional
+	Applied bool `json:"applied,omitempty"`
+
+	// AppliedMessage is a human readable message indicating details about the applied status.
+	// This is usually holds the error message in case of apply failed.
+	// +optional
+	AppliedMessage string `json:"appliedMessage,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

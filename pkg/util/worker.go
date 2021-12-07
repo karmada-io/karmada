@@ -1,35 +1,33 @@
 package util
 
 import (
-	"time"
-
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
 	// maxRetries is the number of times a resource will be retried before it is dropped out of the queue.
 	// With the current rate-limiter in use (5ms*2^(maxRetries-1)) the following numbers represent the times
-	// a resource is going to be requeued:
+	// a resource is going to be re-queued:
 	//
 	// 5ms, 10ms, 20ms, 40ms, 80ms, 160ms, 320ms, 640ms, 1.3s, 2.6s, 5.1s, 10.2s, 20.4s, 41s, 82s
 	maxRetries = 15
 )
 
-// AsyncWorker is a worker to process resources periodic with a rateLimitingQueue.
+// AsyncWorker maintains a rate limiting queue and the items in the queue will be reconciled by a "ReconcileFunc".
+// The item will be re-queued if "ReconcileFunc" returns an error, maximum re-queue times defined by "maxRetries" above,
+// after that the item will be discarded from the queue.
 type AsyncWorker interface {
-	// AddRateLimited adds item to queue.
-	AddRateLimited(item interface{})
-	// EnqueueRateLimited generates the key for objects then adds the key as an item to queue.
-	EnqueueRateLimited(obj runtime.Object)
+	// Add adds the 'item' to queue immediately(without any delay).
+	Add(item interface{})
+
+	// Enqueue generates the key of 'obj' according to a 'KeyFunc' then adds the key as an item to queue by 'Add'.
+	Enqueue(obj runtime.Object)
+
+	// Run starts a certain number of concurrent workers to reconcile the items and will never stop until 'stopChan'
+	// is closed.
 	Run(workerNumber int, stopChan <-chan struct{})
 }
 
@@ -54,73 +52,42 @@ type asyncWorker struct {
 	reconcileFunc ReconcileFunc
 	// queue allowing parallel processing of resources.
 	queue workqueue.RateLimitingInterface
-	// interval is the interval for process object in the queue.
-	interval time.Duration
 }
 
 // NewAsyncWorker returns a asyncWorker which can process resource periodic.
-func NewAsyncWorker(name string, interval time.Duration, keyFunc KeyFunc, reconcileFunc ReconcileFunc) AsyncWorker {
+func NewAsyncWorker(name string, keyFunc KeyFunc, reconcileFunc ReconcileFunc) AsyncWorker {
 	return &asyncWorker{
 		keyFunc:       keyFunc,
 		reconcileFunc: reconcileFunc,
 		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
-		interval:      interval,
 	}
 }
 
-// GenerateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
-// TODO(RainbowMango): Move this function out of this file, to it's user.
-func GenerateKey(obj interface{}) (QueueKey, error) {
-	resource := obj.(*unstructured.Unstructured)
-	cluster, err := getClusterNameFromLabel(resource)
-	if err != nil {
-		return "", err
-	}
-	// it happens when the obj not managed by Karmada.
-	if cluster == "" {
-		return nil, nil
-	}
-
-	return keys.FederatedKeyFunc(cluster, obj)
-}
-
-// getClusterNameFromLabel gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
-func getClusterNameFromLabel(resource *unstructured.Unstructured) (string, error) {
-	workNamespace := GetLabelValue(resource.GetLabels(), WorkNamespaceLabel)
-	if len(workNamespace) == 0 {
-		klog.V(4).Infof("Ignore resource(%s/%s/%s) which not managed by karmada", resource.GetKind(), resource.GetNamespace(), resource.GetName())
-		return "", nil
-	}
-
-	cluster, err := names.GetClusterName(workNamespace)
-	if err != nil {
-		klog.Errorf("Failed to get cluster name from work namespace: %s, error: %v.", workNamespace, err)
-		return "", err
-	}
-	return cluster, nil
-}
-
-func (w *asyncWorker) EnqueueRateLimited(obj runtime.Object) {
+func (w *asyncWorker) Enqueue(obj runtime.Object) {
 	key, err := w.keyFunc(obj)
 	if err != nil {
 		klog.Warningf("Failed to generate key for obj: %s", obj.GetObjectKind().GroupVersionKind())
 		return
 	}
 
-	w.AddRateLimited(key)
+	if key == nil {
+		return
+	}
+
+	w.Add(key)
 }
 
-func (w *asyncWorker) AddRateLimited(item interface{}) {
+func (w *asyncWorker) Add(item interface{}) {
 	if item == nil {
 		klog.Warningf("Ignore nil item from queue")
 		return
 	}
 
-	w.queue.AddRateLimited(item)
+	w.queue.Add(item)
 }
 
 func (w *asyncWorker) handleError(err error, key interface{}) {
-	if err == nil || errors.HasStatusCause(err, v1.NamespaceTerminatingCause) {
+	if err == nil {
 		w.queue.Forget(key)
 		return
 	}
@@ -147,7 +114,7 @@ func (w *asyncWorker) worker() {
 
 func (w *asyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
 	for i := 0; i < workerNumber; i++ {
-		go wait.Until(w.worker, w.interval, stopChan)
+		go wait.Until(w.worker, 0, stopChan)
 	}
 	// Ensure all goroutines are cleaned up when the stop channel closes
 	go func() {

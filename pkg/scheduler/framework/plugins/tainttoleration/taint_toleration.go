@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
-	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
+	corev1 "k8s.io/api/core/v1"
+	v1helper "k8s.io/component-helpers/scheduling/corev1"
 
-	cluster "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
@@ -34,11 +35,11 @@ func (p *TaintToleration) Name() string {
 }
 
 // Filter checks if the given tolerations in placement tolerate cluster's taints.
-func (p *TaintToleration) Filter(ctx context.Context, placement *v1alpha1.Placement, cluster *cluster.Cluster) *framework.Result {
-	filterPredicate := func(t *v1.Taint) bool {
+func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
+	filterPredicate := func(t *corev1.Taint) bool {
 		// now only interested in NoSchedule taint which means do not allow new resource to schedule onto the cluster unless they tolerate the taint
 		// todo: supprot NoExecute taint
-		return t.Effect == v1.TaintEffectNoSchedule
+		return t.Effect == corev1.TaintEffectNoSchedule
 	}
 
 	taint, isUntolerated := v1helper.FindMatchingUntoleratedTaint(cluster.Spec.Taints, placement.ClusterTolerations, filterPredicate)
@@ -51,6 +52,6 @@ func (p *TaintToleration) Filter(ctx context.Context, placement *v1alpha1.Placem
 }
 
 // Score calculates the score on the candidate cluster.
-func (p *TaintToleration) Score(ctx context.Context, placement *v1alpha1.Placement, cluster *cluster.Cluster) (float64, *framework.Result) {
+func (p *TaintToleration) Score(ctx context.Context, placement *policyv1alpha1.Placement, cluster *clusterv1alpha1.Cluster) (float64, *framework.Result) {
 	return 0, framework.NewResult(framework.Success)
 }

@@ -38,6 +38,11 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusBadRequest, fmt.Errorf("ClusterPropagationPolicy's name should be no more than %d characters", validation.LabelValueMaxLength))
 	}
 
+	addedResourceSelectors := helper.GetFollowedResourceSelectorsWhenMatchServiceImport(policy.Spec.ResourceSelectors)
+	if addedResourceSelectors != nil {
+		policy.Spec.ResourceSelectors = append(policy.Spec.ResourceSelectors, addedResourceSelectors...)
+	}
+
 	marshaledBytes, err := json.Marshal(policy)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)

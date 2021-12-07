@@ -1,0 +1,17 @@
+resources:
+- bases/cluster.karmada.io_clusters.yaml
+- bases/multicluster.x-k8s.io_serviceexports.yaml
+- bases/multicluster.x-k8s.io_serviceimports.yaml
+- bases/policy.karmada.io_clusteroverridepolicies.yaml
+- bases/policy.karmada.io_clusterpropagationpolicies.yaml
+- bases/policy.karmada.io_overridepolicies.yaml
+- bases/policy.karmada.io_propagationpolicies.yaml
+- bases/policy.karmada.io_replicaschedulingpolicies.yaml
+- bases/work.karmada.io_resourcebindings.yaml
+- bases/work.karmada.io_clusterresourcebindings.yaml
+- bases/work.karmada.io_works.yaml
+- bases/config.karmada.io_resourceinterpreterwebhookconfigurations.yaml
+
+patchesStrategicMerge:
+- patches/webhook_in_resourcebindings.yaml
+- patches/webhook_in_clusterresourcebindings.yaml

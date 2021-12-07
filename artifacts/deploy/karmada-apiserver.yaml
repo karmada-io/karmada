@@ -43,12 +43,16 @@ spec:
             - --etcd-keyfile=/etc/kubernetes/pki/karmada.key
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
             - --bind-address=0.0.0.0
-            - --insecure-port=8080
+            - --insecure-port=0
             - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
             - --kubelet-client-key=/etc/kubernetes/pki/karmada.key
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+            - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
             - --runtime-config=
             - --secure-port=5443
+            - --service-account-issuer=https://kubernetes.default.svc.cluster.local
+            - --service-account-key-file=/etc/kubernetes/pki/karmada.key
+            - --service-account-signing-key-file=/etc/kubernetes/pki/karmada.key
             - --service-cluster-ip-range=10.96.0.0/12
             - --proxy-client-cert-file=/etc/kubernetes/pki/karmada.crt
             - --proxy-client-key-file=/etc/kubernetes/pki/karmada.key
@@ -60,7 +64,7 @@ spec:
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
           name: karmada-apiserver
-          image: k8s.gcr.io/kube-apiserver:v1.19.1
+          image: k8s.gcr.io/kube-apiserver:v1.20.11
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 8
@@ -125,3 +129,4 @@ spec:
       targetPort: 5443
   selector:
     app: karmada-apiserver
+  type: {{service_type}}

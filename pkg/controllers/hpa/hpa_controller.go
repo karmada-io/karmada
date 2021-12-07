@@ -4,7 +4,7 @@ import (
 	"context"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -16,9 +16,13 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/kind/pkg/errors"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -28,10 +32,11 @@ const ControllerName = "hpa-controller"
 
 // HorizontalPodAutoscalerController is to sync HorizontalPodAutoscaler.
 type HorizontalPodAutoscalerController struct {
-	client.Client                   // used to operate HorizontalPodAutoscaler resources.
-	DynamicClient dynamic.Interface // used to fetch arbitrary resources.
-	EventRecorder record.EventRecorder
-	RESTMapper    meta.RESTMapper
+	client.Client                                                // used to operate HorizontalPodAutoscaler resources.
+	DynamicClient   dynamic.Interface                            // used to fetch arbitrary resources from api server.
+	InformerManager informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	EventRecorder   record.EventRecorder
+	RESTMapper      meta.RESTMapper
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -42,9 +47,12 @@ func (c *HorizontalPodAutoscalerController) Reconcile(ctx context.Context, req c
 
 	hpa := &autoscalingv1.HorizontalPodAutoscaler{}
 	if err := c.Client.Get(context.TODO(), req.NamespacedName, hpa); err != nil {
-		// The resource may no longer exist, in which case we stop processing.
-		if errors.IsNotFound(err) {
-			return controllerruntime.Result{}, nil
+		// The resource may no longer exist, in which case we delete related works.
+		if apierrors.IsNotFound(err) {
+			if err := c.deleteWorks(names.GenerateWorkName(util.HorizontalPodAutoscalerKind, req.Name, req.Namespace)); err != nil {
+				return controllerruntime.Result{Requeue: true}, err
+			}
+			return controllerruntime.Result{}, err
 		}
 
 		return controllerruntime.Result{Requeue: true}, err
@@ -92,23 +100,12 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 			Name:       workName,
 			Namespace:  workNamespace,
 			Finalizers: []string{util.ExecutionControllerFinalizer},
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(hpa, hpa.GroupVersionKind()),
-			},
 		}
 
-		util.MergeLabel(hpaObj, util.WorkNamespaceLabel, workNamespace)
-		util.MergeLabel(hpaObj, util.WorkNameLabel, workName)
+		util.MergeLabel(hpaObj, workv1alpha1.WorkNamespaceLabel, workNamespace)
+		util.MergeLabel(hpaObj, workv1alpha1.WorkNameLabel, workName)
 
-		hpaJSON, err := hpaObj.MarshalJSON()
-		if err != nil {
-			klog.Errorf("Failed to marshal hpa %s/%s. Error: %v",
-				hpaObj.GetNamespace(), hpaObj.GetName(), err)
-			return err
-		}
-
-		err = util.CreateOrUpdateWork(c.Client, objectMeta, hpaJSON)
-		if err != nil {
+		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, hpaObj); err != nil {
 			return err
 		}
 	}
@@ -127,12 +124,27 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 	}
 
 	// Kind in CrossVersionObjectReference is not equal to the kind in bindingName, need to get obj from cache.
-	unstructuredWorkLoad, err := c.DynamicClient.Resource(dynamicResource).Namespace(namespace).Get(context.TODO(), objRef.Name, metav1.GetOptions{})
+	workload, err := c.InformerManager.Lister(dynamicResource).ByNamespace(namespace).Get(objRef.Name)
 	if err != nil {
+		// fall back to call api server in case the cache has not been synchronized yet
+		klog.Warningf("Failed to get workload from cache, kind: %s, namespace: %s, name: %s. Error: %v. Fall back to call api server",
+			objRef.Kind, namespace, objRef.Name, err)
+		workload, err = c.DynamicClient.Resource(dynamicResource).Namespace(namespace).Get(context.TODO(),
+			objRef.Name, metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("Failed to get workload from api server, kind: %s, namespace: %s, name: %s. Error: %v",
+				objRef.Kind, namespace, objRef.Name, err)
+			return nil, err
+		}
+	}
+	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	if err != nil {
+		klog.Errorf("Failed to transform object(%s/%s): %v", namespace, objRef.Name, err)
 		return nil, err
 	}
+	unstructuredWorkLoad := unstructured.Unstructured{Object: uncastObj}
 	bindingName := names.GenerateBindingName(unstructuredWorkLoad.GetKind(), unstructuredWorkLoad.GetName())
-	binding := &workv1alpha1.ResourceBinding{}
+	binding := &workv1alpha2.ResourceBinding{}
 	namespacedName := types.NamespacedName{
 		Namespace: namespace,
 		Name:      bindingName,
@@ -146,4 +158,27 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 // SetupWithManager creates a controller and register to controller manager.
 func (c *HorizontalPodAutoscalerController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).For(&autoscalingv1.HorizontalPodAutoscaler{}).Complete(c)
+}
+
+func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
+	workList := &workv1alpha1.WorkList{}
+	var errs []error
+	if err := c.List(context.TODO(), workList); err != nil {
+		klog.Errorf("Failed to list works: %v.", err)
+		return err
+	}
+
+	for i := range workList.Items {
+		work := &workList.Items[i]
+		if workName == work.Name {
+			if err := c.Client.Delete(context.TODO(), work); err != nil && !apierrors.IsNotFound(err) {
+				klog.Errorf("Failed to delete work %s/%s: %v.", work.Namespace, work.Name, err)
+				errs = append(errs, err)
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
+	return nil
 }
