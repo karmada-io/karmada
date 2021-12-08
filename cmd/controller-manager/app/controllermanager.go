@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
@@ -148,154 +149,176 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	setupClusterAPIClusterDetector(mgr, opts, stopChan)
 
-	clusterController := &cluster.Controller{
-		Client:                    mgr.GetClient(),
-		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
-		ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
-		ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
-		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
-	}
-	if err := clusterController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster controller: %v", err)
+	controllers := strings.Split(opts.Controllers, ",")
+
+	if IsControllerEnabled("cluster", controllers) {
+		clusterController := &cluster.Controller{
+			Client:                    mgr.GetClient(),
+			EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
+			ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
+			ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
+			ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
+		}
+		if err := clusterController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup cluster controller: %v", err)
+		}
 	}
 
-	clusterPredicateFunc := predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
-			obj := createEvent.Object.(*clusterv1alpha1.Cluster)
-			return obj.Spec.SyncMode == clusterv1alpha1.Push
-		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
-			return obj.Spec.SyncMode == clusterv1alpha1.Push
-		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
-			return obj.Spec.SyncMode == clusterv1alpha1.Push
-		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return false
-		},
+	if IsControllerEnabled("clusterStatus", controllers) {
+		clusterPredicateFunc := predicate.Funcs{
+			CreateFunc: func(createEvent event.CreateEvent) bool {
+				obj := createEvent.Object.(*clusterv1alpha1.Cluster)
+				return obj.Spec.SyncMode == clusterv1alpha1.Push
+			},
+			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+				obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
+				return obj.Spec.SyncMode == clusterv1alpha1.Push
+			},
+			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+				obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
+				return obj.Spec.SyncMode == clusterv1alpha1.Push
+			},
+			GenericFunc: func(genericEvent event.GenericEvent) bool {
+				return false
+			},
+		}
+
+		clusterStatusController := &status.ClusterStatusController{
+			Client:                            mgr.GetClient(),
+			KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
+			EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
+			PredicateFunc:                     clusterPredicateFunc,
+			InformerManager:                   informermanager.GetInstance(),
+			StopChan:                          stopChan,
+			ClusterClientSetFunc:              util.NewClusterClientSet,
+			ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
+			ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
+			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
+			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+		}
+		if err := clusterStatusController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup cluster status controller: %v", err)
+		}
 	}
 
-	clusterStatusController := &status.ClusterStatusController{
-		Client:                            mgr.GetClient(),
-		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
-		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:                     clusterPredicateFunc,
-		InformerManager:                   informermanager.GetInstance(),
-		StopChan:                          stopChan,
-		ClusterClientSetFunc:              util.NewClusterClientSet,
-		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
-		ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
-		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-	}
-	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster status controller: %v", err)
+	if IsControllerEnabled("hpa", controllers) {
+		hpaController := &hpa.HorizontalPodAutoscalerController{
+			Client:          mgr.GetClient(),
+			DynamicClient:   dynamicClientSet,
+			EventRecorder:   mgr.GetEventRecorderFor(hpa.ControllerName),
+			RESTMapper:      mgr.GetRESTMapper(),
+			InformerManager: controlPlaneInformerManager,
+		}
+		if err := hpaController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup hpa controller: %v", err)
+		}
 	}
 
-	hpaController := &hpa.HorizontalPodAutoscalerController{
-		Client:          mgr.GetClient(),
-		DynamicClient:   dynamicClientSet,
-		EventRecorder:   mgr.GetEventRecorderFor(hpa.ControllerName),
-		RESTMapper:      mgr.GetRESTMapper(),
-		InformerManager: controlPlaneInformerManager,
-	}
-	if err := hpaController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup hpa controller: %v", err)
+	if IsControllerEnabled("binding", controllers) {
+		bindingController := &binding.ResourceBindingController{
+			Client:          mgr.GetClient(),
+			DynamicClient:   dynamicClientSet,
+			EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
+			RESTMapper:      mgr.GetRESTMapper(),
+			OverrideManager: overrideManager,
+			InformerManager: controlPlaneInformerManager,
+		}
+		if err := bindingController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup binding controller: %v", err)
+		}
+
+		clusterResourceBindingController := &binding.ClusterResourceBindingController{
+			Client:          mgr.GetClient(),
+			DynamicClient:   dynamicClientSet,
+			EventRecorder:   mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
+			RESTMapper:      mgr.GetRESTMapper(),
+			OverrideManager: overrideManager,
+			InformerManager: controlPlaneInformerManager,
+		}
+		if err := clusterResourceBindingController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
+		}
 	}
 
-	bindingController := &binding.ResourceBindingController{
-		Client:          mgr.GetClient(),
-		DynamicClient:   dynamicClientSet,
-		EventRecorder:   mgr.GetEventRecorderFor(binding.ControllerName),
-		RESTMapper:      mgr.GetRESTMapper(),
-		OverrideManager: overrideManager,
-		InformerManager: controlPlaneInformerManager,
-	}
-	if err := bindingController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup binding controller: %v", err)
-	}
-
-	clusterResourceBindingController := &binding.ClusterResourceBindingController{
-		Client:          mgr.GetClient(),
-		DynamicClient:   dynamicClientSet,
-		EventRecorder:   mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
-		RESTMapper:      mgr.GetRESTMapper(),
-		OverrideManager: overrideManager,
-		InformerManager: controlPlaneInformerManager,
-	}
-	if err := clusterResourceBindingController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
+	if IsControllerEnabled("execution", controllers) {
+		executionController := &execution.Controller{
+			Client:          mgr.GetClient(),
+			EventRecorder:   mgr.GetEventRecorderFor(execution.ControllerName),
+			RESTMapper:      mgr.GetRESTMapper(),
+			ObjectWatcher:   objectWatcher,
+			PredicateFunc:   helper.NewExecutionPredicate(mgr),
+			InformerManager: informermanager.GetInstance(),
+		}
+		if err := executionController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup execution controller: %v", err)
+		}
 	}
 
-	executionController := &execution.Controller{
-		Client:          mgr.GetClient(),
-		EventRecorder:   mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:      mgr.GetRESTMapper(),
-		ObjectWatcher:   objectWatcher,
-		PredicateFunc:   helper.NewExecutionPredicate(mgr),
-		InformerManager: informermanager.GetInstance(),
-	}
-	if err := executionController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup execution controller: %v", err)
-	}
-
-	workStatusController := &status.WorkStatusController{
-		Client:               mgr.GetClient(),
-		EventRecorder:        mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:           mgr.GetRESTMapper(),
-		InformerManager:      informermanager.GetInstance(),
-		StopChan:             stopChan,
-		WorkerNumber:         1,
-		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        helper.NewExecutionPredicate(mgr),
-		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
-	}
-	workStatusController.RunWorkQueue()
-	if err := workStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup work status controller: %v", err)
+	if IsControllerEnabled("workStatus", controllers) {
+		workStatusController := &status.WorkStatusController{
+			Client:               mgr.GetClient(),
+			EventRecorder:        mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+			RESTMapper:           mgr.GetRESTMapper(),
+			InformerManager:      informermanager.GetInstance(),
+			StopChan:             stopChan,
+			WorkerNumber:         1,
+			ObjectWatcher:        objectWatcher,
+			PredicateFunc:        helper.NewExecutionPredicate(mgr),
+			ClusterClientSetFunc: util.NewClusterDynamicClientSet,
+		}
+		workStatusController.RunWorkQueue()
+		if err := workStatusController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup work status controller: %v", err)
+		}
 	}
 
-	namespaceSyncController := &namespace.Controller{
-		Client:                       mgr.GetClient(),
-		EventRecorder:                mgr.GetEventRecorderFor(namespace.ControllerName),
-		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
-	}
-	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
-	}
-
-	serviceExportController := &mcs.ServiceExportController{
-		Client:                      mgr.GetClient(),
-		EventRecorder:               mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
-		RESTMapper:                  mgr.GetRESTMapper(),
-		InformerManager:             informermanager.GetInstance(),
-		StopChan:                    stopChan,
-		WorkerNumber:                1,
-		PredicateFunc:               helper.NewPredicateForServiceExportController(mgr),
-		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
-	}
-	serviceExportController.RunWorkQueue()
-	if err := serviceExportController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+	if IsControllerEnabled("namespace", controllers) {
+		namespaceSyncController := &namespace.Controller{
+			Client:                       mgr.GetClient(),
+			EventRecorder:                mgr.GetEventRecorderFor(namespace.ControllerName),
+			SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		}
+		if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup namespace sync controller: %v", err)
+		}
 	}
 
-	endpointSliceController := &mcs.EndpointSliceController{
-		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
-	}
-	if err := endpointSliceController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup EndpointSlice controller: %v", err)
+	if IsControllerEnabled("serviceExport", controllers) {
+		serviceExportController := &mcs.ServiceExportController{
+			Client:                      mgr.GetClient(),
+			EventRecorder:               mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
+			RESTMapper:                  mgr.GetRESTMapper(),
+			InformerManager:             informermanager.GetInstance(),
+			StopChan:                    stopChan,
+			WorkerNumber:                1,
+			PredicateFunc:               helper.NewPredicateForServiceExportController(mgr),
+			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		}
+		serviceExportController.RunWorkQueue()
+		if err := serviceExportController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+		}
 	}
 
-	serviceImportController := &mcs.ServiceImportController{
-		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+	if IsControllerEnabled("endpointSlice", controllers) {
+		endpointSliceController := &mcs.EndpointSliceController{
+			Client:        mgr.GetClient(),
+			EventRecorder: mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
+		}
+		if err := endpointSliceController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup EndpointSlice controller: %v", err)
+		}
 	}
-	if err := serviceImportController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
+
+	if IsControllerEnabled("serviceImport", controllers) {
+		serviceImportController := &mcs.ServiceImportController{
+			Client:        mgr.GetClient(),
+			EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+		}
+		if err := serviceImportController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
+		}
 	}
 
 	// Ensure the InformerManager stops when the stop channel closes
@@ -336,4 +359,21 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 	}
 
 	klog.Infof("Success to setup cluster-api cluster detector")
+}
+
+// IsControllerEnabled check if a specified controller enabled or not.
+func IsControllerEnabled(name string, controllers []string) bool {
+	hasStar := false
+	for _, ctrl := range controllers {
+		if ctrl == name {
+			return true
+		}
+		if ctrl == "-"+name {
+			return false
+		}
+		if ctrl == "*" {
+			hasStar = true
+		}
+	}
+	return hasStar
 }
