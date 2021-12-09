@@ -18,7 +18,7 @@ const (
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
-	Controllers string
+	Controllers []string
 
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 	// BindAddress is the IP address on which to listen for the --secure-port port.
@@ -78,7 +78,7 @@ func NewOptions() *Options {
 
 // AddFlags adds flags to the specified FlagSet.
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&o.Controllers, "controllers", "*", "A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: cluster, clusterStatus, hpa, binding, execution, workStatus, namespace, serviceExport, endpointSlice, serviceImport.")
+	flags.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, "A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: cluster, clusterStatus, hpa, binding, execution, workStatus, namespace, serviceExport, endpointSlice, serviceImport.")
 	flags.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
 		"The IP address on which to listen for the --secure-port port.")
 	flags.IntVar(&o.SecurePort, "secure-port", defaultPort,
@@ -109,4 +109,21 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", 60, "Burst to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+}
+
+// IsControllerEnabled check if a specified controller enabled or not.
+func (o *Options) IsControllerEnabled(name string) bool {
+	hasStar := false
+	for _, ctrl := range o.Controllers {
+		if ctrl == name {
+			return true
+		}
+		if ctrl == "-"+name {
+			return false
+		}
+		if ctrl == "*" {
+			hasStar = true
+		}
+	}
+	return hasStar
 }
