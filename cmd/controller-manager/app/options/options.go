@@ -18,6 +18,8 @@ const (
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
+	Controllers string
+
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 	// BindAddress is the IP address on which to listen for the --secure-port port.
 	BindAddress string
@@ -76,6 +78,7 @@ func NewOptions() *Options {
 
 // AddFlags adds flags to the specified FlagSet.
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&o.Controllers, "controllers", "*", "A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: cluster, clusterStatus, hpa, binding, execution, workStatus, namespace, serviceExport, endpointSlice, serviceImport.")
 	flags.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
 		"The IP address on which to listen for the --secure-port port.")
 	flags.IntVar(&o.SecurePort, "secure-port", defaultPort,
