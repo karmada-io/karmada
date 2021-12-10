@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
@@ -149,9 +148,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	setupClusterAPIClusterDetector(mgr, opts, stopChan)
 
-	controllers := strings.Split(opts.Controllers, ",")
-
-	if IsControllerEnabled("cluster", controllers) {
+	if opts.IsControllerEnabled("cluster") {
 		clusterController := &cluster.Controller{
 			Client:                    mgr.GetClient(),
 			EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
@@ -164,7 +161,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("clusterStatus", controllers) {
+	if opts.IsControllerEnabled("clusterStatus") {
 		clusterPredicateFunc := predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				obj := createEvent.Object.(*clusterv1alpha1.Cluster)
@@ -202,7 +199,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("hpa", controllers) {
+	if opts.IsControllerEnabled("hpa") {
 		hpaController := &hpa.HorizontalPodAutoscalerController{
 			Client:          mgr.GetClient(),
 			DynamicClient:   dynamicClientSet,
@@ -215,7 +212,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("binding", controllers) {
+	if opts.IsControllerEnabled("binding") {
 		bindingController := &binding.ResourceBindingController{
 			Client:          mgr.GetClient(),
 			DynamicClient:   dynamicClientSet,
@@ -241,7 +238,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("execution", controllers) {
+	if opts.IsControllerEnabled("execution") {
 		executionController := &execution.Controller{
 			Client:          mgr.GetClient(),
 			EventRecorder:   mgr.GetEventRecorderFor(execution.ControllerName),
@@ -255,7 +252,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("workStatus", controllers) {
+	if opts.IsControllerEnabled("workStatus") {
 		workStatusController := &status.WorkStatusController{
 			Client:               mgr.GetClient(),
 			EventRecorder:        mgr.GetEventRecorderFor(status.WorkStatusControllerName),
@@ -273,7 +270,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("namespace", controllers) {
+	if opts.IsControllerEnabled("namespace") {
 		namespaceSyncController := &namespace.Controller{
 			Client:                       mgr.GetClient(),
 			EventRecorder:                mgr.GetEventRecorderFor(namespace.ControllerName),
@@ -284,7 +281,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("serviceExport", controllers) {
+	if opts.IsControllerEnabled("serviceExport") {
 		serviceExportController := &mcs.ServiceExportController{
 			Client:                      mgr.GetClient(),
 			EventRecorder:               mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
@@ -301,7 +298,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("endpointSlice", controllers) {
+	if opts.IsControllerEnabled("endpointSlice") {
 		endpointSliceController := &mcs.EndpointSliceController{
 			Client:        mgr.GetClient(),
 			EventRecorder: mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
@@ -311,7 +308,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	if IsControllerEnabled("serviceImport", controllers) {
+	if opts.IsControllerEnabled("serviceImport") {
 		serviceImportController := &mcs.ServiceImportController{
 			Client:        mgr.GetClient(),
 			EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
@@ -359,21 +356,4 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 	}
 
 	klog.Infof("Success to setup cluster-api cluster detector")
-}
-
-// IsControllerEnabled check if a specified controller enabled or not.
-func IsControllerEnabled(name string, controllers []string) bool {
-	hasStar := false
-	for _, ctrl := range controllers {
-		if ctrl == name {
-			return true
-		}
-		if ctrl == "-"+name {
-			return false
-		}
-		if ctrl == "*" {
-			hasStar = true
-		}
-	}
-	return hasStar
 }
