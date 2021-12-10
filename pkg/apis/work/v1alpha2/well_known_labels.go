@@ -26,3 +26,17 @@ const (
 	// WorkNameLabel is added to objects to specify associated Work's name.
 	WorkNameLabel = "work.karmada.io/name"
 )
+
+// Define resource conflict resolution
+const (
+	// ResourceConflictResolutionAnnotation is added to the resource template to specify how to resolve the conflict
+	// in case of resource already existing in member clusters.
+	// The valid value is:
+	//   - overwrite: always overwrite the resource if already exist. The resource will be overwritten with the
+	//     configuration from control plane.
+	// Note: Propagation of the resource template without this annotation will fail in case of already exists.
+	ResourceConflictResolutionAnnotation = "work.karmada.io/conflict-resolution"
+
+	// ResourceConflictResolutionOverwrite is the value of ResourceConflictResolutionAnnotation, indicating the overwrite strategy.
+	ResourceConflictResolutionOverwrite = "overwrite"
+)
