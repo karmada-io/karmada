@@ -116,3 +116,8 @@ func IsReservedNamespace(namespace string) bool {
 		strings.HasPrefix(namespace, ExecutionSpacePrefix) ||
 		strings.HasPrefix(namespace, KubernetesReservedNSPrefix)
 }
+
+// GenerateImpersonationSecretName generates the secret name of impersonation secret.
+func GenerateImpersonationSecretName(clusterName string) string {
+	return fmt.Sprintf("%s-impersonator", clusterName)
+}

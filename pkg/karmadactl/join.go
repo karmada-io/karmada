@@ -178,7 +178,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return err
 	}
 
-	clusterSecret, err := generateSecretInMemberCluster(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
+	clusterSecret, impersonationSecret, err := obtainCredentialsFromMemberCluster(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
 	if err != nil {
 		return err
 	}
@@ -187,50 +187,21 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return nil
 	}
 
-	// create secret in control plane
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: opts.ClusterNamespace,
-			Name:      opts.ClusterName,
-		},
-		Data: map[string][]byte{
-			clusterv1alpha1.SecretCADataKey: clusterSecret.Data["ca.crt"],
-			clusterv1alpha1.SecretTokenKey:  clusterSecret.Data[clusterv1alpha1.SecretTokenKey],
-		},
-	}
-	secret, err = util.CreateSecret(controlPlaneKubeClient, secret)
-	if err != nil {
-		return fmt.Errorf("failed to create secret in control plane. error: %v", err)
-	}
-
-	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts, *secret)
+	err = registerClusterInControllerPlane(opts, controlPlaneRestConfig, clusterConfig, controlPlaneKubeClient, clusterSecret, impersonationSecret)
 	if err != nil {
 		return err
 	}
 
-	patchSecretBody := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(cluster, clusterResourceKind),
-			},
-		},
-	}
-	err = util.PatchSecret(controlPlaneKubeClient, secret.Namespace, secret.Name, types.MergePatchType, patchSecretBody)
-	if err != nil {
-		return fmt.Errorf("failed to patch secret %s/%s, error: %v", secret.Namespace, secret.Name, err)
-	}
-
 	fmt.Printf("cluster(%s) is joined successfully\n", opts.ClusterName)
-
 	return nil
 }
 
-func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clusterNamespace, clusterName string, dryRun bool) (*corev1.Secret, error) {
+func obtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, clusterNamespace, clusterName string, dryRun bool) (*corev1.Secret, *corev1.Secret, error) {
 	var err error
 
 	// ensure namespace where the karmada control plane credential be stored exists in cluster.
 	if _, err = ensureNamespaceExist(clusterKubeClient, clusterNamespace, dryRun); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// create a ServiceAccount in cluster.
@@ -238,7 +209,15 @@ func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clust
 	serviceAccountObj.Namespace = clusterNamespace
 	serviceAccountObj.Name = names.GenerateServiceAccountName(clusterName)
 	if serviceAccountObj, err = ensureServiceAccountExist(clusterKubeClient, serviceAccountObj, dryRun); err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	// create a ServiceAccount for impersonation in cluster.
+	impersonationSA := &corev1.ServiceAccount{}
+	impersonationSA.Namespace = clusterNamespace
+	impersonationSA.Name = names.GenerateServiceAccountName("impersonator")
+	if impersonationSA, err = ensureServiceAccountExist(clusterKubeClient, impersonationSA, dryRun); err != nil {
+		return nil, nil, err
 	}
 
 	// create a ClusterRole in cluster.
@@ -246,7 +225,7 @@ func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clust
 	clusterRole.Name = names.GenerateRoleName(serviceAccountObj.Name)
 	clusterRole.Rules = clusterPolicyRules
 	if _, err = ensureClusterRoleExist(clusterKubeClient, clusterRole, dryRun); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// create a ClusterRoleBinding in cluster.
@@ -255,16 +234,29 @@ func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clust
 	clusterRoleBinding.Subjects = buildRoleBindingSubjects(serviceAccountObj.Name, serviceAccountObj.Namespace)
 	clusterRoleBinding.RoleRef = buildClusterRoleReference(clusterRole.Name)
 	if _, err = ensureClusterRoleBindingExist(clusterKubeClient, clusterRoleBinding, dryRun); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if dryRun {
-		return nil, nil
+		return nil, nil, nil
 	}
 
+	clusterSecret, err := waitForServiceAccountSecretCreation(clusterKubeClient, serviceAccountObj, clusterNamespace)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get serviceAccount secret from cluster(%s), error: %v", clusterName, err)
+	}
+
+	impersonatorSecret, err := waitForServiceAccountSecretCreation(clusterKubeClient, impersonationSA, clusterNamespace)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get serviceAccount secret for impersonation from cluster(%s), error: %v", clusterName, err)
+	}
+
+	return clusterSecret, impersonatorSecret, nil
+}
+
+func waitForServiceAccountSecretCreation(clusterKubeClient kubeclient.Interface, serviceAccountObj *corev1.ServiceAccount, clusterNamespace string) (*corev1.Secret, error) {
 	var clusterSecret *corev1.Secret
-	// It will take a short time to create service account secret for cluster.
-	err = wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
+	err := wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
 		serviceAccount, err := clusterKubeClient.CoreV1().ServiceAccounts(serviceAccountObj.Namespace).Get(context.TODO(), serviceAccountObj.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -283,10 +275,71 @@ func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clust
 		return true, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get serviceAccount secret from cluster(%s), error: %v", clusterName, err)
+		return nil, fmt.Errorf("failed to get serviceAccount secret, error: %v", err)
+	}
+	return clusterSecret, nil
+}
+
+func registerClusterInControllerPlane(opts CommandJoinOption, controlPlaneRestConfig, clusterConfig *rest.Config, controlPlaneKubeClient kubeclient.Interface, clusterSecret, clusterImpersonatorSecret *corev1.Secret) error {
+	// create secret in control plane
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: opts.ClusterNamespace,
+			Name:      opts.ClusterName,
+		},
+		Data: map[string][]byte{
+			clusterv1alpha1.SecretCADataKey: clusterSecret.Data["ca.crt"],
+			clusterv1alpha1.SecretTokenKey:  clusterSecret.Data[clusterv1alpha1.SecretTokenKey],
+		},
 	}
 
-	return clusterSecret, nil
+	secret, err := util.CreateSecret(controlPlaneKubeClient, secret)
+	if err != nil {
+		return fmt.Errorf("failed to create secret in control plane. error: %v", err)
+	}
+
+	// create secret to store impersonation info in control plane
+	impersonationSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: opts.ClusterNamespace,
+			Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
+		},
+		Data: map[string][]byte{
+			clusterv1alpha1.SecretCADataKey: clusterImpersonatorSecret.Data["ca.crt"],
+			clusterv1alpha1.SecretTokenKey:  clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
+		},
+	}
+
+	impersonationSecret, err = util.CreateSecret(controlPlaneKubeClient, impersonationSecret)
+	if err != nil {
+		return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
+	}
+
+	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts, *secret)
+	if err != nil {
+		return err
+	}
+
+	// add OwnerReference for secrets.
+	patchSecretBody := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(cluster, clusterResourceKind),
+			},
+		},
+	}
+
+	err = util.PatchSecret(controlPlaneKubeClient, secret.Namespace, secret.Name, types.MergePatchType, patchSecretBody)
+	if err != nil {
+		return fmt.Errorf("failed to patch secret %s/%s, error: %v", secret.Namespace, secret.Name, err)
+	}
+
+	err = util.PatchSecret(controlPlaneKubeClient, impersonationSecret.Namespace, impersonationSecret.Name, types.MergePatchType, patchSecretBody)
+	if err != nil {
+		return fmt.Errorf("failed to patch impersonator secret %s/%s, error: %v", secret.Namespace, secret.Name, err)
+	}
+
+	return nil
 }
 
 func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Config, opts CommandJoinOption, secret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
