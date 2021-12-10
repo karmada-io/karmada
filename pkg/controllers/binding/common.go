@@ -24,13 +24,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
-const (
-	// FullyAppliedSuccessReason defines the name for the FullyAppliedSuccess condition.
-	FullyAppliedSuccessReason = "FullyAppliedSuccess"
-	// FullyAppliedSuccessMessage defines the message for the FullyAppliedSuccess condition.
-	FullyAppliedSuccessMessage = "All works have been successfully applied"
-)
-
 var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 	CreateFunc: func(e event.CreateEvent) bool {
 		return false
@@ -363,14 +356,4 @@ func calculateReplicas(c client.Client, policy *policyv1alpha1.ReplicaScheduling
 	}
 
 	return desireReplicaInfos, nil
-}
-
-// areWorksFullyApplied checks if all works are applied for a Binding
-func areWorksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem) bool {
-	for _, aggregatedSatusItem := range aggregatedStatuses {
-		if !aggregatedSatusItem.Applied {
-			return false
-		}
-	}
-	return true
 }
