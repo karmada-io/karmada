@@ -35,6 +35,8 @@ type Options struct {
 	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
 	// how long the current holder of a lease has last updated the lease.
 	ClusterLeaseRenewIntervalFraction float64
+
+	ClusterMonitor bool
 	// ClusterMonitorPeriod represents cluster-controller monitoring period, i.e. how often does
 	// cluster-controller check cluster health signal posted from cluster-status-controller.
 	// This value should be lower than ClusterMonitorGracePeriod.
@@ -91,6 +93,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		"Specifies the expiration period of a cluster lease.")
 	flags.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
 		"Specifies the cluster lease renew interval fraction.")
+	flags.BoolVar(&o.ClusterMonitor, "cluster-monitor", true, "whether monitor cluster health or not")
 	flags.DurationVar(&o.ClusterMonitorPeriod.Duration, "cluster-monitor-period", 5*time.Second,
 		"Specifies how often karmada-controller-manager monitors cluster health status.")
 	flags.DurationVar(&o.ClusterMonitorGracePeriod.Duration, "cluster-monitor-grace-period", 40*time.Second,

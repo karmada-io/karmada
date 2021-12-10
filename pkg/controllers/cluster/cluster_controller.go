@@ -41,6 +41,7 @@ type Controller struct {
 	client.Client // used to operate Cluster resources.
 	EventRecorder record.EventRecorder
 
+	ClusterMonitor bool
 	// ClusterMonitorPeriod represents cluster-controller monitoring period, i.e. how often does
 	// cluster-controller check cluster health signal posted from cluster-status-controller.
 	// This value should be lower than ClusterMonitorGracePeriod.
@@ -103,10 +104,13 @@ func (c *Controller) Start(ctx context.Context) error {
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-	return utilerrors.NewAggregate([]error{
+	errors := []error{
 		controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).Complete(c),
-		mgr.Add(c),
-	})
+	}
+	if c.ClusterMonitor {
+		errors = append(errors, mgr.Add(c))
+	}
+	return utilerrors.NewAggregate(errors)
 }
 
 func (c *Controller) syncCluster(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {

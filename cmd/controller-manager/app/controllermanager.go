@@ -155,6 +155,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		clusterController := &cluster.Controller{
 			Client:                    mgr.GetClient(),
 			EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
+			ClusterMonitor:            opts.ClusterMonitor,
 			ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
 			ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
 			ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
