@@ -3,6 +3,22 @@ package app
 import (
 	"context"
 	"flag"
+	"net"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+	kubeclientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
@@ -24,20 +40,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
-	"github.com/spf13/cobra"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
-	kubeclientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog/v2"
-	"net"
-	"os"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"strconv"
-	"strings"
 )
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
@@ -112,6 +114,7 @@ type ControllerContext struct {
 	OverrideManager             overridemanager.OverrideManager
 	ControlPlaneInformerManager informermanager.SingleClusterInformerManager
 }
+
 // InitFunc is used to launch a particular controller.  It may run additional "should I activate checks".
 // Any error returned will cause the controller process to `Fatal`
 // The bool indicates whether the controller was enabled.
@@ -333,8 +336,6 @@ func startServiceImportController(ctx ControllerContext) (enabled bool, err erro
 }
 
 // setupControllers initialize controllers and setup one by one.
-// Note: ignore cyclomatic complexity check(by gocyclo) because it will not effect readability.
-//nolint:gocyclo
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
