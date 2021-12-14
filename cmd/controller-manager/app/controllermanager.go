@@ -40,7 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
-
+var controllers =map[string]InitFunc{}
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
 func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
@@ -62,6 +62,10 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-controller-manager"))
 	opts.AddFlags(cmd.Flags())
 	return cmd
+}
+
+func AddController(controllerName string,initFunc InitFunc)  {
+	controllers[controllerName] = initFunc
 }
 
 // Run runs the controller-manager with options. This should never exit.
@@ -114,10 +118,11 @@ type ControllerContext struct {
 	ControlPlaneInformerManager informermanager.SingleClusterInformerManager
 }
 
-// InitFunc is used to launch a particular controller.  It may run additional "should I activate checks".
+// InitFunc is used to launch a particular controller.
 // Any error returned will cause the controller process to `Fatal`
 // The bool indicates whether the controller was enabled.
 type InitFunc func(ctx ControllerContext) (enabled bool, err error)
+
 
 // NewControllerInitializers is a public map of named controller groups (you can start more than one in an init func)
 func NewControllerInitializers() map[string]InitFunc {
