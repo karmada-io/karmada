@@ -58,7 +58,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	if len(feasibleClusters) == 0 {
 		return result, fmt.Errorf("no clusters fit")
 	}
-	klog.V(4).Infof("feasible clusters found: %v", feasibleClusters)
+	klog.V(4).Info(fmt.Sprintf("feasible clusters found: %v", feasibleClusters))
 
 	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, feasibleClusters)
 	if err != nil {
