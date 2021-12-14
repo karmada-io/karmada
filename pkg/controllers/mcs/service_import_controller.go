@@ -2,6 +2,7 @@ package mcs
 
 import (
 	"context"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -154,4 +155,20 @@ func servicePorts(svcImport *mcsv1alpha1.ServiceImport) []corev1.ServicePort {
 func retainServiceFields(oldSvc, newSvc *corev1.Service) {
 	newSvc.Spec.ClusterIP = oldSvc.Spec.ClusterIP
 	newSvc.ResourceVersion = oldSvc.ResourceVersion
+}
+
+func init() {
+	app.AddController(ServiceExportControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		serviceImportController := &ServiceImportController{
+			Client:        ctx.Mgr.GetClient(),
+			EventRecorder: ctx.Mgr.GetEventRecorderFor(ServiceImportControllerName),
+		}
+		err = controllerruntime.NewControllerManagedBy(ctx.Mgr).For(&mcsv1alpha1.ServiceImport{}).Complete(serviceImportController)
+		if err != nil {
+			klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
+
 }

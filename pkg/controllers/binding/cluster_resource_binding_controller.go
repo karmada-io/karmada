@@ -3,6 +3,12 @@ package binding
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/controllers/status"
+	kubeclientset "k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -225,4 +231,48 @@ func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() hand
 		}
 		return requests
 	}
+}
+func init() {
+	app.AddController(ControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		mgr := ctx.Mgr
+		opts := ctx.Opts
+		stopChan := ctx.StopChan
+		clusterPredicateFunc := predicate.Funcs{
+			CreateFunc: func(createEvent event.CreateEvent) bool {
+				obj := createEvent.Object.(*clusterv1alpha1.Cluster)
+				return obj.Spec.SyncMode == clusterv1alpha1.Push
+			},
+			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+				obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
+				return obj.Spec.SyncMode == clusterv1alpha1.Push
+			},
+			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+				obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
+				return obj.Spec.SyncMode == clusterv1alpha1.Push
+			},
+			GenericFunc: func(genericEvent event.GenericEvent) bool {
+				return false
+			},
+		}
+		clusterStatusController := &status.ClusterStatusController{
+			Client:                            mgr.GetClient(),
+			KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
+			EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
+			PredicateFunc:                     clusterPredicateFunc,
+			InformerManager:                   informermanager.GetInstance(),
+			StopChan:                          stopChan,
+			ClusterClientSetFunc:              util.NewClusterClientSet,
+			ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
+			ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
+			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
+			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+		}
+		err = controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).WithEventFilter(clusterStatusController.PredicateFunc).Complete(clusterStatusController)
+		if err != nil {
+			klog.Fatalf("Failed to setup cluster status controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
 }

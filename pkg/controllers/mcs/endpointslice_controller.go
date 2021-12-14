@@ -2,6 +2,7 @@ package mcs
 
 import (
 	"context"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -119,4 +120,33 @@ func deriveEndpointSlice(original *discoveryv1beta1.EndpointSlice, migratedFrom 
 	}
 
 	return endpointSlice
+}
+
+func init() {
+	app.AddController(EndpointSliceControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		endpointSliceController := &EndpointSliceController{
+			Client:        ctx.Mgr.GetClient(),
+			EventRecorder: ctx.Mgr.GetEventRecorderFor(EndpointSliceControllerName),
+		}
+		serviceImportPredicateFun := predicate.Funcs{
+			CreateFunc: func(createEvent event.CreateEvent) bool {
+				return util.GetLabelValue(createEvent.Object.GetLabels(), util.ServiceNameLabel) != ""
+			},
+			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+				return util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != ""
+			},
+			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+				return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.ServiceNameLabel) != ""
+			},
+			GenericFunc: func(genericEvent event.GenericEvent) bool {
+				return false
+			},
+		}
+		err = controllerruntime.NewControllerManagedBy(ctx.Mgr).For(&workv1alpha1.Work{}).WithEventFilter(serviceImportPredicateFun).Complete(endpointSliceController)
+		if err != nil {
+			klog.Fatalf("Failed to setup EndpointSlice controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
 }

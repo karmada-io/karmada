@@ -2,6 +2,7 @@ package hpa
 
 import (
 	"context"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -181,4 +182,22 @@ func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
 		return errors.NewAggregate(errs)
 	}
 	return nil
+}
+
+func init() {
+	app.AddController(ControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		hpaController := &HorizontalPodAutoscalerController{
+			Client:          ctx.Mgr.GetClient(),
+			DynamicClient:   ctx.DynamicClientSet,
+			EventRecorder:   ctx.Mgr.GetEventRecorderFor(ControllerName),
+			RESTMapper:      ctx.Mgr.GetRESTMapper(),
+			InformerManager: ctx.ControlPlaneInformerManager,
+		}
+		err = controllerruntime.NewControllerManagedBy(ctx.Mgr).For(&autoscalingv1.HorizontalPodAutoscaler{}).Complete(hpaController)
+		if err != nil {
+			klog.Fatalf("Failed to setup hpa controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
 }

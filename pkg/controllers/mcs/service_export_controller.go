@@ -3,6 +3,7 @@ package mcs
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 	"reflect"
 	"sync"
 
@@ -444,4 +445,26 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 	}
 
 	return nil
+}
+
+func init() {
+	app.AddController(ServiceExportControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		serviceExportController := &ServiceExportController{
+			Client:                      ctx.Mgr.GetClient(),
+			EventRecorder:               ctx.Mgr.GetEventRecorderFor(ServiceExportControllerName),
+			RESTMapper:                  ctx.Mgr.GetRESTMapper(),
+			InformerManager:             informermanager.GetInstance(),
+			StopChan:                    ctx.StopChan,
+			WorkerNumber:                1,
+			PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
+			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		}
+		serviceExportController.RunWorkQueue()
+		err = controllerruntime.NewControllerManagedBy(ctx.Mgr).For(&workv1alpha1.Work{}).WithEventFilter(serviceExportController.PredicateFunc).Complete(serviceExportController)
+		if err != nil {
+			klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
 }

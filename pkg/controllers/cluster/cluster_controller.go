@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 	"sync"
 	"time"
 
@@ -399,4 +400,27 @@ func (c *Controller) tryUpdateClusterHealth(cluster *clusterv1alpha1.Cluster) er
 		}
 	}
 	return nil
+}
+
+func init() {
+	app.AddController(ControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		mgr := ctx.Mgr
+		opts := ctx.Opts
+		clusterController := &Controller{
+			Client:                    mgr.GetClient(),
+			EventRecorder:             mgr.GetEventRecorderFor(ControllerName),
+			ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
+			ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
+			ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
+		}
+		err = utilerrors.NewAggregate([]error{
+			controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).Complete(clusterController),
+			mgr.Add(clusterController),
+		})
+		if err != nil {
+			klog.Fatalf("Failed to setup cluster controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
 }

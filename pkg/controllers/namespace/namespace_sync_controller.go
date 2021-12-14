@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -162,4 +163,59 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&corev1.Namespace{}).Watches(&source.Kind{Type: &clusterv1alpha1.Cluster{}}, handler.EnqueueRequestsFromMapFunc(namespaceFn),
 		predicate).Complete(c)
+}
+
+func init() {
+	app.AddController(ControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		skippedPropagatingNamespaces := map[string]struct{}{}
+		for _, ns := range ctx.Opts.SkippedPropagatingNamespaces {
+			skippedPropagatingNamespaces[ns] = struct{}{}
+		}
+		namespaceSyncController := &Controller{
+			Client:                       ctx.Mgr.GetClient(),
+			EventRecorder:                ctx.Mgr.GetEventRecorderFor(ControllerName),
+			SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		}
+		namespaceFn := handler.MapFunc(
+			func(a client.Object) []reconcile.Request {
+				var requests []reconcile.Request
+				namespaceList := &corev1.NamespaceList{}
+				if err := namespaceSyncController.Client.List(context.TODO(), namespaceList); err != nil {
+					klog.Errorf("Failed to list namespace, error: %v", err)
+					return nil
+				}
+
+				for _, namespace := range namespaceList.Items {
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
+						Name: namespace.Name,
+					}})
+				}
+				return requests
+			})
+
+		predicate := builder.WithPredicates(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				return true
+			},
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				return false
+			},
+			DeleteFunc: func(event.DeleteEvent) bool {
+				return false
+			},
+			GenericFunc: func(event.GenericEvent) bool {
+				return false
+			},
+		})
+
+		err = controllerruntime.NewControllerManagedBy(ctx.Mgr).
+			For(&corev1.Namespace{}).Watches(&source.Kind{Type: &clusterv1alpha1.Cluster{}}, handler.EnqueueRequestsFromMapFunc(namespaceFn),
+			predicate).Complete(namespaceSyncController)
+		if err != nil {
+			klog.Fatalf("Failed to setup namespace sync controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
+
 }

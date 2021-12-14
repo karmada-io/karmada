@@ -110,20 +110,3 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 }
-
-// IsControllerEnabled check if a specified controller enabled or not.
-func (o *Options) IsControllerEnabled(name string) bool {
-	hasStar := false
-	for _, ctrl := range o.Controllers {
-		if ctrl == name {
-			return true
-		}
-		if ctrl == "-"+name {
-			return false
-		}
-		if ctrl == "*" {
-			hasStar = true
-		}
-	}
-	return hasStar
-}

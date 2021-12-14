@@ -3,6 +3,7 @@ package binding
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -232,4 +233,58 @@ func (c *ResourceBindingController) newReplicaSchedulingPolicyFunc() handler.Map
 		}
 		return requests
 	}
+}
+
+func init() {
+	app.AddController(ControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		bindingController := &ResourceBindingController{
+			Client:          ctx.Mgr.GetClient(),
+			DynamicClient:   ctx.DynamicClientSet,
+			EventRecorder:   ctx.Mgr.GetEventRecorderFor(ControllerName),
+			RESTMapper:      ctx.Mgr.GetRESTMapper(),
+			OverrideManager: ctx.OverrideManager,
+			InformerManager: ctx.ControlPlaneInformerManager,
+		}
+		if err := bindingController.SetupWithManager(ctx.Mgr); err != nil {
+			klog.Fatalf("Failed to setup binding controller: %v", err)
+			return false, err
+		}
+
+		clusterResourceBindingController := &ClusterResourceBindingController{
+			Client:          ctx.Mgr.GetClient(),
+			DynamicClient:   ctx.DynamicClientSet,
+			EventRecorder:   ctx.Mgr.GetEventRecorderFor(ClusterResourceBindingControllerName),
+			RESTMapper:      ctx.Mgr.GetRESTMapper(),
+			OverrideManager: ctx.OverrideManager,
+			InformerManager: ctx.ControlPlaneInformerManager,
+		}
+		workFn := handler.MapFunc(
+			func(a client.Object) []reconcile.Request {
+				var requests []reconcile.Request
+				annotations := a.GetAnnotations()
+				crbName, nameExist := annotations[workv1alpha2.ClusterResourceBindingLabel]
+				if nameExist {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name: crbName,
+						},
+					})
+				}
+
+				return requests
+			})
+
+		err = controllerruntime.NewControllerManagedBy(ctx.Mgr).For(&workv1alpha2.ClusterResourceBinding{}).
+			Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
+			Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(clusterResourceBindingController.newOverridePolicyFunc())).
+			Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(clusterResourceBindingController.newOverridePolicyFunc())).
+			Watches(&source.Kind{Type: &policyv1alpha1.ReplicaSchedulingPolicy{}}, handler.EnqueueRequestsFromMapFunc(clusterResourceBindingController.newReplicaSchedulingPolicyFunc())).
+			Complete(clusterResourceBindingController)
+
+		if err != nil {
+			klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
 }

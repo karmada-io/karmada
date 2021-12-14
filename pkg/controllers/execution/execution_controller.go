@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -248,5 +249,28 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		}
 		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
 		return c.Status().Update(context.TODO(), work)
+	})
+}
+
+func init() {
+	app.AddController(ControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		executionController := &Controller{
+			Client:          ctx.Mgr.GetClient(),
+			EventRecorder:   ctx.Mgr.GetEventRecorderFor(ControllerName),
+			RESTMapper:      ctx.Mgr.GetRESTMapper(),
+			ObjectWatcher:   ctx.ObjectWatcher,
+			PredicateFunc:   helper.NewExecutionPredicate(ctx.Mgr),
+			InformerManager: informermanager.GetInstance(),
+		}
+		err = controllerruntime.NewControllerManagedBy(ctx.Mgr).
+			For(&workv1alpha1.Work{}).
+			WithEventFilter(predicate.GenerationChangedPredicate{}).
+			WithEventFilter(executionController.PredicateFunc).
+			Complete(executionController)
+		if err != nil {
+			klog.Fatalf("Failed to setup execution controller: %v", err)
+			return false, err
+		}
+		return true, nil
 	})
 }

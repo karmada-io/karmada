@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -446,4 +447,27 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).Complete(c)
+}
+
+func init() {
+	app.AddController(WorkStatusControllerName, func(ctx app.ControllerContext) (enabled bool, err error) {
+		workStatusController := &WorkStatusController{
+			Client:               ctx.Mgr.GetClient(),
+			EventRecorder:        ctx.Mgr.GetEventRecorderFor(WorkStatusControllerName),
+			RESTMapper:           ctx.Mgr.GetRESTMapper(),
+			InformerManager:      informermanager.GetInstance(),
+			StopChan:             ctx.StopChan,
+			WorkerNumber:         1,
+			ObjectWatcher:        ctx.ObjectWatcher,
+			PredicateFunc:        helper.NewExecutionPredicate(ctx.Mgr),
+			ClusterClientSetFunc: util.NewClusterDynamicClientSet,
+		}
+		workStatusController.RunWorkQueue()
+		err = controllerruntime.NewControllerManagedBy(ctx.Mgr).For(&workv1alpha1.Work{}).WithEventFilter(workStatusController.PredicateFunc).Complete(workStatusController)
+		if err != nil {
+			klog.Fatalf("Failed to setup work status controller: %v", err)
+			return false, err
+		}
+		return true, nil
+	})
 }
