@@ -16,11 +16,11 @@ const (
 	// - kube-public
 	// - kube-node-lease
 	KubernetesReservedNSPrefix = "kube-"
-	//NamespaceKarmadaSystem is reserved namespace
+	// NamespaceKarmadaSystem is reserved namespace
 	NamespaceKarmadaSystem = "karmada-system"
-	//NamespaceKarmadaCluster is reserved namespace
+	// NamespaceKarmadaCluster is reserved namespace
 	NamespaceKarmadaCluster = "karmada-cluster"
-	//NamespaceDefault is reserved namespace
+	// NamespaceDefault is reserved namespace
 	NamespaceDefault = "default"
 )
 
