@@ -215,7 +215,17 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1alpha2
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Scheduled")].status
+      name: Scheduled
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="FullyApplied")].status
+      name: FullyApplied
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha2
     schema:
       openAPIV3Schema:
         description: ResourceBinding represents a binding of a kubernetes resource

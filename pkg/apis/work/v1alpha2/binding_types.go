@@ -11,6 +11,9 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=rb
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FullyApplied",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
 // ResourceBinding represents a binding of a kubernetes resource with a propagation policy.
 type ResourceBinding struct {
@@ -162,6 +165,9 @@ type ResourceBindingList struct {
 // +kubebuilder:resource:scope="Cluster",shortName=crb
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FullyApplied",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
 // ClusterResourceBinding represents a binding of a kubernetes resource with a ClusterPropagationPolicy.
 type ClusterResourceBinding struct {
