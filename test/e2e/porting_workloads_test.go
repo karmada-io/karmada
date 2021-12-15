@@ -44,6 +44,11 @@ var _ = ginkgo.Describe("porting workloads testing", func() {
 				"Creating deployment(%s/%s) on the member cluster %s first to simulate a scenario where the target cluster already has a deployment with the same name",
 				deploymentNamespace, deploymentName, member1,
 			)
+			gomega.Eventually(func() bool {
+				klog.Infof("Waiting for namespace(%s) to exist on cluster %s", testNamespace, member1)
+				_, err := member1Client.CoreV1().Namespaces().Get(context.TODO(), testNamespace, metav1.GetOptions{})
+				return err == nil
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			framework.CreateDeployment(member1Client, deployment)
 
 			framework.CreatePropagationPolicy(karmadaClient, policy)
