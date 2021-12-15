@@ -34,6 +34,12 @@ type ResourceBindingSpec struct {
 	// Resource represents the Kubernetes resource to be propagated.
 	Resource ObjectReference `json:"resource"`
 
+	// PropagateDeps tells if relevant resources should be propagated automatically.
+	// It is inherited from PropagationPolicy or ClusterPropagationPolicy.
+	// default false.
+	// +optional
+	PropagateDeps bool `json:"propagateDeps,omitempty"`
+
 	// ReplicaRequirements represents the requirements required by each replica.
 	// +optional
 	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
@@ -45,6 +51,10 @@ type ResourceBindingSpec struct {
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
+
+	// RequiredBy represents the list of Bindings that depend on the referencing resource.
+	// +optional
+	RequiredBy []BindingSnapshot `json:"requiredBy,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
@@ -110,6 +120,23 @@ type TargetCluster struct {
 	// Replicas in target cluster
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
+}
+
+// BindingSnapshot is a snapshot of a ResourceBinding or ClusterResourceBinding.
+type BindingSnapshot struct {
+	// Namespace represents the namespace of the Binding.
+	// It is required for ResourceBinding.
+	// If Namespace is not specified, means the referencing is ClusterResourceBinding.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name represents the name of the Binding.
+	// +required
+	Name string `json:"name"`
+
+	// Clusters represents the scheduled result.
+	// +optional
+	Clusters []TargetCluster `json:"clusters,omitempty"`
 }
 
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.

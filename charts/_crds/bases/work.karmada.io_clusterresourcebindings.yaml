@@ -264,6 +264,11 @@ spec:
                   - name
                   type: object
                 type: array
+              propagateDeps:
+                description: PropagateDeps tells if relevant resources should be propagated
+                  automatically. It is inherited from PropagationPolicy or ClusterPropagationPolicy.
+                  default false.
+                type: boolean
               replicaRequirements:
                 description: ReplicaRequirements represents the requirements required
                   by each replica.
@@ -431,6 +436,42 @@ spec:
                   resource.
                 format: int32
                 type: integer
+              requiredBy:
+                description: RequiredBy represents the list of Bindings that depend
+                  on the referencing resource.
+                items:
+                  description: BindingSnapshot is a snapshot of a ResourceBinding
+                    or ClusterResourceBinding.
+                  properties:
+                    clusters:
+                      description: Clusters represents the scheduled result.
+                      items:
+                        description: TargetCluster represents the identifier of a
+                          member cluster.
+                        properties:
+                          name:
+                            description: Name of target cluster.
+                            type: string
+                          replicas:
+                            description: Replicas in target cluster
+                            format: int32
+                            type: integer
+                        required:
+                        - name
+                        type: object
+                      type: array
+                    name:
+                      description: Name represents the name of the Binding.
+                      type: string
+                    namespace:
+                      description: Namespace represents the namespace of the Binding.
+                        It is required for ResourceBinding. If Namespace is not specified,
+                        means the referencing is ClusterResourceBinding.
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               resource:
                 description: Resource represents the Kubernetes resource to be propagated.
                 properties:
