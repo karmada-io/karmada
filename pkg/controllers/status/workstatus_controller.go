@@ -8,6 +8,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -46,6 +47,8 @@ type WorkStatusController struct {
 	ObjectWatcher        objectwatcher.ObjectWatcher
 	PredicateFunc        predicate.Predicate
 	ClusterClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+
+	ClusterCacheSyncTimeout metav1.Duration
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -387,7 +390,7 @@ func (c *WorkStatusController) registerInformersAndStart(cluster *clusterv1alpha
 	c.InformerManager.Start(cluster.Name)
 
 	if err := func() error {
-		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, util.CacheSyncTimeout)
+		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, c.ClusterCacheSyncTimeout.Duration)
 		if synced == nil {
 			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
 		}

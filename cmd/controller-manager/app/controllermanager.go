@@ -186,6 +186,7 @@ func startClusterStatusController(ctx ControllerContext) (enabled bool, err erro
 		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster status controller: %v", err)
@@ -255,16 +256,18 @@ func startExecutionController(ctx ControllerContext) (enabled bool, err error) {
 }
 
 func startWorkStatusController(ctx ControllerContext) (enabled bool, err error) {
+	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
-		Client:               ctx.Mgr.GetClient(),
-		EventRecorder:        ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:           ctx.Mgr.GetRESTMapper(),
-		InformerManager:      informermanager.GetInstance(),
-		StopChan:             ctx.StopChan,
-		WorkerNumber:         1,
-		ObjectWatcher:        ctx.ObjectWatcher,
-		PredicateFunc:        helper.NewExecutionPredicate(ctx.Mgr),
-		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
+		Client:                  ctx.Mgr.GetClient(),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:              ctx.Mgr.GetRESTMapper(),
+		InformerManager:         informermanager.GetInstance(),
+		StopChan:                ctx.StopChan,
+		WorkerNumber:            1,
+		ObjectWatcher:           ctx.ObjectWatcher,
+		PredicateFunc:           helper.NewExecutionPredicate(ctx.Mgr),
+		ClusterClientSetFunc:    util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout: opts.ClusterCacheSyncTimeout,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -292,6 +295,7 @@ func startNamespaceController(ctx ControllerContext) (enabled bool, err error) {
 }
 
 func startServiceExportController(ctx ControllerContext) (enabled bool, err error) {
+	opts := ctx.Opts
 	serviceExportController := &mcs.ServiceExportController{
 		Client:                      ctx.Mgr.GetClient(),
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
@@ -301,6 +305,7 @@ func startServiceExportController(ctx ControllerContext) (enabled bool, err erro
 		WorkerNumber:                1,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {

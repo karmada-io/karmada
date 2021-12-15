@@ -123,6 +123,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster status controller: %v", err)
@@ -150,15 +151,16 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	workStatusController := &status.WorkStatusController{
-		Client:               mgr.GetClient(),
-		EventRecorder:        mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:           mgr.GetRESTMapper(),
-		InformerManager:      informermanager.GetInstance(),
-		StopChan:             stopChan,
-		WorkerNumber:         1,
-		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
-		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		Client:                  mgr.GetClient(),
+		EventRecorder:           mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:              mgr.GetRESTMapper(),
+		InformerManager:         informermanager.GetInstance(),
+		StopChan:                stopChan,
+		WorkerNumber:            1,
+		ObjectWatcher:           objectWatcher,
+		PredicateFunc:           helper.NewExecutionPredicateOnAgent(),
+		ClusterClientSetFunc:    util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout: opts.ClusterCacheSyncTimeout,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(mgr); err != nil {
@@ -174,6 +176,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		WorkerNumber:                1,
 		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(opts.ClusterName),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(mgr); err != nil {
