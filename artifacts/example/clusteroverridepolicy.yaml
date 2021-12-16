@@ -8,11 +8,12 @@ spec:
       kind: Deployment
       name: nginx
       namespace: default
-  targetCluster:
-    clusterNames:
-      - member1
-  overriders:
-    plaintext:
-      - operator: replace
-        path: /spec/replicas
-        value: 1
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member1
+      overriders:
+        plaintext:
+          - operator: replace
+            path: /spec/replicas
+            value: 1
