@@ -121,6 +121,10 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	// controllers in a member cluster.  It is still possible to set the fields
 	// via overrides.
 	desired.SetFinalizers(observed.GetFinalizers())
+
+	// Retain ownerReferences since they will typically be set by controllers in a member cluster.
+	desired.SetOwnerReferences(observed.GetOwnerReferences())
+
 	// Merge annotations since they will typically be set by controllers in a member cluster
 	// and be set by user in karmada-controller-plane.
 	util.MergeAnnotations(desired, observed)
