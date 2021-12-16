@@ -36,4 +36,5 @@ require (
 	sigs.k8s.io/kind v0.11.1
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/yaml v1.3.0
+	sigs.k8s.io/structured-merge-diff/v4 v4.1.2
 )
