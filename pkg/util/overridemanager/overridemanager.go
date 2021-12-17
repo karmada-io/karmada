@@ -33,6 +33,12 @@ type overrideOption struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
+type policyOverriders struct {
+	name       string
+	namespace  string
+	overriders policyv1alpha1.Overriders
+}
+
 type overrideManagerImpl struct {
 	client.Client
 }
@@ -89,20 +95,20 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 		return nil, nil
 	}
 
-	matchingPolicies := o.getMatchingClusterOverridePolicies(policyList.Items, rawObj, cluster)
-	if len(matchingPolicies) == 0 {
+	matchingPolicyOverriders := o.getOverridersFromClusterOverridePolicies(policyList.Items, rawObj, cluster)
+	if len(matchingPolicyOverriders) == 0 {
 		klog.V(2).Infof("No cluster override policy for resource: %s/%s", rawObj.GetNamespace(), rawObj.GetName())
 		return nil, nil
 	}
 
 	appliedList := &AppliedOverrides{}
-	for _, p := range matchingPolicies {
-		if err := applyPolicyOverriders(rawObj, p.Spec.Overriders); err != nil {
-			klog.Errorf("Failed to apply cluster overrides(%s) for resource(%s/%s), error: %v", p.Name, rawObj.GetNamespace(), rawObj.GetName(), err)
+	for _, p := range matchingPolicyOverriders {
+		if err := applyPolicyOverriders(rawObj, p.overriders); err != nil {
+			klog.Errorf("Failed to apply cluster overrides(%s) for resource(%s/%s), error: %v", p.name, rawObj.GetNamespace(), rawObj.GetName(), err)
 			return nil, err
 		}
-		klog.V(2).Infof("Applied cluster overrides(%s) for %s/%s", p.Name, rawObj.GetNamespace(), rawObj.GetName())
-		appliedList.Add(p.Name, p.Spec.Overriders)
+		klog.V(2).Infof("Applied cluster overrides(%s) for resource(%s/%s)", p.name, rawObj.GetNamespace(), rawObj.GetName())
+		appliedList.Add(p.name, p.overriders)
 	}
 
 	return appliedList, nil
@@ -121,26 +127,26 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 		return nil, nil
 	}
 
-	matchingPolicies := o.getMatchingOverridePolicies(policyList.Items, rawObj, cluster)
-	if len(matchingPolicies) == 0 {
+	matchingPolicyOverriders := o.getOverridersFromOverridePolicies(policyList.Items, rawObj, cluster)
+	if len(matchingPolicyOverriders) == 0 {
 		klog.V(2).Infof("No override policy for resource(%s/%s)", rawObj.GetNamespace(), rawObj.GetName())
 		return nil, nil
 	}
 
 	appliedList := &AppliedOverrides{}
-	for _, p := range matchingPolicies {
-		if err := applyPolicyOverriders(rawObj, p.Spec.Overriders); err != nil {
-			klog.Errorf("Failed to apply overrides(%s/%s) for resource(%s/%s), error: %v", p.Namespace, p.Name, rawObj.GetNamespace(), rawObj.GetName(), err)
+	for _, p := range matchingPolicyOverriders {
+		if err := applyPolicyOverriders(rawObj, p.overriders); err != nil {
+			klog.Errorf("Failed to apply overrides(%s/%s) for resource(%s/%s), error: %v", p.namespace, p.name, rawObj.GetNamespace(), rawObj.GetName(), err)
 			return nil, err
 		}
-		klog.V(2).Infof("Applied overrides(%s/%s) for resource(%s/%s)", p.Namespace, p.Name, rawObj.GetNamespace(), rawObj.GetName())
-		appliedList.Add(p.Name, p.Spec.Overriders)
+		klog.V(2).Infof("Applied overrides(%s/%s) for resource(%s/%s)", p.namespace, p.name, rawObj.GetNamespace(), rawObj.GetName())
+		appliedList.Add(p.name, p.overriders)
 	}
 
 	return appliedList, nil
 }
 
-func (o *overrideManagerImpl) getMatchingClusterOverridePolicies(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.ClusterOverridePolicy {
+func (o *overrideManagerImpl) getOverridersFromClusterOverridePolicies(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyOverriders {
 	resourceMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0)
 	for _, policy := range policies {
 		if policy.Spec.ResourceSelectors == nil {
@@ -153,29 +159,41 @@ func (o *overrideManagerImpl) getMatchingClusterOverridePolicies(policies []poli
 		}
 	}
 
-	clusterMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0)
+	clusterMatchingPolicyOverriders := make([]policyOverriders, 0)
 	for _, policy := range resourceMatchingPolicies {
-		if policy.Spec.TargetCluster == nil {
-			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
-			continue
+		overrideRules := policy.Spec.OverrideRules
+		// Since the tuple of '.spec.TargetCluster' and '.spec.Overriders' can not co-exist with '.spec.OverrideRules'
+		// (guaranteed by webhook), so we only look '.spec.OverrideRules' here.
+		if len(overrideRules) == 0 {
+			overrideRules = []policyv1alpha1.RuleWithCluster{
+				{
+					TargetCluster: policy.Spec.TargetCluster,
+					Overriders:    policy.Spec.Overriders,
+				},
+			}
 		}
-
-		if util.ClusterMatches(cluster, *policy.Spec.TargetCluster) {
-			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
+		for _, rule := range overrideRules {
+			if rule.TargetCluster == nil || (rule.TargetCluster != nil && util.ClusterMatches(cluster, *rule.TargetCluster)) {
+				clusterMatchingPolicyOverriders = append(clusterMatchingPolicyOverriders, policyOverriders{
+					name:       policy.Name,
+					namespace:  policy.Namespace,
+					overriders: rule.Overriders,
+				})
+			}
 		}
 	}
 
 	// select policy in which at least one PlaintextOverrider matches target resource.
 	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
 
-	sort.Slice(clusterMatchingPolicies, func(i, j int) bool {
-		return clusterMatchingPolicies[i].Name < clusterMatchingPolicies[j].Name
+	sort.Slice(clusterMatchingPolicyOverriders, func(i, j int) bool {
+		return clusterMatchingPolicyOverriders[i].name < clusterMatchingPolicyOverriders[j].name
 	})
 
-	return clusterMatchingPolicies
+	return clusterMatchingPolicyOverriders
 }
 
-func (o *overrideManagerImpl) getMatchingOverridePolicies(policies []policyv1alpha1.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyv1alpha1.OverridePolicy {
+func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []policyv1alpha1.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyOverriders {
 	resourceMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0)
 	for _, policy := range policies {
 		if policy.Spec.ResourceSelectors == nil {
@@ -188,26 +206,38 @@ func (o *overrideManagerImpl) getMatchingOverridePolicies(policies []policyv1alp
 		}
 	}
 
-	clusterMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0)
+	clusterMatchingPolicyOverriders := make([]policyOverriders, 0)
 	for _, policy := range resourceMatchingPolicies {
-		if policy.Spec.TargetCluster == nil {
-			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
-			continue
+		overrideRules := policy.Spec.OverrideRules
+		// Since the tuple of '.spec.TargetCluster' and '.spec.Overriders' can not co-exist with '.spec.OverrideRules'
+		// (guaranteed by webhook), so we only look '.spec.OverrideRules' here.
+		if len(overrideRules) == 0 {
+			overrideRules = []policyv1alpha1.RuleWithCluster{
+				{
+					TargetCluster: policy.Spec.TargetCluster,
+					Overriders:    policy.Spec.Overriders,
+				},
+			}
 		}
-
-		if util.ClusterMatches(cluster, *policy.Spec.TargetCluster) {
-			clusterMatchingPolicies = append(clusterMatchingPolicies, policy)
+		for _, rule := range overrideRules {
+			if rule.TargetCluster == nil || (rule.TargetCluster != nil && util.ClusterMatches(cluster, *rule.TargetCluster)) {
+				clusterMatchingPolicyOverriders = append(clusterMatchingPolicyOverriders, policyOverriders{
+					name:       policy.Name,
+					namespace:  policy.Namespace,
+					overriders: rule.Overriders,
+				})
+			}
 		}
 	}
 
 	// select policy in which at least one PlaintextOverrider matches target resource.
 	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
 
-	sort.Slice(clusterMatchingPolicies, func(i, j int) bool {
-		return clusterMatchingPolicies[i].Name < clusterMatchingPolicies[j].Name
+	sort.Slice(clusterMatchingPolicyOverriders, func(i, j int) bool {
+		return clusterMatchingPolicyOverriders[i].name < clusterMatchingPolicyOverriders[j].name
 	})
 
-	return clusterMatchingPolicies
+	return clusterMatchingPolicyOverriders
 }
 
 // applyJSONPatch applies the override on to the given unstructured object.
