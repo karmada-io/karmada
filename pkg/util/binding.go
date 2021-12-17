@@ -60,9 +60,12 @@ func ConvertToClusterNames(clusters []workv1alpha2.TargetCluster) sets.String {
 
 // DivideReplicasByTargetCluster will divide the sum number by the weight of target clusters.
 func DivideReplicasByTargetCluster(clusters []workv1alpha2.TargetCluster, sum int32) []workv1alpha2.TargetCluster {
+	res := make([]workv1alpha2.TargetCluster, len(clusters))
+	if len(clusters) == 0 {
+		return res
+	}
 	sumWeight := int32(0)
 	allocatedReplicas := int32(0)
-	res := make([]workv1alpha2.TargetCluster, len(clusters))
 	for i := range clusters {
 		sumWeight += clusters[i].Replicas
 	}
