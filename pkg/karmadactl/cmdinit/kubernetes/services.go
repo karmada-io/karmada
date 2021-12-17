@@ -2,8 +2,7 @@ package kubernetes
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +51,7 @@ func (i *InstallOptions) CreateService(service *corev1.Service) error {
 				FieldManager: "apply",
 			})
 			if err != nil {
-				return errors.Errorf("Apply service %s failed: %v\n", service.Name, err)
+				return fmt.Errorf("apply service %s failed: %v", service.Name, err)
 			}
 			klog.Infof("service %s update successfully.", service.Name)
 			return nil
@@ -61,7 +60,7 @@ func (i *InstallOptions) CreateService(service *corev1.Service) error {
 
 	_, err = serviceClient.Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
-		return errors.Errorf("Create service %s failed: %v\n", service.Name, err)
+		return fmt.Errorf("create service %s failed: %v", service.Name, err)
 	}
 	klog.Infof("service %s create successfully.", service.Name)
 	return nil

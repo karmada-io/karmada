@@ -2,8 +2,7 @@ package kubernetes
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,7 +63,7 @@ func (i *InstallOptions) CreateSecret(secret *corev1.Secret) error {
 				FieldManager: "apply",
 			})
 			if err != nil {
-				return errors.Errorf("Apply secret %s failed: %v\n", secret.Name, err)
+				return fmt.Errorf("apply secret %s failed: %v", secret.Name, err)
 			}
 			klog.Infof("secret %s update successfully.", secret.Name)
 			return nil
@@ -73,7 +72,7 @@ func (i *InstallOptions) CreateSecret(secret *corev1.Secret) error {
 
 	_, err = secretClient.Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
-		return errors.Errorf("Create secret %s failed: %v\n", secret.Name, err)
+		return fmt.Errorf("create secret %s failed: %v", secret.Name, err)
 	}
 	klog.Infof("secret %s Create successfully.", secret.Name)
 	return nil
