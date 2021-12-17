@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -60,7 +61,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-controller-manager"))
-	opts.AddFlags(cmd.Flags())
+	opts.AddFlags(cmd.Flags(), KnownControllers())
 	return cmd
 }
 
@@ -114,6 +115,23 @@ type ControllerContext struct {
 	ControlPlaneInformerManager informermanager.SingleClusterInformerManager
 }
 
+// IsControllerEnabled check if a specified controller enabled or not.
+func (c ControllerContext) IsControllerEnabled(name string) bool {
+	hasStar := false
+	for _, ctrl := range c.Opts.Controllers {
+		if ctrl == name {
+			return true
+		}
+		if ctrl == "-"+name {
+			return false
+		}
+		if ctrl == "*" {
+			hasStar = true
+		}
+	}
+	return hasStar
+}
+
 // InitFunc is used to launch a particular controller.
 // Any error returned will cause the controller process to `Fatal`
 // The bool indicates whether the controller was enabled.
@@ -135,6 +153,11 @@ func NewControllerInitializers() map[string]InitFunc {
 	return controllers
 }
 
+// KnownControllers returns all known controllers's name
+func KnownControllers() []string {
+	return sets.StringKeySet(NewControllerInitializers()).List()
+}
+
 func startClusterController(ctx ControllerContext) (enabled bool, err error) {
 	mgr := ctx.Mgr
 	opts := ctx.Opts
@@ -146,7 +169,6 @@ func startClusterController(ctx ControllerContext) (enabled bool, err error) {
 		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
 	}
 	if err := clusterController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -189,7 +211,6 @@ func startClusterStatusController(ctx ControllerContext) (enabled bool, err erro
 		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster status controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -204,7 +225,6 @@ func startHpaController(ctx ControllerContext) (enabled bool, err error) {
 		InformerManager: ctx.ControlPlaneInformerManager,
 	}
 	if err := hpaController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup hpa controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -220,7 +240,6 @@ func startBindingController(ctx ControllerContext) (enabled bool, err error) {
 		InformerManager: ctx.ControlPlaneInformerManager,
 	}
 	if err := bindingController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup binding controller: %v", err)
 		return false, err
 	}
 
@@ -233,7 +252,6 @@ func startBindingController(ctx ControllerContext) (enabled bool, err error) {
 		InformerManager: ctx.ControlPlaneInformerManager,
 	}
 	if err := clusterResourceBindingController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster resource binding controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -249,7 +267,6 @@ func startExecutionController(ctx ControllerContext) (enabled bool, err error) {
 		InformerManager: informermanager.GetInstance(),
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup execution controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -271,7 +288,6 @@ func startWorkStatusController(ctx ControllerContext) (enabled bool, err error) 
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup work status controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -288,7 +304,6 @@ func startNamespaceController(ctx ControllerContext) (enabled bool, err error) {
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
 	}
 	if err := namespaceSyncController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -309,7 +324,6 @@ func startServiceExportController(ctx ControllerContext) (enabled bool, err erro
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -321,7 +335,6 @@ func startEndpointSliceController(ctx ControllerContext) (enabled bool, err erro
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
 	}
 	if err := endpointSliceController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup EndpointSlice controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -333,7 +346,6 @@ func startServiceImportController(ctx ControllerContext) (enabled bool, err erro
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
 	}
 	if err := serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceImport controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -456,21 +468,4 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 	}
 
 	klog.Infof("Success to setup cluster-api cluster detector")
-}
-
-// IsControllerEnabled check if a specified controller enabled or not.
-func (c ControllerContext) IsControllerEnabled(name string) bool {
-	hasStar := false
-	for _, ctrl := range c.Opts.Controllers {
-		if ctrl == name {
-			return true
-		}
-		if ctrl == "-"+name {
-			return false
-		}
-		if ctrl == "*" {
-			hasStar = true
-		}
-	}
-	return hasStar
 }

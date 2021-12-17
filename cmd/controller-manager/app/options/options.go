@@ -1,6 +1,8 @@
 package options
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -79,8 +81,11 @@ func NewOptions() *Options {
 }
 
 // AddFlags adds flags to the specified FlagSet.
-func (o *Options) AddFlags(flags *pflag.FlagSet) {
-	flags.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, "A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: cluster, clusterStatus, hpa, binding, execution, workStatus, namespace, serviceExport, endpointSlice, serviceImport.")
+func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers []string) {
+	flags.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, fmt.Sprintf(
+		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: %s.",
+		strings.Join(allControllers, ", "),
+	))
 	flags.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
 		"The IP address on which to listen for the --secure-port port.")
 	flags.IntVar(&o.SecurePort, "secure-port", defaultPort,
@@ -112,21 +117,4 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
-}
-
-// IsControllerEnabled check if a specified controller enabled or not.
-func (o *Options) IsControllerEnabled(name string) bool {
-	hasStar := false
-	for _, ctrl := range o.Controllers {
-		if ctrl == name {
-			return true
-		}
-		if ctrl == "-"+name {
-			return false
-		}
-		if ctrl == "*" {
-			hasStar = true
-		}
-	}
-	return hasStar
 }
