@@ -8,8 +8,10 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/uuid v1.1.2
 	github.com/kr/pretty v0.3.0
+	github.com/lithammer/dedent v1.1.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
@@ -27,10 +29,12 @@ require (
 	k8s.io/component-base v0.22.2
 	k8s.io/component-helpers v0.22.2
 	k8s.io/klog/v2 v2.9.0
+	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
 	k8s.io/kubectl v0.22.2
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 	sigs.k8s.io/cluster-api v1.0.1
 	sigs.k8s.io/controller-runtime v0.10.3
 	sigs.k8s.io/kind v0.11.1
 	sigs.k8s.io/mcs-api v0.1.0
+	sigs.k8s.io/yaml v1.3.0
 )
