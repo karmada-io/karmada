@@ -51,6 +51,8 @@ type ServiceExportController struct {
 	// "member1": instance of ResourceEventHandler
 	eventHandlers sync.Map
 	worker        util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+
+	ClusterCacheSyncTimeout metav1.Duration
 }
 
 var (
@@ -182,7 +184,7 @@ func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1al
 	c.InformerManager.Start(cluster.Name)
 
 	if err := func() error {
-		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, util.CacheSyncTimeout)
+		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, c.ClusterCacheSyncTimeout.Duration)
 		if synced == nil {
 			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
 		}
