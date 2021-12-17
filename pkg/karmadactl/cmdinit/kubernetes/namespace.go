@@ -2,8 +2,7 @@ package kubernetes
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +32,7 @@ func (i *InstallOptions) CreateNamespace() error {
 
 	_, err = namespaceClient.Create(context.TODO(), n, metav1.CreateOptions{})
 	if err != nil {
-		return errors.Errorf("Create namespace %s failed: %v\n", i.Namespace, err)
+		return fmt.Errorf("Create namespace %s failed: %v", i.Namespace, err)
 	}
 	klog.Infof("Create Namespace '%s' successfully.", i.Namespace)
 	return nil

@@ -2,8 +2,7 @@ package kubernetes
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -81,7 +80,7 @@ func (i *InstallOptions) CreateClusterRole() error {
 
 	_, err = clusterRoleClient.Create(context.TODO(), clusterRole, metav1.CreateOptions{})
 	if err != nil {
-		return errors.Errorf("Create ClusterRole %s failed: %v\n", clusterRole.Name, err)
+		return fmt.Errorf("create ClusterRole %s failed: %v", clusterRole.Name, err)
 	}
 	return nil
 }
