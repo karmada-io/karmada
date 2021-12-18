@@ -4,8 +4,7 @@ metadata:
   name: cluster-foo
   namespace: karmada-cluster
 spec:
-  manageMode: Delegation
-  accepted: true
+  syncMode: Push
   apiEndpoint: https://10.10.10.10:6339
   secretRef:
     namespace: karmada-cluster
