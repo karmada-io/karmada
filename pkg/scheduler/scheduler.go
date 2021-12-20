@@ -582,7 +582,7 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 		return
 	}
 
-	s.queue.Add(key)
+	s.queue.AddRateLimited(key)
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
 
