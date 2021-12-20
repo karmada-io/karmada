@@ -74,3 +74,37 @@ func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) er
 
 	return nil
 }
+
+// ValidateOverrideSpec tests if the overrideRules and (overriders or targetCluster) co-exist
+func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) error {
+	if overrideSpec == nil {
+		return nil
+	}
+
+	if overrideSpec.OverrideRules == nil {
+		return nil
+	}
+
+	if overrideSpec.TargetCluster != nil || !EmptyOverrides(overrideSpec.Overriders) {
+		return fmt.Errorf("overrideRules and (overriders or targetCluster) can't co-exist")
+	}
+
+	return nil
+}
+
+// EmptyOverrides check if the overriders of override policy is empty
+func EmptyOverrides(overriders policyv1alpha1.Overriders) bool {
+	if len(overriders.Plaintext) != 0 {
+		return false
+	}
+	if len(overriders.ImageOverrider) != 0 {
+		return false
+	}
+	if len(overriders.CommandOverrider) != 0 {
+		return false
+	}
+	if len(overriders.ArgsOverrider) != 0 {
+		return false
+	}
+	return true
+}
