@@ -51,6 +51,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: clusteroverridepolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["clusteroverridepolicies"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-clusteroverridepolicy
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
   - name: work.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
