@@ -10,6 +10,7 @@ KARMADA_SYSTEM_NAMESPACE="karmada-system"
 ETCD_POD_LABEL="etcd"
 APISERVER_POD_LABEL="karmada-apiserver"
 KUBE_CONTROLLER_POD_LABEL="kube-controller-manager"
+KARMADA_AGGREGATION_APISERVER_LABEL="karmada-aggregated-apiserver"
 KARMADA_CONTROLLER_LABEL="karmada-controller-manager"
 KARMADA_SCHEDULER_LABEL="karmada-scheduler"
 KARMADA_WEBHOOK_LABEL="karmada-webhook"
@@ -297,6 +298,25 @@ function util::wait_pod_ready() {
     if [ $ret -ne 0 ];then
       echo "kubectl describe info:"
       kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
+    fi
+    return ${ret}
+}
+
+# util::wait_apiservice_ready waits for apiservice state becomes Available until timeout.
+# Parmeters:
+#  - $1: apiservice label, such as "app=etcd"
+#  - $3: time out, such as "200s"
+function util::wait_apiservice_ready() {
+    local apiservice_label=$1
+
+    echo "wait the $apiservice_label Available..."
+    set +e
+    util::kubectl_with_retry wait --for=condition=Available --timeout=30s apiservices -l app=${apiservice_label}
+    ret=$?
+    set -e
+    if [ $ret -ne 0 ];then
+      echo "kubectl describe info:"
+      kubectl describe apiservices -l app=${apiservice_label}
     fi
     return ${ret}
 }

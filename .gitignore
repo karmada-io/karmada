@@ -20,6 +20,7 @@
 # karamada binary
 /karmadactl
 /karmada-agent
+/karmada-aggregated-apiserver
 /karmada-controller-manager
 /karmada-interpreter-webhook-example
 /karmada-scheduler

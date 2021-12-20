@@ -1,5 +1,4 @@
 resources:
-- bases/cluster.karmada.io_clusters.yaml
 - bases/multicluster.x-k8s.io_serviceexports.yaml
 - bases/multicluster.x-k8s.io_serviceimports.yaml
 - bases/policy.karmada.io_clusteroverridepolicies.yaml

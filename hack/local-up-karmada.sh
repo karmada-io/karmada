@@ -47,6 +47,7 @@ dockerfile_list=( # Dockerfile files need to be replaced
   "cluster/images/karmada-scheduler-estimator/Dockerfile"
   "cluster/images/karmada-scheduler/Dockerfile"
   "cluster/images/karmada-webhook/Dockerfile"
+  "cluster/images/karmada-aggregated-apiserver/Dockerfile"
 )
 for dockerfile in "${dockerfile_list[@]}"; do
   grep 'mirrors.ustc.edu.cn' ${REPO_ROOT}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.7#FROM alpine:3.7\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories#" ${REPO_ROOT}/${dockerfile}
@@ -122,6 +123,7 @@ kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --nam
 kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-scheduler-estimator:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 #step5. install karmada control plane components
 "${REPO_ROOT}"/hack/deploy-karmada.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}"
