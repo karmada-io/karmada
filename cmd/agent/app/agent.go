@@ -17,6 +17,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
@@ -60,10 +61,19 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
-	opts.AddFlags(cmd.Flags())
+	opts.AddFlags(cmd.Flags(), controllers.ControllerNames())
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-agent"))
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	return cmd
+}
+
+var controllers = make(controllerscontext.Initializers)
+
+func init() {
+	controllers["clusterStatus"] = startClusterStatusController
+	controllers["execution"] = startExecutionController
+	controllers["workStatus"] = startWorkStatusController
+	controllers["serviceExport"] = startServiceExportController
 }
 
 func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *options.Options) error {
@@ -110,25 +120,6 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 }
 
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
-	clusterStatusController := &status.ClusterStatusController{
-		Client:                            mgr.GetClient(),
-		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
-		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:                     helper.NewClusterPredicateOnAgent(opts.ClusterName),
-		InformerManager:                   informermanager.GetInstance(),
-		StopChan:                          stopChan,
-		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
-		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
-		ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
-		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
-	}
-	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster status controller: %v", err)
-	}
-
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
@@ -138,50 +129,24 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter)
-	executionController := &execution.Controller{
-		Client:               mgr.GetClient(),
-		EventRecorder:        mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:           mgr.GetRESTMapper(),
-		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
-		InformerManager:      informermanager.GetInstance(),
-		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-	}
-	if err := executionController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup execution controller: %v", err)
-	}
-
-	workStatusController := &status.WorkStatusController{
-		Client:                  mgr.GetClient(),
-		EventRecorder:           mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:              mgr.GetRESTMapper(),
-		InformerManager:         informermanager.GetInstance(),
-		StopChan:                stopChan,
-		WorkerNumber:            1,
-		ObjectWatcher:           objectWatcher,
-		PredicateFunc:           helper.NewExecutionPredicateOnAgent(),
-		ClusterClientSetFunc:    util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout: opts.ClusterCacheSyncTimeout,
-	}
-	workStatusController.RunWorkQueue()
-	if err := workStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup work status controller: %v", err)
+	controllerContext := controllerscontext.Context{
+		Mgr:           mgr,
+		ObjectWatcher: objectWatcher,
+		Opts: controllerscontext.Options{
+			Controllers:                       opts.Controllers,
+			ClusterName:                       opts.ClusterName,
+			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
+			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
+			ClusterAPIQPS:                     opts.ClusterAPIQPS,
+			ClusterAPIBurst:                   opts.ClusterAPIBurst,
+		},
+		StopChan: stopChan,
 	}
 
-	serviceExportController := &mcs.ServiceExportController{
-		Client:                      mgr.GetClient(),
-		EventRecorder:               mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
-		RESTMapper:                  mgr.GetRESTMapper(),
-		InformerManager:             informermanager.GetInstance(),
-		StopChan:                    stopChan,
-		WorkerNumber:                1,
-		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(opts.ClusterName),
-		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
-	}
-	serviceExportController.RunWorkQueue()
-	if err := serviceExportController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+	if err := controllers.StartControllers(controllerContext); err != nil {
+		klog.Fatalf("error starting controllers: %v", err)
 	}
 
 	// Ensure the InformerManager stops when the stop channel closes
@@ -189,6 +154,83 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		<-stopChan
 		informermanager.StopInstance()
 	}()
+}
+
+func startClusterStatusController(ctx controllerscontext.Context) (bool, error) {
+	clusterStatusController := &status.ClusterStatusController{
+		Client:                            ctx.Mgr.GetClient(),
+		KubeClient:                        kubeclientset.NewForConfigOrDie(ctx.Mgr.GetConfig()),
+		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(status.ControllerName),
+		PredicateFunc:                     helper.NewClusterPredicateOnAgent(ctx.Opts.ClusterName),
+		InformerManager:                   informermanager.GetInstance(),
+		StopChan:                          ctx.StopChan,
+		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
+		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
+		ClusterClientOption:               &util.ClientOption{QPS: ctx.Opts.ClusterAPIQPS, Burst: ctx.Opts.ClusterAPIBurst},
+		ClusterStatusUpdateFrequency:      ctx.Opts.ClusterStatusUpdateFrequency,
+		ClusterLeaseDuration:              ctx.Opts.ClusterLeaseDuration,
+		ClusterLeaseRenewIntervalFraction: ctx.Opts.ClusterLeaseRenewIntervalFraction,
+		ClusterCacheSyncTimeout:           ctx.Opts.ClusterCacheSyncTimeout,
+	}
+	if err := clusterStatusController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startExecutionController(ctx controllerscontext.Context) (bool, error) {
+	executionController := &execution.Controller{
+		Client:               ctx.Mgr.GetClient(),
+		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:           ctx.Mgr.GetRESTMapper(),
+		ObjectWatcher:        ctx.ObjectWatcher,
+		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
+		InformerManager:      informermanager.GetInstance(),
+		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+	}
+	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
+	workStatusController := &status.WorkStatusController{
+		Client:                  ctx.Mgr.GetClient(),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:              ctx.Mgr.GetRESTMapper(),
+		InformerManager:         informermanager.GetInstance(),
+		StopChan:                ctx.StopChan,
+		WorkerNumber:            1,
+		ObjectWatcher:           ctx.ObjectWatcher,
+		PredicateFunc:           helper.NewExecutionPredicateOnAgent(),
+		ClusterClientSetFunc:    util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout: ctx.Opts.ClusterCacheSyncTimeout,
+	}
+	workStatusController.RunWorkQueue()
+	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startServiceExportController(ctx controllerscontext.Context) (bool, error) {
+	serviceExportController := &mcs.ServiceExportController{
+		Client:                      ctx.Mgr.GetClient(),
+		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
+		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
+		InformerManager:             informermanager.GetInstance(),
+		StopChan:                    ctx.StopChan,
+		WorkerNumber:                1,
+		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(ctx.Opts.ClusterName),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
+	}
+	serviceExportController.RunWorkQueue()
+	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func registerWithControlPlaneAPIServer(controlPlaneRestConfig *restclient.Config, memberClusterName string) error {
