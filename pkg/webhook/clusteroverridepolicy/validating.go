@@ -1,4 +1,4 @@
-package overridepolicy
+package clusteroverridepolicy
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/validation"
 )
 
-// ValidatingAdmission validates OverridePolicy object when creating/updating/deleting.
+// ValidatingAdmission validates ClusterOverridePolicy object when creating/updating/deleting.
 type ValidatingAdmission struct {
 	decoder *admission.Decoder
 }
@@ -23,13 +23,13 @@ var _ admission.DecoderInjector = &ValidatingAdmission{}
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
-	policy := &policyv1alpha1.OverridePolicy{}
+	policy := &policyv1alpha1.ClusterOverridePolicy{}
 
 	err := v.decoder.Decode(req, policy)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	klog.V(2).Infof("Validating OverridePolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
+	klog.V(2).Infof("Validating ClusterOverridePolicy(%s) for request: %s", policy.Name, req.Operation)
 
 	if err := validation.ValidateOverrideSpec(&policy.Spec); err != nil {
 		klog.Error(err)
