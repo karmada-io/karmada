@@ -4,7 +4,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -114,8 +114,8 @@ func ConvertToJob(obj *unstructured.Unstructured) (*batchv1.Job, error) {
 }
 
 // ConvertToEndpointSlice converts a EndpointSlice object from unstructured to typed.
-func ConvertToEndpointSlice(obj *unstructured.Unstructured) (*discoveryv1beta1.EndpointSlice, error) {
-	typedObj := &discoveryv1beta1.EndpointSlice{}
+func ConvertToEndpointSlice(obj *unstructured.Unstructured) (*discoveryv1.EndpointSlice, error) {
+	typedObj := &discoveryv1.EndpointSlice{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}

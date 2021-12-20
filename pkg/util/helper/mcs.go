@@ -3,7 +3,7 @@ package helper
 import (
 	"context"
 
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -13,7 +13,7 @@ import (
 )
 
 // CreateOrUpdateEndpointSlice creates a EndpointSlice object if not exist, or updates if it already exist.
-func CreateOrUpdateEndpointSlice(client client.Client, endpointSlice *discoveryv1beta1.EndpointSlice) error {
+func CreateOrUpdateEndpointSlice(client client.Client, endpointSlice *discoveryv1.EndpointSlice) error {
 	runtimeObject := endpointSlice.DeepCopy()
 	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
 		runtimeObject.AddressType = endpointSlice.AddressType
@@ -39,8 +39,8 @@ func CreateOrUpdateEndpointSlice(client client.Client, endpointSlice *discoveryv
 }
 
 // GetEndpointSlices returns a EndpointSliceList by labels
-func GetEndpointSlices(c client.Client, ls labels.Set) (*discoveryv1beta1.EndpointSliceList, error) {
-	endpointSlices := &discoveryv1beta1.EndpointSliceList{}
+func GetEndpointSlices(c client.Client, ls labels.Set) (*discoveryv1.EndpointSliceList, error) {
+	endpointSlices := &discoveryv1.EndpointSliceList{}
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
 	return endpointSlices, c.List(context.TODO(), endpointSlices, listOpt)

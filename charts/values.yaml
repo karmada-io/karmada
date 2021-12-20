@@ -197,7 +197,7 @@ apiServer:
     ## @param apiServer.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
     ## @param apiServer.image.tag overrides the image tag whose default is the latest
-    tag: "v1.20.11"
+    tag: "v1.21.7"
   ## @param apiServer.resources
   resources: { }
     # If you do want to specify resources, uncomment the following
@@ -249,7 +249,7 @@ kubeControllerManager:
     ## @param kubeControllerManager.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
     ## @param kubeControllerManager.image.tag overrides the image tag whose default is the latest
-    tag: "v1.20.11"
+    tag: "v1.21.7"
   ## @param kubeControllerManager.resources
   resources:
     # If you do want to specify resources, uncomment the following

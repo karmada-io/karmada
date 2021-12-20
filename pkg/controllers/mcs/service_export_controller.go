@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sync"
 
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +58,7 @@ type ServiceExportController struct {
 var (
 	serviceExportGVR = mcsv1alpha1.SchemeGroupVersion.WithResource("serviceexports")
 	serviceExportGVK = mcsv1alpha1.SchemeGroupVersion.WithKind("ServiceExport")
-	endpointSliceGVR = discoveryv1beta1.SchemeGroupVersion.WithResource("endpointslices")
+	endpointSliceGVR = discoveryv1.SchemeGroupVersion.WithResource("endpointslices")
 )
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -321,7 +321,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 
 	endpointSliceLister := singleClusterManager.Lister(endpointSliceGVR)
 	if endpointSliceObjects, err = endpointSliceLister.ByNamespace(serviceExportKey.Namespace).List(labels.SelectorFromSet(labels.Set{
-		discoveryv1beta1.LabelServiceName: serviceExportKey.Name,
+		discoveryv1.LabelServiceName: serviceExportKey.Name,
 	})); err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 
 // reportEndpointSliceWithEndpointSliceCreateOrUpdate reports the EndpointSlice when referencing service has been exported.
 func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName string, endpointSlice *unstructured.Unstructured) error {
-	relatedServiceName := endpointSlice.GetLabels()[discoveryv1beta1.LabelServiceName]
+	relatedServiceName := endpointSlice.GetLabels()[discoveryv1.LabelServiceName]
 
 	singleClusterManager := c.InformerManager.GetSingleClusterManager(clusterName)
 	if singleClusterManager == nil {
@@ -374,7 +374,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		Namespace: executionSpace,
 		Labels: map[string]string{
 			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
-			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1beta1.LabelServiceName],
+			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
 			// indicate the Work should be not propagated since it's collected resource.
 			util.PropagationInstruction: util.PropagationInstructionSuppressed,
 		},
