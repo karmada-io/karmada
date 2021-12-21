@@ -6,6 +6,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -34,6 +35,7 @@ const (
 	webhookPortName                                             = "webhook"
 	webhookTargetPort                                           = 8443
 	webhookPort                                                 = 443
+	karmadaAggregatedAPIServerDeploymentAndServiceName          = "karmada-aggregated-apiserver"
 )
 
 var (
@@ -42,15 +44,19 @@ var (
 	schedulerLabels             = map[string]string{"app": schedulerDeploymentNameAndServiceAccountName}
 	controllerManagerLabels     = map[string]string{"app": controllerManagerDeploymentAndServiceName}
 	webhookLabels               = map[string]string{"app": webhookDeploymentAndServiceAccountAndServiceName}
+	aggregatedAPIServerLabels   = map[string]string{"app": karmadaAggregatedAPIServerDeploymentAndServiceName, "apiserver": "true"}
 )
 
-func (i *InstallOptions) karmadaAPIServerContainerCommand() []string {
+func etcdServers() string {
 	etcdClusterConfig := ""
 	for v := int32(0); v < options.EtcdReplicas; v++ {
 		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, options.Namespace, etcdContainerClientPort) + ","
 	}
+	return etcdClusterConfig
+}
 
-	command := []string{
+func (i *InstallOptions) karmadaAPIServerContainerCommand() []string {
+	return []string{
 		"kube-apiserver",
 		"--allow-privileged=true",
 		"--authorization-mode=Node,RBAC",
@@ -60,7 +66,7 @@ func (i *InstallOptions) karmadaAPIServerContainerCommand() []string {
 		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
 		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
 		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(etcdClusterConfig, ",")),
+		fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(etcdServers(), ",")),
 		"--bind-address=0.0.0.0",
 		"--insecure-port=0",
 		fmt.Sprintf("--kubelet-client-certificate=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
@@ -74,18 +80,16 @@ func (i *InstallOptions) karmadaAPIServerContainerCommand() []string {
 		fmt.Sprintf("--service-account-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--service-account-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
-		fmt.Sprintf("--proxy-client-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-		fmt.Sprintf("--proxy-client-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		fmt.Sprintf("--proxy-client-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.FrontProxyClientCertAndKeyName),
+		fmt.Sprintf("--proxy-client-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.FrontProxyClientCertAndKeyName),
 		"--requestheader-allowed-names=front-proxy-client",
-		fmt.Sprintf("--requestheader-client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		fmt.Sprintf("--requestheader-client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.FrontProxyCaCertAndKeyName),
 		"--requestheader-extra-headers-prefix=X-Remote-Extra-",
 		"--requestheader-group-headers=X-Remote-Group",
 		"--requestheader-username-headers=X-Remote-User",
 		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 	}
-
-	return command
 }
 
 func (i *InstallOptions) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
@@ -664,4 +668,121 @@ func (i *InstallOptions) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 	}
 
 	return webhook
+}
+
+func (i *InstallOptions) makeKarmadaAggregatedAPIServerDeployment() *appsv1.Deployment {
+	aa := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: deploymentAPIVersion,
+			Kind:       deploymentKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
+			Namespace: options.Namespace,
+			Labels:    aggregatedAPIServerLabels,
+		},
+	}
+
+	podSpec := corev1.PodSpec{
+		Affinity: &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+					{
+						TopologyKey: "kubernetes.io/hostname",
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      "app",
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{karmadaAggregatedAPIServerDeploymentAndServiceName},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Containers: []corev1.Container{
+			{
+				Name:  karmadaAggregatedAPIServerDeploymentAndServiceName,
+				Image: options.AggregatedAPIServerImage,
+				Command: []string{
+					"/bin/karmada-aggregated-apiserver",
+					"--kubeconfig=/etc/kubeconfig",
+					"--authentication-kubeconfig=/etc/kubeconfig",
+					"--authorization-kubeconfig=/etc/kubeconfig",
+					fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(etcdServers(), ",")),
+					fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
+					fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+					fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+					fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+					fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+					"--audit-log-path=-",
+					"--feature-gates=APIPriorityAndFairness=false",
+					"--audit-log-maxage=0",
+					"--audit-log-maxbackup=0",
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      kubeConfigSecretAndMountName,
+						ReadOnly:  true,
+						MountPath: kubeConfigContainerMountPath,
+						SubPath:   kubeConfigSecretAndMountName,
+					},
+					{
+						Name:      karmadaCertsName,
+						ReadOnly:  true,
+						MountPath: karmadaCertsVolumeMountPath,
+					},
+				},
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("100m"),
+					},
+				},
+			},
+		},
+		Volumes: []corev1.Volume{
+			{
+				Name: kubeConfigSecretAndMountName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: kubeConfigSecretAndMountName,
+					},
+				},
+			},
+			{
+				Name: karmadaCertsName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: karmadaCertsName,
+					},
+				},
+			},
+		},
+		Tolerations: []corev1.Toleration{
+			{
+				Effect:   corev1.TaintEffectNoExecute,
+				Operator: corev1.TolerationOpExists,
+			},
+		},
+	}
+	// PodTemplateSpec
+	podTemplateSpec := corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
+			Namespace: options.Namespace,
+			Labels:    aggregatedAPIServerLabels,
+		},
+		Spec: podSpec,
+	}
+	// DeploymentSpec
+	aa.Spec = appsv1.DeploymentSpec{
+		Replicas: &options.AggregatedAPIServerReplicas,
+		Template: podTemplateSpec,
+		Selector: &metav1.LabelSelector{
+			MatchLabels: aggregatedAPIServerLabels,
+		},
+	}
+	return aa
 }

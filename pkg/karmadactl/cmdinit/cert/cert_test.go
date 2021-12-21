@@ -76,8 +76,9 @@ func TestGenCerts(t *testing.T) {
 	}
 
 	karmadaCertCfg := NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
+	frontProxyClientCertCfg := NewCertConfig("front-proxy-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
 
-	if err := GenCerts("./test-Certs-tmp", etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg); err != nil {
+	if err := GenCerts("./test-Certs-tmp", etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
 		fmt.Println(err)
 	}
 }

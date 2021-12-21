@@ -28,6 +28,7 @@ require (
 	k8s.io/component-base v0.22.2
 	k8s.io/component-helpers v0.22.2
 	k8s.io/klog/v2 v2.9.0
+	k8s.io/kube-aggregator v0.22.2
 	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
 	k8s.io/kubectl v0.22.2
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b

@@ -188,3 +188,30 @@ func (i *InstallOptions) karmadaWebhookService() *corev1.Service {
 		},
 	}
 }
+
+func (i *InstallOptions) karmadaAggregatedAPIServerService() *corev1.Service {
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
+			Namespace: i.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeClusterIP,
+			Selector: aggregatedAPIServerLabels,
+			Ports: []corev1.ServicePort{
+				{
+					Protocol: corev1.ProtocolTCP,
+					Port:     443,
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: 443,
+					},
+				},
+			},
+		},
+	}
+}

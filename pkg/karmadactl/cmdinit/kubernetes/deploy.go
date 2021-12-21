@@ -24,6 +24,15 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
+var certSlice = []string{
+	options.CaCertAndKeyName,
+	options.EtcdServerCertAndKeyName,
+	options.EtcdClientCertAndKeyName,
+	options.KarmadaCertAndKeyName,
+	options.FrontProxyCaCertAndKeyName,
+	options.FrontProxyClientCertAndKeyName,
+}
+
 //InstallOptions kubernetes options
 type InstallOptions struct {
 	Namespace          string
@@ -58,8 +67,10 @@ func genCerts() error {
 		"kubernetes.default.svc",
 		karmadaAPIServerDeploymentAndServiceName,
 		webhookDeploymentAndServiceAccountAndServiceName,
+		karmadaAggregatedAPIServerDeploymentAndServiceName,
 		fmt.Sprintf("%s.%s.svc.cluster.local", karmadaAPIServerDeploymentAndServiceName, options.Namespace),
 		fmt.Sprintf("%s.%s.svc.cluster.local", webhookDeploymentAndServiceAccountAndServiceName, options.Namespace),
+		fmt.Sprintf("%s.%s.svc.cluster.local", karmadaAggregatedAPIServerDeploymentAndServiceName, options.Namespace),
 		fmt.Sprintf("*.%s.svc.cluster.local", options.Namespace),
 		fmt.Sprintf("*.%s.svc", options.Namespace),
 	}
@@ -90,7 +101,8 @@ func genCerts() error {
 	}
 	karmadaCertCfg := cert.NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
 
-	if err = cert.GenCerts(options.DataPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg); err != nil {
+	frontProxyClientCertCfg := cert.NewCertConfig("front-proxy-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
+	if err = cert.GenCerts(options.DataPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
 		return err
 	}
 	return nil
@@ -116,53 +128,19 @@ func prepareCRD() error {
 func (i *InstallOptions) initialization() error {
 	i.CertAndKeyFileData = map[string][]byte{}
 
-	caCert, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.crt", options.CaCertAndKeyName))
-	if err != nil {
-		return fmt.Errorf("'%s.crt' conversion failed. %v", options.CaCertAndKeyName, err)
-	}
-	i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)] = caCert
+	for _, v := range certSlice {
+		certs, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.crt", v))
+		if err != nil {
+			return fmt.Errorf("'%s.crt' conversion failed. %v", v, err)
+		}
+		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)] = certs
 
-	caKey, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.key", options.CaCertAndKeyName))
-	if err != nil {
-		return fmt.Errorf("'%s.key' conversion failed. %v", options.CaCertAndKeyName, err)
+		key, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.key", v))
+		if err != nil {
+			return fmt.Errorf("'%s.key' conversion failed. %v", v, err)
+		}
+		i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)] = key
 	}
-	i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.CaCertAndKeyName)] = caKey
-
-	etcdServerCert, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName))
-	if err != nil {
-		return fmt.Errorf("'%s.crt' conversion failed. %v", options.EtcdServerCertAndKeyName, err)
-	}
-	i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName)] = etcdServerCert
-
-	etcdServerKey, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName))
-	if err != nil {
-		return fmt.Errorf("'%s.key' conversion failed. %v", options.EtcdServerCertAndKeyName, err)
-	}
-	i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName)] = etcdServerKey
-
-	etcdClientCert, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.crt", options.EtcdClientCertAndKeyName))
-	if err != nil {
-		return fmt.Errorf("'%s.crt' conversion failed. %v", options.EtcdClientCertAndKeyName, err)
-	}
-	i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdClientCertAndKeyName)] = etcdClientCert
-
-	etcdClientKey, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.key", options.EtcdClientCertAndKeyName))
-	if err != nil {
-		return fmt.Errorf("'%s.key' conversion failed. %v", options.EtcdClientCertAndKeyName, err)
-	}
-	i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdClientCertAndKeyName)] = etcdClientKey
-
-	karmadaCert, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName))
-	if err != nil {
-		return fmt.Errorf("'%s.crt' conversion failed. %v", options.KarmadaCertAndKeyName, err)
-	}
-	i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)] = karmadaCert
-
-	karmadaKey, err := utils.FileToBytes(options.DataPath, fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName))
-	if err != nil {
-		return fmt.Errorf("'%s.key' conversion failed. %v", options.KarmadaCertAndKeyName, err)
-	}
-	i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)] = karmadaKey
 
 	if !utils.PathIsExist(options.KubeConfig) {
 		klog.Exitln("kubeconfig file does not exist.")
@@ -216,15 +194,11 @@ func (i *InstallOptions) createCertsSecrets() {
 		klog.Exitln(err)
 	}
 
-	karmadaCert := map[string]string{
-		fmt.Sprintf("%s.crt", options.CaCertAndKeyName):         string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)]),
-		fmt.Sprintf("%s.key", options.CaCertAndKeyName):         string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.CaCertAndKeyName)]),
-		fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName):    string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]),
-		fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName):    string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)]),
-		fmt.Sprintf("%s.crt", options.EtcdClientCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdClientCertAndKeyName)]),
-		fmt.Sprintf("%s.key", options.EtcdClientCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdClientCertAndKeyName)]),
+	karmadaCert := map[string]string{}
+	for _, v := range certSlice {
+		karmadaCert[fmt.Sprintf("%s.crt", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)])
+		karmadaCert[fmt.Sprintf("%s.key", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)])
 	}
-
 	karmadaSecret := i.SecretFromSpec(karmadaCertsName, corev1.SecretTypeOpaque, karmadaCert)
 	if err := i.CreateSecret(karmadaSecret); err != nil {
 		klog.Exitln(err)
@@ -271,6 +245,8 @@ func (i *InstallOptions) initEtcd() {
 }
 
 func (i *InstallOptions) initComponent() {
+	//wait pod ready timeout 30s
+	waitPodReadyTimeout := 30
 	// Create karmada-kube-controller-manager
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/kube-controller-manager.yaml
 	klog.Info("create karmada kube controller manager Deployment")
@@ -280,7 +256,7 @@ func (i *InstallOptions) initComponent() {
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaKubeControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(kubeControllerManagerLabels), 30); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(kubeControllerManagerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 
@@ -290,7 +266,7 @@ func (i *InstallOptions) initComponent() {
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaSchedulerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(schedulerLabels), 30); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(schedulerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 
@@ -300,7 +276,7 @@ func (i *InstallOptions) initComponent() {
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(controllerManagerLabels), 30); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(controllerManagerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 
@@ -310,11 +286,22 @@ func (i *InstallOptions) initComponent() {
 	if err := i.CreateService(i.karmadaWebhookService()); err != nil {
 		klog.Exitln(err)
 	}
-
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaWebhookDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(webhookLabels), 30); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(webhookLabels), waitPodReadyTimeout); err != nil {
+		klog.Warning(err)
+	}
+	// Create karmada-aggregated-apiserver
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver.yaml
+	klog.Info("create karmada aggregated apiserver Deployment")
+	if err := i.CreateService(i.karmadaAggregatedAPIServerService()); err != nil {
+		klog.Exitln(err)
+	}
+	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
+		klog.Warning(err)
+	}
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(aggregatedAPIServerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 }
