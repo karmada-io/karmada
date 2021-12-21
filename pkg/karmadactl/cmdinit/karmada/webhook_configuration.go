@@ -129,6 +129,34 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: overridepolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["overridepolicies"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.%s.svc:443/validate-overridepolicy
+      caBundle: %s
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
+  - name: clusteroverridepolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["clusteroverridepolicies"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://karmada-webhook.%s.svc:443/validate-clusteroverridepolicy
+      caBundle: %s
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
   - name: config.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
@@ -142,7 +170,7 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3`, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle)
+    timeoutSeconds: 3`, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle)
 }
 
 func createValidatingWebhookConfiguration(c *kubernetes.Clientset, staticYaml string) error {
