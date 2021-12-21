@@ -388,6 +388,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		SkippedResourceConfig:        skippedResourceConfig,
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
 		ResourceInterpreter:          resourceInterpreter,
+		EventRecorder:                mgr.GetEventRecorderFor("resource-detector"),
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)

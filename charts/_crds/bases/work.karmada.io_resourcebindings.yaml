@@ -455,6 +455,9 @@ spec:
                       the referenced object, that can be used by clients to determine
                       when object has changed.
                     type: string
+                  uid:
+                    description: UID of the referent.
+                    type: string
                 required:
                 - apiVersion
                 - kind
