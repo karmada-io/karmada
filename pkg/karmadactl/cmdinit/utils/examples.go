@@ -149,7 +149,7 @@ func GenExamples(path string) {
 | Step 1: Member kubernetes join karmada control plane                                                                                                                         |
 |                                                                                                                                                                              |
 | (In karmada)~#  cat ~/.kube/config  | grep current-context | sed 's/: /\n/g'| sed '1d' #MEMBER_CLUSTER_NAME                                                                  |
-| (In karmada)~# kubectl-karmada  --kubeconfig /var/lib/karmada/karmada-apiserver.config  join ${MEMBER_CLUSTER_NAME} --cluster-kubeconfig=$HOME/.kube/config                  |
+| (In karmada)~# kubectl-karmada  --kubeconfig /etc/karmada/karmada-apiserver.config  join ${MEMBER_CLUSTER_NAME} --cluster-kubeconfig=$HOME/.kube/config                      |
 |                                                                                                                                                                              |
 | Step 2: Create member kubernetes kubeconfig secret                                                                                                                           |
 |                                                                                                                                                                              |
@@ -158,19 +158,19 @@ func GenExamples(path string) {
 |                                                                                                                                                                              |
 | Step 3: Create karmada scheduler estimator                                                                                                                                   |
 |                                                                                                                                                                              |
-| (In member kubernetes)~# sed -i "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" /var/lib/karmada/karmada-scheduler-estimator.yaml                                       |
-| (In member kubernetes)~# kubectl create -f  /var/lib/karmada/karmada-scheduler-estimator.yaml                                                                                |
+| (In member kubernetes)~# sed -i "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" /etc/karmada/karmada-scheduler-estimator.yaml                                           |
+| (In member kubernetes)~# kubectl create -f  /etc/karmada/karmada-scheduler-estimator.yaml                                                                                    |
 |                                                                                                                                                                              |
 | Step 4: Show members of karmada                                                                                                                                              |
 |                                                                                                                                                                              |
-| (In karmada)~# kubectl  --kubeconfig /var/lib/karmada/karmada-apiserver.config get clusters                                                                                  |
+| (In karmada)~# kubectl  --kubeconfig /etc/karmada/karmada-apiserver.config get clusters                                                                                      |
 |                                                                                                                                                                              |
 ├── —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— ┤
 | Pull mode                                                                                                                                                                    |
 |                                                                                                                                                                              |
 | Step 1:  Send karmada kubeconfig and karmada-agent.yaml to member kubernetes                                                                                                 |
 |                                                                                                                                                                              |
-| (In karmada)~# scp /var/lib/karmada/karmada-apiserver.config /var/lib/karmada/karmada-agent.yaml {member kubernetes}:~                                                       |
+| (In karmada)~# scp /etc/karmada/karmada-apiserver.config /etc/karmada/karmada-agent.yaml {member kubernetes}:~                                                               |
 |                                                                                                                                                                              |
 | Step 2:  Create karmada kubeconfig secret                                                                                                                                    |
 |  Notice:                                                                                                                                                                     |
@@ -187,7 +187,7 @@ func GenExamples(path string) {
 |                                                                                                                                                                              |
 | Step 4: Show members of karmada                                                                                                                                              |
 |                                                                                                                                                                              |
-| (In karmada)~# kubectl  --kubeconfig /var/lib/karmada/karmada-apiserver.config get clusters                                                                                  |
+| (In karmada)~# kubectl  --kubeconfig /etc/karmada/karmada-apiserver.config get clusters                                                                                      |
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 `))
 }

@@ -43,7 +43,7 @@ func NewCmdInit() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.KarmadaMasterIP, "master", "", "Karmada master ip. (e.g. --master 192.168.1.2,192.168.1.3)")
 	cmd.PersistentFlags().StringVar(&options.CRDs, "crds", crdURL, "Karmada crds resource.local file (e.g. --crds /root/crds.tar.gz)")
 	cmd.PersistentFlags().Int32VarP(&options.KarmadaMasterPort, "port", "p", 5443, "Karmada apiserver port")
-	cmd.PersistentFlags().StringVarP(&options.DataPath, "karmada-data", "d", "/var/lib/karmada", "karmada data path. kubeconfig and cert files")
+	cmd.PersistentFlags().StringVarP(&options.DataPath, "karmada-data", "d", "/etc/karmada", "karmada data path. kubeconfig cert and crds files")
 	cmd.PersistentFlags().StringVarP(&options.APIServerImage, "karmada-apiserver-image", "", "k8s.gcr.io/kube-apiserver:v1.20.11", "Kubernetes apiserver image")
 	cmd.PersistentFlags().Int32VarP(&options.APIServerReplicas, "karmada-apiserver-replicas", "", 1, "karmada apiserver replica set")
 	cmd.PersistentFlags().StringVarP(&options.SchedulerImage, "karmada-scheduler-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler:latest", "karmada scheduler image")
