@@ -460,8 +460,12 @@ function util::wait_service_external_ip() {
   local tmp
   for tmp in {1..30}; do
     set +e
+    external_host=$(kubectl get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.hostname}} {{end}}" | xargs)
     external_ip=$(kubectl get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.ip}} {{end}}" | xargs)
     set -e
+    if [[ ! -z "$external_host" ]]; then # Compatibility with hostname, such as AWS
+      external_ip=$external_host
+    fi
     if [[ -z "$external_ip" ]]; then
       echo "wait the external ip of ${service_name} ready..."
       sleep 6
@@ -482,6 +486,13 @@ function util::get_load_balancer_ip() {
   if [[ -n "${SERVICE_EXTERNAL_IP}" ]]; then
     first_ip=$(echo "${SERVICE_EXTERNAL_IP}" | awk '{print $1}') #temporarily choose the first one
     for tmp in {1..10}; do
+      #if it is a host, check dns first
+      if [[ ! "${first_ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        if ! nslookup ${first_ip} > /dev/null; then # host dns lookup failed
+          sleep 30
+          continue
+        fi
+      fi
       set +e
       connect_test=$(curl -s -k -m 5 https://"${first_ip}":5443/readyz)
       set -e
