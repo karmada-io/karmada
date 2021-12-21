@@ -26,6 +26,16 @@ type OverrideManager interface {
 	ApplyOverridePolicies(rawObj *unstructured.Unstructured, cluster string) (appliedClusterPolicies *AppliedOverrides, appliedNamespacedPolicies *AppliedOverrides, err error)
 }
 
+// GeneralOverridePolicy is an abstract object of ClusterOverridePolicy and OverridePolicy
+type GeneralOverridePolicy interface {
+	// GetName returns the name of OverridePolicy
+	GetName() string
+	// GetNamespace returns the namespace of OverridePolicy
+	GetNamespace() string
+	// GetOverrideSpec returns the OverrideSpec of OverridePolicy
+	GetOverrideSpec() policyv1alpha1.OverrideSpec
+}
+
 // overrideOption define the JSONPatch operator
 type overrideOption struct {
 	Op    string      `json:"op"`
@@ -95,7 +105,11 @@ func (o *overrideManagerImpl) applyClusterOverrides(rawObj *unstructured.Unstruc
 		return nil, nil
 	}
 
-	matchingPolicyOverriders := o.getOverridersFromClusterOverridePolicies(policyList.Items, rawObj, cluster)
+	items := make([]GeneralOverridePolicy, 0, len(policyList.Items))
+	for i := range policyList.Items {
+		items = append(items, &policyList.Items[i])
+	}
+	matchingPolicyOverriders := o.getOverridersFromOverridePolicies(items, rawObj, cluster)
 	if len(matchingPolicyOverriders) == 0 {
 		klog.V(2).Infof("No cluster override policy for resource: %s/%s", rawObj.GetNamespace(), rawObj.GetName())
 		return nil, nil
@@ -127,7 +141,11 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 		return nil, nil
 	}
 
-	matchingPolicyOverriders := o.getOverridersFromOverridePolicies(policyList.Items, rawObj, cluster)
+	items := make([]GeneralOverridePolicy, 0, len(policyList.Items))
+	for i := range policyList.Items {
+		items = append(items, &policyList.Items[i])
+	}
+	matchingPolicyOverriders := o.getOverridersFromOverridePolicies(items, rawObj, cluster)
 	if len(matchingPolicyOverriders) == 0 {
 		klog.V(2).Infof("No override policy for resource(%s/%s)", rawObj.GetNamespace(), rawObj.GetName())
 		return nil, nil
@@ -146,84 +164,37 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 	return appliedList, nil
 }
 
-func (o *overrideManagerImpl) getOverridersFromClusterOverridePolicies(policies []policyv1alpha1.ClusterOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyOverriders {
-	resourceMatchingPolicies := make([]policyv1alpha1.ClusterOverridePolicy, 0)
+func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []GeneralOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyOverriders {
+	resourceMatchingPolicies := make([]GeneralOverridePolicy, 0)
 	for _, policy := range policies {
-		if policy.Spec.ResourceSelectors == nil {
+		if policy.GetOverrideSpec().ResourceSelectors == nil {
 			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
 			continue
 		}
 
-		if util.ResourceMatchSelectors(resource, policy.Spec.ResourceSelectors...) {
+		if util.ResourceMatchSelectors(resource, policy.GetOverrideSpec().ResourceSelectors...) {
 			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
 		}
 	}
 
 	clusterMatchingPolicyOverriders := make([]policyOverriders, 0)
 	for _, policy := range resourceMatchingPolicies {
-		overrideRules := policy.Spec.OverrideRules
+		overrideRules := policy.GetOverrideSpec().OverrideRules
 		// Since the tuple of '.spec.TargetCluster' and '.spec.Overriders' can not co-exist with '.spec.OverrideRules'
 		// (guaranteed by webhook), so we only look '.spec.OverrideRules' here.
 		if len(overrideRules) == 0 {
 			overrideRules = []policyv1alpha1.RuleWithCluster{
 				{
-					TargetCluster: policy.Spec.TargetCluster,
-					Overriders:    policy.Spec.Overriders,
+					TargetCluster: policy.GetOverrideSpec().TargetCluster,
+					Overriders:    policy.GetOverrideSpec().Overriders,
 				},
 			}
 		}
 		for _, rule := range overrideRules {
 			if rule.TargetCluster == nil || (rule.TargetCluster != nil && util.ClusterMatches(cluster, *rule.TargetCluster)) {
 				clusterMatchingPolicyOverriders = append(clusterMatchingPolicyOverriders, policyOverriders{
-					name:       policy.Name,
-					namespace:  policy.Namespace,
-					overriders: rule.Overriders,
-				})
-			}
-		}
-	}
-
-	// select policy in which at least one PlaintextOverrider matches target resource.
-	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
-
-	sort.Slice(clusterMatchingPolicyOverriders, func(i, j int) bool {
-		return clusterMatchingPolicyOverriders[i].name < clusterMatchingPolicyOverriders[j].name
-	})
-
-	return clusterMatchingPolicyOverriders
-}
-
-func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []policyv1alpha1.OverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyOverriders {
-	resourceMatchingPolicies := make([]policyv1alpha1.OverridePolicy, 0)
-	for _, policy := range policies {
-		if policy.Spec.ResourceSelectors == nil {
-			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
-			continue
-		}
-
-		if util.ResourceMatchSelectors(resource, policy.Spec.ResourceSelectors...) {
-			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
-		}
-	}
-
-	clusterMatchingPolicyOverriders := make([]policyOverriders, 0)
-	for _, policy := range resourceMatchingPolicies {
-		overrideRules := policy.Spec.OverrideRules
-		// Since the tuple of '.spec.TargetCluster' and '.spec.Overriders' can not co-exist with '.spec.OverrideRules'
-		// (guaranteed by webhook), so we only look '.spec.OverrideRules' here.
-		if len(overrideRules) == 0 {
-			overrideRules = []policyv1alpha1.RuleWithCluster{
-				{
-					TargetCluster: policy.Spec.TargetCluster,
-					Overriders:    policy.Spec.Overriders,
-				},
-			}
-		}
-		for _, rule := range overrideRules {
-			if rule.TargetCluster == nil || (rule.TargetCluster != nil && util.ClusterMatches(cluster, *rule.TargetCluster)) {
-				clusterMatchingPolicyOverriders = append(clusterMatchingPolicyOverriders, policyOverriders{
-					name:       policy.Name,
-					namespace:  policy.Namespace,
+					name:       policy.GetName(),
+					namespace:  policy.GetNamespace(),
 					overriders: rule.Overriders,
 				})
 			}
