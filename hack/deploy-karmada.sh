@@ -86,6 +86,10 @@ function generate_cert_secret {
     sed -i'' -e "s/{{client_cer}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
     sed -i'' -e "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
 
+    sed -i'' -e "s/{{front_proxy_ca_crt}}/${FRONT_PROXY_CA_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{front_proxy_client_crt}}/${FRONT_PROXY_CLIENT_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{front_proxy_client_key}}/${FRONT_PROXY_CLIENT_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+
     sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH}"/secret-tmp.yaml
     sed -i'' -e "s/{{client_cer}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/secret-tmp.yaml
     sed -i'' -e "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/secret-tmp.yaml
@@ -113,8 +117,10 @@ util::cmd_must_exist "openssl"
 util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 # create CA signers
 util::create_signing_certkey "" "${CERT_DIR}" server '"client auth","server auth"'
+util::create_signing_certkey "" "${CERT_DIR}" front-proxy '"client auth","server auth"'
 # signs a certificate
 util::create_certkey "" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
+util::create_certkey "" "${CERT_DIR}" "front-proxy-ca" front-proxy-client front-proxy-client kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
 # create namespace for control plane components
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
@@ -126,6 +132,9 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/clusterrolebinding.yaml"
 
 KARMADA_CRT=$(base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
 KARMADA_KEY=$(base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
+FRONT_PROXY_CA_CRT=$(base64 "${CERT_DIR}/front-proxy-ca.crt" | tr -d '\r\n')
+FRONT_PROXY_CLIENT_CRT=$(base64 "${CERT_DIR}/front-proxy-client.crt" | tr -d '\r\n')
+FRONT_PROXY_CLIENT_KEY=$(base64 "${CERT_DIR}/front-proxy-client.key" | tr -d '\r\n')
 generate_cert_secret
 
 # deploy karmada etcd
@@ -191,6 +200,9 @@ util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/karmada
 
 # deploy kube controller manager
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
+# deploy aggregated-apiserver on host cluster
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver.yaml"
+util::wait_pod_ready "${KARMADA_AGGREGATION_APISERVER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # install CRD APIs on karmada apiserver.
 if ! kubectl config use-context karmada-apiserver > /dev/null 2>&1;
@@ -209,6 +221,11 @@ rm -rf "${TEMP_PATH_CRDS}"
 
 # deploy webhook configurations on karmada apiserver
 util::deploy_webhook_configuration "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
+
+# deploy APIService on karmada apiserver for karmada-aggregated-apiserver
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/apiservice.yaml"
+# make sure apiservice for v1alpha1.cluster.karmada.io is Available
+util::wait_apiservice_ready "${KARMADA_AGGREGATION_APISERVER_LABEL}"
 
 kubectl config use-context "${HOST_CLUSTER_NAME}"
 

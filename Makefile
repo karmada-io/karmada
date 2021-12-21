@@ -39,7 +39,13 @@ ifeq ($(VERSION), "")
     endif
 endif
 
-all: karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
+all: karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
+
+karmada-aggregated-apiserver: $(SOURCES)
+	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+		-ldflags $(LDFLAGS) \
+		-o karmada-aggregated-apiserver \
+		cmd/aggregated-apiserver/main.go
 
 karmada-controller-manager: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
@@ -90,7 +96,7 @@ karmada-interpreter-webhook-example: $(SOURCES)
 		examples/customresourceinterpreter/webhook/main.go
 
 clean:
-	rm -rf karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
+	rm -rf karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
 
 .PHONY: update
 update:
@@ -106,7 +112,10 @@ test:
 	go test --race --v ./cmd/...
 	go test --race --v ./examples/...
 
-images: image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook image-karmada-agent image-karmada-scheduler-estimator image-karmada-interpreter-webhook-example
+images: image-karmada-aggregated-apiserver image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook image-karmada-agent image-karmada-scheduler-estimator image-karmada-interpreter-webhook-example
+
+image-karmada-aggregated-apiserver: karmada-aggregated-apiserver
+	VERSION=$(VERSION) hack/docker.sh karmada-aggregated-apiserver
 
 image-karmada-controller-manager: karmada-controller-manager
 	VERSION=$(VERSION) hack/docker.sh karmada-controller-manager
@@ -137,3 +146,4 @@ endif
 	docker push ${REGISTRY}/karmada-agent:${VERSION}
 	docker push ${REGISTRY}/karmada-scheduler-estimator:${VERSION}
 	docker push ${REGISTRY}/karmada-interpreter-webhook-example:${VERSION}
+	docker push ${REGISTRY}/karmada-aggregated-apiserver:${VERSION}
