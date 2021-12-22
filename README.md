@@ -146,7 +146,18 @@ There are two contexts about karmada:
 
 The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karmada control plane, while `karmada-host` is only used for debugging karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
 
+### Uninstall karmada control plane
+use the following script:
+```
+# hack/delete-cluster.sh
+```
+> Note:  this script delete a kube cluster by kind.
 
+run the following scripy
+```
+hack/delete-cluster.sh karmada-host/karmada-apiserver /root/.kube/karmada.config
+hack/delete-cluster.sh member1/member2/member3 /root/.kube/members.config
+```
 ### Demo
 
 ![Demo](docs/images/sample-nginx.svg)
