@@ -23,6 +23,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -34,12 +35,13 @@ const ClusterResourceBindingControllerName = "cluster-resource-binding-controlle
 
 // ClusterResourceBindingController is to sync ClusterResourceBinding.
 type ClusterResourceBindingController struct {
-	client.Client                                                // used to operate ClusterResourceBinding resources.
-	DynamicClient   dynamic.Interface                            // used to fetch arbitrary resources from api server.
-	InformerManager informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
-	EventRecorder   record.EventRecorder
-	RESTMapper      meta.RESTMapper
-	OverrideManager overridemanager.OverrideManager
+	client.Client                                                    // used to operate ClusterResourceBinding resources.
+	DynamicClient       dynamic.Interface                            // used to fetch arbitrary resources from api server.
+	InformerManager     informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	EventRecorder       record.EventRecorder
+	RESTMapper          meta.RESTMapper
+	OverrideManager     overridemanager.OverrideManager
+	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -107,7 +109,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	var errs []error
-	err = ensureWork(c.Client, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
+	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, err.Error())

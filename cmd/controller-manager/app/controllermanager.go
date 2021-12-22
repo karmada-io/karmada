@@ -195,24 +195,26 @@ func startHpaController(ctx controllerscontext.Context) (enabled bool, err error
 
 func startBindingController(ctx controllerscontext.Context) (enabled bool, err error) {
 	bindingController := &binding.ResourceBindingController{
-		Client:          ctx.Mgr.GetClient(),
-		DynamicClient:   ctx.DynamicClientSet,
-		EventRecorder:   ctx.Mgr.GetEventRecorderFor(binding.ControllerName),
-		RESTMapper:      ctx.Mgr.GetRESTMapper(),
-		OverrideManager: ctx.OverrideManager,
-		InformerManager: ctx.ControlPlaneInformerManager,
+		Client:              ctx.Mgr.GetClient(),
+		DynamicClient:       ctx.DynamicClientSet,
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ControllerName),
+		RESTMapper:          ctx.Mgr.GetRESTMapper(),
+		OverrideManager:     ctx.OverrideManager,
+		InformerManager:     ctx.ControlPlaneInformerManager,
+		ResourceInterpreter: ctx.ResourceInterpreter,
 	}
 	if err := bindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 
 	clusterResourceBindingController := &binding.ClusterResourceBindingController{
-		Client:          ctx.Mgr.GetClient(),
-		DynamicClient:   ctx.DynamicClientSet,
-		EventRecorder:   ctx.Mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
-		RESTMapper:      ctx.Mgr.GetRESTMapper(),
-		OverrideManager: ctx.OverrideManager,
-		InformerManager: ctx.ControlPlaneInformerManager,
+		Client:              ctx.Mgr.GetClient(),
+		DynamicClient:       ctx.DynamicClientSet,
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
+		RESTMapper:          ctx.Mgr.GetRESTMapper(),
+		OverrideManager:     ctx.OverrideManager,
+		InformerManager:     ctx.ControlPlaneInformerManager,
+		ResourceInterpreter: ctx.ResourceInterpreter,
 	}
 	if err := clusterResourceBindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -389,6 +391,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		DynamicClientSet:            dynamicClientSet,
 		OverrideManager:             overrideManager,
 		ControlPlaneInformerManager: controlPlaneInformerManager,
+		ResourceInterpreter:         resourceInterpreter,
 	}
 
 	if err := controllers.StartControllers(controllerContext); err != nil {

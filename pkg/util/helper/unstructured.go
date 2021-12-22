@@ -11,6 +11,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // ConvertToPropagationPolicy converts a PropagationPolicy object from unstructured to typed.
@@ -131,4 +132,19 @@ func ConvertToResourceExploringWebhookConfiguration(obj *unstructured.Unstructur
 	}
 
 	return typedObj, nil
+}
+
+// ApplyReplica applies the Replica value for the specific field.
+func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, field string) error {
+	_, ok, err := unstructured.NestedInt64(workload.Object, util.SpecField, field)
+	if err != nil {
+		return err
+	}
+	if ok {
+		err := unstructured.SetNestedField(workload.Object, desireReplica, util.SpecField, field)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
