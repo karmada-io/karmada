@@ -25,7 +25,7 @@ MIN_Go_VERSION=go1.16.0
 function util::install_tools() {
 	local package="$1"
 	local version="$2"
-
+	echo "go install ${package}@${version}"
 	GO111MODULE=on go install "${package}"@"${version}"
 	GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 	export PATH=$PATH:$GOPATH/bin
@@ -117,28 +117,6 @@ function util::install_kubectl {
         echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
         exit 1
     fi
-}
-
-# util::install_kind will install the given version kind
-function util::install_kind {
-  local kind_version=${1}
-  echo "Installing 'kind ${kind_version}' for you"
-  local os_name
-  os_name=$(go env GOOS)
-  local arch_name
-  arch_name=$(go env GOARCH)
-  curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200' > /dev/null
-  ret=$?
-  if [ ${ret} -eq 0 ]; then
-      chmod +x ./kind
-      mkdir -p ~/.local/bin/
-      mv ./kind ~/.local/bin/kind
-
-      export PATH=$PATH:~/.local/bin
-  else
-      echo "Failed to install kind, can not download the binary file at https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}"
-      exit 1
-  fi
 }
 
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose

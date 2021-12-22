@@ -65,7 +65,7 @@ if util::cmd_exist kind; then
   echo "passed"
 else
   echo "not pass"
-  util::install_kind $kind_version
+  util::install_tools "sigs.k8s.io/kind" $kind_version
 fi
 # get arch name and os name in bootstrap
 BS_ARCH=$(go env GOARCH)
