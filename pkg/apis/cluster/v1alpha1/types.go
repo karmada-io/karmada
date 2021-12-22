@@ -196,3 +196,19 @@ type ClusterList struct {
 	// Items holds a list of Cluster.
 	Items []Cluster `json:"items"`
 }
+
+// +k8s:conversion-gen:explicit-from=net/url.Values
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClusterProxyOptions is the query options to a Cluster's proxy call.
+type ClusterProxyOptions struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Path is the part of URLs that include clusters, suffixes,
+	// and parameters to use for the current proxy request to cluster.
+	// For example, the whole request URL is
+	// http://localhost/apis/cluster.karmada.io/v1alpha1/cluster/{clustername}/proxy/api/v1/nodes
+	// Path is api/v1/nodes
+	// +optional
+	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
+}
