@@ -6,6 +6,12 @@ You can install `kubectl-karmada` plug-in in any of the following ways:
 - Install using Krew.
 - Build from source code.
 
+## Prerequisites
+
+### kubectl
+`kubectl` is the Kubernetes command line tool lets you control Kubernetes clusters.
+For installation instructions see [installing kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl).
+
 ## Download from the release
 
 Karmada provides `kubectl-karmada` plug-in download service since v0.9.0. You can choose proper plug-in version which fits your operator system form [karmada release](https://github.com/karmada-io/karmada/releases).
