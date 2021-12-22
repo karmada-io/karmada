@@ -20,7 +20,7 @@ ensures development quality.
   following is an example.
 ```
   # If you want to use a internal IP in public cloud you need to fill the following annotation, 
-  # Fot the more annotation settings please read your public cloud docs
+  # For the more annotation settings please read your public cloud docs
   annotations: 
     # Aliyun cloud
     #service.beta.kubernetes.io/alibaba-cloud-loadbalancer-address-type: "intranet"
