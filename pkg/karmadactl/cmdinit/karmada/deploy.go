@@ -3,6 +3,7 @@ package karmada
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -14,7 +15,11 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"sigs.k8s.io/yaml"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
@@ -75,15 +80,18 @@ func InitKarmadaResources(caBase64 string) error {
 
 	// create webhook configuration
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/webhook-configuration.yaml
-
 	klog.Info("Crate MutatingWebhookConfiguration mutating-config.")
-
 	if err = createMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64)); err != nil {
 		klog.Exitln(err)
 	}
 	klog.Info("Crate ValidatingWebhookConfiguration validating-config.")
 
 	if err = createValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64)); err != nil {
+		klog.Exitln(err)
+	}
+
+	// karmada-aggregated-apiserver
+	if err = initAPIService(clientSet, restConfig); err != nil {
 		klog.Exitln(err)
 	}
 
@@ -153,4 +161,62 @@ func getName(str, start, end string) string {
 	m := strings.Index(str, end)
 	str = string([]byte(str)[:m])
 	return str
+}
+
+func apiServiceResourceVersion(c *aggregator.Clientset, name string) string {
+	apiService, _ := c.ApiregistrationV1().APIServices().Get(context.TODO(), name, metav1.GetOptions{})
+	return apiService.ResourceVersion
+}
+
+func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) error {
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/apiservice.yaml
+	aaService := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "karmada-aggregated-apiserver",
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:         corev1.ServiceTypeExternalName,
+			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc.cluster.local", options.Namespace),
+		},
+	}
+	if _, err := clientSet.CoreV1().Services(namespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	//new apiRegistrationClient
+	apiRegistrationClient, err := utils.NewAPIRegistrationClient(restConfig)
+	if err != nil {
+		return err
+	}
+	aaAPIService := &apiregistrationv1.APIService{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "APIService",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "v1alpha1.cluster.karmada.io",
+			Labels:          map[string]string{"app": "karmada-aggregated-apiserver", "apiserver": "true"},
+			ResourceVersion: apiServiceResourceVersion(apiRegistrationClient, "v1alpha1.cluster.karmada.io"),
+		},
+		Spec: apiregistrationv1.APIServiceSpec{
+			InsecureSkipTLSVerify: true,
+			Group:                 "cluster.karmada.io",
+			GroupPriorityMinimum:  2000,
+			Service: &apiregistrationv1.ServiceReference{
+				Name:      "karmada-aggregated-apiserver",
+				Namespace: namespace,
+			},
+			Version:         "v1alpha1",
+			VersionPriority: 10,
+		},
+	}
+	klog.Info("Update APIService 'v1alpha1.cluster.karmada.io'")
+	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), aaAPIService, metav1.UpdateOptions{}); err != nil {
+		return err
+	}
+	return nil
 }

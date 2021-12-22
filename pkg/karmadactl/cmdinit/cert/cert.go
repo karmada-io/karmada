@@ -245,7 +245,7 @@ func NewCertConfig(cn string, org []string, altNames certutil.AltNames, notAfter
 }
 
 // GenCerts Create CA certificate and sign etcd karma certificate.
-func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg *CertsConfig) error {
+func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg *CertsConfig) error {
 	caCert, caKey, err := NewCACertAndKey()
 	if err != nil {
 		return err
@@ -281,5 +281,21 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return err
 	}
 
+	frontProxyCaCert, frontProxyCaKey, err := NewCACertAndKey()
+	if err != nil {
+		return err
+	}
+
+	if err = WriteCertAndKey(pkiPath, options.FrontProxyCaCertAndKeyName, frontProxyCaCert, frontProxyCaKey); err != nil {
+		return err
+	}
+
+	frontProxyClientCert, frontProxyClientKey, err := NewCertAndKey(frontProxyCaCert, *frontProxyCaKey, frontProxyClientCertCfg)
+	if err != nil {
+		return err
+	}
+	if err := WriteCertAndKey(pkiPath, options.FrontProxyClientCertAndKeyName, frontProxyClientCert, &frontProxyClientKey); err != nil {
+		return err
+	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 )
 
 // RestConfig  Kubernetes kubeconfig
@@ -30,4 +31,9 @@ func NewClientSet(c *rest.Config) (*kubernetes.Clientset, error) {
 //NewCRDsClient clientset ClientSet
 func NewCRDsClient(c *rest.Config) (*clientset.Clientset, error) {
 	return clientset.NewForConfig(c)
+}
+
+//NewAPIRegistrationClient apiregistration ClientSet
+func NewAPIRegistrationClient(c *rest.Config) (*aggregator.Clientset, error) {
+	return aggregator.NewForConfig(c)
 }

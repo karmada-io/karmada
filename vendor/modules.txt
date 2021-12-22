@@ -1161,6 +1161,15 @@ k8s.io/gengo/types
 # k8s.io/klog/v2 v2.9.0
 ## explicit
 k8s.io/klog/v2
+# k8s.io/kube-aggregator v0.22.2
+## explicit
+k8s.io/kube-aggregator/pkg/apis/apiregistration
+k8s.io/kube-aggregator/pkg/apis/apiregistration/v1
+k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1
+k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset
+k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/scheme
+k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1
+k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1beta1
 # k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
 ## explicit
 k8s.io/kube-openapi/cmd/openapi-gen/args

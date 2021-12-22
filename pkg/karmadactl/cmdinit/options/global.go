@@ -16,6 +16,10 @@ const (
 	EtcdClientCertAndKeyName = "etcd-client"
 	//KarmadaCertAndKeyName karmada certificate key name
 	KarmadaCertAndKeyName = "karmada"
+	//FrontProxyCaCertAndKeyName front-proxy-client  certificate key name
+	FrontProxyCaCertAndKeyName = "front-proxy-ca"
+	//FrontProxyClientCertAndKeyName front-proxy-client  certificate key name
+	FrontProxyClientCertAndKeyName = "front-proxy-client"
 	//ClusterName karmada cluster name
 	ClusterName = "karmada"
 	//UserName karmada cluster user name
@@ -39,6 +43,8 @@ var (
 	ControllerManagerImage string
 	//WebhookImage karmada webhook image
 	WebhookImage string
+	//AggregatedAPIServerImage karmada aggregated aposerver image
+	AggregatedAPIServerImage string
 	//Namespace kubernetes namespace
 	Namespace string
 	//KubeConfig kubernetes config
@@ -63,6 +69,8 @@ var (
 	SchedulerReplicas int32
 	//WebhookReplicas karmada webhook replicas
 	WebhookReplicas int32
+	//AggregatedAPIServerReplicas karmada aggregated aposerver replicas
+	AggregatedAPIServerReplicas int32
 	//DataPath karmada data path
 	DataPath string
 	//CRDs karmada crds

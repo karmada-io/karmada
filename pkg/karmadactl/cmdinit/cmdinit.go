@@ -19,7 +19,22 @@ func NewCmdInit() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			kubernetes.Deploy()
 		},
-		Example: "kubectl karmada init --master=xxx.xxx.xxx.xxx",
+		Example: `
+# This master IP is any node IP of kubernetes.
+kubectl karmada init --master=192.168.1.2
+
+# In the Intranet, CRDs resources specify local files.
+kubectl karmada init --master=192.168.1.2 --crd /root/crds.tar.gz
+
+# Private registry can be specified for all images.
+kubectl karmada init --master=192.168.1.2 --etcd-image local.registry.com/library/etcd:3.5.1-0
+
+# Deploy highly available(HA) karmada.
+kubectl karmada init --master=192.168.1.2,192.168.1.3,192.168.1.4 --karmada-apiserver-replicas 3 --etcd-replicas 3
+
+# Karmada uses external load balancing or HAip, and karmada certificate needs to join the IP.
+kubectl karmada init --master=192.168.1.2,192.168.1.3,192.168.1.4 --cert-external-ip 10.235.1.2
+`,
 	}
 
 	// cert
@@ -41,19 +56,21 @@ func NewCmdInit() *cobra.Command {
 	// karmada
 	crdURL := fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", version.Get().GitVersion)
 	cmd.PersistentFlags().StringVar(&options.KarmadaMasterIP, "master", "", "Karmada master ip. (e.g. --master 192.168.1.2,192.168.1.3)")
-	cmd.PersistentFlags().StringVar(&options.CRDs, "crds", crdURL, "Karmada crds resource.local file (e.g. --crds /root/crds.tar.gz)")
+	cmd.PersistentFlags().StringVar(&options.CRDs, "crds", crdURL, "Karmada crds resource.(local file  e.g. --crds /root/crds.tar.gz)")
 	cmd.PersistentFlags().Int32VarP(&options.KarmadaMasterPort, "port", "p", 5443, "Karmada apiserver port")
 	cmd.PersistentFlags().StringVarP(&options.DataPath, "karmada-data", "d", "/etc/karmada", "karmada data path. kubeconfig cert and crds files")
-	cmd.PersistentFlags().StringVarP(&options.APIServerImage, "karmada-apiserver-image", "", "k8s.gcr.io/kube-apiserver:v1.20.11", "Kubernetes apiserver image")
+	cmd.PersistentFlags().StringVarP(&options.APIServerImage, "karmada-apiserver-image", "", "k8s.gcr.io/kube-apiserver:v1.21.7", "Kubernetes apiserver image")
 	cmd.PersistentFlags().Int32VarP(&options.APIServerReplicas, "karmada-apiserver-replicas", "", 1, "karmada apiserver replica set")
 	cmd.PersistentFlags().StringVarP(&options.SchedulerImage, "karmada-scheduler-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler:latest", "karmada scheduler image")
 	cmd.PersistentFlags().Int32VarP(&options.SchedulerReplicas, "karmada-scheduler-replicas", "", 1, "karmada scheduler replica set")
-	cmd.PersistentFlags().StringVarP(&options.KubeControllerManagerImage, "karmada-kube-controller-manager-image", "", "k8s.gcr.io/kube-controller-manager:v1.20.11", "Kubernetes controller manager image")
+	cmd.PersistentFlags().StringVarP(&options.KubeControllerManagerImage, "karmada-kube-controller-manager-image", "", "k8s.gcr.io/kube-controller-manager:v1.21.7", "Kubernetes controller manager image")
 	cmd.PersistentFlags().Int32VarP(&options.KubeControllerManagerReplicas, "karmada-kube-controller-manager-replicas", "", 1, "karmada kube controller manager replica set")
 	cmd.PersistentFlags().StringVarP(&options.ControllerManagerImage, "karmada-controller-manager-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager:latest", "karmada controller manager  image")
 	cmd.PersistentFlags().Int32VarP(&options.ControllerManagerReplicas, "karmada-controller-manager-replicas", "", 1, "karmada controller manager replica set")
 	cmd.PersistentFlags().StringVarP(&options.WebhookImage, "karmada-webhook-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook:latest", "karmada webhook image")
 	cmd.PersistentFlags().Int32VarP(&options.WebhookReplicas, "karmada-webhook-replicas", "", 1, "karmada webhook replica set")
+	cmd.PersistentFlags().StringVarP(&options.AggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-aggregated-apiserver:latest", "karmada aggregated apiserver image")
+	cmd.PersistentFlags().Int32VarP(&options.AggregatedAPIServerReplicas, "karmada-aggregated-apiserver-replicas", "", 1, "karmada aggregated apiserver replica set")
 
 	options.AddFlags(cmd.Flags())
 	return cmd
