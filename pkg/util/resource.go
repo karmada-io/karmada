@@ -215,10 +215,7 @@ func (r *Resource) MaxDivided(rl corev1.ResourceList) int64 {
 			}
 		default:
 			if resourcehelper.IsScalarResourceName(rName) {
-				rScalar, ok := r.ScalarResources[rName]
-				if !ok {
-					return 0
-				}
+				rScalar := r.ScalarResources[rName]
 				if scalar := rQuant.Value(); scalar > 0 {
 					res = MinInt64(res, rScalar/scalar)
 				}
