@@ -19,23 +19,20 @@ your clusters based on the codebase.
 
 The `hack/remote-up-karmada.sh` will install `karmada-apiserver` and provide two ways to expose the server:
 
-### 1. expose by service with `LoadBalancer` type
+### 1. expose by `HostNetwork` type
 
-By default, the `hack/remote-up-karmada.sh` will expose `karmada-apiserver` by a service with `LoadBalancer`
-type, and continue the installation progress after the `Load Balancer` allocates an external IP for the
-`karmada-apiserver`.
+By default, the `hack/remote-up-karmada.sh` will expose `karmada-apiserver` by `HostNetwork`.
 
-No extra operations needed with this type, but that *requires your cluster have deployed the `Load Balancer`*.
+No extra operations needed with this type.
 
-### 2. expose by service with `ClusterIP` type
-If you don't want to use the `Load Balancer`, you can ask `hack/remote-up-karmada.sh` to expose `karmada-apiserver`
-by a service with `ClusterIP` type. All you need to do is set an environment:
+### 2. expose by service with `LoadBalancer` type
+
+If you don't want to use the `HostNetwork`, you can ask `hack/remote-up-karmada.sh` to expose `karmada-apiserver`
+by a service with `LoadBalancer` type that *requires your cluster have deployed the `Load Balancer`*.
+All you need to do is set an environment:
 ```bash
-export CLUSTER_IP_ONLY=true
+export LOAD_BALANCER=true
 ```
-
-> Note: You should run `hack/remote-up-karmada.sh` on one of the nodes of the cluster, otherwise the `hack/remote-up-karmada.sh`
-> can't access the `karmada-apiserver` exposed by a `cluster IP`.
 
 ## Install
 From the `root` directory the `karmada` repo, install Karmada by command:
