@@ -29,6 +29,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
+	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -150,6 +151,7 @@ func NewControllerInitializers() map[string]InitFunc {
 	controllers["serviceExport"] = startServiceExportController
 	controllers["endpointSlice"] = startEndpointSliceController
 	controllers["serviceImport"] = startServiceImportController
+	controllers["unifiedAuth"] = startUnifiedAuthController
 	return controllers
 }
 
@@ -347,6 +349,17 @@ func startServiceImportController(ctx ControllerContext) (enabled bool, err erro
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
 	}
 	if err := serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startUnifiedAuthController(ctx ControllerContext) (enabled bool, err error) {
+	unifiedAuthController := &unifiedauth.Controller{
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
+	}
+	if err := unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
