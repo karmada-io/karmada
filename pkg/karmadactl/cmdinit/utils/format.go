@@ -17,7 +17,8 @@ const (
 	// Query the IP address of the current host accessing the Internet
 	getInternetIPUrl = "https://myexternalip.com/raw"
 	// A split symbol that receives multiple values from a command flag
-	separator = ","
+	separator      = ","
+	labelSeparator = "="
 )
 
 //PathIsExist Determine whether the path exists
@@ -49,6 +50,11 @@ func FlagsIP(ip string) []net.IP {
 		ips = append(ips, StringToNetIP(v))
 	}
 	return ips
+}
+
+// FlagsDNS Receive master external DNS from command flags
+func FlagsDNS(dns string) []string {
+	return strings.Split(dns, separator)
 }
 
 // InternetIP Current host Internet IP.
@@ -122,6 +128,18 @@ func MapToString(labels map[string]string) string {
 		fmt.Fprintf(v, "%s=%s,", key, value)
 	}
 	return strings.TrimRight(v.String(), ",")
+}
+
+// StringToMap  string to label
+func StringToMap(labels string) map[string]string {
+	l := map[string]string{}
+	slice := strings.Split(labels, labelSeparator)
+	if len(slice) != 2 {
+		return nil
+	}
+
+	l[slice[0]] = slice[1]
+	return l
 }
 
 //StaticYamlToJSONByte  Static yaml file conversion JSON Byte

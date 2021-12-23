@@ -10,12 +10,13 @@ import (
 	applycorev1 "k8s.io/client-go/applyconfigurations/core/v1"
 	applymetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/klog/v2"
-
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 )
 
+// serviceLabels remove via Labels karmada service
+var serviceLabels = map[string]string{"karmada.io/bootstrapping": "service-defaults"}
+
 // CreateService create service
-func (i *InstallOptions) CreateService(service *corev1.Service) error {
+func (i *CommandInitOption) CreateService(service *corev1.Service) error {
 	serviceClient := i.KubeClientSet.CoreV1().Services(i.Namespace)
 
 	serviceList, err := serviceClient.List(context.TODO(), metav1.ListOptions{})
@@ -67,7 +68,7 @@ func (i *InstallOptions) CreateService(service *corev1.Service) error {
 }
 
 // makeEtcdService etcd service
-func (i *InstallOptions) makeEtcdService(name string) *corev1.Service {
+func (i *CommandInitOption) makeEtcdService(name string) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -76,6 +77,7 @@ func (i *InstallOptions) makeEtcdService(name string) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: i.Namespace,
+			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector:  etcdLabels,
@@ -105,7 +107,7 @@ func (i *InstallOptions) makeEtcdService(name string) *corev1.Service {
 	}
 }
 
-func (i *InstallOptions) makeKarmadaAPIServerService() *corev1.Service {
+func (i *CommandInitOption) makeKarmadaAPIServerService() *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -114,18 +116,20 @@ func (i *InstallOptions) makeKarmadaAPIServerService() *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAPIServerDeploymentAndServiceName,
 			Namespace: i.Namespace,
+			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeClusterIP,
+			Type:     corev1.ServiceTypeNodePort,
 			Selector: apiServerLabels,
 			Ports: []corev1.ServicePort{
 				{
 					Name:     portName,
 					Protocol: corev1.ProtocolTCP,
-					Port:     options.KarmadaMasterPort,
+					Port:     karmadaAPIServerContainerPort,
+					NodePort: i.KarmadaAPIServerNodePort,
 					TargetPort: intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: options.KarmadaMasterPort,
+						IntVal: karmadaAPIServerContainerPort,
 					},
 				},
 			},
@@ -133,7 +137,7 @@ func (i *InstallOptions) makeKarmadaAPIServerService() *corev1.Service {
 	}
 }
 
-func (i *InstallOptions) kubeControllerManagerService() *corev1.Service {
+func (i *CommandInitOption) kubeControllerManagerService() *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -142,6 +146,7 @@ func (i *InstallOptions) kubeControllerManagerService() *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
 			Namespace: i.Namespace,
+			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
@@ -161,7 +166,7 @@ func (i *InstallOptions) kubeControllerManagerService() *corev1.Service {
 	}
 }
 
-func (i *InstallOptions) karmadaWebhookService() *corev1.Service {
+func (i *CommandInitOption) karmadaWebhookService() *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -170,6 +175,7 @@ func (i *InstallOptions) karmadaWebhookService() *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      webhookDeploymentAndServiceAccountAndServiceName,
 			Namespace: i.Namespace,
+			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
@@ -189,7 +195,7 @@ func (i *InstallOptions) karmadaWebhookService() *corev1.Service {
 	}
 }
 
-func (i *InstallOptions) karmadaAggregatedAPIServerService() *corev1.Service {
+func (i *CommandInitOption) karmadaAggregatedAPIServerService() *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -198,6 +204,7 @@ func (i *InstallOptions) karmadaAggregatedAPIServerService() *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
 			Namespace: i.Namespace,
+			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,

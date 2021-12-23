@@ -47,15 +47,15 @@ var (
 	aggregatedAPIServerLabels   = map[string]string{"app": karmadaAggregatedAPIServerDeploymentAndServiceName, "apiserver": "true"}
 )
 
-func etcdServers() string {
+func (i *CommandInitOption) etcdServers() string {
 	etcdClusterConfig := ""
-	for v := int32(0); v < options.EtcdReplicas; v++ {
-		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, options.Namespace, etcdContainerClientPort) + ","
+	for v := int32(0); v < i.EtcdReplicas; v++ {
+		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, etcdContainerClientPort) + ","
 	}
 	return etcdClusterConfig
 }
 
-func (i *InstallOptions) karmadaAPIServerContainerCommand() []string {
+func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 	return []string{
 		"kube-apiserver",
 		"--allow-privileged=true",
@@ -66,7 +66,7 @@ func (i *InstallOptions) karmadaAPIServerContainerCommand() []string {
 		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
 		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
 		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(etcdServers(), ",")),
+		fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(i.etcdServers(), ",")),
 		"--bind-address=0.0.0.0",
 		"--insecure-port=0",
 		fmt.Sprintf("--kubelet-client-certificate=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
@@ -74,8 +74,8 @@ func (i *InstallOptions) karmadaAPIServerContainerCommand() []string {
 		"--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname",
 		"--disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount",
 		"--runtime-config=",
-		fmt.Sprintf("--apiserver-count=%v", options.APIServerReplicas),
-		fmt.Sprintf("--secure-port=%v", options.KarmadaMasterPort),
+		fmt.Sprintf("--apiserver-count=%v", i.KarmadaAPIServerReplicas),
+		fmt.Sprintf("--secure-port=%v", karmadaAPIServerContainerPort),
 		"--service-account-issuer=https://kubernetes.default.svc.cluster.local",
 		fmt.Sprintf("--service-account-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--service-account-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
@@ -92,7 +92,7 @@ func (i *InstallOptions) karmadaAPIServerContainerCommand() []string {
 	}
 }
 
-func (i *InstallOptions) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
+func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
 	apiServer := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: deploymentAPIVersion,
@@ -100,8 +100,8 @@ func (i *InstallOptions) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAPIServerDeploymentAndServiceName,
-			Namespace: options.Namespace,
-			Labels:    apiServerLabels,
+			Namespace: i.Namespace,
+			Labels:    appLabels,
 		},
 	}
 
@@ -158,14 +158,13 @@ func (i *InstallOptions) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
 		Containers: []corev1.Container{
 			{
 				Name:    karmadaAPIServerDeploymentAndServiceName,
-				Image:   options.APIServerImage,
+				Image:   i.KarmadaAPIServerImage,
 				Command: i.karmadaAPIServerContainerCommand(),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          portName,
 						ContainerPort: karmadaAPIServerContainerPort,
 						Protocol:      corev1.ProtocolTCP,
-						HostPort:      options.KarmadaMasterPort,
 					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
@@ -189,7 +188,6 @@ func (i *InstallOptions) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
 				},
 			},
 		},
-		NodeSelector: NodeSelectorLabels,
 		//HostNetwork:  true,
 		Tolerations: []corev1.Toleration{
 			{
@@ -203,7 +201,7 @@ func (i *InstallOptions) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAPIServerDeploymentAndServiceName,
-			Namespace: options.Namespace,
+			Namespace: i.Namespace,
 			Labels:    apiServerLabels,
 		},
 		Spec: podSpec,
@@ -211,7 +209,7 @@ func (i *InstallOptions) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
 
 	// DeploymentSpec
 	apiServer.Spec = appsv1.DeploymentSpec{
-		Replicas: &options.APIServerReplicas,
+		Replicas: &i.KarmadaAPIServerReplicas,
 		Template: podTemplateSpec,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: apiServerLabels,
@@ -220,7 +218,7 @@ func (i *InstallOptions) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
 	return apiServer
 }
 
-func (i *InstallOptions) makeKarmadaKubeControllerManagerDeployment() *appsv1.Deployment {
+func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1.Deployment {
 	kubeControllerManager := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: deploymentAPIVersion,
@@ -228,8 +226,8 @@ func (i *InstallOptions) makeKarmadaKubeControllerManagerDeployment() *appsv1.De
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-			Namespace: options.Namespace,
-			Labels:    kubeControllerManagerLabels,
+			Namespace: i.Namespace,
+			Labels:    appLabels,
 		},
 	}
 
@@ -255,7 +253,7 @@ func (i *InstallOptions) makeKarmadaKubeControllerManagerDeployment() *appsv1.De
 		Containers: []corev1.Container{
 			{
 				Name:  kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-				Image: options.KubeControllerManagerImage,
+				Image: i.KubeControllerManagerImage,
 				Command: []string{
 					"kube-controller-manager",
 					"--allocate-node-cidrs=true",
@@ -270,7 +268,7 @@ func (i *InstallOptions) makeKarmadaKubeControllerManagerDeployment() *appsv1.De
 					"--controllers=namespace,garbagecollector,serviceaccount-token",
 					"--kubeconfig=/etc/kubeconfig",
 					"--leader-elect=true",
-					fmt.Sprintf("--leader-elect-resource-namespace=%s", options.Namespace),
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--node-cidr-mask-size=24",
 					"--port=0",
 					fmt.Sprintf("--root-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
@@ -330,14 +328,14 @@ func (i *InstallOptions) makeKarmadaKubeControllerManagerDeployment() *appsv1.De
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-			Namespace: options.Namespace,
+			Namespace: i.Namespace,
 			Labels:    kubeControllerManagerLabels,
 		},
 		Spec: podSpec,
 	}
 	// DeploymentSpec
 	kubeControllerManager.Spec = appsv1.DeploymentSpec{
-		Replicas: &options.KubeControllerManagerReplicas,
+		Replicas: &i.KubeControllerManagerReplicas,
 		Template: podTemplateSpec,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: kubeControllerManagerLabels,
@@ -347,7 +345,7 @@ func (i *InstallOptions) makeKarmadaKubeControllerManagerDeployment() *appsv1.De
 	return kubeControllerManager
 }
 
-func (i *InstallOptions) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
+func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
 	scheduler := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: deploymentAPIVersion,
@@ -355,8 +353,8 @@ func (i *InstallOptions) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      schedulerDeploymentNameAndServiceAccountName,
-			Namespace: options.Namespace,
-			Labels:    schedulerLabels,
+			Namespace: i.Namespace,
+			Labels:    appLabels,
 		},
 	}
 
@@ -382,7 +380,7 @@ func (i *InstallOptions) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
 		Containers: []corev1.Container{
 			{
 				Name:  schedulerDeploymentNameAndServiceAccountName,
-				Image: options.SchedulerImage,
+				Image: i.KarmadaSchedulerImage,
 				Command: []string{
 					"/bin/karmada-scheduler",
 					"--kubeconfig=/etc/kubeconfig",
@@ -391,7 +389,7 @@ func (i *InstallOptions) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
 					"--feature-gates=Failover=true",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
-					fmt.Sprintf("--leader-elect-resource-namespace=%s", options.Namespace),
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
 				VolumeMounts: []corev1.VolumeMount{
@@ -427,7 +425,7 @@ func (i *InstallOptions) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      schedulerDeploymentNameAndServiceAccountName,
-			Namespace: options.Namespace,
+			Namespace: i.Namespace,
 			Labels:    schedulerLabels,
 		},
 		Spec: podSpec,
@@ -435,7 +433,7 @@ func (i *InstallOptions) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
 
 	// DeploymentSpec
 	scheduler.Spec = appsv1.DeploymentSpec{
-		Replicas: &options.SchedulerReplicas,
+		Replicas: &i.KarmadaSchedulerReplicas,
 		Template: podTemplateSpec,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: schedulerLabels,
@@ -445,7 +443,7 @@ func (i *InstallOptions) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
 	return scheduler
 }
 
-func (i *InstallOptions) makeKarmadaControllerManagerDeployment() *appsv1.Deployment {
+func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Deployment {
 	karmadaControllerManager := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: deploymentAPIVersion,
@@ -453,8 +451,8 @@ func (i *InstallOptions) makeKarmadaControllerManagerDeployment() *appsv1.Deploy
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      controllerManagerDeploymentAndServiceName,
-			Namespace: options.Namespace,
-			Labels:    controllerManagerLabels,
+			Namespace: i.Namespace,
+			Labels:    appLabels,
 		},
 	}
 
@@ -480,7 +478,7 @@ func (i *InstallOptions) makeKarmadaControllerManagerDeployment() *appsv1.Deploy
 		Containers: []corev1.Container{
 			{
 				Name:  controllerManagerDeploymentAndServiceName,
-				Image: options.ControllerManagerImage,
+				Image: i.KarmadaControllerManagerImage,
 				Command: []string{
 					"/bin/karmada-controller-manager",
 					"--kubeconfig=/etc/kubeconfig",
@@ -529,14 +527,14 @@ func (i *InstallOptions) makeKarmadaControllerManagerDeployment() *appsv1.Deploy
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      controllerManagerDeploymentAndServiceName,
-			Namespace: options.Namespace,
+			Namespace: i.Namespace,
 			Labels:    controllerManagerLabels,
 		},
 		Spec: podSpec,
 	}
 	// DeploymentSpec
 	karmadaControllerManager.Spec = appsv1.DeploymentSpec{
-		Replicas: &options.ControllerManagerReplicas,
+		Replicas: &i.KarmadaControllerManagerReplicas,
 		Template: podTemplateSpec,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: controllerManagerLabels,
@@ -546,7 +544,7 @@ func (i *InstallOptions) makeKarmadaControllerManagerDeployment() *appsv1.Deploy
 	return karmadaControllerManager
 }
 
-func (i *InstallOptions) makeKarmadaWebhookDeployment() *appsv1.Deployment {
+func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 	webhook := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: deploymentAPIVersion,
@@ -554,8 +552,8 @@ func (i *InstallOptions) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      webhookDeploymentAndServiceAccountAndServiceName,
-			Namespace: options.Namespace,
-			Labels:    webhookLabels,
+			Namespace: i.Namespace,
+			Labels:    appLabels,
 		},
 	}
 
@@ -581,7 +579,7 @@ func (i *InstallOptions) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		Containers: []corev1.Container{
 			{
 				Name:  webhookDeploymentAndServiceAccountAndServiceName,
-				Image: options.WebhookImage,
+				Image: i.KarmadaWebhookImage,
 				Command: []string{
 					"/bin/karmada-webhook",
 					"--kubeconfig=/etc/kubeconfig",
@@ -653,14 +651,14 @@ func (i *InstallOptions) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      webhookDeploymentAndServiceAccountAndServiceName,
-			Namespace: options.Namespace,
+			Namespace: i.Namespace,
 			Labels:    webhookLabels,
 		},
 		Spec: podSpec,
 	}
 	// DeploymentSpec
 	webhook.Spec = appsv1.DeploymentSpec{
-		Replicas: &options.WebhookReplicas,
+		Replicas: &i.KarmadaWebhookReplicas,
 		Template: podTemplateSpec,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: webhookLabels,
@@ -670,7 +668,7 @@ func (i *InstallOptions) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 	return webhook
 }
 
-func (i *InstallOptions) makeKarmadaAggregatedAPIServerDeployment() *appsv1.Deployment {
+func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.Deployment {
 	aa := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: deploymentAPIVersion,
@@ -678,8 +676,8 @@ func (i *InstallOptions) makeKarmadaAggregatedAPIServerDeployment() *appsv1.Depl
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
-			Namespace: options.Namespace,
-			Labels:    aggregatedAPIServerLabels,
+			Namespace: i.Namespace,
+			Labels:    appLabels,
 		},
 	}
 
@@ -705,13 +703,13 @@ func (i *InstallOptions) makeKarmadaAggregatedAPIServerDeployment() *appsv1.Depl
 		Containers: []corev1.Container{
 			{
 				Name:  karmadaAggregatedAPIServerDeploymentAndServiceName,
-				Image: options.AggregatedAPIServerImage,
+				Image: i.KarmadaAggregatedAPIServerImage,
 				Command: []string{
 					"/bin/karmada-aggregated-apiserver",
 					"--kubeconfig=/etc/kubeconfig",
 					"--authentication-kubeconfig=/etc/kubeconfig",
 					"--authorization-kubeconfig=/etc/kubeconfig",
-					fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(etcdServers(), ",")),
+					fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(i.etcdServers(), ",")),
 					fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
 					fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
 					fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
@@ -771,14 +769,14 @@ func (i *InstallOptions) makeKarmadaAggregatedAPIServerDeployment() *appsv1.Depl
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
-			Namespace: options.Namespace,
+			Namespace: i.Namespace,
 			Labels:    aggregatedAPIServerLabels,
 		},
 		Spec: podSpec,
 	}
 	// DeploymentSpec
 	aa.Spec = appsv1.DeploymentSpec{
-		Replicas: &options.AggregatedAPIServerReplicas,
+		Replicas: &i.KarmadaAggregatedAPIServerReplicas,
 		Template: podTemplateSpec,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: aggregatedAPIServerLabels,

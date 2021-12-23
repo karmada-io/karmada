@@ -10,8 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 )
 
 func podStatus(pod *corev1.Pod) string {
@@ -90,17 +88,17 @@ func WaitPodReady(c *kubernetes.Clientset, namespace, selector string, timeout i
 }
 
 // WaitEtcdReplicasetInDesired Wait Etcd Ready
-func WaitEtcdReplicasetInDesired(c *kubernetes.Clientset, namespace, selector string, timeout int) error {
+func WaitEtcdReplicasetInDesired(replicas int32, c *kubernetes.Clientset, namespace, selector string, timeout int) error {
 	if err := wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, func() (done bool, err error) {
 		pods, e := c.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
 		if e != nil {
 			return false, nil
 		}
-		if int32(len(pods.Items)) == options.EtcdReplicas {
-			klog.Infof("etcd desired replicaset is %v, currently: %v", options.EtcdReplicas, len(pods.Items))
+		if int32(len(pods.Items)) == replicas {
+			klog.Infof("etcd desired replicaset is %v, currently: %v", replicas, len(pods.Items))
 			return true, nil
 		}
-		klog.Warningf("etcd desired replicaset is %v, currently: %v", options.EtcdReplicas, len(pods.Items))
+		klog.Warningf("etcd desired replicaset is %v, currently: %v", replicas, len(pods.Items))
 		return false, nil
 	}); err != nil {
 		return err
