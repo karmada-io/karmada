@@ -87,20 +87,6 @@ metadata:
   labels:
     app: validating-config
 webhooks:
-  - name: cluster.karmada.io
-    rules:
-      - operations: ["CREATE", "UPDATE"]
-        apiGroups: ["cluster.karmada.io"]
-        apiVersions: ["*"]
-        resources: ["clusters"]
-        scope: "Cluster"
-    clientConfig:
-      url: https://karmada-webhook.%s.svc:443/validate-cluster
-      caBundle: %s
-    failurePolicy: Fail
-    sideEffects: None
-    admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3
   - name: propagationpolicy.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
@@ -170,7 +156,7 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3`, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle)
+    timeoutSeconds: 3`, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle)
 }
 
 func createValidatingWebhookConfiguration(c *kubernetes.Clientset, staticYaml string) error {

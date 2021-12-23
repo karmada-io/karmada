@@ -18,7 +18,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
-	"github.com/karmada-io/karmada/pkg/webhook/cluster"
 	"github.com/karmada-io/karmada/pkg/webhook/clusteroverridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/configuration"
@@ -84,7 +83,6 @@ func Run(ctx context.Context, opts *options.Options) error {
 
 	klog.Info("registering webhooks to the webhook server")
 	hookServer := hookManager.GetWebhookServer()
-	hookServer.Register("/validate-cluster", &webhook.Admission{Handler: &cluster.ValidatingAdmission{}})
 	hookServer.Register("/mutate-propagationpolicy", &webhook.Admission{Handler: &propagationpolicy.MutatingAdmission{}})
 	hookServer.Register("/validate-propagationpolicy", &webhook.Admission{Handler: &propagationpolicy.ValidatingAdmission{}})
 	hookServer.Register("/mutate-clusterpropagationpolicy", &webhook.Admission{Handler: &clusterpropagationpolicy.MutatingAdmission{}})
