@@ -5,6 +5,7 @@
 ## Quick Start
 
 ## Installation
+Refer to [Installing Karmada](./installation/installation.md). 
 
 ## Concepts
 
