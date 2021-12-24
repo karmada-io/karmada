@@ -16,14 +16,14 @@ const (
 	initShort   = `install karmada in kubernetes.`
 	initLong    = `install karmada in kubernetes.`
 	initExample = `
-# Install karmada in kubernetes
-# The default karmada-apiserver IP is kubernetes master IP. If kubernetes has no master role set, 3 node IPs will be randomly executed.
+# Install Karmada in Kubernetes cluster.
+# The karmada-apiserver binds the master node's IP by default.
 kubectl karmada init 
 
-# The karmada crds resource is downloaded from the karmada releases page by default. Any crds URL can be passed in.
+# Specify the URL to download CRD tarball.
 kubectl karmada init --crds https://github.com/karmada-io/karmada/releases/download/v0.10.1/crds.tar.gz
 
-# karmada crds can also specify local files.
+# Specify the local CRD tarball.
 kubectl karmada init --crds /root/crds.tar.gz
 
 # Use PVC to persistent storage etcd data.
@@ -32,7 +32,7 @@ kubectl karmada init --etcd-storage-mode PVC --storage-classes-name {StorageClas
 # Use hostPath to persistent storage etcd data. For data security, only 1 etcd pod can run in hostPath mode.
 kubectl karmada init --etcd-storage-mode hostPath  --etcd-replicas 1
 
-# Use hostPath to persistent storage etcd data. by default, a healthy node is selected to run etcd, and the node can be selected through --etcd-node-selector-labels
+# Use hostPath to persistent storage etcd data but select nodes by labels.
 kubectl karmada init --etcd-storage-mode hostPath --etcd-node-selector-labels karmada.io/etcd=true
 
 # Private registry can be specified for all images.
@@ -41,7 +41,7 @@ kubectl karmada init --etcd-image local.registry.com/library/etcd:3.5.1-0
 # Deploy highly available(HA) karmada.
 kubectl karmada init --karmada-apiserver-replicas 3 --etcd-replicas 3 --storage-classes-name PVC --storage-classes-name {StorageClassesName}
 
-# Karmada-apiserver uses external load balancing or haip, karmada certificate needs to join the IP or DNS.Otherwise, you cannot access Karmada-apiserver through it
+# Specify external IPs(load balancer or HA IP) which used to sign the certificate.
 kubectl karmada init --cert-external-ip 10.235.1.2 --cert-external-dns www.karmada.io
 `
 )
