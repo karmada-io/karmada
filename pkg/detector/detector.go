@@ -63,6 +63,11 @@ type ResourceDetector struct {
 	clusterPolicyReconcileWorker   util.AsyncWorker
 	clusterPropagationPolicyLister cache.GenericLister
 
+	// overrideReconcileWorker maintains a rate limited queue which used to store OverridePolicy's key and
+	// a reconcile function to consume the items in queue.
+	overrideReconcileWorker util.AsyncWorker
+	overridePolicyLister    cache.GenericLister
+
 	// bindingReconcileWorker maintains a rate limited queue which used to store ResourceBinding's key and
 	// a reconcile function to consume the items in queue.
 	bindingReconcileWorker util.AsyncWorker
@@ -96,8 +101,8 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  policyv1alpha1.GroupVersion.Version,
 		Resource: "propagationpolicies",
 	}
-	policyHandler := informermanager.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, d.OnPropagationPolicyDelete)
-	d.InformerManager.ForResource(propagationPolicyGVR, policyHandler)
+	propagationPolicyHandler := informermanager.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, d.OnPropagationPolicyDelete)
+	d.InformerManager.ForResource(propagationPolicyGVR, propagationPolicyHandler)
 	d.propagationPolicyLister = d.InformerManager.Lister(propagationPolicyGVR)
 
 	// watch and enqueue ClusterPropagationPolicy changes.
@@ -106,9 +111,23 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  policyv1alpha1.GroupVersion.Version,
 		Resource: "clusterpropagationpolicies",
 	}
-	clusterPolicyHandler := informermanager.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, d.OnClusterPropagationPolicyDelete)
-	d.InformerManager.ForResource(clusterPropagationPolicyGVR, clusterPolicyHandler)
+	clusterPropagationPolicyHandler := informermanager.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, d.OnClusterPropagationPolicyDelete)
+	d.InformerManager.ForResource(clusterPropagationPolicyGVR, clusterPropagationPolicyHandler)
 	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
+
+	// setup OverridePolicy reconcile worker
+	d.overrideReconcileWorker = util.NewAsyncWorker("overridePolicy reconciler", ClusterWideKeyFunc, d.ReconcileOverridePolicy)
+	d.overrideReconcileWorker.Run(1, d.stopCh)
+
+	// watch and enqueue OverridePolicy changes.
+	overridePolicyGVR := schema.GroupVersionResource{
+		Group:    policyv1alpha1.GroupVersion.Group,
+		Version:  policyv1alpha1.GroupVersion.Version,
+		Resource: "overridepolicies",
+	}
+	overridePolicyHandler := informermanager.NewHandlerOnEvents(d.OnOverridePolicyAdd, d.OnOverridePolicyUpdate, d.OnOverridePolicyDelete)
+	d.InformerManager.ForResource(overridePolicyGVR, overridePolicyHandler)
+	d.overridePolicyLister = d.InformerManager.Lister(overridePolicyGVR)
 
 	// setup binding reconcile worker
 	d.bindingReconcileWorker = util.NewAsyncWorker("resourceBinding reconciler", ClusterWideKeyFunc, d.ReconcileResourceBinding)
@@ -226,10 +245,17 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return err
 	}
 	if propagationPolicy != nil {
-		// return err when dependents not present, that we can retry at next reconcile.
-		if present, err := helper.IsDependentOverridesPresent(d.Client, propagationPolicy); err != nil || !present {
+		// Add clusterWideKey to waiting list when dependents not present, waiting for override to be created.
+		present, err := helper.IsDependentOverridesPresent(d.Client, propagationPolicy)
+		if err != nil {
 			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", propagationPolicy.Namespace, propagationPolicy.Name)
 			return fmt.Errorf("waiting for dependent overrides")
+		}
+		if !present {
+			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", propagationPolicy.Namespace, propagationPolicy.Name)
+			d.AddWaiting(clusterWideKey)
+			klog.Infof("object's key has been added to waiting list")
+			return nil
 		}
 
 		return d.ApplyPolicy(object, clusterWideKey, propagationPolicy)
@@ -768,6 +794,33 @@ func (d *ResourceDetector) OnPropagationPolicyDelete(obj interface{}) {
 	d.policyReconcileWorker.Add(key)
 }
 
+// OnOverridePolicyAdd handles object add event and push the object to queue.
+func (d *ResourceDetector) OnOverridePolicyAdd(obj interface{}) {
+	key, err := ClusterWideKeyFunc(obj)
+	if err != nil {
+		return
+	}
+
+	klog.V(2).Infof("Create OverridePolicy(%s)", key)
+	d.overrideReconcileWorker.Add(key)
+}
+
+// OnOverridePolicyUpdate handles object update event and push the object to queue.
+func (d *ResourceDetector) OnOverridePolicyUpdate(oldObj, newObj interface{}) {
+	// currently do nothing, since a policy's resource selector can not be updated.
+}
+
+// OnOverridePolicyDelete handles object delete event and push the object to queue.
+func (d *ResourceDetector) OnOverridePolicyDelete(obj interface{}) {
+	key, err := ClusterWideKeyFunc(obj)
+	if err != nil {
+		return
+	}
+
+	klog.V(2).Infof("Delete OverridePolicy(%s)", key)
+	d.overrideReconcileWorker.Add(key)
+}
+
 // ReconcilePropagationPolicy handles PropagationPolicy resource changes.
 // When adding a PropagationPolicy, the detector will pick the objects in waitingObjects list that matches the policy and
 // put the object to queue.
@@ -797,6 +850,33 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 		return err
 	}
 	return d.HandlePropagationPolicyCreation(propagationObject)
+}
+
+// ReconcileOverridePolicy handles OverridePolicy resource changes.
+func (d *ResourceDetector) ReconcileOverridePolicy(key util.QueueKey) error {
+	ckey, ok := key.(keys.ClusterWideKey)
+	if !ok { // should not happen
+		klog.Error("Found invalid key when reconciling override policy.")
+		return fmt.Errorf("invalid key")
+	}
+
+	unstructuredObj, err := d.overridePolicyLister.Get(ckey.NamespaceKey())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.Infof("OverridePolicy(%s) has been removed.", ckey.NamespaceKey())
+			return d.HandlePropagationPolicyDeletion(ckey.Namespace, ckey.Name)
+		}
+		klog.Errorf("Failed to get OverridePolicy(%s): %v", ckey.NamespaceKey(), err)
+		return err
+	}
+
+	klog.Infof("OverridePolicy(%s) has been added.", ckey.NamespaceKey())
+	overrideObject, err := helper.ConvertToOverridePolicy(unstructuredObj.(*unstructured.Unstructured))
+	if err != nil {
+		klog.Errorf("Failed to convert OverridePolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
+		return err
+	}
+	return d.HandleOverridePolicyCreation(overrideObject)
 }
 
 // OnClusterPropagationPolicyAdd handles object add event and push the object to queue.
@@ -948,11 +1028,29 @@ func (d *ResourceDetector) HandlePropagationPolicyCreation(policy *policyv1alpha
 	// check dependents only when there at least a real match.
 	if len(matchedKeys) > 0 {
 		// return err when dependents not present, that we can retry at next reconcile.
-		if present, err := helper.IsDependentOverridesPresent(d.Client, policy); err != nil || !present {
+		present, err := helper.IsDependentOverridesPresent(d.Client, policy)
+		if err != nil {
 			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", policy.Namespace, policy.Name)
 			return fmt.Errorf("waiting for dependent overrides")
 		}
+		if !present {
+			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", policy.Namespace, policy.Name)
+			return nil
+		}
 	}
+
+	for _, key := range matchedKeys {
+		d.RemoveWaiting(key)
+		d.Processor.Add(key)
+	}
+
+	return nil
+}
+
+// HandleOverridePolicyCreation handles OverridePolicy add event.
+func (d *ResourceDetector) HandleOverridePolicyCreation(policy *policyv1alpha1.OverridePolicy) error {
+	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
+	klog.Infof("Matched %d resources by overridePolicy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
 
 	for _, key := range matchedKeys {
 		d.RemoveWaiting(key)
@@ -972,9 +1070,14 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreation(policy *policy
 	// check dependents only when there at least a real match.
 	if len(matchedKeys) > 0 {
 		// return err when dependents not present, that we can retry at next reconcile.
-		if present, err := helper.IsDependentClusterOverridesPresent(d.Client, policy); err != nil || !present {
-			klog.Infof("Waiting for dependent overrides present for policy(%s)", policy.Name)
+		present, err := helper.IsDependentClusterOverridesPresent(d.Client, policy)
+		if err != nil {
+			klog.Infof("Waiting for dependent clusterOverrides present for policy(%s)", policy.Name)
 			return fmt.Errorf("waiting for dependent overrides")
+		}
+		if !present {
+			klog.Infof("Waiting for dependent clusterOverrides present for policy(%s/%s)", policy.Namespace, policy.Name)
+			return nil
 		}
 	}
 

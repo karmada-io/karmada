@@ -23,6 +23,16 @@ func ConvertToPropagationPolicy(obj *unstructured.Unstructured) (*policyv1alpha1
 	return typedObj, nil
 }
 
+// ConvertToOverridePolicy converts a OverridePolicy object from unstructured to typed.
+func ConvertToOverridePolicy(obj *unstructured.Unstructured) (*policyv1alpha1.OverridePolicy, error) {
+	typedObj := &policyv1alpha1.OverridePolicy{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToClusterPropagationPolicy converts a ClusterPropagationPolicy object from unstructured to typed.
 func ConvertToClusterPropagationPolicy(obj *unstructured.Unstructured) (*policyv1alpha1.ClusterPropagationPolicy, error) {
 	typedObj := &policyv1alpha1.ClusterPropagationPolicy{}
