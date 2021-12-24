@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -24,6 +23,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
+	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
@@ -62,7 +62,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-controller-manager"))
-	opts.AddFlags(cmd.Flags(), KnownControllers())
+	opts.AddFlags(cmd.Flags(), controllers.ControllerNames())
 	return cmd
 }
 
@@ -105,42 +105,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 	return nil
 }
 
-// ControllerContext defines the context object for controller
-type ControllerContext struct {
-	Mgr                         controllerruntime.Manager
-	ObjectWatcher               objectwatcher.ObjectWatcher
-	Opts                        *options.Options
-	StopChan                    <-chan struct{}
-	DynamicClientSet            dynamic.Interface
-	OverrideManager             overridemanager.OverrideManager
-	ControlPlaneInformerManager informermanager.SingleClusterInformerManager
-}
+var controllers = make(controllerscontext.Initializers)
 
-// IsControllerEnabled check if a specified controller enabled or not.
-func (c ControllerContext) IsControllerEnabled(name string) bool {
-	hasStar := false
-	for _, ctrl := range c.Opts.Controllers {
-		if ctrl == name {
-			return true
-		}
-		if ctrl == "-"+name {
-			return false
-		}
-		if ctrl == "*" {
-			hasStar = true
-		}
-	}
-	return hasStar
-}
-
-// InitFunc is used to launch a particular controller.
-// Any error returned will cause the controller process to `Fatal`
-// The bool indicates whether the controller was enabled.
-type InitFunc func(ctx ControllerContext) (enabled bool, err error)
-
-// NewControllerInitializers is a public map of named controller groups (you can start more than one in an init func)
-func NewControllerInitializers() map[string]InitFunc {
-	controllers := map[string]InitFunc{}
+func init() {
 	controllers["cluster"] = startClusterController
 	controllers["clusterStatus"] = startClusterStatusController
 	controllers["hpa"] = startHpaController
@@ -152,15 +119,9 @@ func NewControllerInitializers() map[string]InitFunc {
 	controllers["endpointSlice"] = startEndpointSliceController
 	controllers["serviceImport"] = startServiceImportController
 	controllers["unifiedAuth"] = startUnifiedAuthController
-	return controllers
 }
 
-// KnownControllers returns all known controllers's name
-func KnownControllers() []string {
-	return sets.StringKeySet(NewControllerInitializers()).List()
-}
-
-func startClusterController(ctx ControllerContext) (enabled bool, err error) {
+func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
 	mgr := ctx.Mgr
 	opts := ctx.Opts
 	clusterController := &cluster.Controller{
@@ -176,7 +137,7 @@ func startClusterController(ctx ControllerContext) (enabled bool, err error) {
 	return true, nil
 }
 
-func startClusterStatusController(ctx ControllerContext) (enabled bool, err error) {
+func startClusterStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	mgr := ctx.Mgr
 	opts := ctx.Opts
 	stopChan := ctx.StopChan
@@ -218,7 +179,7 @@ func startClusterStatusController(ctx ControllerContext) (enabled bool, err erro
 	return true, nil
 }
 
-func startHpaController(ctx ControllerContext) (enabled bool, err error) {
+func startHpaController(ctx controllerscontext.Context) (enabled bool, err error) {
 	hpaController := &hpa.HorizontalPodAutoscalerController{
 		Client:          ctx.Mgr.GetClient(),
 		DynamicClient:   ctx.DynamicClientSet,
@@ -232,7 +193,7 @@ func startHpaController(ctx ControllerContext) (enabled bool, err error) {
 	return true, nil
 }
 
-func startBindingController(ctx ControllerContext) (enabled bool, err error) {
+func startBindingController(ctx controllerscontext.Context) (enabled bool, err error) {
 	bindingController := &binding.ResourceBindingController{
 		Client:          ctx.Mgr.GetClient(),
 		DynamicClient:   ctx.DynamicClientSet,
@@ -259,7 +220,7 @@ func startBindingController(ctx ControllerContext) (enabled bool, err error) {
 	return true, nil
 }
 
-func startExecutionController(ctx ControllerContext) (enabled bool, err error) {
+func startExecutionController(ctx controllerscontext.Context) (enabled bool, err error) {
 	executionController := &execution.Controller{
 		Client:               ctx.Mgr.GetClient(),
 		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
@@ -275,7 +236,7 @@ func startExecutionController(ctx ControllerContext) (enabled bool, err error) {
 	return true, nil
 }
 
-func startWorkStatusController(ctx ControllerContext) (enabled bool, err error) {
+func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
 		Client:                  ctx.Mgr.GetClient(),
@@ -296,7 +257,7 @@ func startWorkStatusController(ctx ControllerContext) (enabled bool, err error) 
 	return true, nil
 }
 
-func startNamespaceController(ctx ControllerContext) (enabled bool, err error) {
+func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err error) {
 	skippedPropagatingNamespaces := map[string]struct{}{}
 	for _, ns := range ctx.Opts.SkippedPropagatingNamespaces {
 		skippedPropagatingNamespaces[ns] = struct{}{}
@@ -312,7 +273,7 @@ func startNamespaceController(ctx ControllerContext) (enabled bool, err error) {
 	return true, nil
 }
 
-func startServiceExportController(ctx ControllerContext) (enabled bool, err error) {
+func startServiceExportController(ctx controllerscontext.Context) (enabled bool, err error) {
 	opts := ctx.Opts
 	serviceExportController := &mcs.ServiceExportController{
 		Client:                      ctx.Mgr.GetClient(),
@@ -332,7 +293,7 @@ func startServiceExportController(ctx ControllerContext) (enabled bool, err erro
 	return true, nil
 }
 
-func startEndpointSliceController(ctx ControllerContext) (enabled bool, err error) {
+func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool, err error) {
 	endpointSliceController := &mcs.EndpointSliceController{
 		Client:        ctx.Mgr.GetClient(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
@@ -343,7 +304,7 @@ func startEndpointSliceController(ctx ControllerContext) (enabled bool, err erro
 	return true, nil
 }
 
-func startServiceImportController(ctx ControllerContext) (enabled bool, err error) {
+func startServiceImportController(ctx controllerscontext.Context) (enabled bool, err error) {
 	serviceImportController := &mcs.ServiceImportController{
 		Client:        ctx.Mgr.GetClient(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
@@ -354,7 +315,7 @@ func startServiceImportController(ctx ControllerContext) (enabled bool, err erro
 	return true, nil
 }
 
-func startUnifiedAuthController(ctx ControllerContext) (enabled bool, err error) {
+func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, err error) {
 	unifiedAuthController := &unifiedauth.Controller{
 		Client:        ctx.Mgr.GetClient(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
@@ -408,17 +369,29 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	setupClusterAPIClusterDetector(mgr, opts, stopChan)
-	controllerContext := ControllerContext{
-		Mgr:                         mgr,
-		ObjectWatcher:               objectWatcher,
-		Opts:                        opts,
+	controllerContext := controllerscontext.Context{
+		Mgr:           mgr,
+		ObjectWatcher: objectWatcher,
+		Opts: controllerscontext.Options{
+			Controllers:                       opts.Controllers,
+			ClusterMonitorPeriod:              opts.ClusterMonitorPeriod,
+			ClusterMonitorGracePeriod:         opts.ClusterMonitorGracePeriod,
+			ClusterStartupGracePeriod:         opts.ClusterStartupGracePeriod,
+			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
+			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
+			ClusterAPIQPS:                     opts.ClusterAPIQPS,
+			ClusterAPIBurst:                   opts.ClusterAPIBurst,
+			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
+		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
 		OverrideManager:             overrideManager,
 		ControlPlaneInformerManager: controlPlaneInformerManager,
 	}
 
-	if err := StartControllers(controllerContext, NewControllerInitializers()); err != nil {
+	if err := controllers.StartControllers(controllerContext); err != nil {
 		klog.Fatalf("error starting controllers: %v", err)
 	}
 
@@ -427,29 +400,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		<-stopChan
 		informermanager.StopInstance()
 	}()
-}
-
-// StartControllers starts a set of controllers with a specified ControllerContext
-func StartControllers(ctx ControllerContext, controllers map[string]InitFunc) error {
-	for controllerName, initFn := range controllers {
-		if !ctx.IsControllerEnabled(controllerName) {
-			klog.Warningf("%q is disabled", controllerName)
-			continue
-		}
-		klog.V(1).Infof("Starting %q", controllerName)
-		started, err := initFn(ctx)
-		if err != nil {
-			klog.Errorf("Error starting %q", controllerName)
-			return err
-		}
-		if !started {
-			klog.Warningf("Skipping %q", controllerName)
-			continue
-		}
-		klog.Infof("Started %q", controllerName)
-	}
-
-	return nil
 }
 
 // setupClusterAPIClusterDetector initialize Cluster detector with the cluster-api management cluster.

@@ -1,6 +1,8 @@
 package options
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -13,6 +15,8 @@ import (
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
+	// Controllers contains all controller names.
+	Controllers       []string
 	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
 	KarmadaKubeConfig string
 	// ClusterContext is the name of the cluster context in control plane KUBECONFIG file.
@@ -53,11 +57,15 @@ func NewOptions() *Options {
 }
 
 // AddFlags adds flags of scheduler to the specified FlagSet
-func (o *Options) AddFlags(fs *pflag.FlagSet) {
+func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	if o == nil {
 		return
 	}
 
+	fs.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, fmt.Sprintf(
+		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: %s.",
+		strings.Join(allControllers, ", "),
+	))
 	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
 	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", util.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
 	fs.StringVar(&o.KarmadaKubeConfig, "karmada-kubeconfig", o.KarmadaKubeConfig, "Path to karmada control plane kubeconfig file.")
