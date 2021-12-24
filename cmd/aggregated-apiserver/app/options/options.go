@@ -14,11 +14,14 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	netutils "k8s.io/utils/net"
 
 	"github.com/karmada-io/karmada/pkg/aggregatedapiserver"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 )
 
@@ -28,6 +31,13 @@ const defaultEtcdPathPrefix = "/registry"
 type Options struct {
 	RecommendedOptions    *genericoptions.RecommendedOptions
 	SharedInformerFactory informers.SharedInformerFactory
+
+	karmadaConfig string
+	Master        string
+	// KubeAPIQPS is the QPS to use while talking with karmada-apiserver.
+	KubeAPIQPS float32
+	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
+	KubeAPIBurst int
 }
 
 // NewOptions returns a new Options.
@@ -45,6 +55,10 @@ func NewOptions() *Options {
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	o.RecommendedOptions.AddFlags(flags)
 
+	flags.StringVar(&o.karmadaConfig, "karmada-config", o.karmadaConfig, "Path to a karmada-apiserver KubeConfig.")
+	flags.StringVar(&o.Master, "master", o.Master, "The address of the Karmada API server. Overrides any value in KubeConfig.")
+	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
 }
 
@@ -67,7 +81,15 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 
-	server, err := config.Complete().New()
+	restConfig, err := clientcmd.BuildConfigFromFlags(o.Master, o.karmadaConfig)
+	if err != nil {
+		return fmt.Errorf("error building kubeconfig: %s", err.Error())
+	}
+	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
+	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
+	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
+
+	server, err := config.Complete().New(kubeClientSet, karmadaClient)
 	if err != nil {
 		return err
 	}

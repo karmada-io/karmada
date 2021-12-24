@@ -113,4 +113,14 @@ type ClusterList struct {
 	Items []Cluster
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClusterProxyOptions is the query options to a Cluster's proxy call.
+type ClusterProxyOptions struct {
+	metav1.TypeMeta
+
+	// Path is the URL path to use for the current proxy request
+	Path string
+}
+
 //revive:enable:exported
