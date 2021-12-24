@@ -3,7 +3,6 @@ package binding
 import (
 	"context"
 	"reflect"
-	"sort"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -264,30 +263,25 @@ func matchReplicaSchedulingPolicy(c client.Client, workload *unstructured.Unstru
 		return nil, nil
 	}
 
-	matchedPolicies := getMatchedReplicaSchedulingPolicy(policyList.Items, workload)
-	if len(matchedPolicies) == 0 {
+	matchedPolicy := getMatchedReplicaSchedulingPolicy(policyList.Items, workload)
+	if matchedPolicy == nil {
 		klog.V(2).Infof("No replica scheduling policy for resource: %s/%s", workload.GetNamespace(), workload.GetName())
 		return nil, nil
 	}
 
-	return &matchedPolicies[0], nil
+	return matchedPolicy, nil
 }
 
-func getMatchedReplicaSchedulingPolicy(policies []policyv1alpha1.ReplicaSchedulingPolicy, resource *unstructured.Unstructured) []policyv1alpha1.ReplicaSchedulingPolicy {
+func getMatchedReplicaSchedulingPolicy(policies []policyv1alpha1.ReplicaSchedulingPolicy, resource *unstructured.Unstructured) *policyv1alpha1.ReplicaSchedulingPolicy {
 	// select policy in which at least one resource selector matches target resource.
-	resourceMatches := make([]policyv1alpha1.ReplicaSchedulingPolicy, 0)
-	for _, policy := range policies {
-		if util.ResourceMatchSelectors(resource, policy.Spec.ResourceSelectors...) {
-			resourceMatches = append(resourceMatches, policy)
+	var resourceMatch *policyv1alpha1.ReplicaSchedulingPolicy
+	for i, policy := range policies {
+		if util.ResourceMatchSelectors(resource, policy.Spec.ResourceSelectors...) && (resourceMatch == nil || resourceMatch.Name > policy.Name) {
+			resourceMatch = &policies[i]
 		}
 	}
 
-	// Sort by policy names.
-	sort.Slice(resourceMatches, func(i, j int) bool {
-		return resourceMatches[i].Name < resourceMatches[j].Name
-	})
-
-	return resourceMatches
+	return resourceMatch
 }
 
 func calculateReplicas(c client.Client, policy *policyv1alpha1.ReplicaSchedulingPolicy, clusterNames []string) (map[string]int64, error) {
@@ -321,16 +315,13 @@ func calculateReplicas(c client.Client, policy *policyv1alpha1.ReplicaScheduling
 		allocatedReplicas += int32(desireReplicaInfos[clusterName])
 	}
 
-	if remainReplicas := policy.Spec.TotalReplicas - allocatedReplicas; remainReplicas > 0 && len(matchClusters) > 0 {
-		sortedClusters := helper.SortClusterByWeight(matchClusters)
-		for i := 0; remainReplicas > 0; i++ {
-			desireReplicaInfos[sortedClusters[i].ClusterName]++
-			remainReplicas--
-			if i == len(desireReplicaInfos) {
-				i = 0
-			}
-		}
+	clusterWeights := helper.SortClusterByWeight(matchClusters)
+	var clusterNamesBySort []string
+	for _, clusterWeightInfo := range clusterWeights {
+		clusterNamesBySort = append(clusterNamesBySort, clusterWeightInfo.ClusterName)
 	}
+
+	divideRemainingReplicas(int(policy.Spec.TotalReplicas-allocatedReplicas), desireReplicaInfos, clusterNamesBySort)
 
 	for _, clusterName := range clusterNames {
 		if _, exist := matchClusters[clusterName]; !exist {
@@ -339,4 +330,27 @@ func calculateReplicas(c client.Client, policy *policyv1alpha1.ReplicaScheduling
 	}
 
 	return desireReplicaInfos, nil
+}
+
+// divideRemainingReplicas divide remaining Replicas to clusters
+func divideRemainingReplicas(remainingReplicas int, desiredReplicaInfos map[string]int64, clusterNames []string) {
+	if remainingReplicas <= 0 {
+		return
+	}
+
+	clusterSize := len(clusterNames)
+	if remainingReplicas < clusterSize {
+		for i := 0; i < remainingReplicas; i++ {
+			desiredReplicaInfos[clusterNames[i]]++
+		}
+	} else {
+		avg, residue := remainingReplicas/clusterSize, remainingReplicas%clusterSize
+		for i := 0; i < clusterSize; i++ {
+			if i < residue {
+				desiredReplicaInfos[clusterNames[i]] += int64(avg) + 1
+			} else {
+				desiredReplicaInfos[clusterNames[i]] += int64(avg)
+			}
+		}
+	}
 }
