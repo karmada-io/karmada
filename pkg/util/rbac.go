@@ -6,7 +6,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apiserverserviceaccount "k8s.io/apiserver/pkg/authentication/serviceaccount"
 	kubeclient "k8s.io/client-go/kubernetes"
 )
 
@@ -139,7 +138,7 @@ func GenerateImpersonationRules(allSubjects []rbacv1.Subject) []rbacv1.PolicyRul
 		case rbacv1.UserKind:
 			users = append(users, subject.Name)
 		case rbacv1.ServiceAccountKind:
-			serviceAccounts = append(serviceAccounts, apiserverserviceaccount.MakeUsername(subject.Namespace, subject.Name))
+			serviceAccounts = append(serviceAccounts, subject.Name)
 		case rbacv1.GroupKind:
 			groups = append(groups, subject.Name)
 		}
