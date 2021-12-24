@@ -10,7 +10,7 @@ import (
 )
 
 //ClusterRoleFromSpec ClusterRole spec
-func (i *InstallOptions) ClusterRoleFromSpec(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
+func (i *CommandInitOption) ClusterRoleFromSpec(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -19,13 +19,14 @@ func (i *InstallOptions) ClusterRoleFromSpec(name string, rules []rbacv1.PolicyR
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: i.Namespace,
+			Labels:    map[string]string{"karmada.io/bootstrapping": "rbac-defaults"},
 		},
 		Rules: rules,
 	}
 }
 
 //ClusterRoleBindingFromSpec ClusterRoleBinding spec
-func (i *InstallOptions) ClusterRoleBindingFromSpec(clusterRoleBindingName, clusterRoleName, saName string) *rbacv1.ClusterRoleBinding {
+func (i *CommandInitOption) ClusterRoleBindingFromSpec(clusterRoleBindingName, clusterRoleName, saName string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -34,6 +35,7 @@ func (i *InstallOptions) ClusterRoleBindingFromSpec(clusterRoleBindingName, clus
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterRoleBindingName,
 			Namespace: i.Namespace,
+			Labels:    map[string]string{"karmada.io/bootstrapping": "rbac-defaults"},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -51,7 +53,7 @@ func (i *InstallOptions) ClusterRoleBindingFromSpec(clusterRoleBindingName, clus
 }
 
 //CreateClusterRole receive ClusterRoleFromSpec ClusterRole
-func (i *InstallOptions) CreateClusterRole() error {
+func (i *CommandInitOption) CreateClusterRole() error {
 	clusterRole := i.ClusterRoleFromSpec(kubeControllerManagerClusterRoleAndDeploymentAndServiceName, []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{"*"},
@@ -86,7 +88,7 @@ func (i *InstallOptions) CreateClusterRole() error {
 }
 
 //CreateClusterRoleBinding receive ClusterRoleBindingFromSpec ClusterRoleBinding
-func (i *InstallOptions) CreateClusterRoleBinding(clusterRole *rbacv1.ClusterRoleBinding) error {
+func (i *CommandInitOption) CreateClusterRoleBinding(clusterRole *rbacv1.ClusterRoleBinding) error {
 	crbClient := i.KubeClientSet.RbacV1().ClusterRoleBindings()
 
 	crbList, err := crbClient.List(context.TODO(), metav1.ListOptions{})

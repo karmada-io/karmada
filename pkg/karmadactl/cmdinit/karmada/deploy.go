@@ -29,8 +29,8 @@ import (
 const namespace = "karmada-system"
 
 //InitKarmadaResources Initialize karmada resource
-func InitKarmadaResources(caBase64 string) error {
-	restConfig, err := utils.RestConfig(filepath.Join(options.DataPath, options.KarmadaKubeConfigName))
+func InitKarmadaResources(dir, caBase64 string) error {
+	restConfig, err := utils.RestConfig(filepath.Join(dir, options.KarmadaKubeConfigName))
 	if err != nil {
 		return err
 	}
@@ -56,8 +56,8 @@ func InitKarmadaResources(caBase64 string) error {
 	}
 
 	// Initialize crd
-	basesCRDsFiles := utils.ListFiles(options.DataPath + "/crds/bases")
-	klog.Infof("Initialize karmada bases crd resource `%s/crds/bases`", options.DataPath)
+	basesCRDsFiles := utils.ListFiles(dir + "/crds/bases")
+	klog.Infof("Initialize karmada bases crd resource `%s/crds/bases`", dir)
 	for _, v := range basesCRDsFiles {
 		if path.Ext(v) != ".yaml" {
 			continue
@@ -67,8 +67,8 @@ func InitKarmadaResources(caBase64 string) error {
 		}
 	}
 
-	patchesCRDsFiles := utils.ListFiles(options.DataPath + "/crds/patches")
-	klog.Infof("Initialize karmada patches crd resource `%s/crds/patches`", options.DataPath)
+	patchesCRDsFiles := utils.ListFiles(dir + "/crds/patches")
+	klog.Infof("Initialize karmada patches crd resource `%s/crds/patches`", dir)
 	for _, v := range patchesCRDsFiles {
 		if path.Ext(v) != ".yaml" {
 			continue
@@ -181,7 +181,7 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 		},
 		Spec: corev1.ServiceSpec{
 			Type:         corev1.ServiceTypeExternalName,
-			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc.cluster.local", options.Namespace),
+			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc.cluster.local", namespace),
 		},
 	}
 	if _, err := clientSet.CoreV1().Services(namespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {

@@ -12,7 +12,7 @@ import (
 )
 
 //SecretFromSpec secret spec
-func (i *InstallOptions) SecretFromSpec(name string, secretType corev1.SecretType, data map[string]string) *corev1.Secret {
+func (i *CommandInitOption) SecretFromSpec(name string, secretType corev1.SecretType, data map[string]string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -21,6 +21,7 @@ func (i *InstallOptions) SecretFromSpec(name string, secretType corev1.SecretTyp
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: i.Namespace,
+			Labels:    map[string]string{"karmada.io/bootstrapping": "secret-defaults"},
 		},
 		//Immutable:  immutable,
 		Type:       secretType,
@@ -29,7 +30,7 @@ func (i *InstallOptions) SecretFromSpec(name string, secretType corev1.SecretTyp
 }
 
 //CreateSecret receive SecretFromSpec create secret
-func (i *InstallOptions) CreateSecret(secret *corev1.Secret) error {
+func (i *CommandInitOption) CreateSecret(secret *corev1.Secret) error {
 	secretClient := i.KubeClientSet.CoreV1().Secrets(i.Namespace)
 
 	secretList, err := secretClient.List(context.TODO(), metav1.ListOptions{})

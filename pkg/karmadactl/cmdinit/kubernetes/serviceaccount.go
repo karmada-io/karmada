@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -9,7 +10,7 @@ import (
 )
 
 //ServiceAccountFromSpec sa spec
-func (i *InstallOptions) ServiceAccountFromSpec(name []string) []corev1.ServiceAccount {
+func (i *CommandInitOption) ServiceAccountFromSpec(name []string) []corev1.ServiceAccount {
 	var sa []corev1.ServiceAccount
 
 	for _, v := range name {
@@ -29,7 +30,7 @@ func (i *InstallOptions) ServiceAccountFromSpec(name []string) []corev1.ServiceA
 }
 
 //CreateServiceAccount receive ServiceAccountFromSpec create sa
-func (i *InstallOptions) CreateServiceAccount() error {
+func (i *CommandInitOption) CreateServiceAccount() error {
 	serviceAccount := i.ServiceAccountFromSpec([]string{controllerManagerDeploymentAndServiceName, schedulerDeploymentNameAndServiceAccountName, webhookDeploymentAndServiceAccountAndServiceName})
 	saClient := i.KubeClientSet.CoreV1().ServiceAccounts(i.Namespace)
 
@@ -39,8 +40,7 @@ func (i *InstallOptions) CreateServiceAccount() error {
 			continue
 		}
 		if _, err := saClient.Create(context.TODO(), &serviceAccount[v], metav1.CreateOptions{}); err != nil {
-			klog.Errorf("Create ServiceAccount %s failed: %v", serviceAccount[v].Name)
-			return err
+			return fmt.Errorf("create ServiceAccount %s failed: %v", serviceAccount[v].Name, err)
 		}
 	}
 
