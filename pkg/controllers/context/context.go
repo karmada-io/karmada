@@ -7,6 +7,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -57,6 +58,7 @@ type Context struct {
 	DynamicClientSet            dynamic.Interface
 	OverrideManager             overridemanager.OverrideManager
 	ControlPlaneInformerManager informermanager.SingleClusterInformerManager
+	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
 }
 
 // IsControllerEnabled check if a specified controller enabled or not.
