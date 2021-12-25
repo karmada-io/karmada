@@ -169,7 +169,6 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
 		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
-		Watches(&source.Kind{Type: &policyv1alpha1.ReplicaSchedulingPolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newReplicaSchedulingPolicyFunc())).
 		Complete(c)
 }
 
@@ -202,35 +201,6 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 			for _, rs := range overrideRS {
 				if util.ResourceMatches(workload, rs) {
 					klog.V(2).Infof("Enqueue ResourceBinding(%s/%s) as override policy(%s/%s) changes.", binding.Namespace, binding.Name, a.GetNamespace(), a.GetName())
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}})
-					break
-				}
-			}
-		}
-		return requests
-	}
-}
-
-func (c *ResourceBindingController) newReplicaSchedulingPolicyFunc() handler.MapFunc {
-	return func(a client.Object) []reconcile.Request {
-		rspResourceSelectors := a.(*policyv1alpha1.ReplicaSchedulingPolicy).Spec.ResourceSelectors
-		bindingList := &workv1alpha2.ResourceBindingList{}
-		if err := c.Client.List(context.TODO(), bindingList); err != nil {
-			klog.Errorf("Failed to list resourceBindings, error: %v", err)
-			return nil
-		}
-
-		var requests []reconcile.Request
-		for _, binding := range bindingList.Items {
-			workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
-			if err != nil {
-				klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", binding.Namespace, binding.Name, err)
-				return nil
-			}
-
-			for _, rs := range rspResourceSelectors {
-				if util.ResourceMatches(workload, rs) {
-					klog.V(2).Infof("Enqueue ResourceBinding(%s/%s) as replica scheduling policy(%s/%s) changes.", binding.Namespace, binding.Name, a.GetNamespace(), a.GetName())
 					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}})
 					break
 				}
