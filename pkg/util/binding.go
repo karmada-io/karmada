@@ -76,16 +76,33 @@ func DivideReplicasByTargetCluster(clusters []workv1alpha2.TargetCluster, sum in
 		}
 		allocatedReplicas += res[i].Replicas
 	}
-	if remainReplicas := sum - allocatedReplicas; remainReplicas > 0 {
-		for i := 0; remainReplicas > 0; i++ {
-			if i == len(res) {
-				i = 0
-			}
+
+	divideRemainingReplicas(int(sum-allocatedReplicas), res)
+
+	return res
+}
+
+// divideRemainingReplicas divide remaining Replicas to clusters
+func divideRemainingReplicas(remainingReplicas int, res []workv1alpha2.TargetCluster) {
+	if remainingReplicas <= 0 {
+		return
+	}
+
+	clusterSize := len(res)
+	if remainingReplicas < clusterSize {
+		for i := 0; i < remainingReplicas; i++ {
 			res[i].Replicas++
-			remainReplicas--
+		}
+	} else {
+		avg, residue := remainingReplicas/clusterSize, remainingReplicas%clusterSize
+		for i := 0; i < clusterSize; i++ {
+			if i < residue {
+				res[i].Replicas += int32(avg) + 1
+			} else {
+				res[i].Replicas += int32(avg)
+			}
 		}
 	}
-	return res
 }
 
 // MergeTargetClusters will merge the replicas in two TargetCluster
