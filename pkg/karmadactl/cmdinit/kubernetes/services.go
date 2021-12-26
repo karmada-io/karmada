@@ -222,3 +222,28 @@ func (i *CommandInitOption) karmadaAggregatedAPIServerService() *corev1.Service 
 		},
 	}
 }
+
+func (i CommandInitOption) isNodePortExist() bool {
+	svc, err := i.KubeClientSet.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		klog.Exit(err)
+	}
+	for _, v := range svc.Items {
+		if v.Spec.Type != corev1.ServiceTypeNodePort {
+			continue
+		}
+		if !nodePort(i.KarmadaAPIServerNodePort, v) {
+			return false
+		}
+	}
+	return true
+}
+
+func nodePort(nodePort int32, service corev1.Service) bool {
+	for _, v := range service.Spec.Ports {
+		if v.NodePort == nodePort {
+			return false
+		}
+	}
+	return true
+}

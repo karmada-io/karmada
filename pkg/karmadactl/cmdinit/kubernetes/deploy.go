@@ -108,6 +108,10 @@ func (i *CommandInitOption) Complete() error {
 	}
 	i.KubeClientSet = clientSet
 
+	if !i.isNodePortExist() {
+		return fmt.Errorf("nodePort %v already exist", i.KarmadaAPIServerNodePort)
+	}
+
 	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels == "" {
 		if err := i.AddNodeSelectorLabels(); err != nil {
 			return err
@@ -274,7 +278,6 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	if err := i.CreateService(i.makeKarmadaAPIServerService()); err != nil {
 		return err
 	}
-
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
@@ -386,7 +389,7 @@ func (i *CommandInitOption) RunInit(_ io.Writer) error {
 	}
 	klog.Info("Create karmada kubeconfig success.")
 
-	//	create ns
+	// create ns
 	if err := i.CreateNamespace(); err != nil {
 		return fmt.Errorf("create namespace %s failed: %v", i.Namespace, err)
 	}
