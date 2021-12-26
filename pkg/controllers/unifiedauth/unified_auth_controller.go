@@ -250,7 +250,6 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 			Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).Complete(c),
 		mgr.Add(c),
 	})
-
 }
 
 func (c *Controller) newClusterRoleMapFunc() handler.MapFunc {

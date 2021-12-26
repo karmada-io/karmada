@@ -27,10 +27,12 @@ func (c *Controller) ensureImpersonationSecret() {
 	}
 
 	for index, cluster := range clusterList.Items {
+		if cluster.Spec.SyncMode == clusterv1alpha1.Pull {
+			continue
+		}
 		err := c.ensureImpersonationSecretForCluster(controlPlaneKubeClient, &clusterList.Items[index])
 		if err != nil {
 			klog.Errorf("Failed to ensure impersonation secret exist for cluster %s", cluster.Name)
-			return
 		}
 	}
 }

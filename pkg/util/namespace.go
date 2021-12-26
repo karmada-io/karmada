@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -60,4 +61,30 @@ func CreateNamespaceIfNotExist(client client.Client, namespaceObj *corev1.Namesp
 		}
 	}
 	return nil
+}
+
+// EnsureNamespaceExist makes sure that the specific namespace exist in cluster.
+// If namespace not exit, just create it.
+func EnsureNamespaceExist(client kubeclient.Interface, namespace string, dryRun bool) (*corev1.Namespace, error) {
+	namespaceObj := &corev1.Namespace{}
+	namespaceObj.ObjectMeta.Name = namespace
+
+	if dryRun {
+		return namespaceObj, nil
+	}
+
+	exist, err := IsNamespaceExist(client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if namespace exist. namespace: %s, error: %v", namespace, err)
+	}
+	if exist {
+		return namespaceObj, nil
+	}
+
+	createdObj, err := CreateNamespace(client, namespaceObj)
+	if err != nil {
+		return nil, fmt.Errorf("ensure namespace failed due to create failed. namespace: %s, error: %v", namespace, err)
+	}
+
+	return createdObj, nil
 }

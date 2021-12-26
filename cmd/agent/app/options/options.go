@@ -13,6 +13,9 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
+// DefaultKarmadaClusterNamespace defines the default namespace where the member cluster secrets are stored.
+const DefaultKarmadaClusterNamespace = "karmada-cluster"
+
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
 	// Controllers contains all controller names.
@@ -23,7 +26,8 @@ type Options struct {
 	// Default value is the current-context.
 	KarmadaContext string
 	ClusterName    string
-
+	// ClusterNamespace holds the namespace name where the member cluster secrets are stored.
+	ClusterNamespace string
 	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
 	// It must work with ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
 	ClusterStatusUpdateFrequency metav1.Duration
@@ -71,6 +75,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.StringVar(&o.KarmadaKubeConfig, "karmada-kubeconfig", o.KarmadaKubeConfig, "Path to karmada control plane kubeconfig file.")
 	fs.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in karmada control plane kubeconfig file.")
 	fs.StringVar(&o.ClusterName, "cluster-name", o.ClusterName, "Name of member cluster that the agent serves for.")
+	fs.StringVar(&o.ClusterNamespace, "cluster-namespace", DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	fs.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second, "Specifies how often karmada-agent posts cluster status to karmada-apiserver. Note: be cautious when changing the constant, it must work with ClusterMonitorGracePeriod in karmada-controller-manager.")
 	fs.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", 40*time.Second,
 		"Specifies the expiration period of a cluster lease.")
