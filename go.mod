@@ -8,7 +8,6 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/uuid v1.1.2
 	github.com/kr/pretty v0.3.0
-	github.com/lithammer/dedent v1.1.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
 	github.com/prometheus/client_golang v1.11.0
