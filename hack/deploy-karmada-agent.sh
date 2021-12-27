@@ -8,7 +8,7 @@ REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 function usage() {
   echo "This script will deploy karmada agent to a cluster."
   echo "Usage: hack/deploy-karmada-agent.sh <KARMADA_APISERVER_KUBECONFIG> <KARMADA_APISERVER_CONTEXT_NAME> <MEMBER_CLUSTER_KUBECONFIG> <MEMBER_CLUSTER_CONTEXT_NAME>"
-  echo "Example: hack/deploy-karmada-agent.sh ~/.kube/karmada.config karmada-apiserver ~/.kube/karmada.config member1"
+  echo "Example: hack/deploy-karmada-agent.sh ~/.kube/karmada.config karmada-apiserver ~/.kube/members.config member1"
 }
 
 if [[ $# -ne 4 ]]; then

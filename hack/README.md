@@ -14,7 +14,7 @@ ensures development quality.
 
 - [`remote-up-karmada.sh`](remote-up-karmada.sh) This script will install Karmada to a standalone K8s cluster, this cluster
   may be real, remote , and even for production. It is worth noting for the connectivity from your client to Karmada API server,
-  it will create a load balancer service with an external IP by default, else type `export CLUSTER_IP_ONLY=true` with the `ClusterIP` type service before the following script.
+  it will directly use host network by default, else `export LOAD_BALANCER=true` with the `LoadBalancer` type service before the following script.
   If your want to customize a load balancer service, you may add the annotations at the metadata part of service `karmada-apiserver` in
   [`../artifacts/deploy/karmada-apiserver.yaml`](../artifacts/deploy/karmada-apiserver.yaml) before the installing. The
   following is an example.

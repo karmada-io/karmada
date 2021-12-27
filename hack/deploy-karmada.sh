@@ -16,7 +16,7 @@ KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
 CFSSL_VERSION="v1.5.0"
-CLUSTER_IP_ONLY=${CLUSTER_IP_ONLY:-false} # whether create a 'ClusterIP' type service for karmada apiserver
+LOAD_BALANCER=${LOAD_BALANCER:-false} # whether create a 'LoadBalancer' type service for karmada apiserver
 source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
@@ -145,15 +145,15 @@ util::wait_pod_ready "${ETCD_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 #KARMADA_APISERVER_SERVICE_TYPE is the service type of karmada API Server, For connectivity, it will be different when
 # HOST_CLUSTER_TYPE is different. When HOST_CLUSTER_TYPE=local, we will create a ClusterIP type Service. And when
-# HOST_CLUSTER_TYPE=remote, we need to create a LoadBalancer service to access Karmada API Server outside the
-# karmada-host cluster. Of course, you can still use a ClusterIP type Service by setting $CLUSTER_IP_ONLY=true
+# HOST_CLUSTER_TYPE=remote, we directly use hostNetwork to access Karmada API Server outside the
+# karmada-host cluster. Of course, you can create a LoadBalancer service by setting $LOAD_BALANCER=true
 KARMADA_APISERVER_SERVICE_TYPE="ClusterIP"
 
 if [ "${HOST_CLUSTER_TYPE}" = "local" ]; then # local mode
   KARMADA_APISERVER_IP=$(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}")
 else # remote mode
 # KARMADA_APISERVER_IP will be got when Karmada API Server is ready
-  if [ "${CLUSTER_IP_ONLY}" = false ]; then
+  if [ "${LOAD_BALANCER}" = true ]; then
     KARMADA_APISERVER_SERVICE_TYPE="LoadBalancer"
   fi
   HOST_CLUSTER_TYPE="remote" # make sure HOST_CLUSTER_TYPE is in local and remote
@@ -173,7 +173,7 @@ util::wait_pod_ready "${APISERVER_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 if [ "${HOST_CLUSTER_TYPE}" = "remote" ]; then
   case $KARMADA_APISERVER_SERVICE_TYPE in
     ClusterIP)
-      KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n "${KARMADA_SYSTEM_NAMESPACE}" -o=jsonpath='{.spec.clusterIP}')
+      KARMADA_APISERVER_IP=$(kubectl get pod -l app=karmada-apiserver -n "${KARMADA_SYSTEM_NAMESPACE}" -o=jsonpath='{.items[0].status.podIP}')
     ;;
     LoadBalancer)
       if util::wait_service_external_ip "karmada-apiserver" "${KARMADA_SYSTEM_NAMESPACE}"; then

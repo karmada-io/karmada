@@ -6,13 +6,13 @@ set -o pipefail
 
 function usage() {
   echo "This script will deploy karmada control plane to a given cluster."
-  echo "Usage: hack/remote-up-karmada.sh <KUBECONFIG> <CONTEXT_NAME> [CLUSTER_IP_ONLY]"
+  echo "Usage: hack/remote-up-karmada.sh <KUBECONFIG> <CONTEXT_NAME> [LOAD_BALANCER]"
   echo "Example: hack/remote-up-karmada.sh ~/.kube/config karmada-host"
   echo -e "Parameters:\n\tKUBECONFIG\tYour cluster's kubeconfig that you want to install to"
   echo -e "\tCONTEXT_NAME\tThe name of context in 'kubeconfig'"
-  echo -e "\tCLUSTER_IP_ONLY\tThis option default is 'false', and there will create a 'LoadBalancer' type service
-  \t\t\tfor karmada apiserver so that it can easy communicate outside the karmada-host cluster,
-  \t\t\tif you want only a 'ClusterIP' type service for karmada apiserver, set as 'true'."
+  echo -e "\tLOAD_BALANCER\tThis option default is 'false', and there will directly use 'hostNetwork' to communicate
+  \t\t\toutside the karmada-host cluster
+  \t\t\tif you want to create a 'LoadBalancer' type service for karmada apiserver, set as 'true'."
 }
 
 if [[ $# -lt 2 ]]; then
@@ -39,8 +39,8 @@ then
 fi
 
 if [ "${3:-false}" = true ]; then
-  CLUSTER_IP_ONLY=true
-  export CLUSTER_IP_ONLY
+  LOAD_BALANCER=true
+  export LOAD_BALANCER
 fi
 
 # deploy karmada control plane
