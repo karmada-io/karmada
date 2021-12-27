@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: karmada-system
+  name: {{ include "karmada.namespace" . }}
 ---
 apiVersion: v1
 kind: Namespace

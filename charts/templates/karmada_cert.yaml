@@ -12,6 +12,12 @@ data:
     {{ b64enc .Values.certs.custom.crt }}
   karmada.key: |
     {{ b64enc .Values.certs.custom.key }}
+  front-proxy-ca.crt: |
+    {{ b64enc .Values.certs.custom.frontProxyCaCrt }}
+  front-proxy-client.crt: |
+    {{ b64enc .Values.certs.custom.frontProxyCrt }}
+  front-proxy-client.key: |
+    {{ b64enc .Values.certs.custom.frontProxyKey }}
 ---
 apiVersion: v1
 kind: Secret
