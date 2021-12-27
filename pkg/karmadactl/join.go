@@ -174,7 +174,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 	klog.V(1).Infof("joining cluster config. endpoint: %s", clusterConfig.Host)
 
 	// ensure namespace where the cluster object be stored exists in control plane.
-	if _, err = ensureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
+	if _, err = util.EnsureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
 		return err
 	}
 
@@ -200,7 +200,7 @@ func obtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 	var err error
 
 	// ensure namespace where the karmada control plane credential be stored exists in cluster.
-	if _, err = ensureNamespaceExist(clusterKubeClient, clusterNamespace, dryRun); err != nil {
+	if _, err = util.EnsureNamespaceExist(clusterKubeClient, clusterNamespace, dryRun); err != nil {
 		return nil, nil, err
 	}
 
@@ -208,7 +208,7 @@ func obtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 	serviceAccountObj := &corev1.ServiceAccount{}
 	serviceAccountObj.Namespace = clusterNamespace
 	serviceAccountObj.Name = names.GenerateServiceAccountName(clusterName)
-	if serviceAccountObj, err = ensureServiceAccountExist(clusterKubeClient, serviceAccountObj, dryRun); err != nil {
+	if serviceAccountObj, err = util.EnsureServiceAccountExist(clusterKubeClient, serviceAccountObj, dryRun); err != nil {
 		return nil, nil, err
 	}
 
@@ -216,7 +216,7 @@ func obtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 	impersonationSA := &corev1.ServiceAccount{}
 	impersonationSA.Namespace = clusterNamespace
 	impersonationSA.Name = names.GenerateServiceAccountName("impersonator")
-	if impersonationSA, err = ensureServiceAccountExist(clusterKubeClient, impersonationSA, dryRun); err != nil {
+	if impersonationSA, err = util.EnsureServiceAccountExist(clusterKubeClient, impersonationSA, dryRun); err != nil {
 		return nil, nil, err
 	}
 
@@ -375,57 +375,6 @@ func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Co
 	}
 
 	return cluster, nil
-}
-
-// ensureNamespaceExist makes sure that the specific namespace exist in cluster.
-// If namespace not exit, just create it.
-func ensureNamespaceExist(client kubeclient.Interface, namespace string, dryRun bool) (*corev1.Namespace, error) {
-	namespaceObj := &corev1.Namespace{}
-	namespaceObj.ObjectMeta.Name = namespace
-
-	if dryRun {
-		return namespaceObj, nil
-	}
-
-	exist, err := util.IsNamespaceExist(client, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check if namespace exist. namespace: %s, error: %v", namespace, err)
-	}
-	if exist {
-		klog.V(1).Infof("ensure namespace succeed as already exist. namespace: %s", namespace)
-		return namespaceObj, nil
-	}
-
-	createdObj, err := util.CreateNamespace(client, namespaceObj)
-	if err != nil {
-		return nil, fmt.Errorf("ensure namespace failed due to create failed. namespace: %s, error: %v", namespace, err)
-	}
-
-	return createdObj, nil
-}
-
-// ensureServiceAccountExist makes sure that the specific service account exist in cluster.
-// If service account not exit, just create it.
-func ensureServiceAccountExist(client kubeclient.Interface, serviceAccountObj *corev1.ServiceAccount, dryRun bool) (*corev1.ServiceAccount, error) {
-	if dryRun {
-		return serviceAccountObj, nil
-	}
-
-	exist, err := util.IsServiceAccountExist(client, serviceAccountObj.Namespace, serviceAccountObj.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check if service account exist. service account: %s/%s, error: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
-	}
-	if exist {
-		klog.V(1).Infof("ensure service account succeed as already exist. service account: %s/%s", serviceAccountObj.Namespace, serviceAccountObj.Name)
-		return serviceAccountObj, nil
-	}
-
-	createdObj, err := util.CreateServiceAccount(client, serviceAccountObj)
-	if err != nil {
-		return nil, fmt.Errorf("ensure service account failed due to create failed. service account: %s/%s, error: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
-	}
-
-	return createdObj, nil
 }
 
 // ensureClusterRoleExist makes sure that the specific cluster role exist in cluster.

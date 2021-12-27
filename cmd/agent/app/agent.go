@@ -84,6 +84,24 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	}
 	controlPlaneRestConfig.QPS, controlPlaneRestConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
+	clusterConfig, err := controllerruntime.GetConfig()
+	if err != nil {
+		return fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
+	}
+	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
+	// ensure namespace where the impersonation secret to be stored in member cluster.
+	if _, err = util.EnsureNamespaceExist(clusterKubeClient, opts.ClusterNamespace, false); err != nil {
+		return err
+	}
+
+	// create a ServiceAccount for impersonator in cluster.
+	impersonationSA := &corev1.ServiceAccount{}
+	impersonationSA.Namespace = opts.ClusterNamespace
+	impersonationSA.Name = names.GenerateServiceAccountName("impersonator")
+	if _, err = util.EnsureServiceAccountExist(clusterKubeClient, impersonationSA, false); err != nil {
+		return err
+	}
+
 	err = registerWithControlPlaneAPIServer(controlPlaneRestConfig, opts.ClusterName)
 	if err != nil {
 		return fmt.Errorf("failed to register with karmada control plane: %s", err.Error())
