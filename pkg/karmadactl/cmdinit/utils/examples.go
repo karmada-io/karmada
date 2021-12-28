@@ -148,6 +148,18 @@ func GenExamples(path string) {
 	}
 
 	fmt.Printf(`
+------------------------------------------------------------------------------------------------------
+ █████   ████   █████████   ███████████   ██████   ██████   █████████   ██████████     █████████
+░░███   ███░   ███░░░░░███ ░░███░░░░░███ ░░██████ ██████   ███░░░░░███ ░░███░░░░███   ███░░░░░███
+ ░███  ███    ░███    ░███  ░███    ░███  ░███░█████░███  ░███    ░███  ░███   ░░███ ░███    ░███
+ ░███████     ░███████████  ░██████████   ░███░░███ ░███  ░███████████  ░███    ░███ ░███████████
+ ░███░░███    ░███░░░░░███  ░███░░░░░███  ░███ ░░░  ░███  ░███░░░░░███  ░███    ░███ ░███░░░░░███
+ ░███ ░░███   ░███    ░███  ░███    ░███  ░███      ░███  ░███    ░███  ░███    ███  ░███    ░███
+ █████ ░░████ █████   █████ █████   █████ █████     █████ █████   █████ ██████████   █████   █████
+░░░░░   ░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░     ░░░░░ ░░░░░   ░░░░░ ░░░░░░░░░░   ░░░░░   ░░░░░
+------------------------------------------------------------------------------------------------------
+Karmada is installed successfully.
+
 Register Kubernetes cluster to Karmada control plane.
 
 Register cluster with 'Push' mode
@@ -158,6 +170,7 @@ Step 1: Use kubectl-karmada join to register the cluster to Karmada control pane
 
 Step 2: Show members of karmada
 (In karmada)~# kubectl  --kubeconfig %s/karmada-apiserver.config get clusters
+
 
 Register cluster with 'Pull' mode
 
@@ -177,5 +190,6 @@ Step 3: Create karmada agent
                                                                                                                                                                              
 Step 4: Show members of karmada                                                                                                                                              
 (In karmada)~# kubectl  --kubeconfig %s/karmada-apiserver.config get clusters
+
 `, "`", "`", path, path, path, path, path)
 }
