@@ -26,13 +26,6 @@ func TestString(t *testing.T) {
 			want: clusterName,
 		},
 		{
-			name: "%v variable test",
-			fmtFunc: func() string {
-				return fmt.Sprintf("%v", *cluster1)
-			},
-			want: "{{ } {cluster1      0 0001-01-01 00:00:00 +0000 UTC <nil> <nil> map[] map[] [] []  []} {  <nil> false     []} { [] [] <nil> <nil>}}",
-		},
-		{
 			name: "%v pointer test",
 			fmtFunc: func() string {
 				return fmt.Sprintf("%v", cluster1)
