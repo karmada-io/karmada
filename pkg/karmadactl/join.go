@@ -174,7 +174,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return err
 	}
 
-	clusterSecret, impersonationSecret, err := obtainCredentialsFromMemberCluster(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
+	clusterSecret, impersonatorSecret, err := obtainCredentialsFromMemberCluster(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return nil
 	}
 
-	err = registerClusterInControllerPlane(opts, controlPlaneRestConfig, clusterConfig, controlPlaneKubeClient, clusterSecret, impersonationSecret)
+	err = registerClusterInControllerPlane(opts, controlPlaneRestConfig, clusterConfig, controlPlaneKubeClient, clusterSecret, impersonatorSecret)
 	if err != nil {
 		return err
 	}
@@ -269,23 +269,22 @@ func registerClusterInControllerPlane(opts CommandJoinOption, controlPlaneRestCo
 	}
 
 	// create secret to store impersonation info in control plane
-	impersonationSecret := &corev1.Secret{
+	impersonatorSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: opts.ClusterNamespace,
 			Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
 		},
 		Data: map[string][]byte{
-			clusterv1alpha1.SecretCADataKey: clusterImpersonatorSecret.Data["ca.crt"],
-			clusterv1alpha1.SecretTokenKey:  clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
+			clusterv1alpha1.SecretTokenKey: clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
 		},
 	}
 
-	impersonationSecret, err = util.CreateSecret(controlPlaneKubeClient, impersonationSecret)
+	impersonatorSecret, err = util.CreateSecret(controlPlaneKubeClient, impersonatorSecret)
 	if err != nil {
 		return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
 	}
 
-	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts, *secret)
+	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts, *secret, *impersonatorSecret)
 	if err != nil {
 		return err
 	}
@@ -304,15 +303,15 @@ func registerClusterInControllerPlane(opts CommandJoinOption, controlPlaneRestCo
 		return fmt.Errorf("failed to patch secret %s/%s, error: %v", secret.Namespace, secret.Name, err)
 	}
 
-	err = util.PatchSecret(controlPlaneKubeClient, impersonationSecret.Namespace, impersonationSecret.Name, types.MergePatchType, patchSecretBody)
+	err = util.PatchSecret(controlPlaneKubeClient, impersonatorSecret.Namespace, impersonatorSecret.Name, types.MergePatchType, patchSecretBody)
 	if err != nil {
-		return fmt.Errorf("failed to patch impersonator secret %s/%s, error: %v", impersonationSecret.Namespace, impersonationSecret.Name, err)
+		return fmt.Errorf("failed to patch impersonator secret %s/%s, error: %v", impersonatorSecret.Namespace, impersonatorSecret.Name, err)
 	}
 
 	return nil
 }
 
-func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Config, opts CommandJoinOption, secret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
+func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Config, opts CommandJoinOption, secret, impersonatorSecret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
 	clusterObj := &clusterv1alpha1.Cluster{}
 	clusterObj.Name = opts.ClusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Push
@@ -320,6 +319,10 @@ func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Co
 	clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
 		Namespace: secret.Namespace,
 		Name:      secret.Name,
+	}
+	clusterObj.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+		Namespace: impersonatorSecret.Namespace,
+		Name:      impersonatorSecret.Name,
 	}
 
 	if opts.ClusterProvider != "" {

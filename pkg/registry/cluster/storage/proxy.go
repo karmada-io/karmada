@@ -18,7 +18,6 @@ import (
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // ProxyREST implements the proxy subresource for a Cluster.
@@ -71,9 +70,17 @@ func (r *ProxyREST) Connect(ctx context.Context, id string, options runtime.Obje
 }
 
 func (r *ProxyREST) getImpersonateToken(clusterName string) (string, error) {
-	// TODO: add impersonation secretRef to Cluster api to indicate impersonation secret.
-	secret, err := r.kubeClient.CoreV1().Secrets(names.NamespaceKarmadaCluster).Get(context.TODO(),
-		names.GenerateImpersonationSecretName(clusterName), metav1.GetOptions{})
+	cluster, err := r.karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	if cluster.Spec.ImpersonatorSecretRef == nil {
+		return "", fmt.Errorf("the impersonatorSecretRef of cluster %s is nil", clusterName)
+	}
+
+	secret, err := r.kubeClient.CoreV1().Secrets(cluster.Spec.ImpersonatorSecretRef.Namespace).Get(context.TODO(),
+		cluster.Spec.ImpersonatorSecretRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
