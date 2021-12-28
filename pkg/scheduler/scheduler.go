@@ -139,18 +139,24 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 
 	metrics.Register()
 
-	bindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    sched.onResourceBindingAdd,
-		UpdateFunc: sched.onResourceBindingUpdate,
+	bindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: sched.resourceBindingEventFilter,
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    sched.onResourceBindingAdd,
+			UpdateFunc: sched.onResourceBindingUpdate,
+		},
 	})
 
 	policyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: sched.onPropagationPolicyUpdate,
 	})
 
-	clusterBindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    sched.onResourceBindingAdd,
-		UpdateFunc: sched.onResourceBindingUpdate,
+	clusterBindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: sched.resourceBindingEventFilter,
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    sched.onResourceBindingAdd,
+			UpdateFunc: sched.onResourceBindingUpdate,
+		},
 	})
 
 	clusterPolicyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -194,6 +200,16 @@ func (s *Scheduler) Run(ctx context.Context) {
 	go wait.Until(s.worker, time.Second, stopCh)
 
 	<-stopCh
+}
+
+func (s *Scheduler) resourceBindingEventFilter(obj interface{}) bool {
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return false
+	}
+
+	return util.GetLabelValue(accessor.GetLabels(), policyv1alpha1.PropagationPolicyNameLabel) != "" ||
+		util.GetLabelValue(accessor.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel) != ""
 }
 
 func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
