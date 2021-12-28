@@ -22,9 +22,18 @@ type Cluster struct {
 
 // ClusterSpec defines the desired state of a member cluster.
 type ClusterSpec struct {
-	SyncMode                    ClusterSyncMode
-	APIEndpoint                 string
-	SecretRef                   *LocalSecretReference
+	SyncMode ClusterSyncMode
+
+	APIEndpoint string
+
+	SecretRef *LocalSecretReference
+
+	// ImpersonatorSecretRef represents the secret contains the token of impersonator.
+	// The secret should hold credentials as follows:
+	// - secret.data.token
+	// +optional
+	ImpersonatorSecretRef *LocalSecretReference
+
 	InsecureSkipTLSVerification bool
 	ProxyURL                    string
 	Provider                    string

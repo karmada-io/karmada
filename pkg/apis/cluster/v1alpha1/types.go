@@ -47,6 +47,12 @@ type ClusterSpec struct {
 	// +optional
 	SecretRef *LocalSecretReference `json:"secretRef,omitempty"`
 
+	// ImpersonatorSecretRef represents the secret contains the token of impersonator.
+	// The secret should hold credentials as follows:
+	// - secret.data.token
+	// +optional
+	ImpersonatorSecretRef *LocalSecretReference `json:"impersonatorSecretRef,omitempty"`
+
 	// InsecureSkipTLSVerification indicates that the karmada control plane should not confirm the validity of the serving
 	// certificate of the cluster it is connecting to. This will make the HTTPS connection between the karmada control
 	// plane and the member cluster insecure.
