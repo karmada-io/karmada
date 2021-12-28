@@ -11,6 +11,8 @@ Refer to [Installing Karmada](./installation/installation.md).
 
 ## User Guide
 
+- [Cluster Registration](./userguide/cluster-registration.md) 
+
 ## Best Practices
 
 ## Developer Guide
