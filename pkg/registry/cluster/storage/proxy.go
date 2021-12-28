@@ -71,17 +71,9 @@ func (r *ProxyREST) Connect(ctx context.Context, id string, options runtime.Obje
 }
 
 func (r *ProxyREST) getImpersonateToken(clusterName string) (string, error) {
-	cluster, err := r.karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	if cluster.Spec.SecretRef == nil {
-		return "", fmt.Errorf("the secretRef of cluster %s is nil", clusterName)
-	}
-
-	secret, err := r.kubeClient.CoreV1().Secrets(cluster.Spec.SecretRef.Namespace).Get(context.TODO(),
-		names.GenerateImpersonationSecretName(cluster.Spec.SecretRef.Name), metav1.GetOptions{})
+	// TODO: add impersonation secretRef to Cluster api to indicate impersonation secret.
+	secret, err := r.kubeClient.CoreV1().Secrets(names.NamespaceKarmadaCluster).Get(context.TODO(),
+		names.GenerateImpersonationSecretName(clusterName), metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}

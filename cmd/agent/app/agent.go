@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -21,6 +22,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -102,7 +104,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		return err
 	}
 
-	err = registerWithControlPlaneAPIServer(controlPlaneRestConfig, opts.ClusterName)
+	err = registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterConfig, opts)
 	if err != nil {
 		return fmt.Errorf("failed to register with karmada control plane: %s", err.Error())
 	}
@@ -251,25 +253,74 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 	return true, nil
 }
 
-func registerWithControlPlaneAPIServer(controlPlaneRestConfig *restclient.Config, memberClusterName string) error {
-	client := gclient.NewForConfigOrDie(controlPlaneRestConfig)
+func registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterRestConfig *restclient.Config, opts *options.Options) error {
+	controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	namespaceObj := &corev1.Namespace{}
 	namespaceObj.Name = util.NamespaceClusterLease
-
-	if err := util.CreateNamespaceIfNotExist(client, namespaceObj); err != nil {
+	if _, err := util.CreateNamespace(controlPlaneKubeClient, namespaceObj); err != nil {
 		klog.Errorf("Failed to create namespace(%s) object, error: %v", namespaceObj.Name, err)
 		return err
 	}
 
-	clusterObj := &clusterv1alpha1.Cluster{}
-	clusterObj.Name = memberClusterName
-	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
-
-	if err := util.CreateClusterIfNotExist(client, clusterObj); err != nil {
-		klog.Errorf("Failed to create cluster(%s) object, error: %v", clusterObj.Name, err)
+	clusterObj, err := generateClusterInControllerPlane(controlPlaneRestConfig, opts)
+	if err != nil {
 		return err
 	}
 
+	clusterImpersonatorSecret, err := obtainCredentialsFromMemberCluster(clusterRestConfig, opts)
+	if err != nil {
+		return err
+	}
+
+	// create secret to store impersonation info in control plane
+	impersonationSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: opts.ClusterNamespace,
+			Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(clusterObj, clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")),
+			},
+		},
+		Data: map[string][]byte{
+			clusterv1alpha1.SecretCADataKey: clusterImpersonatorSecret.Data["ca.crt"],
+			clusterv1alpha1.SecretTokenKey:  clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
+		},
+	}
+	_, err = util.CreateSecret(controlPlaneKubeClient, impersonationSecret)
+	if err != nil {
+		return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
+	}
 	return nil
+}
+
+func generateClusterInControllerPlane(controlPlaneRestConfig *restclient.Config, opts *options.Options) (*clusterv1alpha1.Cluster, error) {
+	clusterObj := &clusterv1alpha1.Cluster{}
+	clusterObj.Name = opts.ClusterName
+	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
+	clusterObj.Spec.APIEndpoint = opts.ClusterAPIEndpoint
+	clusterObj.Spec.ProxyURL = opts.ProxyServerAddress
+
+	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+	cluster, err := util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, clusterObj)
+	if err != nil {
+		klog.Errorf("Failed to create cluster(%s) object, error: %v", clusterObj.Name, err)
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+func obtainCredentialsFromMemberCluster(clusterRestConfig *restclient.Config, opts *options.Options) (*corev1.Secret, error) {
+	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterRestConfig)
+
+	impersonationSA := &corev1.ServiceAccount{}
+	impersonationSA.Namespace = opts.ClusterNamespace
+	impersonationSA.Name = names.GenerateServiceAccountName("impersonator")
+	impersonatorSecret, err := util.WaitForServiceAccountSecretCreation(clusterKubeClient, impersonationSA)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get serviceAccount secret for impersonation from cluster(%s), error: %v", opts.ClusterName, err)
+	}
+
+	return impersonatorSecret, nil
 }

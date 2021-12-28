@@ -47,6 +47,11 @@ type Options struct {
 	KubeAPIBurst int
 
 	ClusterCacheSyncTimeout metav1.Duration
+
+	// ClusterAPIEndpoint holds the apiEndpoint of the cluster.
+	ClusterAPIEndpoint string
+	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
+	ProxyServerAddress string
 }
 
 // NewOptions builds an default scheduler options.
@@ -86,4 +91,6 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	fs.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
+	fs.StringVar(&o.ClusterAPIEndpoint, "cluster-api-endpoint", o.ClusterAPIEndpoint, "APIEndpoint of the cluster.")
+	fs.StringVar(&o.ProxyServerAddress, "proxy-server-address", o.ProxyServerAddress, "Address of the proxy server that is used to proxy to the cluster.")
 }
