@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -18,8 +19,6 @@ import (
 // This logic is used only in the upgrade scenario of the current version
 // and can be deleted in the next version.
 func (c *Controller) ensureImpersonationSecret() {
-	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(c.ControllerPlaneConfig)
-
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(context.TODO(), clusterList); err != nil {
 		klog.Errorf("Failed to list clusterList, error: %v", err)
@@ -30,14 +29,17 @@ func (c *Controller) ensureImpersonationSecret() {
 		if cluster.Spec.SyncMode == clusterv1alpha1.Pull {
 			continue
 		}
-		err := c.ensureImpersonationSecretForCluster(controlPlaneKubeClient, &clusterList.Items[index])
+		err := c.ensureImpersonationSecretForCluster(&clusterList.Items[index])
 		if err != nil {
 			klog.Errorf("Failed to ensure impersonation secret exist for cluster %s", cluster.Name)
 		}
 	}
 }
 
-func (c *Controller) ensureImpersonationSecretForCluster(karmadaKubeClient kubeclient.Interface, cluster *clusterv1alpha1.Cluster) error {
+func (c *Controller) ensureImpersonationSecretForCluster(cluster *clusterv1alpha1.Cluster) error {
+	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(c.ControllerPlaneConfig)
+	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(c.ControllerPlaneConfig)
+
 	klog.V(4).Infof("Create impersonation secret for cluster %s", cluster.Name)
 	// create a ClusterClient for the given member cluster
 	clusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client, nil)
@@ -63,7 +65,7 @@ func (c *Controller) ensureImpersonationSecretForCluster(karmadaKubeClient kubec
 	}
 
 	// create secret to store impersonation info in control plane
-	impersonationSecret := &corev1.Secret{
+	impersonatorSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: clusterNamespace,
 			Name:      names.GenerateImpersonationSecretName(cluster.Name),
@@ -72,14 +74,24 @@ func (c *Controller) ensureImpersonationSecretForCluster(karmadaKubeClient kubec
 			},
 		},
 		Data: map[string][]byte{
-			clusterv1alpha1.SecretCADataKey: clusterImpersonatorSecret.Data["ca.crt"],
-			clusterv1alpha1.SecretTokenKey:  clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
+			clusterv1alpha1.SecretTokenKey: clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
 		},
 	}
 
-	_, err = util.CreateSecret(karmadaKubeClient, impersonationSecret)
+	_, err = util.CreateSecret(controlPlaneKubeClient, impersonatorSecret)
 	if err != nil {
 		return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
+	}
+
+	if cluster.Spec.ImpersonatorSecretRef == nil {
+		cluster.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+			Namespace: impersonatorSecret.Namespace,
+			Name:      impersonatorSecret.Name,
+		}
+		_, err = util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, cluster)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

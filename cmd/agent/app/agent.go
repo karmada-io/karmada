@@ -263,7 +263,14 @@ func registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterRestConfig
 		return err
 	}
 
-	clusterObj, err := generateClusterInControllerPlane(controlPlaneRestConfig, opts)
+	impersonatorSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: opts.ClusterNamespace,
+			Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
+		},
+	}
+
+	clusterObj, err := generateClusterInControllerPlane(controlPlaneRestConfig, opts, *impersonatorSecret)
 	if err != nil {
 		return err
 	}
@@ -273,33 +280,28 @@ func registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterRestConfig
 		return err
 	}
 
+	impersonatorSecret.OwnerReferences = []metav1.OwnerReference{
+		*metav1.NewControllerRef(clusterObj, clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster"))}
+	impersonatorSecret.Data = map[string][]byte{
+		clusterv1alpha1.SecretTokenKey: clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey]}
 	// create secret to store impersonation info in control plane
-	impersonationSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: opts.ClusterNamespace,
-			Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(clusterObj, clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")),
-			},
-		},
-		Data: map[string][]byte{
-			clusterv1alpha1.SecretCADataKey: clusterImpersonatorSecret.Data["ca.crt"],
-			clusterv1alpha1.SecretTokenKey:  clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
-		},
-	}
-	_, err = util.CreateSecret(controlPlaneKubeClient, impersonationSecret)
+	_, err = util.CreateSecret(controlPlaneKubeClient, impersonatorSecret)
 	if err != nil {
 		return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
 	}
 	return nil
 }
 
-func generateClusterInControllerPlane(controlPlaneRestConfig *restclient.Config, opts *options.Options) (*clusterv1alpha1.Cluster, error) {
+func generateClusterInControllerPlane(controlPlaneRestConfig *restclient.Config, opts *options.Options, impersonatorSecret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
 	clusterObj := &clusterv1alpha1.Cluster{}
 	clusterObj.Name = opts.ClusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
 	clusterObj.Spec.APIEndpoint = opts.ClusterAPIEndpoint
 	clusterObj.Spec.ProxyURL = opts.ProxyServerAddress
+	clusterObj.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+		Namespace: impersonatorSecret.Namespace,
+		Name:      impersonatorSecret.Name,
+	}
 
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 	cluster, err := util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, clusterObj)
