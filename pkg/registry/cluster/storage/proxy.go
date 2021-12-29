@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/proxy"
+	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
@@ -101,7 +102,9 @@ func newProxyHandler(location *url.URL, transport http.RoundTripper, impersonate
 		}
 		req.Header.Set(authenticationv1.ImpersonateUserHeader, requester.GetName())
 		for _, group := range requester.GetGroups() {
-			req.Header.Add(authenticationv1.ImpersonateGroupHeader, group)
+			if !skipGroup(group) {
+				req.Header.Add(authenticationv1.ImpersonateGroupHeader, group)
+			}
 		}
 
 		req.Header.Set("Authorization", fmt.Sprintf("bearer %s", impersonateToken))
@@ -109,6 +112,15 @@ func newProxyHandler(location *url.URL, transport http.RoundTripper, impersonate
 		handler := newThrottledUpgradeAwareProxyHandler(location, transport, true, false, responder)
 		handler.ServeHTTP(rw, req)
 	}), nil
+}
+
+func skipGroup(group string) bool {
+	switch group {
+	case user.AllAuthenticated, user.AllUnauthenticated:
+		return true
+	default:
+		return false
+	}
 }
 
 func newThrottledUpgradeAwareProxyHandler(location *url.URL, transport http.RoundTripper, wrapTransport, upgradeRequired bool, responder rest.Responder) *proxy.UpgradeAwareHandler {
