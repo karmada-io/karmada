@@ -13,7 +13,6 @@ import (
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 	clusterinstall "github.com/karmada-io/karmada/pkg/apis/cluster/install"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	clusterstorage "github.com/karmada-io/karmada/pkg/registry/cluster/storage"
 )
 
@@ -86,7 +85,7 @@ func (cfg *Config) Complete() CompletedConfig {
 	return CompletedConfig{&c}
 }
 
-func (c completedConfig) New(kubeClient kubernetes.Interface, karmadaClient karmadaclientset.Interface) (*APIServer, error) {
+func (c completedConfig) New(kubeClient kubernetes.Interface) (*APIServer, error) {
 	genericServer, err := c.GenericConfig.New("aggregated-apiserver", genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
@@ -98,7 +97,7 @@ func (c completedConfig) New(kubeClient kubernetes.Interface, karmadaClient karm
 
 	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(clusterapis.GroupName, Scheme, ParameterCodec, Codecs)
 
-	clusterStorage, err := clusterstorage.NewStorage(Scheme, kubeClient, karmadaClient, c.GenericConfig.RESTOptionsGetter)
+	clusterStorage, err := clusterstorage.NewStorage(Scheme, kubeClient, c.GenericConfig.RESTOptionsGetter)
 	if err != nil {
 		klog.Errorf("unable to create REST storage for a resource due to %v, will die", err)
 		return nil, err

@@ -16,41 +16,21 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/printers"
 	printersinternal "github.com/karmada-io/karmada/pkg/printers/internalversion"
 	printerstorage "github.com/karmada-io/karmada/pkg/printers/storage"
 	clusterregistry "github.com/karmada-io/karmada/pkg/registry/cluster"
 )
 
-// ClusterStorage includes storage for Cluster and for Status subresource.
+// ClusterStorage includes storage for Cluster and for all the subresources.
 type ClusterStorage struct {
 	Cluster *REST
 	Status  *StatusREST
 	Proxy   *ProxyREST
 }
 
-// NewStorage returns new instance of ClusterStorage.
-func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, karmadaClient karmadaclientset.Interface,
-	optsGetter generic.RESTOptionsGetter) (ClusterStorage, error) {
-	clusterRest, clusterStatusRest, err := NewREST(scheme, optsGetter)
-	if err != nil {
-		return ClusterStorage{}, err
-	}
-
-	return ClusterStorage{
-		Cluster: clusterRest,
-		Status:  clusterStatusRest,
-		Proxy: &ProxyREST{
-			Redirector:    clusterRest,
-			kubeClient:    kubeClient,
-			karmadaClient: karmadaClient,
-		},
-	}, nil
-}
-
-// NewREST returns a RESTStorage object that will work against API services.
-func NewREST(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (*REST, *StatusREST, error) {
+// NewStorage returns a ClusterStorage object that will work against clusters.
+func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, optsGetter generic.RESTOptionsGetter) (*ClusterStorage, error) {
 	strategy := clusterregistry.NewStrategy(scheme)
 
 	store := &genericregistry.Store{
@@ -68,7 +48,7 @@ func NewREST(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (*RES
 
 	options := &generic.StoreOptions{RESTOptions: optsGetter, AttrFunc: clusterregistry.GetAttrs}
 	if err := store.CompleteWithOptions(options); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	statusStrategy := clusterregistry.NewStatusStrategy(strategy)
@@ -76,7 +56,16 @@ func NewREST(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (*RES
 	statusStore.UpdateStrategy = statusStrategy
 	statusStore.ResetFieldsStrategy = statusStrategy
 
-	return &REST{store}, &StatusREST{store: &statusStore}, nil
+	clusterRest := &REST{store}
+	return &ClusterStorage{
+		Cluster: clusterRest,
+		Status:  &StatusREST{&statusStore},
+		Proxy: &ProxyREST{
+			Store:      store,
+			Redirector: clusterRest,
+			kubeClient: kubeClient,
+		},
+	}, nil
 }
 
 // REST implements a RESTStorage for Cluster.

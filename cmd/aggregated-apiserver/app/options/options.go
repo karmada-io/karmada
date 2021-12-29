@@ -21,7 +21,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/aggregatedapiserver"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 )
 
@@ -87,9 +86,8 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
 	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
-	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 
-	server, err := config.Complete().New(kubeClientSet, karmadaClient)
+	server, err := config.Complete().New(kubeClientSet)
 	if err != nil {
 		return err
 	}
