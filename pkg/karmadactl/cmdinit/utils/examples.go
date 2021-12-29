@@ -137,7 +137,7 @@ spec:
 )
 
 //GenExamples Generate sample files
-func GenExamples(path string) {
+func GenExamples(path, parentCommand string) {
 	if err := BytesToFile(path, "karmada-agent.yaml", []byte(karmadaAgent)); err != nil {
 		klog.Warning(err)
 	}
@@ -164,9 +164,9 @@ Register Kubernetes cluster to Karmada control plane.
 
 Register cluster with 'Push' mode
                                                                                                                                                                              
-Step 1: Use kubectl-karmada join to register the cluster to Karmada control panel. --cluster-kubeconfig is members kubeconfig.
+Step 1: Use `+parentCommand+` join to register the cluster to Karmada control panel. --cluster-kubeconfig is members kubeconfig.
 (In karmada)~# MEMBER_CLUSTER_NAME=%scat ~/.kube/config  | grep current-context | sed 's/: /\n/g'| sed '1d'%s
-(In karmada)~# kubectl-karmada  --kubeconfig %s/karmada-apiserver.config  join ${MEMBER_CLUSTER_NAME} --cluster-kubeconfig=$HOME/.kube/config
+(In karmada)~# `+parentCommand+` --kubeconfig %s/karmada-apiserver.config  join ${MEMBER_CLUSTER_NAME} --cluster-kubeconfig=$HOME/.kube/config
 
 Step 2: Show members of karmada
 (In karmada)~# kubectl  --kubeconfig %s/karmada-apiserver.config get clusters
