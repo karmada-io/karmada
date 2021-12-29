@@ -17,6 +17,9 @@ import (
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/printers"
+	printersinternal "github.com/karmada-io/karmada/pkg/printers/internalversion"
+	printerstorage "github.com/karmada-io/karmada/pkg/printers/storage"
 	clusterregistry "github.com/karmada-io/karmada/pkg/registry/cluster"
 )
 
@@ -60,8 +63,7 @@ func NewREST(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (*RES
 		UpdateStrategy: strategy,
 		DeleteStrategy: strategy,
 
-		// TODO: define table converter that exposes more than name/creation timestamp
-		TableConvertor: rest.NewDefaultTableConvertor(clusterapis.Resource("clusters")),
+		TableConvertor: printerstorage.TableConvertor{TableGenerator: printers.NewTableGenerator().With(printersinternal.AddHandlers)},
 	}
 
 	options := &generic.StoreOptions{RESTOptions: optsGetter, AttrFunc: clusterregistry.GetAttrs}
