@@ -13,19 +13,19 @@ import (
 	"k8s.io/apimachinery/pkg/util/proxy"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
+	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/kubernetes"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 )
 
 // ProxyREST implements the proxy subresource for a Cluster.
 type ProxyREST struct {
+	Store      *genericregistry.Store
 	Redirector rest.Redirector
 
-	kubeClient    kubernetes.Interface
-	karmadaClient karmadaclientset.Interface
+	kubeClient kubernetes.Interface
 }
 
 // Implement Connecter
@@ -61,7 +61,7 @@ func (r *ProxyREST) Connect(ctx context.Context, id string, options runtime.Obje
 	}
 	location.Path = proxyOpts.Path
 
-	impersonateToken, err := r.getImpersonateToken(id)
+	impersonateToken, err := r.getImpersonateToken(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get impresonateToken for cluster %s: %v", id, err)
 	}
@@ -69,8 +69,8 @@ func (r *ProxyREST) Connect(ctx context.Context, id string, options runtime.Obje
 	return newProxyHandler(location, transport, impersonateToken, responder)
 }
 
-func (r *ProxyREST) getImpersonateToken(clusterName string) (string, error) {
-	cluster, err := r.karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
+func (r *ProxyREST) getImpersonateToken(ctx context.Context, clusterName string) (string, error) {
+	cluster, err := getCluster(ctx, r.Store, clusterName)
 	if err != nil {
 		return "", err
 	}
