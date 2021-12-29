@@ -69,13 +69,13 @@ type CommandInitOption struct {
 }
 
 // Validate Check that there are enough flags to run the command.
-func (i *CommandInitOption) Validate() error {
+func (i *CommandInitOption) Validate(parentCommand string) error {
 	if !utils.PathIsExist(i.KubeConfig) {
 		return fmt.Errorf("kubeconfig file does not exist.absolute path to the kubeconfig file")
 	}
 
 	if i.EtcdStorageMode == "hostPath" && i.EtcdHostDataPath == "" {
-		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See 'kubectl karmada init --help'")
+		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
 
 	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" && utils.StringToMap(i.EtcdNodeSelectorLabels) == nil {
@@ -87,7 +87,7 @@ func (i *CommandInitOption) Validate() error {
 	}
 
 	if i.EtcdStorageMode == "PVC" && i.StorageClassesName == "" {
-		return fmt.Errorf("when etcd storage mode is PVC, storageClassesName is not empty. See 'kubectl karmada init --help'")
+		return fmt.Errorf("when etcd storage mode is PVC, storageClassesName is not empty. See '%s init --help'", parentCommand)
 	}
 
 	return nil
@@ -353,7 +353,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 }
 
 //RunInit Deploy karmada in kubernetes
-func (i *CommandInitOption) RunInit(_ io.Writer) error {
+func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 	//generate certificate
 	if err := i.genCerts(); err != nil {
 		return fmt.Errorf("certificate generation failed.%v", err)
@@ -425,6 +425,6 @@ func (i *CommandInitOption) RunInit(_ io.Writer) error {
 		return err
 	}
 
-	utils.GenExamples(i.KarmadaDataPath)
+	utils.GenExamples(i.KarmadaDataPath, parentCommand)
 	return nil
 }
