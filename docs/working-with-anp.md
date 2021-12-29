@@ -1,4 +1,4 @@
-# Deploy apiserver-network-proxy(ANP)
+# Deploy apiserver-network-proxy (ANP)
 
 ## Purpose
 
