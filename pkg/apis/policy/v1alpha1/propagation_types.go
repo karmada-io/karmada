@@ -28,8 +28,19 @@ type PropagationSpec struct {
 	// Association tells if relevant resources should be selected automatically.
 	// e.g. a ConfigMap referred by a Deployment.
 	// default false.
+	// Deprecated: in favor of PropagateDeps.
 	// +optional
 	Association bool `json:"association,omitempty"`
+
+	// PropagateDeps tells if relevant resources should be propagated automatically.
+	// Take 'Deployment' which referencing 'ConfigMap' and 'Secret' as an example, when 'propagateDeps' is 'true',
+	// the referencing resources could be omitted(for saving config effort) from 'resourceSelectors' as they will be
+	// propagated along with the Deployment. In addition to the propagating process, the referencing resources will be
+	// migrated along with the Deployment in the fail-over scenario.
+	//
+	// Defaults to false.
+	// +optional
+	PropagateDeps bool `json:"propagateDeps,omitempty"`
 
 	// Placement represents the rule for select clusters to propagate resources.
 	// +optional
