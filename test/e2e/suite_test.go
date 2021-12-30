@@ -51,6 +51,7 @@ const (
 	podNamePrefix        = "pod-"
 	crdNamePrefix        = "cr-"
 	jobNamePrefix        = "job-"
+	workloadNamePrefix   = "workload-"
 
 	updateDeploymentReplicas = 6
 	updateServicePort        = 81
