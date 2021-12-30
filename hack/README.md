@@ -51,6 +51,9 @@ ensures development quality.
   please use it like this: `hack/undeploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME>`, the same parameters as you input at
   the installing step.
 
+- [`delete-cluster.sh`](delete-cluster.sh) This script delete a kube cluster by kind,
+  please use it like this: `hack/delete-cluster.sh.sh <CLUSTER_NAME> <KUBECONFIG>`
+
 ## For CI pipeline
 - [`local-up-karmada.sh`](local-up-karmada.sh) This script also used for testing.
 
