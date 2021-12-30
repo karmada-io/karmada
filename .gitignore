@@ -27,3 +27,6 @@
 /karmada-scheduler-estimator
 /karmada-webhook
 /kubectl-karmada
+
+bin
+crds.tar.gz

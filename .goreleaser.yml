@@ -1,0 +1,32 @@
+project_name: karmada
+before:
+  hooks:
+  - tar czf crds.tar.gz -C ./charts/_crds .
+dist: bin
+env:
+- GO111MODULE=on
+builds:
+- id: kubectl-karmada
+  main: ./cmd/kubectl-karmada
+  binary: kubectl-karmada
+  env:
+  - CGO_ENABLED=0
+  ldflags:
+  - "-X github.com/karmada-io/karmada/pkg/version.gitVersion={{ .Summary }} \
+    -X github.com/karmada-io/karmada/pkg/version.gitCommit={{ .FullCommit }} \
+    -X github.com/karmada-io/karmada/pkg/version.gitTreeState=clean \
+    -X github.com/karmada-io/karmada/pkg/version.buildDate={{ .Date }}"
+  goos:
+  - darwin
+  - linux
+  goarch:
+  - amd64
+  - arm64
+archives:
+- name_template: '{{ .Binary }}-{{ .Os }}-{{ .Arch }}'
+  format: tgz
+  files:
+  - none*
+  wrap_in_directory: false
+checksum:
+  name_template: "checksums.txt"

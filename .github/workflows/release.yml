@@ -7,40 +7,34 @@ jobs:
   release-assests:
     name: release kubectl-karmada
     runs-on: ubuntu-18.04
-    strategy:
-      matrix:
-        include:
-          - goarch: amd64
-            goos: linux
-          - goarch: amd64
-            goos: darwin
-          - goarch: arm64
-            goos: linux
-          - goarch: arm64
-            goos: darwin
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
         go-version: 1.16
-    - name: Making kubectl-karmada
-      run: make kubectl-karmada
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-    - name: Packaging...
-      run: tar czf kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz kubectl-karmada LICENSE
+    - name: Run GoReleaser
+      uses: goreleaser/goreleaser-action@v2
+      with:
+        distribution: goreleaser
+        version: latest
+        args: release --skip-publish --skip-validate --rm-dist
     - name: Uploading assets...
       if: ${{ !env.ACT }}
       uses: softprops/action-gh-release@v1
       with:
-        files: ./kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz
+        files: |
+          ./bin/kubectl-karmada-darwin-amd64.tgz
+          ./bin/kubectl-karmada-darwin-arm64.tgz
+          ./bin/kubectl-karmada-linux-amd64.tgz
+          ./bin/kubectl-karmada-linux-arm64.tgz
+          ./bin/checksums.txt
+          ./crds.tar.gz
   update-krew-index:
     needs: release-assests
     name: Update krew-index
     runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
     - name: Update new version in krew-index
       uses: rajatjindal/krew-release-bot@v0.0.40
