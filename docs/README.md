@@ -13,6 +13,7 @@ Refer to [Installing Karmada](./installation/installation.md).
 
 - [Cluster Registration](./userguide/cluster-registration.md) 
 - [Aggregated Kubernetes API Endpoint](./userguide/aggregated-api-endpoint.md)
+- [Cluster Failover](./userguide/failover.md)
 
 ## Best Practices
 
