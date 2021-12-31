@@ -74,6 +74,24 @@ func RemoveWorkload(client dynamic.Interface, namespace, name string) {
 	})
 }
 
+// WaitWorkloadPresentOnClusterFitWith wait workload present on member clusters sync with fit func.
+func WaitWorkloadPresentOnClusterFitWith(cluster, namespace, name string, fit func(workload *workloadv1alpha1.Workload) bool) {
+	clusterClient := GetClusterDynamicClient(cluster)
+	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+	klog.Infof("Waiting for Workload(%s/%s) synced on cluster(%s)", namespace, name, cluster)
+	gomega.Eventually(func() bool {
+		workload, err := clusterClient.Resource(workloadGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		typedObj := &workloadv1alpha1.Workload{}
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(workload.UnstructuredContent(), typedObj)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		return fit(typedObj)
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
 // WaitWorkloadDisappearOnCluster wait workload disappear on cluster until timeout.
 func WaitWorkloadDisappearOnCluster(cluster, namespace, name string) {
 	clusterClient := GetClusterDynamicClient(cluster)
