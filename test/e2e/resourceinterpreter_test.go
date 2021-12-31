@@ -10,7 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 
+	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -118,6 +120,61 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 
 			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
 			framework.WaitWorkloadDisappearOnClusters(pushModeClusters, workload.Namespace, workload.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation ReviseReplica testing", func() {
+		policyNamespace := testNamespace
+		policyName := workloadNamePrefix + rand.String(RandomStrLength)
+		workloadNamespace := testNamespace
+		workloadName := policyName
+		workload := testhelper.NewWorkload(workloadNamespace, workloadName)
+
+		ginkgo.It("ReviseReplica testing", func() {
+			sumWeight := 0
+			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
+			for index, clusterName := range framework.ClusterNames() {
+				staticWeightList := policyv1alpha1.StaticClusterWeight{
+					TargetCluster: policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{clusterName},
+					},
+					Weight: int64(index + 1),
+				}
+				sumWeight += index + 1
+				staticWeightLists = append(staticWeightLists, staticWeightList)
+			}
+			workload.Spec.Replicas = pointer.Int32Ptr(int32(sumWeight))
+			policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: workload.APIVersion,
+					Kind:       workload.Kind,
+					Name:       workload.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: staticWeightLists,
+					},
+				},
+			})
+
+			framework.CreateWorkload(dynamicClient, workload)
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+
+			for index, clusterName := range framework.ClusterNames() {
+				framework.WaitWorkloadPresentOnClusterFitWith(clusterName, workload.Namespace, workload.Name, func(workload *workloadv1alpha1.Workload) bool {
+					return *workload.Spec.Replicas == int32(index+1)
+				})
+			}
+
+			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
+			framework.WaitWorkloadDisappearOnClusters(framework.ClusterNames(), workload.Namespace, workload.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
