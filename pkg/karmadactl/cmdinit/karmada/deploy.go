@@ -192,15 +192,16 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 	if err != nil {
 		return err
 	}
+
+	aaAPIServiceObjName := "v1alpha1.cluster.karmada.io"
 	aaAPIService := &apiregistrationv1.APIService{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "APIService",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "v1alpha1.cluster.karmada.io",
-			Labels:          map[string]string{"app": "karmada-aggregated-apiserver", "apiserver": "true"},
-			ResourceVersion: apiServiceResourceVersion(apiRegistrationClient, "v1alpha1.cluster.karmada.io"),
+			Name:   aaAPIServiceObjName,
+			Labels: map[string]string{"app": "karmada-aggregated-apiserver", "apiserver": "true"},
 		},
 		Spec: apiregistrationv1.APIServiceSpec{
 			InsecureSkipTLSVerify: true,
@@ -214,9 +215,27 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 			VersionPriority: 10,
 		},
 	}
-	klog.Info("Update APIService 'v1alpha1.cluster.karmada.io'")
-	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), aaAPIService, metav1.UpdateOptions{}); err != nil {
+
+	allService, err := apiRegistrationClient.ApiregistrationV1().APIServices().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
 		return err
 	}
+
+	for _, v := range allService.Items {
+		if v.Name == aaAPIServiceObjName {
+			klog.Infof("Update APIService '%s'", aaAPIServiceObjName)
+			aaAPIService.ObjectMeta.ResourceVersion = apiServiceResourceVersion(apiRegistrationClient, aaAPIServiceObjName)
+			if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), aaAPIService, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
+	klog.Infof("Create APIService '%s'", aaAPIServiceObjName)
+	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), aaAPIService, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+
 	return nil
 }
