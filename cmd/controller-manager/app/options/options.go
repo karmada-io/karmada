@@ -20,8 +20,13 @@ const (
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
+	// Controllers is the list of controllers to enable or disable
+	// '*' means "all enabled by default controllers"
+	// 'foo' means "enable 'foo'"
+	// '-foo' means "disable 'foo'"
+	// first item for a particular name wins
 	Controllers []string
-
+	// LeaderElection defines the configuration of leader election client.
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 	// BindAddress is the IP address on which to listen for the --secure-port port.
 	BindAddress string
@@ -64,7 +69,7 @@ type Options struct {
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
 	KubeAPIBurst int
-
+	// ClusterCacheSyncTimeout is the timeout period waiting for cluster cache to sync
 	ClusterCacheSyncTimeout metav1.Duration
 }
 
