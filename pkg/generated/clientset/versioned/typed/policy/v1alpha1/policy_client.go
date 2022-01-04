@@ -14,7 +14,6 @@ type PolicyV1alpha1Interface interface {
 	ClusterPropagationPoliciesGetter
 	OverridePoliciesGetter
 	PropagationPoliciesGetter
-	ReplicaSchedulingPoliciesGetter
 }
 
 // PolicyV1alpha1Client is used to interact with features provided by the policy.karmada.io group.
@@ -36,10 +35,6 @@ func (c *PolicyV1alpha1Client) OverridePolicies(namespace string) OverridePolicy
 
 func (c *PolicyV1alpha1Client) PropagationPolicies(namespace string) PropagationPolicyInterface {
 	return newPropagationPolicies(c, namespace)
-}
-
-func (c *PolicyV1alpha1Client) ReplicaSchedulingPolicies(namespace string) ReplicaSchedulingPolicyInterface {
-	return newReplicaSchedulingPolicies(c, namespace)
 }
 
 // NewForConfig creates a new PolicyV1alpha1Client for the given config.

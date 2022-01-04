@@ -78,6 +78,8 @@ type ClusterStatusController struct {
 	ClusterLeaseRenewIntervalFraction float64
 	// ClusterLeaseControllers store clusters and their corresponding lease controllers.
 	ClusterLeaseControllers sync.Map
+
+	ClusterCacheSyncTimeout metav1.Duration
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -238,7 +240,7 @@ func (c *ClusterStatusController) buildInformerForCluster(cluster *clusterv1alph
 	c.InformerManager.Start(cluster.Name)
 
 	if err := func() error {
-		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, util.CacheSyncTimeout)
+		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, c.ClusterCacheSyncTimeout.Duration)
 		if synced == nil {
 			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
 		}

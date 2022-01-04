@@ -47,3 +47,17 @@ func NewOverridePolicy(namespace, policyName string, rsSelectors []policyv1alpha
 		},
 	}
 }
+
+// NewOverridePolicyByOverrideRules will build a OverridePolicy object by OverrideRules
+func NewOverridePolicyByOverrideRules(namespace, policyName string, rsSelectors []policyv1alpha1.ResourceSelector, overrideRules []policyv1alpha1.RuleWithCluster) *policyv1alpha1.OverridePolicy {
+	return &policyv1alpha1.OverridePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      policyName,
+		},
+		Spec: policyv1alpha1.OverrideSpec{
+			ResourceSelectors: rsSelectors,
+			OverrideRules:     overrideRules,
+		},
+	}
+}

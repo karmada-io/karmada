@@ -51,6 +51,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: clusteroverridepolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["clusteroverridepolicies"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-clusteroverridepolicy
+      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
   - name: work.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
@@ -110,6 +124,20 @@ webhooks:
         scope: "Cluster"
     clientConfig:
       url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/validate-clusterpropagationpolicy
+      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
+  - name: overridepolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["overridepolicies"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/validate-overridepolicy
       {{- include "karmada.webhook.caBundle" . | nindent 6 }}
     failurePolicy: Fail
     sideEffects: None

@@ -1,21 +1,17 @@
 package karmadactl
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -174,11 +170,11 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 	klog.V(1).Infof("joining cluster config. endpoint: %s", clusterConfig.Host)
 
 	// ensure namespace where the cluster object be stored exists in control plane.
-	if _, err = ensureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
+	if _, err = util.EnsureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
 		return err
 	}
 
-	clusterSecret, err := generateSecretInMemberCluster(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
+	clusterSecret, impersonatorSecret, err := obtainCredentialsFromMemberCluster(clusterKubeClient, opts.ClusterNamespace, opts.ClusterName, opts.DryRun)
 	if err != nil {
 		return err
 	}
@@ -187,6 +183,74 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return nil
 	}
 
+	err = registerClusterInControllerPlane(opts, controlPlaneRestConfig, clusterConfig, controlPlaneKubeClient, clusterSecret, impersonatorSecret)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("cluster(%s) is joined successfully\n", opts.ClusterName)
+	return nil
+}
+
+func obtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, clusterNamespace, clusterName string, dryRun bool) (*corev1.Secret, *corev1.Secret, error) {
+	var err error
+
+	// ensure namespace where the karmada control plane credential be stored exists in cluster.
+	if _, err = util.EnsureNamespaceExist(clusterKubeClient, clusterNamespace, dryRun); err != nil {
+		return nil, nil, err
+	}
+
+	// create a ServiceAccount in cluster.
+	serviceAccountObj := &corev1.ServiceAccount{}
+	serviceAccountObj.Namespace = clusterNamespace
+	serviceAccountObj.Name = names.GenerateServiceAccountName(clusterName)
+	if serviceAccountObj, err = util.EnsureServiceAccountExist(clusterKubeClient, serviceAccountObj, dryRun); err != nil {
+		return nil, nil, err
+	}
+
+	// create a ServiceAccount for impersonation in cluster.
+	impersonationSA := &corev1.ServiceAccount{}
+	impersonationSA.Namespace = clusterNamespace
+	impersonationSA.Name = names.GenerateServiceAccountName("impersonator")
+	if impersonationSA, err = util.EnsureServiceAccountExist(clusterKubeClient, impersonationSA, dryRun); err != nil {
+		return nil, nil, err
+	}
+
+	// create a ClusterRole in cluster.
+	clusterRole := &rbacv1.ClusterRole{}
+	clusterRole.Name = names.GenerateRoleName(serviceAccountObj.Name)
+	clusterRole.Rules = clusterPolicyRules
+	if _, err = ensureClusterRoleExist(clusterKubeClient, clusterRole, dryRun); err != nil {
+		return nil, nil, err
+	}
+
+	// create a ClusterRoleBinding in cluster.
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	clusterRoleBinding.Name = clusterRole.Name
+	clusterRoleBinding.Subjects = buildRoleBindingSubjects(serviceAccountObj.Name, serviceAccountObj.Namespace)
+	clusterRoleBinding.RoleRef = buildClusterRoleReference(clusterRole.Name)
+	if _, err = ensureClusterRoleBindingExist(clusterKubeClient, clusterRoleBinding, dryRun); err != nil {
+		return nil, nil, err
+	}
+
+	if dryRun {
+		return nil, nil, nil
+	}
+
+	clusterSecret, err := util.WaitForServiceAccountSecretCreation(clusterKubeClient, serviceAccountObj)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get serviceAccount secret from cluster(%s), error: %v", clusterName, err)
+	}
+
+	impersonatorSecret, err := util.WaitForServiceAccountSecretCreation(clusterKubeClient, impersonationSA)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get serviceAccount secret for impersonation from cluster(%s), error: %v", clusterName, err)
+	}
+
+	return clusterSecret, impersonatorSecret, nil
+}
+
+func registerClusterInControllerPlane(opts CommandJoinOption, controlPlaneRestConfig, clusterConfig *rest.Config, controlPlaneKubeClient kubeclient.Interface, clusterSecret, clusterImpersonatorSecret *corev1.Secret) error {
 	// create secret in control plane
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -198,16 +262,34 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 			clusterv1alpha1.SecretTokenKey:  clusterSecret.Data[clusterv1alpha1.SecretTokenKey],
 		},
 	}
-	secret, err = util.CreateSecret(controlPlaneKubeClient, secret)
+
+	secret, err := util.CreateSecret(controlPlaneKubeClient, secret)
 	if err != nil {
 		return fmt.Errorf("failed to create secret in control plane. error: %v", err)
 	}
 
-	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts, *secret)
+	// create secret to store impersonation info in control plane
+	impersonatorSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: opts.ClusterNamespace,
+			Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
+		},
+		Data: map[string][]byte{
+			clusterv1alpha1.SecretTokenKey: clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
+		},
+	}
+
+	impersonatorSecret, err = util.CreateSecret(controlPlaneKubeClient, impersonatorSecret)
+	if err != nil {
+		return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
+	}
+
+	cluster, err := generateClusterInControllerPlane(controlPlaneRestConfig, clusterConfig, opts, *secret, *impersonatorSecret)
 	if err != nil {
 		return err
 	}
 
+	// add OwnerReference for secrets.
 	patchSecretBody := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{
@@ -215,81 +297,21 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 			},
 		},
 	}
+
 	err = util.PatchSecret(controlPlaneKubeClient, secret.Namespace, secret.Name, types.MergePatchType, patchSecretBody)
 	if err != nil {
 		return fmt.Errorf("failed to patch secret %s/%s, error: %v", secret.Namespace, secret.Name, err)
 	}
 
-	fmt.Printf("cluster(%s) is joined successfully\n", opts.ClusterName)
+	err = util.PatchSecret(controlPlaneKubeClient, impersonatorSecret.Namespace, impersonatorSecret.Name, types.MergePatchType, patchSecretBody)
+	if err != nil {
+		return fmt.Errorf("failed to patch impersonator secret %s/%s, error: %v", impersonatorSecret.Namespace, impersonatorSecret.Name, err)
+	}
 
 	return nil
 }
 
-func generateSecretInMemberCluster(clusterKubeClient kubeclient.Interface, clusterNamespace, clusterName string, dryRun bool) (*corev1.Secret, error) {
-	var err error
-
-	// ensure namespace where the karmada control plane credential be stored exists in cluster.
-	if _, err = ensureNamespaceExist(clusterKubeClient, clusterNamespace, dryRun); err != nil {
-		return nil, err
-	}
-
-	// create a ServiceAccount in cluster.
-	serviceAccountObj := &corev1.ServiceAccount{}
-	serviceAccountObj.Namespace = clusterNamespace
-	serviceAccountObj.Name = names.GenerateServiceAccountName(clusterName)
-	if serviceAccountObj, err = ensureServiceAccountExist(clusterKubeClient, serviceAccountObj, dryRun); err != nil {
-		return nil, err
-	}
-
-	// create a ClusterRole in cluster.
-	clusterRole := &rbacv1.ClusterRole{}
-	clusterRole.Name = names.GenerateRoleName(serviceAccountObj.Name)
-	clusterRole.Rules = clusterPolicyRules
-	if _, err = ensureClusterRoleExist(clusterKubeClient, clusterRole, dryRun); err != nil {
-		return nil, err
-	}
-
-	// create a ClusterRoleBinding in cluster.
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	clusterRoleBinding.Name = clusterRole.Name
-	clusterRoleBinding.Subjects = buildRoleBindingSubjects(serviceAccountObj.Name, serviceAccountObj.Namespace)
-	clusterRoleBinding.RoleRef = buildClusterRoleReference(clusterRole.Name)
-	if _, err = ensureClusterRoleBindingExist(clusterKubeClient, clusterRoleBinding, dryRun); err != nil {
-		return nil, err
-	}
-
-	if dryRun {
-		return nil, nil
-	}
-
-	var clusterSecret *corev1.Secret
-	// It will take a short time to create service account secret for cluster.
-	err = wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
-		serviceAccount, err := clusterKubeClient.CoreV1().ServiceAccounts(serviceAccountObj.Namespace).Get(context.TODO(), serviceAccountObj.Name, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return false, nil
-			}
-			return false, fmt.Errorf("failed to retrieve service account(%s/%s) from cluster, err: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
-		}
-		clusterSecret, err = util.GetTargetSecret(clusterKubeClient, serviceAccount.Secrets, corev1.SecretTypeServiceAccountToken, clusterNamespace)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return false, nil
-			}
-			return false, err
-		}
-
-		return true, nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get serviceAccount secret from cluster(%s), error: %v", clusterName, err)
-	}
-
-	return clusterSecret, nil
-}
-
-func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Config, opts CommandJoinOption, secret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
+func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Config, opts CommandJoinOption, secret, impersonatorSecret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
 	clusterObj := &clusterv1alpha1.Cluster{}
 	clusterObj.Name = opts.ClusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Push
@@ -297,6 +319,10 @@ func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Co
 	clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
 		Namespace: secret.Namespace,
 		Name:      secret.Name,
+	}
+	clusterObj.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+		Namespace: impersonatorSecret.Namespace,
+		Name:      impersonatorSecret.Name,
 	}
 
 	if opts.ClusterProvider != "" {
@@ -316,63 +342,12 @@ func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Co
 	}
 
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneConfig)
-	cluster, err := CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
+	cluster, err := util.CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cluster(%s) object. error: %v", opts.ClusterName, err)
 	}
 
 	return cluster, nil
-}
-
-// ensureNamespaceExist makes sure that the specific namespace exist in cluster.
-// If namespace not exit, just create it.
-func ensureNamespaceExist(client kubeclient.Interface, namespace string, dryRun bool) (*corev1.Namespace, error) {
-	namespaceObj := &corev1.Namespace{}
-	namespaceObj.ObjectMeta.Name = namespace
-
-	if dryRun {
-		return namespaceObj, nil
-	}
-
-	exist, err := util.IsNamespaceExist(client, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check if namespace exist. namespace: %s, error: %v", namespace, err)
-	}
-	if exist {
-		klog.V(1).Infof("ensure namespace succeed as already exist. namespace: %s", namespace)
-		return namespaceObj, nil
-	}
-
-	createdObj, err := util.CreateNamespace(client, namespaceObj)
-	if err != nil {
-		return nil, fmt.Errorf("ensure namespace failed due to create failed. namespace: %s, error: %v", namespace, err)
-	}
-
-	return createdObj, nil
-}
-
-// ensureServiceAccountExist makes sure that the specific service account exist in cluster.
-// If service account not exit, just create it.
-func ensureServiceAccountExist(client kubeclient.Interface, serviceAccountObj *corev1.ServiceAccount, dryRun bool) (*corev1.ServiceAccount, error) {
-	if dryRun {
-		return serviceAccountObj, nil
-	}
-
-	exist, err := util.IsServiceAccountExist(client, serviceAccountObj.Namespace, serviceAccountObj.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check if service account exist. service account: %s/%s, error: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
-	}
-	if exist {
-		klog.V(1).Infof("ensure service account succeed as already exist. service account: %s/%s", serviceAccountObj.Namespace, serviceAccountObj.Name)
-		return serviceAccountObj, nil
-	}
-
-	createdObj, err := util.CreateServiceAccount(client, serviceAccountObj)
-	if err != nil {
-		return nil, fmt.Errorf("ensure service account failed due to create failed. service account: %s/%s, error: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
-	}
-
-	return createdObj, nil
 }
 
 // ensureClusterRoleExist makes sure that the specific cluster role exist in cluster.
@@ -421,51 +396,6 @@ func ensureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 	}
 
 	return createdObj, nil
-}
-
-// CreateClusterObject create cluster object in karmada control plane
-func CreateClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
-	cluster, exist, err := GetCluster(controlPlaneClient, clusterObj.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	if exist {
-		return cluster, fmt.Errorf("cluster(%s) already exist", clusterObj.Name)
-	}
-
-	if cluster, err = CreateCluster(controlPlaneClient, clusterObj); err != nil {
-		klog.Warningf("failed to create cluster(%s). error: %v", clusterObj.Name, err)
-		return nil, err
-	}
-
-	return cluster, nil
-}
-
-// GetCluster tells if a cluster already joined to control plane.
-func GetCluster(client karmadaclientset.Interface, name string) (*clusterv1alpha1.Cluster, bool, error) {
-	cluster, err := client.ClusterV1alpha1().Clusters().Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, false, nil
-		}
-
-		klog.Warningf("failed to retrieve cluster(%s). error: %v", cluster.Name, err)
-		return nil, false, err
-	}
-
-	return cluster, true, nil
-}
-
-// CreateCluster creates a new cluster object in control plane.
-func CreateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
-	newCluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
-	if err != nil {
-		klog.Warningf("failed to create cluster(%s). error: %v", cluster.Name, err)
-		return nil, err
-	}
-
-	return newCluster, nil
 }
 
 // buildRoleBindingSubjects will generate a subject as per service account.

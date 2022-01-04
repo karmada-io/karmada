@@ -16,11 +16,11 @@ const (
 	// - kube-public
 	// - kube-node-lease
 	KubernetesReservedNSPrefix = "kube-"
-	//NamespaceKarmadaSystem is reserved namespace
+	// NamespaceKarmadaSystem is reserved namespace
 	NamespaceKarmadaSystem = "karmada-system"
-	//NamespaceKarmadaCluster is reserved namespace
+	// NamespaceKarmadaCluster is reserved namespace
 	NamespaceKarmadaCluster = "karmada-cluster"
-	//NamespaceDefault is reserved namespace
+	// NamespaceDefault is reserved namespace
 	NamespaceDefault = "default"
 )
 
@@ -115,4 +115,9 @@ func IsReservedNamespace(namespace string) bool {
 		namespace == NamespaceKarmadaCluster ||
 		strings.HasPrefix(namespace, ExecutionSpacePrefix) ||
 		strings.HasPrefix(namespace, KubernetesReservedNSPrefix)
+}
+
+// GenerateImpersonationSecretName generates the secret name of impersonation secret.
+func GenerateImpersonationSecretName(clusterName string) string {
+	return fmt.Sprintf("%s-impersonator", clusterName)
 }

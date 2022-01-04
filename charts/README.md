@@ -112,6 +112,9 @@ $ helm install karmada-scheduler-estimator -n karmada-system ./charts
 |`certs.custom.caCrt`|CA CRT of the certificate|`""`|
 |`certs.custom.crt`|CRT of the certificate|`""`|
 |`certs.custom.key`|KEY of the certificate|`""`|
+|`certs.custom.frontProxyCaCrt`|CA CRT of the front proxy certificate|`""`|
+|`certs.custom.frontProxyCrt`|CRT of the front proxy certificate|`""`|
+|`certs.custom.frontProxyKey`|KEY of the front proxy certificate|`""`|
 |`etcd.mode`| Mode "external" and "internal" are provided, "external" means use external ectd, "internal" means install a etcd in the cluster |`"internal"`|
 |`etcd.external.servers`| Servers of etcd |`""`|
 |`etcd.external.registryPrefix`| Use to registry prefix of etcd |`"/registry/karmada"`|
@@ -194,6 +197,18 @@ $ helm install karmada-scheduler-estimator -n karmada-system ./charts
 |`apiServer.tolerations`| Tolerations of the karmada-apiserver |`[]`|
 |`apiServer.serviceType`| Service type of apiserver, accepts "ClusterIP", "NodePort", "LoadBalancer" |`"ClusterIP"`|
 |`apiServer.nodePort`| Node port for apiserver, takes effect when `apiServer.serviceType` is "NodePort". If no port is specified, the nodePort will be automatically assigned. |`0`|
+|`aggregatedApiServer.labels`| Labels of the karmada-aggregated-apiserver deployment |`{"app": "karmada-aggregated-apiserver"}`|
+|`aggregatedApiServer.replicaCount`| Target replicas of the karmada-aggregated-apiserver |`1`|
+|`aggregatedApiServer.podLabels`| Labels of the karmada-aggregated-apiserver pods |`{}`|
+|`aggregatedApiServer.podAnnotations`| Annotaions of the karmada-aggregated-apiserver pods |`{}`|
+|`aggregatedApiServer.imagePullSecrets`| Image pull secret of the karmada-aggregated-apiserver |`[]`|
+|`aggregatedApiServer.image.repository`| Image of the karmada-aggregated-apiserver |`"swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-aggregated-apiserver"`|
+|`aggregatedApiServer.image.tag`| Image tag of the karmada-aggregated-apiserver |`"latest"`|
+|`aggregatedApiServer.image.pullPolicy`| Image pull policy of the karmada-aggregated-apiserver |`"IfNotPresent"`|
+|`aggregatedApiServer.resources`| Resource quota of the karmada-aggregated-apiserver |`{requests: {cpu: 100m}}`|
+|`aggregatedApiServer.nodeSelector`| Node selector of the karmada-aggregated-apiserver |`{}`|
+|`aggregatedApiServer.affinity`| Affinity of the karmada-aggregated-apiserver |`{}`|
+|`aggregatedApiServer.tolerations`| Tolerations of the karmada-aggregated-apiserver |`[]`|
 |`kubeControllerManager.labels`| Labels of the kube-controller-manager deployment |`{"app": "kube-controller-manager"}`|
 |`kubeControllerManager.replicaCount`| Target replicas of the kube-controller-manager |`1`|
 |`kubeControllerManager.podLabels`| Labels of the kube-controller-manager pods |`{}`|

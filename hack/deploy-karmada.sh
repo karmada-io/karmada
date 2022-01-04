@@ -16,7 +16,7 @@ KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
 CFSSL_VERSION="v1.5.0"
-CLUSTER_IP_ONLY=${CLUSTER_IP_ONLY:-false} # whether create a 'ClusterIP' type service for karmada apiserver
+LOAD_BALANCER=${LOAD_BALANCER:-false} # whether create a 'LoadBalancer' type service for karmada apiserver
 source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
@@ -86,6 +86,10 @@ function generate_cert_secret {
     sed -i'' -e "s/{{client_cer}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
     sed -i'' -e "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
 
+    sed -i'' -e "s/{{front_proxy_ca_crt}}/${FRONT_PROXY_CA_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{front_proxy_client_crt}}/${FRONT_PROXY_CLIENT_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{front_proxy_client_key}}/${FRONT_PROXY_CLIENT_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
+
     sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH}"/secret-tmp.yaml
     sed -i'' -e "s/{{client_cer}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/secret-tmp.yaml
     sed -i'' -e "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/secret-tmp.yaml
@@ -113,8 +117,10 @@ util::cmd_must_exist "openssl"
 util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 # create CA signers
 util::create_signing_certkey "" "${CERT_DIR}" server '"client auth","server auth"'
+util::create_signing_certkey "" "${CERT_DIR}" front-proxy '"client auth","server auth"'
 # signs a certificate
 util::create_certkey "" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
+util::create_certkey "" "${CERT_DIR}" "front-proxy-ca" front-proxy-client front-proxy-client kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
 # create namespace for control plane components
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
@@ -126,6 +132,9 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/clusterrolebinding.yaml"
 
 KARMADA_CRT=$(base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
 KARMADA_KEY=$(base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
+FRONT_PROXY_CA_CRT=$(base64 "${CERT_DIR}/front-proxy-ca.crt" | tr -d '\r\n')
+FRONT_PROXY_CLIENT_CRT=$(base64 "${CERT_DIR}/front-proxy-client.crt" | tr -d '\r\n')
+FRONT_PROXY_CLIENT_KEY=$(base64 "${CERT_DIR}/front-proxy-client.key" | tr -d '\r\n')
 generate_cert_secret
 
 # deploy karmada etcd
@@ -136,15 +145,15 @@ util::wait_pod_ready "${ETCD_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 #KARMADA_APISERVER_SERVICE_TYPE is the service type of karmada API Server, For connectivity, it will be different when
 # HOST_CLUSTER_TYPE is different. When HOST_CLUSTER_TYPE=local, we will create a ClusterIP type Service. And when
-# HOST_CLUSTER_TYPE=remote, we need to create a LoadBalancer service to access Karmada API Server outside the
-# karmada-host cluster. Of course, you can still use a ClusterIP type Service by setting $CLUSTER_IP_ONLY=true
+# HOST_CLUSTER_TYPE=remote, we directly use hostNetwork to access Karmada API Server outside the
+# karmada-host cluster. Of course, you can create a LoadBalancer service by setting $LOAD_BALANCER=true
 KARMADA_APISERVER_SERVICE_TYPE="ClusterIP"
 
 if [ "${HOST_CLUSTER_TYPE}" = "local" ]; then # local mode
   KARMADA_APISERVER_IP=$(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}")
 else # remote mode
 # KARMADA_APISERVER_IP will be got when Karmada API Server is ready
-  if [ "${CLUSTER_IP_ONLY}" = false ]; then
+  if [ "${LOAD_BALANCER}" = true ]; then
     KARMADA_APISERVER_SERVICE_TYPE="LoadBalancer"
   fi
   HOST_CLUSTER_TYPE="remote" # make sure HOST_CLUSTER_TYPE is in local and remote
@@ -164,7 +173,7 @@ util::wait_pod_ready "${APISERVER_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 if [ "${HOST_CLUSTER_TYPE}" = "remote" ]; then
   case $KARMADA_APISERVER_SERVICE_TYPE in
     ClusterIP)
-      KARMADA_APISERVER_IP=$(kubectl get service karmada-apiserver -n "${KARMADA_SYSTEM_NAMESPACE}" -o=jsonpath='{.spec.clusterIP}')
+      KARMADA_APISERVER_IP=$(kubectl get pod -l app=karmada-apiserver -n "${KARMADA_SYSTEM_NAMESPACE}" -o=jsonpath='{.items[0].status.podIP}')
     ;;
     LoadBalancer)
       if util::wait_service_external_ip "karmada-apiserver" "${KARMADA_SYSTEM_NAMESPACE}"; then
@@ -191,6 +200,9 @@ util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${CERT_DIR}/karmada
 
 # deploy kube controller manager
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
+# deploy aggregated-apiserver on host cluster
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver.yaml"
+util::wait_pod_ready "${KARMADA_AGGREGATION_APISERVER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # install CRD APIs on karmada apiserver.
 if ! kubectl config use-context karmada-apiserver > /dev/null 2>&1;
@@ -209,6 +221,11 @@ rm -rf "${TEMP_PATH_CRDS}"
 
 # deploy webhook configurations on karmada apiserver
 util::deploy_webhook_configuration "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
+
+# deploy APIService on karmada apiserver for karmada-aggregated-apiserver
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/apiservice.yaml"
+# make sure apiservice for v1alpha1.cluster.karmada.io is Available
+util::wait_apiservice_ready "${KARMADA_AGGREGATION_APISERVER_LABEL}"
 
 kubectl config use-context "${HOST_CLUSTER_NAME}"
 

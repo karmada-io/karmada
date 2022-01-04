@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -17,9 +18,11 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -60,10 +63,19 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
-	opts.AddFlags(cmd.Flags())
+	opts.AddFlags(cmd.Flags(), controllers.ControllerNames())
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-agent"))
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	return cmd
+}
+
+var controllers = make(controllerscontext.Initializers)
+
+func init() {
+	controllers["clusterStatus"] = startClusterStatusController
+	controllers["execution"] = startExecutionController
+	controllers["workStatus"] = startWorkStatusController
+	controllers["serviceExport"] = startServiceExportController
 }
 
 func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *options.Options) error {
@@ -74,7 +86,25 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	}
 	controlPlaneRestConfig.QPS, controlPlaneRestConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
-	err = registerWithControlPlaneAPIServer(controlPlaneRestConfig, opts.ClusterName)
+	clusterConfig, err := controllerruntime.GetConfig()
+	if err != nil {
+		return fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
+	}
+	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
+	// ensure namespace where the impersonation secret to be stored in member cluster.
+	if _, err = util.EnsureNamespaceExist(clusterKubeClient, opts.ClusterNamespace, false); err != nil {
+		return err
+	}
+
+	// create a ServiceAccount for impersonator in cluster.
+	impersonationSA := &corev1.ServiceAccount{}
+	impersonationSA.Namespace = opts.ClusterNamespace
+	impersonationSA.Name = names.GenerateServiceAccountName("impersonator")
+	if _, err = util.EnsureServiceAccountExist(clusterKubeClient, impersonationSA, false); err != nil {
+		return err
+	}
+
+	err = registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterConfig, opts)
 	if err != nil {
 		return fmt.Errorf("failed to register with karmada control plane: %s", err.Error())
 	}
@@ -110,24 +140,6 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 }
 
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
-	clusterStatusController := &status.ClusterStatusController{
-		Client:                            mgr.GetClient(),
-		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
-		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:                     helper.NewClusterPredicateOnAgent(opts.ClusterName),
-		InformerManager:                   informermanager.GetInstance(),
-		StopChan:                          stopChan,
-		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
-		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
-		ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
-		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-	}
-	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster status controller: %v", err)
-	}
-
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
@@ -137,47 +149,24 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter)
-	executionController := &execution.Controller{
-		Client:          mgr.GetClient(),
-		EventRecorder:   mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:      mgr.GetRESTMapper(),
-		ObjectWatcher:   objectWatcher,
-		PredicateFunc:   helper.NewExecutionPredicateOnAgent(),
-		InformerManager: informermanager.GetInstance(),
-	}
-	if err := executionController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup execution controller: %v", err)
-	}
-
-	workStatusController := &status.WorkStatusController{
-		Client:               mgr.GetClient(),
-		EventRecorder:        mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:           mgr.GetRESTMapper(),
-		InformerManager:      informermanager.GetInstance(),
-		StopChan:             stopChan,
-		WorkerNumber:         1,
-		ObjectWatcher:        objectWatcher,
-		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
-		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-	}
-	workStatusController.RunWorkQueue()
-	if err := workStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup work status controller: %v", err)
+	controllerContext := controllerscontext.Context{
+		Mgr:           mgr,
+		ObjectWatcher: objectWatcher,
+		Opts: controllerscontext.Options{
+			Controllers:                       opts.Controllers,
+			ClusterName:                       opts.ClusterName,
+			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
+			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
+			ClusterAPIQPS:                     opts.ClusterAPIQPS,
+			ClusterAPIBurst:                   opts.ClusterAPIBurst,
+		},
+		StopChan: stopChan,
 	}
 
-	serviceExportController := &mcs.ServiceExportController{
-		Client:                      mgr.GetClient(),
-		EventRecorder:               mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
-		RESTMapper:                  mgr.GetRESTMapper(),
-		InformerManager:             informermanager.GetInstance(),
-		StopChan:                    stopChan,
-		WorkerNumber:                1,
-		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(opts.ClusterName),
-		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-	}
-	serviceExportController.RunWorkQueue()
-	if err := serviceExportController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup ServiceExport controller: %v", err)
+	if err := controllers.StartControllers(controllerContext); err != nil {
+		klog.Fatalf("error starting controllers: %v", err)
 	}
 
 	// Ensure the InformerManager stops when the stop channel closes
@@ -187,25 +176,153 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}()
 }
 
-func registerWithControlPlaneAPIServer(controlPlaneRestConfig *restclient.Config, memberClusterName string) error {
-	client := gclient.NewForConfigOrDie(controlPlaneRestConfig)
+func startClusterStatusController(ctx controllerscontext.Context) (bool, error) {
+	clusterStatusController := &status.ClusterStatusController{
+		Client:                            ctx.Mgr.GetClient(),
+		KubeClient:                        kubeclientset.NewForConfigOrDie(ctx.Mgr.GetConfig()),
+		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(status.ControllerName),
+		PredicateFunc:                     helper.NewClusterPredicateOnAgent(ctx.Opts.ClusterName),
+		InformerManager:                   informermanager.GetInstance(),
+		StopChan:                          ctx.StopChan,
+		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
+		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
+		ClusterClientOption:               &util.ClientOption{QPS: ctx.Opts.ClusterAPIQPS, Burst: ctx.Opts.ClusterAPIBurst},
+		ClusterStatusUpdateFrequency:      ctx.Opts.ClusterStatusUpdateFrequency,
+		ClusterLeaseDuration:              ctx.Opts.ClusterLeaseDuration,
+		ClusterLeaseRenewIntervalFraction: ctx.Opts.ClusterLeaseRenewIntervalFraction,
+		ClusterCacheSyncTimeout:           ctx.Opts.ClusterCacheSyncTimeout,
+	}
+	if err := clusterStatusController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startExecutionController(ctx controllerscontext.Context) (bool, error) {
+	executionController := &execution.Controller{
+		Client:               ctx.Mgr.GetClient(),
+		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:           ctx.Mgr.GetRESTMapper(),
+		ObjectWatcher:        ctx.ObjectWatcher,
+		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
+		InformerManager:      informermanager.GetInstance(),
+		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+	}
+	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
+	workStatusController := &status.WorkStatusController{
+		Client:                  ctx.Mgr.GetClient(),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:              ctx.Mgr.GetRESTMapper(),
+		InformerManager:         informermanager.GetInstance(),
+		StopChan:                ctx.StopChan,
+		WorkerNumber:            1,
+		ObjectWatcher:           ctx.ObjectWatcher,
+		PredicateFunc:           helper.NewExecutionPredicateOnAgent(),
+		ClusterClientSetFunc:    util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout: ctx.Opts.ClusterCacheSyncTimeout,
+	}
+	workStatusController.RunWorkQueue()
+	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startServiceExportController(ctx controllerscontext.Context) (bool, error) {
+	serviceExportController := &mcs.ServiceExportController{
+		Client:                      ctx.Mgr.GetClient(),
+		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
+		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
+		InformerManager:             informermanager.GetInstance(),
+		StopChan:                    ctx.StopChan,
+		WorkerNumber:                1,
+		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(ctx.Opts.ClusterName),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
+	}
+	serviceExportController.RunWorkQueue()
+	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterRestConfig *restclient.Config, opts *options.Options) error {
+	controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	namespaceObj := &corev1.Namespace{}
 	namespaceObj.Name = util.NamespaceClusterLease
-
-	if err := util.CreateNamespaceIfNotExist(client, namespaceObj); err != nil {
+	if _, err := util.CreateNamespace(controlPlaneKubeClient, namespaceObj); err != nil {
 		klog.Errorf("Failed to create namespace(%s) object, error: %v", namespaceObj.Name, err)
 		return err
 	}
 
-	clusterObj := &clusterv1alpha1.Cluster{}
-	clusterObj.Name = memberClusterName
-	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
+	impersonatorSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: opts.ClusterNamespace,
+			Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
+		},
+	}
 
-	if err := util.CreateClusterIfNotExist(client, clusterObj); err != nil {
-		klog.Errorf("Failed to create cluster(%s) object, error: %v", clusterObj.Name, err)
+	clusterObj, err := generateClusterInControllerPlane(controlPlaneRestConfig, opts, *impersonatorSecret)
+	if err != nil {
 		return err
 	}
 
+	clusterImpersonatorSecret, err := obtainCredentialsFromMemberCluster(clusterRestConfig, opts)
+	if err != nil {
+		return err
+	}
+
+	impersonatorSecret.OwnerReferences = []metav1.OwnerReference{
+		*metav1.NewControllerRef(clusterObj, clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster"))}
+	impersonatorSecret.Data = map[string][]byte{
+		clusterv1alpha1.SecretTokenKey: clusterImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey]}
+	// create secret to store impersonation info in control plane
+	_, err = util.CreateSecret(controlPlaneKubeClient, impersonatorSecret)
+	if err != nil {
+		return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
+	}
 	return nil
+}
+
+func generateClusterInControllerPlane(controlPlaneRestConfig *restclient.Config, opts *options.Options, impersonatorSecret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
+	clusterObj := &clusterv1alpha1.Cluster{}
+	clusterObj.Name = opts.ClusterName
+	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
+	clusterObj.Spec.APIEndpoint = opts.ClusterAPIEndpoint
+	clusterObj.Spec.ProxyURL = opts.ProxyServerAddress
+	clusterObj.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+		Namespace: impersonatorSecret.Namespace,
+		Name:      impersonatorSecret.Name,
+	}
+
+	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+	cluster, err := util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, clusterObj)
+	if err != nil {
+		klog.Errorf("Failed to create cluster(%s) object, error: %v", clusterObj.Name, err)
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+func obtainCredentialsFromMemberCluster(clusterRestConfig *restclient.Config, opts *options.Options) (*corev1.Secret, error) {
+	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterRestConfig)
+
+	impersonationSA := &corev1.ServiceAccount{}
+	impersonationSA.Namespace = opts.ClusterNamespace
+	impersonationSA.Name = names.GenerateServiceAccountName("impersonator")
+	impersonatorSecret, err := util.WaitForServiceAccountSecretCreation(clusterKubeClient, impersonationSA)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get serviceAccount secret for impersonation from cluster(%s), error: %v", opts.ClusterName, err)
+	}
+
+	return impersonatorSecret, nil
 }

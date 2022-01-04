@@ -98,6 +98,11 @@ const (
 
 	// CRDKind indicated the target resource is a CustomResourceDefinition
 	CRDKind = "CustomResourceDefinition"
+
+	// ClusterRoleKind indicates the target resource is a clusterrole
+	ClusterRoleKind = "ClusterRole"
+	// ClusterRoleBindingKind indicates the target resource is a clusterrolebinding
+	ClusterRoleBindingKind = "ClusterRoleBinding"
 )
 
 // Define resource filed

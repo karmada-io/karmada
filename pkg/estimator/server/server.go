@@ -193,15 +193,7 @@ func (es *AccurateSchedulerEstimatorServer) nodeMaxAvailableReplica(node *corev1
 }
 
 func (es *AccurateSchedulerEstimatorServer) waitForCacheSync(stopCh <-chan struct{}) bool {
-	return cache.WaitForCacheSync(stopCh,
-		func() []cache.InformerSynced {
-			informerSynced := []cache.InformerSynced{
-				es.podInformer.Informer().HasSynced,
-				es.nodeInformer.Informer().HasSynced,
-			}
-			return informerSynced
-		}()...,
-	)
+	return cache.WaitForCacheSync(stopCh, es.podInformer.Informer().HasSynced, es.nodeInformer.Informer().HasSynced)
 }
 
 func traceMaxAvailableReplicas(object string, start time.Time, request *pb.MaxAvailableReplicasRequest) func(response **pb.MaxAvailableReplicasResponse, err *error) {

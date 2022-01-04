@@ -14,13 +14,13 @@ ensures development quality.
 
 - [`remote-up-karmada.sh`](remote-up-karmada.sh) This script will install Karmada to a standalone K8s cluster, this cluster
   may be real, remote , and even for production. It is worth noting for the connectivity from your client to Karmada API server,
-  it will create a load balancer service with an external IP by default, else type `export CLUSTER_IP_ONLY=true` with the `ClusterIP` type service before the following script.
+  it will directly use host network by default, else `export LOAD_BALANCER=true` with the `LoadBalancer` type service before the following script.
   If your want to customize a load balancer service, you may add the annotations at the metadata part of service `karmada-apiserver` in
   [`../artifacts/deploy/karmada-apiserver.yaml`](../artifacts/deploy/karmada-apiserver.yaml) before the installing. The
   following is an example.
 ```
   # If you want to use a internal IP in public cloud you need to fill the following annotation, 
-  # Fot the more annotation settings please read your public cloud docs
+  # For the more annotation settings please read your public cloud docs
   annotations: 
     # Aliyun cloud
     #service.beta.kubernetes.io/alibaba-cloud-loadbalancer-address-type: "intranet"
@@ -50,6 +50,9 @@ ensures development quality.
   It will uninstall Karmada from your local environment default. If you installed Karmada with `remote-up-karmada.sh`,
   please use it like this: `hack/undeploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME>`, the same parameters as you input at
   the installing step.
+
+- [`delete-cluster.sh`](delete-cluster.sh) This script delete a kube cluster by kind,
+  please use it like this: `hack/delete-cluster.sh.sh <CLUSTER_NAME> <KUBECONFIG>`
 
 ## For CI pipeline
 - [`local-up-karmada.sh`](local-up-karmada.sh) This script also used for testing.

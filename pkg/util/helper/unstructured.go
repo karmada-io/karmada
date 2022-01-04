@@ -4,13 +4,14 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // ConvertToPropagationPolicy converts a PropagationPolicy object from unstructured to typed.
@@ -114,8 +115,8 @@ func ConvertToJob(obj *unstructured.Unstructured) (*batchv1.Job, error) {
 }
 
 // ConvertToEndpointSlice converts a EndpointSlice object from unstructured to typed.
-func ConvertToEndpointSlice(obj *unstructured.Unstructured) (*discoveryv1beta1.EndpointSlice, error) {
-	typedObj := &discoveryv1beta1.EndpointSlice{}
+func ConvertToEndpointSlice(obj *unstructured.Unstructured) (*discoveryv1.EndpointSlice, error) {
+	typedObj := &discoveryv1.EndpointSlice{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}
@@ -131,4 +132,19 @@ func ConvertToResourceExploringWebhookConfiguration(obj *unstructured.Unstructur
 	}
 
 	return typedObj, nil
+}
+
+// ApplyReplica applies the Replica value for the specific field.
+func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, field string) error {
+	_, ok, err := unstructured.NestedInt64(workload.Object, util.SpecField, field)
+	if err != nil {
+		return err
+	}
+	if ok {
+		err := unstructured.SetNestedField(workload.Object, desireReplica, util.SpecField, field)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

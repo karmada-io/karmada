@@ -31,6 +31,7 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
+	klog.V(2).Infof("Mutating PropagationPolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
 
 	// Set default namespace for all resource selector if not set.
 	for i := range policy.Spec.ResourceSelectors {

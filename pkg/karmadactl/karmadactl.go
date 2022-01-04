@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	apiserverflag "k8s.io/component-base/cli/flag"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
@@ -49,6 +50,8 @@ func NewKarmadaCtlCommand(out io.Writer, cmdUse, parentCommand string) *cobra.Co
 	rootCmd.AddCommand(NewCmdUncordon(out, karmadaConfig, parentCommand))
 	rootCmd.AddCommand(NewCmdGet(out, karmadaConfig, parentCommand))
 	rootCmd.AddCommand(NewCmdTaint(out, karmadaConfig, parentCommand))
+	rootCmd.AddCommand(NewCmdPromote(out, karmadaConfig, parentCommand))
+	rootCmd.AddCommand(cmdinit.NewCmdInit(out, parentCommand))
 
 	return rootCmd
 }

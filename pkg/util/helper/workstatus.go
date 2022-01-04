@@ -16,14 +16,24 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
+)
+
+const (
+	// FullyAppliedSuccessReason defines the success reason for the FullyApplied condition.
+	FullyAppliedSuccessReason = "FullyAppliedSuccess"
+	// FullyAppliedFailedReason defines the failure reason for the FullyApplied condition.
+	FullyAppliedFailedReason = "FullyAppliedFailed"
+	// FullyAppliedSuccessMessage defines the success message for the FullyApplied condition.
+	FullyAppliedSuccessMessage = "All works have been successfully applied"
+	// FullyAppliedFailedMessage defines the failure message for the FullyApplied condition.
+	FullyAppliedFailedMessage = "Failed to apply all works, see status.aggregatedStatus for details"
 )
 
 // AggregateResourceBindingWorkStatus will collect all work statuses with current ResourceBinding objects,
 // then aggregate status info to current ResourceBinding status.
 func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ResourceBinding, workload *unstructured.Unstructured) error {
-	var targetWorks []workv1alpha1.Work
-
 	workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(
 		labels.Set{
 			workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(binding.Namespace, binding.Name),
@@ -33,23 +43,27 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 		klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
 		return err
 	}
-	targetWorks = append(targetWorks, workList.Items...)
 
-	aggregatedStatuses, err := assembleWorkStatus(targetWorks, workload)
+	aggregatedStatuses, err := assembleWorkStatus(workList.Items, workload)
 	if err != nil {
 		return err
 	}
 
-	if reflect.DeepEqual(binding.Status.AggregatedStatus, aggregatedStatuses) {
+	currentBindingStatus := binding.Status.DeepCopy()
+	currentBindingStatus.AggregatedStatus = aggregatedStatuses
+	meta.SetStatusCondition(&currentBindingStatus.Conditions, generateFullyAppliedCondition(binding.Spec.Clusters, aggregatedStatuses))
+
+	if reflect.DeepEqual(binding.Status, currentBindingStatus) {
 		klog.V(4).Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
 			binding.Namespace, binding.Name)
 		return nil
 	}
+
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, binding); err != nil {
 			return err
 		}
-		binding.Status.AggregatedStatus = aggregatedStatuses
+		binding.Status = *currentBindingStatus
 		return c.Status().Update(context.TODO(), binding)
 	})
 }
@@ -57,8 +71,6 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 // AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
 // then aggregate status info to current ClusterResourceBinding status.
 func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ClusterResourceBinding, workload *unstructured.Unstructured) error {
-	var targetWorks []workv1alpha1.Work
-
 	workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(
 		labels.Set{
 			workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", binding.Name),
@@ -68,14 +80,17 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 		klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", binding.Name, err)
 		return err
 	}
-	targetWorks = append(targetWorks, workList.Items...)
 
-	aggregatedStatuses, err := assembleWorkStatus(targetWorks, workload)
+	aggregatedStatuses, err := assembleWorkStatus(workList.Items, workload)
 	if err != nil {
 		return err
 	}
 
-	if reflect.DeepEqual(binding.Status.AggregatedStatus, aggregatedStatuses) {
+	currentBindingStatus := binding.Status.DeepCopy()
+	currentBindingStatus.AggregatedStatus = aggregatedStatuses
+	meta.SetStatusCondition(&currentBindingStatus.Conditions, generateFullyAppliedCondition(binding.Spec.Clusters, aggregatedStatuses))
+
+	if reflect.DeepEqual(binding.Status, currentBindingStatus) {
 		klog.Infof("New aggregatedStatuses are equal with old clusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
 		return nil
 	}
@@ -84,15 +99,26 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 		if err = c.Get(context.TODO(), client.ObjectKey{Name: binding.Name}, binding); err != nil {
 			return err
 		}
-		binding.Status.AggregatedStatus = aggregatedStatuses
+		binding.Status = *currentBindingStatus
 		return c.Status().Update(context.TODO(), binding)
 	})
+}
+
+func generateFullyAppliedCondition(targetClusters []workv1alpha2.TargetCluster, aggregatedStatuses []workv1alpha2.AggregatedStatusItem) metav1.Condition {
+	if len(targetClusters) == len(aggregatedStatuses) && areWorksFullyApplied(aggregatedStatuses) {
+		return util.NewCondition(workv1alpha2.FullyApplied, FullyAppliedSuccessReason, FullyAppliedSuccessMessage, metav1.ConditionTrue)
+	}
+	return util.NewCondition(workv1alpha2.FullyApplied, FullyAppliedFailedReason, FullyAppliedFailedMessage, metav1.ConditionFalse)
 }
 
 // assemble workStatuses from workList which list by selector and match with workload.
 func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstructured) ([]workv1alpha2.AggregatedStatusItem, error) {
 	statuses := make([]workv1alpha2.AggregatedStatusItem, 0)
 	for _, work := range works {
+		if !work.DeletionTimestamp.IsZero() {
+			continue
+		}
+
 		identifierIndex, err := GetManifestIndex(work.Spec.Workload.Manifests, workload)
 		if err != nil {
 			klog.Errorf("Failed to get manifestIndex of workload in work.Spec.Workload.Manifests. Error: %v.", err)
@@ -127,7 +153,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 				AppliedMessage: appliedMsg,
 			}
 			statuses = append(statuses, aggregatedStatus)
-			return statuses, nil
+			continue
 		}
 
 		for _, manifestStatus := range work.Status.ManifestStatuses {
@@ -185,6 +211,16 @@ func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal 
 	}
 
 	return false, nil
+}
+
+// areWorksFullyApplied checks if all works are applied for a Binding
+func areWorksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem) bool {
+	for _, aggregatedSatusItem := range aggregatedStatuses {
+		if !aggregatedSatusItem.Applied {
+			return false
+		}
+	}
+	return true
 }
 
 // IsResourceApplied checks whether resource has been dispatched to member cluster or not

@@ -7,12 +7,22 @@ spec:
   resourceSelectors:
     - apiVersion: apps/v1
       kind: Deployment
-  targetCluster:
-    labelSelector:
-      matchLabels:
-        location: us
-  overriders:
-    imageOverrider:
-      - component: Registry
-        operator: replace
-        value: fictional.registry.us
+  overrideRules:
+    - targetCluster:
+        labelSelector:
+          matchLabels:
+            location: us
+      overriders:
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: fictional.registry.us
+    - targetCluster:
+        labelSelector:
+          matchLabels:
+            location: cn
+      overriders:
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: fictional.registry.cn

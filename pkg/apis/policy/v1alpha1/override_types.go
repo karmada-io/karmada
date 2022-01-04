@@ -25,6 +25,23 @@ type OverrideSpec struct {
 	// +optional
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors,omitempty"`
 
+	// OverrideRules defines a collection of override rules on target clusters.
+	// +optional
+	OverrideRules []RuleWithCluster `json:"overrideRules,omitempty"`
+
+	// TargetCluster defines restrictions on this override policy
+	// that only applies to resources propagated to the matching clusters.
+	// nil means matching all clusters.
+	// +optional
+	TargetCluster *ClusterAffinity `json:"targetCluster,omitempty"`
+
+	// Overriders represents the override rules that would apply on resources
+	// +optional
+	Overriders Overriders `json:"overriders"`
+}
+
+// RuleWithCluster defines the override rules on clusters.
+type RuleWithCluster struct {
 	// TargetCluster defines restrictions on this override policy
 	// that only applies to resources propagated to the matching clusters.
 	// nil means matching all clusters.

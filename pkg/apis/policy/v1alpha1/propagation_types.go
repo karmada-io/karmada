@@ -28,8 +28,19 @@ type PropagationSpec struct {
 	// Association tells if relevant resources should be selected automatically.
 	// e.g. a ConfigMap referred by a Deployment.
 	// default false.
+	// Deprecated: in favor of PropagateDeps.
 	// +optional
 	Association bool `json:"association,omitempty"`
+
+	// PropagateDeps tells if relevant resources should be propagated automatically.
+	// Take 'Deployment' which referencing 'ConfigMap' and 'Secret' as an example, when 'propagateDeps' is 'true',
+	// the referencing resources could be omitted(for saving config effort) from 'resourceSelectors' as they will be
+	// propagated along with the Deployment. In addition to the propagating process, the referencing resources will be
+	// migrated along with the Deployment in the fail-over scenario.
+	//
+	// Defaults to false.
+	// +optional
+	PropagateDeps bool `json:"propagateDeps,omitempty"`
 
 	// Placement represents the rule for select clusters to propagate resources.
 	// +optional
@@ -216,6 +227,49 @@ type ReplicaSchedulingStrategy struct {
 	// +optional
 	WeightPreference *ClusterPreferences `json:"weightPreference,omitempty"`
 }
+
+// ClusterPreferences describes weight for each cluster or for each group of cluster.
+type ClusterPreferences struct {
+	// StaticWeightList defines the static cluster weight.
+	// +optional
+	StaticWeightList []StaticClusterWeight `json:"staticWeightList,omitempty"`
+	// DynamicWeight specifies the factor to generates dynamic weight list.
+	// If specified, StaticWeightList will be ignored.
+	// +kubebuilder:validation:Enum=AvailableReplicas
+	// +optional
+	DynamicWeight DynamicWeightFactor `json:"dynamicWeight,omitempty"`
+}
+
+// StaticClusterWeight defines the static cluster weight.
+type StaticClusterWeight struct {
+	// TargetCluster describes the filter to select clusters.
+	// +required
+	TargetCluster ClusterAffinity `json:"targetCluster"`
+
+	// Weight expressing the preference to the cluster(s) specified by 'TargetCluster'.
+	// +kubebuilder:validation:Minimum=1
+	// +required
+	Weight int64 `json:"weight"`
+}
+
+// DynamicWeightFactor represents the weight factor.
+// For now only support 'AvailableReplicas', more factors could be extended if there is a need.
+type DynamicWeightFactor string
+
+const (
+	// DynamicWeightByAvailableReplicas represents the cluster weight list should be generated according to
+	// available resource (available replicas).
+	// Example:
+	//   The scheduler selected 3 clusters (A/B/C) and should divide 12 replicas to them.
+	//   Workload:
+	//     Desired replica: 12
+	//   Cluster:
+	//     A: Max available replica: 6
+	//     B: Max available replica: 12
+	//     C: Max available replica: 18
+	//   The weight of cluster A:B:C will be 6:12:18 (equals to 1:2:3). At last, the assignment would be 'A: 2, B: 4, C: 6'.
+	DynamicWeightByAvailableReplicas DynamicWeightFactor = "AvailableReplicas"
+)
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

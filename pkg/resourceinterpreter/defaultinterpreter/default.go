@@ -14,15 +14,17 @@ import (
 // DefaultInterpreter contains all default operation interpreter factory
 // for interpreting common resource.
 type DefaultInterpreter struct {
-	replicaHandlers   map[schema.GroupVersionKind]replicaInterpreter
-	retentionHandlers map[schema.GroupVersionKind]retentionInterpreter
+	replicaHandlers       map[schema.GroupVersionKind]replicaInterpreter
+	reviseReplicaHandlers map[schema.GroupVersionKind]reviseReplicaInterpreter
+	retentionHandlers     map[schema.GroupVersionKind]retentionInterpreter
 }
 
 // NewDefaultInterpreter return a new DefaultInterpreter.
 func NewDefaultInterpreter() *DefaultInterpreter {
 	return &DefaultInterpreter{
-		replicaHandlers:   getAllDefaultReplicaInterpreter(),
-		retentionHandlers: getAllDefaultRetentionInterpreter(),
+		replicaHandlers:       getAllDefaultReplicaInterpreter(),
+		reviseReplicaHandlers: getAllDefaultReviseReplicaInterpreter(),
+		retentionHandlers:     getAllDefaultRetentionInterpreter(),
 	}
 }
 
@@ -31,6 +33,10 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 	switch operationType {
 	case configv1alpha1.InterpreterOperationInterpretReplica:
 		if _, exist := e.replicaHandlers[kind]; exist {
+			return true
+		}
+	case configv1alpha1.InterpreterOperationReviseReplica:
+		if _, exist := e.reviseReplicaHandlers[kind]; exist {
 			return true
 		}
 	case configv1alpha1.InterpreterOperationRetain:
@@ -49,16 +55,25 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 func (e *DefaultInterpreter) GetReplicas(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
 	handler, exist := e.replicaHandlers[object.GroupVersionKind()]
 	if !exist {
-		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("defalut interpreter for operation %s not found", configv1alpha1.InterpreterOperationInterpretReplica)
+		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("defalut %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretReplica, object.GroupVersionKind())
 	}
 	return handler(object)
+}
+
+// ReviseReplica revises the replica of the given object.
+func (e *DefaultInterpreter) ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
+	handler, exist := e.reviseReplicaHandlers[object.GroupVersionKind()]
+	if !exist {
+		return nil, fmt.Errorf("defalut %s interpreter for %q not found", configv1alpha1.InterpreterOperationReviseReplica, object.GroupVersionKind())
+	}
+	return handler(object, replica)
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 func (e *DefaultInterpreter) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
 	handler, exist := e.retentionHandlers[desired.GroupVersionKind()]
 	if !exist {
-		return nil, fmt.Errorf("default retain interpreter for %q not found", desired.GroupVersionKind())
+		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationRetain, desired.GroupVersionKind())
 	}
 
 	return handler(desired, observed)

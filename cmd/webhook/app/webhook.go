@@ -19,6 +19,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 	"github.com/karmada-io/karmada/pkg/webhook/cluster"
+	"github.com/karmada-io/karmada/pkg/webhook/clusteroverridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/clusterpropagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/configuration"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
@@ -89,6 +90,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/mutate-clusterpropagationpolicy", &webhook.Admission{Handler: &clusterpropagationpolicy.MutatingAdmission{}})
 	hookServer.Register("/validate-clusterpropagationpolicy", &webhook.Admission{Handler: &clusterpropagationpolicy.ValidatingAdmission{}})
 	hookServer.Register("/mutate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.MutatingAdmission{}})
+	hookServer.Register("/validate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.ValidatingAdmission{}})
+	hookServer.Register("/validate-clusteroverridepolicy", &webhook.Admission{Handler: &clusteroverridepolicy.ValidatingAdmission{}})
 	hookServer.Register("/mutate-work", &webhook.Admission{Handler: &work.MutatingAdmission{}})
 	hookServer.Register("/convert", &conversion.Webhook{})
 	hookServer.Register("/validate-resourceinterpreterwebhookconfiguration", &webhook.Admission{Handler: &configuration.ValidatingAdmission{}})

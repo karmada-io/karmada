@@ -38,8 +38,8 @@ certs:
     ## @param certs.auto.hosts hosts of the certificate
     hosts: [
       "kubernetes.default.svc",
-      "*.etcd.{{ .Release.Namespace }}.svc.cluster.local",
-      "*.{{ .Release.Namespace }}.svc.cluster.local",
+      "*.etcd.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}",
+      "*.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}",
       "*.{{ .Release.Namespace }}.svc",
       "localhost",
       "127.0.0.1"
@@ -57,6 +57,21 @@ certs:
       -----END CERTIFICATE-----
     ## @param certs.custom.key key of the certificate
     key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param certs.custom.frontProxyCaCrt ca of the front proxy certificate
+    frontProxyCaCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.frontProxyCrt crt of the front proxy certificate
+    frontProxyCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.frontProxyKey key of the front proxy certificate
+    frontProxyKey: |
       -----BEGIN RSA PRIVATE KEY-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END RSA PRIVATE KEY-----
@@ -197,7 +212,7 @@ apiServer:
     ## @param apiServer.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
     ## @param apiServer.image.tag overrides the image tag whose default is the latest
-    tag: "v1.20.11"
+    tag: "v1.21.7"
   ## @param apiServer.resources
   resources: { }
     # If you do want to specify resources, uncomment the following
@@ -230,6 +245,47 @@ apiServer:
   ## If no port is specified, the nodePort will be automatically assigned.
   nodePort: 0
 
+## karmada aggregated apiserver config
+aggregatedApiServer:
+  ## @param aggregatedApiServer.labels
+  labels: 
+    app: karmada-aggregated-apiserver
+  ## @param aggregatedApiServer.replicaCount target replicas
+  replicaCount: 1
+  ## @param aggregatedApiServer.podAnnotations
+  podAnnotations: { }
+  ## @param aggregatedApiServer.podLabels
+  podLabels: { }
+  ## @param aggregatedApiServer.imagePullSecrets
+  imagePullSecrets: []
+  image:
+    ## @param aggregatedApiServer.image.repository image of the apiserver
+    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-aggregated-apiserver
+    ## @param aggregatedApiServer.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param aggregatedApiServer.image.tag overrides the image tag whose default is the latest
+    tag: latest
+  ## @param aggregatedApiServer.resources
+  resources: 
+    requests:
+      cpu: 100m
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param aggregatedApiServer.nodeSelector
+  nodeSelector: { }
+  ## @param aggregatedApiServer.affinity
+  affinity: { }
+  ## @param aggregatedApiServer.tolerations
+  tolerations: [ ]
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+
 ## kubernetes controller manager config
 kubeControllerManager:
   ## @param kubeControllerManager.labels
@@ -249,7 +305,7 @@ kubeControllerManager:
     ## @param kubeControllerManager.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
     ## @param kubeControllerManager.image.tag overrides the image tag whose default is the latest
-    tag: "v1.20.11"
+    tag: "v1.21.7"
   ## @param kubeControllerManager.resources
   resources:
     # If you do want to specify resources, uncomment the following

@@ -23,7 +23,7 @@ MEMBER_CLUSTER_2_NAME=${MEMBER_CLUSTER_2_NAME:-"member2"}
 PULL_MODE_CLUSTER_NAME=${PULL_MODE_CLUSTER_NAME:-"member3"}
 HOST_IPADDRESS=${1:-}
 
-CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.20.7"}
+CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.21.1"}
 KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 #step0: prepare
@@ -47,6 +47,7 @@ dockerfile_list=( # Dockerfile files need to be replaced
   "cluster/images/karmada-scheduler-estimator/Dockerfile"
   "cluster/images/karmada-scheduler/Dockerfile"
   "cluster/images/karmada-webhook/Dockerfile"
+  "cluster/images/karmada-aggregated-apiserver/Dockerfile"
 )
 for dockerfile in "${dockerfile_list[@]}"; do
   grep 'mirrors.ustc.edu.cn' ${REPO_ROOT}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.7#FROM alpine:3.7\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories#" ${REPO_ROOT}/${dockerfile}
@@ -64,7 +65,7 @@ if util::cmd_exist kind; then
   echo "passed"
 else
   echo "not pass"
-  util::install_kind $kind_version
+  util::install_tools "sigs.k8s.io/kind" $kind_version
 fi
 # get arch name and os name in bootstrap
 BS_ARCH=$(go env GOARCH)
@@ -122,6 +123,7 @@ kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --nam
 kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-webhook:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-scheduler-estimator:${VERSION}" --name="${HOST_CLUSTER_NAME}"
+kind load docker-image "${REGISTRY}/karmada-aggregated-apiserver:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 
 #step5. install karmada control plane components
 "${REPO_ROOT}"/hack/deploy-karmada.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}"

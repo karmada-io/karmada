@@ -2,9 +2,7 @@ package resourceinterpreter
 
 import (
 	"context"
-	"fmt"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
 
@@ -26,6 +24,9 @@ type ResourceInterpreter interface {
 
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
+
+	// ReviseReplica revises the replica of the given object.
+	ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error)
 
 	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
@@ -95,52 +96,40 @@ func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstruc
 	return
 }
 
+// ReviseReplica revises the replica of the given object.
+func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
+	klog.V(4).Infof("Begin to revise replicas for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	obj, hookEnabled, err := i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
+		Operation:   configv1alpha1.InterpreterOperationReviseReplica,
+		Object:      object,
+		ReplicasSet: int32(replica),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
+
+	return i.defaultInterpreter.ReviseReplica(object, replica)
+}
+
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
-func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
+func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	klog.V(4).Infof("Begin to retain object: %v %s/%s.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
 
-	var hookEnabled bool
-	var patch []byte
-	var patchType configv1alpha1.PatchType
-	patch, patchType, hookEnabled, err = i.customizedInterpreter.Retain(context.TODO(), &webhook.RequestAttributes{
+	obj, hookEnabled, err := i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
 		Operation:   configv1alpha1.InterpreterOperationRetain,
 		Object:      desired,
 		ObservedObj: observed,
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 	if hookEnabled {
-		return applyPatch(desired, patch, patchType)
+		return obj, nil
 	}
 
 	return i.defaultInterpreter.Retain(desired, observed)
-}
-
-// applyPatch uses patchType mode to patch object.
-func applyPatch(object *unstructured.Unstructured, patch []byte, patchType configv1alpha1.PatchType) (*unstructured.Unstructured, error) {
-	switch patchType {
-	case configv1alpha1.PatchTypeJSONPatch:
-		patchObj, err := jsonpatch.DecodePatch(patch)
-		if err != nil {
-			return nil, err
-		}
-		if len(patchObj) == 0 {
-			return object, nil
-		}
-
-		objectJSONBytes, err := object.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		patchedObjectJSONBytes, err := patchObj.Apply(objectJSONBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		err = object.UnmarshalJSON(patchedObjectJSONBytes)
-		return object, err
-	default:
-		return nil, fmt.Errorf("return patch type %s is not support", patchType)
-	}
 }

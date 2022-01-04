@@ -35,6 +35,8 @@ func (e *workloadInterpreter) Handle(ctx context.Context, req interpreter.Reques
 	switch req.Operation {
 	case configv1alpha1.InterpreterOperationInterpretReplica:
 		return e.responseWithExploreReplica(workload)
+	case configv1alpha1.InterpreterOperationReviseReplica:
+		return e.responseWithExploreReviseReplica(workload, req)
 	case configv1alpha1.InterpreterOperationRetain:
 		return e.responseWithExploreRetaining(workload, req)
 	default:
@@ -51,6 +53,16 @@ func (e *workloadInterpreter) responseWithExploreReplica(workload *workloadv1alp
 	res := interpreter.Succeeded("")
 	res.Replicas = workload.Spec.Replicas
 	return res
+}
+
+func (e *workloadInterpreter) responseWithExploreReviseReplica(workload *workloadv1alpha1.Workload, req interpreter.Request) interpreter.Response {
+	wantedWorkload := workload.DeepCopy()
+	wantedWorkload.Spec.Replicas = req.DesiredReplicas
+	marshaledBytes, err := json.Marshal(wantedWorkload)
+	if err != nil {
+		return interpreter.Errored(http.StatusInternalServerError, err)
+	}
+	return interpreter.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
 }
 
 func (e *workloadInterpreter) responseWithExploreRetaining(desiredWorkload *workloadv1alpha1.Workload, req interpreter.Request) interpreter.Response {

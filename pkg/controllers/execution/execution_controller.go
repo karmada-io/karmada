@@ -34,12 +34,13 @@ const (
 
 // Controller is to sync Work.
 type Controller struct {
-	client.Client   // used to operate Work resources.
-	EventRecorder   record.EventRecorder
-	RESTMapper      meta.RESTMapper
-	ObjectWatcher   objectwatcher.ObjectWatcher
-	PredicateFunc   predicate.Predicate
-	InformerManager informermanager.MultiClusterInformerManager
+	client.Client        // used to operate Work resources.
+	EventRecorder        record.EventRecorder
+	RESTMapper           meta.RESTMapper
+	ObjectWatcher        objectwatcher.ObjectWatcher
+	PredicateFunc        predicate.Predicate
+	InformerManager      informermanager.MultiClusterInformerManager
+	ClusterClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -69,21 +70,25 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		klog.Errorf("Failed to get the given member cluster %s", clusterName)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
-		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
-	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		applied := helper.IsResourceApplied(&work.Status)
-		if applied {
+		// Abort deleting workload if cluster is unready when unjoining cluster, otherwise the unjoin process will be failed.
+		if util.IsClusterReady(&cluster.Status) {
 			err := c.tryDeleteWorkload(clusterName, work)
 			if err != nil {
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 				return controllerruntime.Result{Requeue: true}, err
 			}
+		} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
+			return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 		}
+
 		return c.removeFinalizer(work)
+	}
+
+	if !util.IsClusterReady(&cluster.Status) {
+		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
+		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
 	return c.syncWork(clusterName, work)
@@ -113,7 +118,6 @@ func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (cont
 }
 
 // tryDeleteWorkload tries to delete resource in the given member cluster.
-// Abort deleting when the member cluster is unready, otherwise we can't unjoin the member cluster when the member cluster is unready
 func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Work) error {
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
@@ -121,6 +125,27 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 		if err != nil {
 			klog.Errorf("failed to unmarshal workload, error is: %v", err)
 			return err
+		}
+
+		fedKey, err := keys.FederatedKeyFunc(clusterName, workload)
+		if err != nil {
+			klog.Errorf("Failed to get FederatedKey %s, error: %v", workload.GetName(), err)
+			return err
+		}
+
+		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
+			return err
+		}
+
+		// Avoid deleting resources that not managed by karmada.
+		if util.GetLabelValue(clusterObj.GetLabels(), workv1alpha1.WorkNameLabel) != util.GetLabelValue(workload.GetLabels(), workv1alpha1.WorkNameLabel) {
+			klog.Infof("Abort deleting the resource(kind=%s, %s/%s) exists in cluster %v but not managed by karamda", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName)
+			return nil
 		}
 
 		err = c.ObjectWatcher.Delete(clusterName, workload)
@@ -165,6 +190,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			err = c.tryUpdateWorkload(clusterName, workload)
 			if err != nil {
 				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+				c.EventRecorder.Eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
@@ -172,10 +198,12 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			err = c.tryCreateWorkload(clusterName, workload)
 			if err != nil {
 				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+				c.EventRecorder.Eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
 		}
+		c.EventRecorder.Eventf(workload, corev1.EventTypeNormal, workv1alpha1.EventReasonSyncWorkSucceed, "Successfully applied resource(%v/%v) to cluster %s", workload.GetNamespace(), workload.GetName(), clusterName)
 		syncSucceedNum++
 	}
 
@@ -206,7 +234,7 @@ func (c *Controller) tryUpdateWorkload(clusterName string, workload *unstructure
 		return err
 	}
 
-	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
+	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)

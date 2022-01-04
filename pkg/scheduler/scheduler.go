@@ -15,10 +15,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/util/gclient"
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -57,7 +61,7 @@ const (
 const (
 	scheduleSuccessReason  = "BindingScheduled"
 	scheduleFailedReason   = "BindingFailedScheduling"
-	scheduleSuccessMessage = "the binding has been scheduled"
+	scheduleSuccessMessage = "Binding has been scheduled"
 )
 
 // Scheduler is the scheduler schema, which is used to schedule a specific resource to specific clusters
@@ -81,6 +85,8 @@ type Scheduler struct {
 
 	Algorithm      core.ScheduleAlgorithm
 	schedulerCache schedulercache.Cache
+
+	eventRecorder record.EventRecorder
 
 	enableSchedulerEstimator bool
 	schedulerEstimatorCache  *estimatorclient.SchedulerEstimatorCache
@@ -159,6 +165,11 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 			DeleteFunc: sched.deleteCluster,
 		},
 	)
+
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartStructuredLogging(0)
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
+	sched.eventRecorder = eventBroadcaster.NewRecorder(gclient.NewSchema(), corev1.EventSource{Component: "karmada-scheduler"})
 
 	return sched
 }
@@ -397,6 +408,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) error {
 
 	// Update "Scheduled" condition according to schedule result.
 	defer func() {
+		s.recordScheduleResultEventForResourceBinding(rb, err)
 		var condition metav1.Condition
 		if err == nil {
 			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
@@ -458,6 +470,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) error {
 
 	// Update "Scheduled" condition according to schedule result.
 	defer func() {
+		s.recordScheduleResultEventForClusterResourceBinding(crb, err)
 		var condition metav1.Condition
 		if err == nil {
 			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
@@ -582,7 +595,7 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 		return
 	}
 
-	s.queue.Add(key)
+	s.queue.AddRateLimited(key)
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
 
@@ -852,4 +865,48 @@ func (s *Scheduler) updateClusterBindingScheduledConditionIfNeeded(crb *workv1al
 
 		return updateErr
 	})
+}
+
+func (s *Scheduler) recordScheduleResultEventForResourceBinding(rb *workv1alpha2.ResourceBinding, schedulerErr error) {
+	if rb == nil {
+		return
+	}
+
+	ref := &corev1.ObjectReference{
+		Kind:       rb.Spec.Resource.Kind,
+		APIVersion: rb.Spec.Resource.APIVersion,
+		Namespace:  rb.Spec.Resource.Namespace,
+		Name:       rb.Spec.Resource.Name,
+		UID:        rb.Spec.Resource.UID,
+	}
+
+	if schedulerErr == nil {
+		s.eventRecorder.Event(rb, corev1.EventTypeNormal, workv1alpha2.EventReasonScheduleBindingSucceed, scheduleSuccessMessage)
+		s.eventRecorder.Event(ref, corev1.EventTypeNormal, workv1alpha2.EventReasonScheduleBindingSucceed, scheduleSuccessMessage)
+	} else {
+		s.eventRecorder.Event(rb, corev1.EventTypeWarning, workv1alpha2.EventReasonScheduleBindingFailed, schedulerErr.Error())
+		s.eventRecorder.Event(ref, corev1.EventTypeWarning, workv1alpha2.EventReasonScheduleBindingFailed, schedulerErr.Error())
+	}
+}
+
+func (s *Scheduler) recordScheduleResultEventForClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding, schedulerErr error) {
+	if crb == nil {
+		return
+	}
+
+	ref := &corev1.ObjectReference{
+		Kind:       crb.Spec.Resource.Kind,
+		APIVersion: crb.Spec.Resource.APIVersion,
+		Namespace:  crb.Spec.Resource.Namespace,
+		Name:       crb.Spec.Resource.Name,
+		UID:        crb.Spec.Resource.UID,
+	}
+
+	if schedulerErr == nil {
+		s.eventRecorder.Event(crb, corev1.EventTypeNormal, workv1alpha2.EventReasonScheduleBindingSucceed, scheduleSuccessMessage)
+		s.eventRecorder.Event(ref, corev1.EventTypeNormal, workv1alpha2.EventReasonScheduleBindingSucceed, scheduleSuccessMessage)
+	} else {
+		s.eventRecorder.Event(crb, corev1.EventTypeWarning, workv1alpha2.EventReasonScheduleBindingFailed, schedulerErr.Error())
+		s.eventRecorder.Event(ref, corev1.EventTypeWarning, workv1alpha2.EventReasonScheduleBindingFailed, schedulerErr.Error())
+	}
 }

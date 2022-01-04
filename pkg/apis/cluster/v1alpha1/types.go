@@ -10,10 +10,6 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:scope="Cluster"
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:JSONPath=`.status.kubernetesVersion`,name="Version",type=string
-// +kubebuilder:printcolumn:JSONPath=`.spec.syncMode`,name="Mode",type=string
-// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].status`,name="Ready",type=string
-// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
 // Cluster represents the desire state and status of a member cluster.
 type Cluster struct {
@@ -46,6 +42,12 @@ type ClusterSpec struct {
 	// - secret.data.caBundle
 	// +optional
 	SecretRef *LocalSecretReference `json:"secretRef,omitempty"`
+
+	// ImpersonatorSecretRef represents the secret contains the token of impersonator.
+	// The secret should hold credentials as follows:
+	// - secret.data.token
+	// +optional
+	ImpersonatorSecretRef *LocalSecretReference `json:"impersonatorSecretRef,omitempty"`
 
 	// InsecureSkipTLSVerification indicates that the karmada control plane should not confirm the validity of the serving
 	// certificate of the cluster it is connecting to. This will make the HTTPS connection between the karmada control
@@ -195,4 +197,20 @@ type ClusterList struct {
 
 	// Items holds a list of Cluster.
 	Items []Cluster `json:"items"`
+}
+
+// +k8s:conversion-gen:explicit-from=net/url.Values
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClusterProxyOptions is the query options to a Cluster's proxy call.
+type ClusterProxyOptions struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Path is the part of URLs that include clusters, suffixes,
+	// and parameters to use for the current proxy request to cluster.
+	// For example, the whole request URL is
+	// http://localhost/apis/cluster.karmada.io/v1alpha1/cluster/{clustername}/proxy/api/v1/nodes
+	// Path is api/v1/nodes
+	// +optional
+	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
 }

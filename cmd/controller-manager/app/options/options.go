@@ -1,6 +1,8 @@
 package options
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -18,6 +20,13 @@ const (
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
+	// Controllers is the list of controllers to enable or disable
+	// '*' means "all enabled by default controllers"
+	// 'foo' means "enable 'foo'"
+	// '-foo' means "disable 'foo'"
+	// first item for a particular name wins
+	Controllers []string
+	// LeaderElection defines the configuration of leader election client.
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 	// BindAddress is the IP address on which to listen for the --secure-port port.
 	BindAddress string
@@ -60,6 +69,8 @@ type Options struct {
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
 	KubeAPIBurst int
+	// ClusterCacheSyncTimeout is the timeout period waiting for cluster cache to sync
+	ClusterCacheSyncTimeout metav1.Duration
 }
 
 // NewOptions builds an empty options.
@@ -75,7 +86,11 @@ func NewOptions() *Options {
 }
 
 // AddFlags adds flags to the specified FlagSet.
-func (o *Options) AddFlags(flags *pflag.FlagSet) {
+func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers []string) {
+	flags.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, fmt.Sprintf(
+		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: %s.",
+		strings.Join(allControllers, ", "),
+	))
 	flags.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
 		"The IP address on which to listen for the --secure-port port.")
 	flags.IntVar(&o.SecurePort, "secure-port", defaultPort,
@@ -106,4 +121,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", 60, "Burst to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	flags.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
 }

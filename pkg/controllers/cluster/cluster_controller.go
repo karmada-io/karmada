@@ -123,9 +123,6 @@ func (c *Controller) syncCluster(cluster *clusterv1alpha1.Cluster) (controllerru
 
 func (c *Controller) removeCluster(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	err := c.removeExecutionSpace(cluster)
-	if apierrors.IsNotFound(err) {
-		return c.removeFinalizer(cluster)
-	}
 	if err != nil {
 		klog.Errorf("Failed to remove execution space %v, err is %v", cluster.Name, err)
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", clusterv1alpha1.EventReasonCreateExecutionSpaceFailed), err.Error())

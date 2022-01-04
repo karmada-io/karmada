@@ -8,12 +8,10 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,6 +23,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -36,12 +35,13 @@ const ClusterResourceBindingControllerName = "cluster-resource-binding-controlle
 
 // ClusterResourceBindingController is to sync ClusterResourceBinding.
 type ClusterResourceBindingController struct {
-	client.Client                                                // used to operate ClusterResourceBinding resources.
-	DynamicClient   dynamic.Interface                            // used to fetch arbitrary resources from api server.
-	InformerManager informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
-	EventRecorder   record.EventRecorder
-	RESTMapper      meta.RESTMapper
-	OverrideManager overridemanager.OverrideManager
+	client.Client                                                    // used to operate ClusterResourceBinding resources.
+	DynamicClient       dynamic.Interface                            // used to fetch arbitrary resources from api server.
+	InformerManager     informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	EventRecorder       record.EventRecorder
+	RESTMapper          meta.RESTMapper
+	OverrideManager     overridemanager.OverrideManager
+	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -109,7 +109,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	var errs []error
-	err = ensureWork(c.Client, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
+	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, err.Error())
@@ -131,17 +131,6 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 	}
 	if len(errs) > 0 {
 		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
-	}
-
-	fullyAppliedCondition := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.FullyApplied)
-	if fullyAppliedCondition == nil {
-		if len(binding.Spec.Clusters) == len(binding.Status.AggregatedStatus) && areWorksFullyApplied(binding.Status.AggregatedStatus) {
-			err := c.updateFullyAppliedCondition(binding)
-			if err != nil {
-				klog.Errorf("Failed to update FullyApplied status for given clusterResourceBinding(%s), Error: %v", binding.Name, err)
-				return controllerruntime.Result{Requeue: true}, err
-			}
-		}
 	}
 
 	return controllerruntime.Result{}, nil
@@ -169,7 +158,6 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
 		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
-		Watches(&source.Kind{Type: &policyv1alpha1.ReplicaSchedulingPolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newReplicaSchedulingPolicyFunc())).
 		Complete(c)
 }
 
@@ -209,51 +197,4 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 		}
 		return requests
 	}
-}
-
-func (c *ClusterResourceBindingController) newReplicaSchedulingPolicyFunc() handler.MapFunc {
-	return func(a client.Object) []reconcile.Request {
-		rspResourceSelectors := a.(*policyv1alpha1.ReplicaSchedulingPolicy).Spec.ResourceSelectors
-		bindingList := &workv1alpha2.ClusterResourceBindingList{}
-		if err := c.Client.List(context.TODO(), bindingList); err != nil {
-			klog.Errorf("Failed to list clusterResourceBindings, error: %v", err)
-			return nil
-		}
-
-		var requests []reconcile.Request
-		for _, binding := range bindingList.Items {
-			workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
-			if err != nil {
-				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
-				return nil
-			}
-
-			for _, rs := range rspResourceSelectors {
-				if util.ResourceMatches(workload, rs) {
-					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as replica scheduling policy(%s/%s) changes.", binding.Name, a.GetNamespace(), a.GetName())
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
-					break
-				}
-			}
-		}
-		return requests
-	}
-}
-
-// updateFullyAppliedCondition update the FullyApplied condition for the given ClusterResourceBinding
-func (c *ClusterResourceBindingController) updateFullyAppliedCondition(binding *workv1alpha2.ClusterResourceBinding) error {
-	newBindingFullyAppliedCondition := metav1.Condition{
-		Type:    workv1alpha2.FullyApplied,
-		Status:  metav1.ConditionTrue,
-		Reason:  FullyAppliedSuccessReason,
-		Message: FullyAppliedSuccessMessage,
-	}
-
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, binding); err != nil {
-			return err
-		}
-		meta.SetStatusCondition(&binding.Status.Conditions, newBindingFullyAppliedCondition)
-		return c.Status().Update(context.TODO(), binding)
-	})
 }

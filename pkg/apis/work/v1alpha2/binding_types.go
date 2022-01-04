@@ -4,6 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // +genclient
@@ -11,6 +12,9 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=rb
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FullyApplied",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
 // ResourceBinding represents a binding of a kubernetes resource with a propagation policy.
 type ResourceBinding struct {
@@ -30,6 +34,12 @@ type ResourceBindingSpec struct {
 	// Resource represents the Kubernetes resource to be propagated.
 	Resource ObjectReference `json:"resource"`
 
+	// PropagateDeps tells if relevant resources should be propagated automatically.
+	// It is inherited from PropagationPolicy or ClusterPropagationPolicy.
+	// default false.
+	// +optional
+	PropagateDeps bool `json:"propagateDeps,omitempty"`
+
 	// ReplicaRequirements represents the requirements required by each replica.
 	// +optional
 	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
@@ -41,6 +51,10 @@ type ResourceBindingSpec struct {
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
+
+	// RequiredBy represents the list of Bindings that depend on the referencing resource.
+	// +optional
+	RequiredBy []BindingSnapshot `json:"requiredBy,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
@@ -60,6 +74,10 @@ type ObjectReference struct {
 
 	// Name represents the name of the referent.
 	Name string `json:"name"`
+
+	// UID of the referent.
+	// +optional
+	UID types.UID `json:"uid,omitempty"`
 
 	// ResourceVersion represents the internal version of the referenced object, that can be used by clients to
 	// determine when object has changed.
@@ -102,6 +120,23 @@ type TargetCluster struct {
 	// Replicas in target cluster
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
+}
+
+// BindingSnapshot is a snapshot of a ResourceBinding or ClusterResourceBinding.
+type BindingSnapshot struct {
+	// Namespace represents the namespace of the Binding.
+	// It is required for ResourceBinding.
+	// If Namespace is not specified, means the referencing is ClusterResourceBinding.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name represents the name of the Binding.
+	// +required
+	Name string `json:"name"`
+
+	// Clusters represents the scheduled result.
+	// +optional
+	Clusters []TargetCluster `json:"clusters,omitempty"`
 }
 
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
@@ -162,6 +197,9 @@ type ResourceBindingList struct {
 // +kubebuilder:resource:scope="Cluster",shortName=crb
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FullyApplied",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
 // ClusterResourceBinding represents a binding of a kubernetes resource with a ClusterPropagationPolicy.
 type ClusterResourceBinding struct {

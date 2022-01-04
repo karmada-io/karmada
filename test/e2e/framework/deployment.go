@@ -91,6 +91,17 @@ func UpdateDeploymentReplicas(client kubernetes.Interface, deployment *appsv1.De
 	})
 }
 
+// UpdateDeploymentAnnotations update deployment's annotations.
+func UpdateDeploymentAnnotations(client kubernetes.Interface, deployment *appsv1.Deployment, annotations map[string]string) {
+	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s annotations to %v", deployment.Namespace, deployment.Name, annotations), func() {
+		deployment.Annotations = annotations
+		gomega.Eventually(func() error {
+			_, err := client.AppsV1().Deployments(deployment.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
 // ExtractTargetClustersFrom extract the target cluster names from deployment's related resourceBinding Information.
 func ExtractTargetClustersFrom(c client.Client, deployment *appsv1.Deployment) []string {
 	bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)

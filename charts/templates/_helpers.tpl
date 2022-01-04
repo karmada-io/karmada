@@ -26,6 +26,24 @@ app: {{- include "karmada.name" .}}-apiserver
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.aggregatedApiserver.labels" -}}
+{{- if .Values.aggregatedApiServer.labels }}
+{{- range $key, $value := .Values.aggregatedApiServer.labels}}
+{{ $key }}: {{ $value }}
+{{- end}}
+{{- else}}
+app: {{- include "karmada.name" .}}-aggregated-apiserver
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.aggregatedApiserver.podLabels" -}}
+{{- if .Values.aggregatedApiServer.podLabels }}
+{{- range $key, $value := .Values.aggregatedApiServer.podLabels}}
+{{ $key }}: {{ $value }}
+{{- end}}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.kube-cm.labels" -}}
 {{- if .Values.kubeControllerManager.labels }}
 {{- range $key, $value := .Values.kubeControllerManager.labels}}

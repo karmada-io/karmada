@@ -7,7 +7,9 @@ import (
 	"sync"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/klog/v2"
@@ -79,9 +81,9 @@ func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *web
 	return response.Replicas, response.ReplicaRequirements, matched, nil
 }
 
-// Retain returns the patch that based on the "desired" object but with values retained from the "observed" object.
+// Patch returns the Unstructured object that applied patch response that based on the RequestAttributes.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) Retain(ctx context.Context, attributes *webhook.RequestAttributes) (patch []byte, patchType configv1alpha1.PatchType, matched bool, err error) {
+func (e *CustomizedInterpreter) Patch(ctx context.Context, attributes *webhook.RequestAttributes) (obj *unstructured.Unstructured, matched bool, err error) {
 	var response *webhook.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
@@ -90,8 +92,11 @@ func (e *CustomizedInterpreter) Retain(ctx context.Context, attributes *webhook.
 	if !matched {
 		return
 	}
-
-	return response.Patch, response.PatchType, matched, nil
+	obj, err = applyPatch(attributes.Object, response.Patch, response.PatchType)
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (e *CustomizedInterpreter) getFirstRelevantHook(attributes *webhook.RequestAttributes) configmanager.WebhookAccessor {
@@ -242,4 +247,32 @@ func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager
 	}
 
 	return res, nil
+}
+
+// applyPatch uses patchType mode to patch object.
+func applyPatch(object *unstructured.Unstructured, patch []byte, patchType configv1alpha1.PatchType) (*unstructured.Unstructured, error) {
+	switch patchType {
+	case configv1alpha1.PatchTypeJSONPatch:
+		patchObj, err := jsonpatch.DecodePatch(patch)
+		if err != nil {
+			return nil, err
+		}
+		if len(patchObj) == 0 {
+			return object, nil
+		}
+
+		objectJSONBytes, err := object.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		patchedObjectJSONBytes, err := patchObj.Apply(objectJSONBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		err = object.UnmarshalJSON(patchedObjectJSONBytes)
+		return object, err
+	default:
+		return nil, fmt.Errorf("return patch type %s is not support", patchType)
+	}
 }

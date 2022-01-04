@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sync"
 
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,12 +51,14 @@ type ServiceExportController struct {
 	// "member1": instance of ResourceEventHandler
 	eventHandlers sync.Map
 	worker        util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+
+	ClusterCacheSyncTimeout metav1.Duration
 }
 
 var (
 	serviceExportGVR = mcsv1alpha1.SchemeGroupVersion.WithResource("serviceexports")
 	serviceExportGVK = mcsv1alpha1.SchemeGroupVersion.WithKind("ServiceExport")
-	endpointSliceGVR = discoveryv1beta1.SchemeGroupVersion.WithResource("endpointslices")
+	endpointSliceGVR = discoveryv1.SchemeGroupVersion.WithResource("endpointslices")
 )
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -182,7 +184,7 @@ func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1al
 	c.InformerManager.Start(cluster.Name)
 
 	if err := func() error {
-		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, util.CacheSyncTimeout)
+		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, c.ClusterCacheSyncTimeout.Duration)
 		if synced == nil {
 			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
 		}
@@ -262,7 +264,7 @@ func (c *ServiceExportController) genHandlerDeleteFunc(clusterName string) func(
 // For ServiceExport create or update event, reports the referencing service's EndpointSlice.
 // For ServiceExport delete event, cleanup the previously reported EndpointSlice.
 func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys.FederatedKey) error {
-	_, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, serviceExportKey)
+	_, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, serviceExportKey, c.Client, c.ClusterDynamicClientSetFunc)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return cleanupWorkWithServiceExportDelete(c.Client, serviceExportKey)
@@ -287,7 +289,7 @@ func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys
 // For EndpointSlice create or update event, reports the EndpointSlice when referencing service has been exported.
 // For EndpointSlice delete event, cleanup the previously reported EndpointSlice.
 func (c *ServiceExportController) handleEndpointSliceEvent(endpointSliceKey keys.FederatedKey) error {
-	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey)
+	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey, c.Client, c.ClusterDynamicClientSetFunc)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return cleanupWorkWithEndpointSliceDelete(c.Client, endpointSliceKey)
@@ -319,7 +321,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 
 	endpointSliceLister := singleClusterManager.Lister(endpointSliceGVR)
 	if endpointSliceObjects, err = endpointSliceLister.ByNamespace(serviceExportKey.Namespace).List(labels.SelectorFromSet(labels.Set{
-		discoveryv1beta1.LabelServiceName: serviceExportKey.Name,
+		discoveryv1.LabelServiceName: serviceExportKey.Name,
 	})); err != nil {
 		return err
 	}
@@ -339,7 +341,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 
 // reportEndpointSliceWithEndpointSliceCreateOrUpdate reports the EndpointSlice when referencing service has been exported.
 func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUpdate(clusterName string, endpointSlice *unstructured.Unstructured) error {
-	relatedServiceName := endpointSlice.GetLabels()[discoveryv1beta1.LabelServiceName]
+	relatedServiceName := endpointSlice.GetLabels()[discoveryv1.LabelServiceName]
 
 	singleClusterManager := c.InformerManager.GetSingleClusterManager(clusterName)
 	if singleClusterManager == nil {
@@ -372,7 +374,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		Namespace: executionSpace,
 		Labels: map[string]string{
 			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
-			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1beta1.LabelServiceName],
+			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
 			// indicate the Work should be not propagated since it's collected resource.
 			util.PropagationInstruction: util.PropagationInstructionSuppressed,
 		},

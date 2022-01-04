@@ -1,6 +1,8 @@
 package options
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -11,15 +13,21 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
+// DefaultKarmadaClusterNamespace defines the default namespace where the member cluster secrets are stored.
+const DefaultKarmadaClusterNamespace = "karmada-cluster"
+
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
+	// Controllers contains all controller names.
+	Controllers       []string
 	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
 	KarmadaKubeConfig string
 	// ClusterContext is the name of the cluster context in control plane KUBECONFIG file.
 	// Default value is the current-context.
 	KarmadaContext string
 	ClusterName    string
-
+	// ClusterNamespace holds the namespace name where the member cluster secrets are stored.
+	ClusterNamespace string
 	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
 	// It must work with ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
 	ClusterStatusUpdateFrequency metav1.Duration
@@ -37,6 +45,13 @@ type Options struct {
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
 	KubeAPIBurst int
+
+	ClusterCacheSyncTimeout metav1.Duration
+
+	// ClusterAPIEndpoint holds the apiEndpoint of the cluster.
+	ClusterAPIEndpoint string
+	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
+	ProxyServerAddress string
 }
 
 // NewOptions builds an default scheduler options.
@@ -51,16 +66,21 @@ func NewOptions() *Options {
 }
 
 // AddFlags adds flags of scheduler to the specified FlagSet
-func (o *Options) AddFlags(fs *pflag.FlagSet) {
+func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	if o == nil {
 		return
 	}
 
+	fs.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, fmt.Sprintf(
+		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: %s.",
+		strings.Join(allControllers, ", "),
+	))
 	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
 	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", util.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
 	fs.StringVar(&o.KarmadaKubeConfig, "karmada-kubeconfig", o.KarmadaKubeConfig, "Path to karmada control plane kubeconfig file.")
 	fs.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in karmada control plane kubeconfig file.")
 	fs.StringVar(&o.ClusterName, "cluster-name", o.ClusterName, "Name of member cluster that the agent serves for.")
+	fs.StringVar(&o.ClusterNamespace, "cluster-namespace", DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	fs.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second, "Specifies how often karmada-agent posts cluster status to karmada-apiserver. Note: be cautious when changing the constant, it must work with ClusterMonitorGracePeriod in karmada-controller-manager.")
 	fs.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", 40*time.Second,
 		"Specifies the expiration period of a cluster lease.")
@@ -70,4 +90,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", 60, "Burst to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	fs.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
+	fs.StringVar(&o.ClusterAPIEndpoint, "cluster-api-endpoint", o.ClusterAPIEndpoint, "APIEndpoint of the cluster.")
+	fs.StringVar(&o.ProxyServerAddress, "proxy-server-address", o.ProxyServerAddress, "Address of the proxy server that is used to proxy to the cluster.")
 }

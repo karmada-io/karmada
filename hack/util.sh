@@ -10,10 +10,12 @@ KARMADA_SYSTEM_NAMESPACE="karmada-system"
 ETCD_POD_LABEL="etcd"
 APISERVER_POD_LABEL="karmada-apiserver"
 KUBE_CONTROLLER_POD_LABEL="kube-controller-manager"
+KARMADA_AGGREGATION_APISERVER_LABEL="karmada-aggregated-apiserver"
 KARMADA_CONTROLLER_LABEL="karmada-controller-manager"
 KARMADA_SCHEDULER_LABEL="karmada-scheduler"
 KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
+INTERPRETER_WEBHOOK_EXAMPLE_LABEL="karmada-interpreter-webhook-example"
 
 MIN_Go_VERSION=go1.16.0
 
@@ -24,7 +26,7 @@ MIN_Go_VERSION=go1.16.0
 function util::install_tools() {
 	local package="$1"
 	local version="$2"
-
+	echo "go install ${package}@${version}"
 	GO111MODULE=on go install "${package}"@"${version}"
 	GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 	export PATH=$PATH:$GOPATH/bin
@@ -116,28 +118,6 @@ function util::install_kubectl {
         echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
         exit 1
     fi
-}
-
-# util::install_kind will install the given version kind
-function util::install_kind {
-  local kind_version=${1}
-  echo "Installing 'kind ${kind_version}' for you"
-  local os_name
-  os_name=$(go env GOOS)
-  local arch_name
-  arch_name=$(go env GOARCH)
-  curl --retry 5 -sSLo ./kind -w "%{http_code}" "https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}" | grep '200' > /dev/null
-  ret=$?
-  if [ ${ret} -eq 0 ]; then
-      chmod +x ./kind
-      mkdir -p ~/.local/bin/
-      mv ./kind ~/.local/bin/kind
-
-      export PATH=$PATH:~/.local/bin
-  else
-      echo "Failed to install kind, can not download the binary file at https://kind.sigs.k8s.io/dl/${kind_version}/kind-${os_name:-linux}-${arch_name:-amd64}"
-      exit 1
-  fi
 }
 
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose
@@ -301,6 +281,25 @@ function util::wait_pod_ready() {
     return ${ret}
 }
 
+# util::wait_apiservice_ready waits for apiservice state becomes Available until timeout.
+# Parmeters:
+#  - $1: apiservice label, such as "app=etcd"
+#  - $3: time out, such as "200s"
+function util::wait_apiservice_ready() {
+    local apiservice_label=$1
+
+    echo "wait the $apiservice_label Available..."
+    set +e
+    util::kubectl_with_retry wait --for=condition=Available --timeout=30s apiservices -l app=${apiservice_label}
+    ret=$?
+    set -e
+    if [ $ret -ne 0 ];then
+      echo "kubectl describe info:"
+      kubectl describe apiservices -l app=${apiservice_label}
+    fi
+    return ${ret}
+}
+
 # util::kubectl_with_retry will retry if execute kubectl command failed
 # tolerate kubectl command failure that may happen before the pod is created by  StatefulSet/Deployment.
 function util::kubectl_with_retry() {
@@ -440,8 +439,12 @@ function util::wait_service_external_ip() {
   local tmp
   for tmp in {1..30}; do
     set +e
+    external_host=$(kubectl get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.hostname}} {{end}}" | xargs)
     external_ip=$(kubectl get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.ip}} {{end}}" | xargs)
     set -e
+    if [[ ! -z "$external_host" ]]; then # Compatibility with hostname, such as AWS
+      external_ip=$external_host
+    fi
     if [[ -z "$external_ip" ]]; then
       echo "wait the external ip of ${service_name} ready..."
       sleep 6
@@ -462,6 +465,13 @@ function util::get_load_balancer_ip() {
   if [[ -n "${SERVICE_EXTERNAL_IP}" ]]; then
     first_ip=$(echo "${SERVICE_EXTERNAL_IP}" | awk '{print $1}') #temporarily choose the first one
     for tmp in {1..10}; do
+      #if it is a host, check dns first
+      if [[ ! "${first_ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        if ! nslookup ${first_ip} > /dev/null; then # host dns lookup failed
+          sleep 30
+          continue
+        fi
+      fi
       set +e
       connect_test=$(curl -s -k -m 5 https://"${first_ip}":5443/readyz)
       set -e

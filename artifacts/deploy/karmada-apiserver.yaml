@@ -54,17 +54,17 @@ spec:
             - --service-account-key-file=/etc/kubernetes/pki/karmada.key
             - --service-account-signing-key-file=/etc/kubernetes/pki/karmada.key
             - --service-cluster-ip-range=10.96.0.0/12
-            - --proxy-client-cert-file=/etc/kubernetes/pki/karmada.crt
-            - --proxy-client-key-file=/etc/kubernetes/pki/karmada.key
+            - --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt
+            - --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key
             - --requestheader-allowed-names=front-proxy-client
-            - --requestheader-client-ca-file=/etc/kubernetes/pki/server-ca.crt
+            - --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt
             - --requestheader-extra-headers-prefix=X-Remote-Extra-
             - --requestheader-group-headers=X-Remote-Group
             - --requestheader-username-headers=X-Remote-User
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
           name: karmada-apiserver
-          image: k8s.gcr.io/kube-apiserver:v1.20.11
+          image: k8s.gcr.io/kube-apiserver:v1.21.7
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 8
@@ -111,9 +111,7 @@ spec:
         - name: k8s-certs
           secret:
             secretName: karmada-cert-secret
-
 ---
-
 apiVersion: v1
 kind: Service
 metadata:

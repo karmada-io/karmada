@@ -16,6 +16,7 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -84,12 +85,23 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 				return fmt.Errorf("failed to get exist resource(kind=%s, %s/%s) in cluster %v: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 			}
 
-			// Avoid updating resources that not managed by karmada.
-			if util.GetLabelValue(desireObj.GetLabels(), workv1alpha1.WorkNameLabel) != util.GetLabelValue(existObj.GetLabels(), workv1alpha1.WorkNameLabel) {
-				return fmt.Errorf("resource(kind=%s, %s/%s) already exist in cluster %v but not managed by karamda", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
+			// If the existing resource is managed by Karmada, then just update it.
+			if util.GetLabelValue(desireObj.GetLabels(), workv1alpha1.WorkNameLabel) == util.GetLabelValue(existObj.GetLabels(), workv1alpha1.WorkNameLabel) {
+				return o.Update(clusterName, desireObj, existObj)
 			}
 
-			return o.Update(clusterName, desireObj, existObj)
+			// The existing resource is not managed by Karmada, then we should consult conflict resolution instruction in annotation.
+			switch util.GetAnnotationValue(desireObj.GetAnnotations(), workv1alpha2.ResourceConflictResolutionAnnotation) {
+			case workv1alpha2.ResourceConflictResolutionOverwrite:
+				klog.Infof("Overwriting the resource(kind=%s, %s/%s) as %s=%s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(),
+					workv1alpha2.ResourceConflictResolutionAnnotation, workv1alpha2.ResourceConflictResolutionOverwrite)
+				return o.Update(clusterName, desireObj, existObj)
+			default:
+				// The existing resource is not managed by Karmada, and no conflict resolution found, avoid updating the existing resource by default.
+				return fmt.Errorf("resource(kind=%s, %s/%s) already exist in cluster %v and the %s strategy value is empty, karmada will not manage this resource",
+					desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, workv1alpha2.ResourceConflictResolutionAnnotation,
+				)
+			}
 		}
 		klog.Errorf("Failed to create resource(kind=%s, %s/%s) in cluster %s, err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err
@@ -109,6 +121,10 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	// controllers in a member cluster.  It is still possible to set the fields
 	// via overrides.
 	desired.SetFinalizers(observed.GetFinalizers())
+
+	// Retain ownerReferences since they will typically be set by controllers in a member cluster.
+	desired.SetOwnerReferences(observed.GetOwnerReferences())
+
 	// Merge annotations since they will typically be set by controllers in a member cluster
 	// and be set by user in karmada-controller-plane.
 	util.MergeAnnotations(desired, observed)

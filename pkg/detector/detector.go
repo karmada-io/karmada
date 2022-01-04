@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,6 +19,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -50,7 +52,7 @@ type ResourceDetector struct {
 	SkippedPropagatingNamespaces map[string]struct{}
 	// ResourceInterpreter knows the details of resource structure.
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
-
+	EventRecorder       record.EventRecorder
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
 	policyReconcileWorker   util.AsyncWorker
@@ -243,6 +245,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return d.ApplyClusterPolicy(object, clusterWideKey, clusterPolicy)
 	}
 
+	d.EventRecorder.Event(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "No policy match for resource")
 	// reaching here mean there is no appropriate policy for the object, put it into waiting list.
 	d.AddWaiting(clusterWideKey)
 
@@ -408,8 +411,15 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 }
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
-func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) error {
-	klog.Infof("Applying policy(%s) for object: %s", policy.Name, objectKey)
+func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) (err error) {
+	klog.Infof("Applying policy(%s%s) for object: %s", policy.Namespace, policy.Name, objectKey)
+	defer func() {
+		if err != nil {
+			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply policy(%s/%s) failed", policy.Namespace, policy.Name)
+		} else {
+			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Namespace, policy.Name)
+		}
+	}()
 
 	if err := d.ClaimPolicyForObject(object, policy.Namespace, policy.Name); err != nil {
 		klog.Errorf("Failed to claim policy(%s) for object: %s", policy.Name, object)
@@ -454,8 +464,15 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 }
 
 // ApplyClusterPolicy starts propagate the object referenced by object key according to ClusterPropagationPolicy.
-func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) error {
+func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
 	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
+	defer func() {
+		if err != nil {
+			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply cluster policy(%s) failed", policy.Name)
+		} else {
+			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Name)
+		}
+	}()
 
 	if err := d.ClaimClusterPolicyForObject(object, policy.Name); err != nil {
 		klog.Errorf("Failed to claim cluster policy(%s) for object: %s", policy.Name, object)
@@ -626,6 +643,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 				Kind:            object.GetKind(),
 				Namespace:       object.GetNamespace(),
 				Name:            object.GetName(),
+				UID:             object.GetUID(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
 		},
@@ -661,6 +679,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
 				Name:            object.GetName(),
+				UID:             object.GetUID(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
 		},

@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"sort"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -223,7 +222,6 @@ func scaleUpScheduleByReplicaDivisionPreference(
 
 	// Step 3: Calculate available replicas of all candidates
 	clusterAvailableReplicas := calAvailableReplicas(clusters, newSpec)
-	sort.Sort(TargetClustersList(clusterAvailableReplicas))
 
 	// Step 4: Begin dividing.
 	// Only the new replicas are considered during this scheduler, the old replicas will not be moved.

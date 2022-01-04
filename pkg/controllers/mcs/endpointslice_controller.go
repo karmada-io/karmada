@@ -3,7 +3,7 @@ package mcs
 import (
 	"context"
 
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -98,9 +98,9 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 
 		desiredEndpointSlice := deriveEndpointSlice(endpointSlice, clusterName)
 		desiredEndpointSlice.Labels = map[string]string{
-			workv1alpha1.WorkNamespaceLabel:   work.Namespace,
-			workv1alpha1.WorkNameLabel:        work.Name,
-			discoveryv1beta1.LabelServiceName: names.GenerateDerivedServiceName(work.Labels[util.ServiceNameLabel]),
+			workv1alpha1.WorkNamespaceLabel: work.Namespace,
+			workv1alpha1.WorkNameLabel:      work.Name,
+			discoveryv1.LabelServiceName:    names.GenerateDerivedServiceName(work.Labels[util.ServiceNameLabel]),
 		}
 
 		if err = helper.CreateOrUpdateEndpointSlice(c.Client, desiredEndpointSlice); err != nil {
@@ -111,7 +111,7 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 	return controllerruntime.Result{}, nil
 }
 
-func deriveEndpointSlice(original *discoveryv1beta1.EndpointSlice, migratedFrom string) *discoveryv1beta1.EndpointSlice {
+func deriveEndpointSlice(original *discoveryv1.EndpointSlice, migratedFrom string) *discoveryv1.EndpointSlice {
 	endpointSlice := original.DeepCopy()
 	endpointSlice.ObjectMeta = metav1.ObjectMeta{
 		Namespace: original.Namespace,

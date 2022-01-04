@@ -173,6 +173,8 @@ github.com/modern-go/reflect2
 github.com/monochromegane/go-gitignore
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 github.com/munnerz/goautoneg
+# github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f
+github.com/mxk/go-flowrate/flowrate
 # github.com/nxadm/tail v1.4.8
 github.com/nxadm/tail
 github.com/nxadm/tail/ratelimiter
@@ -359,6 +361,13 @@ go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
 go.uber.org/zap/zapgrpc
+# golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+golang.org/x/crypto/cryptobyte
+golang.org/x/crypto/cryptobyte/asn1
+golang.org/x/crypto/internal/subtle
+golang.org/x/crypto/nacl/secretbox
+golang.org/x/crypto/poly1305
+golang.org/x/crypto/salsa20/salsa
 # golang.org/x/mod v0.4.2
 golang.org/x/mod/module
 golang.org/x/mod/semver
@@ -381,6 +390,7 @@ golang.org/x/oauth2/internal
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/singleflight
 # golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf
+golang.org/x/sys/cpu
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
@@ -532,6 +542,8 @@ google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
+# gopkg.in/natefinch/lumberjack.v2 v2.0.0
+gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 gopkg.in/tomb.v1
 # gopkg.in/yaml.v2 v2.4.0
@@ -590,6 +602,11 @@ k8s.io/api/storage/v1beta1
 ## explicit
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
+k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset
+k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
+k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
+k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 # k8s.io/apimachinery v0.22.2
 ## explicit
 k8s.io/apimachinery/pkg/api/equality
@@ -635,6 +652,7 @@ k8s.io/apimachinery/pkg/util/managedfields
 k8s.io/apimachinery/pkg/util/mergepatch
 k8s.io/apimachinery/pkg/util/naming
 k8s.io/apimachinery/pkg/util/net
+k8s.io/apimachinery/pkg/util/proxy
 k8s.io/apimachinery/pkg/util/rand
 k8s.io/apimachinery/pkg/util/remotecommand
 k8s.io/apimachinery/pkg/util/runtime
@@ -678,10 +696,14 @@ k8s.io/apiserver/pkg/apis/apiserver/v1
 k8s.io/apiserver/pkg/apis/apiserver/v1alpha1
 k8s.io/apiserver/pkg/apis/apiserver/v1beta1
 k8s.io/apiserver/pkg/apis/audit
+k8s.io/apiserver/pkg/apis/audit/install
 k8s.io/apiserver/pkg/apis/audit/v1
 k8s.io/apiserver/pkg/apis/audit/v1alpha1
 k8s.io/apiserver/pkg/apis/audit/v1beta1
 k8s.io/apiserver/pkg/apis/audit/validation
+k8s.io/apiserver/pkg/apis/config
+k8s.io/apiserver/pkg/apis/config/v1
+k8s.io/apiserver/pkg/apis/config/validation
 k8s.io/apiserver/pkg/apis/flowcontrol/bootstrap
 k8s.io/apiserver/pkg/audit
 k8s.io/apiserver/pkg/audit/policy
@@ -700,6 +722,7 @@ k8s.io/apiserver/pkg/authentication/token/tokenfile
 k8s.io/apiserver/pkg/authentication/user
 k8s.io/apiserver/pkg/authorization/authorizer
 k8s.io/apiserver/pkg/authorization/authorizerfactory
+k8s.io/apiserver/pkg/authorization/path
 k8s.io/apiserver/pkg/authorization/union
 k8s.io/apiserver/pkg/endpoints
 k8s.io/apiserver/pkg/endpoints/deprecation
@@ -719,6 +742,7 @@ k8s.io/apiserver/pkg/endpoints/warning
 k8s.io/apiserver/pkg/features
 k8s.io/apiserver/pkg/quota/v1
 k8s.io/apiserver/pkg/registry/generic
+k8s.io/apiserver/pkg/registry/generic/registry
 k8s.io/apiserver/pkg/registry/rest
 k8s.io/apiserver/pkg/server
 k8s.io/apiserver/pkg/server/dynamiccertificates
@@ -728,16 +752,27 @@ k8s.io/apiserver/pkg/server/filters
 k8s.io/apiserver/pkg/server/healthz
 k8s.io/apiserver/pkg/server/httplog
 k8s.io/apiserver/pkg/server/mux
+k8s.io/apiserver/pkg/server/options
+k8s.io/apiserver/pkg/server/options/encryptionconfig
+k8s.io/apiserver/pkg/server/resourceconfig
 k8s.io/apiserver/pkg/server/routes
 k8s.io/apiserver/pkg/server/storage
 k8s.io/apiserver/pkg/storage
+k8s.io/apiserver/pkg/storage/cacher
+k8s.io/apiserver/pkg/storage/errors
 k8s.io/apiserver/pkg/storage/etcd3
 k8s.io/apiserver/pkg/storage/etcd3/metrics
 k8s.io/apiserver/pkg/storage/names
 k8s.io/apiserver/pkg/storage/storagebackend
 k8s.io/apiserver/pkg/storage/storagebackend/factory
 k8s.io/apiserver/pkg/storage/value
+k8s.io/apiserver/pkg/storage/value/encrypt/aes
+k8s.io/apiserver/pkg/storage/value/encrypt/envelope
+k8s.io/apiserver/pkg/storage/value/encrypt/envelope/v1beta1
+k8s.io/apiserver/pkg/storage/value/encrypt/identity
+k8s.io/apiserver/pkg/storage/value/encrypt/secretbox
 k8s.io/apiserver/pkg/storageversion
+k8s.io/apiserver/pkg/tracing
 k8s.io/apiserver/pkg/util/apihelpers
 k8s.io/apiserver/pkg/util/dryrun
 k8s.io/apiserver/pkg/util/feature
@@ -758,6 +793,10 @@ k8s.io/apiserver/pkg/util/webhook
 k8s.io/apiserver/pkg/util/wsstream
 k8s.io/apiserver/pkg/util/x509metrics
 k8s.io/apiserver/pkg/warning
+k8s.io/apiserver/plugin/pkg/audit/buffered
+k8s.io/apiserver/plugin/pkg/audit/log
+k8s.io/apiserver/plugin/pkg/audit/truncate
+k8s.io/apiserver/plugin/pkg/audit/webhook
 k8s.io/apiserver/plugin/pkg/authenticator/token/webhook
 k8s.io/apiserver/plugin/pkg/authorizer/webhook
 # k8s.io/cli-runtime v0.22.2
@@ -1122,7 +1161,17 @@ k8s.io/gengo/types
 # k8s.io/klog/v2 v2.9.0
 ## explicit
 k8s.io/klog/v2
+# k8s.io/kube-aggregator v0.22.2
+## explicit
+k8s.io/kube-aggregator/pkg/apis/apiregistration
+k8s.io/kube-aggregator/pkg/apis/apiregistration/v1
+k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1
+k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset
+k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/scheme
+k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1
+k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1beta1
 # k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
+## explicit
 k8s.io/kube-openapi/cmd/openapi-gen/args
 k8s.io/kube-openapi/pkg/builder
 k8s.io/kube-openapi/pkg/common
@@ -1334,10 +1383,12 @@ sigs.k8s.io/kustomize/kyaml/yaml/walk
 ## explicit
 sigs.k8s.io/mcs-api/pkg/apis/v1alpha1
 # sigs.k8s.io/structured-merge-diff/v4 v4.1.2
+## explicit
 sigs.k8s.io/structured-merge-diff/v4/fieldpath
 sigs.k8s.io/structured-merge-diff/v4/merge
 sigs.k8s.io/structured-merge-diff/v4/schema
 sigs.k8s.io/structured-merge-diff/v4/typed
 sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
+## explicit
 sigs.k8s.io/yaml

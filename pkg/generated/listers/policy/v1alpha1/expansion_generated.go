@@ -25,11 +25,3 @@ type PropagationPolicyListerExpansion interface{}
 // PropagationPolicyNamespaceListerExpansion allows custom methods to be added to
 // PropagationPolicyNamespaceLister.
 type PropagationPolicyNamespaceListerExpansion interface{}
-
-// ReplicaSchedulingPolicyListerExpansion allows custom methods to be added to
-// ReplicaSchedulingPolicyLister.
-type ReplicaSchedulingPolicyListerExpansion interface{}
-
-// ReplicaSchedulingPolicyNamespaceListerExpansion allows custom methods to be added to
-// ReplicaSchedulingPolicyNamespaceLister.
-type ReplicaSchedulingPolicyNamespaceListerExpansion interface{}
