@@ -11,14 +11,14 @@ import (
 	"time"
 )
 
-//Downloader Download progress
+// Downloader Download progress
 type Downloader struct {
 	io.Reader
 	Total   int64
 	Current int64
 }
 
-//Read Implementation of Downloader
+// Read Implementation of Downloader
 func (d *Downloader) Read(p []byte) (n int, err error) {
 	n, err = d.Reader.Read(p)
 	d.Current += int64(n)
@@ -29,7 +29,7 @@ func (d *Downloader) Read(p []byte) (n int, err error) {
 	return
 }
 
-//DownloadFile Download files via URL
+// DownloadFile Download files via URL
 func DownloadFile(url, filePath string) error {
 	httpClient := http.Client{
 		Timeout: 60 * time.Second,
@@ -62,7 +62,7 @@ func DownloadFile(url, filePath string) error {
 	return nil
 }
 
-//DeCompress decompress tar.gz
+// DeCompress decompress tar.gz
 func DeCompress(file, targetPath string) error {
 	r, err := os.Open(file)
 	if err != nil {
@@ -107,7 +107,7 @@ func DeCompress(file, targetPath string) error {
 	return nil
 }
 
-//ioCopyN fix Potential DoS vulnerability via decompression bomb.
+// ioCopyN fix Potential DoS vulnerability via decompression bomb.
 func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 	for {
 		if _, err := io.CopyN(outFile, tr, 1024); err != nil {
@@ -120,7 +120,7 @@ func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 	return nil
 }
 
-//ListFiles traverse directory files
+// ListFiles traverse directory files
 func ListFiles(path string) []string {
 	var files []string
 	if err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
