@@ -118,9 +118,9 @@ When installing Karmada, the `kubectl karmada init` will download the APIs(CRD) 
 
 If you want to install Karmada offline, maybe you have to specify the APIs tar file as well as the image.
 
-Use `--crd` flag to specify the CRD file. e.g.
+Use `--crds` flag to specify the CRD file. e.g.
 ```bash
-kubectl karmada init --crd /$HOME/crds.tar.gz
+kubectl karmada init --crds /$HOME/crds.tar.gz
 ```
 
 The images of Karmada components could be specified, take `karmada-controller-manager` as an example:
