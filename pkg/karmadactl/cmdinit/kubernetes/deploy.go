@@ -33,7 +33,7 @@ var certList = []string{
 	options.FrontProxyClientCertAndKeyName,
 }
 
-//CommandInitOption holds all flags options for init.
+// CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
 	EtcdImage                          string
 	EtcdReplicas                       int32
@@ -194,7 +194,7 @@ func (i *CommandInitOption) genCerts() error {
 	return nil
 }
 
-//prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
+// prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
 func (i *CommandInitOption) prepareCRD() error {
 	if strings.HasPrefix(i.CRDs, "http") {
 		filename := i.KarmadaDataPath + "/" + path.Base(i.CRDs)
@@ -212,7 +212,7 @@ func (i *CommandInitOption) prepareCRD() error {
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
-	//Create kubeconfig Secret
+	// Create kubeconfig Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.cluster.local:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
@@ -288,7 +288,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 }
 
 func (i *CommandInitOption) initKarmadaComponent() error {
-	//wait pod ready timeout 30s
+	// wait pod ready timeout 30s
 	waitPodReadyTimeout := 30
 
 	deploymentClient := i.KubeClientSet.AppsV1().Deployments(i.Namespace)
@@ -352,9 +352,9 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	return nil
 }
 
-//RunInit Deploy karmada in kubernetes
+// RunInit Deploy karmada in kubernetes
 func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
-	//generate certificate
+	// generate certificate
 	if err := i.genCerts(); err != nil {
 		return fmt.Errorf("certificate generation failed.%v", err)
 	}
@@ -375,7 +375,7 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)] = key
 	}
 
-	//prepare karmada CRD resources
+	// prepare karmada CRD resources
 	if err := i.prepareCRD(); err != nil {
 		return fmt.Errorf("prepare karmada failed.%v", err)
 	}
@@ -414,13 +414,13 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 		return err
 	}
 
-	//Create CRDs in karmada
+	// Create CRDs in karmada
 	caBase64 := base64.StdEncoding.EncodeToString(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)])
 	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64); err != nil {
 		return err
 	}
 
-	//install karmada Component
+	// install karmada Component
 	if err := i.initKarmadaComponent(); err != nil {
 		return err
 	}

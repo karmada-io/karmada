@@ -65,7 +65,7 @@ func waitPodReady(c *kubernetes.Clientset, namespaces, podName string, timeout t
 	return wait.PollImmediate(time.Second, timeout, isPodReady(c, namespaces, podName))
 }
 
-//WaitPodReady wait pod ready
+// WaitPodReady wait pod ready
 func WaitPodReady(c *kubernetes.Clientset, namespace, selector string, timeout int) error {
 	// Wait 3 second
 	time.Sleep(3 * time.Second)

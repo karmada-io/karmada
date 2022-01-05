@@ -11,7 +11,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-//SecretFromSpec secret spec
+// SecretFromSpec secret spec
 func (i *CommandInitOption) SecretFromSpec(name string, secretType corev1.SecretType, data map[string]string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -29,7 +29,7 @@ func (i *CommandInitOption) SecretFromSpec(name string, secretType corev1.Secret
 	}
 }
 
-//CreateSecret receive SecretFromSpec create secret
+// CreateSecret receive SecretFromSpec create secret
 func (i *CommandInitOption) CreateSecret(secret *corev1.Secret) error {
 	secretClient := i.KubeClientSet.CoreV1().Secrets(i.Namespace)
 
