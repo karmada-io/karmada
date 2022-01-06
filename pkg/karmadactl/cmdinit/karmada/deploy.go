@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"sigs.k8s.io/yaml"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
@@ -28,7 +27,7 @@ import (
 
 const namespace = "karmada-system"
 
-//InitKarmadaResources Initialize karmada resource
+// InitKarmadaResources Initialize karmada resource
 func InitKarmadaResources(dir, caBase64 string) error {
 	restConfig, err := utils.RestConfig(filepath.Join(dir, options.KarmadaKubeConfigName))
 	if err != nil {
@@ -49,7 +48,7 @@ func InitKarmadaResources(dir, caBase64 string) error {
 		klog.Exitln(err)
 	}
 
-	//New CRDsClient
+	// New CRDsClient
 	crdClient, err := utils.NewCRDsClient(restConfig)
 	if err != nil {
 		return err
@@ -113,7 +112,7 @@ func crdPatchesResources(filename, caBundle string) ([]byte, error) {
 	return []byte(repl), nil
 }
 
-//createCRDs create crd resource
+// createCRDs create crd resource
 func createCRDs(crdClient *clientset.Clientset, filename string) error {
 	obj := apiextensionsv1.CustomResourceDefinition{}
 	data, err := ioutil.ReadFile(filename)
@@ -163,11 +162,6 @@ func getName(str, start, end string) string {
 	return str
 }
 
-func apiServiceResourceVersion(c *aggregator.Clientset, name string) string {
-	apiService, _ := c.ApiregistrationV1().APIServices().Get(context.TODO(), name, metav1.GetOptions{})
-	return apiService.ResourceVersion
-}
-
 func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) error {
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/apiservice.yaml
 	aaService := &corev1.Service{
@@ -187,7 +181,7 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 	if _, err := clientSet.CoreV1().Services(namespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {
 		return err
 	}
-	//new apiRegistrationClient
+	// new apiRegistrationClient
 	apiRegistrationClient, err := utils.NewAPIRegistrationClient(restConfig)
 	if err != nil {
 		return err
@@ -216,15 +210,16 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 		},
 	}
 
-	allService, err := apiRegistrationClient.ApiregistrationV1().APIServices().List(context.TODO(), metav1.ListOptions{})
+	allAPIService, err := apiRegistrationClient.ApiregistrationV1().APIServices().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	for _, v := range allService.Items {
+	// Update if it exists.
+	for _, v := range allAPIService.Items {
 		if v.Name == aaAPIServiceObjName {
 			klog.Infof("Update APIService '%s'", aaAPIServiceObjName)
-			aaAPIService.ObjectMeta.ResourceVersion = apiServiceResourceVersion(apiRegistrationClient, aaAPIServiceObjName)
+			aaAPIService.ObjectMeta.ResourceVersion = v.ResourceVersion
 			if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), aaAPIService, metav1.UpdateOptions{}); err != nil {
 				return err
 			}

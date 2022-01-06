@@ -29,7 +29,7 @@ const (
 	// certificateBlockType is a possible value for pem.Block.Type.
 	certificateBlockType = "CERTIFICATE"
 	rsaKeySize           = 2048
-	//Duration365d Certificate validity period
+	// Duration365d Certificate validity period
 	Duration365d = time.Hour * 24 * 365
 )
 

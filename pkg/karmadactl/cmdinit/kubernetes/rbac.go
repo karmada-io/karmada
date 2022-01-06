@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-//ClusterRoleFromSpec ClusterRole spec
+// ClusterRoleFromSpec ClusterRole spec
 func (i *CommandInitOption) ClusterRoleFromSpec(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
@@ -25,7 +25,7 @@ func (i *CommandInitOption) ClusterRoleFromSpec(name string, rules []rbacv1.Poli
 	}
 }
 
-//ClusterRoleBindingFromSpec ClusterRoleBinding spec
+// ClusterRoleBindingFromSpec ClusterRoleBinding spec
 func (i *CommandInitOption) ClusterRoleBindingFromSpec(clusterRoleBindingName, clusterRoleName, saName string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -52,7 +52,7 @@ func (i *CommandInitOption) ClusterRoleBindingFromSpec(clusterRoleBindingName, c
 	}
 }
 
-//CreateClusterRole receive ClusterRoleFromSpec ClusterRole
+// CreateClusterRole receive ClusterRoleFromSpec ClusterRole
 func (i *CommandInitOption) CreateClusterRole() error {
 	clusterRole := i.ClusterRoleFromSpec(kubeControllerManagerClusterRoleAndDeploymentAndServiceName, []rbacv1.PolicyRule{
 		{
@@ -87,7 +87,7 @@ func (i *CommandInitOption) CreateClusterRole() error {
 	return nil
 }
 
-//CreateClusterRoleBinding receive ClusterRoleBindingFromSpec ClusterRoleBinding
+// CreateClusterRoleBinding receive ClusterRoleBindingFromSpec ClusterRoleBinding
 func (i *CommandInitOption) CreateClusterRoleBinding(clusterRole *rbacv1.ClusterRoleBinding) error {
 	crbClient := i.KubeClientSet.RbacV1().ClusterRoleBindings()
 
