@@ -222,7 +222,7 @@ function util::wait_for_condition() {
   local timeout=${3:-}
 
   local start_msg="Waiting for ${msg}"
-  local error_msg="[ERROR] Timeout waiting for ${msg}"
+  local error_msg="[ERROR] Timeout waiting for condition ${msg}"
 
   local counter=0
   while ! eval ${condition}; do
@@ -251,12 +251,14 @@ function util::wait_for_condition() {
 function util::wait_file_exist() {
     local file_path=${1}
     local timeout=${2}
+    local error_msg="[ERROR] Timeout waiting for file exist ${file_path}"
     for ((time=0; time<${timeout}; time++)); do
         if [[ -e ${file_path} ]]; then
             return 0
         fi
         sleep 1
     done
+    echo -e "\n${error_msg}"
     return 1
 }
 
