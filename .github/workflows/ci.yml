@@ -28,9 +28,16 @@ jobs:
   codegen:
     name: codegen
     runs-on: ubuntu-18.04
+    env:
+      GOPATH: ${{ github.workspace }}
+    defaults:
+      run:
+        working-directory: ${{ env.GOPATH }}/src/github.com/karmada-io/karmada
     steps:
       - name: checkout code
         uses: actions/checkout@v2
+        with:
+          path: ${{ env.GOPATH }}/src/github.com/karmada-io/karmada
       - name: install Go
         uses: actions/setup-go@v2
         with:
