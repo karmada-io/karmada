@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/component-helpers/apimachinery/lease"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -199,8 +200,13 @@ func (c *ClusterStatusController) setStatusCollectionFailedCondition(cluster *cl
 func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus) (controllerruntime.Result, error) {
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
-		cluster.Status = currentClusterStatus
-		err := c.Client.Status().Update(context.TODO(), cluster)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			if err = c.Get(context.TODO(), client.ObjectKey{Namespace: cluster.Namespace, Name: cluster.Name}, cluster); err != nil {
+				return err
+			}
+			cluster.Status = currentClusterStatus
+			return c.Status().Update(context.TODO(), cluster)
+		})
 		if err != nil {
 			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
 			return controllerruntime.Result{Requeue: true}, err
