@@ -432,8 +432,6 @@ func (c *WorkStatusController) getGVRsFromWork(work *workv1alpha1.Work) (map[sch
 // getSingleClusterManager gets singleClusterInformerManager with clusterName.
 // If manager is not exist, create it, otherwise gets it from map.
 func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
-	// TODO(chenxianpao): If cluster A is removed, then a new cluster that name also is A joins karmada,
-	//  the cache in informer manager should be updated.
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
 		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client)

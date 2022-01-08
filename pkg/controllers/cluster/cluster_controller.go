@@ -23,6 +23,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -38,8 +39,9 @@ const (
 
 // Controller is to sync Cluster.
 type Controller struct {
-	client.Client // used to operate Cluster resources.
-	EventRecorder record.EventRecorder
+	client.Client   // used to operate Cluster resources.
+	EventRecorder   record.EventRecorder
+	InformerManager informermanager.MultiClusterInformerManager
 
 	// ClusterMonitorPeriod represents cluster-controller monitoring period, i.e. how often does
 	// cluster-controller check cluster health signal posted from cluster-status-controller.
@@ -139,7 +141,8 @@ func (c *Controller) removeCluster(cluster *clusterv1alpha1.Cluster) (controller
 
 	// delete the health data from the map explicitly after we removing the cluster.
 	c.clusterHealthMap.Delete(cluster.Name)
-
+	// stop informer manager for the cluster
+	c.InformerManager.Stop(cluster.Name)
 	return c.removeFinalizer(cluster)
 }
 

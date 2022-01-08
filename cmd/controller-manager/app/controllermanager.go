@@ -127,6 +127,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 	clusterController := &cluster.Controller{
 		Client:                    mgr.GetClient(),
 		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
+		InformerManager:           informermanager.GetInstance(),
 		ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
 		ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
 		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
