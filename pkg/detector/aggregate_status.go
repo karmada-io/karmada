@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -212,11 +213,11 @@ func (d *ResourceDetector) AggregateJobStatus(objRef workv1alpha2.ObjectReferenc
 		return nil
 	}
 
-	obj.Status = *newStatus
-	if err := d.Client.Status().Update(context.TODO(), obj); err != nil {
-		klog.Errorf("Failed to update job(%s/%s) status: %v", objRef.Namespace, objRef.Name, err)
-		return err
-	}
-
-	return nil
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		if err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, obj); err != nil {
+			return err
+		}
+		obj.Status = *newStatus
+		return d.Client.Status().Update(context.TODO(), obj)
+	})
 }
