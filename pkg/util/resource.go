@@ -253,6 +253,41 @@ func (r *Resource) LessEqual(rr *Resource) bool {
 	return true
 }
 
+// AddPodTemplateRequest add the effective request resource of a pod template to the origin resource.
+// If pod container limits are specified, but requests are not, default requests to limits.
+// The code logic is almost the same as kubernetes.
+// https://github.com/kubernetes/kubernetes/blob/f7cdbe2c96cc12101226686df9e9819b4b007c5c/pkg/apis/core/v1/defaults.go#L147-L181
+func (r *Resource) AddPodTemplateRequest(podSpec *corev1.PodSpec) *Resource {
+	// DeepCopy first because we may modify the Resources.Requests field.
+	podSpec = podSpec.DeepCopy()
+	for i := range podSpec.Containers {
+		// set requests to limits if requests are not specified, but limits are
+		if podSpec.Containers[i].Resources.Limits != nil {
+			if podSpec.Containers[i].Resources.Requests == nil {
+				podSpec.Containers[i].Resources.Requests = make(corev1.ResourceList)
+			}
+			for key, value := range podSpec.Containers[i].Resources.Limits {
+				if _, exists := podSpec.Containers[i].Resources.Requests[key]; !exists {
+					podSpec.Containers[i].Resources.Requests[key] = value.DeepCopy()
+				}
+			}
+		}
+	}
+	for i := range podSpec.InitContainers {
+		if podSpec.InitContainers[i].Resources.Limits != nil {
+			if podSpec.InitContainers[i].Resources.Requests == nil {
+				podSpec.InitContainers[i].Resources.Requests = make(corev1.ResourceList)
+			}
+			for key, value := range podSpec.InitContainers[i].Resources.Limits {
+				if _, exists := podSpec.InitContainers[i].Resources.Requests[key]; !exists {
+					podSpec.InitContainers[i].Resources.Requests[key] = value.DeepCopy()
+				}
+			}
+		}
+	}
+	return r.AddPodRequest(podSpec)
+}
+
 // AddPodRequest add the effective request resource of a pod to the origin resource.
 // The Pod's effective request is the higher of:
 // - the sum of all app containers(spec.Containers) request for a resource.
@@ -264,6 +299,11 @@ func (r *Resource) AddPodRequest(podSpec *corev1.PodSpec) *Resource {
 	}
 	for _, container := range podSpec.InitContainers {
 		r.SetMaxResource(container.Resources.Requests)
+	}
+	// If Overhead is being utilized, add to the total requests for the pod.
+	// We assume the EnablePodOverhead feature gate of member cluster is set (it is on by default since 1.18).
+	if podSpec.Overhead != nil {
+		r.Add(podSpec.Overhead)
 	}
 	return r
 }
