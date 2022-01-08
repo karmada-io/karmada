@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
@@ -30,7 +31,7 @@ func (i *CommandInitOption) getKubeMasterIP() error {
 		klog.Warning("the kubernetes cluster does not have a Master role.")
 	} else {
 		for _, v := range masterNodes.Items {
-			i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(v.Status.Addresses[0].Address))
+			options.KarmadaAPIServerIP = append(options.KarmadaAPIServerIP, utils.StringToNetIP(v.Status.Addresses[0].Address))
 		}
 		return nil
 	}
@@ -45,10 +46,10 @@ func (i *CommandInitOption) getKubeMasterIP() error {
 		if number >= len(nodes.Items) {
 			break
 		}
-		i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(nodes.Items[number].Status.Addresses[0].Address))
+		options.KarmadaAPIServerIP = append(options.KarmadaAPIServerIP, utils.StringToNetIP(nodes.Items[number].Status.Addresses[0].Address))
 	}
 
-	if len(i.KarmadaAPIServerIP) == 0 {
+	if len(options.KarmadaAPIServerIP) == 0 {
 		return fmt.Errorf("karmada apiserver ip is empty")
 	}
 	return nil

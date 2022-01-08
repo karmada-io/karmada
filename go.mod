@@ -3,11 +3,16 @@ module github.com/karmada-io/karmada
 go 1.16
 
 require (
+	github.com/Microsoft/go-winio v0.5.1 // indirect
+	github.com/containerd/containerd v1.5.9 // indirect
 	github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
+	github.com/docker/docker v20.10.12+incompatible
+	github.com/docker/go-connections v0.4.0
 	github.com/evanphx/json-patch/v5 v5.2.0
 	github.com/gogo/protobuf v1.3.2
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.2.0
 	github.com/kr/pretty v0.3.0
+	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
 	github.com/prometheus/client_golang v1.11.0

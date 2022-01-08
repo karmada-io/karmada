@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"path"
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -24,6 +22,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
+// certList List of generated certificates.
 var certList = []string{
 	options.CaCertAndKeyName,
 	options.EtcdServerCertAndKeyName,
@@ -35,37 +34,24 @@ var certList = []string{
 
 // CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
-	EtcdImage                          string
-	EtcdReplicas                       int32
 	EtcdInitImage                      string
+	EtcdReplicas                       int32
 	EtcdStorageMode                    string
-	EtcdHostDataPath                   string
 	EtcdNodeSelectorLabels             string
 	EtcdPersistentVolumeSize           string
-	KarmadaAPIServerImage              string
 	KarmadaAPIServerReplicas           int32
 	KarmadaAPIServerNodePort           int32
-	KarmadaSchedulerImage              string
 	KarmadaSchedulerReplicas           int32
-	KubeControllerManagerImage         string
 	KubeControllerManagerReplicas      int32
-	KarmadaControllerManagerImage      string
 	KarmadaControllerManagerReplicas   int32
-	KarmadaWebhookImage                string
 	KarmadaWebhookReplicas             int32
-	KarmadaAggregatedAPIServerImage    string
 	KarmadaAggregatedAPIServerReplicas int32
 	Namespace                          string
 	KubeConfig                         string
 	StorageClassesName                 string
-	KarmadaDataPath                    string
-	CRDs                               string
-	ExternalIP                         string
-	ExternalDNS                        string
 	KubeClientSet                      *kubernetes.Clientset
 	CertAndKeyFileData                 map[string][]byte
 	RestConfig                         *rest.Config
-	KarmadaAPIServerIP                 []net.IP
 }
 
 // Validate Check that there are enough flags to run the command.
@@ -74,7 +60,7 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 		return fmt.Errorf("kubeconfig file does not exist.absolute path to the kubeconfig file")
 	}
 
-	if i.EtcdStorageMode == "hostPath" && i.EtcdHostDataPath == "" {
+	if i.EtcdStorageMode == "hostPath" && options.EtcdHostDataPath == "" {
 		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
 
@@ -121,7 +107,7 @@ func (i *CommandInitOption) Complete() error {
 	if err := i.getKubeMasterIP(); err != nil {
 		return err
 	}
-	klog.Infof("karmada apiserver ip: %s", i.KarmadaAPIServerIP)
+	klog.Infof("karmada apiserver ip: %s", options.KarmadaAPIServerIP)
 
 	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
 		if !i.isNodeExist(i.EtcdNodeSelectorLabels) {
@@ -164,15 +150,15 @@ func (i *CommandInitOption) genCerts() error {
 		fmt.Sprintf("*.%s.svc.cluster.local", i.Namespace),
 		fmt.Sprintf("*.%s.svc", i.Namespace),
 	}
-	karmadaDNS = append(karmadaDNS, utils.FlagsDNS(i.ExternalDNS)...)
+	karmadaDNS = append(karmadaDNS, utils.FlagsDNS(options.ExternalDNS)...)
 
-	karmadaIPs := utils.FlagsIP(i.ExternalIP)
+	karmadaIPs := utils.FlagsIP(options.ExternalIP)
 	karmadaIPs = append(
 		karmadaIPs,
 		utils.StringToNetIP("127.0.0.1"),
 		utils.StringToNetIP("10.254.0.1"),
 	)
-	karmadaIPs = append(karmadaIPs, i.KarmadaAPIServerIP...)
+	karmadaIPs = append(karmadaIPs, options.KarmadaAPIServerIP...)
 
 	internetIP, err := utils.InternetIP()
 	if err != nil {
@@ -188,27 +174,10 @@ func (i *CommandInitOption) genCerts() error {
 	karmadaCertCfg := cert.NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
 
 	frontProxyClientCertCfg := cert.NewCertConfig("front-proxy-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
-	if err = cert.GenCerts(i.KarmadaDataPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
+	if err = cert.GenCerts(options.KarmadaDataPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
 		return err
 	}
 	return nil
-}
-
-// prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
-func (i *CommandInitOption) prepareCRD() error {
-	if strings.HasPrefix(i.CRDs, "http") {
-		filename := i.KarmadaDataPath + "/" + path.Base(i.CRDs)
-		klog.Infoln("download crds file name:", filename)
-		if err := utils.DownloadFile(i.CRDs, filename); err != nil {
-			return err
-		}
-		if err := utils.DeCompress(filename, i.KarmadaDataPath); err != nil {
-			return err
-		}
-		return nil
-	}
-	klog.Infoln("local crds file name:", i.CRDs)
-	return utils.DeCompress(i.CRDs, i.KarmadaDataPath)
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
@@ -362,27 +331,27 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 	i.CertAndKeyFileData = map[string][]byte{}
 
 	for _, v := range certList {
-		certs, err := utils.FileToBytes(i.KarmadaDataPath, fmt.Sprintf("%s.crt", v))
+		certs, err := utils.FileToBytes(options.KarmadaDataPath, fmt.Sprintf("%s.crt", v))
 		if err != nil {
 			return fmt.Errorf("'%s.crt' conversion failed. %v", v, err)
 		}
 		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)] = certs
 
-		key, err := utils.FileToBytes(i.KarmadaDataPath, fmt.Sprintf("%s.key", v))
+		key, err := utils.FileToBytes(options.KarmadaDataPath, fmt.Sprintf("%s.key", v))
 		if err != nil {
 			return fmt.Errorf("'%s.key' conversion failed. %v", v, err)
 		}
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)] = key
 	}
 
-	// prepare karmada CRD resources
-	if err := i.prepareCRD(); err != nil {
-		return fmt.Errorf("prepare karmada failed.%v", err)
+	// download karmada CRD resources
+	if err := utils.DownloadCRD(options.CRDs); err != nil {
+		return fmt.Errorf("download karmada crd resources failed. %v", err)
 	}
 
 	// Create karmada kubeconfig
-	serverURL := fmt.Sprintf("https://%s:%v", i.KarmadaAPIServerIP[0].String(), i.KarmadaAPIServerNodePort)
-	if err := utils.WriteKubeConfigFromSpec(serverURL, options.UserName, options.ClusterName, i.KarmadaDataPath, options.KarmadaKubeConfigName,
+	serverURL := fmt.Sprintf("https://%s:%v", options.KarmadaAPIServerIP[0].String(), i.KarmadaAPIServerNodePort)
+	if err := utils.WriteKubeConfigFromSpec(serverURL, options.UserName, options.ClusterName, options.KarmadaDataPath, options.KarmadaKubeConfigName,
 		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]); err != nil {
 		return fmt.Errorf("failed to create karmada kubeconfig file. %v", err)
@@ -416,7 +385,7 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 
 	// Create CRDs in karmada
 	caBase64 := base64.StdEncoding.EncodeToString(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)])
-	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64); err != nil {
+	if err := karmada.InitKarmadaResources(options.KarmadaDataPath, caBase64); err != nil {
 		return err
 	}
 
@@ -425,6 +394,6 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 		return err
 	}
 
-	utils.GenExamples(i.KarmadaDataPath, parentCommand)
+	utils.GenExamples(options.KarmadaDataPath, parentCommand)
 	return nil
 }

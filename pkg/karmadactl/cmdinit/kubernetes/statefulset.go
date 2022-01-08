@@ -89,7 +89,7 @@ func (i CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVol
 			Name: etcdContainerDataVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: i.EtcdHostDataPath,
+					Path: options.EtcdHostDataPath,
 					Type: &t,
 				},
 			},
@@ -234,7 +234,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 		Containers: []corev1.Container{
 			{
 				Name:  etcdStatefulSetAndServiceName,
-				Image: i.EtcdImage,
+				Image: options.EtcdImage,
 				Command: []string{
 					"/usr/local/bin/etcd",
 					fmt.Sprintf("--config-file=%s/%s", etcdContainerConfigDataMountPath, etcdConfigName),

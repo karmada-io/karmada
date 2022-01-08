@@ -158,7 +158,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		Containers: []corev1.Container{
 			{
 				Name:    karmadaAPIServerDeploymentAndServiceName,
-				Image:   i.KarmadaAPIServerImage,
+				Image:   options.KarmadaAPIServerImage,
 				Command: i.karmadaAPIServerContainerCommand(),
 				Ports: []corev1.ContainerPort{
 					{
@@ -253,7 +253,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 		Containers: []corev1.Container{
 			{
 				Name:  kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-				Image: i.KubeControllerManagerImage,
+				Image: options.KubeControllerManagerImage,
 				Command: []string{
 					"kube-controller-manager",
 					"--allocate-node-cidrs=true",
@@ -380,7 +380,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 		Containers: []corev1.Container{
 			{
 				Name:  schedulerDeploymentNameAndServiceAccountName,
-				Image: i.KarmadaSchedulerImage,
+				Image: options.KarmadaSchedulerImage,
 				Command: []string{
 					"/bin/karmada-scheduler",
 					"--kubeconfig=/etc/kubeconfig",
@@ -478,7 +478,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 		Containers: []corev1.Container{
 			{
 				Name:  controllerManagerDeploymentAndServiceName,
-				Image: i.KarmadaControllerManagerImage,
+				Image: options.KarmadaControllerManagerImage,
 				Command: []string{
 					"/bin/karmada-controller-manager",
 					"--kubeconfig=/etc/kubeconfig",
@@ -579,7 +579,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		Containers: []corev1.Container{
 			{
 				Name:  webhookDeploymentAndServiceAccountAndServiceName,
-				Image: i.KarmadaWebhookImage,
+				Image: options.KarmadaWebhookImage,
 				Command: []string{
 					"/bin/karmada-webhook",
 					"--kubeconfig=/etc/kubeconfig",
@@ -703,7 +703,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		Containers: []corev1.Container{
 			{
 				Name:  karmadaAggregatedAPIServerDeploymentAndServiceName,
-				Image: i.KarmadaAggregatedAPIServerImage,
+				Image: options.KarmadaAggregatedAPIServerImage,
 				Command: []string{
 					"/bin/karmada-aggregated-apiserver",
 					"--kubeconfig=/etc/kubeconfig",
