@@ -6,8 +6,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// DefaultKarmadaClusterNamespace defines the default namespace where the member cluster objects are stored.
-// The secret owns by cluster objects will be stored in the namespace too.
+//DefaultKarmadaClusterNamespace defines the default namespace where the member cluster secrets are stored.
 const DefaultKarmadaClusterNamespace = "karmada-cluster"
 
 // DefaultKarmadactlCommandDuration defines the default timeout for karmadactl execute
