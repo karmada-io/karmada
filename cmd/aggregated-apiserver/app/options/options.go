@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/admission"
+	"k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
@@ -22,6 +23,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
 )
 
 const defaultEtcdPathPrefix = "/registry"
@@ -121,6 +123,8 @@ func (o *Options) Config() (*aggregatedapiserver.Config, error) {
 	}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(aggregatedapiserver.Codecs)
+	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(aggregatedapiserver.Scheme))
+	serverConfig.OpenAPIConfig.Info.Title = "Karmada"
 	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}
