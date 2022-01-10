@@ -141,6 +141,132 @@ kubectl delete deployment nginx
 
 ## Deploy deployment into a specified set of target clusters
 
+`.spec.placement.clusterAffinity` field of PropagationPolicy represents scheduling restrictions on a certain set of clusters, without which any cluster can be scheduling candidates.
+
+It has four fields to set:
+- LabelSelector
+- FieldSelector
+- ClusterNames
+- ExcludeClusters
+
+### LabelSelector
+
+LabelSelector is a filter to select member clusters by labels. It uses `*metav1.LabelSelector` type. If it is non-nil and non-empty, only the clusters match this filter will be selected.
+
+PropagationPolicy can be configured as follows:
+
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: test-propagation
+spec:
+  ...
+  placement:
+    clusterAffinity:
+      labelSelector:
+        matchLabels:
+          location: us
+    ...
+```
+
+PropagationPolicy can also be configured as follows:
+
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: test-propagation
+spec:
+  ...
+  placement:
+    clusterAffinity:
+      labelSelector:
+        matchExpressions:
+        - key: location
+          operator: In
+          values:
+          - us
+    ...
+```
+
+For a description of `matchLabels` and `matchExpressions`, you can refer to [Resources that support set-based requirements](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#resources-that-support-set-based-requirements).
+
+### FieldSelector
+
+FieldSelector is a filter to select member clusters by fields. If it is non-nil and non-empty, only the clusters match this filter will be selected.
+
+PropagationPolicy can be configured as follows:
+
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: nginx-propagation
+spec:
+  ...
+  placement:
+    clusterAffinity:
+      fieldSelector:
+        matchExpressions:
+        - key: provider
+          operator: In
+          values:
+          - huaweicloud
+        - key: region
+          operator: NotIn
+          values:
+          - cn-south-1
+    ...
+```
+
+If multiple `matchExpressions` are specified in the `fieldSelector`, the cluster must match all `matchExpressions`.
+
+The `key` in `matchExpressions` now supports three values: `provider`, `region`, and `zone`, which correspond to the `.spec.provider`, `.spec.region`, and `.spec.zone` fields of the Cluster object, respectively.
+
+The `operator` in `matchExpressions` now supports `In` and `NotIn`.
+
+### ClusterNames
+
+Users can set the `ClusterNames` field to specify the selected clusters.
+
+PropagationPolicy can be configured as follows:
+
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: nginx-propagation
+spec:
+  ...
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+    ...
+```
+
+### ExcludeClusters
+
+Users can set the `ExcludeClusters` fields to specify the clusters to be ignored.
+
+PropagationPolicy can be configured as follows:
+
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: nginx-propagation
+spec:
+  ...
+  placement:
+    clusterAffinity:
+      exclude:
+        - member1
+        - member3
+    ...
+```
 
 ## Configuring Multi-Cluster HA for Deployment
 
