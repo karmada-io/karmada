@@ -19,7 +19,9 @@ Refer to [Installing Karmada](./installation/installation.md).
 
 ## Developer Guide
 
-## Contribute
+## Contributors
+
+- [Cherry Pick Overview](./contributors/devel/cherry-picks.md)
 
 ## Reference
 

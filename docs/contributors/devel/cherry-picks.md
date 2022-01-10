@@ -115,3 +115,5 @@ cherry pick.
 ## Cherry Picks for Unsupported Releases
 
 The community supports & patches releases need to be discussed.
+
+[cherry-pick-script]: https://github.com/karmada-io/karmada/blob/master/hack/cherry_pick_pull.sh
