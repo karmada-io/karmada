@@ -114,3 +114,13 @@ informer-gen \
   --versioned-clientset-package=github.com/karmada-io/karmada/pkg/generated/clientset/versioned \
   --listers-package=github.com/karmada-io/karmada/pkg/generated/listers \
   --output-package=github.com/karmada-io/karmada/pkg/generated/informers
+
+echo "Generating with openapi-gen"
+GO111MODULE=on go install k8s.io/code-generator/cmd/openapi-gen
+openapi-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1" \
+  --input-dirs "k8s.io/api/core/v1,k8s.io/apimachinery/pkg/api/resource" \
+  --input-dirs "k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/version" \
+  --output-package "github.com/karmada-io/karmada/pkg/generated/openapi" \
+  -O zz_generated.openapi
