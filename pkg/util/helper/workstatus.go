@@ -59,7 +59,7 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 		return nil
 	}
 
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, binding); err != nil {
 			return err
 		}
@@ -95,7 +95,7 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 		return nil
 	}
 
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		if err = c.Get(context.TODO(), client.ObjectKey{Name: binding.Name}, binding); err != nil {
 			return err
 		}
