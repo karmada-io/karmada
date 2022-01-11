@@ -309,8 +309,9 @@ spec:
                   type: object
                 type: array
               overriders:
-                description: Overriders represents the override rules that would apply
-                  on resources
+                description: "Overriders represents the override rules that would
+                  apply on resources \n Deprecated: This filed is deprecated in v1.0
+                  and please use the OverrideRules instead."
                 properties:
                   argsOverrider:
                     description: ArgsOverrider represents the rules dedicated to handling
@@ -529,9 +530,10 @@ spec:
                   type: object
                 type: array
               targetCluster:
-                description: TargetCluster defines restrictions on this override policy
-                  that only applies to resources propagated to the matching clusters.
-                  nil means matching all clusters.
+                description: "TargetCluster defines restrictions on this override
+                  policy that only applies to resources propagated to the matching
+                  clusters. nil means matching all clusters. \n Deprecated: This filed
+                  is deprecated in v1.0 and please use the OverrideRules instead."
                 properties:
                   clusterNames:
                     description: ClusterNames is the list of clusters to be selected.

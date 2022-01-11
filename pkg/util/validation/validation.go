@@ -85,6 +85,8 @@ func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) error {
 		return nil
 	}
 
+	//nolint:staticcheck
+	// disable `deprecation` check for backward compatibility.
 	if overrideSpec.TargetCluster != nil || !EmptyOverrides(overrideSpec.Overriders) {
 		return fmt.Errorf("overrideRules and (overriders or targetCluster) can't co-exist")
 	}

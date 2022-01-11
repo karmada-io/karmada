@@ -32,10 +32,14 @@ type OverrideSpec struct {
 	// TargetCluster defines restrictions on this override policy
 	// that only applies to resources propagated to the matching clusters.
 	// nil means matching all clusters.
+	//
+	// Deprecated: This filed is deprecated in v1.0 and please use the OverrideRules instead.
 	// +optional
 	TargetCluster *ClusterAffinity `json:"targetCluster,omitempty"`
 
 	// Overriders represents the override rules that would apply on resources
+	//
+	// Deprecated: This filed is deprecated in v1.0 and please use the OverrideRules instead.
 	// +optional
 	Overriders Overriders `json:"overriders"`
 }
