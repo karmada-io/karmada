@@ -270,7 +270,7 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		LastTransitionTime: metav1.Now(),
 	}
 
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, work); err != nil {
 			return err
 		}
