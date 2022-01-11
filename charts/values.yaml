@@ -82,7 +82,7 @@ scheduler:
   labels:
     app: karmada-scheduler
   ## @param scheduler.replicaCount target replicas
-  replicaCount: 1
+  replicaCount: 3
   ## @param scheduler.podAnnotations
   podAnnotations: { }
   ## @param scheduler.podLabels
@@ -121,7 +121,7 @@ webhook:
   labels:
     app: karmada-webhook
   ## @param webhook.replicaCount target replicas
-  replicaCount: 1
+  replicaCount: 3
   ## @param webhook.podAnnotations
   podAnnotations: { }
   ## @param webhook.podLabels
@@ -160,7 +160,7 @@ controllerManager:
   labels:
     app: karmada-controller-manager
   ## @param controllerManager.replicaCount target replicas
-  replicaCount: 1
+  replicaCount: 3
   ## @param controllerManager.podAnnotations
   podAnnotations: { }
   ## @param controllerManager.podLabels
@@ -199,7 +199,7 @@ apiServer:
   labels:
     app: karmada-apiserver
   ## @param apiServer.replicaCount target replicas
-  replicaCount: 1
+  replicaCount: 3
   ## @param apiServer.podAnnotations
   podAnnotations: { }
   ## @param apiServer.podLabels
@@ -251,7 +251,7 @@ aggregatedApiServer:
   labels: 
     app: karmada-aggregated-apiserver
   ## @param aggregatedApiServer.replicaCount target replicas
-  replicaCount: 1
+  replicaCount: 3
   ## @param aggregatedApiServer.podAnnotations
   podAnnotations: { }
   ## @param aggregatedApiServer.podLabels
@@ -292,7 +292,7 @@ kubeControllerManager:
   labels:
     app: kube-controller-manager
   ## @param kubeControllerManager.replicaCount target replicas
-  replicaCount: 1
+  replicaCount: 3
   ## @param kubeControllerManager.podAnnotations
   podAnnotations: {}
   ## @param kubeControllerManager.podLabels
@@ -355,7 +355,7 @@ etcd:
         -----END RSA PRIVATE KEY-----
   internal:
     ## @param etcd.internal.replicaCount target replicas
-    replicaCount: 1
+    replicaCount: 3
     image:
       ## @param etcd.internal.image.repository image of the etcd
       repository: k8s.gcr.io/etcd
@@ -410,7 +410,7 @@ agent:
   labels:
     app: karmada-agent
   ## @param agent.replicaCount target replicas
-  replicaCount: 1
+  replicaCount: 3
   ## @param agent.podAnnotations
   podAnnotations: { }
   ## @param agent.podLabels
@@ -469,7 +469,7 @@ schedulerEstimator:
   ## @param schedulerEstimator.labels
   labels: {}
   ## @param schedulerEstimator.replicaCount target replicas
-  replicaCount: 1
+  replicaCount: 3
   ## @param schedulerEstimator.podAnnotations
   podAnnotations: { }
   ## @param schedulerEstimator.podLabels
