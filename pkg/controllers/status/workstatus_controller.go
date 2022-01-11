@@ -159,7 +159,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	obj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
+	observedObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return c.handleDeleteEvent(fedKey)
@@ -167,8 +167,8 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	workNamespace := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
-	workName := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNameLabel)
+	workNamespace := util.GetLabelValue(observedObj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
+	workName := util.GetLabelValue(observedObj.GetLabels(), workv1alpha1.WorkNameLabel)
 	if len(workNamespace) == 0 || len(workName) == 0 {
 		klog.Infof("Ignore object(%s) which not managed by karmada.", fedKey.String())
 		return nil
@@ -185,8 +185,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	// consult with version manager if current status needs update.
-	desireObj, err := c.getRawManifest(workObject.Spec.Workload.Manifests, obj)
+	desiredObj, err := c.getRawManifest(workObject.Spec.Workload.Manifests, observedObj)
 	if err != nil {
 		return err
 	}
@@ -197,14 +196,15 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	// compare version to determine if need to update resource
-	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desireObj, obj)
+	// we should check if the observed status is consistent with the declaration to prevent accidental changes made
+	// in member clusters.
+	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desiredObj, observedObj)
 	if err != nil {
 		return err
 	}
 
 	if needUpdate {
-		if err := c.ObjectWatcher.Update(clusterName, desireObj, obj); err != nil {
+		if err := c.ObjectWatcher.Update(clusterName, desiredObj, observedObj); err != nil {
 			klog.Errorf("Update %s failed: %v", fedKey.String(), err)
 			return err
 		}
@@ -217,8 +217,8 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		// status changes.
 	}
 
-	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), workNamespace, workName)
-	return c.reflectStatus(workObject, obj)
+	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
+	return c.reflectStatus(workObject, observedObj)
 }
 
 func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
@@ -267,7 +267,7 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 	return nil
 }
 
-// reflectStatus grabs cluster object's running status then updates to it's owner object(Work).
+// reflectStatus grabs cluster object's running status then updates to its owner object(Work).
 func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
 	statusMap, _, err := unstructured.NestedMap(clusterObj.Object, "status")
 	if err != nil {
