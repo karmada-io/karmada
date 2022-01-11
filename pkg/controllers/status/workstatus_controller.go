@@ -292,7 +292,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		manifestStatus.Status = rawExtension
 	}
 
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, work); err != nil {
 			return err
 		}
