@@ -5,7 +5,6 @@
 package v1alpha1
 
 import (
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -94,7 +93,7 @@ func (in *ResourceInterpreterRequest) DeepCopyInto(out *ResourceInterpreterReque
 	}
 	if in.AggregatedStatus != nil {
 		in, out := &in.AggregatedStatus, &out.AggregatedStatus
-		*out = make([]workv1alpha1.AggregatedStatusItem, len(*in))
+		*out = make([]v1alpha2.AggregatedStatusItem, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

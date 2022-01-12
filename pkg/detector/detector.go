@@ -3,6 +3,7 @@ package detector
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -1026,19 +1027,38 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 	}
 
 	klog.Infof("Reconciling resource binding(%s/%s)", binding.Namespace, binding.Name)
-	switch binding.Spec.Resource.Kind {
-	case util.DeploymentKind:
-		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
-	case util.ServiceKind:
-		return d.AggregateServiceStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
-	case util.IngressKind:
-		return d.AggregateIngressStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
-	case util.JobKind:
-		return d.AggregateJobStatus(binding.Spec.Resource, binding.Status.AggregatedStatus, binding.Spec.Clusters)
-	default:
-		// Unsupported resource type.
+	resource := binding.Spec.Resource
+	gvr, err := restmapper.GetGroupVersionResource(
+		d.RESTMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind),
+	)
+	if err != nil {
+		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resource.APIVersion, resource.Kind, err)
+		return err
+	}
+	obj, err := d.DynamicClient.Resource(gvr).Namespace(resource.Namespace).Get(context.TODO(), resource.Name, metav1.GetOptions{})
+	if err != nil {
+		klog.Errorf("Failed to get resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+
+	if !d.ResourceInterpreter.HookEnabled(obj, configv1alpha1.InterpreterOperationAggregateStatus) {
 		return nil
 	}
+	newObj, err := d.ResourceInterpreter.AggregateStatus(obj, binding.Status.AggregatedStatus)
+	if err != nil {
+		klog.Errorf("AggregateStatus for resource(%s/%s/%s) failed: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+	if reflect.DeepEqual(obj, newObj) {
+		klog.V(3).Infof("ignore update resource(%s/%s/%s) status as up to date", resource.Kind, resource.Namespace, resource.Name)
+		return nil
+	}
+
+	if _, err = d.DynamicClient.Resource(gvr).Namespace(resource.Namespace).UpdateStatus(context.TODO(), newObj, metav1.UpdateOptions{}); err != nil {
+		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+	return nil
 }
 
 // OnClusterResourceBindingAdd handles object add event.
