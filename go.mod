@@ -1,6 +1,6 @@
 module github.com/karmada-io/karmada
 
-go 1.16
+go 1.17
 
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
