@@ -134,6 +134,34 @@ Use `--karmada-apiserver-replicas` and `--etcd-replicas` flags to specify the nu
 kubectl karmada init --karmada-apiserver-replicas 3 --etcd-replicas 3
 ```
 
+### Install Karmada in Kind cluster
+
+> kind is a tool for running local Kubernetes clusters using Docker container "nodes". 
+> It was primarily designed for testing Kubernetes itself, not for production.
+
+Create a cluster named `host` by `hack/create-cluster.sh`:
+```bash
+hack/create-cluster.sh host $HOME/.kube/host.config
+```
+
+Install Karmada v1.0.0 by command `kubectl karmada init`:
+```bash
+kubectl karmada init --crds https://github.com/karmada-io/karmada/releases/download/v1.0.0/crds.tar.gz --kubeconfig=$HOME/.kube/host.config
+```
+
+Check installed components:
+```bash
+kubectl get pods -n karmada-system --kubeconfig=$HOME/.kube/host.config
+NAME                                           READY   STATUS    RESTARTS   AGE
+etcd-0                                         1/1     Running   0          2m55s
+karmada-aggregated-apiserver-84b45bf9b-n5gnk   1/1     Running   0          109s
+karmada-apiserver-6dc4cf6964-cz4jh             1/1     Running   0          2m40s
+karmada-controller-manager-556cf896bc-79sxz    1/1     Running   0          2m3s
+karmada-scheduler-7b9d8b5764-6n48j             1/1     Running   0          2m6s
+karmada-webhook-7cf7986866-m75jw               1/1     Running   0          2m
+kube-controller-manager-85c789dcfc-k89f8       1/1     Running   0          2m10s
+```
+
 ## Install Karmada by Helm Chart Deployment
 Please refer to [installing by Helm](https://github.com/karmada-io/karmada/tree/master/charts).
 
