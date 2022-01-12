@@ -47,13 +47,22 @@ kubectl karmada join member1 --kubeconfig=<karmada kubeconfig> --cluster-kubecon
 ```
 Repeat this step to join any additional clusters.
 
-The `--kubeconfig` specifies the Karmada's `kubeconfig` file and the `--cluster-kubeconfig` specifies the registering cluster's `kubeconfig` file.
+The `--kubeconfig` specifies the Karmada's `kubeconfig` file and the CLI infers `karmada-apiserver` context
+from the `current-context` field of the `kubeconfig`. If there are more than one context is configured in
+the `kubeconfig` file, it is recommended to specify the context by the `--karmada-context` flag. For example:
+```
+kubectl karmada join member1 --kubeconfig=<karmada kubeconfig> --karmada-context=karmada --cluster-context=member1
+```
 
-Maybe you have to specify the context if there are more than one contexts in `kubeconfig` file:
+The `--cluster-kubeconfig` specifies the member cluster's `kubeconfig` and the CLI infers the member cluster's context
+by the cluster name. If there is more than one context is configured in the `kubeconfig` file, or you don't want to use
+the context name to register, it is recommended to specify the context by the `--cluster-context` flag. For example:
+
 ```
 kubectl karmada join member1 --kubeconfig=<karmada kubeconfig> --karmada-context=karmada \
 --cluster-kubeconfig=<member1 kubeconfig> --cluster-context=member1
 ```
+> Note: The registering cluster name can be different from the context with `--cluster-context` specified.
 
 ### Check cluster status
 
