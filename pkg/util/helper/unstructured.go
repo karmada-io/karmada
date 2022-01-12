@@ -5,6 +5,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -134,6 +135,26 @@ func ConvertToResourceExploringWebhookConfiguration(obj *unstructured.Unstructur
 	return typedObj, nil
 }
 
+// ConvertToService converts a Service object from unstructured to typed.
+func ConvertToService(obj *unstructured.Unstructured) (*corev1.Service, error) {
+	typedObj := &corev1.Service{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToIngress converts a Service object from unstructured to typed.
+func ConvertToIngress(obj *unstructured.Unstructured) (*extensionsv1beta1.Ingress, error) {
+	typedObj := &extensionsv1beta1.Ingress{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ApplyReplica applies the Replica value for the specific field.
 func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, field string) error {
 	_, ok, err := unstructured.NestedInt64(workload.Object, util.SpecField, field)
@@ -147,4 +168,13 @@ func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, fiel
 		}
 	}
 	return nil
+}
+
+// ToUnstructured converts a typed object to an unstructured object.
+func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: uncastObj}, nil
 }

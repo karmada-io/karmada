@@ -5,7 +5,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
@@ -15,7 +14,7 @@ type RequestAttributes struct {
 	Object           *unstructured.Unstructured
 	ObservedObj      *unstructured.Unstructured
 	ReplicasSet      int32
-	AggregatedStatus []workv1alpha1.AggregatedStatusItem
+	AggregatedStatus []workv1alpha2.AggregatedStatusItem
 }
 
 // ResponseAttributes contains the attributes that response by the webhook.

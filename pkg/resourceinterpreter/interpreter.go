@@ -31,6 +31,9 @@ type ResourceInterpreter interface {
 	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
 
+	// AggregateStatus returns the objects that based on the 'object' but with status aggregated.
+	AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error)
+
 	// other common method
 }
 
@@ -132,4 +135,23 @@ func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructure
 	}
 
 	return i.defaultInterpreter.Retain(desired, observed)
+}
+
+// AggregateStatus returns the objects that based on the 'object' but with status aggregated.
+func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	klog.V(4).Infof("Begin to aggregate status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	obj, hookEnabled, err := i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
+		Operation:        configv1alpha1.InterpreterOperationAggregateStatus,
+		Object:           object.DeepCopy(),
+		AggregatedStatus: aggregatedStatusItems,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
+
+	return i.defaultInterpreter.AggregateStatus(object, aggregatedStatusItems)
 }

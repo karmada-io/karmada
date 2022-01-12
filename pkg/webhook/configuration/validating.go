@@ -67,6 +67,7 @@ var supportedInterpreterOperation = sets.NewString(
 	string(configv1alpha1.InterpreterOperationInterpretReplica),
 	string(configv1alpha1.InterpreterOperationReviseReplica),
 	string(configv1alpha1.InterpreterOperationRetain),
+	string(configv1alpha1.InterpreterOperationAggregateStatus),
 )
 
 var acceptedInterpreterContextVersions = []string{configv1alpha1.GroupVersion.Version}

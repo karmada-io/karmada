@@ -39,6 +39,8 @@ func (e *workloadInterpreter) Handle(ctx context.Context, req interpreter.Reques
 		return e.responseWithExploreReviseReplica(workload, req)
 	case configv1alpha1.InterpreterOperationRetain:
 		return e.responseWithExploreRetaining(workload, req)
+	case configv1alpha1.InterpreterOperationAggregateStatus:
+		return e.responseWithExploreAggregateStatus(workload, req)
 	default:
 		return interpreter.Errored(http.StatusBadRequest, fmt.Errorf("wrong request operation type: %s", req.Operation))
 	}
@@ -80,6 +82,27 @@ func (e *workloadInterpreter) responseWithExploreRetaining(desiredWorkload *work
 	// and prevent from being overwritten by karmada controller-plane.
 	wantedWorkload := desiredWorkload.DeepCopy()
 	wantedWorkload.Spec.Paused = observerWorkload.Spec.Paused
+	marshaledBytes, err := json.Marshal(wantedWorkload)
+	if err != nil {
+		return interpreter.Errored(http.StatusInternalServerError, err)
+	}
+	return interpreter.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
+}
+
+func (e *workloadInterpreter) responseWithExploreAggregateStatus(workload *workloadv1alpha1.Workload, req interpreter.Request) interpreter.Response {
+	wantedWorkload := workload.DeepCopy()
+	var readyReplicas int32
+	for _, item := range req.AggregatedStatus {
+		if item.Status == nil {
+			continue
+		}
+		status := &workloadv1alpha1.WorkloadStatus{}
+		if err := json.Unmarshal(item.Status.Raw, status); err != nil {
+			return interpreter.Errored(http.StatusInternalServerError, err)
+		}
+		readyReplicas += status.ReadyReplicas
+	}
+	wantedWorkload.Status.ReadyReplicas = readyReplicas
 	marshaledBytes, err := json.Marshal(wantedWorkload)
 	if err != nil {
 		return interpreter.Errored(http.StatusInternalServerError, err)
