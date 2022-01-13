@@ -396,7 +396,7 @@ func (s *Scheduler) doSchedule(key string) error {
 	return s.doScheduleClusterBinding(name)
 }
 
-func (s *Scheduler) doScheduleBinding(namespace, name string) error {
+func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	rb, err := s.bindingLister.ResourceBindings(namespace).Get(name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -458,7 +458,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) error {
 	return nil
 }
 
-func (s *Scheduler) doScheduleClusterBinding(name string) error {
+func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	crb, err := s.clusterBindingLister.Get(name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
