@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
+	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 )
 
 // NewStrategy creates and returns a ClusterStrategy instance.
@@ -76,8 +77,8 @@ func (Strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
 
 // Validate returns an ErrorList with validation errors or nil.
 func (Strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
-	// TODO: add validation for Cluster
-	return field.ErrorList{}
+	cluster := obj.(*clusterapis.Cluster)
+	return validation.ValidateCluster(cluster)
 }
 
 // WarningsOnCreate returns warnings for the creation of the given object.
@@ -102,7 +103,9 @@ func (Strategy) Canonicalize(obj runtime.Object) {
 // ValidateUpdate is invoked after default fields in the object have been
 // filled in before the object is persisted.
 func (Strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
-	return field.ErrorList{}
+	newCluster := obj.(*clusterapis.Cluster)
+	oldCluster := old.(*clusterapis.Cluster)
+	return validation.ValidateClusterUpdate(newCluster, oldCluster)
 }
 
 // WarningsOnUpdate returns warnings for the given update.

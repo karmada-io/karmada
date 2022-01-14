@@ -87,20 +87,6 @@ metadata:
   labels:
     app: validating-config
 webhooks:
-  - name: cluster.karmada.io
-    rules:
-      - operations: ["CREATE", "UPDATE"]
-        apiGroups: ["cluster.karmada.io"]
-        apiVersions: ["*"]
-        resources: ["clusters"]
-        scope: "Cluster"
-    clientConfig:
-      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/validate-cluster
-      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
-    failurePolicy: Fail
-    sideEffects: None
-    admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3
   - name: propagationpolicy.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
