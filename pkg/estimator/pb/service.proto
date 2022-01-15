@@ -9,4 +9,5 @@ option go_package = "pb";
 
 service Estimator {
   rpc MaxAvailableReplicas(MaxAvailableReplicasRequest) returns (MaxAvailableReplicasResponse) {}
+  rpc GetUnschedulableReplicas(UnschedulableReplicasRequest) returns (UnschedulableReplicasResponse) {}
 }
