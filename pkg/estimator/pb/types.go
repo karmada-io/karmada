@@ -1,6 +1,8 @@
 package pb
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -46,4 +48,47 @@ type MaxAvailableReplicasResponse struct {
 	// MaxReplicas represents the max replica that the cluster can produce.
 	// +required
 	MaxReplicas int32 `json:"maxReplicas" protobuf:"varint,1,opt,name=maxReplicas"`
+}
+
+// UnschedulableReplicasRequest represents the request that sent by gRPC client to calculate unschedulable replicas.
+type UnschedulableReplicasRequest struct {
+	// Cluster represents the cluster name.
+	// +required
+	Cluster string `json:"cluster" protobuf:"bytes,1,opt,name=cluster"`
+	// Resource represents the Kubernetes resource to be propagated.
+	// +required
+	Resource ObjectReference `json:"resource" protobuf:"bytes,2,opt,name=resource"`
+	// UnschedulableThreshold represents the period threshold of pod unscheduable condition.
+	// This value is considered as a classification standard of unscheduable replicas.
+	// +optional
+	UnschedulableThreshold time.Duration `json:"unschedulableThreshold,omitempty" protobuf:"varint,3,opt,name=unschedulableThreshold,casttype=time.Duration"`
+}
+
+// ObjectReference contains enough information to locate the referenced object inside current cluster.
+type ObjectReference struct {
+	// APIVersion represents the API version of the referent.
+	// +required
+	APIVersion string `json:"apiVersion" protobuf:"bytes,1,opt,name=apiVersion"`
+
+	// Kind represents the Kind of the referent.
+	// +required
+	Kind string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+
+	// Namespace represents the namespace for the referent.
+	// For non-namespace scoped resources(e.g. 'ClusterRole')，do not need specify Namespace,
+	// and for namespace scoped resources, Namespace is required.
+	// If Namespace is not specified, means the resource is non-namespace scoped.
+	// +required
+	Namespace string `json:"namespace" protobuf:"bytes,3,opt,name=namespace"`
+
+	// Name represents the name of the referent.
+	// +required
+	Name string `json:"name" protobuf:"bytes,4,opt,name=name"`
+}
+
+// UnschedulableReplicasResponse represents the response that sent by gRPC server to calculate unschedulable replicas.
+type UnschedulableReplicasResponse struct {
+	// UnschedulableReplicas represents the unschedulable replicas that the object contains.
+	// +required
+	UnschedulableReplicas int32 `json:"maxUnschedulableReplicas" protobuf:"varint,1,opt,name=maxUnschedulableReplicas"`
 }
