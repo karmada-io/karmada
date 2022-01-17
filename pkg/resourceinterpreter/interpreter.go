@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -20,7 +21,7 @@ type ResourceInterpreter interface {
 	Start(ctx context.Context) (err error)
 
 	// HookEnabled tells if any hook exist for specific resource type and operation.
-	HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.InterpreterOperation) bool
+	HookEnabled(objGVK schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool
 
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
@@ -71,12 +72,9 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 }
 
 // HookEnabled tells if any hook exist for specific resource type and operation.
-func (i *customResourceInterpreterImpl) HookEnabled(object *unstructured.Unstructured, operation configv1alpha1.InterpreterOperation) bool {
-	attributes := &webhook.RequestAttributes{
-		Operation: operation,
-		Object:    object,
-	}
-	return i.customizedInterpreter.HookEnabled(attributes) || i.defaultInterpreter.HookEnabled(object.GroupVersionKind(), operation)
+func (i *customResourceInterpreterImpl) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
+	return i.customizedInterpreter.HookEnabled(objGVK, operation) ||
+		i.defaultInterpreter.HookEnabled(objGVK, operation)
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
