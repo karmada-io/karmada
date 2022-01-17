@@ -417,7 +417,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply policy(%s/%s) failed", policy.Namespace, policy.Name)
 		} else {
-			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Namespace, policy.Name)
+			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Namespace, policy.Name)
 		}
 	}()
 
@@ -470,7 +470,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply cluster policy(%s) failed", policy.Name)
 		} else {
-			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Name)
+			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Name)
 		}
 	}()
 
