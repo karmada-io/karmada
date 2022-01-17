@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -115,8 +116,11 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		return err
 	}
 
+	// TODO(Garrybest): add resyncPeriod to options
+	resyncPeriod := time.Duration(0)
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
 		Scheme:                     gclient.NewSchema(),
+		SyncPeriod:                 &resyncPeriod,
 		Namespace:                  executionSpace,
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           fmt.Sprintf("karmada-agent-%s", opts.ClusterName),
