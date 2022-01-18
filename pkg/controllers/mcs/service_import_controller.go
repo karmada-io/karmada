@@ -127,15 +127,24 @@ func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.Ser
 	}
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: derivedService.Namespace, Name: derivedService.Name}, derivedService); err != nil {
-			return err
-		}
 		derivedService.Status = corev1.ServiceStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: ingress,
 			},
 		}
-		return c.Status().Update(context.TODO(), derivedService)
+		updateErr := c.Status().Update(context.TODO(), derivedService)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &corev1.Service{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: derivedService.Namespace, Name: derivedService.Name}, updated); err == nil {
+			derivedService = updated
+		} else {
+			klog.Errorf("failed to get updated service %s/%s: %v", derivedService.Namespace, derivedService.Name, err)
+		}
+
+		return updateErr
 	})
 
 	if err != nil {
