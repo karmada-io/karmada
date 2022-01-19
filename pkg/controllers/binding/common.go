@@ -102,7 +102,7 @@ func ensureWork(
 
 		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
 
-		if hasScheduledReplica && resourceInterpreter.HookEnabled(clonedWorkload, configv1alpha1.InterpreterOperationReviseReplica) {
+		if hasScheduledReplica && resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
 			clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name])
 			if err != nil {
 				klog.Errorf("failed to revise replica for %s/%s/%s in cluster %s, err is: %v",

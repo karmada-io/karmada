@@ -650,7 +650,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 		},
 	}
 
-	if d.ResourceInterpreter.HookEnabled(object, configv1alpha1.InterpreterOperationInterpretReplica) {
+	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
@@ -686,7 +686,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		},
 	}
 
-	if d.ResourceInterpreter.HookEnabled(object, configv1alpha1.InterpreterOperationInterpretReplica) {
+	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
@@ -1041,7 +1041,7 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 		return err
 	}
 
-	if !d.ResourceInterpreter.HookEnabled(obj, configv1alpha1.InterpreterOperationAggregateStatus) {
+	if !d.ResourceInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationAggregateStatus) {
 		return nil
 	}
 	newObj, err := d.ResourceInterpreter.AggregateStatus(obj, binding.Status.AggregatedStatus)

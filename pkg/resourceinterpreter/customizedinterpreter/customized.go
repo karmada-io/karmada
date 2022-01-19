@@ -51,17 +51,16 @@ func NewCustomizedInterpreter(kubeconfig string, informer informermanager.Single
 	}, nil
 }
 
-// HookEnabled tells if any hook exist for specific resource type and operation type.
-func (e *CustomizedInterpreter) HookEnabled(attributes *webhook.RequestAttributes) bool {
+// HookEnabled tells if any hook exist for specific resource gvk and operation type.
+func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
 	if !e.hookManager.HasSynced() {
 		klog.Errorf("not yet ready to handle request")
 		return false
 	}
 
-	hook := e.getFirstRelevantHook(attributes)
+	hook := e.getFirstRelevantHook(objGVK, operation)
 	if hook == nil {
-		klog.V(4).Infof("Hook interpreter is not enabled for kind %q with operation %q.",
-			attributes.Object.GroupVersionKind(), attributes.Operation)
+		klog.V(4).Infof("Hook interpreter is not enabled for kind %q with operation %q.", objGVK, operation)
 	}
 	return hook != nil
 }
@@ -99,10 +98,10 @@ func (e *CustomizedInterpreter) Patch(ctx context.Context, attributes *webhook.R
 	return
 }
 
-func (e *CustomizedInterpreter) getFirstRelevantHook(attributes *webhook.RequestAttributes) configmanager.WebhookAccessor {
+func (e *CustomizedInterpreter) getFirstRelevantHook(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) configmanager.WebhookAccessor {
 	relevantHooks := make([]configmanager.WebhookAccessor, 0)
 	for _, hook := range e.hookManager.HookAccessors() {
-		if shouldCallHook(hook, attributes) {
+		if shouldCallHook(hook, objGVK, operation) {
 			relevantHooks = append(relevantHooks, hook)
 		}
 	}
@@ -123,7 +122,7 @@ func (e *CustomizedInterpreter) interpret(ctx context.Context, attributes *webho
 		return nil, false, fmt.Errorf("not yet ready to handle request")
 	}
 
-	hook := e.getFirstRelevantHook(attributes)
+	hook := e.getFirstRelevantHook(attributes.Object.GroupVersionKind(), attributes.Operation)
 	if hook == nil {
 		return nil, false, nil
 	}
@@ -161,11 +160,11 @@ func (e *CustomizedInterpreter) interpret(ctx context.Context, attributes *webho
 	return response, true, nil
 }
 
-func shouldCallHook(hook configmanager.WebhookAccessor, attributes *webhook.RequestAttributes) bool {
+func shouldCallHook(hook configmanager.WebhookAccessor, objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
 	for _, rule := range hook.GetRules() {
 		matcher := interpreterutil.Matcher{
-			Operation: attributes.Operation,
-			Object:    attributes.Object,
+			ObjGVK:    objGVK,
+			Operation: operation,
 			Rule:      rule,
 		}
 		if matcher.Matches() {
