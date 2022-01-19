@@ -15,6 +15,7 @@ Refer to [Installing Karmada](./installation/installation.md).
 - [Resource Propagating](./userguide/resource-propagating.md)
 - [Cluster Failover](./userguide/failover.md)
 - [Aggregated Kubernetes API Endpoint](./userguide/aggregated-api-endpoint.md)
+- [Customizing Resource Interpreter](./userguide/customizing-resource-interpreter.md)
 
 ## Best Practices
 
