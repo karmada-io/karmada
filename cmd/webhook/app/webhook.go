@@ -70,10 +70,13 @@ func Run(ctx context.Context, opts *options.Options) error {
 	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Scheme:         gclient.NewSchema(),
-		Host:           opts.BindAddress,
-		Port:           opts.SecurePort,
-		CertDir:        opts.CertDir,
+		Scheme: gclient.NewSchema(),
+		WebhookServer: &webhook.Server{
+			Host:          opts.BindAddress,
+			Port:          opts.SecurePort,
+			CertDir:       opts.CertDir,
+			TLSMinVersion: opts.TLSMinVersion,
+		},
 		LeaderElection: false,
 	})
 	if err != nil {
