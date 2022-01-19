@@ -13,8 +13,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -27,6 +25,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
@@ -744,9 +743,8 @@ var _ = ginkgo.Describe("[JobReplicaScheduling] JobReplicaSchedulingStrategy tes
 
 // get the resource binding associated with the workload
 func getResourceBinding(workload interface{}) (*workv1alpha2.ResourceBinding, error) {
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	obj, err := utilhelper.ToUnstructured(workload)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	obj := unstructured.Unstructured{Object: uncastObj}
 	bindingName := names.GenerateBindingName(obj.GetKind(), obj.GetName())
 	binding := &workv1alpha2.ResourceBinding{}
 
@@ -756,9 +754,8 @@ func getResourceBinding(workload interface{}) (*workv1alpha2.ResourceBinding, er
 
 // get the cluster resource binding associated with the workload
 func getClusterResourceBinding(workload interface{}) (*workv1alpha2.ClusterResourceBinding, error) {
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	obj, err := utilhelper.ToUnstructured(workload)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	obj := unstructured.Unstructured{Object: uncastObj}
 	bindingName := names.GenerateBindingName(obj.GetKind(), obj.GetName())
 	binding := &workv1alpha2.ClusterResourceBinding{}
 

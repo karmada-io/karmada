@@ -15,6 +15,7 @@ import (
 	"k8s.io/klog/v2"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 var workloadGVR = workloadv1alpha1.SchemeGroupVersion.WithResource("workloads")
@@ -22,10 +23,10 @@ var workloadGVR = workloadv1alpha1.SchemeGroupVersion.WithResource("workloads")
 // CreateWorkload create Workload with dynamic client
 func CreateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workload) {
 	ginkgo.By(fmt.Sprintf("Creating workload(%s/%s)", workload.Namespace, workload.Name), func() {
-		unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+		unstructuredObj, err := helper.ToUnstructured(workload)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-		_, err = client.Resource(workloadGVR).Namespace(workload.Namespace).Create(context.TODO(), &unstructured.Unstructured{Object: unstructuredObj}, metav1.CreateOptions{})
+		_, err = client.Resource(workloadGVR).Namespace(workload.Namespace).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
@@ -33,11 +34,11 @@ func CreateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workloa
 // UpdateWorkload update Workload with dynamic client
 func UpdateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workload, clusterName string) {
 	ginkgo.By(fmt.Sprintf("Update workload(%s/%s) in cluster(%s)", workload.Namespace, workload.Name, clusterName), func() {
-		newUnstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+		newUnstructuredObj, err := helper.ToUnstructured(workload)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		gomega.Eventually(func() error {
-			_, err = client.Resource(workloadGVR).Namespace(workload.Namespace).Update(context.TODO(), &unstructured.Unstructured{Object: newUnstructuredObj}, metav1.UpdateOptions{})
+			_, err = client.Resource(workloadGVR).Namespace(workload.Namespace).Update(context.TODO(), newUnstructuredObj, metav1.UpdateOptions{})
 			return err
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
