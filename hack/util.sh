@@ -279,6 +279,8 @@ function util::wait_pod_ready() {
     if [ $ret -ne 0 ];then
       echo "kubectl describe info:"
       kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
+      echo "kubectl logs info:"
+      kubectl logs -l app=${pod_label} -n ${pod_namespace}
     fi
     return ${ret}
 }
