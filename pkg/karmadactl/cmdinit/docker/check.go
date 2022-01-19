@@ -17,16 +17,15 @@ func (d *CommandInitDockerOption) WaitContainerReady(containerID string, sleepTi
 	if err != nil {
 		return err
 	}
-	containerIP := container.NetworkSettings.Networks["karmada"].IPAddress
 	if err := wait.Poll(time.Second, timeout, func() (bool, error) {
 		if !container.State.Running {
-			klog.Warningf("Container: %s not ready. Status: %s. ContainerIP: %s", strings.Trim(container.Name, "/"), container.State.Status, containerIP)
+			klog.Warningf("Container: %s not ready. Status: %s.", strings.Trim(container.Name, " / "), container.State.Status)
 			return false, nil
 		}
 		return true, nil
 	}); err != nil {
 		return err
 	}
-	klog.Infof("Container: %s is ready. Status: %s. ContainerIP: %s", strings.Trim(container.Name, "/"), container.State.Status, containerIP)
+	klog.Infof("Container: %s is ready. Status: %s.", strings.Trim(container.Name, "/"), container.State.Status)
 	return nil
 }

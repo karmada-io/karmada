@@ -91,6 +91,9 @@ func newCmdDockerInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 	}
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.KarmadaAPIServerHostPort, "port", "p", "32443", "Karmada apiserver service host port")
+	flags.StringVarP(&opts.DockerNetwork, "docker-network", "", "karmada", "docker network name")
+	flags.StringVarP(&opts.DockerNetworkSubnet, "docker-network-subnet", "", "182.16.0.0/16", "docker network subnet")
+	flags.StringVarP(&opts.DockerNetworkGateway, "docker-network-gateway", "", "182.16.0.1", "docker network gateway")
 	options.AddFlags(flags)
 	return cmd
 }

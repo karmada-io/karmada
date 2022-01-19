@@ -3,10 +3,12 @@ package docker
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 )
@@ -21,7 +23,7 @@ const (
 	karmadaControllerManagerContainerAndHostName   = "karmada-controller-manager"
 	karmadaWebhookContainerAndHostName             = "karmada-webhook"
 	karmadaAggregatedAPIServerContainerAndHostName = "karmada-aggregated-apiserver"
-	externalName                                   = "karmada-aggregated-apiserver.karmada-system.svc.cluster.local"
+	aaExternalName                                 = "karmada-aggregated-apiserver.karmada-system.svc.cluster.local"
 	webhookExternalName                            = "karmada-webhook.karmada-system.svc"
 )
 
@@ -78,7 +80,7 @@ func (d *CommandInitDockerOption) createEtcdContainer() (string, error) {
 		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			"karmada": {},
+			d.DockerNetwork: {},
 		},
 	}, nil, etcdContainerAndHostName)
 	if err != nil {
@@ -146,12 +148,12 @@ func (d *CommandInitDockerOption) createKarmadaAPIServerContainer() (string, err
 			etcdContainerAndHostName,
 		},
 		ExtraHosts: []string{
-			externalName + ":166.233.0.167",
-			webhookExternalName + ":166.233.0.166",
+			aaExternalName + ":" + d.aggregatedAPIServerContainerIP,
+			webhookExternalName + ":" + d.webhookContainerIP,
 		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			"karmada": {},
+			d.DockerNetwork: {},
 		},
 	}, nil, karmadaAPIServerContainerAndHostName)
 	if err != nil {
@@ -201,7 +203,7 @@ func (d *CommandInitDockerOption) createKubeControllerManagerContainer() (string
 		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			"karmada": {},
+			d.DockerNetwork: {},
 		},
 	}, nil, kubeControllerManagerContainerAndHostName)
 	if err != nil {
@@ -225,7 +227,7 @@ func (d *CommandInitDockerOption) createKarmadaSchedulerContainer() (string, err
 			"--secure-port=10351",
 			"--feature-gates=Failover=true",
 			"--enable-scheduler-estimator=true",
-			"--leader-elect-resource-namespace=karmada-system",
+			//"--leader-elect-resource-namespace=karmada-system",
 			"--leader-elect=true",
 			"--v=4",
 		},
@@ -240,7 +242,7 @@ func (d *CommandInitDockerOption) createKarmadaSchedulerContainer() (string, err
 		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			"karmada": {},
+			d.DockerNetwork: {},
 		},
 	}, nil, karmadaSchedulerContainerAndHostName)
 	if err != nil {
@@ -276,7 +278,7 @@ func (d *CommandInitDockerOption) createKarmadaControllerManagerContainer() (str
 		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			"karmada": {},
+			d.DockerNetwork: {},
 		},
 	}, nil, karmadaControllerManagerContainerAndHostName)
 	if err != nil {
@@ -324,9 +326,9 @@ func (d *CommandInitDockerOption) createKarmadaWebhookContainer() (string, error
 		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			"karmada": {
+			d.DockerNetwork: {
 				IPAMConfig: &network.EndpointIPAMConfig{
-					IPv4Address: "166.233.0.166",
+					IPv4Address: d.webhookContainerIP,
 				},
 			},
 		},
@@ -372,13 +374,13 @@ func (d *CommandInitDockerOption) createKarmadaAggregatedAPIServerContainer() (s
 			etcdContainerAndHostName,
 		},
 		ExtraHosts: []string{
-			webhookExternalName + ":166.233.0.166",
+			webhookExternalName + ":" + d.webhookContainerIP,
 		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			"karmada": {
+			d.DockerNetwork: {
 				IPAMConfig: &network.EndpointIPAMConfig{
-					IPv4Address: "166.233.0.167",
+					IPv4Address: d.aggregatedAPIServerContainerIP,
 				},
 			},
 		},
@@ -388,4 +390,11 @@ func (d *CommandInitDockerOption) createKarmadaAggregatedAPIServerContainer() (s
 	}
 
 	return body.ID, nil
+}
+
+// startContainer start the container.
+func (d *CommandInitDockerOption) startContainer(containerID string) {
+	if err := d.cli.ContainerStart(d.ctx, containerID, types.ContainerStartOptions{}); err != nil {
+		klog.Exit(err)
+	}
 }

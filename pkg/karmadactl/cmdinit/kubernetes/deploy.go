@@ -261,39 +261,6 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	waitPodReadyTimeout := 30
 
 	deploymentClient := i.KubeClientSet.AppsV1().Deployments(i.Namespace)
-	// Create karmada-kube-controller-manager
-	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/kube-controller-manager.yaml
-	klog.Info("create karmada kube controller manager Deployment")
-	if err := i.CreateService(i.kubeControllerManagerService()); err != nil {
-		klog.Exitln(err)
-	}
-	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaKubeControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
-		klog.Warning(err)
-	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(kubeControllerManagerLabels), waitPodReadyTimeout); err != nil {
-		klog.Warning(err)
-	}
-
-	// Create karmada-scheduler
-	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-scheduler.yaml
-	klog.Info("create karmada scheduler Deployment")
-	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaSchedulerDeployment(), metav1.CreateOptions{}); err != nil {
-		klog.Warning(err)
-	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(schedulerLabels), waitPodReadyTimeout); err != nil {
-		klog.Warning(err)
-	}
-
-	// Create karmada-controller-manager
-	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/controller-manager.yaml
-	klog.Info("create karmada controller manager Deployment")
-	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
-		klog.Warning(err)
-	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(controllerManagerLabels), waitPodReadyTimeout); err != nil {
-		klog.Warning(err)
-	}
-
 	// Create karmada-webhook
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-webhook.yaml
 	klog.Info("create karmada webhook Deployment")
@@ -316,6 +283,38 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 		klog.Warning(err)
 	}
 	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(aggregatedAPIServerLabels), waitPodReadyTimeout); err != nil {
+		klog.Warning(err)
+	}
+
+	// Create karmada-scheduler
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-scheduler.yaml
+	klog.Info("create karmada scheduler Deployment")
+	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaSchedulerDeployment(), metav1.CreateOptions{}); err != nil {
+		klog.Warning(err)
+	}
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(schedulerLabels), waitPodReadyTimeout); err != nil {
+		klog.Warning(err)
+	}
+
+	// Create karmada-controller-manager
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/controller-manager.yaml
+	klog.Info("create karmada controller manager Deployment")
+	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
+		klog.Warning(err)
+	}
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(controllerManagerLabels), waitPodReadyTimeout); err != nil {
+		klog.Warning(err)
+	}
+	// Create kube-controller-manager
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/kube-controller-manager.yaml
+	klog.Info("create karmada kube controller manager Deployment")
+	if err := i.CreateService(i.kubeControllerManagerService()); err != nil {
+		klog.Exitln(err)
+	}
+	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaKubeControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
+		klog.Warning(err)
+	}
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(kubeControllerManagerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 	return nil

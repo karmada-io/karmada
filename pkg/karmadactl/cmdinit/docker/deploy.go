@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/klog/v2"
@@ -22,10 +21,15 @@ import (
 
 // CommandInitDockerOption holds all flags options for init.
 type CommandInitDockerOption struct {
-	hostIP                   net.IP
-	KarmadaAPIServerHostPort string
-	cli                      *client.Client
-	ctx                      context.Context
+	hostIP                         net.IP
+	DockerNetwork                  string
+	DockerNetworkSubnet            string
+	DockerNetworkGateway           string
+	KarmadaAPIServerHostPort       string
+	cli                            *client.Client
+	ctx                            context.Context
+	aggregatedAPIServerContainerIP string
+	webhookContainerIP             string
 }
 
 // Validate Check that there are enough flags to run the command.
@@ -61,6 +65,9 @@ func (d *CommandInitDockerOption) Complete() error {
 		return err
 	}
 
+	if err := d.assignContainerIP(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -85,7 +92,7 @@ func (d *CommandInitDockerOption) genCerts() error {
 		karmadaAPIServerContainerAndHostName,
 		karmadaWebhookContainerAndHostName,
 		karmadaAggregatedAPIServerContainerAndHostName,
-		externalName,
+		aaExternalName,
 		webhookExternalName,
 	}
 	karmadaDNS = append(karmadaDNS, utils.FlagsDNS(options.ExternalDNS)...)
@@ -119,7 +126,7 @@ func (d *CommandInitDockerOption) genCerts() error {
 }
 
 func (d *CommandInitDockerOption) createKubeConfig() error {
-	// Container
+	// kubeconfig mounted to the container
 	karmadaContainerServerURL := fmt.Sprintf("https://%s:5443", karmadaAPIServerContainerAndHostName)
 	// local
 	karmadaServerURL := fmt.Sprintf("https://%s:%s", d.hostIP, d.KarmadaAPIServerHostPort)
@@ -193,10 +200,9 @@ func (d *CommandInitDockerOption) initKarmadaAPIServer() error {
 	if err != nil {
 		return err
 	}
-	if err := d.cli.ContainerStart(d.ctx, etcdContainerID, types.ContainerStartOptions{}); err != nil {
-		return err
-	}
-	if err := d.WaitContainerReady(etcdContainerID, 10*time.Second, 30*time.Second); err != nil {
+	d.startContainer(etcdContainerID)
+
+	if err := d.WaitContainerReady(etcdContainerID, 5*time.Second, 30*time.Second); err != nil {
 		return err
 	}
 
@@ -204,10 +210,9 @@ func (d *CommandInitDockerOption) initKarmadaAPIServer() error {
 	if err != nil {
 		return err
 	}
-	if err := d.cli.ContainerStart(d.ctx, apiContainerID, types.ContainerStartOptions{}); err != nil {
-		return err
-	}
-	if err := d.WaitContainerReady(apiContainerID, 15*time.Second, 60*time.Second); err != nil {
+	d.startContainer(apiContainerID)
+
+	if err := d.WaitContainerReady(apiContainerID, 10*time.Second, 60*time.Second); err != nil {
 		return err
 	}
 	return nil
@@ -218,10 +223,8 @@ func (d *CommandInitDockerOption) initKarmadaComponent() error {
 	if err != nil {
 		return err
 	}
-	if err := d.cli.ContainerStart(d.ctx, aaContainerID, types.ContainerStartOptions{}); err != nil {
-		return err
-	}
-	if err := d.WaitContainerReady(aaContainerID, 10*time.Second, 15*time.Second); err != nil {
+	d.startContainer(aaContainerID)
+	if err := d.WaitContainerReady(aaContainerID, 5*time.Second, 15*time.Second); err != nil {
 		return err
 	}
 
@@ -229,32 +232,24 @@ func (d *CommandInitDockerOption) initKarmadaComponent() error {
 	if err != nil {
 		return err
 	}
-	if err := d.cli.ContainerStart(d.ctx, kubeControllerManagerContainerID, types.ContainerStartOptions{}); err != nil {
-		return err
-	}
+	d.startContainer(kubeControllerManagerContainerID)
 
 	karmadaSchedulerContainerID, err := d.createKarmadaSchedulerContainer()
 	if err != nil {
 		return err
 	}
-	if err := d.cli.ContainerStart(d.ctx, karmadaSchedulerContainerID, types.ContainerStartOptions{}); err != nil {
-		return err
-	}
+	d.startContainer(karmadaSchedulerContainerID)
 
 	karmadaControllerManagerContainerID, err := d.createKarmadaControllerManagerContainer()
 	if err != nil {
 		return err
 	}
-	if err := d.cli.ContainerStart(d.ctx, karmadaControllerManagerContainerID, types.ContainerStartOptions{}); err != nil {
-		return err
-	}
+	d.startContainer(karmadaControllerManagerContainerID)
 
 	karmadaWebhookContainerID, err := d.createKarmadaWebhookContainer()
 	if err != nil {
 		return err
 	}
-	if err := d.cli.ContainerStart(d.ctx, karmadaWebhookContainerID, types.ContainerStartOptions{}); err != nil {
-		return err
-	}
+	d.startContainer(karmadaWebhookContainerID)
 	return nil
 }
