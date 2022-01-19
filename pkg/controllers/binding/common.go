@@ -54,8 +54,6 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 })
 
 // ensureWork ensure Work to be created or updated.
-// TODO(Garrybest): clean up the code to fix cyclomatic complexity
-//nolint:gocyclo
 func ensureWork(
 	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
@@ -70,20 +68,15 @@ func ensureWork(
 		targetClusters = bindingObj.Spec.Clusters
 	}
 
-	hasScheduledReplica, desireReplicaInfos := getReplicaInfos(targetClusters)
-
 	var jobCompletions []workv1alpha2.TargetCluster
-	var jobHasCompletions = false
+	var err error
 	if workload.GetKind() == util.JobKind {
-		completions, found, err := unstructured.NestedInt64(workload.Object, util.SpecField, util.CompletionsField)
+		jobCompletions, err = divideReplicasByJobCompletions(workload, targetClusters)
 		if err != nil {
 			return err
 		}
-		if found {
-			jobCompletions = util.DivideReplicasByTargetCluster(targetClusters, int32(completions))
-			jobHasCompletions = true
-		}
 	}
+	hasScheduledReplica, desireReplicaInfos := getReplicaInfos(targetClusters)
 
 	for i := range targetClusters {
 		targetCluster := targetClusters[i]
@@ -110,9 +103,11 @@ func ensureWork(
 				return err
 			}
 
-			if clonedWorkload.GetKind() == util.JobKind && jobHasCompletions {
-				// For a work queue Job that usually leaves .spec.completions unset, in that case, we skip setting this field.
-				// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
+			// Set allocated completions for Job only when the '.spec.completions' field not omitted from resource template.
+			// For jobs running with a 'work queue' usually leaves '.spec.completions' unset, in that case we skip
+			// setting this field as well.
+			// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
+			if len(jobCompletions) > 0 {
 				if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
 					klog.Errorf("failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
 						clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
@@ -214,4 +209,18 @@ func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overrid
 	}
 
 	return annotations, nil
+}
+
+func divideReplicasByJobCompletions(workload *unstructured.Unstructured, clusters []workv1alpha2.TargetCluster) ([]workv1alpha2.TargetCluster, error) {
+	var targetClusters []workv1alpha2.TargetCluster
+	completions, found, err := unstructured.NestedInt64(workload.Object, util.SpecField, util.CompletionsField)
+	if err != nil {
+		return nil, err
+	}
+
+	if found {
+		targetClusters = util.DivideReplicasByTargetCluster(clusters, int32(completions))
+	}
+
+	return targetClusters, nil
 }
