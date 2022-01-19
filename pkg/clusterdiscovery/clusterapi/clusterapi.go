@@ -22,6 +22,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 )
@@ -143,13 +144,13 @@ func (d *ClusterDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (
 		return nil, err
 	}
 
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+	unstructuredObj, err := helper.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s), error: %v", objectKey, err)
 		return nil, err
 	}
 
-	return &unstructured.Unstructured{Object: uncastObj}, nil
+	return unstructuredObj, nil
 }
 
 func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideKey) error {

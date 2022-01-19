@@ -6,7 +6,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/karmada-io/karmada/pkg/util"
@@ -61,13 +60,12 @@ func retainPodFields(desired, observed *unstructured.Unstructured) (*unstructure
 		}
 	}
 
-	unCastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(desiredPod)
+	unstructuredObj, err := helper.ToUnstructured(desiredPod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to transform Pod: %v", err)
 	}
 
-	desired.Object = unCastObj
-	return desired, nil
+	return unstructuredObj, nil
 }
 
 // retainServiceFields updates the desired service object with values retained from the cluster object.

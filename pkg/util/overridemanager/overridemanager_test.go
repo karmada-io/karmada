@@ -7,10 +7,10 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -19,8 +19,7 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 	cluster2 := helper.NewCluster("cluster2")
 
 	deployment := helper.NewDeployment(metav1.NamespaceDefault, "test")
-	uncastObj, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(deployment)
-	deploymentObj := &unstructured.Unstructured{Object: uncastObj}
+	deploymentObj, _ := utilhelper.ToUnstructured(deployment)
 
 	overriders1 := policyv1alpha1.Overriders{
 		Plaintext: []policyv1alpha1.PlaintextOverrider{

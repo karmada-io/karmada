@@ -7,8 +7,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
@@ -83,12 +81,11 @@ func (c *HorizontalPodAutoscalerController) syncHPA(hpa *autoscalingv1.Horizonta
 
 // buildWorks transforms hpa obj to unstructured, creates or updates Works in the target execution namespaces.
 func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.HorizontalPodAutoscaler, clusters []string) error {
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(hpa)
+	hpaObj, err := helper.ToUnstructured(hpa)
 	if err != nil {
 		klog.Errorf("Failed to transform hpa %s/%s. Error: %v", hpa.GetNamespace(), hpa.GetName(), err)
 		return nil
 	}
-	hpaObj := &unstructured.Unstructured{Object: uncastObj}
 	for _, clusterName := range clusters {
 		workNamespace, err := names.GenerateExecutionSpaceName(clusterName)
 		if err != nil {
@@ -137,12 +134,11 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 			return nil, err
 		}
 	}
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	unstructuredWorkLoad, err := helper.ToUnstructured(workload)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s/%s): %v", namespace, objRef.Name, err)
 		return nil, err
 	}
-	unstructuredWorkLoad := unstructured.Unstructured{Object: uncastObj}
 	bindingName := names.GenerateBindingName(unstructuredWorkLoad.GetKind(), unstructuredWorkLoad.GetName())
 	binding := &workv1alpha2.ResourceBinding{}
 	namespacedName := types.NamespacedName{

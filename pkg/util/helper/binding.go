@@ -171,13 +171,13 @@ func FetchWorkload(dynamicClient dynamic.Interface, informerManager informermana
 		}
 	}
 
-	unstructuredWorkLoad, err := runtime.DefaultUnstructuredConverter.ToUnstructured(workload)
+	unstructuredWorkLoad, err := ToUnstructured(workload)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s/%s): %v", resource.Namespace, resource.Name, err)
 		return nil, err
 	}
 
-	return &unstructured.Unstructured{Object: unstructuredWorkLoad}, nil
+	return unstructuredWorkLoad, nil
 }
 
 // GetClusterResourceBindings returns a ClusterResourceBindingList by labels.

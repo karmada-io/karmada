@@ -568,13 +568,13 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 		return nil, err
 	}
 
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+	unstructuredObj, err := helper.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s), error: %v", objectKey, err)
 		return nil, err
 	}
 
-	return &unstructured.Unstructured{Object: uncastObj}, nil
+	return unstructuredObj, nil
 }
 
 // GetObject retrieves object from local cache.
