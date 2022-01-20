@@ -9,8 +9,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
@@ -24,10 +22,10 @@ var crdGVR = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version:
 // CreateCRD create CustomResourceDefinition with dynamic client.
 func CreateCRD(client dynamic.Interface, crd *apiextensionsv1.CustomResourceDefinition) {
 	ginkgo.By(fmt.Sprintf("Creating crd(%s)", crd.Name), func() {
-		unstructObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(crd)
+		unstructuredObj, err := helper.ToUnstructured(crd)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-		_, err = client.Resource(crdGVR).Create(context.TODO(), &unstructured.Unstructured{Object: unstructObj}, metav1.CreateOptions{})
+		_, err = client.Resource(crdGVR).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }

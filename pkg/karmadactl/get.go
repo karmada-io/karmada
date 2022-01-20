@@ -34,6 +34,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 const printColumnClusterNum = 1
@@ -239,11 +240,10 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 		fmt.Println(msg)
 		return nil
 	}
-	printObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(table)
+	printObj, err := helper.ToUnstructured(table)
 	if err != nil {
 		return err
 	}
-	newPrintObj := &unstructured.Unstructured{Object: printObj}
 
 	var printer printers.ResourcePrinter
 	var lastMapping *meta.RESTMapping
@@ -275,9 +275,9 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 			}
 			return err
 		}
-		//lastMapping = mapping
+		// lastMapping = mapping
 	}
-	err = printer.PrintObj(newPrintObj, w)
+	err = printer.PrintObj(printObj, w)
 	if err != nil {
 		return err
 	}
