@@ -51,7 +51,7 @@ The `--kubeconfig` specifies the Karmada's `kubeconfig` file and the CLI infers 
 from the `current-context` field of the `kubeconfig`. If there are more than one context is configured in
 the `kubeconfig` file, it is recommended to specify the context by the `--karmada-context` flag. For example:
 ```
-kubectl karmada join member1 --kubeconfig=<karmada kubeconfig> --karmada-context=karmada --cluster-context=member1
+kubectl karmada join member1 --kubeconfig=<karmada kubeconfig> --karmada-context=karmada --cluster-kubeconfig=<member1 kubeconfig>
 ```
 
 The `--cluster-kubeconfig` specifies the member cluster's `kubeconfig` and the CLI infers the member cluster's context
