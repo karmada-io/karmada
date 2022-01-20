@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -15,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -30,11 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const printColumnClusterNum = 1
@@ -45,7 +45,7 @@ var (
 	getErr = os.Stderr
 
 	podColumns = []metav1.TableColumnDefinition{
-		{Name: "Cluster", Type: "string", Format: "", Priority: 0},
+		{Name: "CLUSTER", Type: "string", Format: "", Priority: 0},
 		{Name: "ADOPTION", Type: "string", Format: "", Priority: 0},
 	}
 
@@ -74,12 +74,16 @@ func NewCmdGet(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string)
 			return nil
 		},
 	}
+
+	o.GlobalCommandOptions.AddFlags(cmd.Flags())
+	o.PrintFlags.AddFlags(cmd)
+
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "default", "-n=namespace or -n namespace")
 	cmd.Flags().StringVarP(&o.LabelSelector, "labels", "l", "", "-l=label or -l label")
 	cmd.Flags().StringSliceVarP(&o.Clusters, "clusters", "C", []string{}, "-C=member1,member2")
 	cmd.Flags().StringVar(&o.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster are stored.")
+	cmd.Flags().BoolVarP(&o.AllNamespaces, "all-namespaces", "A", o.AllNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 
-	o.GlobalCommandOptions.AddFlags(cmd.Flags())
 	return cmd
 }
 
@@ -146,9 +150,17 @@ func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
 		return ErrEmptyConfig
 	}
 
+	if g.AllNamespaces {
+		g.ExplicitNamespace = false
+	}
+
 	g.ToPrinter = func(mapping *meta.RESTMapping, outputObjects *bool, withNamespace bool, withKind bool) (printers.ResourcePrinterFunc, error) {
 		// make a new copy of current flags / opts before mutating
 		printFlags := g.PrintFlags.Copy()
+
+		if mapping != nil {
+			printFlags.SetKind(mapping.GroupVersionKind.GroupKind())
+		}
 
 		if withNamespace {
 			_ = printFlags.EnsureWithNamespace()
@@ -195,7 +207,6 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 
 	var objs []Obj
 	var allErrs []error
-	errs := sets.NewString()
 
 	clusterInfos := make(map[string]*ClusterInfo)
 	RBInfo = make(map[string]*OtherPrint)
@@ -225,25 +236,24 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 		fmt.Println(fmt.Sprintf(noPushModeMessage, strings.Join(noPushModeCluster, ",")))
 	}
 
-	table := &metav1.Table{}
-	allTableRows, mapping, err := g.reconstructionRow(objs, table)
-	if err != nil {
+	// sort objects by resource kind to classify them
+	sort.Slice(objs, func(i, j int) bool {
+		return objs[i].Mapping.Resource.String() < objs[j].Mapping.Resource.String()
+	})
+
+	if err := g.printObjs(objs, &allErrs, args); err != nil {
 		return err
 	}
-	table.Rows = allTableRows
 
-	setNoAdoption(mapping)
-	setColumnDefinition(table)
+	return utilerrors.NewAggregate(allErrs)
+}
 
-	if len(table.Rows) == 0 {
-		msg := fmt.Sprintf("%v from server (NotFound)", args)
-		fmt.Println(msg)
-		return nil
-	}
-	printObj, err := helper.ToUnstructured(table)
-	if err != nil {
-		return err
-	}
+// printObjs print objects in multi clusters
+func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []string) error {
+	var err error
+	errs := sets.NewString()
+
+	printWithKind := multipleGVKsRequested(objs)
 
 	var printer printers.ResourcePrinter
 	var lastMapping *meta.RESTMapping
@@ -254,36 +264,73 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 	separatorWriter := &separatorWriterWrapper{Delegate: trackingWriter}
 
 	w := printers.GetNewTabWriter(separatorWriter)
-	if shouldGetNewPrinterForMapping(printer, lastMapping, mapping) {
-		w.Flush()
-		w.SetRememberedWidths(nil)
+	sameKind := make([]Obj, 0)
+	for ix := range objs {
+		mapping := objs[ix].Mapping
+		sameKind = append(sameKind, objs[ix])
 
-		// add linebreaks between resource groups (if there is more than one)
-		// when it satisfies all following 3 conditions:
-		// 1) it's not the first resource group
-		// 2) it has row header
-		// 3) we've written output since the last time we started a new set of headers
-		if !g.NoHeaders && trackingWriter.Written > 0 {
-			separatorWriter.SetReady(true)
-		}
+		printWithNamespace := g.checkPrintWithNamespace(mapping)
 
-		printer, err = g.ToPrinter(mapping, nil, false, false)
-		if err != nil {
-			if !errs.Has(err.Error()) {
-				errs.Insert(err.Error())
-				allErrs = append(allErrs, err)
+		if shouldGetNewPrinterForMapping(printer, lastMapping, mapping) {
+			w.Flush()
+			w.SetRememberedWidths(nil)
+
+			// add linebreaks between resource groups (if there is more than one)
+			// when it satisfies all following 3 conditions:
+			// 1) it's not the first resource group
+			// 2) it has row header
+			// 3) we've written output since the last time we started a new set of headers
+			if lastMapping != nil && !g.NoHeaders && trackingWriter.Written > 0 {
+				separatorWriter.SetReady(true)
 			}
-			return err
+
+			printer, err = g.ToPrinter(mapping, nil, printWithNamespace, printWithKind)
+			if err != nil {
+				if !errs.Has(err.Error()) {
+					errs.Insert(err.Error())
+					*allErrs = append(*allErrs, err)
+				}
+				continue
+			}
+			lastMapping = mapping
 		}
-		// lastMapping = mapping
+
+		if ix == len(objs)-1 || objs[ix].Mapping.Resource != objs[ix+1].Mapping.Resource {
+			table := &metav1.Table{}
+			allTableRows, mapping, err := g.reconstructionRow(sameKind, table)
+			if err != nil {
+				return err
+			}
+			table.Rows = allTableRows
+
+			setNoAdoption(mapping)
+			setColumnDefinition(table)
+
+			printObj, err := helper.ToUnstructured(table)
+			if err != nil {
+				return err
+			}
+
+			err = printer.PrintObj(printObj, w)
+			if err != nil {
+				return err
+			}
+
+			sameKind = make([]Obj, 0)
+		}
 	}
-	err = printer.PrintObj(printObj, w)
-	if err != nil {
-		return err
-	}
+
 	w.Flush()
 
-	return utilerrors.NewAggregate(allErrs)
+	return nil
+}
+
+// checkPrintWithNamespace check if print objects with namespace
+func (g *CommandGetOptions) checkPrintWithNamespace(mapping *meta.RESTMapping) bool {
+	if mapping != nil && mapping.Scope.Name() == meta.RESTScopeNameRoot {
+		return false
+	}
+	return g.AllNamespaces
 }
 
 // getObjInfo get obj info in member cluster
@@ -339,7 +386,8 @@ func (g *CommandGetOptions) reconstructionRow(objs []Obj, table *metav1.Table) (
 		}
 		for rowIdx := range table.Rows {
 			var tempRow metav1.TableRow
-			rbKey := getRBKey(mapping.Resource, table.Rows[rowIdx], objs[ix].Cluster)
+			rbKey := getRBKey(mapping.GroupVersionKind, table.Rows[rowIdx], objs[ix].Cluster)
+
 			tempRow.Cells = append(append(tempRow.Cells, table.Rows[rowIdx].Cells[0], objs[ix].Cluster), table.Rows[rowIdx].Cells[1:]...)
 			if _, ok := RBInfo[rbKey]; ok {
 				tempRow.Cells = append(tempRow.Cells, "Y")
@@ -404,7 +452,7 @@ func clusterInfoInit(g *CommandGetOptions, karmadaConfig KarmadaConfig, clusterI
 		return nil, fmt.Errorf("method getClusterInKarmada get cluster info in karmada failed, err is: %w", err)
 	}
 
-	if err := getRBInKarmada(g.Namespace, karmadaclient); err != nil {
+	if err := g.getRBInKarmada(g.Namespace, karmadaclient); err != nil {
 		return nil, err
 	}
 
@@ -434,22 +482,45 @@ func (g *CommandGetOptions) transformRequests(req *rest.Request) {
 	}, ","))
 }
 
-func getRBInKarmada(namespace string, config *rest.Config) error {
-	resourceList := &workv1alpha2.ResourceBindingList{}
+func (g *CommandGetOptions) getRBInKarmada(namespace string, config *rest.Config) error {
+	rbList := &workv1alpha2.ResourceBindingList{}
+	crbList := &workv1alpha2.ClusterResourceBindingList{}
+
 	gClient, err := gclient.NewForConfig(config)
 	if err != nil {
 		return err
 	}
-	if err = gClient.List(context.TODO(), resourceList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{
-			policyv1alpha1.PropagationPolicyNamespaceLabel: namespace,
-		})}); err != nil {
+
+	if !g.AllNamespaces {
+		err = gClient.List(context.TODO(), rbList, &client.ListOptions{
+			Namespace: namespace,
+		})
+	} else {
+		err = gClient.List(context.TODO(), rbList, &client.ListOptions{})
+	}
+	if err != nil {
 		return err
 	}
 
-	for idx := range resourceList.Items {
-		rbKey := resourceList.Items[idx].GetName()
-		val := resourceList.Items[idx].Status.AggregatedStatus
+	if err = gClient.List(context.TODO(), crbList, &client.ListOptions{}); err != nil {
+		return err
+	}
+
+	for idx := range rbList.Items {
+		rbKey := rbList.Items[idx].GetName()
+		val := rbList.Items[idx].Status.AggregatedStatus
+		for i := range val {
+			if val[i].Applied && val[i].ClusterName != "" {
+				newRBKey := fmt.Sprintf("%s-%s", val[i].ClusterName, rbKey)
+				RBInfo[newRBKey] = &OtherPrint{
+					Applied: val[i].Applied,
+				}
+			}
+		}
+	}
+	for idx := range crbList.Items {
+		rbKey := crbList.Items[idx].GetName()
+		val := crbList.Items[idx].Status.AggregatedStatus
 		for i := range val {
 			if val[i].Applied && val[i].ClusterName != "" {
 				newRBKey := fmt.Sprintf("%s-%s", val[i].ClusterName, rbKey)
@@ -498,20 +569,24 @@ func getClusterInKarmada(client *rest.Config, clusterInfos map[string]*ClusterIn
 	return nil
 }
 
-func getRBKey(groupResource schema.GroupVersionResource, row metav1.TableRow, cluster string) string {
-	rbKey, _ := row.Cells[0].(string)
-	var suffix string
-	switch groupResource.Resource {
-	case "deployments":
-		suffix = "deployment"
-	case "services":
-		suffix = "service"
-	case "daemonsets":
-		suffix = "daemonset"
-	default:
-		suffix = groupResource.Resource
+func getRBKey(gvk schema.GroupVersionKind, row metav1.TableRow, cluster string) string {
+	resourceName, _ := row.Cells[0].(string)
+	rbKey := names.GenerateBindingName(gvk.Kind, resourceName)
+
+	return fmt.Sprintf("%s-%s", cluster, rbKey)
+}
+
+func multipleGVKsRequested(objs []Obj) bool {
+	if len(objs) < 2 {
+		return false
 	}
-	return fmt.Sprintf("%s-%s-%s", cluster, rbKey, suffix)
+	gvk := objs[0].Mapping.GroupVersionKind
+	for _, obj := range objs {
+		if obj.Mapping.GroupVersionKind != gvk {
+			return true
+		}
+	}
+	return false
 }
 
 // setNoAdoption set pod no print adoption
@@ -543,6 +618,12 @@ func getExample(parentCommand string) string {
 	example := `
 # List all pods in ps output format` + "\n" +
 		fmt.Sprintf("%s get pods", parentCommand) + `
+
+# List all pods in ps output format with more information (such as node name)` + "\n" +
+		fmt.Sprintf("%s get pods -o wide", parentCommand) + `
+
+# List all pods of member1 cluster in ps output format` + "\n" +
+		fmt.Sprintf("%s get pods -C member1", parentCommand) + `
 
 # List a single replicasets controller with specified NAME in ps output format ` + "\n" +
 		fmt.Sprintf("%s get replicasets nginx", parentCommand) + `
