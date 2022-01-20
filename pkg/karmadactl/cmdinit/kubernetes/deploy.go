@@ -95,7 +95,7 @@ func (i *CommandInitOption) Complete() error {
 	i.KubeClientSet = clientSet
 
 	if !i.isNodePortExist() {
-		return fmt.Errorf("nodePort %v already exist", i.KarmadaAPIServerNodePort)
+		return fmt.Errorf("nodePort of karmada apiserver %v already exist", i.KarmadaAPIServerNodePort)
 	}
 
 	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels == "" {
