@@ -229,10 +229,10 @@ func DeleteWorks(c client.Client, selector labels.Set) error {
 	var errs []error
 	for index, work := range workList.Items {
 		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
-			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
 			if apierrors.IsNotFound(err) {
 				continue
 			}
+			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
 			errs = append(errs, err)
 		}
 	}
