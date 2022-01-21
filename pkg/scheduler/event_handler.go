@@ -4,7 +4,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -232,8 +231,16 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 		s.schedulerEstimatorWorker.Add(newCluster.Name)
 	}
 
+	// Check if cluster is unjoined
+	if !newCluster.DeletionTimestamp.IsZero() {
+		// Trigger reschedule when cluster is unjoined
+		s.enqueueAffectedBinding(newCluster.Name)
+		s.enqueueAffectedClusterBinding(newCluster.Name)
+		return
+	}
+
 	// Check if cluster becomes failure
-	if meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+	if meta.IsStatusConditionFalse(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady) {
 		klog.Infof("Found cluster(%s) failure and failover flag is %v", newCluster.Name, features.FeatureGate.Enabled(features.Failover))
 
 		if features.FeatureGate.Enabled(features.Failover) { // Trigger reschedule on cluster failure only when flag is true.

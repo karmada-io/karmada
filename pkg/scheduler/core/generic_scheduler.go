@@ -11,6 +11,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
@@ -20,8 +21,7 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
-	ReSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec, bool) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -45,28 +45,54 @@ func NewGenericScheduler(
 	}
 }
 
-func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
+// Schedule decides clusters where the resources scheduled to based on the propagation policy placement
+// schedule result will be assigned to `binding.spec.clusters`
+// `evict` indicates whether to remove reserved clusters that don't fit the placement
+func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, evict bool) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, &spec.Resource, clusterInfoSnapshot)
+	// 1. calculate candidate clusters and reserved clusters
+	// 2. prioritize candidate clusters
+	// 3. select target clusters from (reserved clusters + candidate clusters)
+	// 4. assign replicas
+	readyClusters, unreadyClusters := clusterInfoSnapshot.InspectClusters()
+	bindClusters := util.ConvertToClusterNames(spec.Clusters)
+
+	// available clusters are ready clusters NOT in `binding.spec.clusters`
+	availableClusters := readyClusters.Difference(bindClusters)
+	// candidate clusters are available clusters that fit the placement
+	candidateClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, &spec.Resource, clusterInfoSnapshot, availableClusters)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
-	if len(feasibleClusters) == 0 {
-		return result, fmt.Errorf("no clusters fit")
-	}
-	klog.V(4).Infof("feasible clusters found: %v", feasibleClusters)
 
-	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, feasibleClusters)
+	if len(candidateClusters) == 0 {
+		// just warn
+		klog.Warningf("There is no candidate clusters")
+	} else {
+		klog.V(4).Infof("Candidate clusters found: %v", candidateClusters)
+	}
+
+	// reserved clusters are clusters that should be reserved(with best effort) in `binding.spec.clusters`
+	reservedClusters := calcReservedClusters(bindClusters, readyClusters, unreadyClusters, candidateClusters, placement)
+	if evict {
+		// Remove reserved clusters that DON'T fit the placement
+		g.removeUnfitClusters(ctx, clusterInfoSnapshot, placement, spec, reservedClusters)
+	}
+
+	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, candidateClusters)
 	if err != nil {
 		return result, fmt.Errorf("failed to prioritizeClusters: %v", err)
 	}
-	klog.V(4).Infof("feasible clusters scores: %v", clustersScore)
+	klog.V(4).Infof("Candidate clusters scores: %v", clustersScore)
 
-	clusters := g.selectClusters(clustersScore, placement.SpreadConstraints, feasibleClusters)
+	clusters, err := g.selectClusters(clusterInfoSnapshot, clustersScore, placement, reservedClusters, candidateClusters)
+	if err != nil {
+		return result, err
+	}
 
 	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
 	if err != nil {
@@ -77,28 +103,80 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	return result, nil
 }
 
+// calcReservedClusters returns clusters that should be reserved in `binding.spec.clusters`
+func calcReservedClusters(
+	bindClusters, readyClusters, unreadyClusters sets.String,
+	candidateClusters []*clusterv1alpha1.Cluster,
+	placement *policyv1alpha1.Placement) sets.String {
+	// reservedClusters are ready clusters in `binding.spec.clusters`
+	reservedClusters := bindClusters.Intersection(readyClusters)
+	// unreadyBindClusters are "unready" clusters in `binding.spec.clusters`
+	unreadyBindClusters := bindClusters.Intersection(unreadyClusters)
+
+	if unreadyBindClusters.Len() > 0 {
+		if !features.FeatureGate.Enabled(features.Failover) {
+			// reserve unready clusters if failover is disabled
+			reservedClusters = reservedClusters.Union(unreadyBindClusters)
+		} else if len(candidateClusters) < unreadyBindClusters.Len() {
+			// *DON'T evict unready clusters in `binding.spec.clusters` if there are insufficient candidate clusters*
+			// for ReplicaSchedulingTypeDivided, we will try to migrate replicas to the other health clusters
+			if placement.ReplicaScheduling == nil || placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+				// reserve unready clusters
+				klog.Warningf("reserve unready clusters due to insufficient available clusters")
+
+				// this is usually 1, which could be more than 1 when multiple clusters become unready at the same time
+				reservedNum := unreadyBindClusters.Len() - len(candidateClusters)
+				reservedClusters.Insert(unreadyBindClusters.List()[:reservedNum]...)
+			}
+		}
+	}
+	return reservedClusters
+}
+
+// removeUnfitClusters filters out clusters that don't fit the placement
+func (g *genericScheduler) removeUnfitClusters(
+	ctx context.Context,
+	clusterInfoSnapshot *cache.Snapshot,
+	placement *policyv1alpha1.Placement,
+	spec *workv1alpha2.ResourceBindingSpec,
+	clusters sets.String) {
+	for clusterName := range clusters {
+		clusterObj := clusterInfoSnapshot.GetCluster(clusterName)
+		resMap := g.scheduleFramework.RunFilterPlugins(ctx, placement, &spec.Resource, clusterObj.Cluster())
+		res := resMap.Merge()
+		if !res.IsSuccess() {
+			klog.V(4).Infof("cluster %q is not fit", clusterName)
+			clusters.Delete(clusterName)
+		}
+	}
+}
+
 // findClustersThatFit finds the clusters that are fit for the placement based on running the filter plugins.
 func (g *genericScheduler) findClustersThatFit(
 	ctx context.Context,
 	fwk framework.Framework,
 	placement *policyv1alpha1.Placement,
 	resource *workv1alpha2.ObjectReference,
-	clusterInfo *cache.Snapshot) ([]*clusterv1alpha1.Cluster, error) {
+	clusterInfoSnapshot *cache.Snapshot,
+	availableClusters sets.String) ([]*clusterv1alpha1.Cluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, time.Now())
 
-	var out []*clusterv1alpha1.Cluster
-	clusters := clusterInfo.GetReadyClusters()
-	for _, c := range clusters {
-		resMap := fwk.RunFilterPlugins(ctx, placement, resource, c.Cluster())
+	var candidateClusters []*clusterv1alpha1.Cluster
+	for clusterName := range availableClusters {
+		clusterInfo := clusterInfoSnapshot.GetCluster(clusterName)
+		if clusterInfo == nil {
+			return nil, fmt.Errorf("failed to get clusterObj by clusterName: %s", clusterName)
+		}
+		resMap := fwk.RunFilterPlugins(ctx, placement, resource, clusterInfo.Cluster())
 		res := resMap.Merge()
 		if !res.IsSuccess() {
-			klog.V(4).Infof("cluster %q is not fit", c.Cluster().Name)
+			klog.V(4).Infof("cluster %q is not fit", clusterName)
 		} else {
-			out = append(out, c.Cluster())
+			candidateClusters = append(candidateClusters, clusterInfo.Cluster())
 		}
 	}
 
-	return out, nil
+	return candidateClusters, nil
 }
 
 // prioritizeClusters prioritize the clusters by running the score plugins.
@@ -125,20 +203,37 @@ func (g *genericScheduler) prioritizeClusters(
 	return result, nil
 }
 
-func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, spreadConstraints []policyv1alpha1.SpreadConstraint, clusters []*clusterv1alpha1.Cluster) []*clusterv1alpha1.Cluster {
+func (g *genericScheduler) selectClusters(
+	snapshot *cache.Snapshot,
+	clustersScore framework.ClusterScoreList,
+	placement *policyv1alpha1.Placement,
+	reservedClusters sets.String,
+	candidateClusters []*clusterv1alpha1.Cluster) ([]*clusterv1alpha1.Cluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
 
-	if len(spreadConstraints) != 0 {
-		return g.matchSpreadConstraints(clusters, spreadConstraints)
+	targetClusters := make([]*clusterv1alpha1.Cluster, 0, reservedClusters.Len()+len(candidateClusters))
+	for clusterName := range reservedClusters {
+		targetClusters = append(targetClusters, snapshot.GetCluster(clusterName).Cluster())
 	}
-
-	return clusters
+	targetClusters = append(targetClusters, candidateClusters...)
+	// TODO(dddddai): check spread constraints only if ReplicaSchedulingType is NOT divided ???
+	// if len(placement.SpreadConstraints) != 0 &&
+	// 	(placement.ReplicaScheduling == nil || placement.ReplicaScheduling.ReplicaSchedulingType != policyv1alpha1.ReplicaSchedulingTypeDivided) {
+	// 	return g.matchSpreadConstraints(reservedClusters, targetClusters, placement.SpreadConstraints)
+	// }
+	if len(placement.SpreadConstraints) != 0 {
+		return g.matchSpreadConstraints(reservedClusters, targetClusters, placement.SpreadConstraints)
+	}
+	return targetClusters, nil
 }
 
-func (g *genericScheduler) matchSpreadConstraints(clusters []*clusterv1alpha1.Cluster, spreadConstraints []policyv1alpha1.SpreadConstraint) []*clusterv1alpha1.Cluster {
+func (g *genericScheduler) matchSpreadConstraints(
+	reservedClusters sets.String,
+	totalClusters []*clusterv1alpha1.Cluster,
+	spreadConstraints []policyv1alpha1.SpreadConstraint) ([]*clusterv1alpha1.Cluster, error) {
 	state := util.NewSpreadGroup()
-	g.runSpreadConstraintsFilter(clusters, spreadConstraints, state)
-	return g.calSpreadResult(state)
+	g.runSpreadConstraintsFilter(totalClusters, spreadConstraints, state)
+	return g.calSpreadResult(reservedClusters, state)
 }
 
 // Now support spread by cluster. More rules will be implemented later.
@@ -158,21 +253,21 @@ func (g *genericScheduler) groupByFieldCluster(clusters []*clusterv1alpha1.Clust
 	}
 }
 
-func (g *genericScheduler) calSpreadResult(spreadGroup *util.SpreadGroup) []*clusterv1alpha1.Cluster {
+func (g *genericScheduler) calSpreadResult(reservedClusters sets.String, spreadGroup *util.SpreadGroup) ([]*clusterv1alpha1.Cluster, error) {
 	// TODO: now support single spread constraint
 	if len(spreadGroup.GroupRecord) > 1 {
-		return nil
+		return nil, fmt.Errorf("only support single spread constraint for now")
 	}
 
-	return g.chooseSpreadGroup(spreadGroup)
+	return g.chooseSpreadGroup(reservedClusters, spreadGroup)
 }
 
-func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*clusterv1alpha1.Cluster {
+func (g *genericScheduler) chooseSpreadGroup(reservedClusters sets.String, spreadGroup *util.SpreadGroup) ([]*clusterv1alpha1.Cluster, error) {
 	var feasibleClusters []*clusterv1alpha1.Cluster
 	for spreadConstraint, clusterGroups := range spreadGroup.GroupRecord {
 		if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster {
 			if len(clusterGroups) < spreadConstraint.MinGroups {
-				return nil
+				return nil, fmt.Errorf("group count(%d) is less than MinGroups(%d)", len(clusterGroups), spreadConstraint.MinGroups)
 			}
 
 			if len(clusterGroups) <= spreadConstraint.MaxGroups {
@@ -183,18 +278,36 @@ func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*c
 			}
 
 			if spreadConstraint.MaxGroups > 0 && len(clusterGroups) > spreadConstraint.MaxGroups {
-				var groups []string
-				for group := range clusterGroups {
-					groups = append(groups, group)
+				count := 0
+				var candidateGroups []string
+				// pick reserved clusters first
+				// TODO(dddddai): prioritize
+				for groupName, clusters := range clusterGroups {
+					reservedGroup := false
+					for _, cluster := range clusters {
+						if reservedClusters.Has(cluster.Name) {
+							feasibleClusters = append(feasibleClusters, clusters...)
+							count++
+							reservedGroup = true
+							break
+						}
+					}
+					if count == spreadConstraint.MaxGroups {
+						break
+					}
+					if !reservedGroup {
+						candidateGroups = append(candidateGroups, groupName)
+					}
 				}
-
-				for i := 0; i < spreadConstraint.MaxGroups; i++ {
-					feasibleClusters = append(feasibleClusters, clusterGroups[groups[i]]...)
+				// pick candidate clusters
+				for i := 0; count < spreadConstraint.MaxGroups; i++ {
+					feasibleClusters = append(feasibleClusters, clusterGroups[candidateGroups[i]]...)
+					count++
 				}
 			}
 		}
 	}
-	return feasibleClusters
+	return feasibleClusters, nil
 }
 
 func (g *genericScheduler) assignReplicas(
@@ -247,56 +360,4 @@ func (g *genericScheduler) assignReplicas(
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
 	}
 	return targetClusters, nil
-}
-
-func (g *genericScheduler) ReSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
-	spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
-	readyClusters := g.schedulerCache.Snapshot().GetReadyClusterNames()
-	totalClusters := util.ConvertToClusterNames(spec.Clusters)
-
-	reservedClusters := calcReservedCluster(totalClusters, readyClusters)
-	availableClusters := calcAvailableCluster(totalClusters, readyClusters)
-
-	candidateClusters := sets.NewString()
-	for clusterName := range availableClusters {
-		clusterObj := g.schedulerCache.Snapshot().GetCluster(clusterName)
-		if clusterObj == nil {
-			return result, fmt.Errorf("failed to get clusterObj by clusterName: %s", clusterName)
-		}
-
-		resMap := g.scheduleFramework.RunFilterPlugins(ctx, placement, &spec.Resource, clusterObj.Cluster())
-		res := resMap.Merge()
-		if !res.IsSuccess() {
-			klog.V(4).Infof("cluster %q is not fit", clusterName)
-		} else {
-			candidateClusters.Insert(clusterName)
-		}
-	}
-
-	klog.V(4).Infof("Reserved bindingClusters : %v", reservedClusters.List())
-	klog.V(4).Infof("Candidate bindingClusters: %v", candidateClusters.List())
-
-	// TODO: should schedule as much as possible?
-	deltaLen := len(spec.Clusters) - len(reservedClusters)
-	if len(candidateClusters) < deltaLen {
-		// for ReplicaSchedulingTypeDivided, we will try to migrate replicas to the other health clusters
-		if placement.ReplicaScheduling == nil || placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
-			klog.Warningf("ignore reschedule binding as insufficient available cluster")
-			return ScheduleResult{}, nil
-		}
-	}
-
-	// TODO: check if the final result meets the spread constraints.
-	targetClusters := reservedClusters
-	clusterList := candidateClusters.List()
-	for i := 0; i < deltaLen && i < len(candidateClusters); i++ {
-		targetClusters.Insert(clusterList[i])
-	}
-
-	var reScheduleResult []workv1alpha2.TargetCluster
-	for cluster := range targetClusters {
-		reScheduleResult = append(reScheduleResult, workv1alpha2.TargetCluster{Name: cluster})
-	}
-
-	return ScheduleResult{reScheduleResult}, nil
 }
