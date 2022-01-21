@@ -287,17 +287,20 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
-	// TODO(dddddai): reschedule bindings on cluster change
-	if s.allClustersInReadyState(rb.Spec.Clusters) {
-		klog.Infof("Don't need to schedule ResourceBinding(%s/%s)", namespace, name)
-		return nil
+	exist, ready := s.allClustersInReadyState(rb.Spec.Clusters)
+	if !exist {
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster unjoined", namespace, name)
+		err = s.rescheduleResourceBinding(rb)
+		// TODO(dddddai): add metrics
+		return err
 	}
-	if features.FeatureGate.Enabled(features.Failover) {
+	if !ready && features.FeatureGate.Enabled(features.Failover) {
 		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster failure", namespace, name)
 		err = s.rescheduleResourceBinding(rb)
 		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
+	klog.Infof("Don't need to schedule ResourceBinding(%s/%s)", namespace, name)
 	return nil
 }
 
@@ -349,12 +352,14 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
-	// TODO(dddddai): reschedule bindings on cluster change
-	if s.allClustersInReadyState(crb.Spec.Clusters) {
-		klog.Infof("Don't need to schedule ClusterResourceBinding(%s)", name)
-		return nil
+	exist, ready := s.allClustersInReadyState(crb.Spec.Clusters)
+	if !exist {
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as cluster unjoined", name)
+		err = s.rescheduleClusterResourceBinding(crb)
+		// TODO(dddddai): add metrics
+		return err
 	}
-	if features.FeatureGate.Enabled(features.Failover) {
+	if !ready && features.FeatureGate.Enabled(features.Failover) {
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as cluster failure", name)
 		err = s.rescheduleClusterResourceBinding(crb)
 		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
@@ -452,7 +457,7 @@ func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *wor
 		klog.Errorf("Failed to get policy by policyName(%s): Error: %v", policyName, err)
 		return err
 	}
-	reScheduleResult, err := s.Algorithm.FailoverSchedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
+	reScheduleResult, err := s.Algorithm.ReSchedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
 	if err != nil {
 		return err
 	}
@@ -480,7 +485,7 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.Reso
 		klog.Errorf("Failed to get placement by resourceBinding(%s/%s): Error: %v", resourceBinding.Namespace, resourceBinding.Name, err)
 		return err
 	}
-	reScheduleResult, err := s.Algorithm.FailoverSchedule(context.TODO(), &placement, &resourceBinding.Spec)
+	reScheduleResult, err := s.Algorithm.ReSchedule(context.TODO(), &placement, &resourceBinding.Spec)
 	if err != nil {
 		return err
 	}
@@ -499,19 +504,25 @@ func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.Reso
 	return nil
 }
 
-func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha2.TargetCluster) bool {
+// allClustersInReadyState reports if all target clusters exist and stay ready
+func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha2.TargetCluster) (exist, ready bool) {
 	clusters := s.schedulerCache.Snapshot().GetClusters()
+	count := 0
+	ready = true
 	for i := range tcs {
 		for _, c := range clusters {
 			if c.Cluster().Name == tcs[i].Name {
-				if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-					return false
+				if meta.IsStatusConditionFalse(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady) {
+					ready = false
+				}
+				if c.Cluster().DeletionTimestamp.IsZero() {
+					count++
 				}
 				continue
 			}
 		}
 	}
-	return true
+	return count == len(tcs), ready
 }
 
 func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {

@@ -33,7 +33,7 @@ func (s *Snapshot) GetClusters() []*framework.ClusterInfo {
 func (s *Snapshot) GetReadyClusters() []*framework.ClusterInfo {
 	var readyClusterInfoList []*framework.ClusterInfo
 	for _, c := range s.clusterInfoList {
-		if util.IsClusterReady(&c.Cluster().Status) {
+		if util.IsClusterReady(&c.Cluster().Status) && c.Cluster().DeletionTimestamp.IsZero() {
 			readyClusterInfoList = append(readyClusterInfoList, c)
 		}
 	}
@@ -45,7 +45,7 @@ func (s *Snapshot) GetReadyClusters() []*framework.ClusterInfo {
 func (s *Snapshot) GetReadyClusterNames() sets.String {
 	readyClusterNames := sets.NewString()
 	for _, c := range s.clusterInfoList {
-		if util.IsClusterReady(&c.Cluster().Status) {
+		if util.IsClusterReady(&c.Cluster().Status) && c.Cluster().DeletionTimestamp.IsZero() {
 			readyClusterNames.Insert(c.Cluster().Name)
 		}
 	}

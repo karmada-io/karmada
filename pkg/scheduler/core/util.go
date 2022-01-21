@@ -121,7 +121,7 @@ func resortClusterList(clusterAvailableReplicas []workv1alpha2.TargetCluster, sc
 
 // calcReservedCluster eliminates the not-ready clusters from the 'bindClusters'.
 func calcReservedCluster(bindClusters, readyClusters sets.String) sets.String {
-	return bindClusters.Difference(bindClusters.Difference(readyClusters))
+	return bindClusters.Intersection(readyClusters)
 }
 
 // calcAvailableCluster returns a list of ready clusters that not in 'bindClusters'.

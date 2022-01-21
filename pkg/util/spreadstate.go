@@ -10,7 +10,7 @@ import (
 // SpreadGroup stores the cluster group info for given spread constraints
 type SpreadGroup struct {
 	// The outer map's keys are SpreadConstraint. The values (inner map) of the outer map are maps with string
-	// keys and []string values. The inner map's key should specify the cluster group name.
+	// keys and []*clusterv1alpha1.Cluster values. The inner map's key should specify the cluster group name.
 	GroupRecord map[policyv1alpha1.SpreadConstraint]map[string][]*clusterv1alpha1.Cluster
 	sync.RWMutex
 }
