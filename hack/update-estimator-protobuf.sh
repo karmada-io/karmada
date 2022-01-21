@@ -50,7 +50,7 @@ ${GOPATH}/bin/go-to-protobuf \
 # The `go-to-protobuf` tool will modify all import proto files in vendor, so we should use go mod vendor to prevent.
 go mod vendor
 
-SERVICE_PROTO_FILES=$(find . -not -path *./_tmp/* -name "service.proto")
+SERVICE_PROTO_FILES=$(find ./pkg/ -name "service.proto")
 
 for file in ${SERVICE_PROTO_FILES[*]}; do
   protoc \
