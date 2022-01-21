@@ -83,7 +83,7 @@ func Test_GetHigherPriorityPropagationPolicy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetHigherPriorityPropagationPolicy(tt.args.a, tt.args.b)
 			if result.Name != tt.want.Name {
-				t.Errorf("divideRemainingReplicas() got = %v, want %v", result.Name, tt.want.Name)
+				t.Errorf("GetHigherPriorityPropagationPolicy() got = %v, want %v", result.Name, tt.want.Name)
 			}
 		})
 	}
@@ -164,7 +164,7 @@ func Test_GetHigherPriorityClusterPropagationPolicy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetHigherPriorityClusterPropagationPolicy(tt.args.a, tt.args.b)
 			if result.Name != tt.want.Name {
-				t.Errorf("divideRemainingReplicas() got = %v, want %v", result.Name, tt.want.Name)
+				t.Errorf("GetHigherPriorityClusterPropagationPolicy() got = %v, want %v", result.Name, tt.want.Name)
 			}
 		})
 	}
