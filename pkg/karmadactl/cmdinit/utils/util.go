@@ -5,10 +5,17 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 )
 
 // Downloader Download progress
@@ -26,6 +33,7 @@ func (d *Downloader) Read(p []byte) (n int, err error) {
 	if d.Current == d.Total {
 		fmt.Printf("\nDownload complete.")
 	}
+	fmt.Println()
 	return
 }
 
@@ -132,4 +140,68 @@ func ListFiles(path string) []string {
 		fmt.Println(err)
 	}
 	return files
+}
+
+// DownloadCRD download or unzip `crds.tar.gz` to `options.DataPath`
+func DownloadCRD(crd string) error {
+	if strings.HasPrefix(crd, "http") {
+		filename := options.KarmadaDataPath + "/" + path.Base(options.CRDs)
+		klog.Infoln("download crds file name:", filename)
+		if err := DownloadFile(options.CRDs, filename); err != nil {
+			return err
+		}
+		if err := DeCompress(filename, options.KarmadaDataPath); err != nil {
+			return err
+		}
+		return nil
+	}
+	klog.Infoln("local crds file name:", options.CRDs)
+	return DeCompress(options.CRDs, options.KarmadaDataPath)
+}
+
+// LocalIP IP of the current host
+func LocalIP() (net.IP, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue // interface down
+		}
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue // loopback interface
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return nil, err
+		}
+		for _, addr := range addrs {
+			ip := getIPFromAddr(addr)
+			if ip == nil {
+				continue
+			}
+			return ip, nil
+		}
+	}
+	return nil, fmt.Errorf("could not get the IP of the current host")
+}
+
+func getIPFromAddr(addr net.Addr) net.IP {
+	var ip net.IP
+	switch v := addr.(type) {
+	case *net.IPNet:
+		ip = v.IP
+	case *net.IPAddr:
+		ip = v.IP
+	}
+	if ip == nil || ip.IsLoopback() {
+		return nil
+	}
+	ip = ip.To4()
+	if ip == nil {
+		return nil // not an ipv4 address
+	}
+
+	return ip
 }
