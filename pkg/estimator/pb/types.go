@@ -90,5 +90,5 @@ type ObjectReference struct {
 type UnschedulableReplicasResponse struct {
 	// UnschedulableReplicas represents the unschedulable replicas that the object contains.
 	// +required
-	UnschedulableReplicas int32 `json:"maxUnschedulableReplicas" protobuf:"varint,1,opt,name=maxUnschedulableReplicas"`
+	UnschedulableReplicas int32 `json:"unschedulableReplicas" protobuf:"varint,1,opt,name=unschedulableReplicas"`
 }

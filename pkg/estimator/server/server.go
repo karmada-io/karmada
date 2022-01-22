@@ -22,6 +22,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
 	nodeutil "github.com/karmada-io/karmada/pkg/estimator/server/nodes"
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
+	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -115,7 +116,7 @@ func (es *AccurateSchedulerEstimatorServer) Start(ctx context.Context) error {
 	defer l.Close()
 
 	s := grpc.NewServer()
-	pb.RegisterEstimatorServer(s, es)
+	estimatorservice.RegisterEstimatorServer(s, es)
 
 	// Graceful stop when the context is cancelled.
 	go func() {
