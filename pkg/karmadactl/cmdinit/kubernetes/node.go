@@ -20,6 +20,10 @@ var (
 )
 
 func (i *CommandInitOption) getKubeMasterIP() error {
+	if i.ExternalIP != "" {
+		i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.FlagsIP(i.ExternalIP)...)
+		return nil
+	}
 	nodeClient := i.KubeClientSet.CoreV1().Nodes()
 	masterNodes, err := nodeClient.List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/master"})
 	if err != nil {
