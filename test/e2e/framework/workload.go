@@ -32,13 +32,13 @@ func CreateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workloa
 }
 
 // UpdateWorkload update Workload with dynamic client
-func UpdateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workload, clusterName string) {
+func UpdateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workload, clusterName string, subresources ...string) {
 	ginkgo.By(fmt.Sprintf("Update workload(%s/%s) in cluster(%s)", workload.Namespace, workload.Name, clusterName), func() {
 		newUnstructuredObj, err := helper.ToUnstructured(workload)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		gomega.Eventually(func() error {
-			_, err = client.Resource(workloadGVR).Namespace(workload.Namespace).Update(context.TODO(), newUnstructuredObj, metav1.UpdateOptions{})
+			_, err = client.Resource(workloadGVR).Namespace(workload.Namespace).Update(context.TODO(), newUnstructuredObj, metav1.UpdateOptions{}, subresources...)
 			return err
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})

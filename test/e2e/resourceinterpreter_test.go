@@ -9,6 +9,7 @@ import (
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
@@ -172,6 +173,60 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					return *workload.Spec.Replicas == int32(index+1)
 				})
 			}
+
+			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
+			framework.WaitWorkloadDisappearOnClusters(framework.ClusterNames(), workload.Namespace, workload.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation AggregateStatus testing", func() {
+		policyNamespace := testNamespace
+		policyName := workloadNamePrefix + rand.String(RandomStrLength)
+		workloadNamespace := testNamespace
+		workloadName := policyName
+		workload := testhelper.NewWorkload(workloadNamespace, workloadName)
+		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: workload.APIVersion,
+				Kind:       workload.Kind,
+				Name:       workload.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: framework.ClusterNames(),
+			},
+		})
+
+		ginkgo.It("AggregateStatus testing", func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateWorkload(dynamicClient, workload)
+
+			ginkgo.By("check whether the workload status can be correctly collected", func() {
+				// Simulate the workload resource controller behavior, update the status information of workload resources of member clusters manually.
+				for _, cluster := range framework.ClusterNames() {
+					clusterDynamicClient := framework.GetClusterDynamicClient(cluster)
+					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
+
+					memberWorkload := framework.GetWorkload(clusterDynamicClient, workloadNamespace, workloadName)
+					memberWorkload.Status.ReadyReplicas = *workload.Spec.Replicas
+					framework.UpdateWorkload(clusterDynamicClient, memberWorkload, cluster, "status")
+				}
+
+				wantedReplicas := *workload.Spec.Replicas * int32(len(framework.Clusters()))
+				klog.Infof("Waiting for workload(%s/%s) collecting correctly status", workloadNamespace, workloadName)
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					currentWorkload := framework.GetWorkload(dynamicClient, workloadNamespace, workloadName)
+
+					klog.Infof("workload(%s/%s) readyReplicas: %d, wanted replicas: %d", workloadNamespace, workloadName, currentWorkload.Status.ReadyReplicas, wantedReplicas)
+					if currentWorkload.Status.ReadyReplicas == wantedReplicas {
+						return true, nil
+					}
+
+					return false, nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
 
 			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
 			framework.WaitWorkloadDisappearOnClusters(framework.ClusterNames(), workload.Namespace, workload.Name)
