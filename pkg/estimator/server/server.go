@@ -166,6 +166,13 @@ func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Con
 	return &pb.MaxAvailableReplicasResponse{MaxReplicas: maxReplicas}, nil
 }
 
+// GetUnschedulableReplicas is the implementation of gRPC interface. It will return the
+// unschedulable replicas of a workload.
+func (es *AccurateSchedulerEstimatorServer) GetUnschedulableReplicas(ctx context.Context, request *pb.UnschedulableReplicasRequest) (*pb.UnschedulableReplicasResponse, error) {
+	//TODO(Garrybest): implement me
+	return nil, nil
+}
+
 func (es *AccurateSchedulerEstimatorServer) maxAvailableReplicas(nodes []*corev1.Node, request corev1.ResourceList) int32 {
 	var maxReplicas int32
 	for _, node := range nodes {
