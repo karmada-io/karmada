@@ -43,9 +43,8 @@ func CreateSecret(client kubeclient.Interface, secret *corev1.Secret) (*corev1.S
 	st, err := client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return st, nil
+			return client.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
 		}
-
 		return nil, err
 	}
 
