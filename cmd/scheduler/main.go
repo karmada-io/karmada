@@ -10,12 +10,20 @@ import (
 )
 
 func main() {
+	if err := runSchedulerCmd(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func runSchedulerCmd() error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
 	stopChan := apiserver.SetupSignalHandler()
-
-	if err := app.NewSchedulerCommand(stopChan).Execute(); err != nil {
-		os.Exit(1)
+	command := app.NewSchedulerCommand(stopChan)
+	if err := command.Execute(); err != nil {
+		return err
 	}
+
+	return nil
 }
