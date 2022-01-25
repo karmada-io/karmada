@@ -84,7 +84,7 @@ func (o *Options) Run(ctx context.Context) error {
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(o.Master, o.karmadaConfig)
 	if err != nil {
-		return fmt.Errorf("error building kubeconfig: %s", err.Error())
+		return fmt.Errorf("error building kubeconfig: %w", err)
 	}
 	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
 	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
