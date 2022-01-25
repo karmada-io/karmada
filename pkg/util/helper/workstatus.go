@@ -60,11 +60,21 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, binding); err != nil {
-			return err
-		}
 		binding.Status = *currentBindingStatus
-		return c.Status().Update(context.TODO(), binding)
+		updateErr := c.Status().Update(context.TODO(), binding)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &workv1alpha2.ResourceBinding{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, updated); err == nil {
+			// make a copy, so we don't mutate the shared cache
+			binding = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
+		}
+
+		return updateErr
 	})
 }
 
@@ -96,11 +106,21 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		if err = c.Get(context.TODO(), client.ObjectKey{Name: binding.Name}, binding); err != nil {
-			return err
-		}
 		binding.Status = *currentBindingStatus
-		return c.Status().Update(context.TODO(), binding)
+		updateErr := c.Status().Update(context.TODO(), binding)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &workv1alpha2.ClusterResourceBinding{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Name: binding.Name}, updated); err == nil {
+			// make a copy, so we don't mutate the shared cache
+			binding = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
+		}
+
+		return updateErr
 	})
 }
 
