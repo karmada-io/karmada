@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
@@ -75,11 +74,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 		panic(err)
 	}
 	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
-	// TODO(Garrybest): add resyncPeriod to options
-	resyncPeriod := time.Duration(0)
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:                     gclient.NewSchema(),
-		SyncPeriod:                 &resyncPeriod,
+		SyncPeriod:                 &opts.ResyncPeriod.Duration,
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           opts.LeaderElection.ResourceName,
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,

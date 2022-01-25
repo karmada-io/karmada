@@ -47,6 +47,9 @@ type Options struct {
 	KubeAPIBurst int
 
 	ClusterCacheSyncTimeout metav1.Duration
+	// ResyncPeriod is the base frequency the informers are resynced.
+	// Defaults to 0, which means the created informer will never do resyncs.
+	ResyncPeriod metav1.Duration
 
 	// ClusterAPIEndpoint holds the apiEndpoint of the cluster.
 	ClusterAPIEndpoint string
@@ -93,4 +96,5 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
 	fs.StringVar(&o.ClusterAPIEndpoint, "cluster-api-endpoint", o.ClusterAPIEndpoint, "APIEndpoint of the cluster.")
 	fs.StringVar(&o.ProxyServerAddress, "proxy-server-address", o.ProxyServerAddress, "Address of the proxy server that is used to proxy to the cluster.")
+	fs.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
 }
