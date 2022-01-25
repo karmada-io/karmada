@@ -82,13 +82,13 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	klog.Infof("karmada-agent version: %s", version.Get())
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KarmadaKubeConfig)
 	if err != nil {
-		return fmt.Errorf("error building kubeconfig of karmada control plane: %s", err.Error())
+		return fmt.Errorf("error building kubeconfig of karmada control plane: %w", err)
 	}
 	controlPlaneRestConfig.QPS, controlPlaneRestConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
-		return fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
+		return fmt.Errorf("error building kubeconfig of member cluster: %w", err)
 	}
 	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
 	// ensure namespace where the impersonation secret to be stored in member cluster.
@@ -106,13 +106,12 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 
 	err = registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterConfig, opts)
 	if err != nil {
-		return fmt.Errorf("failed to register with karmada control plane: %s", err.Error())
+		return fmt.Errorf("failed to register with karmada control plane: %w", err)
 	}
 
 	executionSpace, err := names.GenerateExecutionSpaceName(opts.ClusterName)
 	if err != nil {
-		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", opts.ClusterName, err)
-		return err
+		return fmt.Errorf("failed to generate execution space name for member cluster %s, err is %v", opts.ClusterName, err)
 	}
 
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
@@ -125,28 +124,28 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
 	})
 	if err != nil {
-		klog.Errorf("failed to build controller manager: %v", err)
+		return fmt.Errorf("failed to build controller manager: %w", err)
+	}
+
+	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
 		return err
 	}
 
-	setupControllers(controllerManager, opts, ctx.Done())
-
 	// blocks until the context is done.
 	if err := controllerManager.Start(ctx); err != nil {
-		klog.Errorf("controller manager exits unexpectedly: %v", err)
-		return err
+		return fmt.Errorf("controller manager exits unexpectedly: %w", err)
 	}
 
 	return nil
 }
 
-func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
+func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) error {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter("", controlPlaneInformerManager)
 	if err := mgr.Add(resourceInterpreter); err != nil {
-		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
+		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter)
@@ -167,7 +166,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	if err := controllers.StartControllers(controllerContext); err != nil {
-		klog.Fatalf("error starting controllers: %v", err)
+		return fmt.Errorf("error starting controllers: %w", err)
 	}
 
 	// Ensure the InformerManager stops when the stop channel closes
@@ -175,6 +174,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		<-stopChan
 		informermanager.StopInstance()
 	}()
+
+	return nil
 }
 
 func startClusterStatusController(ctx controllerscontext.Context) (bool, error) {
