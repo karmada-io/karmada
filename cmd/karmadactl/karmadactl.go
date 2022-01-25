@@ -9,10 +9,18 @@ import (
 )
 
 func main() {
+	if err := runKarmadaCtlCmd(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func runKarmadaCtlCmd() error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
 	if err := karmadactl.NewKarmadaCtlCommand(os.Stdout, "karmadactl", "karmadactl").Execute(); err != nil {
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
