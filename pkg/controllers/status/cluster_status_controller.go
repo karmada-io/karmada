@@ -201,11 +201,20 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-			if err = c.Get(context.TODO(), client.ObjectKey{Namespace: cluster.Namespace, Name: cluster.Name}, cluster); err != nil {
-				return err
-			}
 			cluster.Status = currentClusterStatus
-			return c.Status().Update(context.TODO(), cluster)
+			updateErr := c.Status().Update(context.TODO(), cluster)
+			if updateErr == nil {
+				return nil
+			}
+
+			updated := &clusterv1alpha1.Cluster{}
+			if err = c.Get(context.TODO(), client.ObjectKey{Namespace: cluster.Namespace, Name: cluster.Name}, updated); err == nil {
+				// make a copy, so we don't mutate the shared cache
+				cluster = updated.DeepCopy()
+			} else {
+				klog.Errorf("failed to get updated cluster %s: %v", cluster.Name, err)
+			}
+			return updateErr
 		})
 		if err != nil {
 			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
