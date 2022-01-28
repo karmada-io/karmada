@@ -269,6 +269,7 @@ func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err
 		Client:                       ctx.Mgr.GetClient(),
 		EventRecorder:                ctx.Mgr.GetEventRecorderFor(namespace.ControllerName),
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		SkippedResourceConfig:        ctx.Opts.SkippedResourceConfig,
 	}
 	if err := namespaceSyncController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -388,6 +389,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
+			SkippedResourceConfig:             skippedResourceConfig,
 			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
 		},
 		StopChan:                    stopChan,

@@ -8,6 +8,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -45,6 +46,8 @@ type Options struct {
 	ClusterAPIBurst int
 	// SkippedPropagatingNamespaces is a list of namespaces that will be skipped for propagating.
 	SkippedPropagatingNamespaces []string
+	SkippedResourceConfig        *util.SkippedResourceConfig
+
 	// ClusterName is the name of cluster.
 	ClusterName string
 }

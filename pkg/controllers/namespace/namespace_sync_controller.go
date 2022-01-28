@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -35,6 +36,7 @@ type Controller struct {
 	client.Client                // used to operate Work resources.
 	EventRecorder                record.EventRecorder
 	SkippedPropagatingNamespaces map[string]struct{}
+	SkippedResourceConfig        *util.SkippedResourceConfig
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -78,6 +80,14 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 }
 
 func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
+	nsGVK := schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1",
+		Kind:    "Namespace",
+	}
+	if c.SkippedResourceConfig.GroupVersionKindDisabled(nsGVK) {
+		return false
+	}
 	if names.IsReservedNamespace(namespace) || namespace == names.NamespaceDefault {
 		return false
 	}
