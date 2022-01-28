@@ -293,11 +293,20 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, work); err != nil {
-			return err
-		}
 		work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
-		return c.Status().Update(context.TODO(), work)
+		updateErr := c.Status().Update(context.TODO(), work)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &workv1alpha1.Work{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
+			//make a copy, so we don't mutate the shared cache
+			work = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
+		}
+		return updateErr
 	})
 }
 
