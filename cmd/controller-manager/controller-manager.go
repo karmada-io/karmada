@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	// Note that Kubernetes registers workqueue metrics to default prometheus Registry. And the registry will be
@@ -21,15 +20,20 @@ import (
 	"github.com/karmada-io/karmada/cmd/controller-manager/app"
 )
 
-// Controller-manager main.
 func main() {
+	if err := runControllerManagerCmd(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func runControllerManagerCmd() error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
 	ctx := apiserver.SetupSignalContext()
-
 	if err := app.NewControllerManagerCommand(ctx).Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
