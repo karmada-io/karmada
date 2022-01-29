@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -363,9 +364,7 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 	if err != nil {
 		return nil, err
 	}
-
 	var apiEnablements []clusterv1alpha1.APIEnablement
-
 	for _, list := range apiResourceList {
 		var apiResources []clusterv1alpha1.APIResource
 		for _, resource := range list.APIResources {
@@ -373,17 +372,20 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 			if strings.Contains(resource.Name, "/") {
 				continue
 			}
-
 			apiResource := clusterv1alpha1.APIResource{
 				Name: resource.Name,
 				Kind: resource.Kind,
 			}
-
 			apiResources = append(apiResources, apiResource)
 		}
+		sort.SliceStable(apiResources, func(i, j int) bool {
+			return apiResources[i].Name < apiResources[j].Name
+		})
 		apiEnablements = append(apiEnablements, clusterv1alpha1.APIEnablement{GroupVersion: list.GroupVersion, Resources: apiResources})
 	}
-
+	sort.SliceStable(apiEnablements, func(i, j int) bool {
+		return apiEnablements[i].GroupVersion < apiEnablements[j].GroupVersion
+	})
 	return apiEnablements, nil
 }
 
