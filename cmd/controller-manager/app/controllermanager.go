@@ -83,6 +83,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
 		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
 		LivenessEndpointName:       "/healthz",
+		MetricsBindAddress:         opts.MetricsBindAddress,
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)
