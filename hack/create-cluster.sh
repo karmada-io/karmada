@@ -11,6 +11,8 @@ function usage() {
   echo "Example: hack/create-cluster.sh host /root/.kube/karmada.config"
 }
 
+CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.22.0"}
+
 if [[ $# -lt 1 ]]; then
   usage
   exit 1
@@ -86,7 +88,7 @@ sed -i'' -e "s#{{disable_cni}}#true#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.y
 sed -i'' -e "s#{{pod_cidr}}#${POD_CIDR}#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 sed -i'' -e "s#{{service_cidr}}#${SERVICE_CIDR}#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 
-kind create cluster --name "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}" --config="${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
+kind create cluster --name "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}" --image="${CLUSTER_VERSION}" --config="${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 
 # Kind cluster's context name contains a "kind-" prefix by default.
 # Change context name to cluster name.
