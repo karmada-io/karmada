@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -51,7 +50,6 @@ var (
 
 	noPushModeMessage = "The karmadactl get command now only supports Push mode, [ %s ] are not push mode\n"
 	getShort          = `Display one or many resources`
-	defaultKubeConfig = filepath.Join(os.Getenv("HOME"), ".kube/config")
 )
 
 // NewCmdGet New get command
@@ -136,19 +134,6 @@ func NewCommandGetOptions(parent string, streams genericclioptions.IOStreams) *C
 // Complete takes the command arguments and infers any remaining options.
 func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
 	newScheme := gclient.NewSchema()
-
-	// check karmada config path
-	env := os.Getenv("KUBECONFIG")
-	if env != "" {
-		g.KubeConfig = env
-	}
-
-	if g.KubeConfig == "" {
-		g.KubeConfig = defaultKubeConfig
-	}
-	if !Exists(g.KubeConfig) {
-		return ErrEmptyConfig
-	}
 
 	if g.AllNamespaces {
 		g.ExplicitNamespace = false
@@ -445,7 +430,8 @@ type ClusterInfo struct {
 func clusterInfoInit(g *CommandGetOptions, karmadaConfig KarmadaConfig, clusterInfos map[string]*ClusterInfo) (*rest.Config, error) {
 	karmadaclient, err := karmadaConfig.GetRestConfig(g.KarmadaContext, g.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("func GetRestConfig get karmada client failed, err is: %w", err)
+		return nil, fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
+			g.KarmadaContext, g.KubeConfig, err)
 	}
 
 	if err := getClusterInKarmada(karmadaclient, clusterInfos); err != nil {
