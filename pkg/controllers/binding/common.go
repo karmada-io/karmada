@@ -81,11 +81,6 @@ func ensureWork(
 	for i := range targetClusters {
 		targetCluster := targetClusters[i]
 		clonedWorkload := workload.DeepCopy()
-		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
-		if err != nil {
-			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
-			return err
-		}
 
 		workNamespace, err := names.GenerateExecutionSpaceName(targetCluster.Name)
 		if err != nil {
@@ -114,6 +109,13 @@ func ensureWork(
 					return err
 				}
 			}
+		}
+
+		// We should call ApplyOverridePolicies last, as override rules have the highest priority
+		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
+		if err != nil {
+			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
+			return err
 		}
 
 		annotations := mergeAnnotations(clonedWorkload, binding, scope)
