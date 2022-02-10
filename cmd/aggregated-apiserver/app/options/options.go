@@ -54,6 +54,7 @@ func NewOptions() *Options {
 // AddFlags adds flags to the specified FlagSet.
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	o.RecommendedOptions.AddFlags(flags)
+	flags.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
 
 	flags.StringVar(&o.karmadaConfig, "karmada-config", o.karmadaConfig, "Path to a karmada-apiserver KubeConfig.")
 	// Remove it when we are in v1.2(+).
