@@ -74,6 +74,11 @@ type Options struct {
 	// ResyncPeriod is the base frequency the informers are resynced.
 	// Defaults to 0, which means the created informer will never do resyncs.
 	ResyncPeriod metav1.Duration
+	// MetricsBindAddress is the TCP address that the controller should bind to
+	// for serving prometheus metrics.
+	// It can be set to "0" to disable the metrics serving.
+	// Defaults to ":8080".
+	MetricsBindAddress string
 }
 
 // NewOptions builds an empty options.
@@ -126,4 +131,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers []string) {
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
 	flags.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
+	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 }
