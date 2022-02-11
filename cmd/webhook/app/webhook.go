@@ -77,7 +77,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 			CertDir:       opts.CertDir,
 			TLSMinVersion: opts.TLSMinVersion,
 		},
-		LeaderElection: false,
+		LeaderElection:         false,
+		MetricsBindAddress:     opts.MetricsBindAddress,
+		HealthProbeBindAddress: opts.HealthProbeBindAddress,
 	})
 	if err != nil {
 		klog.Errorf("failed to build webhook server: %v", err)
