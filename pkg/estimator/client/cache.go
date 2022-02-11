@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -28,7 +28,7 @@ func NewSchedulerEstimatorCache() *SchedulerEstimatorCache {
 
 type clientWrapper struct {
 	connection *grpc.ClientConn
-	client     pb.EstimatorClient
+	client     estimatorservice.EstimatorClient
 }
 
 // IsEstimatorExist checks whether the cluster estimator exists in the cache.
@@ -40,7 +40,7 @@ func (c *SchedulerEstimatorCache) IsEstimatorExist(name string) bool {
 }
 
 // AddCluster adds a grpc connection and associated client into the cache.
-func (c *SchedulerEstimatorCache) AddCluster(name string, connection *grpc.ClientConn, client pb.EstimatorClient) {
+func (c *SchedulerEstimatorCache) AddCluster(name string, connection *grpc.ClientConn, client estimatorservice.EstimatorClient) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	// If more than one worker have established connections at the same time,
@@ -68,7 +68,7 @@ func (c *SchedulerEstimatorCache) DeleteCluster(name string) {
 }
 
 // GetClient returns the gRPC client of a cluster accurate replica estimator.
-func (c *SchedulerEstimatorCache) GetClient(name string) (pb.EstimatorClient, error) {
+func (c *SchedulerEstimatorCache) GetClient(name string) (estimatorservice.EstimatorClient, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	es, exist := c.estimator[name]
@@ -90,7 +90,7 @@ func EstablishConnection(name string, estimatorCache *SchedulerEstimatorCache, p
 		klog.Errorf("Failed to dial cluster(%s): %v.", name, err)
 		return err
 	}
-	c := pb.NewEstimatorClient(cc)
+	c := estimatorservice.NewEstimatorClient(cc)
 	estimatorCache.AddCluster(name, cc, c)
 	klog.Infof("Connection with estimator server(%s) of cluster(%s) has been established.", serverAddr, name)
 	return nil

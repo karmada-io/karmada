@@ -81,10 +81,6 @@ message ReplicaRequirements {
   map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> resourceRequest = 2;
 }
 
-// UnimplementedEstimatorServer can be embedded to have forward compatible implementations.
-message UnimplementedEstimatorServer {
-}
-
 // UnschedulableReplicasRequest represents the request that sent by gRPC client to calculate unschedulable replicas.
 message UnschedulableReplicasRequest {
   // Cluster represents the cluster name.
@@ -105,6 +101,6 @@ message UnschedulableReplicasRequest {
 message UnschedulableReplicasResponse {
   // UnschedulableReplicas represents the unschedulable replicas that the object contains.
   // +required
-  optional int32 maxUnschedulableReplicas = 1;
+  optional int32 unschedulableReplicas = 1;
 }
 
