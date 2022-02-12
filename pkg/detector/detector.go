@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -427,14 +428,21 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return err
 	}
 	bindingCopy := binding.DeepCopy()
-	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-		// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-		bindingCopy.Labels = binding.Labels
-		bindingCopy.OwnerReferences = binding.OwnerReferences
-		bindingCopy.Finalizers = binding.Finalizers
-		bindingCopy.Spec.Resource = binding.Spec.Resource
-		bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
-		bindingCopy.Spec.Replicas = binding.Spec.Replicas
+	var operationResult controllerutil.OperationResult
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			bindingCopy.Labels = binding.Labels
+			bindingCopy.OwnerReferences = binding.OwnerReferences
+			bindingCopy.Finalizers = binding.Finalizers
+			bindingCopy.Spec.Resource = binding.Spec.Resource
+			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
+			bindingCopy.Spec.Replicas = binding.Spec.Replicas
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
@@ -483,14 +491,21 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 		bindingCopy := binding.DeepCopy()
-		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-			bindingCopy.Labels = binding.Labels
-			bindingCopy.OwnerReferences = binding.OwnerReferences
-			bindingCopy.Finalizers = binding.Finalizers
-			bindingCopy.Spec.Resource = binding.Spec.Resource
-			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
-			bindingCopy.Spec.Replicas = binding.Spec.Replicas
+		var operationResult controllerutil.OperationResult
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+				bindingCopy.Labels = binding.Labels
+				bindingCopy.OwnerReferences = binding.OwnerReferences
+				bindingCopy.Finalizers = binding.Finalizers
+				bindingCopy.Spec.Resource = binding.Spec.Resource
+				bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
+				bindingCopy.Spec.Replicas = binding.Spec.Replicas
+				return nil
+			})
+			if err != nil {
+				return err
+			}
 			return nil
 		})
 		if err != nil {
