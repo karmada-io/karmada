@@ -20,6 +20,9 @@ jobs:
             goos: darwin
     steps:
     - uses: actions/checkout@master
+      with:
+        # we might need history and tag info for `git describe --tags` in Makefile, especially when publishing
+        fetch-depth: 0
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
@@ -29,6 +32,7 @@ jobs:
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
+        VERSION: ${{ github.ref_name }}
     - name: Packaging...
       run: tar czf kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz kubectl-karmada LICENSE
     - name: Uploading assets...

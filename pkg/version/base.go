@@ -12,4 +12,11 @@ var (
 	gitTreeState = "unknown" // state of git tree, either "clean" or "dirty"
 
 	buildDate = "unknown" // build date in ISO8601 format, output of $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+	imageVersion = "latest"
 )
+
+// ImageVersion get karmada images tags for karmadactl/kubectl-karmada init.
+func ImageVersion() string {
+	return imageVersion
+}
