@@ -17,7 +17,7 @@ KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 INTERPRETER_WEBHOOK_EXAMPLE_LABEL="karmada-interpreter-webhook-example"
 
-MIN_Go_VERSION=go1.16.0
+MIN_Go_VERSION=go1.17.0
 
 # This function installs a Go tools by 'go install' command.
 # Parameters:
