@@ -92,7 +92,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 	namespaceObj, err := helper.ToUnstructured(namespace)
 	if err != nil {
 		klog.Errorf("Failed to transform namespace %s. Error: %v", namespace.GetName(), err)
-		return nil
+		return err
 	}
 
 	for _, cluster := range clusters {
