@@ -51,6 +51,9 @@ type SingleClusterInformerManager interface {
 
 	// Context returns the single cluster context.
 	Context() context.Context
+
+	// GetClient returns the dynamic client.
+	GetClient() dynamic.Interface
 }
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
@@ -63,6 +66,7 @@ func NewSingleClusterInformerManager(client dynamic.Interface, defaultResync tim
 		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
 		ctx:             ctx,
 		cancel:          cancel,
+		client:          client,
 	}
 }
 
@@ -75,6 +79,8 @@ type singleClusterInformerManagerImpl struct {
 	syncedInformers map[schema.GroupVersionResource]struct{}
 
 	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
+
+	client dynamic.Interface
 
 	lock sync.RWMutex
 }
@@ -163,4 +169,8 @@ func (s *singleClusterInformerManagerImpl) waitForCacheSync(ctx context.Context)
 
 func (s *singleClusterInformerManagerImpl) Context() context.Context {
 	return s.ctx
+}
+
+func (s *singleClusterInformerManagerImpl) GetClient() dynamic.Interface {
+	return s.client
 }
