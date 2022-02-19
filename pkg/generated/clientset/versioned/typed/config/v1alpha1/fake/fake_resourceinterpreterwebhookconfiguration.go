@@ -83,7 +83,7 @@ func (c *FakeResourceInterpreterWebhookConfigurations) Update(ctx context.Contex
 // Delete takes name of the resourceInterpreterWebhookConfiguration and deletes it. Returns an error if one occurs.
 func (c *FakeResourceInterpreterWebhookConfigurations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(resourceinterpreterwebhookconfigurationsResource, name), &v1alpha1.ResourceInterpreterWebhookConfiguration{})
+		Invokes(testing.NewRootDeleteActionWithOptions(resourceinterpreterwebhookconfigurationsResource, name, opts), &v1alpha1.ResourceInterpreterWebhookConfiguration{})
 	return err
 }
 
