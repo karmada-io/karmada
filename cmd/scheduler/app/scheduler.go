@@ -54,6 +54,10 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 		},
 	}
 
+	// Init log flags
+	// TODO(@RainbowMango): Group the flags to "logs" flag set.
+	klog.InitFlags(flag.CommandLine)
+
 	opts.AddFlags(cmd.Flags())
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-scheduler"))
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
