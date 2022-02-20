@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -21,7 +20,6 @@ import (
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
 	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
-	FailoverSchedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -245,54 +243,4 @@ func (g *genericScheduler) assignReplicas(
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
 	}
 	return targetClusters, nil
-}
-
-func (g *genericScheduler) FailoverSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
-	spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
-	readyClusters := g.schedulerCache.Snapshot().GetReadyClusterNames()
-	totalClusters := util.ConvertToClusterNames(spec.Clusters)
-
-	reservedClusters := calcReservedCluster(totalClusters, readyClusters)
-	availableClusters := calcAvailableCluster(totalClusters, readyClusters)
-
-	candidateClusters := sets.NewString()
-	for clusterName := range availableClusters {
-		clusterObj := g.schedulerCache.Snapshot().GetCluster(clusterName)
-		if clusterObj == nil {
-			return result, fmt.Errorf("failed to get clusterObj by clusterName: %s", clusterName)
-		}
-
-		if result := g.scheduleFramework.RunFilterPlugins(ctx, placement, &spec.Resource, clusterObj.Cluster()); !result.IsSuccess() {
-			klog.V(4).Infof("cluster %q is not fit", clusterName)
-		} else {
-			candidateClusters.Insert(clusterName)
-		}
-	}
-
-	klog.V(4).Infof("Reserved bindingClusters : %v", reservedClusters.List())
-	klog.V(4).Infof("Candidate bindingClusters: %v", candidateClusters.List())
-
-	// TODO: should schedule as much as possible?
-	deltaLen := len(spec.Clusters) - len(reservedClusters)
-	if len(candidateClusters) < deltaLen {
-		// for ReplicaSchedulingTypeDivided, we will try to migrate replicas to the other health clusters
-		if placement.ReplicaScheduling == nil || placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
-			klog.Warningf("ignore reschedule binding as insufficient available cluster")
-			return ScheduleResult{}, nil
-		}
-	}
-
-	// TODO: check if the final result meets the spread constraints.
-	targetClusters := reservedClusters
-	clusterList := candidateClusters.List()
-	for i := 0; i < deltaLen && i < len(candidateClusters); i++ {
-		targetClusters.Insert(clusterList[i])
-	}
-
-	var reScheduleResult []workv1alpha2.TargetCluster
-	for cluster := range targetClusters {
-		reScheduleResult = append(reScheduleResult, workv1alpha2.TargetCluster{Name: cluster})
-	}
-
-	return ScheduleResult{reScheduleResult}, nil
 }

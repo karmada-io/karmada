@@ -277,7 +277,11 @@ func (s *Scheduler) deleteCluster(obj interface{}) {
 		klog.Errorf("cannot convert to clusterv1alpha1.Cluster: %v", t)
 		return
 	}
+
 	klog.V(3).Infof("Delete event for cluster %s", cluster.Name)
+
+	s.enqueueAffectedBinding(cluster.Name)
+	s.enqueueAffectedClusterBinding(cluster.Name)
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.Add(cluster.Name)
