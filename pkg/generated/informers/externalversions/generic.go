@@ -7,6 +7,7 @@ import (
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -47,6 +48,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=config.karmada.io, Version=v1alpha1
 	case configv1alpha1.SchemeGroupVersion.WithResource("resourceinterpreterwebhookconfigurations"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ResourceInterpreterWebhookConfigurations().Informer()}, nil
+
+		// Group=networking.karmada.io, Version=v1alpha1
+	case networkingv1alpha1.SchemeGroupVersion.WithResource("multiclusteringresses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().MultiClusterIngresses().Informer()}, nil
 
 		// Group=policy.karmada.io, Version=v1alpha1
 	case policyv1alpha1.SchemeGroupVersion.WithResource("clusteroverridepolicies"):
