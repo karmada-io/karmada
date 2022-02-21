@@ -94,7 +94,7 @@ func (c *FakeClusterResourceBindings) UpdateStatus(ctx context.Context, clusterR
 // Delete takes name of the clusterResourceBinding and deletes it. Returns an error if one occurs.
 func (c *FakeClusterResourceBindings) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(clusterresourcebindingsResource, name), &v1alpha2.ClusterResourceBinding{})
+		Invokes(testing.NewRootDeleteActionWithOptions(clusterresourcebindingsResource, name, opts), &v1alpha2.ClusterResourceBinding{})
 	return err
 }
 

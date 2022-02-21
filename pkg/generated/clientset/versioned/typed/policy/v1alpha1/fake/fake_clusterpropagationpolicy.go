@@ -83,7 +83,7 @@ func (c *FakeClusterPropagationPolicies) Update(ctx context.Context, clusterProp
 // Delete takes name of the clusterPropagationPolicy and deletes it. Returns an error if one occurs.
 func (c *FakeClusterPropagationPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(clusterpropagationpoliciesResource, name), &v1alpha1.ClusterPropagationPolicy{})
+		Invokes(testing.NewRootDeleteActionWithOptions(clusterpropagationpoliciesResource, name, opts), &v1alpha1.ClusterPropagationPolicy{})
 	return err
 }
 
