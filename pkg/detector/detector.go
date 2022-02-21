@@ -144,8 +144,10 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 }
 
 // Check if our ResourceDetector implements necessary interfaces
-var _ manager.Runnable = &ResourceDetector{}
-var _ manager.LeaderElectionRunnable = &ResourceDetector{}
+var (
+	_ manager.Runnable               = &ResourceDetector{}
+	_ manager.LeaderElectionRunnable = &ResourceDetector{}
+)
 
 func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
@@ -231,7 +233,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", propagationPolicy.Namespace, propagationPolicy.Name)
 			return fmt.Errorf("waiting for dependent overrides")
 		}
-
+		d.RemoveWaiting(clusterWideKey)
 		return d.ApplyPolicy(object, clusterWideKey, propagationPolicy)
 	}
 
@@ -242,14 +244,20 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return err
 	}
 	if clusterPolicy != nil {
+		d.RemoveWaiting(clusterWideKey)
 		return d.ApplyClusterPolicy(object, clusterWideKey, clusterPolicy)
 	}
 
-	d.EventRecorder.Event(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "No policy match for resource")
-	// reaching here mean there is no appropriate policy for the object, put it into waiting list.
-	d.AddWaiting(clusterWideKey)
+	if d.isWaiting(clusterWideKey) {
+		// reaching here means there is no appropriate policy for the object
+		d.EventRecorder.Event(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "No policy match for resource")
+		return nil
+	}
 
-	return nil
+	// put it into waiting list and retry once in case the resource and propagation policy come at the same time
+	// see https://github.com/karmada-io/karmada/issues/1195
+	d.AddWaiting(clusterWideKey)
+	return fmt.Errorf("no matched propagation policy")
 }
 
 // EventFilter tells if an object should be take care of.
@@ -533,7 +541,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Spec.Replicas = binding.Spec.Replicas
 			return nil
 		})
-
 		if err != nil {
 			klog.Errorf("Failed to apply cluster policy(%s) for object: %s. error: %v", policy.Name, objectKey, err)
 			return err
@@ -696,6 +703,14 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 	}
 
 	return binding, nil
+}
+
+// isWaiting indicates if the object is in waiting list.
+func (d *ResourceDetector) isWaiting(objectKey keys.ClusterWideKey) bool {
+	d.waitingLock.RLock()
+	_, ok := d.waitingObjects[objectKey]
+	d.waitingLock.RUnlock()
+	return ok
 }
 
 // AddWaiting adds object's key to waiting list.
@@ -1043,7 +1058,6 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 
 // OnClusterResourceBindingAdd handles object add event.
 func (d *ResourceDetector) OnClusterResourceBindingAdd(obj interface{}) {
-
 }
 
 // OnClusterResourceBindingUpdate handles object update event and push the object to queue.
