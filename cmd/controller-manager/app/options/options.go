@@ -79,6 +79,27 @@ type Options struct {
 	// It can be set to "0" to disable the metrics serving.
 	// Defaults to ":8080".
 	MetricsBindAddress string
+	// concurrentClusterSyncs is the number of cluster objects that are
+	// allowed to sync concurrently.
+	ConcurrentClusterSyncs int
+	// concurrentClusterAPISyncs is the number of clusterapi controller workers.
+	ConcurrentClusterAPISyncs int
+	// ConcurrentClusterResourceBindingSyncs is the number of clusterresourcebinding objects that are
+	// allowed to sync concurrently.
+	ConcurrentClusterResourceBindingSyncs int
+	// ConcurrentWorkSyncs is the number of work objects that are
+	// allowed to sync concurrently.
+	ConcurrentWorkSyncs int
+	// ConcurrentResourceBindingSyncs is the number of resourcebinding objects that are
+	// allowed to sync concurrently.
+	ConcurrentResourceBindingSyncs int
+	// ConcurrentNamespaceSyncs is the number of name objects that are
+	// allowed to sync concurrently.
+	ConcurrentNamespaceSyncs int
+	// ConcurrentDetectorSyncs is the number of detector workers.
+	ConcurrentDetectorSyncs int
+	// ConcurrentServiceExportSyncs is the number of resource workers.
+	ConcurrentServiceExportSyncs int
 }
 
 // NewOptions builds an empty options.
@@ -134,4 +155,12 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers []string) {
 	flags.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
 	flags.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
 	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8088, :8088)")
+	flags.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of cluster objects that are allowed to sync concurrently. (default 5)")
+	flags.IntVar(&o.ConcurrentClusterAPISyncs, "concurrent-clusterapi-syncs", 5, "The number of cluster objects that are allowed to sync concurrently. (default 5)")
+	flags.IntVar(&o.ConcurrentClusterResourceBindingSyncs, "concurrent-clusterresourcebinding-syncs", 5, "The number of clusterresourcebinding objects that are allowed to sync concurrently. (default 5)")
+	flags.IntVar(&o.ConcurrentResourceBindingSyncs, "concurrent-resourcebinding-syncs", 5, "The number of resourcebinding objects that are allowed to sync concurrently. (default 5)")
+	flags.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of work objects that are allowed to sync concurrently. (default 5)")
+	flags.IntVar(&o.ConcurrentNamespaceSyncs, "concurrent-namespace-syncs", 5, "The number of namespace objects that are allowed to sync concurrently. (default 5)")
+	flags.IntVar(&o.ConcurrentDetectorSyncs, "concurrent-resource-template-syncs", 5, "The number of resource template workers that are allowed to sync concurrently. (default 5)")
+	flags.IntVar(&o.ConcurrentServiceExportSyncs, "concurrent-serviceexport-syncs", 5, "The number of serviceexport workers that are allowed to sync concurrently. (default 5)")
 }

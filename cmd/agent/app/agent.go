@@ -15,9 +15,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
@@ -126,6 +128,12 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		LeaderElectionID:           fmt.Sprintf("karmada-agent-%s", opts.ClusterName),
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
+		Controller: v1alpha1.ControllerConfigurationSpec{
+			GroupKindConcurrency: map[string]int{
+				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():       opts.ConcurrentWorkSyncs,
+				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String(): opts.ConcurrentClusterSyncs,
+			},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %w", err)
@@ -165,6 +173,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
+			ConcurrentWorkReconciles:          opts.ConcurrentWorkSyncs,
+			ConcurrentServiceExportReconciles: opts.ConcurrentServiceExportSyncs,
 		},
 		StopChan: stopChan,
 	}
@@ -222,16 +232,16 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 
 func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 	workStatusController := &status.WorkStatusController{
-		Client:                  ctx.Mgr.GetClient(),
-		EventRecorder:           ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:              ctx.Mgr.GetRESTMapper(),
-		InformerManager:         informermanager.GetInstance(),
-		StopChan:                ctx.StopChan,
-		WorkerNumber:            1,
-		ObjectWatcher:           ctx.ObjectWatcher,
-		PredicateFunc:           helper.NewExecutionPredicateOnAgent(),
-		ClusterClientSetFunc:    util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout: ctx.Opts.ClusterCacheSyncTimeout,
+		Client:                   ctx.Mgr.GetClient(),
+		EventRecorder:            ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:               ctx.Mgr.GetRESTMapper(),
+		InformerManager:          informermanager.GetInstance(),
+		StopChan:                 ctx.StopChan,
+		ObjectWatcher:            ctx.ObjectWatcher,
+		PredicateFunc:            helper.NewExecutionPredicateOnAgent(),
+		ClusterClientSetFunc:     util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:  ctx.Opts.ClusterCacheSyncTimeout,
+		ConcurrentWorkReconciles: ctx.Opts.ConcurrentWorkReconciles,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -247,7 +257,7 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
-		WorkerNumber:                1,
+		WorkerNumber:                ctx.Opts.ConcurrentServiceExportReconciles,
 		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(ctx.Opts.ClusterName),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
