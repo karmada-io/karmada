@@ -97,12 +97,6 @@ func divideReplicasByStaticWeight(clusters []*clusterv1alpha1.Cluster, weightLis
 
 	divideRemainingReplicas(int(replicas-allocatedReplicas), desireReplicaInfos, clusterNames)
 
-	for _, cluster := range clusters {
-		if _, exist := matchClusters[cluster.Name]; !exist {
-			desireReplicaInfos[cluster.Name] = 0
-		}
-	}
-
 	targetClusters := make([]workv1alpha2.TargetCluster, len(desireReplicaInfos))
 	i := 0
 	for key, value := range desireReplicaInfos {
