@@ -20,6 +20,10 @@ func (c *FakePolicyV1alpha1) ClusterPropagationPolicies() v1alpha1.ClusterPropag
 	return &FakeClusterPropagationPolicies{c}
 }
 
+func (c *FakePolicyV1alpha1) FederatedResourceQuotas(namespace string) v1alpha1.FederatedResourceQuotaInterface {
+	return &FakeFederatedResourceQuotas{c, namespace}
+}
+
 func (c *FakePolicyV1alpha1) OverridePolicies(namespace string) v1alpha1.OverridePolicyInterface {
 	return &FakeOverridePolicies{c, namespace}
 }
