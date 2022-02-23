@@ -133,7 +133,7 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 			return err
 		}
 
-		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
+		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
@@ -234,7 +234,7 @@ func (c *Controller) tryUpdateWorkload(clusterName string, workload *unstructure
 		return err
 	}
 
-	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
+	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
