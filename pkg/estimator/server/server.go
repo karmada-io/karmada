@@ -296,14 +296,14 @@ func traceMaxAvailableReplicas(object string, start time.Time, request *pb.MaxAv
 }
 
 func traceGetUnschedulableReplicas(object string, start time.Time, request *pb.UnschedulableReplicasRequest) func(response **pb.UnschedulableReplicasResponse, err *error) {
-	klog.V(4).Infof("Begin detecting cluster unscheduable replicas of resource(%s), request: %s", object, pretty.Sprint(*request))
+	klog.V(4).Infof("Begin detecting cluster unschedulable replicas of resource(%s), request: %s", object, pretty.Sprint(*request))
 	return func(response **pb.UnschedulableReplicasResponse, err *error) {
 		metrics.CountRequests(*err, metrics.EstimatingTypeGetUnschedulableReplicas)
 		metrics.UpdateEstimatingAlgorithmLatency(*err, metrics.EstimatingTypeGetUnschedulableReplicas, metrics.EstimatingStepTotal, start)
 		if *err != nil {
-			klog.Errorf("Failed to detect cluster unscheduable replicas: %v", *err)
+			klog.Errorf("Failed to detect cluster unschedulable replicas: %v", *err)
 			return
 		}
-		klog.Infof("Finish detecting cluster unscheduable replicas of resource(%s), unschedulable replicas: %d, time elapsed: %s", object, (*response).UnschedulableReplicas, time.Since(start))
+		klog.Infof("Finish detecting cluster unschedulable replicas of resource(%s), unschedulable replicas: %d, time elapsed: %s", object, (*response).UnschedulableReplicas, time.Since(start))
 	}
 }

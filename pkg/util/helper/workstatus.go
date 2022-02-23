@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -9,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -260,4 +262,17 @@ func IsWorkContains(workStatus *workv1alpha1.WorkStatus, targetResource schema.G
 		}
 	}
 	return false
+}
+
+// BuildStatusRawExtension builds raw JSON by a status map.
+func BuildStatusRawExtension(status map[string]interface{}) (*runtime.RawExtension, error) {
+	statusJSON, err := json.Marshal(status)
+	if err != nil {
+		klog.Errorf("Failed to marshal status. Error: %v.", statusJSON)
+		return nil, err
+	}
+
+	return &runtime.RawExtension{
+		Raw: statusJSON,
+	}, nil
 }

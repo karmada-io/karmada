@@ -120,3 +120,19 @@ func GenerateResourceSelectorForServiceImport(svcImport policyv1alpha1.ResourceS
 		},
 	}
 }
+
+// IsReplicaDynamicDivided checks if a PropagationPolicy schedules replicas as dynamic.
+func IsReplicaDynamicDivided(strategy *policyv1alpha1.ReplicaSchedulingStrategy) bool {
+	if strategy == nil || strategy.ReplicaSchedulingType != policyv1alpha1.ReplicaSchedulingTypeDivided {
+		return false
+	}
+
+	switch strategy.ReplicaDivisionPreference {
+	case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
+		return strategy.WeightPreference != nil && len(strategy.WeightPreference.DynamicWeight) != 0
+	case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
+		return true
+	default:
+		return false
+	}
+}
