@@ -173,8 +173,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
-			ConcurrentWorkReconciles:          opts.ConcurrentWorkSyncs,
-			ConcurrentServiceExportReconciles: opts.ConcurrentServiceExportSyncs,
+			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 		},
 		StopChan: stopChan,
 	}
@@ -232,16 +231,16 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 
 func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 	workStatusController := &status.WorkStatusController{
-		Client:                   ctx.Mgr.GetClient(),
-		EventRecorder:            ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:               ctx.Mgr.GetRESTMapper(),
-		InformerManager:          informermanager.GetInstance(),
-		StopChan:                 ctx.StopChan,
-		ObjectWatcher:            ctx.ObjectWatcher,
-		PredicateFunc:            helper.NewExecutionPredicateOnAgent(),
-		ClusterClientSetFunc:     util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:  ctx.Opts.ClusterCacheSyncTimeout,
-		ConcurrentWorkReconciles: ctx.Opts.ConcurrentWorkReconciles,
+		Client:                    ctx.Mgr.GetClient(),
+		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:                ctx.Mgr.GetRESTMapper(),
+		InformerManager:           informermanager.GetInstance(),
+		StopChan:                  ctx.StopChan,
+		ObjectWatcher:             ctx.ObjectWatcher,
+		PredicateFunc:             helper.NewExecutionPredicateOnAgent(),
+		ClusterClientSetFunc:      util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:   ctx.Opts.ClusterCacheSyncTimeout,
+		ConcurrentWorkStatusSyncs: ctx.Opts.ConcurrentWorkSyncs,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -257,7 +256,7 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
-		WorkerNumber:                ctx.Opts.ConcurrentServiceExportReconciles,
+		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(ctx.Opts.ClusterName),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,

@@ -36,18 +36,19 @@ const WorkStatusControllerName = "work-status-controller"
 
 // WorkStatusController is to sync status of Work.
 type WorkStatusController struct {
-	client.Client            // used to operate Work resources.
-	EventRecorder            record.EventRecorder
-	RESTMapper               meta.RESTMapper
-	InformerManager          informermanager.MultiClusterInformerManager
-	eventHandler             cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
-	StopChan                 <-chan struct{}
-	worker                   util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
-	ObjectWatcher            objectwatcher.ObjectWatcher
-	PredicateFunc            predicate.Predicate
-	ClusterClientSetFunc     func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
-	ConcurrentWorkReconciles int
-	ClusterCacheSyncTimeout  metav1.Duration
+	client.Client   // used to operate Work resources.
+	EventRecorder   record.EventRecorder
+	RESTMapper      meta.RESTMapper
+	InformerManager informermanager.MultiClusterInformerManager
+	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
+	StopChan        <-chan struct{}
+	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+	// ConcurrentWorkStatusSyncs is the number of Work status that are allowed to sync concurrently.
+	ConcurrentWorkStatusSyncs int
+	ObjectWatcher             objectwatcher.ObjectWatcher
+	PredicateFunc             predicate.Predicate
+	ClusterClientSetFunc      func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterCacheSyncTimeout   metav1.Duration
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -116,7 +117,7 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
 	c.worker = util.NewAsyncWorker("work-status", generateKey, c.syncWorkStatus)
-	c.worker.Run(c.ConcurrentWorkReconciles, c.StopChan)
+	c.worker.Run(c.ConcurrentWorkStatusSyncs, c.StopChan)
 }
 
 // generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.

@@ -58,24 +58,9 @@ type Options struct {
 	// concurrentClusterSyncs is the number of cluster objects that are
 	// allowed to sync concurrently.
 	ConcurrentClusterSyncs int
-	// concurrentClusterAPISyncs is the number of clusterapi controller workers.
-	ConcurrentClusterAPISyncs int
-	// ConcurrentClusterResourceBindingSyncs is the number of clusterresourcebinding objects that are
-	// allowed to sync concurrently.
-	ConcurrentClusterResourceBindingSyncs int
 	// ConcurrentWorkSyncs is the number of work objects that are
 	// allowed to sync concurrently.
 	ConcurrentWorkSyncs int
-	// ConcurrentResourceBindingSyncs is the number of resourcebinding objects that are
-	// allowed to sync concurrently.
-	ConcurrentResourceBindingSyncs int
-	// ConcurrentNamespaceSyncs is the number of name objects that are
-	// allowed to sync concurrently.
-	ConcurrentNamespaceSyncs int
-	// ConcurrentDetectorSyncs is the number of detector workers.
-	ConcurrentDetectorSyncs int
-	// ConcurrentServiceExportSyncs is the number of resource workers.
-	ConcurrentServiceExportSyncs int
 }
 
 // NewOptions builds an default scheduler options.
@@ -118,12 +103,6 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.StringVar(&o.ClusterAPIEndpoint, "cluster-api-endpoint", o.ClusterAPIEndpoint, "APIEndpoint of the cluster.")
 	fs.StringVar(&o.ProxyServerAddress, "proxy-server-address", o.ProxyServerAddress, "Address of the proxy server that is used to proxy to the cluster.")
 	fs.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
-	fs.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of cluster objects that are allowed to sync concurrently. (default 5)")
-	fs.IntVar(&o.ConcurrentClusterAPISyncs, "concurrent-clusterapi-syncs", 5, "The number of cluster objects that are allowed to sync concurrently. (default 5)")
-	fs.IntVar(&o.ConcurrentClusterResourceBindingSyncs, "concurrent-clusterresourcebinding-syncs", 5, "The number of clusterresourcebinding objects that are allowed to sync concurrently. (default 5)")
-	fs.IntVar(&o.ConcurrentResourceBindingSyncs, "concurrent-resourcebinding-syncs", 5, "The number of resourcebinding objects that are allowed to sync concurrently. (default 5)")
-	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of work objects that are allowed to sync concurrently. (default 5)")
-	fs.IntVar(&o.ConcurrentNamespaceSyncs, "concurrent-namespace-syncs", 5, "The number of namespace objects that are allowed to sync concurrently. (default 5)")
-	fs.IntVar(&o.ConcurrentDetectorSyncs, "concurrent-resource-template-syncs", 5, "The number of resource template workers that are allowed to sync concurrently. (default 5)")
-	fs.IntVar(&o.ConcurrentServiceExportSyncs, "concurrent-serviceexport-syncs", 5, "The number of serviceexport workers that are allowed to sync concurrently. (default 5)")
+	fs.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of Clusters that are allowed to sync concurrently.")
+	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
 }

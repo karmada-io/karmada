@@ -24,6 +24,7 @@ import (
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
@@ -95,8 +96,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 		Controller: v1alpha1.ControllerConfigurationSpec{
 			GroupKindConcurrency: map[string]int{
 				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,
-				workv1alpha1.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.ConcurrentResourceBindingSyncs,
-				workv1alpha1.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():   opts.ConcurrentClusterResourceBindingSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.ConcurrentResourceBindingSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():   opts.ConcurrentClusterResourceBindingSyncs,
 				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.ConcurrentClusterSyncs,
 				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.ConcurrentNamespaceSyncs,
 			},
@@ -260,16 +261,16 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
-		Client:                   ctx.Mgr.GetClient(),
-		EventRecorder:            ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:               ctx.Mgr.GetRESTMapper(),
-		InformerManager:          informermanager.GetInstance(),
-		StopChan:                 ctx.StopChan,
-		ObjectWatcher:            ctx.ObjectWatcher,
-		PredicateFunc:            helper.NewExecutionPredicate(ctx.Mgr),
-		ClusterClientSetFunc:     util.NewClusterDynamicClientSet,
-		ClusterCacheSyncTimeout:  opts.ClusterCacheSyncTimeout,
-		ConcurrentWorkReconciles: opts.ConcurrentWorkReconciles,
+		Client:                    ctx.Mgr.GetClient(),
+		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:                ctx.Mgr.GetRESTMapper(),
+		InformerManager:           informermanager.GetInstance(),
+		StopChan:                  ctx.StopChan,
+		ObjectWatcher:             ctx.ObjectWatcher,
+		PredicateFunc:             helper.NewExecutionPredicate(ctx.Mgr),
+		ClusterClientSetFunc:      util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout:   opts.ClusterCacheSyncTimeout,
+		ConcurrentWorkStatusSyncs: opts.ConcurrentWorkSyncs,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -303,7 +304,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
-		WorkerNumber:                ctx.Opts.ConcurrentServiceExportReconciles,
+		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
@@ -387,7 +388,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		SkippedPropagatingNamespaces:    skippedPropagatingNamespaces,
 		ResourceInterpreter:             resourceInterpreter,
 		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
-		ConcurrentResourceTemplateSyncs: opts.ConcurrentDetectorSyncs,
+		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
 		ConcurrentResourceBindingSyncs:  opts.ConcurrentResourceBindingSyncs,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
@@ -410,8 +411,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
-			ConcurrentWorkReconciles:          opts.ConcurrentWorkSyncs,
-			ConcurrentServiceExportReconciles: opts.ConcurrentServiceExportSyncs,
+			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
@@ -456,7 +456,7 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,
 		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, stopChan),
-		ConcurrentReconciles:  opts.ConcurrentClusterAPISyncs,
+		ConcurrentReconciles:  3,
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {
 		klog.Fatalf("Failed to setup cluster-api cluster detector: %v", err)

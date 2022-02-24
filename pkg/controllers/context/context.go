@@ -47,10 +47,8 @@ type Options struct {
 	SkippedPropagatingNamespaces []string
 	// ClusterName is the name of cluster.
 	ClusterName string
-	// ConcurrentWorkReconciles is the number of workstatus workers.
-	ConcurrentWorkReconciles int
-	// ConcurrentServiceExportReconciles is the number of resource workers.
-	ConcurrentServiceExportReconciles int
+	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
+	ConcurrentWorkSyncs int
 }
 
 // Context defines the context object for controller.
