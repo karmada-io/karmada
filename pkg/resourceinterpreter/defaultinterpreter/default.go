@@ -18,6 +18,7 @@ type DefaultInterpreter struct {
 	reviseReplicaHandlers   map[schema.GroupVersionKind]reviseReplicaInterpreter
 	retentionHandlers       map[schema.GroupVersionKind]retentionInterpreter
 	aggregateStatusHandlers map[schema.GroupVersionKind]aggregateStatusInterpreter
+	dependenciesHandlers    map[schema.GroupVersionKind]dependenciesInterpreter
 }
 
 // NewDefaultInterpreter return a new DefaultInterpreter.
@@ -27,6 +28,7 @@ func NewDefaultInterpreter() *DefaultInterpreter {
 		reviseReplicaHandlers:   getAllDefaultReviseReplicaInterpreter(),
 		retentionHandlers:       getAllDefaultRetentionInterpreter(),
 		aggregateStatusHandlers: getAllDefaultAggregateStatusInterpreter(),
+		dependenciesHandlers:    getAllDefaultDependenciesInterpreter(),
 	}
 }
 
@@ -49,7 +51,10 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 		if _, exist := e.aggregateStatusHandlers[kind]; exist {
 			return true
 		}
-
+	case configv1alpha1.InterpreterOperationInterpretDependency:
+		if _, exist := e.dependenciesHandlers[kind]; exist {
+			return true
+		}
 		// TODO(RainbowMango): more cases should be added here
 	}
 
@@ -91,4 +96,13 @@ func (e *DefaultInterpreter) AggregateStatus(object *unstructured.Unstructured, 
 		return nil, fmt.Errorf("defalut %s interpreter for %q not found", configv1alpha1.InterpreterOperationAggregateStatus, object.GroupVersionKind())
 	}
 	return handler(object, aggregatedStatusItems)
+}
+
+// GetDependencies returns the dependent resources of the given object.
+func (e *DefaultInterpreter) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error) {
+	handler, exist := e.dependenciesHandlers[object.GroupVersionKind()]
+	if !exist {
+		return dependencies, fmt.Errorf("defalut interpreter for operation %s not found", configv1alpha1.InterpreterOperationInterpretDependency)
+	}
+	return handler(object)
 }
