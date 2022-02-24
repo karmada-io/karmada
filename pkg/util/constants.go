@@ -111,6 +111,8 @@ const (
 	SpecField = "spec"
 	// ReplicasField indicates the 'replicas' field of a resource
 	ReplicasField = "replicas"
+	// ReadyReplicasField indicates the 'readyReplicas' field of a resource status
+	ReadyReplicasField = "readyReplicas"
 	// ParallelismField indicates the 'parallelism' field of a job
 	ParallelismField = "parallelism"
 	// CompletionsField indicates the 'completions' field of a job

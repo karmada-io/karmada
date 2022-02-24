@@ -2,7 +2,6 @@ package status
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -10,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -285,7 +283,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	}
 
 	if statusMap != nil {
-		rawExtension, err := c.buildStatusRawExtension(statusMap)
+		rawExtension, err := helper.BuildStatusRawExtension(statusMap)
 		if err != nil {
 			return err
 		}
@@ -334,18 +332,6 @@ func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, cl
 	}
 
 	return identifier, nil
-}
-
-func (c *WorkStatusController) buildStatusRawExtension(status map[string]interface{}) (*runtime.RawExtension, error) {
-	statusJSON, err := json.Marshal(status)
-	if err != nil {
-		klog.Errorf("Failed to marshal status. Error: %v.", statusJSON)
-		return nil, err
-	}
-
-	return &runtime.RawExtension{
-		Raw: statusJSON,
-	}, nil
 }
 
 func (c *WorkStatusController) mergeStatus(statuses []workv1alpha1.ManifestStatus, newStatus workv1alpha1.ManifestStatus) []workv1alpha1.ManifestStatus {
