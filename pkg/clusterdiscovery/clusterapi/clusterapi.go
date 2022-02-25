@@ -58,7 +58,12 @@ func (d *ClusterDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	d.EventHandler = informermanager.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker("cluster-api cluster detector", ClusterWideKeyFunc, d.Reconcile)
+	workerOptions := util.Options{
+		Name:          "cluster-api cluster detector",
+		KeyFunc:       ClusterWideKeyFunc,
+		ReconcileFunc: d.Reconcile,
+	}
+	d.Processor = util.NewAsyncWorker(workerOptions)
 	d.Processor.Run(d.ConcurrentReconciles, d.stopCh)
 	d.discoveryCluster()
 

@@ -70,11 +70,20 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 		unschedulableThreshold:  opts.UnschedulableThreshold.Duration,
 		deschedulingInterval:    opts.DeschedulingInterval.Duration,
 	}
-	desched.schedulerEstimatorWorker = util.NewAsyncWorker("scheduler-estimator", nil, desched.reconcileEstimatorConnection)
+	schedulerEstimatorWorkerOptions := util.Options{
+		Name:          "scheduler-estimator",
+		KeyFunc:       nil,
+		ReconcileFunc: desched.reconcileEstimatorConnection,
+	}
+	desched.schedulerEstimatorWorker = util.NewAsyncWorker(schedulerEstimatorWorkerOptions)
 	schedulerEstimator := estimatorclient.NewSchedulerEstimator(desched.schedulerEstimatorCache, opts.SchedulerEstimatorTimeout.Duration)
 	estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
-
-	desched.deschedulerWorker = util.NewAsyncWorker("descheduler", util.MetaNamespaceKeyFunc, desched.worker)
+	deschedulerWorkerOptions := util.Options{
+		Name:          "descheduler",
+		KeyFunc:       util.MetaNamespaceKeyFunc,
+		ReconcileFunc: desched.worker,
+	}
+	desched.deschedulerWorker = util.NewAsyncWorker(deschedulerWorkerOptions)
 
 	desched.clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    desched.addCluster,

@@ -16,6 +16,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -26,6 +27,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
+	"github.com/karmada-io/karmada/pkg/util/ratelimiter"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -47,6 +49,7 @@ type WorkStatusController struct {
 	PredicateFunc             predicate.Predicate
 	ClusterClientSetFunc      func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 	ClusterCacheSyncTimeout   metav1.Duration
+	RatelimiterOptions        ratelimiter.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -114,7 +117,12 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker("work-status", generateKey, c.syncWorkStatus)
+	workerOptions := util.Options{
+		Name:          "work-status",
+		KeyFunc:       generateKey,
+		ReconcileFunc: c.syncWorkStatus,
+	}
+	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.ConcurrentWorkStatusSyncs, c.StopChan)
 }
 
@@ -443,5 +451,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).WithOptions(controller.Options{
+		RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RatelimiterOptions),
+	}).Complete(c)
 }

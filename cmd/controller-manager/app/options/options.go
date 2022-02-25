@@ -97,6 +97,14 @@ type Options struct {
 	ConcurrentNamespaceSyncs int
 	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
 	ConcurrentResourceTemplateSyncs int
+	// RateLimiterBaseDelay is the base delay for ItemExponentialFailureRateLimiter.
+	RateLimiterBaseDelay time.Duration
+	// RateLimiterMaxDelay is the max delay for ItemExponentialFailureRateLimiter.
+	RateLimiterMaxDelay time.Duration
+	// RateLimiterQPS is the qps for BucketRateLimiter
+	RateLimiterQPS int
+	// RateLimiterBucketSize is the bucket size for BucketRateLimiter
+	RateLimiterBucketSize int
 }
 
 // NewOptions builds an empty options.
@@ -158,5 +166,9 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers []string) {
 	flags.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentNamespaceSyncs, "concurrent-namespace-syncs", 1, "The number of Namespaces that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
+	flags.DurationVar(&o.RateLimiterBaseDelay, "rate-limiter-base-delay", time.Millisecond*5, "The base delay for rate limiter.")
+	flags.DurationVar(&o.RateLimiterMaxDelay, "rate-limiter-max-delay", time.Second*1000, "The max delay for rate limiter.")
+	flags.IntVar(&o.RateLimiterQPS, "rate-limiter-qps", 10, "The qps for rate limier.")
+	flags.IntVar(&o.RateLimiterBucketSize, "rate-limiter-bucket-size", 100, "The bucket size for rate limier.")
 	features.FeatureGate.AddFlag(flags)
 }
