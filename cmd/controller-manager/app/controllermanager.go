@@ -8,18 +8,23 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
@@ -88,6 +93,15 @@ func Run(ctx context.Context, opts *options.Options) error {
 		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
 		LivenessEndpointName:       "/healthz",
 		MetricsBindAddress:         opts.MetricsBindAddress,
+		Controller: v1alpha1.ControllerConfigurationSpec{
+			GroupKindConcurrency: map[string]int{
+				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.ConcurrentResourceBindingSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():   opts.ConcurrentClusterResourceBindingSyncs,
+				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.ConcurrentClusterSyncs,
+				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.ConcurrentNamespaceSyncs,
+			},
+		},
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)
@@ -247,19 +261,20 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
-		Client:                  ctx.Mgr.GetClient(),
-		EventRecorder:           ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:              ctx.Mgr.GetRESTMapper(),
-		InformerManager:         informermanager.GetInstance(),
-		StopChan:                ctx.StopChan,
-		WorkerNumber:            1,
-		ObjectWatcher:           ctx.ObjectWatcher,
-		PredicateFunc:           helper.NewExecutionPredicate(ctx.Mgr),
-		ClusterClientSetFunc:    util.NewClusterDynamicClientSet,
-		ClusterCacheSyncTimeout: opts.ClusterCacheSyncTimeout,
+		Client:                    ctx.Mgr.GetClient(),
+		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:                ctx.Mgr.GetRESTMapper(),
+		InformerManager:           informermanager.GetInstance(),
+		StopChan:                  ctx.StopChan,
+		ObjectWatcher:             ctx.ObjectWatcher,
+		PredicateFunc:             helper.NewExecutionPredicate(ctx.Mgr),
+		ClusterClientSetFunc:      util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout:   opts.ClusterCacheSyncTimeout,
+		ConcurrentWorkStatusSyncs: opts.ConcurrentWorkSyncs,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
+		klog.Fatalf("Failed to setup work status controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -289,7 +304,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
-		WorkerNumber:                1,
+		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
@@ -364,15 +379,17 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
 
 	resourceDetector := &detector.ResourceDetector{
-		DiscoveryClientSet:           discoverClientSet,
-		Client:                       mgr.GetClient(),
-		InformerManager:              controlPlaneInformerManager,
-		RESTMapper:                   mgr.GetRESTMapper(),
-		DynamicClient:                dynamicClientSet,
-		SkippedResourceConfig:        skippedResourceConfig,
-		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
-		ResourceInterpreter:          resourceInterpreter,
-		EventRecorder:                mgr.GetEventRecorderFor("resource-detector"),
+		DiscoveryClientSet:              discoverClientSet,
+		Client:                          mgr.GetClient(),
+		InformerManager:                 controlPlaneInformerManager,
+		RESTMapper:                      mgr.GetRESTMapper(),
+		DynamicClient:                   dynamicClientSet,
+		SkippedResourceConfig:           skippedResourceConfig,
+		SkippedPropagatingNamespaces:    skippedPropagatingNamespaces,
+		ResourceInterpreter:             resourceInterpreter,
+		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
+		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
+		ConcurrentResourceBindingSyncs:  opts.ConcurrentResourceBindingSyncs,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
@@ -394,6 +411,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
+			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
@@ -438,6 +456,7 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,
 		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, stopChan),
+		ConcurrentReconciles:  3,
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {
 		klog.Fatalf("Failed to setup cluster-api cluster detector: %v", err)

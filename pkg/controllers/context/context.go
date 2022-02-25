@@ -47,6 +47,8 @@ type Options struct {
 	SkippedPropagatingNamespaces []string
 	// ClusterName is the name of cluster.
 	ClusterName string
+	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
+	ConcurrentWorkSyncs int
 }
 
 // Context defines the context object for controller.

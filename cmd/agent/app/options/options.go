@@ -55,6 +55,12 @@ type Options struct {
 	ClusterAPIEndpoint string
 	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
 	ProxyServerAddress string
+	// concurrentClusterSyncs is the number of cluster objects that are
+	// allowed to sync concurrently.
+	ConcurrentClusterSyncs int
+	// ConcurrentWorkSyncs is the number of work objects that are
+	// allowed to sync concurrently.
+	ConcurrentWorkSyncs int
 }
 
 // NewOptions builds an default scheduler options.
@@ -97,4 +103,6 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.StringVar(&o.ClusterAPIEndpoint, "cluster-api-endpoint", o.ClusterAPIEndpoint, "APIEndpoint of the cluster.")
 	fs.StringVar(&o.ProxyServerAddress, "proxy-server-address", o.ProxyServerAddress, "Address of the proxy server that is used to proxy to the cluster.")
 	fs.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
+	fs.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of Clusters that are allowed to sync concurrently.")
+	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
 }

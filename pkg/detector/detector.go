@@ -76,6 +76,12 @@ type ResourceDetector struct {
 	waitingObjects map[keys.ClusterWideKey]struct{}
 	// waitingLock is the lock for waitingObjects operation.
 	waitingLock sync.RWMutex
+	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
+	// Larger number means responsive resource template syncing but more CPU(and network) load.
+	ConcurrentResourceTemplateSyncs int
+	// ConcurrentResourceBindingSyncs is the number of ResourceBinding that are allowed to sync concurrently.
+	// Larger number means responsive resource template syncing but more CPU(and network) load.
+	ConcurrentResourceBindingSyncs int
 
 	stopCh <-chan struct{}
 }
@@ -114,7 +120,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 
 	// setup binding reconcile worker
 	d.bindingReconcileWorker = util.NewAsyncWorker("resourceBinding reconciler", ClusterWideKeyFunc, d.ReconcileResourceBinding)
-	d.bindingReconcileWorker.Run(1, d.stopCh)
+	d.bindingReconcileWorker.Run(d.ConcurrentResourceBindingSyncs, d.stopCh)
 
 	// watch and enqueue ResourceBinding changes.
 	resourceBindingGVR := schema.GroupVersionResource{
@@ -137,7 +143,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 
 	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.Processor = util.NewAsyncWorker("resource detector", ClusterWideKeyFunc, d.Reconcile)
-	d.Processor.Run(1, d.stopCh)
+	d.Processor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
 	<-d.stopCh
