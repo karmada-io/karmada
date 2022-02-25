@@ -30,6 +30,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
@@ -141,6 +142,7 @@ func init() {
 	controllers["endpointSlice"] = startEndpointSliceController
 	controllers["serviceImport"] = startServiceImportController
 	controllers["unifiedAuth"] = startUnifiedAuthController
+	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -348,6 +350,17 @@ func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, e
 		ClusterClientSetFunc:  util.NewClusterClientSet,
 	}
 	if err := unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := federatedresourcequota.SyncController{
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.SyncControllerName),
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
