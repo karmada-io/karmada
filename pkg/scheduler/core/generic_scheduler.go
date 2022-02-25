@@ -89,9 +89,7 @@ func (g *genericScheduler) findClustersThatFit(
 	var out []*clusterv1alpha1.Cluster
 	clusters := clusterInfo.GetReadyClusters()
 	for _, c := range clusters {
-		resMap := fwk.RunFilterPlugins(ctx, placement, resource, c.Cluster())
-		res := resMap.Merge()
-		if !res.IsSuccess() {
+		if result := fwk.RunFilterPlugins(ctx, placement, resource, c.Cluster()); !result.IsSuccess() {
 			klog.V(4).Infof("cluster %q is not fit", c.Cluster().Name)
 		} else {
 			out = append(out, c.Cluster())
@@ -264,9 +262,7 @@ func (g *genericScheduler) FailoverSchedule(ctx context.Context, placement *poli
 			return result, fmt.Errorf("failed to get clusterObj by clusterName: %s", clusterName)
 		}
 
-		resMap := g.scheduleFramework.RunFilterPlugins(ctx, placement, &spec.Resource, clusterObj.Cluster())
-		res := resMap.Merge()
-		if !res.IsSuccess() {
+		if result := g.scheduleFramework.RunFilterPlugins(ctx, placement, &spec.Resource, clusterObj.Cluster()); !result.IsSuccess() {
 			klog.V(4).Infof("cluster %q is not fit", clusterName)
 		} else {
 			candidateClusters.Insert(clusterName)

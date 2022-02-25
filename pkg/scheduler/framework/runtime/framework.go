@@ -48,14 +48,13 @@ func NewFramework(plugins []string) framework.Framework {
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) framework.PluginToResult {
-	result := make(framework.PluginToResult, len(frw.filterPlugins))
+func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	for _, p := range frw.filterPlugins {
-		pluginResult := p.Filter(ctx, placement, resource, cluster)
-		result[p.Name()] = pluginResult
+		if result := p.Filter(ctx, placement, resource, cluster); !result.IsSuccess() {
+			return result
+		}
 	}
-
-	return result
+	return framework.NewResult(framework.Success)
 }
 
 // RunScorePlugins runs the set of configured Filter plugins for resources on the cluster.

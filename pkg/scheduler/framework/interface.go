@@ -16,7 +16,7 @@ type Framework interface {
 
 	// RunFilterPlugins runs the set of configured Filter plugins for resources on
 	// the given cluster.
-	RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, clusterv1alpha1 *clusterv1alpha1.Cluster) PluginToResult
+	RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, clusterv1alpha1 *clusterv1alpha1.Cluster) *Result
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin name to cores
 	RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, error)
