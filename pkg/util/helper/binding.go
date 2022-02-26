@@ -72,13 +72,16 @@ func HasScheduledReplica(scheduleResult []workv1alpha2.TargetCluster) bool {
 	return false
 }
 
-// GetBindingClusterNames will get clusterName list from bind clusters field
-func GetBindingClusterNames(targetClusters []workv1alpha2.TargetCluster) []string {
-	var clusterNames []string
-	for _, targetCluster := range targetClusters {
-		clusterNames = append(clusterNames, targetCluster.Name)
+// GetBindingClusterNames will get clusterName list from bind clusters field and requiredBy field.
+func GetBindingClusterNames(targetClusters []workv1alpha2.TargetCluster, bindingSnapshot []workv1alpha2.BindingSnapshot) []string {
+	clusterNames := util.ConvertToClusterNames(targetClusters)
+	for _, binding := range bindingSnapshot {
+		for _, targetCluster := range binding.Clusters {
+			clusterNames.Insert(targetCluster.Name)
+		}
 	}
-	return clusterNames
+
+	return clusterNames.List()
 }
 
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,

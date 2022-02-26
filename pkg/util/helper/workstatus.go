@@ -53,7 +53,7 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 
 	currentBindingStatus := binding.Status.DeepCopy()
 	currentBindingStatus.AggregatedStatus = aggregatedStatuses
-	meta.SetStatusCondition(&currentBindingStatus.Conditions, generateFullyAppliedCondition(binding.Spec.Clusters, aggregatedStatuses))
+	meta.SetStatusCondition(&currentBindingStatus.Conditions, generateFullyAppliedCondition(binding.Spec, aggregatedStatuses))
 
 	if reflect.DeepEqual(binding.Status, currentBindingStatus) {
 		klog.V(4).Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
@@ -100,7 +100,7 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 
 	currentBindingStatus := binding.Status.DeepCopy()
 	currentBindingStatus.AggregatedStatus = aggregatedStatuses
-	meta.SetStatusCondition(&currentBindingStatus.Conditions, generateFullyAppliedCondition(binding.Spec.Clusters, aggregatedStatuses))
+	meta.SetStatusCondition(&currentBindingStatus.Conditions, generateFullyAppliedCondition(binding.Spec, aggregatedStatuses))
 
 	if reflect.DeepEqual(binding.Status, currentBindingStatus) {
 		klog.Infof("New aggregatedStatuses are equal with old clusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
@@ -126,8 +126,9 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 	})
 }
 
-func generateFullyAppliedCondition(targetClusters []workv1alpha2.TargetCluster, aggregatedStatuses []workv1alpha2.AggregatedStatusItem) metav1.Condition {
-	if len(targetClusters) == len(aggregatedStatuses) && areWorksFullyApplied(aggregatedStatuses) {
+func generateFullyAppliedCondition(spec workv1alpha2.ResourceBindingSpec, aggregatedStatuses []workv1alpha2.AggregatedStatusItem) metav1.Condition {
+	clusterNames := GetBindingClusterNames(spec.Clusters, spec.RequiredBy)
+	if len(clusterNames) == len(aggregatedStatuses) && areWorksFullyApplied(aggregatedStatuses) {
 		return util.NewCondition(workv1alpha2.FullyApplied, FullyAppliedSuccessReason, FullyAppliedSuccessMessage, metav1.ConditionTrue)
 	}
 	return util.NewCondition(workv1alpha2.FullyApplied, FullyAppliedFailedReason, FullyAppliedFailedMessage, metav1.ConditionFalse)
