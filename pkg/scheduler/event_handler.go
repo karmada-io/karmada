@@ -15,6 +15,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
@@ -22,9 +23,12 @@ import (
 // to add event handlers for various informers.
 func (s *Scheduler) addAllEventHandlers() {
 	bindingInformer := s.informerFactory.Work().V1alpha2().ResourceBindings().Informer()
-	bindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    s.onResourceBindingAdd,
-		UpdateFunc: s.onResourceBindingUpdate,
+	bindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: s.resourceBindingEventFilter,
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    s.onResourceBindingAdd,
+			UpdateFunc: s.onResourceBindingUpdate,
+		},
 	})
 
 	policyInformer := s.informerFactory.Policy().V1alpha1().PropagationPolicies().Informer()
@@ -33,9 +37,12 @@ func (s *Scheduler) addAllEventHandlers() {
 	})
 
 	clusterBindingInformer := s.informerFactory.Work().V1alpha2().ClusterResourceBindings().Informer()
-	clusterBindingInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    s.onResourceBindingAdd,
-		UpdateFunc: s.onResourceBindingUpdate,
+	clusterBindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: s.resourceBindingEventFilter,
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    s.onResourceBindingAdd,
+			UpdateFunc: s.onResourceBindingUpdate,
+		},
 	})
 
 	clusterPolicyInformer := s.informerFactory.Policy().V1alpha1().ClusterPropagationPolicies().Informer()
@@ -56,6 +63,16 @@ func (s *Scheduler) addAllEventHandlers() {
 	eventBroadcaster.StartStructuredLogging(0)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: s.KubeClient.CoreV1().Events("")})
 	s.eventRecorder = eventBroadcaster.NewRecorder(gclient.NewSchema(), corev1.EventSource{Component: "karmada-scheduler"})
+}
+
+func (s *Scheduler) resourceBindingEventFilter(obj interface{}) bool {
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return false
+	}
+
+	return util.GetLabelValue(accessor.GetLabels(), policyv1alpha1.PropagationPolicyNameLabel) != "" ||
+		util.GetLabelValue(accessor.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel) != ""
 }
 
 func (s *Scheduler) onResourceBindingAdd(obj interface{}) {

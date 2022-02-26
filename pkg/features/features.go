@@ -8,6 +8,8 @@ import (
 const (
 	// Failover indicates if scheduler should reschedule on cluster failure.
 	Failover featuregate.Feature = "Failover"
+	// PropagateDeps indicates if relevant resources should be propagated automatically
+	PropagateDeps featuregate.Feature = "PropagateDeps"
 )
 
 var (
@@ -15,7 +17,8 @@ var (
 	FeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()
 
 	defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
-		Failover: {Default: false, PreRelease: featuregate.Alpha},
+		Failover:      {Default: false, PreRelease: featuregate.Alpha},
+		PropagateDeps: {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

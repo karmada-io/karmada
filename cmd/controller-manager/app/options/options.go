@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -157,4 +158,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers []string) {
 	flags.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentNamespaceSyncs, "concurrent-namespace-syncs", 1, "The number of Namespaces that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
+	features.FeatureGate.AddFlag(flags)
 }

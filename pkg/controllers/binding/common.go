@@ -59,14 +59,19 @@ func ensureWork(
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
+	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
 		bindingObj := binding.(*workv1alpha2.ResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
+		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
 	case apiextensionsv1.ClusterScoped:
 		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
+		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
 	}
+
+	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
 
 	var jobCompletions []workv1alpha2.TargetCluster
 	var err error
@@ -138,6 +143,25 @@ func ensureWork(
 		}
 	}
 	return nil
+}
+
+func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredByBindingSnapshot []workv1alpha2.BindingSnapshot) []workv1alpha2.TargetCluster {
+	if len(requiredByBindingSnapshot) == 0 {
+		return targetClusters
+	}
+
+	scheduledClusterNames := util.ConvertToClusterNames(targetClusters)
+
+	for _, requiredByBinding := range requiredByBindingSnapshot {
+		for _, targetCluster := range requiredByBinding.Clusters {
+			if !scheduledClusterNames.Has(targetCluster.Name) {
+				scheduledClusterNames.Insert(targetCluster.Name)
+				targetClusters = append(targetClusters, targetCluster)
+			}
+		}
+	}
+
+	return targetClusters
 }
 
 func getReplicaInfos(targetClusters []workv1alpha2.TargetCluster) (bool, map[string]int64) {

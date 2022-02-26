@@ -35,7 +35,9 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
+	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/detector"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -393,6 +395,19 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
+	}
+
+	if features.FeatureGate.Enabled(features.PropagateDeps) {
+		dependenciesDistributor := &dependenciesdistributor.DependenciesDistributor{
+			Client:              mgr.GetClient(),
+			DynamicClient:       dynamicClientSet,
+			InformerManager:     controlPlaneInformerManager,
+			ResourceInterpreter: resourceInterpreter,
+			RESTMapper:          mgr.GetRESTMapper(),
+		}
+		if err := mgr.Add(dependenciesDistributor); err != nil {
+			klog.Fatalf("Failed to setup dependencies distributor: %v", err)
+		}
 	}
 
 	setupClusterAPIClusterDetector(mgr, opts, stopChan)

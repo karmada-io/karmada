@@ -88,7 +88,7 @@ func (c *ResourceBindingController) removeFinalizer(rb *workv1alpha2.ResourceBin
 
 // syncBinding will sync resourceBinding to Works.
 func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
-	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters)
+	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters, binding.Spec.RequiredBy)
 	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name, clusterNames, apiextensionsv1.NamespaceScoped)
 	if err != nil {
 		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
