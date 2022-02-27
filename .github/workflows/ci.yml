@@ -16,7 +16,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: vendor
         run: hack/verify-vendor.sh
       - name: lint
@@ -41,7 +41,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: verify codegen
         run: hack/verify-codegen.sh
       - name: verify crdgen
@@ -60,7 +60,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: compile
         run: make all
   test:
@@ -73,7 +73,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: make test
         run: make test
   e2e:
@@ -88,7 +88,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: setup e2e test environment
         run: hack/local-up-karmada.sh
       - name: run e2e

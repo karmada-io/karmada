@@ -101,7 +101,7 @@ func (c *FakeResourceBindings) UpdateStatus(ctx context.Context, resourceBinding
 // Delete takes name of the resourceBinding and deletes it. Returns an error if one occurs.
 func (c *FakeResourceBindings) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(resourcebindingsResource, c.ns, name), &v1alpha2.ResourceBinding{})
+		Invokes(testing.NewDeleteActionWithOptions(resourcebindingsResource, c.ns, name, opts), &v1alpha2.ResourceBinding{})
 
 	return err
 }

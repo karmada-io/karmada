@@ -16,7 +16,6 @@ import (
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	netutils "k8s.io/utils/net"
 
 	"github.com/karmada-io/karmada/pkg/aggregatedapiserver"
@@ -55,9 +54,14 @@ func NewOptions() *Options {
 // AddFlags adds flags to the specified FlagSet.
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	o.RecommendedOptions.AddFlags(flags)
+	flags.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
 
 	flags.StringVar(&o.karmadaConfig, "karmada-config", o.karmadaConfig, "Path to a karmada-apiserver KubeConfig.")
+	// Remove it when we are in v1.2(+).
+	_ = flags.MarkDeprecated("karmada-config", "This flag is currently no-op and will be deleted.")
 	flags.StringVar(&o.Master, "master", o.Master, "The address of the Karmada API server. Overrides any value in KubeConfig.")
+	// Remove it when we are in v1.2(+).
+	_ = flags.MarkDeprecated("master", "This flag is currently no-op and will be deleted.")
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
@@ -82,10 +86,7 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 
-	restConfig, err := clientcmd.BuildConfigFromFlags(o.Master, o.karmadaConfig)
-	if err != nil {
-		return fmt.Errorf("error building kubeconfig: %s", err.Error())
-	}
+	restConfig := config.GenericConfig.ClientConfig
 	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
 	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
 

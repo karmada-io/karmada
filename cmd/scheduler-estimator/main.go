@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	apiserver "k8s.io/apiserver/pkg/server"
@@ -11,13 +10,19 @@ import (
 )
 
 func main() {
+	if err := runSchedulerEstimatorCmd(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func runSchedulerEstimatorCmd() error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
 	ctx := apiserver.SetupSignalContext()
-
 	if err := app.NewSchedulerEstimatorCommand(ctx).Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }

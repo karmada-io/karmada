@@ -35,6 +35,8 @@ type ResourceInterpreter interface {
 	// AggregateStatus returns the objects that based on the 'object' but with status aggregated.
 	AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error)
 
+	// GetDependencies returns the dependent resources of the given object.
+	GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error)
 	// other common method
 }
 
@@ -152,4 +154,23 @@ func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Uns
 	}
 
 	return i.defaultInterpreter.AggregateStatus(object, aggregatedStatusItems)
+}
+
+// GetDependencies returns the dependent resources of the given object.
+func (i *customResourceInterpreterImpl) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error) {
+	klog.V(4).Infof("Begin to get dependencies for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	dependencies, hookEnabled, err := i.customizedInterpreter.GetDependencies(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretDependency,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+
+	dependencies, err = i.defaultInterpreter.GetDependencies(object)
+	return
 }

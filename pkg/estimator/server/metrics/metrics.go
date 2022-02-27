@@ -15,6 +15,8 @@ const SchedulerEstimatorSubsystem = "karmada_scheduler_estimator"
 const (
 	// EstimatingTypeMaxAvailableReplicas - label of estimating type
 	EstimatingTypeMaxAvailableReplicas = "MaxAvailableReplicas"
+	// EstimatingTypeGetUnschedulableReplicas - label of estimating type
+	EstimatingTypeGetUnschedulableReplicas = "GetUnschedulableReplicas"
 )
 
 const (
@@ -22,6 +24,10 @@ const (
 	EstimatingStepListNodesByNodeClaim = "ListNodesByNodeClaim"
 	// EstimatingStepMaxAvailableReplicas - label of estimating step
 	EstimatingStepMaxAvailableReplicas = "MaxAvailableReplicas"
+	// EstimatingStepGetObjectFromCache - label of estimating step
+	EstimatingStepGetObjectFromCache = "GetObjectFromCache"
+	// EstimatingStepGetUnschedulablePodsOfWorkload - label of estimating step
+	EstimatingStepGetUnschedulablePodsOfWorkload = "GetWorkloadUnschedulablePods"
 	// EstimatingStepTotal - label of estimating step, total step
 	EstimatingStepTotal = "Total"
 )

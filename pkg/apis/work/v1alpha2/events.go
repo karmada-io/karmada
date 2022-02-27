@@ -20,4 +20,8 @@ const (
 	EventReasonScheduleBindingFailed = "ScheduleBindingFailed"
 	// EventReasonScheduleBindingSucceed indicates that schedule binding succeed.
 	EventReasonScheduleBindingSucceed = "ScheduleBindingSucceed"
+	// EventReasonDescheduleBindingFailed indicates that deschedule binding failed.
+	EventReasonDescheduleBindingFailed = "DescheduleBindingFailed"
+	// EventReasonDescheduleBindingSucceed indicates that deschedule binding succeed.
+	EventReasonDescheduleBindingSucceed = "DescheduleBindingSucceed"
 )

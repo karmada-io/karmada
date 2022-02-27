@@ -105,7 +105,7 @@ func (r *Resource) Sub(rl corev1.ResourceList) error {
 			if resourcehelper.IsScalarResourceName(rName) {
 				rScalar, ok := r.ScalarResources[rName]
 				scalar := rQuant.Value()
-				if !ok {
+				if !ok && scalar > 0 {
 					return fmt.Errorf("scalar resources %s does not exist, got %d", rName, scalar)
 				}
 				if rScalar < scalar {

@@ -53,6 +53,10 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
+	// Init log flags
+	// TODO(@RainbowMango): Group the flags to "logs" flag set.
+	klog.InitFlags(flag.CommandLine)
+
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-webhook"))
 	opts.AddFlags(cmd.Flags())
@@ -77,7 +81,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 			CertDir:       opts.CertDir,
 			TLSMinVersion: opts.TLSMinVersion,
 		},
-		LeaderElection: false,
+		LeaderElection:         false,
+		MetricsBindAddress:     opts.MetricsBindAddress,
+		HealthProbeBindAddress: opts.HealthProbeBindAddress,
 	})
 	if err != nil {
 		klog.Errorf("failed to build webhook server: %v", err)

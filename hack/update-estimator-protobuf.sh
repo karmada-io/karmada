@@ -14,6 +14,7 @@ export PATH=$PATH:$GOPATH/bin
 GO111MODULE=on go install golang.org/x/tools/cmd/goimports
 GO111MODULE=on go install k8s.io/code-generator/cmd/go-to-protobuf
 GO111MODULE=on go install github.com/gogo/protobuf/protoc-gen-gogo
+GO111MODULE=on go install github.com/vektra/mockery/v2
 
 #ref https://github.com/kubernetes/kubernetes/blob/master/hack/update-generated-protobuf-dockerized.sh
 if [[ -z "$(which protoc)" || "$(protoc --version)" != "libprotoc 3."* ]]; then
@@ -46,16 +47,7 @@ ${GOPATH}/bin/go-to-protobuf \
   --proto-import="${KARMADA_ROOT}/vendor" \
   --proto-import="${KARMADA_ROOT}/third_party/protobuf"
 
+go generate ./pkg/estimator/service
 
 # The `go-to-protobuf` tool will modify all import proto files in vendor, so we should use go mod vendor to prevent.
 go mod vendor
-
-SERVICE_PROTO_FILES=$(find ./pkg/ -name "service.proto")
-
-for file in ${SERVICE_PROTO_FILES[*]}; do
-  protoc \
-    --proto_path=. \
-    --proto_path=./vendor \
-    --gogo_out=plugins=grpc:. \
-    $file
-done

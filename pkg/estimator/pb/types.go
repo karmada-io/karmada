@@ -58,8 +58,8 @@ type UnschedulableReplicasRequest struct {
 	// Resource represents the Kubernetes resource to be propagated.
 	// +required
 	Resource ObjectReference `json:"resource" protobuf:"bytes,2,opt,name=resource"`
-	// UnschedulableThreshold represents the period threshold of pod unscheduable condition.
-	// This value is considered as a classification standard of unscheduable replicas.
+	// UnschedulableThreshold represents the period threshold of pod unschedulable condition.
+	// This value is considered as a classification standard of unschedulable replicas.
 	// +optional
 	UnschedulableThreshold time.Duration `json:"unschedulableThreshold,omitempty" protobuf:"varint,3,opt,name=unschedulableThreshold,casttype=time.Duration"`
 }
@@ -90,5 +90,5 @@ type ObjectReference struct {
 type UnschedulableReplicasResponse struct {
 	// UnschedulableReplicas represents the unschedulable replicas that the object contains.
 	// +required
-	UnschedulableReplicas int32 `json:"maxUnschedulableReplicas" protobuf:"varint,1,opt,name=maxUnschedulableReplicas"`
+	UnschedulableReplicas int32 `json:"unschedulableReplicas" protobuf:"varint,1,opt,name=unschedulableReplicas"`
 }

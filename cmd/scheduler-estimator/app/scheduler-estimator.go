@@ -11,6 +11,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -56,9 +58,11 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	restConfig.QPS, restConfig.Burst = opts.ClusterAPIQPS, opts.ClusterAPIBurst
 
-	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
+	kubeClient := kubernetes.NewForConfigOrDie(restConfig)
+	dynamicClient := dynamic.NewForConfigOrDie(restConfig)
+	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 
-	e := server.NewEstimatorServer(kubeClientSet, opts)
+	e := server.NewEstimatorServer(kubeClient, dynamicClient, discoveryClient, opts, ctx.Done())
 	if err = e.Start(ctx); err != nil {
 		klog.Errorf("estimator server exits unexpectedly: %v", err)
 		return err

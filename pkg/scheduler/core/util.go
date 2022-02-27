@@ -75,13 +75,14 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	return availableTargetClusters
 }
 
-// findOutScheduledCluster will return a name set of clusters
-// which are a part of `feasibleClusters` and have non-zero replicas.
-func findOutScheduledCluster(tcs []workv1alpha2.TargetCluster, candidates []*clusterv1alpha1.Cluster) sets.String {
-	res := sets.NewString()
+// findOutScheduledCluster will return a slice of clusters
+// which are a part of `TargetClusters` and have non-zero replicas.
+func findOutScheduledCluster(tcs []workv1alpha2.TargetCluster, candidates []*clusterv1alpha1.Cluster) []workv1alpha2.TargetCluster {
+	validTarget := make([]workv1alpha2.TargetCluster, 0)
 	if len(tcs) == 0 {
-		return res
+		return validTarget
 	}
+
 	for _, targetCluster := range tcs {
 		// must have non-zero replicas
 		if targetCluster.Replicas <= 0 {
@@ -90,12 +91,13 @@ func findOutScheduledCluster(tcs []workv1alpha2.TargetCluster, candidates []*clu
 		// must in `candidates`
 		for _, cluster := range candidates {
 			if targetCluster.Name == cluster.Name {
-				res.Insert(targetCluster.Name)
+				validTarget = append(validTarget, targetCluster)
 				break
 			}
 		}
 	}
-	return res
+
+	return validTarget
 }
 
 // resortClusterList is used to make sure scheduledClusterNames are in front of the other clusters in the list of

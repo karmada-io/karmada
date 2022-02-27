@@ -275,3 +275,18 @@ func applyPatch(object *unstructured.Unstructured, patch []byte, patchType confi
 		return nil, fmt.Errorf("return patch type %s is not support", patchType)
 	}
 }
+
+// GetDependencies returns the dependencies of give object.
+// return matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes *webhook.RequestAttributes) (dependencies []configv1alpha1.DependentObjectReference, matched bool, err error) {
+	var response *webhook.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+
+	return response.Dependencies, matched, nil
+}

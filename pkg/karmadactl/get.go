@@ -2,15 +2,16 @@ package karmadactl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,7 +52,6 @@ var (
 
 	noPushModeMessage = "The karmadactl get command now only supports Push mode, [ %s ] are not push mode\n"
 	getShort          = `Display one or many resources`
-	defaultKubeConfig = filepath.Join(os.Getenv("HOME"), ".kube/config")
 )
 
 // NewCmdGet New get command
@@ -97,8 +97,9 @@ type CommandGetOptions struct {
 
 	Clusters []string
 
-	PrintFlags *get.PrintFlags
-	ToPrinter  func(*meta.RESTMapping, *bool, bool, bool) (printers.ResourcePrinterFunc, error)
+	PrintFlags             *get.PrintFlags
+	ToPrinter              func(*meta.RESTMapping, *bool, bool, bool) (printers.ResourcePrinterFunc, error)
+	IsHumanReadablePrinter bool
 
 	CmdParent string
 
@@ -115,6 +116,8 @@ type CommandGetOptions struct {
 	Namespace         string
 	ExplicitNamespace bool
 
+	ServerPrint bool
+
 	NoHeaders      bool
 	Sort           bool
 	IgnoreNotFound bool
@@ -126,10 +129,11 @@ type CommandGetOptions struct {
 // NewCommandGetOptions returns a GetOptions with default chunk size 500.
 func NewCommandGetOptions(parent string, streams genericclioptions.IOStreams) *CommandGetOptions {
 	return &CommandGetOptions{
-		PrintFlags: get.NewGetPrintFlags(),
-		CmdParent:  parent,
-		IOStreams:  streams,
-		ChunkSize:  500,
+		PrintFlags:  get.NewGetPrintFlags(),
+		CmdParent:   parent,
+		IOStreams:   streams,
+		ChunkSize:   500,
+		ServerPrint: true,
 	}
 }
 
@@ -137,21 +141,19 @@ func NewCommandGetOptions(parent string, streams genericclioptions.IOStreams) *C
 func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
 	newScheme := gclient.NewSchema()
 
-	// check karmada config path
-	env := os.Getenv("KUBECONFIG")
-	if env != "" {
-		g.KubeConfig = env
+	outputOption := cmd.Flags().Lookup("output").Value.String()
+	if strings.Contains(outputOption, "custom-columns") || outputOption == "yaml" || strings.Contains(outputOption, "json") {
+		g.ServerPrint = false
 	}
 
-	if g.KubeConfig == "" {
-		g.KubeConfig = defaultKubeConfig
-	}
-	if !Exists(g.KubeConfig) {
-		return ErrEmptyConfig
+	templateArg := ""
+	if g.PrintFlags.TemplateFlags != nil && g.PrintFlags.TemplateFlags.TemplateArgument != nil {
+		templateArg = *g.PrintFlags.TemplateFlags.TemplateArgument
 	}
 
-	if g.AllNamespaces {
-		g.ExplicitNamespace = false
+	// human readable printers have special conversion rules, so we determine if we're using one.
+	if (len(*g.PrintFlags.OutputFormat) == 0 && len(templateArg) == 0) || *g.PrintFlags.OutputFormat == "wide" {
+		g.IsHumanReadablePrinter = true
 	}
 
 	g.ToPrinter = func(mapping *meta.RESTMapping, outputObjects *bool, withNamespace bool, withKind bool) (printers.ResourcePrinterFunc, error) {
@@ -178,7 +180,9 @@ func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
 			return nil, err
 		}
 
-		printer = &get.TablePrinter{Delegate: printer}
+		if g.ServerPrint {
+			printer = &get.TablePrinter{Delegate: printer}
+		}
 
 		return printer.PrintObj, nil
 	}
@@ -210,6 +214,10 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 
 	clusterInfos := make(map[string]*ClusterInfo)
 	RBInfo = make(map[string]*OtherPrint)
+
+	if g.AllNamespaces {
+		g.ExplicitNamespace = false
+	}
 
 	karmadaclient, err := clusterInfoInit(g, karmadaConfig, clusterInfos)
 	if err != nil {
@@ -354,6 +362,13 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 
 	r.IgnoreErrors(apierrors.IsNotFound)
 
+	if !g.IsHumanReadablePrinter {
+		err := g.printGeneric(r)
+
+		*allErrs = append(*allErrs, err)
+		return
+	}
+
 	infos, err := r.Infos()
 	if err != nil {
 		*allErrs = append(*allErrs, err)
@@ -401,6 +416,110 @@ func (g *CommandGetOptions) reconstructionRow(objs []Obj, table *metav1.Table) (
 	return allTableRows, mapping, nil
 }
 
+func (g *CommandGetOptions) printGeneric(r *resource.Result) error {
+	// we flattened the data from the builder, so we have individual items, but now we'd like to either:
+	// 1. if there is more than one item, combine them all into a single list
+	// 2. if there is a single item and that item is a list, leave it as its specific list
+	// 3. if there is a single item and it is not a list, leave it as a single item
+	var errs []error
+	singleItemImplied := false
+
+	infos, err := g.extractInfosFromResource(r, &errs, &singleItemImplied)
+	if err != nil {
+		return err
+	}
+
+	printer, err := g.ToPrinter(nil, nil, false, false)
+	if err != nil {
+		return err
+	}
+
+	var obj runtime.Object
+	if !singleItemImplied || len(infos) != 1 {
+		// we have zero or multple items, so coerce all items into a list.
+		// we don't want an *unstructured.Unstructured list yet, as we
+		// may be dealing with non-unstructured objects. Compose all items
+		// into an corev1.List, and then decode using an unstructured scheme.
+		list := corev1.List{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "List",
+				APIVersion: "v1",
+			},
+			ListMeta: metav1.ListMeta{},
+		}
+		for _, info := range infos {
+			list.Items = append(list.Items, runtime.RawExtension{Object: info.Object})
+		}
+
+		listData, err := json.Marshal(list)
+		if err != nil {
+			return err
+		}
+
+		converted, err := runtime.Decode(unstructured.UnstructuredJSONScheme, listData)
+		if err != nil {
+			return err
+		}
+
+		obj = converted
+	} else {
+		obj = infos[0].Object
+	}
+
+	isList := meta.IsListType(obj)
+	if isList {
+		items, err := meta.ExtractList(obj)
+		if err != nil {
+			return err
+		}
+
+		// take the items and create a new list for display
+		list := &unstructured.UnstructuredList{
+			Object: map[string]interface{}{
+				"kind":       "List",
+				"apiVersion": "v1",
+				"metadata":   map[string]interface{}{},
+			},
+		}
+		if listMeta, err := meta.ListAccessor(obj); err == nil {
+			list.Object["metadata"] = map[string]interface{}{
+				"selfLink":        listMeta.GetSelfLink(),
+				"resourceVersion": listMeta.GetResourceVersion(),
+			}
+		}
+
+		for _, item := range items {
+			list.Items = append(list.Items, *item.(*unstructured.Unstructured))
+		}
+		if err := printer.PrintObj(list, g.Out); err != nil {
+			errs = append(errs, err)
+		}
+		return utilerrors.Reduce(utilerrors.Flatten(utilerrors.NewAggregate(errs)))
+	}
+
+	if printErr := printer.PrintObj(obj, g.Out); printErr != nil {
+		errs = append(errs, printErr)
+	}
+
+	return utilerrors.Reduce(utilerrors.Flatten(utilerrors.NewAggregate(errs)))
+}
+
+func (g *CommandGetOptions) extractInfosFromResource(r *resource.Result, errs *[]error, singleItemImplied *bool) ([]*resource.Info, error) {
+	infos, err := r.IntoSingleItemImplied(singleItemImplied).Infos()
+	if err != nil {
+		if *singleItemImplied {
+			return nil, err
+		}
+		*errs = append(*errs, err)
+	}
+
+	if len(infos) == 0 && g.IgnoreNotFound {
+		return nil, utilerrors.Reduce(utilerrors.Flatten(utilerrors.NewAggregate(*errs)))
+	}
+
+	return infos, nil
+}
+
 type trackingWriterWrapper struct {
 	Delegate io.Writer
 	Written  int
@@ -445,7 +564,8 @@ type ClusterInfo struct {
 func clusterInfoInit(g *CommandGetOptions, karmadaConfig KarmadaConfig, clusterInfos map[string]*ClusterInfo) (*rest.Config, error) {
 	karmadaclient, err := karmadaConfig.GetRestConfig(g.KarmadaContext, g.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("func GetRestConfig get karmada client failed, err is: %w", err)
+		return nil, fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
+			g.KarmadaContext, g.KubeConfig, err)
 	}
 
 	if err := getClusterInKarmada(karmadaclient, clusterInfos); err != nil {
@@ -475,6 +595,10 @@ func getFactory(clusterName string, clusterInfos map[string]*ClusterInfo) cmduti
 }
 
 func (g *CommandGetOptions) transformRequests(req *rest.Request) {
+	if !g.ServerPrint || !g.IsHumanReadablePrinter {
+		return
+	}
+
 	req.SetHeader("Accept", strings.Join([]string{
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName),
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1beta1.SchemeGroupVersion.Version, metav1beta1.GroupName),
@@ -629,7 +753,10 @@ func getExample(parentCommand string) string {
 		fmt.Sprintf("%s get replicasets nginx", parentCommand) + `
 
 # List deployments in JSON output format, in the "v1" version of the "apps" API group ` + "\n" +
-		fmt.Sprintf("%s get deployments.v1.apps ", parentCommand) + `
+		fmt.Sprintf("%s get deployments.v1.apps -o json", parentCommand) + `
+
+# Return only the phase value of the specified resource ` + "\n" +
+		fmt.Sprintf("%s get -o template deployment/nginx -C member1 --template={{.spec.replicas}}", parentCommand) + `
 
 # List all replication controllers and services together in ps output format ` + "\n" +
 		fmt.Sprintf("%s get rs,services", parentCommand) + `

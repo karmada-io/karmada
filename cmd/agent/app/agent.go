@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -16,9 +15,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
@@ -64,6 +65,10 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
+	// Init log flags
+	// TODO(@RainbowMango): Group the flags to "logs" flag set.
+	klog.InitFlags(flag.CommandLine)
+
 	opts.AddFlags(cmd.Flags(), controllers.ControllerNames())
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-agent"))
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
@@ -83,13 +88,13 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	klog.Infof("karmada-agent version: %s", version.Get())
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KarmadaKubeConfig)
 	if err != nil {
-		return fmt.Errorf("error building kubeconfig of karmada control plane: %s", err.Error())
+		return fmt.Errorf("error building kubeconfig of karmada control plane: %w", err)
 	}
 	controlPlaneRestConfig.QPS, controlPlaneRestConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
-		return fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
+		return fmt.Errorf("error building kubeconfig of member cluster: %w", err)
 	}
 	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
 	// ensure namespace where the impersonation secret to be stored in member cluster.
@@ -107,49 +112,52 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 
 	err = registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterConfig, opts)
 	if err != nil {
-		return fmt.Errorf("failed to register with karmada control plane: %s", err.Error())
+		return fmt.Errorf("failed to register with karmada control plane: %w", err)
 	}
 
 	executionSpace, err := names.GenerateExecutionSpaceName(opts.ClusterName)
 	if err != nil {
-		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", opts.ClusterName, err)
-		return err
+		return fmt.Errorf("failed to generate execution space name for member cluster %s, err is %v", opts.ClusterName, err)
 	}
 
-	// TODO(Garrybest): add resyncPeriod to options
-	resyncPeriod := time.Duration(0)
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
 		Scheme:                     gclient.NewSchema(),
-		SyncPeriod:                 &resyncPeriod,
+		SyncPeriod:                 &opts.ResyncPeriod.Duration,
 		Namespace:                  executionSpace,
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           fmt.Sprintf("karmada-agent-%s", opts.ClusterName),
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
+		Controller: v1alpha1.ControllerConfigurationSpec{
+			GroupKindConcurrency: map[string]int{
+				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():       opts.ConcurrentWorkSyncs,
+				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String(): opts.ConcurrentClusterSyncs,
+			},
+		},
 	})
 	if err != nil {
-		klog.Errorf("failed to build controller manager: %v", err)
+		return fmt.Errorf("failed to build controller manager: %w", err)
+	}
+
+	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
 		return err
 	}
 
-	setupControllers(controllerManager, opts, ctx.Done())
-
 	// blocks until the context is done.
 	if err := controllerManager.Start(ctx); err != nil {
-		klog.Errorf("controller manager exits unexpectedly: %v", err)
-		return err
+		return fmt.Errorf("controller manager exits unexpectedly: %w", err)
 	}
 
 	return nil
 }
 
-func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
+func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) error {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter("", controlPlaneInformerManager)
 	if err := mgr.Add(resourceInterpreter); err != nil {
-		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
+		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter)
@@ -165,12 +173,13 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
+			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 		},
 		StopChan: stopChan,
 	}
 
 	if err := controllers.StartControllers(controllerContext); err != nil {
-		klog.Fatalf("error starting controllers: %v", err)
+		return fmt.Errorf("error starting controllers: %w", err)
 	}
 
 	// Ensure the InformerManager stops when the stop channel closes
@@ -178,6 +187,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		<-stopChan
 		informermanager.StopInstance()
 	}()
+
+	return nil
 }
 
 func startClusterStatusController(ctx controllerscontext.Context) (bool, error) {
@@ -220,16 +231,16 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 
 func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 	workStatusController := &status.WorkStatusController{
-		Client:                  ctx.Mgr.GetClient(),
-		EventRecorder:           ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:              ctx.Mgr.GetRESTMapper(),
-		InformerManager:         informermanager.GetInstance(),
-		StopChan:                ctx.StopChan,
-		WorkerNumber:            1,
-		ObjectWatcher:           ctx.ObjectWatcher,
-		PredicateFunc:           helper.NewExecutionPredicateOnAgent(),
-		ClusterClientSetFunc:    util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout: ctx.Opts.ClusterCacheSyncTimeout,
+		Client:                    ctx.Mgr.GetClient(),
+		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:                ctx.Mgr.GetRESTMapper(),
+		InformerManager:           informermanager.GetInstance(),
+		StopChan:                  ctx.StopChan,
+		ObjectWatcher:             ctx.ObjectWatcher,
+		PredicateFunc:             helper.NewExecutionPredicateOnAgent(),
+		ClusterClientSetFunc:      util.NewClusterDynamicClientSetForAgent,
+		ClusterCacheSyncTimeout:   ctx.Opts.ClusterCacheSyncTimeout,
+		ConcurrentWorkStatusSyncs: ctx.Opts.ConcurrentWorkSyncs,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -245,7 +256,7 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
-		WorkerNumber:                1,
+		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(ctx.Opts.ClusterName),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,

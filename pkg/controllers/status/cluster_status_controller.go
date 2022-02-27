@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,13 +18,13 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/component-helpers/apimachinery/lease"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -201,11 +202,20 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-			if err = c.Get(context.TODO(), client.ObjectKey{Namespace: cluster.Namespace, Name: cluster.Name}, cluster); err != nil {
-				return err
-			}
 			cluster.Status = currentClusterStatus
-			return c.Status().Update(context.TODO(), cluster)
+			updateErr := c.Status().Update(context.TODO(), cluster)
+			if updateErr == nil {
+				return nil
+			}
+
+			updated := &clusterv1alpha1.Cluster{}
+			if err = c.Get(context.TODO(), client.ObjectKey{Namespace: cluster.Namespace, Name: cluster.Name}, updated); err == nil {
+				// make a copy, so we don't mutate the shared cache
+				cluster = updated.DeepCopy()
+			} else {
+				klog.Errorf("failed to get updated cluster %s: %v", cluster.Name, err)
+			}
+			return updateErr
 		})
 		if err != nil {
 			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
@@ -354,9 +364,7 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 	if err != nil {
 		return nil, err
 	}
-
 	var apiEnablements []clusterv1alpha1.APIEnablement
-
 	for _, list := range apiResourceList {
 		var apiResources []clusterv1alpha1.APIResource
 		for _, resource := range list.APIResources {
@@ -364,17 +372,20 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 			if strings.Contains(resource.Name, "/") {
 				continue
 			}
-
 			apiResource := clusterv1alpha1.APIResource{
 				Name: resource.Name,
 				Kind: resource.Kind,
 			}
-
 			apiResources = append(apiResources, apiResource)
 		}
+		sort.SliceStable(apiResources, func(i, j int) bool {
+			return apiResources[i].Name < apiResources[j].Name
+		})
 		apiEnablements = append(apiEnablements, clusterv1alpha1.APIEnablement{GroupVersion: list.GroupVersion, Resources: apiResources})
 	}
-
+	sort.SliceStable(apiEnablements, func(i, j int) bool {
+		return apiEnablements[i].GroupVersion < apiEnablements[j].GroupVersion
+	})
 	return apiEnablements, nil
 }
 

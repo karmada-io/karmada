@@ -12,7 +12,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
+const (
+	TestCertsTmp = "./test-certs-tmp"
+)
+
 func TestGenCerts(t *testing.T) {
+	defer os.RemoveAll(TestCertsTmp)
+
 	notAfter := time.Now().Add(Duration365d * 10).UTC()
 	namespace := "kube-karmada"
 	flagsExternalIP := ""
@@ -78,7 +84,7 @@ func TestGenCerts(t *testing.T) {
 	karmadaCertCfg := NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
 	frontProxyClientCertCfg := NewCertConfig("front-proxy-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
 
-	if err := GenCerts("./test-Certs-tmp", etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
+	if err := GenCerts(TestCertsTmp, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
 		fmt.Println(err)
 	}
 }

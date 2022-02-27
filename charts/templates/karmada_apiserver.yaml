@@ -70,6 +70,8 @@ spec:
             - --requestheader-username-headers=X-Remote-User
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --max-requests-inflight={{ .Values.apiServer.maxRequestsInflight }}
+            - --max-mutating-requests-inflight={{ .Values.apiServer.maxMutatingRequestsInflight }}
           ports:
             - name: http
               containerPort: 5443

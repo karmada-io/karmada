@@ -81,10 +81,6 @@ message ReplicaRequirements {
   map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> resourceRequest = 2;
 }
 
-// UnimplementedEstimatorServer can be embedded to have forward compatible implementations.
-message UnimplementedEstimatorServer {
-}
-
 // UnschedulableReplicasRequest represents the request that sent by gRPC client to calculate unschedulable replicas.
 message UnschedulableReplicasRequest {
   // Cluster represents the cluster name.
@@ -95,8 +91,8 @@ message UnschedulableReplicasRequest {
   // +required
   optional ObjectReference resource = 2;
 
-  // UnschedulableThreshold represents the period threshold of pod unscheduable condition.
-  // This value is considered as a classification standard of unscheduable replicas.
+  // UnschedulableThreshold represents the period threshold of pod unschedulable condition.
+  // This value is considered as a classification standard of unschedulable replicas.
   // +optional
   optional int64 unschedulableThreshold = 3;
 }
@@ -105,6 +101,6 @@ message UnschedulableReplicasRequest {
 message UnschedulableReplicasResponse {
   // UnschedulableReplicas represents the unschedulable replicas that the object contains.
   // +required
-  optional int32 maxUnschedulableReplicas = 1;
+  optional int32 unschedulableReplicas = 1;
 }
 

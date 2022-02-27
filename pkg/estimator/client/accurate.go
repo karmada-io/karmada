@@ -17,6 +17,7 @@ import (
 // RegisterSchedulerEstimator will register a SchedulerEstimator.
 func RegisterSchedulerEstimator(se *SchedulerEstimator) {
 	replicaEstimators["scheduler-estimator"] = se
+	unschedulableReplicaEstimators["scheduler-estimator"] = se
 }
 
 type getClusterReplicasFunc func(ctx context.Context, cluster string) (int32, error)
@@ -36,9 +37,29 @@ func NewSchedulerEstimator(cache *SchedulerEstimatorCache, timeout time.Duration
 }
 
 // MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by calling karmada-scheduler-estimator.
-func (se *SchedulerEstimator) MaxAvailableReplicas(parentCtx context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
-	return getClusterReplicasConcurrently(parentCtx, clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
+func (se *SchedulerEstimator) MaxAvailableReplicas(
+	parentCtx context.Context,
+	clusters []*clusterv1alpha1.Cluster,
+	replicaRequirements *workv1alpha2.ReplicaRequirements,
+) ([]workv1alpha2.TargetCluster, error) {
+	clusterNames := make([]string, len(clusters))
+	for i, cluster := range clusters {
+		clusterNames[i] = cluster.Name
+	}
+	return getClusterReplicasConcurrently(parentCtx, clusterNames, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
 		return se.maxAvailableReplicas(ctx, cluster, replicaRequirements.DeepCopy())
+	})
+}
+
+// GetUnschedulableReplicas gets the unschedulable replicas which belong to a specified workload by calling karmada-scheduler-estimator.
+func (se *SchedulerEstimator) GetUnschedulableReplicas(
+	parentCtx context.Context,
+	clusters []string,
+	reference *workv1alpha2.ObjectReference,
+	unscheduableThreshold time.Duration,
+) ([]workv1alpha2.TargetCluster, error) {
+	return getClusterReplicasConcurrently(parentCtx, clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
+		return se.maxUnscheduableReplicas(ctx, cluster, reference.DeepCopy(), unscheduableThreshold)
 	})
 }
 
@@ -64,12 +85,40 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 	}
 	res, err := client.MaxAvailableReplicas(ctx, req)
 	if err != nil {
-		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error: %v", cluster, err)
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableReplicas: %v", cluster, err)
 	}
 	return res.MaxReplicas, nil
 }
 
-func getClusterReplicasConcurrently(parentCtx context.Context, clusters []*clusterv1alpha1.Cluster,
+func (se *SchedulerEstimator) maxUnscheduableReplicas(
+	ctx context.Context,
+	cluster string,
+	reference *workv1alpha2.ObjectReference,
+	threshold time.Duration,
+) (int32, error) {
+	client, err := se.cache.GetClient(cluster)
+	if err != nil {
+		return UnauthenticReplica, err
+	}
+
+	req := &pb.UnschedulableReplicasRequest{
+		Cluster: cluster,
+		Resource: pb.ObjectReference{
+			APIVersion: reference.APIVersion,
+			Kind:       reference.Kind,
+			Namespace:  reference.Namespace,
+			Name:       reference.Name,
+		},
+		UnschedulableThreshold: threshold,
+	}
+	res, err := client.GetUnschedulableReplicas(ctx, req)
+	if err != nil {
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling UnschedulableReplicas: %v", cluster, err)
+	}
+	return res.UnschedulableReplicas, nil
+}
+
+func getClusterReplicasConcurrently(parentCtx context.Context, clusters []string,
 	timeout time.Duration, getClusterReplicas getClusterReplicasFunc) ([]workv1alpha2.TargetCluster, error) {
 	// add object information into gRPC metadata
 	if u, ok := parentCtx.Value(util.ContextKeyObject).(string); ok {
@@ -91,7 +140,7 @@ func getClusterReplicasConcurrently(parentCtx context.Context, clusters []*clust
 				errChan <- err
 			}
 			availableTargetClusters[idx] = workv1alpha2.TargetCluster{Name: cluster, Replicas: replicas}
-		}(i, clusters[i].Name)
+		}(i, clusters[i])
 	}
 	wg.Wait()
 

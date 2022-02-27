@@ -16,6 +16,7 @@ Refer to [Installing Karmada](./installation/installation.md).
 - [Cluster Failover](./userguide/failover.md)
 - [Aggregated Kubernetes API Endpoint](./userguide/aggregated-api-endpoint.md)
 - [Customizing Resource Interpreter](./userguide/customizing-resource-interpreter.md)
+- [Configuring Controllers](./userguide/configure-controllers.md)
 
 ## Best Practices
 
@@ -23,6 +24,7 @@ Refer to [Installing Karmada](./installation/installation.md).
 
 ## Contributors
 
+- [GitHub workflow](./contributors/guide/github-workflow.md)
 - [Cherry Pick Overview](./contributors/devel/cherry-picks.md)
 
 ## Reference

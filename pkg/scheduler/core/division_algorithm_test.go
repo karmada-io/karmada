@@ -818,9 +818,9 @@ func Test_scaleScheduling(t *testing.T) {
 				preference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
 			},
 			want: []workv1alpha2.TargetCluster{
-				{Name: ClusterMember1, Replicas: 7},
-				{Name: ClusterMember2, Replicas: 8},
-				{Name: ClusterMember4, Replicas: 9},
+				{Name: ClusterMember1, Replicas: 8},
+				{Name: ClusterMember3, Replicas: 6},
+				{Name: ClusterMember4, Replicas: 10},
 			},
 			wantErr: false,
 		},

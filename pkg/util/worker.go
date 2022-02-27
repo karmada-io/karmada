@@ -3,6 +3,7 @@ package util
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 )
@@ -121,4 +122,14 @@ func (w *asyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
 		<-stopChan
 		w.queue.ShutDown()
 	}()
+}
+
+// MetaNamespaceKeyFunc generates a namespaced key for object.
+func MetaNamespaceKeyFunc(obj interface{}) (QueueKey, error) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		return nil, err
+	}
+	return key, nil
 }
