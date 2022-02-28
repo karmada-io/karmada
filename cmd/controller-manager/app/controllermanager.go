@@ -143,6 +143,7 @@ func init() {
 	controllers["serviceImport"] = startServiceImportController
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
+	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -359,6 +360,17 @@ func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (
 	controller := federatedresourcequota.SyncController{
 		Client:        ctx.Mgr.GetClient(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.SyncControllerName),
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := federatedresourcequota.StatusController{
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName),
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
