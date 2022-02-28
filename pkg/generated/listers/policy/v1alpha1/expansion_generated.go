@@ -10,6 +10,14 @@ type ClusterOverridePolicyListerExpansion interface{}
 // ClusterPropagationPolicyLister.
 type ClusterPropagationPolicyListerExpansion interface{}
 
+// FederatedResourceQuotaListerExpansion allows custom methods to be added to
+// FederatedResourceQuotaLister.
+type FederatedResourceQuotaListerExpansion interface{}
+
+// FederatedResourceQuotaNamespaceListerExpansion allows custom methods to be added to
+// FederatedResourceQuotaNamespaceLister.
+type FederatedResourceQuotaNamespaceListerExpansion interface{}
+
 // OverridePolicyListerExpansion allows custom methods to be added to
 // OverridePolicyLister.
 type OverridePolicyListerExpansion interface{}
