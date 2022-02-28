@@ -7,6 +7,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 
 // FederatedResourceQuota sets aggregate quota restrictions enforced per namespace across all clusters.
