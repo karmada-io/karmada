@@ -30,10 +30,7 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 		return false
 	}
 	if strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
-		replicasSum := int32(0)
-		for _, targetCluster := range bindingSpec.Clusters {
-			replicasSum += targetCluster.Replicas
-		}
+		replicasSum := GetSumOfReplicas(bindingSpec.Clusters)
 		return replicasSum != bindingSpec.Replicas
 	}
 	return false
@@ -42,8 +39,8 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 // GetSumOfReplicas will get the sum of replicas in target clusters
 func GetSumOfReplicas(clusters []workv1alpha2.TargetCluster) int32 {
 	replicasSum := int32(0)
-	for i := range clusters {
-		replicasSum += clusters[i].Replicas
+	for _, targetCluster := range clusters {
+		replicasSum += targetCluster.Replicas
 	}
 	return replicasSum
 }
