@@ -12,7 +12,7 @@ We can install Karmada by referring to [quick-start](https://github.com/karmada-
 
 Currently, we need to use the [MCS](https://github.com/karmada-io/karmada/blob/master/docs/multi-cluster-service.md#the-serviceexport-and-serviceimport-crds-have-been-installed) feature to import external traffic.
 
-So we need to ensure that the container networks between the **host cluster** and member clusters are connected.  The **host cluster** indicates the cluster where the Karmada control plane is deployed.
+So we need to ensure that the container networks between the **host cluster** and member clusters are connected. The **host cluster** indicates the cluster where the Karmada control plane is deployed.
 
 - If you use the `hack/local-up-karmada.sh` script to deploy Karmada, Karmada will have three member clusters, and the container networks between the **host cluster**, `member1` and `member2` are connected.
 - You can use `Submariner` or other related open source projects to connected networks between clusters.
@@ -34,7 +34,7 @@ git clone git@github.com:karmada-io/multi-cluster-ingress-nginx.git
 
 #### Build and deploy ingress-nginx
 
-Using existing `karmada-host` kind cluster to building and deploying the ingress controller.
+Using the existing `karmada-host` kind cluster to build and deploy the ingress controller.
 
 ```
 export KIND_CLUSTER_NAME=karmada-host
@@ -50,7 +50,7 @@ Create a secret that contains the `karmada-apiserver` authentication credential 
 # karmada-kubeconfig-secret.yaml
 apiVersion: v1
 data:
-  kubeconfig: {data} # encoded by base64
+  kubeconfig: {data} # Base64-encoded
 kind: Secret
 metadata:
   name: kubeconfig
@@ -72,7 +72,7 @@ kubectl apply -f karmada-kubeconfig-secret.yaml
 
 #### Edit ingress-nginx-controller deployment
 
-We want `nginx-ingress-controller` to access `karmada-apiserver` to listen to resource(such as multiclusteringress, endpointslices, service, etc.) changes, therefore, we need to mount the authentication credential of `karmada-apiserver` to the `nginx-ingress-controller`.
+We want `nginx-ingress-controller` to access `karmada-apiserver` to listen to changes in resources(such as multiclusteringress, endpointslices, and service). Therefore, we need to mount the authentication credential of `karmada-apiserver` to the `nginx-ingress-controller`.
 
 ```
 kubectl -n ingress-nginx edit deployment ingress-nginx-controller
@@ -106,7 +106,7 @@ spec:
           secretName: kubeconfig                # new line
 ```
 
-### Step 2: Use MCS feature to discovery service
+### Step 2: Use the MCS feature to discovery service
 
 #### Install ServiceExport and ServiceImport CRDs
 
