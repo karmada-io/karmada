@@ -127,7 +127,7 @@ func (c *StatusController) SetupWithManager(mgr controllerruntime.Manager) error
 }
 
 func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedResourceQuota) error {
-	workList, err := helper.GetWorks(c.Client, labels.Set{
+	workList, err := helper.GetWorksByLabelsSet(c.Client, labels.Set{
 		util.FederatedResourceQuotaNamespaceLabel: quota.Namespace,
 		util.FederatedResourceQuotaNameLabel:      quota.Name,
 	})

@@ -69,13 +69,10 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	return nil
 }
 
-// GetWorksByLabelSelector get WorkList by matching label selector.
-func GetWorksByLabelSelector(c client.Client, selector labels.Selector) (*workv1alpha1.WorkList, error) {
+// GetWorksByLabelsSet get WorkList by matching labels.Set.
+func GetWorksByLabelsSet(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 	workList := &workv1alpha1.WorkList{}
-	err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return nil, err
-	}
+	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
-	return workList, nil
+	return workList, c.List(context.TODO(), workList, listOpt)
 }

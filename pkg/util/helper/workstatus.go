@@ -36,11 +36,9 @@ const (
 // AggregateResourceBindingWorkStatus will collect all work statuses with current ResourceBinding objects,
 // then aggregate status info to current ResourceBinding status.
 func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ResourceBinding, workload *unstructured.Unstructured) error {
-	workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(
-		labels.Set{
-			workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(binding.Namespace, binding.Name),
-		},
-	))
+	workList, err := GetWorksByLabelsSet(c, labels.Set{
+		workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(binding.Namespace, binding.Name),
+	})
 	if err != nil {
 		klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
 		return err
@@ -83,11 +81,9 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 // AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
 // then aggregate status info to current ClusterResourceBinding status.
 func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ClusterResourceBinding, workload *unstructured.Unstructured) error {
-	workList, err := GetWorksByLabelSelector(c, labels.SelectorFromSet(
-		labels.Set{
-			workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", binding.Name),
-		},
-	))
+	workList, err := GetWorksByLabelsSet(c, labels.Set{
+		workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", binding.Name),
+	})
 	if err != nil {
 		klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", binding.Name, err)
 		return err
