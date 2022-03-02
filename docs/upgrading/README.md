@@ -75,3 +75,4 @@ v1.1.x to v1.2.x and the available patch versions are v1.2.0, v1.2.1 and v1.2.2,
 ### [v0.8 to v0.9](./v0.8-v0.9.md)
 ### [v0.9 to v0.10](./v0.9-v0.10.md)
 ### [v0.10 to v1.0](./v0.10-v1.0.md)
+### [v1.0 to v1.1](./v1.0-v1.1.md)
