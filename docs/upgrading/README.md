@@ -10,6 +10,9 @@
     - [Upgrading Components](#upgrading-components)
   - [Details Upgrading Instruction](#details-upgrading-instruction)
     - [v0.8 to v0.9](#v08-to-v09)
+    - [v0.9 to v0.10](#v09-to-v010)
+    - [v0.10 to v1.0](#v010-to-v10)
+    - [v1.0 to v1.1](#v10-to-v11)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -75,3 +78,4 @@ v1.1.x to v1.2.x and the available patch versions are v1.2.0, v1.2.1 and v1.2.2,
 ### [v0.8 to v0.9](./v0.8-v0.9.md)
 ### [v0.9 to v0.10](./v0.9-v0.10.md)
 ### [v0.10 to v1.0](./v0.10-v1.0.md)
+### [v1.0 to v1.1](./v1.0-v1.1.md)
