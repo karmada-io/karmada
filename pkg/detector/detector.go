@@ -1074,7 +1074,7 @@ func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
 		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resource.APIVersion, resource.Kind, err)
 		return err
 	}
-	obj, err := d.DynamicClient.Resource(gvr).Namespace(resource.Namespace).Get(context.TODO(), resource.Name, metav1.GetOptions{})
+	obj, err := helper.FetchWorkload(d.DynamicClient, d.InformerManager, d.RESTMapper, resource)
 	if err != nil {
 		klog.Errorf("Failed to get resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
 		return err
