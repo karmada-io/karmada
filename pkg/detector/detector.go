@@ -36,6 +36,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/ratelimiter"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -82,6 +83,7 @@ type ResourceDetector struct {
 	// ConcurrentResourceBindingSyncs is the number of ResourceBinding that are allowed to sync concurrently.
 	// Larger number means responsive resource template syncing but more CPU(and network) load.
 	ConcurrentResourceBindingSyncs int
+	RatelimiterOptions             ratelimiter.Options
 
 	stopCh <-chan struct{}
 }
@@ -93,9 +95,19 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
-	d.policyReconcileWorker = util.NewAsyncWorker("propagationPolicy reconciler", ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
+	policyWorkerOptions := util.Options{
+		Name:          "propagationPolicy reconciler",
+		KeyFunc:       ClusterWideKeyFunc,
+		ReconcileFunc: d.ReconcilePropagationPolicy,
+	}
+	d.policyReconcileWorker = util.NewAsyncWorker(policyWorkerOptions)
 	d.policyReconcileWorker.Run(1, d.stopCh)
-	d.clusterPolicyReconcileWorker = util.NewAsyncWorker("clusterPropagationPolicy reconciler", ClusterWideKeyFunc, d.ReconcileClusterPropagationPolicy)
+	clusterPolicyWorkerOptions := util.Options{
+		Name:          "clusterPropagationPolicy reconciler",
+		KeyFunc:       ClusterWideKeyFunc,
+		ReconcileFunc: d.ReconcileClusterPropagationPolicy,
+	}
+	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
 	d.clusterPolicyReconcileWorker.Run(1, d.stopCh)
 
 	// watch and enqueue PropagationPolicy changes.
@@ -119,7 +131,12 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
 
 	// setup binding reconcile worker
-	d.bindingReconcileWorker = util.NewAsyncWorker("resourceBinding reconciler", ClusterWideKeyFunc, d.ReconcileResourceBinding)
+	bindingWorkerOptions := util.Options{
+		Name:          "resourceBinding reconciler",
+		KeyFunc:       ClusterWideKeyFunc,
+		ReconcileFunc: d.ReconcileResourceBinding,
+	}
+	d.bindingReconcileWorker = util.NewAsyncWorker(bindingWorkerOptions)
 	d.bindingReconcileWorker.Run(d.ConcurrentResourceBindingSyncs, d.stopCh)
 
 	// watch and enqueue ResourceBinding changes.
@@ -138,11 +155,17 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  workv1alpha2.GroupVersion.Version,
 		Resource: "clusterresourcebindings",
 	}
+	detectorWorkerOptions := util.Options{
+		Name:               "resource detector",
+		KeyFunc:            ClusterWideKeyFunc,
+		ReconcileFunc:      d.Reconcile,
+		RatelimiterOptions: d.RatelimiterOptions,
+	}
 	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, nil)
 	d.InformerManager.ForResource(clusterResourceBindingGVR, clusterBindingHandler)
 
 	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker("resource detector", ClusterWideKeyFunc, d.Reconcile)
+	d.Processor = util.NewAsyncWorker(detectorWorkerOptions)
 	d.Processor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 

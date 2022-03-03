@@ -11,6 +11,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
+	"github.com/karmada-io/karmada/pkg/util/ratelimiter"
 )
 
 // Options defines all the parameters required by our controllers.
@@ -49,6 +50,7 @@ type Options struct {
 	ClusterName string
 	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
 	ConcurrentWorkSyncs int
+	RatelimiterOptions  ratelimiter.Options
 }
 
 // Context defines the context object for controller.

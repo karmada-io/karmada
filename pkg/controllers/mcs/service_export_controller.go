@@ -112,7 +112,12 @@ func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *ServiceExportController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker("service-export", nil, c.syncServiceExportOrEndpointSlice)
+	workerOptions := util.Options{
+		Name:          "service-export",
+		KeyFunc:       nil,
+		ReconcileFunc: c.syncServiceExportOrEndpointSlice,
+	}
+	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 

@@ -78,8 +78,13 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	klog.Infof("Starting dependencies distributor.")
 	d.stopCh = ctx.Done()
 
+	bindingWorkerOptions := util.Options{
+		Name:          "resourceBinding reconciler",
+		KeyFunc:       detector.ClusterWideKeyFunc,
+		ReconcileFunc: d.ReconcileResourceBinding,
+	}
 	// setup binding reconcile worker
-	d.bindingReconcileWorker = util.NewAsyncWorker("resourceBinding reconciler", detector.ClusterWideKeyFunc, d.ReconcileResourceBinding)
+	d.bindingReconcileWorker = util.NewAsyncWorker(bindingWorkerOptions)
 	d.bindingReconcileWorker.Run(2, d.stopCh)
 
 	// watch and enqueue ResourceBinding changes.
@@ -92,9 +97,13 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	bindingHandler := informermanager.NewHandlerOnEvents(nil, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
 	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
 	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
-
+	resourceWorkerOptions := util.Options{
+		Name:          "resource detector",
+		KeyFunc:       detector.ClusterWideKeyFunc,
+		ReconcileFunc: d.Reconcile,
+	}
 	d.EventHandler = informermanager.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker("resource detector", detector.ClusterWideKeyFunc, d.Reconcile)
+	d.Processor = util.NewAsyncWorker(resourceWorkerOptions)
 	d.Processor.Run(2, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
