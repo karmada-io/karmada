@@ -5,6 +5,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindOverridePolicy is kind name of OverridePolicy.
+	ResourceKindOverridePolicy = "OverridePolicy"
+	// ResourceSingularOverridePolicy is singular name of OverridePolicy.
+	ResourceSingularOverridePolicy = "overridepolicy"
+	// ResourcePluralOverridePolicy is plural name of OverridePolicy.
+	ResourcePluralOverridePolicy = "overridepolicies"
+	// ResourceNamespaceScopedOverridePolicy indicates if OverridePolicy is NamespaceScoped.
+	ResourceNamespaceScopedOverridePolicy = true
+
+	// ResourceKindClusterOverridePolicy is kind name of ClusterOverridePolicy.
+	ResourceKindClusterOverridePolicy = "ClusterOverridePolicy"
+	// ResourceSingularClusterOverridePolicy is singular name of ClusterOverridePolicy.
+	ResourceSingularClusterOverridePolicy = "clusteroverridepolicy"
+	// ResourcePluralClusterOverridePolicy is kind plural of ClusterOverridePolicy.
+	ResourcePluralClusterOverridePolicy = "clusteroverridepolicies"
+	// ResourceNamespaceScopedClusterOverridePolicy indicates if ClusterOverridePolicy is NamespaceScoped.
+	ResourceNamespaceScopedClusterOverridePolicy = false
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:shortName=op

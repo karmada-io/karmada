@@ -5,6 +5,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindCluster is kind name of Cluster.
+	ResourceKindCluster = "Cluster"
+	// ResourceSingularCluster is singular name of Cluster.
+	ResourceSingularCluster = "cluster"
+	// ResourcePluralCluster is plural name of Cluster.
+	ResourcePluralCluster = "clusters"
+	// ResourceNamespaceScopedCluster indicates if Cluster is NamespaceScoped.
+	ResourceNamespaceScopedCluster = false
+)
+
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -5,6 +5,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindResourceInterpreterWebhookConfiguration is kind name of ResourceInterpreterWebhookConfiguration.
+	ResourceKindResourceInterpreterWebhookConfiguration = "ResourceInterpreterWebhookConfiguration"
+	// ResourceSingularResourceInterpreterWebhookConfiguration is singular name of ResourceInterpreterWebhookConfiguration.
+	ResourceSingularResourceInterpreterWebhookConfiguration = "resourceinterpreterwebhookconfiguration"
+	// ResourcePluralResourceInterpreterWebhookConfiguration is plural name of ResourceInterpreterWebhookConfiguration.
+	ResourcePluralResourceInterpreterWebhookConfiguration = "resourceinterpreterwebhookconfigurations"
+	// ResourceNamespaceScopedResourceInterpreterWebhookConfiguration indicates if ResourceInterpreterWebhookConfiguration is NamespaceScoped.
+	ResourceNamespaceScopedResourceInterpreterWebhookConfiguration = false
+)
+
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
