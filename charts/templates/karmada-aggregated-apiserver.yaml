@@ -13,6 +13,10 @@ spec:
     matchLabels:
       {{- include "karmada.aggregatedApiserver.labels" . | nindent 6}}
   replicas: {{ .Values.aggregatedApiServer.replicaCount }}
+  {{- with .Values.aggregatedApiServer.strategy }}
+  strategy:
+  {{- toYaml . | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.aggregatedApiServer.podAnnotations }}

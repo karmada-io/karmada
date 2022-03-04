@@ -12,6 +12,10 @@ spec:
   selector:
     matchLabels:
       {{- include "karmada.apiserver.labels" . | nindent 6}}
+  {{- with .Values.apiServer.strategy }}
+  strategy:
+  {{- toYaml . | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.apiServer.podAnnotations }}

@@ -19,6 +19,10 @@ spec:
   selector:
     matchLabels:
       {{- include "karmada.scheduler.labels" . | nindent 6}}
+  {{- with .Values.scheduler.strategy }}
+  strategy:
+  {{- toYaml . | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.scheduler.podAnnotations}}
