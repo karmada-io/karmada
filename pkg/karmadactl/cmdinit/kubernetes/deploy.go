@@ -284,6 +284,19 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(apiServerLabels), 120); err != nil {
 		return err
 	}
+
+	// Create karmada-aggregated-apiserver
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver.yaml
+	klog.Info("create karmada aggregated apiserver Deployment")
+	if err := i.CreateService(i.karmadaAggregatedAPIServerService()); err != nil {
+		klog.Exitln(err)
+	}
+	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
+		klog.Warning(err)
+	}
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(aggregatedAPIServerLabels), 30); err != nil {
+		klog.Warning(err)
+	}
 	return nil
 }
 
@@ -335,18 +348,6 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 		klog.Warning(err)
 	}
 	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(webhookLabels), waitPodReadyTimeout); err != nil {
-		klog.Warning(err)
-	}
-	// Create karmada-aggregated-apiserver
-	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver.yaml
-	klog.Info("create karmada aggregated apiserver Deployment")
-	if err := i.CreateService(i.karmadaAggregatedAPIServerService()); err != nil {
-		klog.Exitln(err)
-	}
-	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
-		klog.Warning(err)
-	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(aggregatedAPIServerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 	return nil
