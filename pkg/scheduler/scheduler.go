@@ -297,9 +297,10 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		klog.Infof("Don't need to schedule ResourceBinding(%s/%s)", namespace, name)
 		return nil
 	}
+
 	if features.FeatureGate.Enabled(features.Failover) {
-		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster failure", namespace, name)
-		err = s.rescheduleResourceBinding(rb)
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster failure or deletion", namespace, name)
+		err = s.scheduleResourceBinding(rb)
 		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
@@ -360,8 +361,8 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		return nil
 	}
 	if features.FeatureGate.Enabled(features.Failover) {
-		klog.Infof("Reschedule ClusterResourceBinding(%s) as cluster failure", name)
-		err = s.rescheduleClusterResourceBinding(crb)
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as cluster failure or deletion", name)
+		err = s.scheduleClusterResourceBinding(crb)
 		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
@@ -447,73 +448,27 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
 
-func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) error {
-	klog.V(4).InfoS("Begin rescheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
-	defer klog.V(4).InfoS("End rescheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
-
-	policyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
-	policy, err := s.clusterPolicyLister.Get(policyName)
-	if err != nil {
-		klog.Errorf("Failed to get policy by policyName(%s): Error: %v", policyName, err)
-		return err
-	}
-	reScheduleResult, err := s.Algorithm.FailoverSchedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
-	if err != nil {
-		return err
-	}
-	if len(reScheduleResult.SuggestedClusters) == 0 {
-		return nil
-	}
-
-	clusterResourceBinding.Spec.Clusters = reScheduleResult.SuggestedClusters
-	klog.Infof("The final binding.Spec.Cluster values are: %v\n", clusterResourceBinding.Spec.Clusters)
-
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), clusterResourceBinding, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) error {
-	klog.V(4).InfoS("Begin rescheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
-	defer klog.V(4).InfoS("End rescheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
-
-	placement, _, err := s.getPlacement(resourceBinding)
-	if err != nil {
-		klog.Errorf("Failed to get placement by resourceBinding(%s/%s): Error: %v", resourceBinding.Namespace, resourceBinding.Name, err)
-		return err
-	}
-	reScheduleResult, err := s.Algorithm.FailoverSchedule(context.TODO(), &placement, &resourceBinding.Spec)
-	if err != nil {
-		return err
-	}
-	if len(reScheduleResult.SuggestedClusters) == 0 {
-		return nil
-	}
-
-	resourceBinding.Spec.Clusters = reScheduleResult.SuggestedClusters
-	klog.Infof("The final binding.Spec.Cluster values are: %v\n", resourceBinding.Spec.Clusters)
-
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(resourceBinding.Namespace).Update(context.TODO(), resourceBinding, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha2.TargetCluster) bool {
 	clusters := s.schedulerCache.Snapshot().GetClusters()
 	for i := range tcs {
+		isNoExisted := true
 		for _, c := range clusters {
-			if c.Cluster().Name == tcs[i].Name {
-				if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-					return false
-				}
+			if c.Cluster().Name != tcs[i].Name {
 				continue
 			}
+
+			isNoExisted = false
+			if meta.IsStatusConditionFalse(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady) ||
+				!c.Cluster().DeletionTimestamp.IsZero() {
+				return false
+			}
+
+			break
+		}
+
+		if isNoExisted {
+			// don't find the target cluster in snapshot because it might have been deleted
+			return false
 		}
 	}
 	return true
