@@ -233,6 +233,8 @@ kubectl config use-context "${HOST_CLUSTER_NAME}"
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/controller-manager.yaml"
 # deploy scheduler on host cluster
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-scheduler.yaml"
+# deploy descheduler on host cluster
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-descheduler.yaml"
 # deploy webhook on host cluster
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-webhook.yaml"
 

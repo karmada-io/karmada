@@ -39,7 +39,7 @@ ifeq ($(VERSION), "")
     endif
 endif
 
-all: karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
+all: karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmada-descheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
 
 karmada-aggregated-apiserver: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
@@ -58,6 +58,12 @@ karmada-scheduler: $(SOURCES)
 		-ldflags $(LDFLAGS) \
 		-o karmada-scheduler \
 		cmd/scheduler/main.go
+
+karmada-descheduler: $(SOURCES)
+	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+		-ldflags $(LDFLAGS) \
+		-o karmada-descheduler \
+		cmd/descheduler/main.go
 
 karmadactl: $(SOURCES)
 	CGO_ENABLED=0 GOOS=$(GOOS) go build \
@@ -96,7 +102,7 @@ karmada-interpreter-webhook-example: $(SOURCES)
 		examples/customresourceinterpreter/webhook/main.go
 
 clean:
-	rm -rf karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
+	rm -rf karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmada-descheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
 
 .PHONY: update
 update:
@@ -112,7 +118,7 @@ test:
 	go test --race --v ./cmd/...
 	go test --race --v ./examples/...
 
-images: image-karmada-aggregated-apiserver image-karmada-controller-manager image-karmada-scheduler image-karmada-webhook image-karmada-agent image-karmada-scheduler-estimator image-karmada-interpreter-webhook-example
+images: image-karmada-aggregated-apiserver image-karmada-controller-manager image-karmada-scheduler image-karmada-descheduler image-karmada-webhook image-karmada-agent image-karmada-scheduler-estimator image-karmada-interpreter-webhook-example
 
 image-karmada-aggregated-apiserver: karmada-aggregated-apiserver
 	VERSION=$(VERSION) hack/docker.sh karmada-aggregated-apiserver
@@ -122,6 +128,9 @@ image-karmada-controller-manager: karmada-controller-manager
 
 image-karmada-scheduler: karmada-scheduler
 	VERSION=$(VERSION) hack/docker.sh karmada-scheduler
+
+image-karmada-descheduler: karmada-descheduler
+	VERSION=$(VERSION) hack/docker.sh karmada-descheduler
 
 image-karmada-webhook: karmada-webhook
 	VERSION=$(VERSION) hack/docker.sh karmada-webhook
@@ -142,6 +151,7 @@ ifneq ($(REGISTRY_USER_NAME), "")
 endif
 	docker push ${REGISTRY}/karmada-controller-manager:${VERSION}
 	docker push ${REGISTRY}/karmada-scheduler:${VERSION}
+	docker push ${REGISTRY}/karmada-descheduler:${VERSION}
 	docker push ${REGISTRY}/karmada-webhook:${VERSION}
 	docker push ${REGISTRY}/karmada-agent:${VERSION}
 	docker push ${REGISTRY}/karmada-scheduler-estimator:${VERSION}
