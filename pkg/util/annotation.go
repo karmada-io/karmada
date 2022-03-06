@@ -22,7 +22,7 @@ func MergeAnnotations(dst *unstructured.Unstructured, src *unstructured.Unstruct
 	}
 }
 
-// GetAnnotationValue retrieves the value via 'annotationKey' if exist, otherwise returns an empty string.
+// GetAnnotationValue retrieves the value via 'annotationKey' (if it exists), otherwise an empty string is returned.
 func GetAnnotationValue(annotations map[string]string, annotationKey string) string {
 	if annotations == nil {
 		return ""
