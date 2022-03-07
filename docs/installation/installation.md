@@ -43,52 +43,49 @@ I1216 07:37:45.862959    4256 cert.go:230] Generate ca certificate success.
 I1216 07:37:46.000798    4256 cert.go:230] Generate etcd-server certificate success.
 ...
 ...
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-| Push mode                                                                                                                                                                    |
-|                                                                                                                                                                              |
-| Step 1: Member kubernetes join karmada control plane                                                                                                                         |
-|                                                                                                                                                                              |
-| (In karmada)~#  cat ~/.kube/config  | grep current-context | sed 's/: /\n/g'| sed '1d' #MEMBER_CLUSTER_NAME                                                                  |
-| (In karmada)~# kubectl-karmada  --kubeconfig /etc/karmada/karmada-apiserver.config  join ${MEMBER_CLUSTER_NAME} --cluster-kubeconfig=$HOME/.kube/config                      |
-|                                                                                                                                                                              |
-| Step 2: Create member kubernetes kubeconfig secret                                                                                                                           |
-|                                                                                                                                                                              |
-| (In member kubernetes)~# kubectl create ns karmada-system                                                                                                                    |
-| (In member kubernetes)~# kubectl create secret generic ${MEMBER_CLUSTER_NAME}-kubeconfig --from-file=${MEMBER_CLUSTER_NAME}-kubeconfig=$HOME/.kube/config  -n karmada-system |
-|                                                                                                                                                                              |
-| Step 3: Create karmada scheduler estimator                                                                                                                                   |
-|                                                                                                                                                                              |
-| (In member kubernetes)~# sed -i "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" /etc/karmada/karmada-scheduler-estimator.yaml                                           |
-| (In member kubernetes)~# kubectl create -f  /etc/karmada/karmada-scheduler-estimator.yaml                                                                                    |
-|                                                                                                                                                                              |
-| Step 4: Show members of karmada                                                                                                                                              |
-|                                                                                                                                                                              |
-| (In karmada)~# kubectl  --kubeconfig /etc/karmada/karmada-apiserver.config get clusters                                                                                      |
-|                                                                                                                                                                              |
-├── —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— —— ┤
-| Pull mode                                                                                                                                                                    |
-|                                                                                                                                                                              |
-| Step 1:  Send karmada kubeconfig and karmada-agent.yaml to member kubernetes                                                                                                 |
-|                                                                                                                                                                              |
-| (In karmada)~# scp /etc/karmada/karmada-apiserver.config /etc/karmada/karmada-agent.yaml {member kubernetes}:~                                                               |
-|                                                                                                                                                                              |
-| Step 2:  Create karmada kubeconfig secret                                                                                                                                    |
-|  Notice:                                                                                                                                                                     |
-|    Cross-network, need to change the config server address.                                                                                                                  |
-|                                                                                                                                                                              |
-| (In member kubernetes)~#  kubectl create ns karmada-system                                                                                                                   |
-| (In member kubernetes)~#  kubectl create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig=/root/karmada-apiserver.config  -n karmada-system                  |
-|                                                                                                                                                                              |
-| Step 3: Create karmada agent                                                                                                                                                 |
-|                                                                                                                                                                              |
-| (In member kubernetes)~#  MEMBER_CLUSTER_NAME="demo"                                                                                                                         |
-| (In member kubernetes)~#  sed -i "s/{member_cluster_name}/${MEMBER_CLUSTER_NAME}/g" karmada-agent.yaml                                                                       |
-| (In member kubernetes)~#  kubectl create -f karmada-agent.yaml                                                                                                               |
-|                                                                                                                                                                              |
-| Step 4: Show members of karmada                                                                                                                                              |
-|                                                                                                                                                                              |
-| (In karmada)~# kubectl  --kubeconfig /etc/karmada/karmada-apiserver.config get clusters                                                                                      |
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+------------------------------------------------------------------------------------------------------
+ █████   ████   █████████   ███████████   ██████   ██████   █████████   ██████████     █████████
+░░███   ███░   ███░░░░░███ ░░███░░░░░███ ░░██████ ██████   ███░░░░░███ ░░███░░░░███   ███░░░░░███
+ ░███  ███    ░███    ░███  ░███    ░███  ░███░█████░███  ░███    ░███  ░███   ░░███ ░███    ░███
+ ░███████     ░███████████  ░██████████   ░███░░███ ░███  ░███████████  ░███    ░███ ░███████████
+ ░███░░███    ░███░░░░░███  ░███░░░░░███  ░███ ░░░  ░███  ░███░░░░░███  ░███    ░███ ░███░░░░░███
+ ░███ ░░███   ░███    ░███  ░███    ░███  ░███      ░███  ░███    ░███  ░███    ███  ░███    ░███
+ █████ ░░████ █████   █████ █████   █████ █████     █████ █████   █████ ██████████   █████   █████
+░░░░░   ░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░     ░░░░░ ░░░░░   ░░░░░ ░░░░░░░░░░   ░░░░░   ░░░░░
+------------------------------------------------------------------------------------------------------
+Karmada is installed successfully.
+
+Register Kubernetes cluster to Karmada control plane.
+
+Register cluster with 'Push' mode
+                                                                                                                                                                             
+Step 1: Use karmadactl join to register the cluster to Karmada control panel. --cluster-kubeconfig is members kubeconfig.
+(In karmada)~# MEMBER_CLUSTER_NAME=`cat ~/.kube/config  | grep current-context | sed 's/: /\n/g'| sed '1d'`
+(In karmada)~# karmadactl --kubeconfig /etc/karmada/karmada-apiserver.config  join ${MEMBER_CLUSTER_NAME} --cluster-kubeconfig=$HOME/.kube/config
+
+Step 2: Show members of karmada
+(In karmada)~# kubectl  --kubeconfig /etc/karmada/karmada-apiserver.config get clusters
+
+
+Register cluster with 'Pull' mode
+
+Step 1:  Send karmada kubeconfig and karmada-agent.yaml to member kubernetes
+(In karmada)~# scp /etc/karmada/karmada-apiserver.config /etc/karmada/karmada-agent.yaml {member kubernetes}:~
+                                                                                                                                                                             
+Step 2:  Create karmada kubeconfig secret
+ Notice:
+   Cross-network, need to change the config server address.
+(In member kubernetes)~#  kubectl create ns karmada-system
+(In member kubernetes)~#  kubectl create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig=/root/karmada-apiserver.config  -n karmada-system                  
+
+Step 3: Create karmada agent
+(In member kubernetes)~#  MEMBER_CLUSTER_NAME="demo"
+(In member kubernetes)~#  sed -i "s/{member_cluster_name}/${MEMBER_CLUSTER_NAME}/g" karmada-agent.yaml
+(In member kubernetes)~#  kubectl create -f karmada-agent.yaml
+                                                                                                                                                                             
+Step 4: Show members of karmada                                                                                                                                              
+(In karmada)~# kubectl  --kubeconfig /etc/karmada/karmada-apiserver.config get clusters
+
 ```
 
 The components of Karmada are installed in `karmada-system` namespace by default, you can get them by:
