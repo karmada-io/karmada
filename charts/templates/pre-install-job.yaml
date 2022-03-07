@@ -199,7 +199,7 @@ spec:
         - |
           bash <<'EOF'
           set -ex
-          kubectl apply -f /opt/configs/
+          kubectl apply --server-side -f /opt/configs/
           EOF
         volumeMounts:
         - name: mount
