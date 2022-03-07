@@ -6,8 +6,8 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	"k8s.io/utils/pointer"
 
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -20,7 +20,6 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
@@ -28,14 +27,33 @@ import (
 // reschedule testing is used to test the rescheduling situation when some initially scheduled clusters are unjoined
 var _ = ginkgo.Describe("reschedule testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
+		newClusterName := "member-e2e-" + rand.String(3)
+		homeDir := os.Getenv("HOME")
+		kubeConfigPath := fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
+		controlPlane := fmt.Sprintf("%s-control-plane", newClusterName)
+		clusterContext := fmt.Sprintf("kind-%s", newClusterName)
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By(fmt.Sprintf("Creating cluster: %s", newClusterName), func() {
+				err := createCluster(newClusterName, kubeConfigPath, controlPlane, clusterContext)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
+				err := deleteCluster(newClusterName, kubeConfigPath)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				_ = os.Remove(kubeConfigPath)
+			})
+		})
+
 		policyNamespace := testNamespace
 		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
 		deploymentNamespace := testNamespace
 		deploymentName := policyName
 		deployment := testhelper.NewDeployment(deploymentNamespace, deploymentName)
-		maxGroups := 1
-		minGroups := 1
-		numOfUnjoinedClusters := 1
+		deployment.Spec.Replicas = pointer.Int32Ptr(10)
 
 		// set MaxGroups=MinGroups=1, label is sync-mode=Push.
 		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
@@ -45,67 +63,58 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 				Name:       deployment.Name,
 			},
 		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: pushModeClusterLabels,
-				},
-			},
-			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
-				{
-					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-					MaxGroups:     maxGroups,
-					MinGroups:     minGroups,
-				},
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
 			},
 		})
 
 		ginkgo.It("deployment reschedule testing", func() {
+			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName), func() {
+				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
+				opts := karmadactl.CommandJoinOption{
+					GlobalCommandOptions: options.GlobalCommandOptions{
+						DryRun: false,
+					},
+					ClusterNamespace:  "karmada-cluster",
+					ClusterName:       newClusterName,
+					ClusterContext:    clusterContext,
+					ClusterKubeConfig: kubeConfigPath,
+				}
+				err := karmadactl.RunJoin(os.Stdout, karmadaConfig, opts)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				// wait for the current cluster status changing to true
+				framework.WaitClusterFitWith(controlPlaneClient, newClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+					return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+				})
+			})
+
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
 
-			var unjoinedClusters []string
 			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 
 			ginkgo.By("unjoin target cluster", func() {
-				count := numOfUnjoinedClusters
-				for _, targetClusterName := range targetClusterNames {
-					if count == 0 {
-						break
-					}
-					count--
-					klog.Infof("Unjoining cluster %q.", targetClusterName)
-					karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-					opts := karmadactl.CommandUnjoinOption{
-						GlobalCommandOptions: options.GlobalCommandOptions{
-							KubeConfig:     fmt.Sprintf("%s/.kube/karmada.config", os.Getenv("HOME")),
-							KarmadaContext: "karmada-apiserver",
-						},
-						ClusterNamespace: "karmada-cluster",
-						ClusterName:      targetClusterName,
-					}
-					err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-					unjoinedClusters = append(unjoinedClusters, targetClusterName)
+				klog.Infof("Unjoining cluster %q.", newClusterName)
+				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
+				opts := karmadactl.CommandUnjoinOption{
+					GlobalCommandOptions: options.GlobalCommandOptions{
+						KubeConfig:     fmt.Sprintf("%s/.kube/karmada.config", os.Getenv("HOME")),
+						KarmadaContext: "karmada-apiserver",
+					},
+					ClusterNamespace: "karmada-cluster",
+					ClusterName:      newClusterName,
 				}
+				err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
 			ginkgo.By("check whether the deployment is rescheduled to other available clusters", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					totalNum := 0
+				gomega.Eventually(func(g gomega.Gomega) bool {
 					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-					for _, targetClusterName := range targetClusterNames {
-						// the target cluster should be overwritten to another available cluster
-						g.Expect(isUnjoined(targetClusterName, unjoinedClusters)).Should(gomega.BeFalse())
-
-						framework.WaitDeploymentPresentOnClusterFitWith(targetClusterName, deployment.Namespace, deployment.Name,
-							func(deployment *appsv1.Deployment) bool {
-								return true
-							})
-						totalNum++
-					}
-					g.Expect(totalNum == maxGroups).Should(gomega.BeTrue())
-				}, pollTimeout, pollInterval).Should(gomega.Succeed())
+					return isExclude(newClusterName, targetClusterNames)
+				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 			})
 
 			ginkgo.By("check if the scheduled condition is true", func() {
@@ -117,42 +126,18 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By("rejoin the unjoined clusters", func() {
-				for _, unjoinedCluster := range unjoinedClusters {
-					fmt.Printf("cluster %q is waiting for rejoining\n", unjoinedCluster)
-					karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-					opts := karmadactl.CommandJoinOption{
-						GlobalCommandOptions: options.GlobalCommandOptions{
-							KubeConfig:     fmt.Sprintf("%s/.kube/karmada.config", os.Getenv("HOME")),
-							KarmadaContext: "karmada-apiserver",
-						},
-						ClusterNamespace:  "karmada-cluster",
-						ClusterName:       unjoinedCluster,
-						ClusterContext:    unjoinedCluster,
-						ClusterKubeConfig: fmt.Sprintf("%s/.kube/members.config", os.Getenv("HOME")),
-					}
-					err := karmadactl.RunJoin(os.Stdout, karmadaConfig, opts)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-					fmt.Printf("waiting for cluster %q ready\n", unjoinedCluster)
-					framework.WaitClusterFitWith(controlPlaneClient, unjoinedCluster, func(cluster *clusterv1alpha1.Cluster) bool {
-						return util.IsClusterReady(&cluster.Status)
-					})
-				}
-			})
-
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })
 
-// indicate if the cluster is unjoined
-func isUnjoined(clusterName string, disabledClusters []string) bool {
-	for _, cluster := range disabledClusters {
-		if cluster == clusterName {
-			return true
+// indicate if the target clusters exclude the deleteCluster
+func isExclude(deleteCluster string, targetClusters []string) bool {
+	for _, cluster := range targetClusters {
+		if cluster == deleteCluster {
+			return false
 		}
 	}
-	return false
+	return true
 }

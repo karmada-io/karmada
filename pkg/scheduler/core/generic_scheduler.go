@@ -88,7 +88,7 @@ func (g *genericScheduler) findClustersThatFit(
 	clusters := clusterInfo.GetReadyClusters()
 	for _, c := range clusters {
 		if result := fwk.RunFilterPlugins(ctx, placement, resource, c.Cluster()); !result.IsSuccess() {
-			klog.V(4).Infof("cluster %q is not fit", c.Cluster().Name)
+			klog.V(4).Infof("cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
 		} else {
 			out = append(out, c.Cluster())
 		}
