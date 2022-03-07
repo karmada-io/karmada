@@ -49,7 +49,7 @@ type WorkStatusController struct {
 	PredicateFunc             predicate.Predicate
 	ClusterClientSetFunc      func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 	ClusterCacheSyncTimeout   metav1.Duration
-	RatelimiterOptions        ratelimiter.Options
+	RateLimiterOptions        ratelimiter.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -452,6 +452,6 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).WithOptions(controller.Options{
-		RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RatelimiterOptions),
+		RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RateLimiterOptions),
 	}).Complete(c)
 }

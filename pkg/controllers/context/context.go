@@ -50,7 +50,7 @@ type Options struct {
 	ClusterName string
 	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
 	ConcurrentWorkSyncs int
-	RatelimiterOptions  ratelimiter.Options
+	RateLimiterOptions  ratelimiter.Options
 }
 
 // Context defines the context object for controller.

@@ -84,7 +84,7 @@ type ClusterStatusController struct {
 	ClusterLeaseControllers sync.Map
 
 	ClusterCacheSyncTimeout metav1.Duration
-	RatelimiterOptions      ratelimiter.Options
+	RateLimiterOptions      ratelimiter.Options
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -117,7 +117,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).WithEventFilter(c.PredicateFunc).WithOptions(controller.Options{
-		RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RatelimiterOptions),
+		RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RateLimiterOptions),
 	}).Complete(c)
 }
 

@@ -44,7 +44,7 @@ type ClusterResourceBindingController struct {
 	RESTMapper          meta.RESTMapper
 	OverrideManager     overridemanager.OverrideManager
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
-	RatelimiterOptions  ratelimiter.Options
+	RateLimiterOptions  ratelimiter.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -162,7 +162,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RatelimiterOptions),
+			RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RateLimiterOptions),
 		}).
 		Complete(c)
 }

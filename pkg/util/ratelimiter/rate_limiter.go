@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-// Options are options for ratelimiter
+// Options are options for rate limiter.
 type Options struct {
 	BaseDelay  time.Duration
 	MaxDelay   time.Duration

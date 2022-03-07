@@ -77,7 +77,10 @@ type ResourceDetector struct {
 	// ConcurrentResourceBindingSyncs is the number of ResourceBinding that are allowed to sync concurrently.
 	// Larger number means responsive resource template syncing but more CPU(and network) load.
 	ConcurrentResourceBindingSyncs int
-	RatelimiterOptions             ratelimiter.Options
+
+	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
+	// the controller.
+	RateLimiterOptions ratelimiter.Options
 
 	stopCh <-chan struct{}
 }
@@ -128,7 +131,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Name:               "resource detector",
 		KeyFunc:            ClusterWideKeyFunc,
 		ReconcileFunc:      d.Reconcile,
-		RatelimiterOptions: d.RatelimiterOptions,
+		RateLimiterOptions: d.RateLimiterOptions,
 	}
 
 	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
