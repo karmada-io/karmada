@@ -26,8 +26,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
-const namespace = "karmada-system"
-
 // InitKarmadaResources Initialize karmada resource
 func InitKarmadaResources(dir, caBase64 string, systemNamespace string) error {
 	restConfig, err := utils.RestConfig(filepath.Join(dir, options.KarmadaKubeConfigName))
@@ -43,7 +41,7 @@ func InitKarmadaResources(dir, caBase64 string, systemNamespace string) error {
 	// create namespace
 	if _, err := clientSet.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: systemNamespace,
 		},
 	}, metav1.CreateOptions{}); err != nil {
 		klog.Exitln(err)
@@ -168,7 +166,7 @@ func apiServiceResourceVersion(c *aggregator.Clientset, name string) string {
 	return apiService.ResourceVersion
 }
 
-func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, externalNamespace string) error {
+func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, systemNamespace string) error {
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/apiservice.yaml
 	aaService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -177,14 +175,14 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, ex
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "karmada-aggregated-apiserver",
-			Namespace: namespace,
+			Namespace: systemNamespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:         corev1.ServiceTypeExternalName,
-			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc", externalNamespace),
+			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc", systemNamespace),
 		},
 	}
-	if _, err := clientSet.CoreV1().Services(namespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {
+	if _, err := clientSet.CoreV1().Services(systemNamespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	//new apiRegistrationClient
@@ -209,7 +207,7 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, ex
 			GroupPriorityMinimum:  2000,
 			Service: &apiregistrationv1.ServiceReference{
 				Name:      "karmada-aggregated-apiserver",
-				Namespace: namespace,
+				Namespace: systemNamespace,
 			},
 			Version:         "v1alpha1",
 			VersionPriority: 10,
