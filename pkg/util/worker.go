@@ -64,7 +64,7 @@ type Options struct {
 	Name               string
 	KeyFunc            KeyFunc
 	ReconcileFunc      ReconcileFunc
-	RatelimiterOptions ratelimiter.Options
+	RateLimiterOptions ratelimiter.Options
 }
 
 // NewAsyncWorker returns a asyncWorker which can process resource periodic.
@@ -72,7 +72,7 @@ func NewAsyncWorker(opt Options) AsyncWorker {
 	return &asyncWorker{
 		keyFunc:       opt.KeyFunc,
 		reconcileFunc: opt.ReconcileFunc,
-		queue:         workqueue.NewNamedRateLimitingQueue(ratelimiter.DefaultControllerRateLimiter(opt.RatelimiterOptions), opt.Name),
+		queue:         workqueue.NewNamedRateLimitingQueue(ratelimiter.DefaultControllerRateLimiter(opt.RateLimiterOptions), opt.Name),
 	}
 }
 

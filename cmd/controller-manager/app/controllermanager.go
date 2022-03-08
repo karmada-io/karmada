@@ -198,7 +198,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
 		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
-		RatelimiterOptions:                ctx.Opts.RatelimiterOptions,
+		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		return false, err
@@ -229,7 +229,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		OverrideManager:     ctx.OverrideManager,
 		InformerManager:     ctx.ControlPlaneInformerManager,
 		ResourceInterpreter: ctx.ResourceInterpreter,
-		RatelimiterOptions:  ctx.Opts.RatelimiterOptions,
+		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
 	if err := bindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -243,7 +243,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		OverrideManager:     ctx.OverrideManager,
 		InformerManager:     ctx.ControlPlaneInformerManager,
 		ResourceInterpreter: ctx.ResourceInterpreter,
-		RatelimiterOptions:  ctx.Opts.RatelimiterOptions,
+		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
 	if err := clusterResourceBindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -260,7 +260,7 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 		PredicateFunc:        helper.NewExecutionPredicate(ctx.Mgr),
 		InformerManager:      informermanager.GetInstance(),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
-		RatelimiterOption:    ctx.Opts.RatelimiterOptions,
+		RatelimiterOption:    ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -281,7 +281,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		ClusterClientSetFunc:      util.NewClusterDynamicClientSet,
 		ClusterCacheSyncTimeout:   opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs: opts.ConcurrentWorkSyncs,
-		RatelimiterOptions:        ctx.Opts.RatelimiterOptions,
+		RateLimiterOptions:        ctx.Opts.RateLimiterOptions,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -410,7 +410,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
-	ratelimiterOptions := ratelimiter.Options{
+	rateLimiterOptions := ratelimiter.Options{
 		BaseDelay:  opts.RateLimiterBaseDelay,
 		MaxDelay:   opts.RateLimiterMaxDelay,
 		QPS:        opts.RateLimiterQPS,
@@ -428,7 +428,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
 		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
 		ConcurrentResourceBindingSyncs:  opts.ConcurrentResourceBindingSyncs,
-		RatelimiterOptions:              ratelimiterOptions,
+		RateLimiterOptions:              rateLimiterOptions,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
@@ -464,7 +464,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
-			RatelimiterOptions:                ratelimiterOptions,
+			RateLimiterOptions:                rateLimiterOptions,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
