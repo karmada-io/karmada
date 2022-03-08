@@ -37,6 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
+	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
 )
 
 // ScheduleType defines the schedule type of a binding object should be performed.
@@ -124,8 +125,6 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, opts.SchedulerEstimatorTimeout.Duration)
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
-
-	metrics.Register()
 
 	sched.addAllEventHandlers()
 	return sched
@@ -282,14 +281,14 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ResourceBinding(%s/%s) as placement changed", namespace, name)
 		err = s.scheduleResourceBinding(rb)
-		metrics.BindingSchedule(string(ReconcileSchedule), metrics.SinceInSeconds(start), err)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&rb.Spec, policyPlacement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ResourceBinding(%s/%s) as replicas scaled down or scaled up", namespace, name)
 		err = s.scheduleResourceBinding(rb)
-		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
+		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	// TODO(dddddai): reschedule bindings on cluster change
@@ -301,7 +300,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	if features.FeatureGate.Enabled(features.Failover) {
 		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster failure or deletion", namespace, name)
 		err = s.scheduleResourceBinding(rb)
-		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
+		metrics.BindingSchedule(string(FailoverSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	return nil
@@ -345,14 +344,14 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ClusterResourceBinding(%s) as placement changed", name)
 		err = s.scheduleClusterResourceBinding(crb)
-		metrics.BindingSchedule(string(ReconcileSchedule), metrics.SinceInSeconds(start), err)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&crb.Spec, policyPlacement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as replicas scaled down or scaled up", name)
 		err = s.scheduleClusterResourceBinding(crb)
-		metrics.BindingSchedule(string(ScaleSchedule), metrics.SinceInSeconds(start), err)
+		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	// TODO(dddddai): reschedule bindings on cluster change
@@ -363,7 +362,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	if features.FeatureGate.Enabled(features.Failover) {
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as cluster failure or deletion", name)
 		err = s.scheduleClusterResourceBinding(crb)
-		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
+		metrics.BindingSchedule(string(FailoverSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	return nil
