@@ -417,7 +417,7 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 
 	// Create CRDs in karmada
 	caBase64 := base64.StdEncoding.EncodeToString(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)])
-	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64); err != nil {
+	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64, i.Namespace); err != nil {
 		return err
 	}
 
