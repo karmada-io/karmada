@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -70,7 +71,7 @@ type CommandInitOption struct {
 
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
-	if !utils.PathIsExist(i.KubeConfig) {
+	if !utils.IsExist(i.KubeConfig) {
 		return fmt.Errorf("kubeconfig file does not exist.absolute path to the kubeconfig file")
 	}
 
@@ -126,6 +127,13 @@ func (i *CommandInitOption) Complete() error {
 	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
 		if !i.isNodeExist(i.EtcdNodeSelectorLabels) {
 			return fmt.Errorf("no node found by label %s", i.EtcdNodeSelectorLabels)
+		}
+	}
+
+	// Determine whether KarmadaDataPath exists, if so, delete it
+	if utils.IsExist(i.KarmadaDataPath) {
+		if err := os.RemoveAll(i.KarmadaDataPath); err != nil {
+			return err
 		}
 	}
 
