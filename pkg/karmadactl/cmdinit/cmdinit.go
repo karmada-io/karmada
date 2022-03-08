@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -40,6 +41,8 @@ func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 		},
 	}
 	flags := cmd.PersistentFlags()
+	v := utils.GetInitVersion(version.Get().GitVersion)
+
 	// cert
 	flags.StringVar(&opts.ExternalIP, "cert-external-ip", "", "the external IP of Karmada certificate (e.g 192.168.1.2,172.16.1.2)")
 	flags.StringVar(&opts.ExternalDNS, "cert-external-dns", "", "the external DNS of Karmada certificate (e.g localhost,localhost.com)")
@@ -57,21 +60,21 @@ func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "etcd pod select the labels of the node. valid in hostPath mode ( e.g. --etcd-node-selector-labels karmada.io/etcd=true)")
 	flags.StringVarP(&opts.EtcdPersistentVolumeSize, "etcd-pvc-size", "", "5Gi", "etcd data path,valid in pvc mode.")
 	// karmada
-	crdURL := fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", version.Get().GitVersion)
+	crdURL := fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", v.CRDVersion)
 	flags.StringVar(&opts.CRDs, "crds", crdURL, "Karmada crds resource.(local file e.g. --crds /root/crds.tar.gz)")
 	flags.Int32VarP(&opts.KarmadaAPIServerNodePort, "port", "p", 32443, "Karmada apiserver service node port")
 	flags.StringVarP(&opts.KarmadaDataPath, "karmada-data", "d", "/etc/karmada", "karmada data path. kubeconfig cert and crds files")
 	flags.StringVarP(&opts.KarmadaAPIServerImage, "karmada-apiserver-image", "", "k8s.gcr.io/kube-apiserver:v1.21.7", "Kubernetes apiserver image")
 	flags.Int32VarP(&opts.KarmadaAPIServerReplicas, "karmada-apiserver-replicas", "", 1, "karmada apiserver replica set")
-	flags.StringVarP(&opts.KarmadaSchedulerImage, "karmada-scheduler-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler:latest", "karmada scheduler image")
+	flags.StringVarP(&opts.KarmadaSchedulerImage, "karmada-scheduler-image", "", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler:%s", v.ImageVersion), "karmada scheduler image")
 	flags.Int32VarP(&opts.KarmadaSchedulerReplicas, "karmada-scheduler-replicas", "", 1, "karmada scheduler replica set")
 	flags.StringVarP(&opts.KubeControllerManagerImage, "karmada-kube-controller-manager-image", "", "k8s.gcr.io/kube-controller-manager:v1.21.7", "Kubernetes controller manager image")
 	flags.Int32VarP(&opts.KubeControllerManagerReplicas, "karmada-kube-controller-manager-replicas", "", 1, "karmada kube controller manager replica set")
-	flags.StringVarP(&opts.KarmadaControllerManagerImage, "karmada-controller-manager-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager:latest", "karmada controller manager  image")
+	flags.StringVarP(&opts.KarmadaControllerManagerImage, "karmada-controller-manager-image", "", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager:%s", v.ImageVersion), "karmada controller manager  image")
 	flags.Int32VarP(&opts.KarmadaControllerManagerReplicas, "karmada-controller-manager-replicas", "", 1, "karmada controller manager replica set")
-	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook:latest", "karmada webhook image")
+	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook:%s", v.ImageVersion), "karmada webhook image")
 	flags.Int32VarP(&opts.KarmadaWebhookReplicas, "karmada-webhook-replicas", "", 1, "karmada webhook replica set")
-	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", "swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-aggregated-apiserver:latest", "karmada aggregated apiserver image")
+	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-aggregated-apiserver:%s", v.ImageVersion), "karmada aggregated apiserver image")
 	flags.Int32VarP(&opts.KarmadaAggregatedAPIServerReplicas, "karmada-aggregated-apiserver-replicas", "", 1, "karmada aggregated apiserver replica set")
 
 	return cmd
