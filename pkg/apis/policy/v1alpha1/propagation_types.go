@@ -5,6 +5,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindPropagationPolicy is kind name of PropagationPolicy.
+	ResourceKindPropagationPolicy = "PropagationPolicy"
+	// ResourceSingularPropagationPolicy is singular name of PropagationPolicy.
+	ResourceSingularPropagationPolicy = "propagationpolicy"
+	// ResourcePluralPropagationPolicy is kind plural name of PropagationPolicy.
+	ResourcePluralPropagationPolicy = "propagationpolicies"
+	// ResourceNamespaceScopedPropagationPolicy indicates if PropagationPolicy is NamespaceScoped.
+	ResourceNamespaceScopedPropagationPolicy = true
+
+	// ResourceKindClusterPropagationPolicy is kind name of ClusterPropagationPolicy.
+	ResourceKindClusterPropagationPolicy = "ClusterPropagationPolicy"
+	// ResourceSingularClusterPropagationPolicy is singular name of ClusterPropagationPolicy.
+	ResourceSingularClusterPropagationPolicy = "clusterpropagationpolicy"
+	// ResourcePluralClusterPropagationPolicy is plural name of ClusterPropagationPolicy.
+	ResourcePluralClusterPropagationPolicy = "clusterpropagationpolicies"
+	// ResourceNamespaceScopedClusterPropagationPolicy indicates if ClusterPropagationPolicy is NamespaceScoped.
+	ResourceNamespaceScopedClusterPropagationPolicy = false
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:shortName=pp

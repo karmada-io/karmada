@@ -5,6 +5,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindMultiClusterIngress is kind name of MultiClusterIngress.
+	ResourceKindMultiClusterIngress = "MultiClusterIngress"
+	// ResourceSingularMultiClusterIngress is singular name of MultiClusterIngress.
+	ResourceSingularMultiClusterIngress = "multiclusteringress"
+	// ResourcePluralMultiClusterIngress is plural name of MultiClusterIngress.
+	ResourcePluralMultiClusterIngress = "multiclusteringresses"
+	// ResourceNamespaceScopedMultiClusterIngress indicates if MultiClusterIngress is NamespaceScoped.
+	ResourceNamespaceScopedMultiClusterIngress = true
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status

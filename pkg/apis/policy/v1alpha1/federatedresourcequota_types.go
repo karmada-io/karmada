@@ -5,6 +5,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ResourceKindFederatedResourceQuota is kind name of FederatedResourceQuota.
+	ResourceKindFederatedResourceQuota = "FederatedResourceQuota"
+	// ResourceSingularFederatedResourceQuota is singular name of FederatedResourceQuota.
+	ResourceSingularFederatedResourceQuota = "federatedresourcequota"
+	// ResourcePluralFederatedResourceQuota is plural name of FederatedResourceQuota.
+	ResourcePluralFederatedResourceQuota = "federatedresourcequotas"
+	// ResourceNamespaceScopedFederatedResourceQuota indicates if FederatedResourceQuota is NamespaceScoped.
+	ResourceNamespaceScopedFederatedResourceQuota = true
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
