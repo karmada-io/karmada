@@ -8,8 +8,37 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
+
+// InitVersion init karmada version
+type InitVersion struct {
+	ImageVersion string
+	CRDVersion   string
+}
+
+// GetInitVersion formatted version
+func GetInitVersion(version string) InitVersion {
+	// CRD version e.g. v0.10.1-547-g0190fda9-dirty -> v0.10.0
+	n := strings.LastIndex(version, ".") + 1
+
+	return InitVersion{
+		ImageVersion: initImageVersion(version),
+		CRDVersion:   fmt.Sprintf("%s%s", string([]byte(version)[:n]), "0"),
+	}
+}
+
+// imageVersion init karmada images version
+func initImageVersion(version string) string {
+	if !strings.Contains(version, "-") {
+		return version
+	}
+	// e.g. v0.10.1-547-g0190fda9-dirty -> v0.10.1
+	n := strings.Index(version, "-")
+
+	return string([]byte(version)[:n])
+}
 
 // Downloader Download progress
 type Downloader struct {
