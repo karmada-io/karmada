@@ -87,6 +87,12 @@ func DivideReplicasByTargetCluster(clusters []workv1alpha2.TargetCluster, sum in
 
 // MergeTargetClusters will merge the replicas in two TargetCluster
 func MergeTargetClusters(old, new []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+	switch {
+	case len(old) == 0:
+		return new
+	case len(new) == 0:
+		return old
+	}
 	// oldMap is a map of the result for the old replicas so that it can be merged with the new result easily
 	oldMap := make(map[string]int32)
 	for _, cluster := range old {
