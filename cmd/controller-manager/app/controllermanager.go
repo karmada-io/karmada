@@ -13,8 +13,9 @@ import (
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
-
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -41,6 +42,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli"
+	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -69,13 +72,26 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
-	// Init log flags
-	// TODO(@RainbowMango): Group the flags to "logs" flag set.
-	klog.InitFlags(flag.CommandLine)
+	fss := cliflag.NamedFlagSets{}
 
-	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+	genericFlagSet := fss.FlagSet("generic")
+	// Add the flag(--kubeconfig) that is added by controller-runtime
+	// (https://github.com/kubernetes-sigs/controller-runtime/blob/v0.11.1/pkg/client/config/config.go#L39),
+	// and update the flag usage.
+	genericFlagSet.AddGoFlagSet(flag.CommandLine)
+	genericFlagSet.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
+	opts.AddFlags(genericFlagSet, controllers.ControllerNames())
+
+	// Set klog flags
+	logsFlagSet := fss.FlagSet("logs")
+	klogflag.Add(logsFlagSet)
+
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-controller-manager"))
-	opts.AddFlags(cmd.Flags(), controllers.ControllerNames())
+	cmd.Flags().AddFlagSet(genericFlagSet)
+	cmd.Flags().AddFlagSet(logsFlagSet)
+
+	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
+	sharedcli.SetUsageAndHelpFunc(cmd, fss, cols)
 	return cmd
 }
 
