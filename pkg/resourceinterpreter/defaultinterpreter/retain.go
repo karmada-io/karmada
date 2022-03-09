@@ -75,12 +75,8 @@ func retainServiceFields(desired, observed *unstructured.Unstructured) (*unstruc
 		return nil, err
 	}
 
-	// ClusterIP and NodePort are allocated to Service by cluster, so retain the same if any while updating
+	// ClusterIP is allocated to Service by cluster, so retain the same if any while updating
 	if err := retainServiceClusterIP(desired, observed); err != nil {
-		return nil, err
-	}
-
-	if err := retainServiceNodePort(desired, observed); err != nil {
 		return nil, err
 	}
 
@@ -112,44 +108,6 @@ func retainServiceClusterIP(desired, observed *unstructured.Unstructured) error 
 			return fmt.Errorf("error setting clusterIP for service: %w", err)
 		}
 	}
-	return nil
-}
-
-func retainServiceNodePort(desired, observed *unstructured.Unstructured) error {
-	clusterPorts, ok, err := unstructured.NestedSlice(observed.Object, "spec", "ports")
-	if err != nil {
-		return fmt.Errorf("error retrieving ports from cluster service: %w", err)
-	}
-	if !ok {
-		return nil
-	}
-
-	var desiredPorts []interface{}
-	desiredPorts, ok, err = unstructured.NestedSlice(desired.Object, "spec", "ports")
-	if err != nil {
-		return fmt.Errorf("error retrieving ports from service: %w", err)
-	}
-	if !ok {
-		desiredPorts = []interface{}{}
-	}
-	for desiredIndex := range desiredPorts {
-		for clusterIndex := range clusterPorts {
-			fPort := desiredPorts[desiredIndex].(map[string]interface{})
-			cPort := clusterPorts[clusterIndex].(map[string]interface{})
-			if !(fPort["name"] == cPort["name"] && fPort["protocol"] == cPort["protocol"] && fPort["port"] == cPort["port"]) {
-				continue
-			}
-			nodePort, ok := cPort["nodePort"]
-			if ok {
-				fPort["nodePort"] = nodePort
-			}
-		}
-	}
-	err = unstructured.SetNestedSlice(desired.Object, desiredPorts, "spec", "ports")
-	if err != nil {
-		return fmt.Errorf("error setting ports for service: %w", err)
-	}
-
 	return nil
 }
 
