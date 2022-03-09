@@ -28,8 +28,8 @@ import (
 
 const namespace = "karmada-system"
 
-//InitKarmadaResources Initialize karmada resource
-func InitKarmadaResources(dir, caBase64 string) error {
+// InitKarmadaResources Initialize karmada resource
+func InitKarmadaResources(dir, caBase64 string, systemNamespace string) error {
 	restConfig, err := utils.RestConfig(filepath.Join(dir, options.KarmadaKubeConfigName))
 	if err != nil {
 		return err
@@ -80,18 +80,18 @@ func InitKarmadaResources(dir, caBase64 string) error {
 
 	// create webhook configuration
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/webhook-configuration.yaml
-	klog.Info("Crate MutatingWebhookConfiguration mutating-config.")
-	if err = createMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64)); err != nil {
+	klog.Info("Create MutatingWebhookConfiguration mutating-config.")
+	if err = createMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
-	klog.Info("Crate ValidatingWebhookConfiguration validating-config.")
+	klog.Info("Create ValidatingWebhookConfiguration validating-config.")
 
-	if err = createValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64)); err != nil {
+	if err = createValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
 
 	// karmada-aggregated-apiserver
-	if err = initAPIService(clientSet, restConfig); err != nil {
+	if err = initAPIService(clientSet, restConfig, systemNamespace); err != nil {
 		klog.Exitln(err)
 	}
 
@@ -168,7 +168,7 @@ func apiServiceResourceVersion(c *aggregator.Clientset, name string) string {
 	return apiService.ResourceVersion
 }
 
-func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) error {
+func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, externalNamespace string) error {
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/apiservice.yaml
 	aaService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -181,7 +181,7 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 		},
 		Spec: corev1.ServiceSpec{
 			Type:         corev1.ServiceTypeExternalName,
-			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc.cluster.local", namespace),
+			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc", externalNamespace),
 		},
 	}
 	if _, err := clientSet.CoreV1().Services(namespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {
