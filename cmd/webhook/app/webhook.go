@@ -80,6 +80,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 			Host:          opts.BindAddress,
 			Port:          opts.SecurePort,
 			CertDir:       opts.CertDir,
+			CertName:      opts.CertName,
+			KeyName:       opts.KeyName,
 			TLSMinVersion: opts.TLSMinVersion,
 		},
 		LeaderElection:         false,
