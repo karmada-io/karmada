@@ -57,7 +57,7 @@ func divideReplicasByResource(
 		}
 		return newTargetClusters, nil
 	} else {
-		return spec.Clusters, nil
+		return scheduledClusters, nil
 	}
 }
 
