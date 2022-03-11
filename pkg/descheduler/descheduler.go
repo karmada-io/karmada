@@ -128,7 +128,7 @@ func (d *Descheduler) descheduleOnce() {
 	}
 	bindings = core.FilterBindings(bindings)
 	for _, binding := range bindings {
-		d.deschedulerWorker.Add(binding)
+		d.deschedulerWorker.Enqueue(binding)
 	}
 }
 
