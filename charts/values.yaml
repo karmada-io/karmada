@@ -114,6 +114,11 @@ scheduler:
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
 
 ## webhook config
 webhook:
@@ -153,6 +158,11 @@ webhook:
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
 
 ## controller manager config
 controllerManager:
@@ -192,6 +202,11 @@ controllerManager:
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
 
 ## karmada apiserver config
 apiServer:
@@ -246,6 +261,11 @@ apiServer:
   nodePort: 0
   maxRequestsInflight: 1500
   maxMutatingRequestsInflight: 500
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:
@@ -287,6 +307,11 @@ aggregatedApiServer:
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
 
 ## kubernetes controller manager config
 kubeControllerManager:
@@ -326,6 +351,11 @@ kubeControllerManager:
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
 
 ## etcd config
 etcd:
@@ -444,6 +474,11 @@ agent:
   tolerations: { }
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
 
 ## karmada scheduler estimator
 schedulerEstimator:
@@ -503,3 +538,8 @@ schedulerEstimator:
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%

@@ -20,6 +20,10 @@ spec:
   selector:
     matchLabels:
       {{- include "karmada.webhook.labels" . | nindent 6}}
+  {{- with .Values.webhook.strategy }}
+  strategy:
+  {{- toYaml . | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.webhook.podAnnotations}}
