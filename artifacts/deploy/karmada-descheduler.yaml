@@ -24,7 +24,7 @@ spec:
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-descheduler
-            - --karmada-kubeconfig=/etc/kubeconfig
+           # - --karmada-kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
             - --v=4
           volumeMounts:
