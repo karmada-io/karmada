@@ -21,16 +21,10 @@ const (
 	labelSeparator = "="
 )
 
-// PathIsExist Determine whether the path exists
-func PathIsExist(path string) bool {
+// IsExist Determine whether the path exists
+func IsExist(path string) bool {
 	_, err := os.Stat(path)
-
-	if err != nil && os.IsNotExist(err) {
-		if err = os.MkdirAll(path, 0755); err != nil {
-			return false
-		}
-	}
-	return true
+	return err == nil
 }
 
 // StringToNetIP String To NetIP
