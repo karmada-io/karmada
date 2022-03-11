@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
-	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -269,7 +268,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					"--controllers=namespace,garbagecollector,serviceaccount-token",
 					"--kubeconfig=/etc/kubeconfig",
 					"--leader-elect=true",
-					fmt.Sprintf("--leader-elect-resource-namespace=%s", util.NamespaceKarmadaSystem),
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--node-cidr-mask-size=24",
 					"--port=0",
 					fmt.Sprintf("--root-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
@@ -390,7 +389,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					"--feature-gates=Failover=true",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
-					fmt.Sprintf("--leader-elect-resource-namespace=%s", util.NamespaceKarmadaSystem),
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
 				VolumeMounts: []corev1.VolumeMount{
