@@ -3,8 +3,6 @@ package cmdinit
 import (
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -46,7 +44,7 @@ func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 	// Kubernetes
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "Kubernetes namespace")
 	flags.StringVar(&opts.StorageClassesName, "storage-classes-name", "", "Kubernetes StorageClasses Name")
-	flags.StringVar(&opts.KubeConfig, "kubeconfig", filepath.Join(homeDir(), ".kube", "config"), "absolute path to the kubeconfig file")
+	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	// etcd
 	flags.StringVarP(&opts.EtcdStorageMode, "etcd-storage-mode", "", "emptyDir",
 		"etcd data storage mode(emptyDir,hostPath,PVC). value is PVC, specify --storage-classes-name")
@@ -108,11 +106,4 @@ func getInitExample(parentCommand string) string {
 ` + parentCommand + ` init --cert-external-ip 10.235.1.2 --cert-external-dns www.karmada.io
 `
 	return initExample
-}
-
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE") // windows
 }
