@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -549,5 +550,43 @@ func NewConfigMap(namespace string, name string, data map[string]string) *corev1
 			Name:      name,
 		},
 		Data: data,
+	}
+}
+
+// NewServiceaccount will build a new serviceaccount.
+func NewServiceaccount(namespace, name string) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		TypeMeta:   metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Secrets:    []corev1.ObjectReference{},
+	}
+}
+
+// NewClusterroles will build a new clusterrole resource.
+func NewClusterroles(name, apigroup, resource, resourcename string) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta:   metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Rules: []rbacv1.PolicyRule{{
+			APIGroups: []string{apigroup},
+			Verbs:     []string{"*"},
+			Resources: []string{resource},
+			// ResourceNames: []string{"member1","member2","member3"},
+			ResourceNames: []string{resourcename},
+		}},
+	}
+}
+
+// NewClusterrolebindings will bild a new clusterrolebinding.
+func NewClusterrolebindings(name, clsterroleName string, subject []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta:   metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Subjects:   subject,
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     clsterroleName,
+		},
 	}
 }
