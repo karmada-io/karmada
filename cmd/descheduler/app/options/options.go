@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
 	"github.com/karmada-io/karmada/pkg/util"
@@ -16,6 +17,12 @@ const (
 	defaultEstimatorPort          = 10352
 	defaultDeschedulingInterval   = 2 * time.Minute
 	defaultUnschedulableThreshold = 5 * time.Minute
+)
+
+var (
+	defaultElectionLeaseDuration = metav1.Duration{Duration: 15 * time.Second}
+	defaultElectionRenewDeadline = metav1.Duration{Duration: 10 * time.Second}
+	defaultElectionRetryPeriod   = metav1.Duration{Duration: 2 * time.Second}
 )
 
 // Options contains everything necessary to create and run scheduler-estimator.
@@ -42,9 +49,19 @@ type Options struct {
 	UnschedulableThreshold metav1.Duration
 }
 
-// NewOptions builds an empty options.
+// NewOptions builds a default descheduler options.
 func NewOptions() *Options {
-	return &Options{}
+	return &Options{
+		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
+			LeaderElect:       true,
+			ResourceLock:      resourcelock.LeasesResourceLock,
+			ResourceNamespace: util.NamespaceKarmadaSystem,
+			ResourceName:      "karmada-descheduler",
+			LeaseDuration:     defaultElectionLeaseDuration,
+			RenewDeadline:     defaultElectionRenewDeadline,
+			RetryPeriod:       defaultElectionRetryPeriod,
+		},
+	}
 }
 
 // AddFlags adds flags of estimator to the specified FlagSet

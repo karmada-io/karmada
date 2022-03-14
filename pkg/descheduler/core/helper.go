@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/kr/pretty"
 	"k8s.io/klog/v2"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -75,7 +76,7 @@ func (h *SchedulingResultHelper) FillUnschedulableReplicas(unschedulableThreshol
 		}
 	}
 
-	klog.V(4).Infof("Target undesired cluster of unschedulable replica result: %v", undesiredClusters)
+	klog.V(4).Infof("Target undesired cluster of unschedulable replica result: %s", pretty.Sprint(undesiredClusters))
 }
 
 // GetUndesiredClusters returns the cluster which of ready replicas are not reach the ready ones.
