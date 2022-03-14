@@ -7,10 +7,10 @@ to move already running replicas to some other clusters due to lack of resources
 some nodes of a cluster failed and the cluster does not have enough resource to accommodate their pods or the estimators 
 have some estimation deviation, which is inevitable.
 
-The karmada-descheduler will detect all deployments once in a while, default 2 minutes. In every period, it will find out 
+The karmada-descheduler will detect all deployments once in a while, every 2 minutes by default. In every period, it will find out 
 how many unschedulable replicas a deployment has in target scheduled clusters by calling karmada-scheduler-estimator. Then 
 it will evict them from decreasing `spec.clusters` and trigger karmada-scheduler to do a 'Scale Schedule' based on the current 
-situation. Note that it will take effect only when the replica scheduling strategy is dynamic divided.
+situation. Note that it will take effect only when the replica scheduling strategy is dynamic division.
 
 ## Prerequisites
 
@@ -20,12 +20,12 @@ We can install Karmada by referring to [quick-start](https://github.com/karmada-
 
 ### Member cluster component is ready
 
-Ensure that all member clusters has been joined and their corresponding karmada-scheduler-estimator is installed into karmada-host.
+Ensure that all member clusters have joined Karmada and their corresponding karmada-scheduler-estimator is installed into karmada-host.
 
-You could check by using the following command:
+Check member clusters using the following command:
 
 ```bash
-# check whether the member cluster has been joined
+# Check whether member clusters have joined
 $ kubectl get cluster
 NAME       VERSION   MODE   READY   AGE
 member1    v1.19.1   Push   True    11m
@@ -39,23 +39,23 @@ karmada-scheduler-estimator-member2-774fb84c5d-md4wt   1/1     Running   0      
 karmada-scheduler-estimator-member3-5c7d87f4b4-76gv9   1/1     Running   0          72s
 ```
 
-- If the cluster has not been joined, you could use `hack/deploy-agent-and-estimator.sh` to deploy both karmada-agent and karmada-scheduler-estimator.
-- If the cluster has been joined already, you could use `hack/deploy-scheduler-estimator.sh` to only deploy karmada-scheduler-estimator.
+- If a cluster has not joined, use `hack/deploy-agent-and-estimator.sh` to deploy both karmada-agent and karmada-scheduler-estimator.
+- If the clusters have joined, use `hack/deploy-scheduler-estimator.sh` to only deploy karmada-scheduler-estimator.
 
 ### Scheduler option '--enable-scheduler-estimator'
 
-After all member clusters has been joined and estimators are all ready, please specify the option `--enable-scheduler-estimator=true` to enable scheduler estimator.
+After all member clusters have joined and estimators are all ready, specify the option `--enable-scheduler-estimator=true` to enable scheduler estimator.
 
 ```bash
 # edit the deployment of karmada-scheduler
 $ kubectl --context karmada-host edit -n karmada-system deployments.apps karmada-scheduler
 ```
 
-And then add the option `--enable-scheduler-estimator=true` into the command of container `karmada-scheduler`.
+Add the option `--enable-scheduler-estimator=true` into the command of container `karmada-scheduler`.
 
 ### Descheduler has been installed
 
-Ensure that the karmada-descheduler has been installed in to karmada-host.
+Ensure that the karmada-descheduler has been installed onto karmada-host.
 
 ```bash
 $ kubectl --context karmada-host get pod -n karmada-system | grep karmada-descheduler
@@ -64,7 +64,7 @@ karmada-descheduler-658648d5b-c22qf                    1/1     Running   0      
 
 ## Example
 
-Now let's build a scene where some replicas in a member cluster are not capable to be scheduled due to lack of resources.
+Let's simulate a replica scheduling failure in a member cluster due to lack of resources.
 
 First we create a deployment with 3 replicas and divide them into 3 member clusters.
 
@@ -114,7 +114,7 @@ spec:
             cpu: "2"
 ```
 
-It is possible for these 3 replicas to be divided into 3 member clusters averagely, i.e. 1 replica in each cluster.
+It is possible for these 3 replicas to be evenly divided into 3 member clusters, that is, one replica in each cluster.
 Now we taint all nodes in member1 and evict the replica.
 
 ```bash
