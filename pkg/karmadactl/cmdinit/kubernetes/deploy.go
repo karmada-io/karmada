@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -34,7 +35,9 @@ var certList = []string{
 	options.FrontProxyClientCertAndKeyName,
 }
 
-//CommandInitOption holds all flags options for init.
+var defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
+
+// CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
 	EtcdImage                          string
 	EtcdReplicas                       int32
@@ -71,10 +74,6 @@ type CommandInitOption struct {
 
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
-	if !utils.IsExist(i.KubeConfig) {
-		return fmt.Errorf("kubeconfig file does not exist.absolute path to the kubeconfig file")
-	}
-
 	if i.EtcdStorageMode == "hostPath" && i.EtcdHostDataPath == "" {
 		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
@@ -96,6 +95,16 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 
 // Complete Initialize k8s client
 func (i *CommandInitOption) Complete() error {
+	// check config path of host kubernetes cluster
+	if i.KubeConfig == "" {
+		env := os.Getenv("KUBECONFIG")
+		if env != "" {
+			i.KubeConfig = env
+		} else {
+			i.KubeConfig = defaultKubeConfig
+		}
+	}
+
 	restConfig, err := utils.RestConfig(i.KubeConfig)
 	if err != nil {
 		return err
@@ -435,4 +444,11 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 
 	utils.GenExamples(i.KarmadaDataPath, parentCommand)
 	return nil
+}
+
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	return os.Getenv("USERPROFILE") // windows
 }
