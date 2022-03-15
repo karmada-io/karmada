@@ -346,7 +346,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	}
 
 	// Create karmada-controller-manager
-	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/controller-manager.yaml
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-controller-manager.yaml
 	klog.Info("create karmada controller manager Deployment")
 	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
