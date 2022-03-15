@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package validation
+package lifted
 
 import (
 	"strings"
@@ -40,7 +40,7 @@ func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.Err
 			allErrors = append(allErrors, field.Invalid(idxPath.Child("value"), currTaint.Value, strings.Join(errs, ";")))
 		}
 		// validate the taint effect
-		allErrors = append(allErrors, validateTaintEffect(&currTaint.Effect, false, idxPath.Child("effect"))...)
+		allErrors = append(allErrors, validateClusterTaintEffect(&currTaint.Effect, false, idxPath.Child("effect"))...)
 
 		// validate if taint is unique by <key, effect>
 		if len(uniqueTaints[currTaint.Effect]) > 0 && uniqueTaints[currTaint.Effect].Has(currTaint.Key) {
@@ -59,7 +59,7 @@ func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.Err
 	return allErrors
 }
 
-func validateTaintEffect(effect *corev1.TaintEffect, allowEmpty bool, fldPath *field.Path) field.ErrorList {
+func validateClusterTaintEffect(effect *corev1.TaintEffect, allowEmpty bool, fldPath *field.Path) field.ErrorList {
 	if !allowEmpty && len(*effect) == 0 {
 		return field.ErrorList{field.Required(fldPath, "")}
 	}

@@ -7,7 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/karmada-io/karmada/pkg/util/resourcehelper"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 // Resource is a collection of compute resource.
@@ -40,7 +40,7 @@ func NewResource(rl corev1.ResourceList) *Resource {
 		case corev1.ResourceEphemeralStorage:
 			r.EphemeralStorage += rQuant.Value()
 		default:
-			if resourcehelper.IsScalarResourceName(rName) {
+			if lifted.IsScalarResourceName(rName) {
 				r.AddScalar(rName, rQuant.Value())
 			}
 		}
@@ -65,7 +65,7 @@ func (r *Resource) Add(rl corev1.ResourceList) {
 		case corev1.ResourceEphemeralStorage:
 			r.EphemeralStorage += rQuant.Value()
 		default:
-			if resourcehelper.IsScalarResourceName(rName) {
+			if lifted.IsScalarResourceName(rName) {
 				r.AddScalar(rName, rQuant.Value())
 			}
 		}
@@ -102,7 +102,7 @@ func (r *Resource) Sub(rl corev1.ResourceList) error {
 			}
 			r.EphemeralStorage -= ephemeralStorage
 		default:
-			if resourcehelper.IsScalarResourceName(rName) {
+			if lifted.IsScalarResourceName(rName) {
 				rScalar, ok := r.ScalarResources[rName]
 				scalar := rQuant.Value()
 				if !ok && scalar > 0 {
@@ -143,7 +143,7 @@ func (r *Resource) SetMaxResource(rl corev1.ResourceList) {
 				r.AllowedPodNumber = pods
 			}
 		default:
-			if resourcehelper.IsScalarResourceName(rName) {
+			if lifted.IsScalarResourceName(rName) {
 				if value := rQuant.Value(); value > r.ScalarResources[rName] {
 					r.SetScalar(rName, value)
 				}
@@ -183,7 +183,7 @@ func (r *Resource) ResourceList() corev1.ResourceList {
 	}
 	for rName, rQuant := range r.ScalarResources {
 		if rQuant > 0 {
-			if resourcehelper.IsHugePageResourceName(rName) {
+			if lifted.IsHugePageResourceName(rName) {
 				result[rName] = *resource.NewQuantity(rQuant, resource.BinarySI)
 			} else {
 				result[rName] = *resource.NewQuantity(rQuant, resource.DecimalSI)
@@ -214,7 +214,7 @@ func (r *Resource) MaxDivided(rl corev1.ResourceList) int64 {
 				res = MinInt64(res, r.EphemeralStorage/ephemeralStorage)
 			}
 		default:
-			if resourcehelper.IsScalarResourceName(rName) {
+			if lifted.IsScalarResourceName(rName) {
 				rScalar := r.ScalarResources[rName]
 				if scalar := rQuant.Value(); scalar > 0 {
 					res = MinInt64(res, rScalar/scalar)

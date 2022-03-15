@@ -18,7 +18,7 @@ limitations under the License.
 // However the code has been revised for using Lister instead of API interface.
 // For reference: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go
 
-package workload
+package lifted
 
 import (
 	"sort"

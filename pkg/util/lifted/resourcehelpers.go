@@ -16,11 +16,9 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/helper/helpers.go#L57-L61
-// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/helper/helpers.go#L169-L192
-// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/helper/helpers.go#L212-L283
+// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/v1/helper/helpers.go
 
-package helper
+package lifted
 
 import (
 	"fmt"
@@ -30,12 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
-
-// IsQuotaHugePageResourceName returns true if the resource name has the quota
-// related huge page resource prefix.
-func IsQuotaHugePageResourceName(name corev1.ResourceName) bool {
-	return strings.HasPrefix(string(name), corev1.ResourceHugePagesPrefix) || strings.HasPrefix(string(name), corev1.ResourceRequestsHugePagesPrefix)
-}
 
 // IsExtendedResourceName returns true if:
 // 1. the resource name is not in the default namespace;
@@ -54,12 +46,35 @@ func IsExtendedResourceName(name corev1.ResourceName) bool {
 	return true
 }
 
+// IsPrefixedNativeResource returns true if the resource name is in the
+// *kubernetes.io/ namespace.
+func IsPrefixedNativeResource(name corev1.ResourceName) bool {
+	return strings.Contains(string(name), corev1.ResourceDefaultNamespacePrefix)
+}
+
 // IsNativeResource returns true if the resource name is in the
 // *kubernetes.io/ namespace. Partially-qualified (unprefixed) names are
 // implicitly in the kubernetes.io/ namespace.
 func IsNativeResource(name corev1.ResourceName) bool {
 	return !strings.Contains(string(name), "/") ||
-		strings.Contains(string(name), corev1.ResourceDefaultNamespacePrefix)
+		IsPrefixedNativeResource(name)
+}
+
+// IsHugePageResourceName returns true if the resource name has the huge page
+// resource prefix.
+func IsHugePageResourceName(name corev1.ResourceName) bool {
+	return strings.HasPrefix(string(name), corev1.ResourceHugePagesPrefix)
+}
+
+// IsAttachableVolumeResourceName returns true when the resource name is prefixed in attachable volume
+func IsAttachableVolumeResourceName(name corev1.ResourceName) bool {
+	return strings.HasPrefix(string(name), corev1.ResourceAttachableVolumesPrefix)
+}
+
+// IsQuotaHugePageResourceName returns true if the resource name has the quota
+// related huge page resource prefix.
+func IsQuotaHugePageResourceName(name corev1.ResourceName) bool {
+	return strings.HasPrefix(string(name), corev1.ResourceHugePagesPrefix) || strings.HasPrefix(string(name), corev1.ResourceRequestsHugePagesPrefix)
 }
 
 var standardQuotaResources = sets.NewString(
