@@ -6,7 +6,6 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +16,6 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -85,28 +83,19 @@ var _ = ginkgo.Describe("failover testing", func() {
 			})
 
 			ginkgo.By("check whether deployment of failed cluster is rescheduled to other available cluster", func() {
-				totalNum := 0
-
-				targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-				for _, targetClusterName := range targetClusterNames {
-					// the target cluster should be overwritten to another available cluster
-					gomega.Expect(isDisabled(targetClusterName, disabledClusters)).Should(gomega.BeFalse())
-
-					framework.WaitDeploymentPresentOnClusterFitWith(targetClusterName, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
-							return true
-						})
-					totalNum++
-				}
-				gomega.Expect(totalNum == minGroups).Should(gomega.BeTrue())
-			})
-
-			ginkgo.By("check if the scheduled condition is true", func() {
 				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
-					rb, err := getResourceBinding(deployment)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					return meta.IsStatusConditionTrue(rb.Status.Conditions, workv1alpha2.Scheduled), nil
+					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+					for _, targetClusterName := range targetClusterNames {
+						// the target cluster should be overwritten to another available cluster
+						if !testhelper.IsExclude(targetClusterName, disabledClusters) {
+							return false, nil
+						}
+					}
+
+					gomega.Expect(len(targetClusterNames) == minGroups).Should(gomega.BeTrue())
+					return true, nil
 				})
+
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -181,16 +170,6 @@ func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint str
 		return true, nil
 	})
 	return err
-}
-
-// indicate if the cluster is disabled
-func isDisabled(clusterName string, disabledClusters []string) bool {
-	for _, cluster := range disabledClusters {
-		if cluster == clusterName {
-			return true
-		}
-	}
-	return false
 }
 
 // get the API endpoint of a specific cluster

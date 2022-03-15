@@ -113,7 +113,7 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 			ginkgo.By("check whether the deployment is rescheduled to other available clusters", func() {
 				gomega.Eventually(func(g gomega.Gomega) bool {
 					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-					return isExclude(newClusterName, targetClusterNames)
+					return testhelper.IsExclude(newClusterName, targetClusterNames)
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 			})
 
@@ -131,13 +131,3 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 		})
 	})
 })
-
-// indicate if the target clusters exclude the deleteCluster
-func isExclude(deleteCluster string, targetClusters []string) bool {
-	for _, cluster := range targetClusters {
-		if cluster == deleteCluster {
-			return false
-		}
-	}
-	return true
-}

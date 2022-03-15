@@ -23,3 +23,13 @@ func IsScheduleResultEqual(tc1, tc2 []workv1alpha2.TargetCluster) bool {
 	}
 	return true
 }
+
+// IsExclude indicate if the target clusters exclude the srcCluster
+func IsExclude(srcCluster string, targetClusters []string) bool {
+	for _, cluster := range targetClusters {
+		if cluster == srcCluster {
+			return false
+		}
+	}
+	return true
+}
