@@ -13,6 +13,7 @@ import (
 
 	clustervalidation "github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 // ValidatingAdmission validates FederatedResourceQuota object when creating/updating.
@@ -149,8 +150,8 @@ func validateResourceList(resourceList corev1.ResourceList, fld *field.Path) fie
 
 	for k, v := range resourceList {
 		resPath := fld.Key(string(k))
-		errs = append(errs, ValidateResourceQuotaResourceName(string(k), resPath)...)
-		errs = append(errs, ValidateResourceQuantityValue(string(k), v, resPath)...)
+		errs = append(errs, lifted.ValidateResourceQuotaResourceName(string(k), resPath)...)
+		errs = append(errs, lifted.ValidateResourceQuantityValue(string(k), v, resPath)...)
 	}
 
 	return errs

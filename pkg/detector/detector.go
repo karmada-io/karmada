@@ -34,6 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/ratelimiter"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -152,7 +153,7 @@ var (
 
 func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
-		newResources := GetDeletableResources(d.DiscoveryClientSet)
+		newResources := lifted.GetDeletableResources(d.DiscoveryClientSet)
 		for r := range newResources {
 			if d.InformerManager.IsHandlerExist(r, d.EventHandler) || d.gvrDisabled(r) {
 				continue

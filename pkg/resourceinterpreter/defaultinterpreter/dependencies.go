@@ -8,10 +8,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 type dependenciesInterpreter func(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error)
@@ -32,7 +34,7 @@ func getDeploymentDependencies(object *unstructured.Unstructured) ([]configv1alp
 		return nil, fmt.Errorf("failed to convert Deployment from unstructured object: %v", err)
 	}
 
-	podObj, err := GetPodFromTemplate(&deploymentObj.Spec.Template, deploymentObj, nil)
+	podObj, err := lifted.GetPodFromTemplate(&deploymentObj.Spec.Template, deploymentObj, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +48,7 @@ func getJobDependencies(object *unstructured.Unstructured) ([]configv1alpha1.Dep
 		return nil, fmt.Errorf("failed to convert Job from unstructured object: %v", err)
 	}
 
-	podObj, err := GetPodFromTemplate(&jobObj.Spec.Template, jobObj, nil)
+	podObj, err := lifted.GetPodFromTemplate(&jobObj.Spec.Template, jobObj, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +71,7 @@ func getDaemonSetDependencies(object *unstructured.Unstructured) ([]configv1alph
 		return nil, fmt.Errorf("failed to convert DaemonSet from unstructured object: %v", err)
 	}
 
-	podObj, err := GetPodFromTemplate(&daemonSetObj.Spec.Template, daemonSetObj, nil)
+	podObj, err := lifted.GetPodFromTemplate(&daemonSetObj.Spec.Template, daemonSetObj, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +85,7 @@ func getStatefulSetDependencies(object *unstructured.Unstructured) ([]configv1al
 		return nil, fmt.Errorf("failed to convert StatefulSet from unstructured object: %v", err)
 	}
 
-	podObj, err := GetPodFromTemplate(&statefulSetObj.Spec.Template, statefulSetObj, nil)
+	podObj, err := lifted.GetPodFromTemplate(&statefulSetObj.Spec.Template, statefulSetObj, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -115,4 +117,22 @@ func getDependenciesFromPodTemplate(podObj *corev1.Pod) ([]configv1alpha1.Depend
 	}
 
 	return dependentObjectRefs, nil
+}
+
+func getSecretNames(pod *corev1.Pod) sets.String {
+	result := sets.NewString()
+	lifted.VisitPodSecretNames(pod, func(name string) bool {
+		result.Insert(name)
+		return true
+	})
+	return result
+}
+
+func getConfigMapNames(pod *corev1.Pod) sets.String {
+	result := sets.NewString()
+	lifted.VisitPodConfigmapNames(pod, func(name string) bool {
+		result.Insert(name)
+		return true
+	})
+	return result
 }

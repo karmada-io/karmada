@@ -23,7 +23,7 @@ limitations under the License.
 // https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5073-L5084
 // https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5651-L5661
 
-package federatedresourcequota
+package lifted
 
 import (
 	"strings"
@@ -32,8 +32,6 @@ import (
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-
-	"github.com/karmada-io/karmada/pkg/webhook/federatedresourcequota/helper"
 )
 
 const isNegativeErrorMsg string = apimachineryvalidation.IsNegativeErrorMsg
@@ -46,7 +44,7 @@ func ValidateResourceQuotaResourceName(value string, fldPath *field.Path) field.
 	allErrs := validateResourceName(value, fldPath)
 
 	if len(strings.Split(value, "/")) == 1 {
-		if !helper.IsStandardQuotaResourceName(value) {
+		if !IsStandardQuotaResourceName(value) {
 			return append(allErrs, field.Invalid(fldPath, value, isInvalidQuotaResource))
 		}
 	}
@@ -65,7 +63,7 @@ func validateResourceName(value string, fldPath *field.Path) field.ErrorList {
 	}
 
 	if len(strings.Split(value, "/")) == 1 {
-		if !helper.IsStandardResourceName(value) {
+		if !IsStandardResourceName(value) {
 			return append(allErrs, field.Invalid(fldPath, value, "must be a standard resource type or fully qualified"))
 		}
 	}
@@ -77,7 +75,7 @@ func validateResourceName(value string, fldPath *field.Path) field.ErrorList {
 func ValidateResourceQuantityValue(resource string, value resource.Quantity, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, ValidateNonnegativeQuantity(value, fldPath)...)
-	if helper.IsIntegerResourceName(resource) {
+	if IsIntegerResourceName(resource) {
 		if value.MilliValue()%int64(1000) != int64(0) {
 			allErrs = append(allErrs, field.Invalid(fldPath, value, isNotIntegerErrorMsg))
 		}

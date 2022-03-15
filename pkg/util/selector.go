@@ -1,16 +1,13 @@
 package util
 
 import (
-	"fmt"
-
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 // ResourceMatches tells if the specific resource matches the selector.
@@ -83,7 +80,7 @@ func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity policyv1alpha1.Cl
 	if affinity.FieldSelector != nil {
 		var matchFields labels.Selector
 		var err error
-		if matchFields, err = nodeSelectorRequirementsAsSelector(affinity.FieldSelector.MatchExpressions); err != nil {
+		if matchFields, err = lifted.NodeSelectorRequirementsAsSelector(affinity.FieldSelector.MatchExpressions); err != nil {
 			return false
 		}
 		clusterFields := extractClusterFields(cluster)
@@ -117,42 +114,6 @@ func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...po
 		}
 	}
 	return false
-}
-
-// This code is directly lifted from the Kubernetes codebase.
-// For reference: https://github.com/kubernetes/kubernetes/blob/release-1.20/staging/src/k8s.io/component-helpers/scheduling/corev1/nodeaffinity/nodeaffinity.go#L193-L225
-// nodeSelectorRequirementsAsSelector converts the []NodeSelectorRequirement api type into a struct that implements
-// labels.Selector.
-func nodeSelectorRequirementsAsSelector(nsm []corev1.NodeSelectorRequirement) (labels.Selector, error) {
-	if len(nsm) == 0 {
-		return labels.Nothing(), nil
-	}
-	selector := labels.NewSelector()
-	for _, expr := range nsm {
-		var op selection.Operator
-		switch expr.Operator {
-		case corev1.NodeSelectorOpIn:
-			op = selection.In
-		case corev1.NodeSelectorOpNotIn:
-			op = selection.NotIn
-		case corev1.NodeSelectorOpExists:
-			op = selection.Exists
-		case corev1.NodeSelectorOpDoesNotExist:
-			op = selection.DoesNotExist
-		case corev1.NodeSelectorOpGt:
-			op = selection.GreaterThan
-		case corev1.NodeSelectorOpLt:
-			op = selection.LessThan
-		default:
-			return nil, fmt.Errorf("%q is not a valid node selector operator", expr.Operator)
-		}
-		r, err := labels.NewRequirement(expr.Key, op, expr.Values)
-		if err != nil {
-			return nil, err
-		}
-		selector = selector.Add(*r)
-	}
-	return selector, nil
 }
 
 func extractClusterFields(cluster *clusterv1alpha1.Cluster) labels.Set {

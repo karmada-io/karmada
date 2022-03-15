@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	api "github.com/karmada-io/karmada/pkg/apis/cluster"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 const clusterNameMaxLength int = 48
@@ -86,7 +87,7 @@ func ValidateClusterSpec(spec *api.ClusterSpec, fldPath *field.Path) field.Error
 	}
 
 	if len(spec.Taints) > 0 {
-		allErrs = append(allErrs, ValidateClusterTaints(spec.Taints, fldPath.Child("taints"))...)
+		allErrs = append(allErrs, lifted.ValidateClusterTaints(spec.Taints, fldPath.Child("taints"))...)
 	}
 
 	return allErrs

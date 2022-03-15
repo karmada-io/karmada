@@ -15,7 +15,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/server/nodes"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	utilworkload "github.com/karmada-io/karmada/pkg/util/workload"
+	utilworkload "github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 // NodeMaxAvailableReplica calculates max available replicas of a node, based on
