@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -17,11 +16,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/cmd/descheduler/app/options"
 	"github.com/karmada-io/karmada/pkg/descheduler"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/sharedcli"
+	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -55,13 +58,21 @@ karmada-scheduler-estimator to get replica status.`,
 		},
 	}
 
-	// Init log flags
-	// TODO(@RainbowMango): Group the flags to "logs" flag set.
-	klog.InitFlags(flag.CommandLine)
+	fss := cliflag.NamedFlagSets{}
 
-	opts.AddFlags(cmd.Flags())
+	genericFlagSet := fss.FlagSet("generic")
+	opts.AddFlags(genericFlagSet)
+
+	// Set klog flags
+	logsFlagSet := fss.FlagSet("logs")
+	klogflag.Add(logsFlagSet)
+
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-descheduler"))
-	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+	cmd.Flags().AddFlagSet(genericFlagSet)
+	cmd.Flags().AddFlagSet(logsFlagSet)
+
+	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
+	sharedcli.SetUsageAndHelpFunc(cmd, fss, cols)
 	return cmd
 }
 
