@@ -80,8 +80,9 @@ jobs:
     name: e2e test
     needs: build
     runs-on: ubuntu-18.04
-    env:
-      ARTIFACTS_PATH: ${{ github.workspace }}/karmada-e2e-logs/
+    strategy:
+      matrix:
+        k8s: [v1.21.10, v1.22.7, v1.23.4]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -90,12 +91,16 @@ jobs:
         with:
           go-version: 1.17.x
       - name: setup e2e test environment
-        run: hack/local-up-karmada.sh
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          hack/local-up-karmada.sh
       - name: run e2e
-        run: hack/run-e2e.sh
+        run: |
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
+          hack/run-e2e.sh
       - name: upload logs
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: karmada_e2e_log
-          path: ${{ github.workspace }}/karmada-e2e-logs/
+          name: karmada_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
