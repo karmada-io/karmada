@@ -22,13 +22,14 @@ package lifted
 
 import (
 	"fmt"
-	v1 "k8s.io/api/core/v1"
 	"testing"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestIsNativeResource(t *testing.T) {
 	testCases := []struct {
-		resourceName v1.ResourceName
+		resourceName corev1.ResourceName
 		expectVal    bool
 	}{
 		{

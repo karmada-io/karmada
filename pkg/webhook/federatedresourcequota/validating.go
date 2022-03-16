@@ -91,7 +91,7 @@ func validateOverallAndAssignments(quotaSpec *policyv1alpha1.FederatedResourceQu
 	for k, v := range quotaSpec.Overall {
 		assignment := calculateAssignmentForResourceKey(k, quotaSpec.StaticAssignments)
 		if v.Cmp(assignment) < 0 {
-			errs = append(errs, field.Invalid(overallPath.Key(string(k)), v, "overall is less than assignments"))
+			errs = append(errs, field.Invalid(overallPath.Key(string(k)), v.String(), "overall is less than assignments"))
 		}
 	}
 
