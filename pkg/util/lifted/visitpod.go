@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/api/v1/pod/util.go
+// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go
 
 package lifted
 

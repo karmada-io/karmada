@@ -16,8 +16,8 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/controller_utils.go#L466-L495
-// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/controller_utils.go#L539-L562
+// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L466-L495
+// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L539-L562
 
 package lifted
 
