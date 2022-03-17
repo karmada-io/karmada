@@ -32,7 +32,7 @@ func (p *ClusterAffinity) Name() string {
 }
 
 // Filter checks if the cluster matched the placement cluster affinity constraint.
-func (p *ClusterAffinity) Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *ClusterAffinity) Filter(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	affinity := placement.ClusterAffinity
 	if affinity != nil {
 		if util.ClusterMatches(cluster, *affinity) {
@@ -46,6 +46,17 @@ func (p *ClusterAffinity) Filter(ctx context.Context, placement *policyv1alpha1.
 }
 
 // Score calculates the score on the candidate cluster.
-func (p *ClusterAffinity) Score(ctx context.Context, placement *policyv1alpha1.Placement, cluster *clusterv1alpha1.Cluster) (float64, *framework.Result) {
+func (p *ClusterAffinity) Score(ctx context.Context, placement *policyv1alpha1.Placement,
+	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	return 0, framework.NewResult(framework.Success)
+}
+
+// NormalizeScore normalizes the score for each filteredCluster.
+func (p *ClusterAffinity) NormalizeScore(ctx context.Context, scores framework.ClusterScoreList) *framework.Result {
+	return nil
+}
+
+// ScoreExtensions of the Score plugin.
+func (p *ClusterAffinity) ScoreExtensions() framework.ScoreExtensions {
+	return p
 }

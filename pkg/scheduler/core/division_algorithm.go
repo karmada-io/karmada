@@ -8,16 +8,10 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	coreutil "github.com/karmada-io/karmada/pkg/scheduler/core/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
-
-// TargetClustersList is a slice of TargetCluster that implements sort.Interface to sort by Value.
-type TargetClustersList []workv1alpha2.TargetCluster
-
-func (a TargetClustersList) Len() int           { return len(a) }
-func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
 // divideReplicasByDynamicWeight assigns a total number of replicas to the selected clusters by the dynamic weight list.
 func divideReplicasByDynamicWeight(clusters []*clusterv1alpha1.Cluster, dynamicWeight policyv1alpha1.DynamicWeightFactor, spec *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
@@ -35,7 +29,7 @@ func divideReplicasByResource(
 	preference policyv1alpha1.ReplicaDivisionPreference,
 ) ([]workv1alpha2.TargetCluster, error) {
 	// Step 1: Find the ready clusters that have old replicas
-	scheduledClusters := findOutScheduledCluster(spec.Clusters, clusters)
+	scheduledClusters := util.FindOutScheduledCluster(spec.Clusters, clusters)
 
 	// Step 2: calculate the assigned Replicas in scheduledClusters
 	assignedReplicas := util.GetSumOfReplicas(scheduledClusters)
@@ -133,7 +127,7 @@ func divideReplicasByPreference(
 
 func divideReplicasByAggregation(clusterAvailableReplicas []workv1alpha2.TargetCluster,
 	replicas int32, scheduledClusterNames sets.String) []workv1alpha2.TargetCluster {
-	clusterAvailableReplicas = resortClusterList(clusterAvailableReplicas, scheduledClusterNames)
+	clusterAvailableReplicas = util.ResortClusterList(clusterAvailableReplicas, scheduledClusterNames)
 	clustersNum, clustersMaxReplicas := 0, int32(0)
 	for _, clusterInfo := range clusterAvailableReplicas {
 		clustersNum++
@@ -216,7 +210,7 @@ func scaleUpScheduleByReplicaDivisionPreference(
 	}
 
 	// Step 2: Calculate available replicas of all candidates
-	clusterAvailableReplicas := calAvailableReplicas(clusters, newSpec)
+	clusterAvailableReplicas := coreutil.CalAvailableReplicas(clusters, newSpec)
 
 	// Step 3: Begin dividing.
 	// Only the new replicas are considered during this scheduler, the old replicas will not be moved.

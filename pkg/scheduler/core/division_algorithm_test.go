@@ -10,6 +10,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	coreutil "github.com/karmada-io/karmada/pkg/scheduler/core/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -292,7 +293,7 @@ func Test_divideReplicasByPreference(t *testing.T) {
 		{
 			name: "replica 12, dynamic weight 18:12:6",
 			args: args{
-				clusterAvailableReplicas: TargetClustersList{
+				clusterAvailableReplicas: coreutil.TargetClustersList{
 					workv1alpha2.TargetCluster{Name: ClusterMember1, Replicas: 18},
 					workv1alpha2.TargetCluster{Name: ClusterMember2, Replicas: 12},
 					workv1alpha2.TargetCluster{Name: ClusterMember3, Replicas: 6},
@@ -312,7 +313,7 @@ func Test_divideReplicasByPreference(t *testing.T) {
 		{
 			name: "replica 12, dynamic weight 20:12:6",
 			args: args{
-				clusterAvailableReplicas: TargetClustersList{
+				clusterAvailableReplicas: coreutil.TargetClustersList{
 					workv1alpha2.TargetCluster{Name: ClusterMember1, Replicas: 20},
 					workv1alpha2.TargetCluster{Name: ClusterMember2, Replicas: 12},
 					workv1alpha2.TargetCluster{Name: ClusterMember3, Replicas: 6},
@@ -332,7 +333,7 @@ func Test_divideReplicasByPreference(t *testing.T) {
 		{
 			name: "replica 12, dynamic weight 6:12:6",
 			args: args{
-				clusterAvailableReplicas: TargetClustersList{
+				clusterAvailableReplicas: coreutil.TargetClustersList{
 					workv1alpha2.TargetCluster{Name: ClusterMember1, Replicas: 6},
 					workv1alpha2.TargetCluster{Name: ClusterMember2, Replicas: 12},
 					workv1alpha2.TargetCluster{Name: ClusterMember3, Replicas: 6},
@@ -352,7 +353,7 @@ func Test_divideReplicasByPreference(t *testing.T) {
 		{
 			name: "replica 12, aggregated 12:6:6",
 			args: args{
-				clusterAvailableReplicas: TargetClustersList{
+				clusterAvailableReplicas: coreutil.TargetClustersList{
 					workv1alpha2.TargetCluster{Name: ClusterMember2, Replicas: 12},
 					workv1alpha2.TargetCluster{Name: ClusterMember1, Replicas: 6},
 					workv1alpha2.TargetCluster{Name: ClusterMember3, Replicas: 6},
@@ -370,7 +371,7 @@ func Test_divideReplicasByPreference(t *testing.T) {
 		{
 			name: "replica 12, aggregated 6:6:6",
 			args: args{
-				clusterAvailableReplicas: TargetClustersList{
+				clusterAvailableReplicas: coreutil.TargetClustersList{
 					workv1alpha2.TargetCluster{Name: ClusterMember1, Replicas: 6},
 					workv1alpha2.TargetCluster{Name: ClusterMember2, Replicas: 6},
 					workv1alpha2.TargetCluster{Name: ClusterMember3, Replicas: 6},

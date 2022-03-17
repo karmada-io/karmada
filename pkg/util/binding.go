@@ -2,7 +2,9 @@ package util
 
 import (
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
@@ -43,6 +45,52 @@ func GetSumOfReplicas(clusters []workv1alpha2.TargetCluster) int32 {
 		replicasSum += clusters[i].Replicas
 	}
 	return replicasSum
+}
+
+// FindOutScheduledCluster will return a slice of clusters
+// which are a part of `TargetClusters` and have non-zero replicas.
+func FindOutScheduledCluster(tcs []workv1alpha2.TargetCluster, candidates []*clusterv1alpha1.Cluster) []workv1alpha2.TargetCluster {
+	validTarget := make([]workv1alpha2.TargetCluster, 0)
+	if len(tcs) == 0 {
+		return validTarget
+	}
+
+	for _, targetCluster := range tcs {
+		// must have non-zero replicas
+		if targetCluster.Replicas <= 0 {
+			continue
+		}
+		// must in `candidates`
+		for _, cluster := range candidates {
+			if targetCluster.Name == cluster.Name {
+				validTarget = append(validTarget, targetCluster)
+				break
+			}
+		}
+	}
+
+	return validTarget
+}
+
+// ResortClusterList is used to make sure scheduledClusterNames are in front of the other clusters in the list of
+// clusterAvailableReplicas so that we can assign new replicas to them preferentially when scale up.
+// Note that scheduledClusterNames have none items during first scheduler
+func ResortClusterList(clusterAvailableReplicas []workv1alpha2.TargetCluster, scheduledClusterNames sets.String) []workv1alpha2.TargetCluster {
+	if scheduledClusterNames.Len() == 0 {
+		return clusterAvailableReplicas
+	}
+	var preUsedCluster []workv1alpha2.TargetCluster
+	var unUsedCluster []workv1alpha2.TargetCluster
+	for i := range clusterAvailableReplicas {
+		if scheduledClusterNames.Has(clusterAvailableReplicas[i].Name) {
+			preUsedCluster = append(preUsedCluster, clusterAvailableReplicas[i])
+		} else {
+			unUsedCluster = append(unUsedCluster, clusterAvailableReplicas[i])
+		}
+	}
+	clusterAvailableReplicas = append(preUsedCluster, unUsedCluster...)
+	klog.V(4).Infof("Resorted target cluster: %v", clusterAvailableReplicas)
+	return clusterAvailableReplicas
 }
 
 // ConvertToClusterNames will convert a cluster slice to clusterName's sets.String

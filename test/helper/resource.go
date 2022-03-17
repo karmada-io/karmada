@@ -404,6 +404,18 @@ func NewClusterWithResource(name string, allocatable, allocating, allocated core
 	}
 }
 
+// NewClusterWithTopology will build a Cluster with topology.
+func NewClusterWithTopology(name, provider, region, zone string) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: clusterv1alpha1.ClusterSpec{
+			Provider: provider,
+			Region:   region,
+			Zone:     zone,
+		},
+	}
+}
+
 // NewWorkload will build a workload object.
 func NewWorkload(namespace string, name string) *worklodv1alpha1.Workload {
 	podLabels := map[string]string{"app": "nginx"}

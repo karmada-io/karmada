@@ -22,7 +22,6 @@ const (
 type TaintToleration struct{}
 
 var _ framework.FilterPlugin = &TaintToleration{}
-var _ framework.ScorePlugin = &TaintToleration{}
 
 // New instantiates the TaintToleration plugin.
 func New() framework.Plugin {
@@ -35,7 +34,7 @@ func (p *TaintToleration) Name() string {
 }
 
 // Filter checks if the given tolerations in placement tolerate cluster's taints.
-func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	filterPredicate := func(t *corev1.Taint) bool {
 		// now only interested in NoSchedule taint which means do not allow new resource to schedule onto the cluster unless they tolerate the taint
 		// todo: supprot NoExecute taint
@@ -49,9 +48,4 @@ func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.
 
 	return framework.NewResult(framework.Unschedulable, fmt.Sprintf("cluster had taint {%s: %s}, that the propagation policy didn't tolerate",
 		taint.Key, taint.Value))
-}
-
-// Score calculates the score on the candidate cluster.
-func (p *TaintToleration) Score(ctx context.Context, placement *policyv1alpha1.Placement, cluster *clusterv1alpha1.Cluster) (float64, *framework.Result) {
-	return 0, framework.NewResult(framework.Success)
 }

@@ -21,7 +21,6 @@ const (
 type APIInstalled struct{}
 
 var _ framework.FilterPlugin = &APIInstalled{}
-var _ framework.ScorePlugin = &APIInstalled{}
 
 // New instantiates the APIInstalled plugin.
 func New() framework.Plugin {
@@ -34,16 +33,12 @@ func (p *APIInstalled) Name() string {
 }
 
 // Filter checks if the API(CRD) of the resource is installed in the target cluster.
-func (p *APIInstalled) Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *APIInstalled) Filter(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
+	resource := spec.Resource
 	if !helper.IsAPIEnabled(cluster.Status.APIEnablements, resource.APIVersion, resource.Kind) {
 		klog.V(2).Infof("Cluster(%s) not fit as missing API(%s, kind=%s)", cluster.Name, resource.APIVersion, resource.Kind)
 		return framework.NewResult(framework.Unschedulable, "no such API resource")
 	}
 
 	return framework.NewResult(framework.Success)
-}
-
-// Score calculates the score on the candidate cluster.
-func (p *APIInstalled) Score(ctx context.Context, placement *policyv1alpha1.Placement, cluster *clusterv1alpha1.Cluster) (float64, *framework.Result) {
-	return 0, framework.NewResult(framework.Success)
 }

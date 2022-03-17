@@ -17,8 +17,9 @@ import (
 // frameworkImpl implements the Framework interface and is responsible for initializing and running scheduler
 // plugins.
 type frameworkImpl struct {
-	filterPlugins []framework.FilterPlugin
-	scorePlugins  []framework.ScorePlugin
+	scorePluginsWeightMap map[string]int
+	filterPlugins         []framework.FilterPlugin
+	scorePlugins          []framework.ScorePlugin
 }
 
 var _ framework.Framework = &frameworkImpl{}
@@ -48,9 +49,9 @@ func NewFramework(plugins []string) framework.Framework {
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	for _, p := range frw.filterPlugins {
-		if result := p.Filter(ctx, placement, resource, cluster); !result.IsSuccess() {
+		if result := p.Filter(ctx, placement, spec, cluster); !result.IsSuccess() {
 			return result
 		}
 	}
@@ -59,20 +60,33 @@ func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *polic
 
 // RunScorePlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, clusters []*clusterv1alpha1.Cluster) (framework.PluginToClusterScores, error) {
+func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (framework.PluginToClusterScores, error) {
 	result := make(framework.PluginToClusterScores, len(frw.filterPlugins))
 	for _, p := range frw.scorePlugins {
 		var scoreList framework.ClusterScoreList
 		for _, cluster := range clusters {
-			score, res := p.Score(ctx, placement, cluster)
+			score, res := p.Score(ctx, placement, spec, cluster)
 			if !res.IsSuccess() {
 				return nil, fmt.Errorf("plugin %q failed with: %w", p.Name(), res.AsError())
 			}
 			scoreList = append(scoreList, framework.ClusterScore{
-				Name:  cluster.Name,
-				Score: score,
+				Cluster: cluster,
+				Score:   score,
 			})
 		}
+
+		if p.ScoreExtensions() != nil {
+			res := p.ScoreExtensions().NormalizeScore(ctx, scoreList)
+			if !res.IsSuccess() {
+				return nil, fmt.Errorf("plugin %q normalizeScore failed with: %w", p.Name(), res.AsError())
+			}
+		}
+
+		weight := frw.scorePluginsWeightMap[p.Name()]
+		for i := range scoreList {
+			scoreList[i].Score = scoreList[i].Score * int64(weight)
+		}
+
 		result[p.Name()] = scoreList
 	}
 
