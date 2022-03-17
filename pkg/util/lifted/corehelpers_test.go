@@ -21,49 +21,8 @@ limitations under the License.
 package lifted
 
 import (
-	"fmt"
 	"testing"
-
-	corev1 "k8s.io/api/core/v1"
 )
-
-func TestIsNativeResource(t *testing.T) {
-	testCases := []struct {
-		resourceName corev1.ResourceName
-		expectVal    bool
-	}{
-		{
-			resourceName: "pod.alpha.kubernetes.io/opaque-int-resource-foo",
-			expectVal:    true,
-		},
-		{
-			resourceName: "kubernetes.io/resource-foo",
-			expectVal:    true,
-		},
-		{
-			resourceName: "foo",
-			expectVal:    true,
-		},
-		{
-			resourceName: "a/b",
-			expectVal:    false,
-		},
-		{
-			resourceName: "",
-			expectVal:    true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("resourceName input=%s, expected value=%v", tc.resourceName, tc.expectVal), func(t *testing.T) {
-			t.Parallel()
-			v := IsNativeResource(tc.resourceName)
-			if v != tc.expectVal {
-				t.Errorf("Got %v but expected %v", v, tc.expectVal)
-			}
-		})
-	}
-}
 
 func TestIsStandardResource(t *testing.T) {
 	testCases := []struct {

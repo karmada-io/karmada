@@ -16,7 +16,9 @@ limitations under the License.
 
 // This code is lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // However the code has been revised for using Lister instead of API interface.
-// For reference: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go
+// For reference:
+// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/controller_utils.go#L1003-L1012
+// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go
 
 package lifted
 

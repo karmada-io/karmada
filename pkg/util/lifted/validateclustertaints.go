@@ -1,15 +1,23 @@
 /*
 Copyright 2014 The Kubernetes Authors.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// This code is directly lifted from the Kubernetes codebase.
+// For reference:
+// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation.go#L5001-L5033
+// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation.go#L3305-L3326
 
 package lifted
 
@@ -22,8 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
-
-// This code logic is lifted from https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/core/validation/validation.go#L5003
 
 // ValidateClusterTaints tests if given taints have valid data.
 func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.ErrorList {

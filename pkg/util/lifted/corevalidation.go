@@ -18,6 +18,7 @@ limitations under the License.
 // For reference:
 // https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L59-L60
 // https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L62
+// https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L225-L228
 // https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L311-L318
 // https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5036-L5054
 // https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5073-L5084
@@ -38,15 +39,16 @@ const isNegativeErrorMsg string = apimachineryvalidation.IsNegativeErrorMsg
 const isInvalidQuotaResource string = `must be a standard resource for quota`
 const isNotIntegerErrorMsg string = `must be an integer`
 
-// ValidateResourceQuotaResourceName Validate resource names that can go in a resource quota
-// Refer to docs/design/resources.md for more details.
-func ValidateResourceQuotaResourceName(value string, fldPath *field.Path) field.ErrorList {
-	allErrs := validateResourceName(value, fldPath)
+// ValidatePodName can be used to check whether the given pod name is valid.
+// Prefix indicates this name will be used as part of generation, in which case
+// trailing dashes are allowed.
+var ValidatePodName = apimachineryvalidation.NameIsDNSSubdomain
 
-	if len(strings.Split(value, "/")) == 1 {
-		if !IsStandardQuotaResourceName(value) {
-			return append(allErrs, field.Invalid(fldPath, value, isInvalidQuotaResource))
-		}
+// ValidateNonnegativeQuantity Validates that a Quantity is not negative
+func ValidateNonnegativeQuantity(value resource.Quantity, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if value.Cmp(resource.Quantity{}) < 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath, value.String(), isNegativeErrorMsg))
 	}
 	return allErrs
 }
@@ -71,6 +73,19 @@ func validateResourceName(value string, fldPath *field.Path) field.ErrorList {
 	return allErrs
 }
 
+// ValidateResourceQuotaResourceName Validate resource names that can go in a resource quota
+// Refer to docs/design/resources.md for more details.
+func ValidateResourceQuotaResourceName(value string, fldPath *field.Path) field.ErrorList {
+	allErrs := validateResourceName(value, fldPath)
+
+	if len(strings.Split(value, "/")) == 1 {
+		if !IsStandardQuotaResourceName(value) {
+			return append(allErrs, field.Invalid(fldPath, value, isInvalidQuotaResource))
+		}
+	}
+	return allErrs
+}
+
 // ValidateResourceQuantityValue enforces that specified quantity is valid for specified resource
 func ValidateResourceQuantityValue(resource string, value resource.Quantity, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -79,15 +94,6 @@ func ValidateResourceQuantityValue(resource string, value resource.Quantity, fld
 		if value.MilliValue()%int64(1000) != int64(0) {
 			allErrs = append(allErrs, field.Invalid(fldPath, value, isNotIntegerErrorMsg))
 		}
-	}
-	return allErrs
-}
-
-// ValidateNonnegativeQuantity Validates that a Quantity is not negative
-func ValidateNonnegativeQuantity(value resource.Quantity, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	if value.Cmp(resource.Quantity{}) < 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath, value.String(), isNegativeErrorMsg))
 	}
 	return allErrs
 }

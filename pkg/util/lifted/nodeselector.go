@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.20/staging/src/k8s.io/component-helpers/scheduling/corev1/nodeaffinity/nodeaffinity.go#L193-L225
+// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L365-L397
 
 package lifted
 
@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 )
 
-// NodeSelectorRequirementsAsSelector converts the []NodeSelectorRequirement api type into a struct that implements
+// NodeSelectorRequirementsAsSelector converts the []NodeSelectorRequirement core type into a struct that implements
 // labels.Selector.
 func NodeSelectorRequirementsAsSelector(nsm []corev1.NodeSelectorRequirement) (labels.Selector, error) {
 	if len(nsm) == 0 {

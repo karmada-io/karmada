@@ -16,7 +16,9 @@ limitations under the License.
 
 // This code is lifted from the kubefed codebase. It's a list of functions to determine whether the provided cluster
 // object needs to be updated according to the desired object and the recorded version.
-// For reference: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L30-L59
+// For reference:
+// https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L30-L59
+// https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/meta.go#L63-L80
 
 package lifted
 
