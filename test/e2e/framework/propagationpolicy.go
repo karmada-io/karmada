@@ -2,11 +2,13 @@ package framework
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -24,6 +26,17 @@ func CreatePropagationPolicy(client karmada.Interface, policy *policyv1alpha1.Pr
 func RemovePropagationPolicy(client karmada.Interface, namespace, name string) {
 	ginkgo.By(fmt.Sprintf("Removing PropagationPolicy(%s/%s)", namespace, name), func() {
 		err := client.PolicyV1alpha1().PropagationPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// PatchPropagationPolicy patch PropagationPolicy with karmada client.
+func PatchPropagationPolicy(client karmada.Interface, namespace, name string, patch []map[string]interface{}, patchType types.PatchType) {
+	ginkgo.By(fmt.Sprintf("Patching PropagationPolicy(%s/%s)", namespace, name), func() {
+		patchBytes, err := json.Marshal(patch)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		_, err = client.PolicyV1alpha1().PropagationPolicies(namespace).Patch(context.TODO(), name, patchType, patchBytes, metav1.PatchOptions{})
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
