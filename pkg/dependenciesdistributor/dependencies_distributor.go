@@ -603,6 +603,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 		updatedBindingSnapshot := mergeBindingSnapshot(existBinding.Spec.RequiredBy, attachedBinding.Spec.RequiredBy)
 		existBinding.Spec.RequiredBy = updatedBindingSnapshot
 		existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels, attachedBinding.Labels)
+		existBinding.Spec.Resource = attachedBinding.Spec.Resource
 
 		if err := d.Client.Update(context.TODO(), existBinding); err != nil {
 			klog.Errorf("failed to update resource binding(%s/%s): %v", existBinding.Namespace, existBinding.Name, err)
