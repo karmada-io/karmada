@@ -164,7 +164,7 @@ func (g *genericScheduler) assignReplicas(
 		return targetClusters, nil
 	}
 
-	if assigner, ok := strategy.GetAssignReplica(replicaSchedulingStrategy); ok {
+	if assigner, ok := strategy.GetAssignReplicas(replicaSchedulingStrategy); ok {
 		return assigner.AssignReplica(spec, replicaSchedulingStrategy, clusters)
 	}
 
