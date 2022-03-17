@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-//Downloader Download progress
+// Downloader Download progress
 type Downloader struct {
 	io.Reader
 	Total   int64
