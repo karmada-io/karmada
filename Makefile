@@ -26,6 +26,7 @@ REGISTRY?="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
+PLATFORMS?="linux/amd64,linux/arm64"
 
 # Set your version by env or using latest tags from git
 VERSION?=""
@@ -147,3 +148,45 @@ endif
 	docker push ${REGISTRY}/karmada-scheduler-estimator:${VERSION}
 	docker push ${REGISTRY}/karmada-interpreter-webhook-example:${VERSION}
 	docker push ${REGISTRY}/karmada-aggregated-apiserver:${VERSION}
+
+# Build and push multi-platform image to DockerHub
+mp-image-karmada-controller-manager: karmada-controller-manager
+	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-controller-manager:${VERSION} --file=cluster/images/karmada-controller-manager/Dockerfile .
+
+# Build and push multi-platform image to DockerHub
+mp-image-karmada-scheduler: karmada-scheduler
+	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-scheduler:${VERSION} --file=cluster/images/karmada-scheduler/Dockerfile .
+
+# Build and push multi-platform image to DockerHub
+mp-image-karmada-descheduler: karmada-descheduler
+	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-descheduler:${VERSION} --file=cluster/images/karmada-descheduler/Dockerfile .
+
+# Build and push multi-platform image to DockerHub
+mp-image-karmada-webhook: karmada-webhook
+	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-webhook:${VERSION} --file=cluster/images/karmada-webhook/Dockerfile .
+
+# Build and push multi-platform image to DockerHub
+mp-image-karmada-agent: karmada-agent
+	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-agent:${VERSION} --file=cluster/images/karmada-agent/Dockerfile .
+
+# Build and push multi-platform image to DockerHub
+mp-image-karmada-scheduler-estimator: karmada-scheduler-estimator
+	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-scheduler-estimator:${VERSION} --file=cluster/images/karmada-scheduler-estimator/Dockerfile .
+
+# Build and push multi-platform image to DockerHub
+mp-image-karmada-interpreter-webhook-example: karmada-interpreter-webhook-example
+	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-interpreter-webhook-example:${VERSION} --file=cluster/images/karmada-interpreter-webhook-example/Dockerfile .
+
+# Build and push multi-platform image to DockerHub
+mp-image-karmada-aggregated-apiserver: karmada-aggregated-apiserver
+	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-aggregated-apiserver:${VERSION} --file=cluster/images/karmada-aggregated-apiserver/Dockerfile .
+
+# Build and push multi-platform images to DockerHub.
+multi-platform-images: mp-image-karmada-controller-manager \
+ mp-image-karmada-scheduler \
+ mp-image-karmada-descheduler \
+ mp-image-karmada-webhook \
+ mp-image-karmada-agent \
+ mp-image-karmada-scheduler-estimator \
+ mp-image-karmada-interpreter-webhook-example \
+ mp-image-karmada-aggregated-apiserver
