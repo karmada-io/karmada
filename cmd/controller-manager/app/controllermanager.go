@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -24,6 +23,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
@@ -35,10 +35,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
+	"github.com/karmada-io/karmada/pkg/controllers/policy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
-	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -115,11 +115,13 @@ func Run(ctx context.Context, opts *options.Options) error {
 		MetricsBindAddress:         opts.MetricsBindAddress,
 		Controller: v1alpha1.ControllerConfigurationSpec{
 			GroupKindConcurrency: map[string]int{
-				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,
-				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.ConcurrentResourceBindingSyncs,
-				workv1alpha2.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():   opts.ConcurrentClusterResourceBindingSyncs,
-				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.ConcurrentClusterSyncs,
-				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.ConcurrentNamespaceSyncs,
+				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                       opts.ConcurrentWorkSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():            opts.ConcurrentResourceBindingSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():     opts.ConcurrentClusterResourceBindingSyncs,
+				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():                 opts.ConcurrentClusterSyncs,
+				policyv1alpha1.SchemeGroupVersion.WithKind("ClusterPropagationPolicy").GroupKind().String(): opts.ConcurrentClusterPropagationPolicySyncs,
+				policyv1alpha1.SchemeGroupVersion.WithKind("PropagationPolicy").GroupKind().String():        opts.ConcurrentPropagationPolicySyncs,
+				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String():   opts.ConcurrentNamespaceSyncs,
 			},
 		},
 	})
@@ -161,6 +163,8 @@ func init() {
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
+	controllers["propagationPolicy"] = startPropagationPolicyController
+	controllers["clusterPropagationPolicy"] = startClusterPropagationPolicyController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -400,11 +404,46 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 	return true, nil
 }
 
+func startPropagationPolicyController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := policy.PropagationPolicyController{
+		Client:                          ctx.Mgr.GetClient(),
+		DynamicClient:                   ctx.DynamicClientSet,
+		RESTMapper:                      ctx.Mgr.GetRESTMapper(),
+		OverrideManager:                 ctx.OverrideManager,
+		InformerManager:                 ctx.ControlPlaneInformerManager,
+		ResourceInterpreter:             ctx.ResourceInterpreter,
+		RatelimiterOptions:              ctx.Opts.RateLimiterOptions,
+		EventRecorder:                   ctx.Mgr.GetEventRecorderFor(policy.PropagationPolicyControllerName),
+		ConcurrentResourceTemplateSyncs: ctx.Opts.ConcurrentResourceTemplateSyncs,
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startClusterPropagationPolicyController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := policy.ClusterPropagationPolicyController{
+		Client:                          ctx.Mgr.GetClient(),
+		DynamicClient:                   ctx.DynamicClientSet,
+		RESTMapper:                      ctx.Mgr.GetRESTMapper(),
+		OverrideManager:                 ctx.OverrideManager,
+		InformerManager:                 ctx.ControlPlaneInformerManager,
+		ResourceInterpreter:             ctx.ResourceInterpreter,
+		RatelimiterOptions:              ctx.Opts.RateLimiterOptions,
+		EventRecorder:                   ctx.Mgr.GetEventRecorderFor(policy.ClusterPropagationPolicyControllerName),
+		ConcurrentResourceTemplateSyncs: ctx.Opts.ConcurrentResourceTemplateSyncs,
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // setupControllers initialize controllers and setup one by one.
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
-	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 
 	overrideManager := overridemanager.New(mgr.GetClient())
 	skippedResourceConfig := util.NewSkippedResourceConfig()
@@ -431,23 +470,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		MaxDelay:   opts.RateLimiterMaxDelay,
 		QPS:        opts.RateLimiterQPS,
 		BucketSize: opts.RateLimiterBucketSize,
-	}
-	resourceDetector := &detector.ResourceDetector{
-		DiscoveryClientSet:              discoverClientSet,
-		Client:                          mgr.GetClient(),
-		InformerManager:                 controlPlaneInformerManager,
-		RESTMapper:                      mgr.GetRESTMapper(),
-		DynamicClient:                   dynamicClientSet,
-		SkippedResourceConfig:           skippedResourceConfig,
-		SkippedPropagatingNamespaces:    skippedPropagatingNamespaces,
-		ResourceInterpreter:             resourceInterpreter,
-		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
-		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
-		ConcurrentResourceBindingSyncs:  opts.ConcurrentResourceBindingSyncs,
-		RateLimiterOptions:              rateLimiterOptions,
-	}
-	if err := mgr.Add(resourceDetector); err != nil {
-		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
 
 	if features.FeatureGate.Enabled(features.PropagateDeps) {
@@ -480,6 +502,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
+			ConcurrentResourceTemplateSyncs:   opts.ConcurrentResourceTemplateSyncs,
 			RateLimiterOptions:                rateLimiterOptions,
 		},
 		StopChan:                    stopChan,

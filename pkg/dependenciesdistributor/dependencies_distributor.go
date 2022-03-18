@@ -27,7 +27,6 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -80,7 +79,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 
 	bindingWorkerOptions := util.Options{
 		Name:          "resourceBinding reconciler",
-		KeyFunc:       detector.ClusterWideKeyFunc,
+		KeyFunc:       keys.KeyFunc,
 		ReconcileFunc: d.ReconcileResourceBinding,
 	}
 	// setup binding reconcile worker
@@ -99,7 +98,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
 	resourceWorkerOptions := util.Options{
 		Name:          "resource detector",
-		KeyFunc:       detector.ClusterWideKeyFunc,
+		KeyFunc:       keys.KeyFunc,
 		ReconcileFunc: d.Reconcile,
 	}
 	d.EventHandler = informermanager.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
@@ -192,7 +191,7 @@ func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 		}
 
 		klog.V(4).Infof("resource binding(%s/%s) is matched for resource(%s/%s)", binding.Namespace, binding.Name, clusterWideKey.Namespace, clusterWideKey.Name)
-		bindingKey, err := detector.ClusterWideKeyFunc(binding)
+		bindingKey, err := keys.KeyFunc(binding)
 		if err != nil {
 			klog.Errorf("failed to generate cluster wide key for binding %s/%s: %v", binding.Namespace, binding.Name, err)
 			errs = append(errs, err)
@@ -270,7 +269,7 @@ func (d *DependenciesDistributor) OnResourceBindingUpdate(oldObj, newObj interfa
 	// in case users set PropagateDeps field from "true" to "false"
 	// in case users set PropagateDeps field from "false" to "true"
 	if oldBindingObject.Spec.PropagateDeps || newBindingObject.Spec.PropagateDeps {
-		key, err := detector.ClusterWideKeyFunc(newObj)
+		key, err := keys.KeyFunc(newObj)
 		if err != nil {
 			return
 		}
@@ -295,7 +294,7 @@ func (d *DependenciesDistributor) OnResourceBindingDelete(obj interface{}) {
 		return
 	}
 
-	key, err := detector.ClusterWideKeyFunc(obj)
+	key, err := keys.KeyFunc(obj)
 	if err != nil {
 		return
 	}
@@ -454,7 +453,7 @@ func (d *DependenciesDistributor) recordDependenciesForIndependentBinding(bindin
 
 		updated := &workv1alpha2.ResourceBinding{}
 		if err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, updated); err == nil {
-			//make a copy, so we don't mutate the shared cache
+			// make a copy, so we don't mutate the shared cache
 			binding = updated.DeepCopy()
 		} else {
 			klog.Errorf("failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)

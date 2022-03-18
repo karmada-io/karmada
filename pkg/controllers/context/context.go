@@ -50,7 +50,9 @@ type Options struct {
 	ClusterName string
 	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
 	ConcurrentWorkSyncs int
-	RateLimiterOptions  ratelimiter.Options
+	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
+	ConcurrentResourceTemplateSyncs int
+	RateLimiterOptions              ratelimiter.Options
 }
 
 // Context defines the context object for controller.

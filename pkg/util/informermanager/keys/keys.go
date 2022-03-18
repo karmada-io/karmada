@@ -7,6 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // ClusterWideKey is the object key which is a unique identifier under a cluster, across all resources.
@@ -82,6 +84,11 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 	key.Name = metaInfo.GetName()
 
 	return key, nil
+}
+
+// KeyFunc generates a ClusterWideKey for object.
+func KeyFunc(obj interface{}) (util.QueueKey, error) {
+	return ClusterWideKeyFunc(obj)
 }
 
 // FederatedKey is the object key which is a unique identifier across all clusters in federation.
