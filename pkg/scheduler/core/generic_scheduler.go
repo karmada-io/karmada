@@ -58,7 +58,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	}
 	klog.V(4).Infof("feasible clusters found: %v", feasibleClusters)
 
-	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, feasibleClusters)
+	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, spec, feasibleClusters)
 	if err != nil {
 		return result, fmt.Errorf("failed to prioritizeClusters: %v", err)
 	}
@@ -102,17 +102,18 @@ func (g *genericScheduler) prioritizeClusters(
 	ctx context.Context,
 	fwk framework.Framework,
 	placement *policyv1alpha1.Placement,
+	spec *workv1alpha2.ResourceBindingSpec,
 	clusters []*clusterv1alpha1.Cluster) (result framework.ClusterScoreList, err error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepScore, time.Now())
 
-	scoresMap, err := fwk.RunScorePlugins(ctx, placement, clusters)
+	scoresMap, err := fwk.RunScorePlugins(ctx, placement, spec, clusters)
 	if err != nil {
 		return result, err
 	}
 
 	result = make(framework.ClusterScoreList, len(clusters))
 	for i := range clusters {
-		result[i] = framework.ClusterScore{Name: clusters[i].Name, Score: 0}
+		result[i] = framework.ClusterScore{Cluster: clusters[i], Score: 0}
 		for j := range scoresMap {
 			result[i].Score += scoresMap[j][i].Score
 		}
