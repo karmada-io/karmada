@@ -1,0 +1,49 @@
+name: latest image to dockerhub
+on:
+  push:
+    branches:
+      - master
+jobs:
+  publish-image-to-dockerhub:
+    name: publish to DockerHub
+    # prevent job running from forked repository, otherwise
+    # 1. running on the forked repository would fail as missing necessary secret.
+    # 2. running on the forked repository would use unnecessary GitHub Action time.
+    if: ${{ github.repository == 'karmada-io/karmada' && github.ref == 'refs/heads/master' }}
+    strategy:
+      matrix:
+        target:
+          - karmada-controller-manager
+          - karmada-scheduler
+          - karmada-descheduler
+          - karmada-webhook
+          - karmada-agent
+          - karmada-scheduler-estimator
+          - karmada-interpreter-webhook-example
+          - karmada-aggregated-apiserver
+    runs-on: ubuntu-18.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+        with:
+          # fetch-depth:
+          # 0 indicates all history for all branches and tags.
+          # for `git describe --tags` in Makefile.
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+      - name: install QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: install Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USER_NAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: build and publish images
+        env:
+          VERSION: latest
+        run: make mp-image-${{ matrix.target }}
