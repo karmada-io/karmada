@@ -187,6 +187,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
+			RateLimiterOptions:                opts.RateLimiterOpts,
 		},
 		StopChan: stopChan,
 	}
@@ -219,6 +220,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		ClusterLeaseDuration:              ctx.Opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: ctx.Opts.ClusterLeaseRenewIntervalFraction,
 		ClusterCacheSyncTimeout:           ctx.Opts.ClusterCacheSyncTimeout,
+		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
 	}
 	if err := clusterStatusController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -235,6 +237,7 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
 		InformerManager:      informermanager.GetInstance(),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		RatelimiterOptions:   ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -254,6 +257,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		ClusterClientSetFunc:      util.NewClusterDynamicClientSetForAgent,
 		ClusterCacheSyncTimeout:   ctx.Opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs: ctx.Opts.ConcurrentWorkSyncs,
+		RateLimiterOptions:        ctx.Opts.RateLimiterOptions,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
