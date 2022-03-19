@@ -21,13 +21,13 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
-	"github.com/karmada-io/karmada/pkg/util/ratelimiter"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -49,7 +49,7 @@ type WorkStatusController struct {
 	PredicateFunc             predicate.Predicate
 	ClusterClientSetFunc      func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 	ClusterCacheSyncTimeout   metav1.Duration
-	RateLimiterOptions        ratelimiter.Options
+	RateLimiterOptions        ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -452,6 +452,6 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).WithOptions(controller.Options{
-		RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RateLimiterOptions),
+		RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
 	}).Complete(c)
 }

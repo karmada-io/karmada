@@ -50,7 +50,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
-	"github.com/karmada-io/karmada/pkg/util/ratelimiter"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -426,12 +425,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
-	rateLimiterOptions := ratelimiter.Options{
-		BaseDelay:  opts.RateLimiterBaseDelay,
-		MaxDelay:   opts.RateLimiterMaxDelay,
-		QPS:        opts.RateLimiterQPS,
-		BucketSize: opts.RateLimiterBucketSize,
-	}
+
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:              discoverClientSet,
 		Client:                          mgr.GetClient(),
@@ -444,7 +438,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
 		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
 		ConcurrentResourceBindingSyncs:  opts.ConcurrentResourceBindingSyncs,
-		RateLimiterOptions:              rateLimiterOptions,
+		RateLimiterOptions:              opts.RateLimiterOpts,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
@@ -480,7 +474,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
-			RateLimiterOptions:                rateLimiterOptions,
+			RateLimiterOptions:                opts.RateLimiterOpts,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
