@@ -43,7 +43,7 @@ type Controller struct {
 	PredicateFunc        predicate.Predicate
 	InformerManager      informermanager.MultiClusterInformerManager
 	ClusterClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
-	RatelimiterOption    ratelimiterflag.Options
+	RatelimiterOptions   ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -104,7 +104,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithEventFilter(c.PredicateFunc).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RatelimiterOption),
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RatelimiterOptions),
 		}).
 		Complete(c)
 }

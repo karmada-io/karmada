@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -61,6 +62,8 @@ type Options struct {
 	// ConcurrentWorkSyncs is the number of work objects that are
 	// allowed to sync concurrently.
 	ConcurrentWorkSyncs int
+
+	RateLimiterOpts ratelimiterflag.Options
 }
 
 // NewOptions builds an default scheduler options.
@@ -105,4 +108,5 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
 	fs.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of Clusters that are allowed to sync concurrently.")
 	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
+	o.RateLimiterOpts.AddFlags(fs)
 }

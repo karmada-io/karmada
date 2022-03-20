@@ -275,7 +275,7 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 		PredicateFunc:        helper.NewExecutionPredicate(ctx.Mgr),
 		InformerManager:      informermanager.GetInstance(),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
-		RatelimiterOption:    ctx.Opts.RateLimiterOptions,
+		RatelimiterOptions:   ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
