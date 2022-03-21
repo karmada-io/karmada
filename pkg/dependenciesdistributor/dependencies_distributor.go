@@ -154,7 +154,7 @@ func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 		klog.Error("invalid key")
 		return fmt.Errorf("invalid key")
 	}
-	klog.Infof("DependenciesDistributor start to reconcile object: %s", clusterWideKey)
+	klog.V(4).Infof("DependenciesDistributor start to reconcile object: %s", clusterWideKey)
 
 	bindingObjectList, err := d.resourceBindingLister.ByNamespace(clusterWideKey.Namespace).List(labels.Everything())
 	if err != nil {
@@ -182,6 +182,7 @@ func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 			continue
 		}
 
+		klog.V(4).Infof("resource binding(%s/%s) is matched for resource(%s/%s)", binding.Namespace, binding.Name, clusterWideKey.Namespace, clusterWideKey.Name)
 		bindingKey, err := detector.ClusterWideKeyFunc(binding)
 		if err != nil {
 			klog.Errorf("failed to generate cluster wide key for binding %s/%s: %v", binding.Namespace, binding.Name, err)
@@ -247,11 +248,13 @@ func (d *DependenciesDistributor) OnResourceBindingUpdate(oldObj, newObj interfa
 	}
 
 	if oldBindingObject.Generation == newBindingObject.Generation {
+		klog.V(4).Infof("Dropping resource binding(%s/%s) as the Generation is not changed.", newBindingObject.Namespace, newBindingObject.Name)
 		return
 	}
 
-	// prevent newBindingObject from the queue if it's not in Scheduled condition
-	if !helper.IsBindingScheduled(&newBindingObject.Status) {
+	// prevent newBindingObject from the queue if it's not scheduled yet.
+	if len(oldBindingObject.Spec.Clusters) == 0 && len(newBindingObject.Spec.Clusters) == 0 {
+		klog.V(4).Infof("Dropping resource binding(%s/%s) as it is not scheduled yet.", newBindingObject.Namespace, newBindingObject.Name)
 		return
 	}
 
@@ -299,6 +302,7 @@ func (d *DependenciesDistributor) ReconcileResourceBinding(key util.QueueKey) er
 		return fmt.Errorf("invalid key")
 	}
 
+	klog.V(4).Infof("Start to reconcile ResourceBinding(%s)", ckey.NamespaceKey())
 	unstructuredObj, err := d.resourceBindingLister.Get(ckey.NamespaceKey())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -590,6 +594,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 		updatedBindingSnapshot := mergeBindingSnapshot(existBinding.Spec.RequiredBy, attachedBinding.Spec.RequiredBy)
 		existBinding.Spec.RequiredBy = updatedBindingSnapshot
 		existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels, attachedBinding.Labels)
+		existBinding.Spec.Resource = attachedBinding.Spec.Resource
 
 		if err := d.Client.Update(context.TODO(), existBinding); err != nil {
 			klog.Errorf("failed to update resource binding(%s/%s): %v", existBinding.Namespace, existBinding.Name, err)
