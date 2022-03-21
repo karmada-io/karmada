@@ -8,6 +8,7 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -128,6 +129,38 @@ var _ = ginkgo.Describe("[FederatedResourceQuota] auto-provision testing", func(
 					return true, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
+		})
+	})
+})
+
+var _ = ginkgo.Describe("[FederatedResourceQuota] status collection testing", func() {
+	ginkgo.Context("collect federatedResourceQuota status", func() {
+		frqNamespace := testNamespace
+		frqName := federatedResourceQuotaPrefix + rand.String(RandomStrLength)
+		federatedResourceQuota := helper.NewFederatedResourceQuota(frqNamespace, frqName)
+
+		ginkgo.AfterEach(func() {
+			framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
+		})
+
+		ginkgo.It("federatedResourceQuota status should be collect correctly", func() {
+			framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
+			framework.WaitFederatedResourceQuotaCollectStatus(karmadaClient, frqNamespace, frqName)
+
+			patch := []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "/spec/staticAssignments/0/hard/cpu",
+					"value": "2",
+				},
+				{
+					"op":    "replace",
+					"path":  "/spec/staticAssignments/1/hard/memory",
+					"value": "4Gi",
+				},
+			}
+			framework.UpdateFederatedResourceQuotaWithPatch(karmadaClient, frqNamespace, frqName, patch, types.JSONPatchType)
+			framework.WaitFederatedResourceQuotaCollectStatus(karmadaClient, frqNamespace, frqName)
 		})
 	})
 })
