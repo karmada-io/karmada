@@ -27,18 +27,18 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 		return false
 	},
 	UpdateFunc: func(e event.UpdateEvent) bool {
-		var statusesOld, statusesNew []workv1alpha1.ManifestStatus
+		var statusesOld, statusesNew workv1alpha1.WorkStatus
 
 		switch oldWork := e.ObjectOld.(type) {
 		case *workv1alpha1.Work:
-			statusesOld = oldWork.Status.ManifestStatuses
+			statusesOld = oldWork.Status
 		default:
 			return false
 		}
 
 		switch newWork := e.ObjectNew.(type) {
 		case *workv1alpha1.Work:
-			statusesNew = newWork.Status.ManifestStatuses
+			statusesNew = newWork.Status
 		default:
 			return false
 		}
