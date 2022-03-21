@@ -1,6 +1,8 @@
 package helper
 
 import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -58,6 +60,38 @@ func NewOverridePolicyByOverrideRules(namespace, policyName string, rsSelectors 
 		Spec: policyv1alpha1.OverrideSpec{
 			ResourceSelectors: rsSelectors,
 			OverrideRules:     overrideRules,
+		},
+	}
+}
+
+// NewFederatedResourceQuota will build a demo FederatedResourceQuota object.
+func NewFederatedResourceQuota(ns, name string) *policyv1alpha1.FederatedResourceQuota {
+	return &policyv1alpha1.FederatedResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      name,
+		},
+		Spec: policyv1alpha1.FederatedResourceQuotaSpec{
+			Overall: map[corev1.ResourceName]resource.Quantity{
+				"cpu":    resource.MustParse("8"),
+				"memory": resource.MustParse("16Gi"),
+			},
+			StaticAssignments: []policyv1alpha1.StaticClusterAssignment{
+				{
+					ClusterName: "member1",
+					Hard: map[corev1.ResourceName]resource.Quantity{
+						"cpu":    resource.MustParse("1"),
+						"memory": resource.MustParse("2Gi"),
+					},
+				},
+				{
+					ClusterName: "member2",
+					Hard: map[corev1.ResourceName]resource.Quantity{
+						"cpu":    resource.MustParse("1"),
+						"memory": resource.MustParse("2Gi"),
+					},
+				},
+			},
 		},
 	}
 }
