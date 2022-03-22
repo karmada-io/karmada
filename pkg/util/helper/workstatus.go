@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -105,7 +106,8 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 }
 
 func generateFullyAppliedCondition(targetClusters []workv1alpha2.TargetCluster, aggregatedStatuses []workv1alpha2.AggregatedStatusItem) metav1.Condition {
-	if len(targetClusters) == len(aggregatedStatuses) && areWorksFullyApplied(aggregatedStatuses) {
+	clusterNames := GetBindingClusterNames(targetClusters)
+	if worksFullyApplied(aggregatedStatuses, clusterNames) {
 		return util.NewCondition(workv1alpha2.FullyApplied, FullyAppliedSuccessReason, FullyAppliedSuccessMessage, metav1.ConditionTrue)
 	}
 	return util.NewCondition(workv1alpha2.FullyApplied, FullyAppliedFailedReason, FullyAppliedFailedMessage, metav1.ConditionFalse)
@@ -213,13 +215,33 @@ func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal 
 	return false, nil
 }
 
-// areWorksFullyApplied checks if all works are applied for a Binding
-func areWorksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem) bool {
+// worksFullyApplied checks if all works are applied according the scheduled result and collected status.
+func worksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem, targetClusters []string) bool {
+	// short path: not scheduled
+	if len(targetClusters) == 0 {
+		return false
+	}
+
+	// short path: lack of status
+	if len(targetClusters) != len(aggregatedStatuses) {
+		return false
+	}
+
+	targetClusterSet := sets.String{}
+	for i := range targetClusters {
+		targetClusterSet.Insert(targetClusters[i])
+	}
+
 	for _, aggregatedSatusItem := range aggregatedStatuses {
 		if !aggregatedSatusItem.Applied {
 			return false
 		}
+
+		if !targetClusterSet.Has(aggregatedSatusItem.ClusterName) {
+			return false
+		}
 	}
+
 	return true
 }
 
