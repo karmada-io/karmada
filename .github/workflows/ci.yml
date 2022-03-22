@@ -9,8 +9,6 @@ jobs:
     name: lint
     runs-on: ubuntu-18.04
     steps:
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
       - name: checkout code
         uses: actions/checkout@v2
       - name: install Go
@@ -23,8 +21,6 @@ jobs:
         run: hack/verify-staticcheck.sh
       - name: import alias
         run: hack/verify-import-aliases.sh
-      - name: protobuf
-        run: hack/verify-estimator-protobuf.sh
   codegen:
     name: codegen
     runs-on: ubuntu-18.04
@@ -42,10 +38,16 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.17.x
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
       - name: verify codegen
         run: hack/verify-codegen.sh
       - name: verify crdgen
         run: hack/verify-crdgen.sh
+      - name: verify protobuf
+        run: hack/verify-estimator-protobuf.sh
+      - name: verify swagger docs
+        run: hack/verify-swagger-docs.sh
   build:
     name: compile
     needs: codegen # rely on codegen successful completion
