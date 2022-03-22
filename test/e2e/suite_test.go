@@ -53,6 +53,8 @@ const (
 	jobNamePrefix                = "job-"
 	workloadNamePrefix           = "workload-"
 	federatedResourceQuotaPrefix = "frq-"
+	configMapNamePrefix          = "configmap-"
+	secretNamePrefix             = "secret-"
 
 	updateDeploymentReplicas = 6
 	updateServicePort        = 81
