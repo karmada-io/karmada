@@ -11,10 +11,10 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
-	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
@@ -64,7 +64,11 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	}
 	klog.V(4).Infof("feasible clusters scores: %v", clustersScore)
 
-	clusters := g.selectClusters(clustersScore, placement.SpreadConstraints, feasibleClusters)
+	clusters, err := g.selectClusters(clustersScore, placement, spec)
+	if err != nil {
+		return result, fmt.Errorf("failed to select clusters: %v", err)
+	}
+	klog.V(4).Infof("selected clusters: %v", clusters)
 
 	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
 	if err != nil {
@@ -122,76 +126,13 @@ func (g *genericScheduler) prioritizeClusters(
 	return result, nil
 }
 
-func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, spreadConstraints []policyv1alpha1.SpreadConstraint, clusters []*clusterv1alpha1.Cluster) []*clusterv1alpha1.Cluster {
+func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
 
-	if len(spreadConstraints) != 0 {
-		return g.matchSpreadConstraints(clusters, spreadConstraints)
-	}
+	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec)
 
-	return clusters
-}
-
-func (g *genericScheduler) matchSpreadConstraints(clusters []*clusterv1alpha1.Cluster, spreadConstraints []policyv1alpha1.SpreadConstraint) []*clusterv1alpha1.Cluster {
-	state := util.NewSpreadGroup()
-	g.runSpreadConstraintsFilter(clusters, spreadConstraints, state)
-	return g.calSpreadResult(state)
-}
-
-// Now support spread by cluster. More rules will be implemented later.
-func (g *genericScheduler) runSpreadConstraintsFilter(clusters []*clusterv1alpha1.Cluster, spreadConstraints []policyv1alpha1.SpreadConstraint, spreadGroup *util.SpreadGroup) {
-	for _, spreadConstraint := range spreadConstraints {
-		spreadGroup.InitialGroupRecord(spreadConstraint)
-		if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster {
-			g.groupByFieldCluster(clusters, spreadConstraint, spreadGroup)
-		}
-	}
-}
-
-func (g *genericScheduler) groupByFieldCluster(clusters []*clusterv1alpha1.Cluster, spreadConstraint policyv1alpha1.SpreadConstraint, spreadGroup *util.SpreadGroup) {
-	for _, cluster := range clusters {
-		clusterGroup := cluster.Name
-		spreadGroup.GroupRecord[spreadConstraint][clusterGroup] = append(spreadGroup.GroupRecord[spreadConstraint][clusterGroup], cluster)
-	}
-}
-
-func (g *genericScheduler) calSpreadResult(spreadGroup *util.SpreadGroup) []*clusterv1alpha1.Cluster {
-	// TODO: now support single spread constraint
-	if len(spreadGroup.GroupRecord) > 1 {
-		return nil
-	}
-
-	return g.chooseSpreadGroup(spreadGroup)
-}
-
-func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*clusterv1alpha1.Cluster {
-	var feasibleClusters []*clusterv1alpha1.Cluster
-	for spreadConstraint, clusterGroups := range spreadGroup.GroupRecord {
-		if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster {
-			if len(clusterGroups) < spreadConstraint.MinGroups {
-				return nil
-			}
-
-			if len(clusterGroups) <= spreadConstraint.MaxGroups {
-				for _, v := range clusterGroups {
-					feasibleClusters = append(feasibleClusters, v...)
-				}
-				break
-			}
-
-			if spreadConstraint.MaxGroups > 0 && len(clusterGroups) > spreadConstraint.MaxGroups {
-				var groups []string
-				for group := range clusterGroups {
-					groups = append(groups, group)
-				}
-
-				for i := 0; i < spreadConstraint.MaxGroups; i++ {
-					feasibleClusters = append(feasibleClusters, clusterGroups[groups[i]]...)
-				}
-			}
-		}
-	}
-	return feasibleClusters
+	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo)
 }
 
 func (g *genericScheduler) assignReplicas(
