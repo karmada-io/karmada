@@ -3,12 +3,12 @@ package spreadconstraint
 import (
 	"context"
 	"fmt"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"math"
 
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	"github.com/karmada-io/karmada/pkg/util"

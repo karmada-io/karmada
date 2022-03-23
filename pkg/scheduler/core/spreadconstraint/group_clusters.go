@@ -15,18 +15,19 @@ type GroupClustersInfo struct {
 	Regions   map[string]RegionInfo
 	Zones     map[string]ZoneInfo
 
-	// Clusters from globally view, sorted by cluster.Score descending.
+	// Clusters from global view, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
 }
 
 // ProviderInfo indicate the provider information
 type ProviderInfo struct {
 	Name              string
-	Score             int64
 	AvailableReplicas int64
 
+	// Regions under this provider
 	Regions map[string]struct{}
-	Zones   map[string]struct{}
+	// Zones under this provider
+	Zones map[string]struct{}
 	// Clusters under this provider, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
 }
@@ -34,9 +35,9 @@ type ProviderInfo struct {
 // RegionInfo indicate the region information
 type RegionInfo struct {
 	Name              string
-	Score             int64
 	AvailableReplicas int64
 
+	// Zones under this provider
 	Zones map[string]struct{}
 	// Clusters under this region, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
@@ -45,7 +46,6 @@ type RegionInfo struct {
 // ZoneInfo indicate the zone information
 type ZoneInfo struct {
 	Name              string
-	Score             int64
 	AvailableReplicas int64
 
 	// Clusters under this zone, sorted by cluster.Score descending.
@@ -142,7 +142,6 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 		}
 
 		zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
-		zoneInfo.Score += clusterInfo.Score
 		zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
 		info.Zones[zone] = zoneInfo
 	}
@@ -172,7 +171,6 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 			regionInfo.Zones[clusterInfo.Cluster.Spec.Zone] = struct{}{}
 		}
 		regionInfo.Clusters = append(regionInfo.Clusters, clusterInfo)
-		regionInfo.Score += clusterInfo.Score
 		regionInfo.AvailableReplicas += clusterInfo.AvailableReplicas
 		info.Regions[region] = regionInfo
 	}
@@ -208,7 +206,6 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 		}
 
 		providerInfo.Clusters = append(providerInfo.Clusters, clusterInfo)
-		providerInfo.Score += clusterInfo.Score
 		providerInfo.AvailableReplicas += clusterInfo.AvailableReplicas
 		info.Providers[provider] = providerInfo
 	}
@@ -225,7 +222,7 @@ func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
 	// If the replica division preference is 'static weighted', ignore the declaration specified by spread constraints.
 	if strategy != nil && strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
 		strategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
-		(strategy.WeightPreference == nil || strategy.WeightPreference.DynamicWeight == "") {
+		(len(strategy.WeightPreference.StaticWeightList) != 0 && strategy.WeightPreference.DynamicWeight == "") {
 		return true
 	}
 
