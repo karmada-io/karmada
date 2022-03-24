@@ -158,10 +158,6 @@ mp-image-karmada-scheduler: karmada-scheduler
 	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-scheduler:${VERSION} --file=cluster/images/karmada-scheduler/Dockerfile .
 
 # Build and push multi-platform image to DockerHub
-mp-image-karmada-descheduler: karmada-descheduler
-	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-descheduler:${VERSION} --file=cluster/images/karmada-descheduler/Dockerfile .
-
-# Build and push multi-platform image to DockerHub
 mp-image-karmada-webhook: karmada-webhook
 	docker buildx build --push --platform=${PLATFORMS} --tag=karmada/karmada-webhook:${VERSION} --file=cluster/images/karmada-webhook/Dockerfile .
 
@@ -184,7 +180,6 @@ mp-image-karmada-aggregated-apiserver: karmada-aggregated-apiserver
 # Build and push multi-platform images to DockerHub.
 multi-platform-images: mp-image-karmada-controller-manager \
  mp-image-karmada-scheduler \
- mp-image-karmada-descheduler \
  mp-image-karmada-webhook \
  mp-image-karmada-agent \
  mp-image-karmada-scheduler-estimator \
