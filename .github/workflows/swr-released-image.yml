@@ -1,4 +1,4 @@
-name: Release Images
+name: released image to SWR
 on:
   release:
     types:
