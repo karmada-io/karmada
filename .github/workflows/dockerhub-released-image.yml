@@ -1,10 +1,10 @@
-name: released image to dockerhub
+name: released image to DockerHub
 on:
   release:
     types:
       - published
 jobs:
-  publish-image-to-dockerhub::
+  publish-image-to-dockerhub:
     name: publish to DockerHub
     strategy:
       matrix:

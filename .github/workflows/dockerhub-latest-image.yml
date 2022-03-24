@@ -1,4 +1,4 @@
-name: latest image to dockerhub
+name: latest image to DockerHub
 on:
   push:
     branches:
