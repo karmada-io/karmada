@@ -31,12 +31,15 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
-	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
-
 	if len(policy.Name) > validation.LabelValueMaxLength {
 		return admission.Errored(http.StatusBadRequest, fmt.Errorf("ClusterPropagationPolicy's name should be no more than %d characters", validation.LabelValueMaxLength))
 	}
+
+	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
+	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
+
+	// Set default scheduling strategy
+	policy.Spec.Placement.ReplicaScheduling = helper.SetDefaultSchedulingStrategy(policy.Spec.Placement.ReplicaScheduling)
 
 	addedResourceSelectors := helper.GetFollowedResourceSelectorsWhenMatchServiceImport(policy.Spec.ResourceSelectors)
 	if addedResourceSelectors != nil {

@@ -47,6 +47,32 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 	return nil
 }
 
+// SetDefaultSchedulingStrategy sets default value if some ReplicaSchedulingStrategy field is not filled.
+func SetDefaultSchedulingStrategy(schedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy) *policyv1alpha1.ReplicaSchedulingStrategy {
+	if schedulingStrategy == nil {
+		strategy := &policyv1alpha1.ReplicaSchedulingStrategy{}
+		strategy.ReplicaSchedulingType = policyv1alpha1.ReplicaSchedulingTypeDuplicated
+		klog.Infof("set default ReplicaSchedulingType with %s", policyv1alpha1.ReplicaSchedulingTypeDuplicated)
+		return strategy
+	}
+
+	if schedulingStrategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
+		if schedulingStrategy.ReplicaDivisionPreference == "" {
+			schedulingStrategy.ReplicaDivisionPreference = policyv1alpha1.ReplicaDivisionPreferenceWeighted
+			klog.Infof("set default ReplicaDivisionPreference with %s", policyv1alpha1.ReplicaDivisionPreferenceWeighted)
+		}
+
+		if schedulingStrategy.WeightPreference == nil {
+			schedulingStrategy.WeightPreference = &policyv1alpha1.ClusterPreferences{
+				DynamicWeight: policyv1alpha1.DynamicWeightByAvailableReplicas,
+			}
+			klog.Infof("set default WeightPreference with %s", policyv1alpha1.DynamicWeightByAvailableReplicas)
+		}
+	}
+
+	return schedulingStrategy
+}
+
 // IsDependentOverridesPresent checks if a PropagationPolicy's dependent OverridePolicy all exist.
 func IsDependentOverridesPresent(c client.Client, policy *policyv1alpha1.PropagationPolicy) (bool, error) {
 	ns := policy.Namespace

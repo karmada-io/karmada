@@ -47,6 +47,9 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 	// Set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 	helper.SetDefaultSpreadConstraints(policy.Spec.Placement.SpreadConstraints)
 
+	// Set default scheduling strategy
+	policy.Spec.Placement.ReplicaScheduling = helper.SetDefaultSchedulingStrategy(policy.Spec.Placement.ReplicaScheduling)
+
 	addedResourceSelectors := helper.GetFollowedResourceSelectorsWhenMatchServiceImport(policy.Spec.ResourceSelectors)
 	if addedResourceSelectors != nil {
 		policy.Spec.ResourceSelectors = append(policy.Spec.ResourceSelectors, addedResourceSelectors...)
