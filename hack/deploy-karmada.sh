@@ -227,6 +227,9 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/apiservice.yaml"
 # make sure apiservice for v1alpha1.cluster.karmada.io is Available
 util::wait_apiservice_ready "${KARMADA_AGGREGATION_APISERVER_LABEL}"
 
+# deploy cluster proxy rbac for admin
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/cluster-proxy-admin-rbac.yaml"
+
 kubectl config use-context "${HOST_CLUSTER_NAME}"
 
 # deploy controller-manager on host cluster
