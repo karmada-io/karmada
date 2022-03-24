@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Dial establishes the gRPC communication.
@@ -15,7 +16,7 @@ func Dial(path string, timeout time.Duration) (*grpc.ClientConn, error) {
 
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	cc, err := grpc.DialContext(ctx, path, opts...)
 	if err != nil {
