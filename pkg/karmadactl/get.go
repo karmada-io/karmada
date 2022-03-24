@@ -24,7 +24,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -38,7 +37,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-const printColumnClusterNum = 1
+const (
+	printColumnClusterNum = 1
+	proxyURL              = "/apis/cluster.karmada.io/v1alpha1/clusters/%s/proxy/"
+)
 
 var (
 	getIn  = os.Stdin
@@ -219,7 +221,7 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 		g.ExplicitNamespace = false
 	}
 
-	karmadaclient, err := clusterInfoInit(g, karmadaConfig, clusterInfos)
+	karmadaRestConfig, err := clusterInfoInit(g, karmadaConfig, clusterInfos)
 	if err != nil {
 		return err
 	}
@@ -233,9 +235,7 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 			continue
 		}
 
-		if err := g.getSecretTokenInKarmada(karmadaclient, g.Clusters[idx], clusterInfos); err != nil {
-			return fmt.Errorf("method getSecretTokenInKarmada get Secret info in karmada failed, err is: %w", err)
-		}
+		g.setClusterProxyInfo(karmadaRestConfig, g.Clusters[idx], clusterInfos)
 		f := getFactory(g.Clusters[idx], clusterInfos)
 		go g.getObjInfo(&wg, &mux, f, g.Clusters[idx], &objs, &allErrs, args)
 	}
@@ -345,6 +345,20 @@ func (g *CommandGetOptions) checkPrintWithNamespace(mapping *meta.RESTMapping) b
 func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cmdutil.Factory,
 	cluster string, objs *[]Obj, allErrs *[]error, args []string) {
 	defer wg.Done()
+
+	restClient, err := f.RESTClient()
+	if err != nil {
+		*allErrs = append(*allErrs, err)
+		return
+	}
+
+	// check if it is authorized to proxy this member cluster
+	request := restClient.Get().RequestURI(fmt.Sprintf(proxyURL, cluster) + "api")
+	if _, err := request.DoRaw(context.TODO()); err != nil {
+		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s) is inaccessible, please check authorization or network", cluster))
+		return
+	}
+
 	chunkSize := g.ChunkSize
 	r := f.NewBuilder().
 		Unstructured().
@@ -362,17 +376,24 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 
 	r.IgnoreErrors(apierrors.IsNotFound)
 
-	if !g.IsHumanReadablePrinter {
-		err := g.printGeneric(r)
+	if err := r.Err(); err != nil {
+		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
+		return
+	}
 
+	if !g.IsHumanReadablePrinter {
+		err := fmt.Errorf("cluster(%s): %s", cluster, g.printGeneric(r))
 		*allErrs = append(*allErrs, err)
 		return
 	}
 
 	infos, err := r.Infos()
 	if err != nil {
+		err := fmt.Errorf("cluster(%s): %s", cluster, err)
 		*allErrs = append(*allErrs, err)
+		return
 	}
+
 	mux.Lock()
 	var objInfo Obj
 	for ix := range infos {
@@ -555,6 +576,9 @@ func shouldGetNewPrinterForMapping(printer printers.ResourcePrinter, lastMapping
 
 // ClusterInfo Information about the member in the karmada cluster.
 type ClusterInfo struct {
+	KubeConfig string
+	Context    string
+
 	APIEndpoint     string
 	BearerToken     string
 	CAData          string
@@ -562,17 +586,17 @@ type ClusterInfo struct {
 }
 
 func clusterInfoInit(g *CommandGetOptions, karmadaConfig KarmadaConfig, clusterInfos map[string]*ClusterInfo) (*rest.Config, error) {
-	karmadaclient, err := karmadaConfig.GetRestConfig(g.KarmadaContext, g.KubeConfig)
+	karmadaRestConfig, err := karmadaConfig.GetRestConfig(g.KarmadaContext, g.KubeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
 			g.KarmadaContext, g.KubeConfig, err)
 	}
 
-	if err := getClusterInKarmada(karmadaclient, clusterInfos); err != nil {
+	if err := getClusterInKarmada(karmadaRestConfig, clusterInfos); err != nil {
 		return nil, fmt.Errorf("method getClusterInKarmada get cluster info in karmada failed, err is: %w", err)
 	}
 
-	if err := g.getRBInKarmada(g.Namespace, karmadaclient); err != nil {
+	if err := g.getRBInKarmada(g.Namespace, karmadaRestConfig); err != nil {
 		return nil, err
 	}
 
@@ -581,15 +605,25 @@ func clusterInfoInit(g *CommandGetOptions, karmadaConfig KarmadaConfig, clusterI
 			g.Clusters = append(g.Clusters, c)
 		}
 	}
-	return karmadaclient, nil
+	return karmadaRestConfig, nil
 }
 
 func getFactory(clusterName string, clusterInfos map[string]*ClusterInfo) cmdutil.Factory {
 	kubeConfigFlags := NewConfigFlags(true).WithDeprecatedPasswordFlag()
 	// Build member cluster kubeConfigFlags
-	kubeConfigFlags.BearerToken = stringptr(clusterInfos[clusterName].BearerToken)
 	kubeConfigFlags.APIServer = stringptr(clusterInfos[clusterName].APIEndpoint)
-	kubeConfigFlags.CaBundle = stringptr(clusterInfos[clusterName].CAData)
+
+	if clusterInfos[clusterName].KubeConfig != "" {
+		// Use kubeconfig to access member cluster
+		kubeConfigFlags.KubeConfig = stringptr(clusterInfos[clusterName].KubeConfig)
+		kubeConfigFlags.Context = stringptr(clusterInfos[clusterName].Context)
+		kubeConfigFlags.usePersistentConfig = true
+	} else {
+		// Use BearerToken to access member cluster
+		kubeConfigFlags.BearerToken = stringptr(clusterInfos[clusterName].BearerToken)
+		kubeConfigFlags.CaBundle = stringptr(clusterInfos[clusterName].CAData)
+	}
+
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	return cmdutil.NewFactory(matchVersionKubeConfigFlags)
 }
@@ -657,19 +691,19 @@ func (g *CommandGetOptions) getRBInKarmada(namespace string, config *rest.Config
 	return nil
 }
 
-// getSecretTokenInKarmada get token ca in karmada cluster
-func (g *CommandGetOptions) getSecretTokenInKarmada(client *rest.Config, name string, clusterInfos map[string]*ClusterInfo) error {
-	clusterClient, err := kubernetes.NewForConfig(client)
-	if err != nil {
-		return err
+// setClusterProxyInfo set proxy information of cluster
+func (g *CommandGetOptions) setClusterProxyInfo(karmadaRestConfig *rest.Config, name string, clusterInfos map[string]*ClusterInfo) {
+	clusterInfos[name].APIEndpoint = karmadaRestConfig.Host + fmt.Sprintf(proxyURL, name)
+	clusterInfos[name].KubeConfig = g.KubeConfig
+	clusterInfos[name].Context = g.KarmadaContext
+	if clusterInfos[name].KubeConfig == "" {
+		env := os.Getenv("KUBECONFIG")
+		if env != "" {
+			clusterInfos[name].KubeConfig = env
+		} else {
+			clusterInfos[name].KubeConfig = defaultKubeConfig
+		}
 	}
-	secret, err := clusterClient.CoreV1().Secrets(g.ClusterNamespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	clusterInfos[name].BearerToken = string(secret.Data[clusterv1alpha1.SecretTokenKey])
-	clusterInfos[name].CAData = string(secret.Data[clusterv1alpha1.SecretCADataKey])
-	return nil
 }
 
 // getClusterInKarmada get cluster info in karmada cluster
