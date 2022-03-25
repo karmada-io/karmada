@@ -284,3 +284,63 @@ func TestGenerateEstimatorServiceName(t *testing.T) {
 		}
 	}
 }
+
+func TestIsReservedNamespace(t *testing.T) {
+	tests := []struct {
+		name      string
+		namespace string
+		expected  bool
+	}{
+		{
+			name:      "karmada-system",
+			namespace: NamespaceKarmadaSystem,
+			expected:  true,
+		},
+		{
+			name:      "karmada-cluster",
+			namespace: NamespaceKarmadaCluster,
+			expected:  true,
+		},
+		{
+			name:      "kube-",
+			namespace: KubernetesReservedNSPrefix,
+			expected:  true,
+		},
+		{
+			name:      "karmada-es-",
+			namespace: ExecutionSpacePrefix,
+			expected:  true,
+		},
+		{
+			name:      "not reserved namespace",
+			namespace: "test-A",
+			expected:  false,
+		},
+	}
+	for _, test := range tests {
+		got := IsReservedNamespace(test.namespace)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
+
+func TestGenerateImpersonationSecretName(t *testing.T) {
+	tests := []struct {
+		name        string
+		clusterName string
+		expected    string
+	}{
+		{
+			name:        "impersonator",
+			clusterName: "clusterA",
+			expected:    "clusterA-impersonator",
+		},
+	}
+	for _, test := range tests {
+		got := GenerateImpersonationSecretName(test.clusterName)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
