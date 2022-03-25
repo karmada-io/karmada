@@ -10,6 +10,14 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
+const (
+	// MinClusterScore is the minimum score a Score plugin is expected to return.
+	MinClusterScore int64 = 0
+
+	// MaxClusterScore is the maximum score a Score plugin is expected to return.
+	MaxClusterScore int64 = 100
+)
+
 // Framework manages the set of plugins in use by the scheduling framework.
 // Configured plugins are called at specified points in a scheduling context.
 type Framework interface {
