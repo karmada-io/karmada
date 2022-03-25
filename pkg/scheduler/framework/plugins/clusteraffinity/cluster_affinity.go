@@ -46,6 +46,17 @@ func (p *ClusterAffinity) Filter(ctx context.Context, placement *policyv1alpha1.
 }
 
 // Score calculates the score on the candidate cluster.
-func (p *ClusterAffinity) Score(ctx context.Context, placement *policyv1alpha1.Placement, cluster *clusterv1alpha1.Cluster) (float64, *framework.Result) {
+func (p *ClusterAffinity) Score(ctx context.Context, placement *policyv1alpha1.Placement,
+	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	return 0, framework.NewResult(framework.Success)
+}
+
+// ScoreExtensions of the Score plugin.
+func (p *ClusterAffinity) ScoreExtensions() framework.ScoreExtensions {
+	return p
+}
+
+// NormalizeScore normalizes the score for each candidate cluster.
+func (p *ClusterAffinity) NormalizeScore(ctx context.Context, scores framework.ClusterScoreList) *framework.Result {
+	return framework.NewResult(framework.Success)
 }

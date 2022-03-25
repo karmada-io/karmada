@@ -257,6 +257,19 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 			framework.RemoveService(exportClusterClient, demoService.Namespace, demoService.Name)
 		})
 
+		ginkgo.AfterEach(func() {
+			ginkgo.By("Cleanup", func() {
+				err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
+			framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
+		})
+
 		ginkgo.It("Export Service from source-clusters, import Service to destination-clusters", func() {
 			importClusterClient := framework.GetClusterClient(serviceImportClusterName)
 			gomega.Expect(importClusterClient).ShouldNot(gomega.BeNil())
@@ -346,17 +359,6 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 					return podLogs(context.TODO(), importClusterClient, demoService.Namespace, pod.Name)
 				}, pollTimeout, pollInterval).Should(gomega.Equal("hello\n"))
 			})
-
-			ginkgo.By("Cleanup", func() {
-				err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
-			framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
 		})
 	})
 
@@ -398,6 +400,19 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 
 			klog.Infof(fmt.Sprintf("Delete Service(%s/%s) in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName))
 			framework.RemoveService(exportClusterClient, demoService.Namespace, demoService.Name)
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By("Cleanup", func() {
+				err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
+			framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
 		})
 
 		ginkgo.It("Update Deployment's replicas", func() {
@@ -467,17 +482,6 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 					return epNums, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(2))
 			})
-
-			ginkgo.By("Cleanup", func() {
-				err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
-			framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
 		})
 	})
 })

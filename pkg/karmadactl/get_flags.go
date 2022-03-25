@@ -42,7 +42,8 @@ const (
 )
 
 var (
-	defaultCacheDir = filepath.Join(homedir.HomeDir(), ".kube", "cache")
+	defaultKubeConfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
+	defaultCacheDir   = filepath.Join(homedir.HomeDir(), ".kube", "cache")
 	// ErrEmptyConfig is the error message to be displayed if the configuration info is missing or incomplete
 	ErrEmptyConfig = clientcmd.NewEmptyConfigError(
 		`Missing or incomplete configuration info.  Please point to an existing, complete config file:
@@ -170,6 +171,7 @@ func (f *ConfigFlags) ToRawKubeConfigLoader() clientcmd.ClientConfig {
 	return f.toRawKubeConfigLoader()
 }
 
+//nolint:gocyclo
 func (f *ConfigFlags) toRawKubeConfigLoader() clientcmd.ClientConfig {
 	//loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules := &clientcmd.ClientConfigLoadingRules{}
@@ -182,7 +184,10 @@ func (f *ConfigFlags) toRawKubeConfigLoader() clientcmd.ClientConfig {
 	}
 
 	clusterOverrides := clientcmd.ClusterDefaults
-	clusterOverrides.CertificateAuthorityData = []byte(*f.CaBundle)
+	if f.CaBundle != nil {
+		clusterOverrides.CertificateAuthorityData = []byte(*f.CaBundle)
+	}
+
 	overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clusterOverrides}
 
 	// bind auth info flag values to overrides

@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/ed42bbd722a14640f8b5315a521745e7526ff31b/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils_test.go#L372-L533
+// https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils_test.go#L372-L533
 
 package lifted
 

@@ -29,11 +29,11 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
-	"github.com/karmada-io/karmada/pkg/util/ratelimiter"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -49,7 +49,7 @@ type ResourceBindingController struct {
 	RESTMapper          meta.RESTMapper
 	OverrideManager     overridemanager.OverrideManager
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
-	RateLimiterOptions  ratelimiter.Options
+	RateLimiterOptions  ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -221,7 +221,7 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.DefaultControllerRateLimiter(c.RateLimiterOptions),
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
 		}).
 		Complete(c)
 }

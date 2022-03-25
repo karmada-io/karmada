@@ -30,13 +30,13 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/names"
-	"github.com/karmada-io/karmada/pkg/util/ratelimiter"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -81,7 +81,7 @@ type ResourceDetector struct {
 
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
 	// the controller.
-	RateLimiterOptions ratelimiter.Options
+	RateLimiterOptions ratelimiterflag.Options
 
 	stopCh <-chan struct{}
 }

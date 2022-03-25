@@ -46,12 +46,15 @@ const (
 )
 
 const (
-	deploymentNamePrefix = "deploy-"
-	serviceNamePrefix    = "service-"
-	podNamePrefix        = "pod-"
-	crdNamePrefix        = "cr-"
-	jobNamePrefix        = "job-"
-	workloadNamePrefix   = "workload-"
+	deploymentNamePrefix         = "deploy-"
+	serviceNamePrefix            = "service-"
+	podNamePrefix                = "pod-"
+	crdNamePrefix                = "cr-"
+	jobNamePrefix                = "job-"
+	workloadNamePrefix           = "workload-"
+	federatedResourceQuotaPrefix = "frq-"
+	configMapNamePrefix          = "configmap-"
+	secretNamePrefix             = "secret-"
 
 	updateDeploymentReplicas = 6
 	updateServicePort        = 81
