@@ -86,7 +86,7 @@ VIPKID的业务形态是将国内外的教育资源进行互换互补，包括�
 
 下图是VIPKID引入Karmada之前和之后的架构对比：
 
-![Karmada在VIPKID](../images/adoptions-vipkid-architecture.png "Karmada在VIPKID")
+![Karmada在VIPKID](../images/adoptions-vipkid-architecture-zh.png "Karmada在VIPKID")
 
 **引入Karmada后，多集群聚合层得以真正的统一**，我们可以在Karmada控制平面以应用维度去管理资源，多数情况下都不需要深入到受控集群中，只需要与Karmada交互即可。如此极大的简化了我们的“容器应用管理”系统。现在，我们的PaaS平台可以完全倾注于业务需求，Karmada强大的能力已经满足了当前我们的各类需求。
 
