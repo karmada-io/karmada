@@ -556,37 +556,27 @@ func NewConfigMap(namespace string, name string, data map[string]string) *corev1
 // NewServiceaccount will build a new serviceaccount.
 func NewServiceaccount(namespace, name string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
-		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Secrets:    []corev1.ObjectReference{},
 	}
 }
 
-// NewClusterroles will build a new clusterrole resource.
-func NewClusterroles(name, apigroup, resource, resourcename string) *rbacv1.ClusterRole {
+// NewClusterRole will build a new clusterRole object.
+func NewClusterRole(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
-		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Rules: []rbacv1.PolicyRule{{
-			APIGroups: []string{apigroup},
-			Verbs:     []string{"*"},
-			Resources: []string{resource},
-			// ResourceNames: []string{"member1","member2","member3"},
-			ResourceNames: []string{resourcename},
-		}},
+		Rules:      rules,
 	}
 }
 
-// NewClusterrolebindings will bild a new clusterrolebinding.
-func NewClusterrolebindings(name, clsterroleName string, subject []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+// NewClusterRoleBinding will build a new clusterRoleBinding object.
+func NewClusterRoleBinding(name, roleRefName string, subject []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
-		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Subjects:   subject,
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     clsterroleName,
+			Name:     roleRefName,
 		},
 	}
 }
