@@ -1,4 +1,4 @@
-package core
+package strategy
 
 import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -10,14 +10,15 @@ type Duplicated struct {
 }
 
 func (d Duplicated) AssignReplica(
-	object *workv1alpha2.ResourceBindingSpec,
-	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
+	spec *workv1alpha2.ResourceBindingSpec,
 	clusters []*clusterv1alpha1.Cluster,
+	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
 ) ([]workv1alpha2.TargetCluster, error) {
-
 	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
+
 	for i, cluster := range clusters {
-		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
+		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: spec.Replicas}
 	}
+
 	return targetClusters, nil
 }

@@ -193,30 +193,10 @@ func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*c
 	return feasibleClusters
 }
 
-//func getStrategyName(replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy) (name string) {
-//	var strategyName = ""
-//	switch replicaSchedulingStrategy.ReplicaSchedulingType {
-//	case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
-//		strategyName = string(policyv1alpha1.ReplicaSchedulingTypeDuplicated)
-//	case policyv1alpha1.ReplicaSchedulingTypeDivided:
-//		switch replicaSchedulingStrategy.ReplicaDivisionPreference {
-//		case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
-//			if len(replicaSchedulingStrategy.WeightPreference.DynamicWeight) != 0 {
-//				strategyName = "DynamicWeight"
-//			} else {
-//				strategyName = "StaticWeight"
-//			}
-//		case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
-//			strategyName = string(policyv1alpha1.ReplicaDivisionPreferenceAggregated)
-//		}
-//	}
-//	return strategyName
-//}
-
 func (g *genericScheduler) assignReplicas(
 	clusters []*clusterv1alpha1.Cluster,
 	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
-	object *workv1alpha2.ResourceBindingSpec,
+	spec *workv1alpha2.ResourceBindingSpec,
 ) ([]workv1alpha2.TargetCluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, time.Now())
 
@@ -224,7 +204,7 @@ func (g *genericScheduler) assignReplicas(
 		return nil, fmt.Errorf("no clusters available to schedule")
 	}
 
-	if object.Replicas <= 0 {
+	if spec.Replicas <= 0 {
 		targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 		for i, cluster := range clusters {
 			targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
@@ -233,7 +213,7 @@ func (g *genericScheduler) assignReplicas(
 	}
 
 	if assigner, ok := GetAssignReplica(replicaSchedulingStrategy); ok {
-		return assigner.AssignReplica(object, replicaSchedulingStrategy, clusters)
+		return assigner.AssignReplica(spec, replicaSchedulingStrategy, clusters)
 	}
 
 	return nil, fmt.Errorf("undefined replica scheduling type")
