@@ -67,6 +67,7 @@ const (
 var (
 	kubeconfig            string
 	restConfig            *rest.Config
+	karmadaHost           string
 	kubeClient            kubernetes.Interface
 	karmadaClient         karmada.Interface
 	dynamicClient         dynamic.Interface
@@ -90,6 +91,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	var err error
 	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	karmadaHost = restConfig.Host
 
 	kubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
