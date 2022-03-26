@@ -355,8 +355,7 @@ function util::create_cluster() {
 
   mkdir -p ${log_path}
   rm -rf "${log_path}/${cluster_name}.log"
-  rm -f "${kubeconfig}"
-  nohup kind delete cluster --name="${cluster_name}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
+  nohup kind delete cluster --name="${cluster_name}" --kubeconfig="${kubeconfig}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
   echo "Creating cluster ${cluster_name}"
 }
 
