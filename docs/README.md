@@ -20,6 +20,13 @@ Refer to [Installing Karmada](./installation/installation.md).
 
 ## Best Practices
 
+## Adoptions
+User cases in production.
+
+- Karmada at [VIPKID](https://www.vipkid.com/)
+  * [English](./adoptions/vipkid-en.md)
+  * [中文](./adoptions/vipkid-zh.md)
+
 ## Developer Guide
 
 ## Contributors
