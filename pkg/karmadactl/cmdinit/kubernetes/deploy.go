@@ -418,8 +418,8 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 	}
 
 	// Create karmada-controller-manager ClusterRole and ClusterRoleBinding
-	if err := i.CreateClusterRole(); err != nil {
-		klog.Exitln(err)
+	if err := i.CreateControllerManagerRBAC(); err != nil {
+		return err
 	}
 
 	// Create Secrets

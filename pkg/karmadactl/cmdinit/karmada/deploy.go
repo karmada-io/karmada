@@ -26,8 +26,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
+const (
+	clusterProxyAdminRole = "cluster-proxy-admin"
+	clusterProxyAdminUser = "system:admin"
+)
+
 // InitKarmadaResources Initialize karmada resource
-func InitKarmadaResources(dir, caBase64 string, systemNamespace string) error {
+func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	restConfig, err := utils.RestConfig(filepath.Join(dir, options.KarmadaKubeConfigName))
 	if err != nil {
 		return err
@@ -91,6 +96,11 @@ func InitKarmadaResources(dir, caBase64 string, systemNamespace string) error {
 	// karmada-aggregated-apiserver
 	if err = initAPIService(clientSet, restConfig, systemNamespace); err != nil {
 		klog.Exitln(err)
+	}
+
+	// grant proxy permission to "system:admin".
+	if err := grantProxyPermissionToAdmin(clientSet); err != nil {
+		return err
 	}
 
 	return nil
