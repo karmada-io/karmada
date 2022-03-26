@@ -56,6 +56,9 @@ var _ = ginkgo.Describe("Aggregated Kubernetes API Endpoint testing", func() {
 		})
 
 		ginkgo.BeforeEach(func() {
+			// Wait for namespace present before creating resources in it.
+			framework.WaitNamespacePresentOnCluster(member1, tomServiceAccount.Namespace)
+
 			klog.Infof("Create ServiceAccount(%s) in the cluster(%s)", klog.KObj(tomServiceAccount).String(), member1)
 			clusterClient := framework.GetClusterClient(member1)
 			gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
