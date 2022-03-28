@@ -137,8 +137,7 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
 
 	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec)
-
-	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo)
+	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, spec.Replicas)
 }
 
 func (g *genericScheduler) assignReplicas(

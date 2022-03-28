@@ -14,6 +14,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
+const (
+	// InvalidClusterID indicate a invalid cluster
+	InvalidClusterID = -1
+	// InvalidReplicas indicate that don't care about the available resource
+	InvalidReplicas = -1
+)
+
 func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
 	availableClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 
