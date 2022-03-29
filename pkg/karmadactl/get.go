@@ -194,8 +194,7 @@ func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
 // Obj cluster info
 type Obj struct {
 	Cluster string
-	Infos   runtime.Object
-	Mapping *meta.RESTMapping
+	Info    *resource.Info
 }
 
 // RBInfo resourcebinding info and print info
@@ -246,7 +245,7 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 
 	// sort objects by resource kind to classify them
 	sort.Slice(objs, func(i, j int) bool {
-		return objs[i].Mapping.Resource.String() < objs[j].Mapping.Resource.String()
+		return objs[i].Info.Mapping.Resource.String() < objs[j].Info.Mapping.Resource.String()
 	})
 
 	if err := g.printObjs(objs, &allErrs, args); err != nil {
@@ -274,7 +273,7 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 	w := printers.GetNewTabWriter(separatorWriter)
 	sameKind := make([]Obj, 0)
 	for ix := range objs {
-		mapping := objs[ix].Mapping
+		mapping := objs[ix].Info.Mapping
 		sameKind = append(sameKind, objs[ix])
 
 		printWithNamespace := g.checkPrintWithNamespace(mapping)
@@ -303,7 +302,7 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 			lastMapping = mapping
 		}
 
-		if ix == len(objs)-1 || objs[ix].Mapping.Resource != objs[ix+1].Mapping.Resource {
+		if ix == len(objs)-1 || objs[ix].Info.Mapping.Resource != objs[ix+1].Info.Mapping.Resource {
 			table := &metav1.Table{}
 			allTableRows, mapping, err := g.reconstructionRow(sameKind, table)
 			if err != nil {
@@ -399,8 +398,7 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 	for ix := range infos {
 		objInfo = Obj{
 			Cluster: cluster,
-			Infos:   infos[ix].Object,
-			Mapping: infos[ix].Mapping,
+			Info:    infos[ix],
 		}
 		*objs = append(*objs, objInfo)
 	}
@@ -412,8 +410,8 @@ func (g *CommandGetOptions) reconstructionRow(objs []Obj, table *metav1.Table) (
 	var allTableRows []metav1.TableRow
 	var mapping *meta.RESTMapping
 	for ix := range objs {
-		mapping = objs[ix].Mapping
-		unstr, ok := objs[ix].Infos.(*unstructured.Unstructured)
+		mapping = objs[ix].Info.Mapping
+		unstr, ok := objs[ix].Info.Object.(*unstructured.Unstructured)
 		if !ok {
 			return nil, nil, fmt.Errorf("attempt to decode non-Unstructured object")
 		}
@@ -738,9 +736,9 @@ func multipleGVKsRequested(objs []Obj) bool {
 	if len(objs) < 2 {
 		return false
 	}
-	gvk := objs[0].Mapping.GroupVersionKind
+	gvk := objs[0].Info.Mapping.GroupVersionKind
 	for _, obj := range objs {
-		if obj.Mapping.GroupVersionKind != gvk {
+		if obj.Info.Mapping.GroupVersionKind != gvk {
 			return true
 		}
 	}

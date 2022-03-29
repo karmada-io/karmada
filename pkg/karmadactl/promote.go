@@ -222,7 +222,7 @@ func RunPromote(_ io.Writer, karmadaConfig KarmadaConfig, opts CommandPromoteOpt
 		return fmt.Errorf("failed to get resource in cluster(%s). err: %v", opts.Cluster, err)
 	}
 
-	obj := objInfo.Infos.(*unstructured.Unstructured)
+	obj := objInfo.Info.Object.(*unstructured.Unstructured)
 
 	opts.gvk = obj.GetObjectKind().GroupVersionKind()
 
@@ -317,8 +317,7 @@ func (o *CommandPromoteOption) getObjInfo(f cmdutil.Factory, cluster string, arg
 
 	obj := &Obj{
 		Cluster: cluster,
-		Infos:   infos[0].Object,
-		Mapping: infos[0].Mapping,
+		Info:    infos[0],
 	}
 
 	return obj, nil
