@@ -248,15 +248,13 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 		return objs[i].Info.Mapping.Resource.String() < objs[j].Info.Mapping.Resource.String()
 	})
 
-	if err := g.printObjs(objs, &allErrs, args); err != nil {
-		return err
-	}
+	g.printObjs(objs, &allErrs, args)
 
 	return utilerrors.NewAggregate(allErrs)
 }
 
 // printObjs print objects in multi clusters
-func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []string) error {
+func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []string) {
 	var err error
 	errs := sets.NewString()
 
@@ -271,11 +269,13 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 	separatorWriter := &separatorWriterWrapper{Delegate: trackingWriter}
 
 	w := printers.GetNewTabWriter(separatorWriter)
+	allResourcesNamespaced := !g.AllNamespaces
 	sameKind := make([]Obj, 0)
 	for ix := range objs {
 		mapping := objs[ix].Info.Mapping
 		sameKind = append(sameKind, objs[ix])
 
+		allResourcesNamespaced = allResourcesNamespaced && objs[ix].Info.Namespaced()
 		printWithNamespace := g.checkPrintWithNamespace(mapping)
 
 		if shouldGetNewPrinterForMapping(printer, lastMapping, mapping) {
@@ -306,7 +306,8 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 			table := &metav1.Table{}
 			allTableRows, mapping, err := g.reconstructionRow(sameKind, table)
 			if err != nil {
-				return err
+				*allErrs = append(*allErrs, err)
+				return
 			}
 			table.Rows = allTableRows
 
@@ -315,21 +316,33 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 
 			printObj, err := helper.ToUnstructured(table)
 			if err != nil {
-				return err
+				*allErrs = append(*allErrs, err)
+				return
 			}
 
 			err = printer.PrintObj(printObj, w)
 			if err != nil {
-				return err
+				*allErrs = append(*allErrs, err)
+				return
 			}
 
 			sameKind = make([]Obj, 0)
 		}
 	}
-
 	w.Flush()
 
-	return nil
+	g.printIfNotFindResource(trackingWriter.Written, allErrs, allResourcesNamespaced)
+}
+
+// printIfNotFindResource is sure we output something if we wrote no output, and had no errors, and are not ignoring NotFound
+func (g *CommandGetOptions) printIfNotFindResource(written int, allErrs *[]error, allResourcesNamespaced bool) {
+	if written == 0 && !g.IgnoreNotFound && len(*allErrs) == 0 {
+		if allResourcesNamespaced {
+			fmt.Fprintf(g.ErrOut, "No resources found in %s namespace.\n", g.Namespace)
+		} else {
+			fmt.Fprintln(g.ErrOut, "No resources found")
+		}
+	}
 }
 
 // checkPrintWithNamespace check if print objects with namespace
@@ -373,7 +386,9 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 		TransformRequests(g.transformRequests).
 		Do()
 
-	r.IgnoreErrors(apierrors.IsNotFound)
+	if g.IgnoreNotFound {
+		r.IgnoreErrors(apierrors.IsNotFound)
+	}
 
 	if err := r.Err(); err != nil {
 		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
