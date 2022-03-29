@@ -43,7 +43,7 @@ func (p *ClusterLocality) Score(ctx context.Context, placement *policyv1alpha1.P
 		return framework.MinClusterScore, framework.NewResult(framework.Success)
 	}
 
-	if isClusterScheduled(cluster.Name, spec.Clusters) {
+	if spec.TargetContains(cluster.Name) {
 		return framework.MaxClusterScore, framework.NewResult(framework.Success)
 	}
 
@@ -53,14 +53,4 @@ func (p *ClusterLocality) Score(ctx context.Context, placement *policyv1alpha1.P
 // ScoreExtensions of the Score plugin.
 func (p *ClusterLocality) ScoreExtensions() framework.ScoreExtensions {
 	return nil
-}
-
-func isClusterScheduled(candidate string, schedulerClusters []workv1alpha2.TargetCluster) bool {
-	for _, cluster := range schedulerClusters {
-		if candidate == cluster.Name {
-			return true
-		}
-	}
-
-	return false
 }
