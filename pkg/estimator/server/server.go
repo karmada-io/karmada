@@ -291,7 +291,7 @@ func traceMaxAvailableReplicas(object string, start time.Time, request *pb.MaxAv
 			klog.Errorf("Failed to calculate cluster available replicas: %v", *err)
 			return
 		}
-		klog.Infof("Finish calculating cluster available replicas of resource(%s), max replicas: %d, time elapsed: %s", object, (*response).MaxReplicas, time.Since(start))
+		klog.V(2).Infof("Finish calculating cluster available replicas of resource(%s), max replicas: %d, time elapsed: %s", object, (*response).MaxReplicas, time.Since(start))
 	}
 }
 
@@ -304,6 +304,6 @@ func traceGetUnschedulableReplicas(object string, start time.Time, request *pb.U
 			klog.Errorf("Failed to detect cluster unschedulable replicas: %v", *err)
 			return
 		}
-		klog.Infof("Finish detecting cluster unschedulable replicas of resource(%s), unschedulable replicas: %d, time elapsed: %s", object, (*response).UnschedulableReplicas, time.Since(start))
+		klog.V(2).Infof("Finish detecting cluster unschedulable replicas of resource(%s), unschedulable replicas: %d, time elapsed: %s", object, (*response).UnschedulableReplicas, time.Since(start))
 	}
 }

@@ -321,6 +321,30 @@ func NewNode(node string, milliCPU, memory, pods, ephemeralStorage int64) *corev
 	}
 }
 
+// MakeNodesAndPods will make batch of nodes and pods based on template.
+func MakeNodesAndPods(allNodesNum, allPodsNum int, nodeTemplate *corev1.Node, podTemplate *corev1.Pod) ([]*corev1.Node, []*corev1.Pod) {
+	nodes := make([]*corev1.Node, 0, allNodesNum)
+	pods := make([]*corev1.Pod, 0, allPodsNum)
+
+	avg, residue := allPodsNum/allNodesNum, allPodsNum%allNodesNum
+	for i := 0; i < allNodesNum; i++ {
+		node := nodeTemplate.DeepCopy()
+		node.Name = fmt.Sprintf("node-%d", i)
+		nodes = append(nodes, node)
+		num := avg
+		if i < residue {
+			num++
+		}
+		for j := 0; j < num; j++ {
+			pod := podTemplate.DeepCopy()
+			pod.Name = fmt.Sprintf("node-%d-%d", i, j)
+			pod.Spec.NodeName = node.Name
+			pods = append(pods, pod)
+		}
+	}
+	return nodes, pods
+}
+
 // MakeNodeWithLabels will build a ready node with resource and labels.
 func MakeNodeWithLabels(node string, milliCPU, memory, pods, ephemeralStorage int64, labels map[string]string) *corev1.Node {
 	return &corev1.Node{
