@@ -1,8 +1,6 @@
 package nodes
 
 import (
-	"fmt"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	listv1 "k8s.io/client-go/listers/core/v1"
@@ -13,77 +11,71 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// ListNodesByNodeClaim returns all nodes that match the node claim.
-func ListNodesByNodeClaim(nodeLister listv1.NodeLister, claim *pb.NodeClaim) ([]*corev1.Node, error) {
-	nodeClaim := claim
-	if nodeClaim == nil {
-		nodeClaim = &pb.NodeClaim{}
+var (
+	tolerationFilterPredicate = func(t *corev1.Taint) bool {
+		// PodToleratesNodeTaints is only interested in NoSchedule and NoExecute taints.
+		return t.Effect == corev1.TaintEffectNoSchedule || t.Effect == corev1.TaintEffectNoExecute
 	}
-	nodes, err := ListNodesByLabelSelector(nodeLister, labels.SelectorFromSet(nodeClaim.NodeSelector))
-	if err != nil {
-		return nil, fmt.Errorf("cannot list nodes by label selector, %v", err)
-	}
-	nodes, err = FilterNodesByNodeAffinity(nodes, nodeClaim.NodeAffinity)
-	if err != nil {
-		return nil, fmt.Errorf("cannot filter nodes by node affinity, %v", err)
-	}
-	nodes, err = FilterSchedulableNodes(nodes, nodeClaim.Tolerations)
-	if err != nil {
-		return nil, fmt.Errorf("cannot filter nodes by tolerations, %v", err)
-	}
-	return nodes, err
+)
+
+// NodeClaimWrapper is a wrapper that wraps the node claim.
+type NodeClaimWrapper struct {
+	nodeSelector         labels.Selector
+	tolerations          []corev1.Toleration
+	nodeAffinitySelector *nodeaffinity.NodeSelector
 }
 
-// ListAllNodes returns all nodes.
-func ListAllNodes(nodeLister listv1.NodeLister) ([]*corev1.Node, error) {
-	return ListNodesByLabelSelector(nodeLister, labels.Everything())
+// NewNodeClaimWrapper returns a new NodeClaimWrapper.
+func NewNodeClaimWrapper(claim *pb.NodeClaim) (*NodeClaimWrapper, error) {
+	wrapper := &NodeClaimWrapper{}
+	if claim == nil {
+		wrapper.nodeSelector = labels.Everything()
+		return wrapper, nil
+	}
+	if claim.NodeAffinity != nil {
+		selector, err := nodeaffinity.NewNodeSelector(claim.NodeAffinity)
+		if err != nil {
+			return nil, err
+		}
+		wrapper.nodeAffinitySelector = selector
+	}
+	wrapper.nodeSelector = labels.SelectorFromSet(claim.NodeSelector)
+	wrapper.tolerations = claim.Tolerations
+	return wrapper, nil
 }
 
 // ListNodesByLabelSelector returns nodes that match the node selector.
-func ListNodesByLabelSelector(nodeLister listv1.NodeLister, selector labels.Selector) ([]*corev1.Node, error) {
-	nodes, err := nodeLister.List(selector)
+func (w *NodeClaimWrapper) ListNodesByLabelSelector(nodeLister listv1.NodeLister) ([]*corev1.Node, error) {
+	nodes, err := nodeLister.List(w.nodeSelector)
 	if err != nil {
 		return nil, err
 	}
 	return nodes, nil
 }
 
-// FilterNodesByNodeAffinity returns nodes that match the node affinity.
-func FilterNodesByNodeAffinity(nodes []*corev1.Node, affinity *corev1.NodeSelector) ([]*corev1.Node, error) {
-	if affinity == nil {
-		return nodes, nil
-	}
-	matchedNodes := make([]*corev1.Node, 0)
-	selector, err := nodeaffinity.NewNodeSelector(affinity)
-	if err != nil {
-		return nil, err
-	}
-	for _, node := range nodes {
-		if selector.Match(node) {
-			matchedNodes = append(matchedNodes, node)
-		}
-	}
-	return matchedNodes, nil
+// IsNodeMatched returns whether the node matches all conditions.
+func (w *NodeClaimWrapper) IsNodeMatched(node *corev1.Node) bool {
+	return w.IsNodeAffinityMatched(node) && w.IsNodeSchedulable(node)
 }
 
-// FilterSchedulableNodes filters schedulable nodes that match the given tolerations.
-func FilterSchedulableNodes(nodes []*corev1.Node, tolerations []corev1.Toleration) ([]*corev1.Node, error) {
-	filterPredicate := func(t *corev1.Taint) bool {
-		// PodToleratesNodeTaints is only interested in NoSchedule and NoExecute taints.
-		return t.Effect == corev1.TaintEffectNoSchedule || t.Effect == corev1.TaintEffectNoExecute
+// IsNodeAffinityMatched returns whether the node matches the node affinity.
+func (w *NodeClaimWrapper) IsNodeAffinityMatched(node *corev1.Node) bool {
+	if w.nodeAffinitySelector == nil {
+		return true
 	}
-	matchedNodes := make([]*corev1.Node, 0)
-	for _, node := range nodes {
-		if node.Spec.Unschedulable {
-			continue
-		}
-		if !helper.NodeReady(node) {
-			continue
-		}
-		if _, isUntolerated := schedcorev1.FindMatchingUntoleratedTaint(node.Spec.Taints, tolerations, filterPredicate); isUntolerated {
-			continue
-		}
-		matchedNodes = append(matchedNodes, node)
+	return w.nodeAffinitySelector.Match(node)
+}
+
+// IsNodeSchedulable returns whether the node matches the tolerations.
+func (w *NodeClaimWrapper) IsNodeSchedulable(node *corev1.Node) bool {
+	if node.Spec.Unschedulable {
+		return false
 	}
-	return matchedNodes, nil
+	if !helper.NodeReady(node) {
+		return false
+	}
+	if _, isUntolerated := schedcorev1.FindMatchingUntoleratedTaint(node.Spec.Taints, w.tolerations, tolerationFilterPredicate); isUntolerated {
+		return false
+	}
+	return true
 }

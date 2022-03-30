@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/kr/pretty"
@@ -34,6 +35,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 const (
@@ -61,6 +63,7 @@ type AccurateSchedulerEstimatorServer struct {
 	replicaLister   *replica.ListerWrapper
 	getPodFunc      func(nodeName string) ([]*corev1.Pod, error)
 	informerManager informermanager.SingleClusterInformerManager
+	parallelizer    lifted.Parallelizer
 }
 
 // NewEstimatorServer creates an instance of AccurateSchedulerEstimatorServer.
@@ -87,6 +90,7 @@ func NewEstimatorServer(
 			PodLister:        informerFactory.Core().V1().Pods().Lister(),
 			ReplicaSetLister: informerFactory.Apps().V1().ReplicaSets().Lister(),
 		},
+		parallelizer: lifted.NewParallelizer(opts.Parallelism),
 	}
 
 	// Establish a connection between the pods and their assigned nodes.
@@ -194,15 +198,19 @@ func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Con
 
 	// Step 1: Get all matched nodes by node claim
 	startTime := time.Now()
-	nodes, err := nodeutil.ListNodesByNodeClaim(es.nodeLister, request.ReplicaRequirements.NodeClaim)
-	metrics.UpdateEstimatingAlgorithmLatency(err, metrics.EstimatingTypeMaxAvailableReplicas, metrics.EstimatingStepListNodesByNodeClaim, startTime)
+	ncw, err := nodeutil.NewNodeClaimWrapper(request.ReplicaRequirements.NodeClaim)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find matched nodes: %v", err)
+		return nil, fmt.Errorf("failed to new node claim wrapper: %v", err)
 	}
+	nodes, err := ncw.ListNodesByLabelSelector(es.nodeLister)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list matched nodes by label selector: %v", err)
+	}
+	metrics.UpdateEstimatingAlgorithmLatency(err, metrics.EstimatingTypeMaxAvailableReplicas, metrics.EstimatingStepListNodesByNodeClaim, startTime)
 
-	// Step 2: Calculate cluster max available replicas by filtered nodes
+	// Step 2: Calculate cluster max available replicas by filtered nodes concurrently
 	startTime = time.Now()
-	maxReplicas := es.maxAvailableReplicas(nodes, request.ReplicaRequirements.ResourceRequest)
+	maxReplicas := es.maxAvailableReplicas(ctx, ncw, nodes, request.ReplicaRequirements.ResourceRequest)
 	metrics.UpdateEstimatingAlgorithmLatency(nil, metrics.EstimatingTypeMaxAvailableReplicas, metrics.EstimatingStepMaxAvailableReplicas, startTime)
 
 	return &pb.MaxAvailableReplicasResponse{MaxReplicas: maxReplicas}, nil
@@ -252,18 +260,30 @@ func (es *AccurateSchedulerEstimatorServer) GetUnschedulableReplicas(ctx context
 	return &pb.UnschedulableReplicasResponse{UnschedulableReplicas: unschedulables}, err
 }
 
-func (es *AccurateSchedulerEstimatorServer) maxAvailableReplicas(nodes []*corev1.Node, request corev1.ResourceList) int32 {
-	var maxReplicas int32
-	for _, node := range nodes {
+func (es *AccurateSchedulerEstimatorServer) maxAvailableReplicas(
+	ctx context.Context,
+	ncw *nodeutil.NodeClaimWrapper,
+	nodes []*corev1.Node,
+	request corev1.ResourceList,
+) int32 {
+	var res int32
+	processNode := func(i int) {
+		node := nodes[i]
+		if node == nil {
+			return
+		}
+		if !ncw.IsNodeMatched(node) {
+			return
+		}
 		maxReplica, err := es.nodeMaxAvailableReplica(node, request)
 		if err != nil {
 			klog.Errorf("Error: %v", err)
-			continue
+			return
 		}
-		klog.V(4).Infof("Node(%s) max available replica: %d", node.Name, maxReplica)
-		maxReplicas += maxReplica
+		atomic.AddInt32(&res, maxReplica)
 	}
-	return maxReplicas
+	es.parallelizer.Until(ctx, len(nodes), processNode)
+	return res
 }
 
 func (es *AccurateSchedulerEstimatorServer) nodeMaxAvailableReplica(node *corev1.Node, request corev1.ResourceList) (int32, error) {
