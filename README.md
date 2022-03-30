@@ -191,7 +191,8 @@ Key:
 ## Meeting
 
 Regular Community Meeting:
-* Tuesday at 14:30 CST(China Standard Time)(biweekly). [Convert to your timezone.](https://www.thetimezoneconverter.com/?t=14%3A30&tz=GMT%2B8&)
+* Tuesday at 14:30 UTC+8 (Chinese)(biweekly). [Convert to your timezone.](https://www.thetimezoneconverter.com/?t=14%3A30&tz=GMT%2B8&)
+* TBD (English)(biweekly). [Please propose the time](https://github.com/karmada-io/karmada/issues/1560) if you are interested to attend.
 
 Resources:
 - [Meeting Notes and Agenda](https://docs.google.com/document/d/1y6YLVC-v7cmVAdbjedoyR5WL0-q45DBRXTvz5_I7bkA/edit)
