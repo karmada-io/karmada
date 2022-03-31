@@ -11,8 +11,8 @@ type Duplicated struct {
 
 func (d Duplicated) AssignReplica(
 	spec *workv1alpha2.ResourceBindingSpec,
-	clusters []*clusterv1alpha1.Cluster,
 	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
+	clusters []*clusterv1alpha1.Cluster,
 ) ([]workv1alpha2.TargetCluster, error) {
 	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 

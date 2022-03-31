@@ -13,8 +13,8 @@ type DynamicWeight struct {
 
 func (d DynamicWeight) AssignReplica(
 	spec *workv1alpha2.ResourceBindingSpec,
-	clusters []*clusterv1alpha1.Cluster,
 	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
+	clusters []*clusterv1alpha1.Cluster,
 ) ([]workv1alpha2.TargetCluster, error) {
 	// Step 1: Find the ready clusters that have old replicas
 	scheduledClusters := findOutScheduledCluster(spec.Clusters, clusters)
