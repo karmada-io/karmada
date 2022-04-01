@@ -75,7 +75,18 @@ Karmada using other tools, you might have to configure the controllers by `--con
 The following controllers are tested and recommended by Karmada.
 
 #### namespace
-TODO.
+
+The `namespace` controller runs as part of `kube-controller-manager`. It watches `Namespace` deletion and deletes 
+all resources in the given namespace.
+
+For the Karmada control plane, we inherit this behavior to keep a consistent user experience. More than that, we also
+rely on this feature in the implementation of Karmada controllers, for example, when un-registering a cluster,
+Karmada would delete the `execution namespace`(named `karmada-es-<cluster name>`) that stores all the resources 
+propagated to that cluster, to ensure all the resources could be cleaned up from both the Karmada control plane and the 
+given cluster.
+
+More details about the `namespace` controller, please refer to 
+[namespace controller sync logic](https://github.com/kubernetes/kubernetes/blob/v1.23.4/pkg/controller/namespace/deletion/namespaced_resources_deleter.go#L82-L94).
 
 #### garbagecollector
 TODO.
