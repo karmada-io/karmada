@@ -18,10 +18,6 @@ LDFLAGS := "-X github.com/karmada-io/karmada/pkg/version.gitVersion=$(GIT_VERSIO
                       -X github.com/karmada-io/karmada/pkg/version.buildDate=$(BUILDDATE)"
 
 # Images management
-REGISTRY_REGION?="ap-southeast-1"
-ACCESS_KEY?=""
-REGISTRY_LOGIN_KEY?=""
-SWR_SERVICE_ADDRESS?="swr.ap-southeast-1.myhuaweicloud.com"
 REGISTRY?="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
