@@ -25,6 +25,8 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = aggregateServiceStatus
 	s[extensionsv1beta1.SchemeGroupVersion.WithKind(util.IngressKind)] = aggregateIngressStatus
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = aggregateJobStatus
+	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = aggregateDaemonSetStatus
+	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = aggregateStatefulSetStatus
 	return s
 }
 
@@ -46,7 +48,6 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 		}
 		klog.V(3).Infof("Grab deployment(%s/%s) status from cluster(%s), replicas: %d, ready: %d, updated: %d, available: %d, unavailable: %d",
 			deploy.Namespace, deploy.Name, item.ClusterName, temp.Replicas, temp.ReadyReplicas, temp.UpdatedReplicas, temp.AvailableReplicas, temp.UnavailableReplicas)
-		newStatus.ObservedGeneration = deploy.Generation
 		newStatus.Replicas += temp.Replicas
 		newStatus.ReadyReplicas += temp.ReadyReplicas
 		newStatus.UpdatedReplicas += temp.UpdatedReplicas
@@ -54,8 +55,7 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 		newStatus.UnavailableReplicas += temp.UnavailableReplicas
 	}
 
-	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
-		oldStatus.Replicas == newStatus.Replicas &&
+	if oldStatus.Replicas == newStatus.Replicas &&
 		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
 		oldStatus.UpdatedReplicas == newStatus.UpdatedReplicas &&
 		oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
@@ -64,7 +64,6 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 		return object, nil
 	}
 
-	oldStatus.ObservedGeneration = newStatus.ObservedGeneration
 	oldStatus.Replicas = newStatus.Replicas
 	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
 	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
@@ -173,4 +172,92 @@ func aggregateJobStatus(object *unstructured.Unstructured, aggregatedStatusItems
 
 	job.Status = *newStatus
 	return helper.ToUnstructured(job)
+}
+
+func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	daemonSet, err := helper.ConvertToDaemonSet(object)
+	if err != nil {
+		return nil, err
+	}
+
+	oldStatus := &daemonSet.Status
+	newStatus := &appsv1.DaemonSetStatus{}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+		temp := &appsv1.DaemonSetStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab daemonSet(%s/%s) status from cluster(%s), currentNumberScheduled: %d, desiredNumberScheduled: %d, numberAvailable: %d, numberMisscheduled: %d, numberReady: %d, updatedNumberScheduled: %d",
+			daemonSet.Namespace, daemonSet.Name, item.ClusterName, temp.CurrentNumberScheduled, temp.DesiredNumberScheduled, temp.NumberAvailable, temp.NumberMisscheduled, temp.NumberReady, temp.UpdatedNumberScheduled)
+		newStatus.CurrentNumberScheduled += temp.CurrentNumberScheduled
+		newStatus.DesiredNumberScheduled += temp.DesiredNumberScheduled
+		newStatus.NumberAvailable += temp.NumberAvailable
+		newStatus.NumberMisscheduled += temp.NumberMisscheduled
+		newStatus.NumberReady += temp.NumberReady
+		newStatus.UpdatedNumberScheduled += temp.UpdatedNumberScheduled
+	}
+
+	if oldStatus.CurrentNumberScheduled == newStatus.CurrentNumberScheduled &&
+		oldStatus.DesiredNumberScheduled == newStatus.DesiredNumberScheduled &&
+		oldStatus.NumberAvailable == newStatus.NumberAvailable &&
+		oldStatus.NumberMisscheduled == newStatus.NumberMisscheduled &&
+		oldStatus.NumberReady == newStatus.NumberReady &&
+		oldStatus.UpdatedNumberScheduled == newStatus.UpdatedNumberScheduled {
+		klog.V(3).Infof("ignore update daemonSet(%s/%s) status as up to date", daemonSet.Namespace, daemonSet.Name)
+		return object, nil
+	}
+
+	oldStatus.CurrentNumberScheduled = newStatus.CurrentNumberScheduled
+	oldStatus.DesiredNumberScheduled = newStatus.DesiredNumberScheduled
+	oldStatus.NumberAvailable = newStatus.NumberAvailable
+	oldStatus.NumberMisscheduled = newStatus.NumberMisscheduled
+	oldStatus.NumberReady = newStatus.NumberReady
+	oldStatus.UpdatedNumberScheduled = newStatus.UpdatedNumberScheduled
+
+	return helper.ToUnstructured(daemonSet)
+}
+
+func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	statefulSet, err := helper.ConvertToStatefulSet(object)
+	if err != nil {
+		return nil, err
+	}
+	oldStatus := &statefulSet.Status
+	newStatus := &appsv1.StatefulSetStatus{}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+		temp := &appsv1.StatefulSetStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab statefulSet(%s/%s) status from cluster(%s), availableReplicas: %d, currentReplicas: %d, readyReplicas: %d, replicas: %d, updatedReplicas: %d",
+			statefulSet.Namespace, statefulSet.Name, item.ClusterName, temp.AvailableReplicas, temp.CurrentReplicas, temp.ReadyReplicas, temp.Replicas, temp.UpdatedReplicas)
+		newStatus.AvailableReplicas += temp.AvailableReplicas
+		newStatus.CurrentReplicas += temp.CurrentReplicas
+		newStatus.ReadyReplicas += temp.ReadyReplicas
+		newStatus.Replicas += temp.Replicas
+		newStatus.UpdatedReplicas += temp.UpdatedReplicas
+	}
+
+	if oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
+		oldStatus.CurrentReplicas == newStatus.CurrentReplicas &&
+		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
+		oldStatus.Replicas == newStatus.Replicas &&
+		oldStatus.UpdatedReplicas == newStatus.UpdatedReplicas {
+		klog.V(3).Infof("ignore update statefulSet(%s/%s) status as up to date", statefulSet.Namespace, statefulSet.Name)
+		return object, nil
+	}
+
+	oldStatus.AvailableReplicas = newStatus.AvailableReplicas
+	oldStatus.CurrentReplicas = newStatus.CurrentReplicas
+	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
+	oldStatus.Replicas = newStatus.Replicas
+	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
+
+	return helper.ToUnstructured(statefulSet)
 }
