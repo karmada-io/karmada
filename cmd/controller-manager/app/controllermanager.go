@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -79,7 +80,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	// and update the flag usage.
 	genericFlagSet.AddGoFlagSet(flag.CommandLine)
 	genericFlagSet.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
-	opts.AddFlags(genericFlagSet, controllers.ControllerNames())
+	opts.AddFlags(genericFlagSet, controllers.ControllerNames(), controllersDisabledByDefault.List())
 
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
@@ -145,6 +146,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 }
 
 var controllers = make(controllerscontext.Initializers)
+
+// controllersDisabledByDefault is the set of controllers which is disabled by default
+var controllersDisabledByDefault = sets.NewString(
+	"hpa",
+)
 
 func init() {
 	controllers["cluster"] = startClusterController
@@ -483,7 +489,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		ResourceInterpreter:         resourceInterpreter,
 	}
 
-	if err := controllers.StartControllers(controllerContext); err != nil {
+	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
 		klog.Fatalf("error starting controllers: %v", err)
 	}
 

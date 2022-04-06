@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -89,6 +90,8 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 }
 
 var controllers = make(controllerscontext.Initializers)
+
+var controllersDisabledByDefault = sets.NewString()
 
 func init() {
 	controllers["clusterStatus"] = startClusterStatusController
@@ -192,7 +195,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		StopChan: stopChan,
 	}
 
-	if err := controllers.StartControllers(controllerContext); err != nil {
+	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
 		return fmt.Errorf("error starting controllers: %w", err)
 	}
 

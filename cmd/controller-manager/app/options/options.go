@@ -115,10 +115,10 @@ func NewOptions() *Options {
 }
 
 // AddFlags adds flags to the specified FlagSet.
-func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers []string) {
+func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefaultControllers []string) {
 	flags.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, fmt.Sprintf(
-		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: %s.",
-		strings.Join(allControllers, ", "),
+		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. \nAll controllers: %s.\nDisabled-by-default controllers: %s",
+		strings.Join(allControllers, ", "), strings.Join(disabledByDefaultControllers, ", "),
 	))
 	flags.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
 		"The IP address on which to listen for the --secure-port port.")
