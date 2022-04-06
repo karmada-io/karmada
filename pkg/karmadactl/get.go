@@ -52,8 +52,7 @@ var (
 		{Name: "ADOPTION", Type: "string", Format: "", Priority: 0},
 	}
 
-	noPushModeMessage = "The karmadactl get command now only supports Push mode, [ %s ] are not push mode\n"
-	getShort          = `Display one or many resources`
+	getShort = `Display one or many resources`
 )
 
 // NewCmdGet New get command
@@ -225,23 +224,13 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 		return err
 	}
 
-	var noPushModeCluster []string
 	wg.Add(len(g.Clusters))
 	for idx := range g.Clusters {
-		if clusterInfos[g.Clusters[idx]].ClusterSyncMode != clusterv1alpha1.Push {
-			noPushModeCluster = append(noPushModeCluster, g.Clusters[idx])
-			wg.Done()
-			continue
-		}
-
 		g.setClusterProxyInfo(karmadaRestConfig, g.Clusters[idx], clusterInfos)
 		f := getFactory(g.Clusters[idx], clusterInfos)
 		go g.getObjInfo(&wg, &mux, f, g.Clusters[idx], &objs, &allErrs, args)
 	}
 	wg.Wait()
-	if len(noPushModeCluster) != 0 {
-		fmt.Println(fmt.Sprintf(noPushModeMessage, strings.Join(noPushModeCluster, ",")))
-	}
 
 	// sort objects by resource kind to classify them
 	sort.Slice(objs, func(i, j int) bool {

@@ -82,12 +82,17 @@ kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
 # create secret
 kubectl create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" -n "${KARMADA_SYSTEM_NAMESPACE}"
 
+# extract api endpoint of member cluster
+MEMBER_CLUSTER=$(kubectl config view -o jsonpath='{.contexts[?(@.name == "'${MEMBER_CLUSTER_NAME}'")].context.cluster}')
+MEMBER_CLUSTER_API_ENDPOINT=$(kubectl config view -o jsonpath='{.clusters[?(@.name == "'${MEMBER_CLUSTER}'")].cluster.server}')
+
 # deploy karmada agent
 TEMP_PATH=$(mktemp -d)
 cp "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s/{{karmada_context}}/${KARMADA_APISERVER_CONTEXT_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s/{{image_pull_policy}}/${AGENT_IMAGE_PULL_POLICY}/g" "${TEMP_PATH}"/karmada-agent.yaml
+sed -i'' -e "s|{{member_cluster_api_endpoint}}|${MEMBER_CLUSTER_API_ENDPOINT}|g" "${TEMP_PATH}"/karmada-agent.yaml
 echo -e "Apply dynamic rendered deployment in ${TEMP_PATH}/karmada-agent.yaml.\n"
 kubectl apply -f "${TEMP_PATH}"/karmada-agent.yaml
 
