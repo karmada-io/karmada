@@ -107,7 +107,9 @@ func verifyResourceInterpreterContext(operation configv1alpha1.InterpreterOperat
 			return nil, err
 		}
 		res.Patch = response.Patch
-		res.PatchType = *response.PatchType
+		if response.PatchType != nil {
+			res.PatchType = *response.PatchType
+		}
 		return res, nil
 	case configv1alpha1.InterpreterOperationInterpretStatus:
 		res.RawStatus = *response.RawStatus
