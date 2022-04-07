@@ -89,7 +89,17 @@ More details about the `namespace` controller, please refer to
 [namespace controller sync logic](https://github.com/kubernetes/kubernetes/blob/v1.23.4/pkg/controller/namespace/deletion/namespaced_resources_deleter.go#L82-L94).
 
 #### garbagecollector
-TODO.
+
+The `garbagecollector` controller runs as part of `kube-controller-manager`. It is used to clean up garbage resources.
+It manages [owner reference](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/) and
+deletes the resources once all owners are absent.
+
+For the Karmada control plane, we also use `owner reference` to link objects to each other. For example, each
+`ResourceBinding` has an owner reference that link to the `resource template`. Once the `resource template` is removed,
+the `ResourceBinding` will be removed by `garbagecollector` controller automatically.
+
+For more details about garbage collection mechanisms, please refer to
+[Garbage Collection](https://kubernetes.io/docs/concepts/architecture/garbage-collection/).
 
 #### serviceaccount-token
 
