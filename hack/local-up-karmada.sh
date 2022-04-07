@@ -50,7 +50,7 @@ dockerfile_list=( # Dockerfile files need to be replaced
   "cluster/images/karmada-aggregated-apiserver/Dockerfile"
 )
 for dockerfile in "${dockerfile_list[@]}"; do
-  grep 'mirrors.ustc.edu.cn' ${REPO_ROOT}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.7#FROM alpine:3.7\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.7/main/ > /etc/apk/repositories#" ${REPO_ROOT}/${dockerfile}
+  grep 'mirrors.ustc.edu.cn' ${REPO_ROOT}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.15.1#FROM alpine:3.15.1\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.15/main/ > /etc/apk/repositories#" ${REPO_ROOT}/${dockerfile}
 done
 fi
 
