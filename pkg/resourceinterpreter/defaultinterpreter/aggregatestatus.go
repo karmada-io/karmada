@@ -190,14 +190,15 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
 			return nil, err
 		}
-		klog.V(3).Infof("Grab daemonSet(%s/%s) status from cluster(%s), currentNumberScheduled: %d, desiredNumberScheduled: %d, numberAvailable: %d, numberMisscheduled: %d, numberReady: %d, updatedNumberScheduled: %d",
-			daemonSet.Namespace, daemonSet.Name, item.ClusterName, temp.CurrentNumberScheduled, temp.DesiredNumberScheduled, temp.NumberAvailable, temp.NumberMisscheduled, temp.NumberReady, temp.UpdatedNumberScheduled)
+		klog.V(3).Infof("Grab daemonSet(%s/%s) status from cluster(%s), currentNumberScheduled: %d, desiredNumberScheduled: %d, numberAvailable: %d, numberMisscheduled: %d, numberReady: %d, updatedNumberScheduled: %d, numberUnavailable: %d",
+			daemonSet.Namespace, daemonSet.Name, item.ClusterName, temp.CurrentNumberScheduled, temp.DesiredNumberScheduled, temp.NumberAvailable, temp.NumberMisscheduled, temp.NumberReady, temp.UpdatedNumberScheduled, temp.NumberUnavailable)
 		newStatus.CurrentNumberScheduled += temp.CurrentNumberScheduled
 		newStatus.DesiredNumberScheduled += temp.DesiredNumberScheduled
 		newStatus.NumberAvailable += temp.NumberAvailable
 		newStatus.NumberMisscheduled += temp.NumberMisscheduled
 		newStatus.NumberReady += temp.NumberReady
 		newStatus.UpdatedNumberScheduled += temp.UpdatedNumberScheduled
+		newStatus.NumberUnavailable += temp.NumberUnavailable
 	}
 
 	if oldStatus.CurrentNumberScheduled == newStatus.CurrentNumberScheduled &&
@@ -205,7 +206,8 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 		oldStatus.NumberAvailable == newStatus.NumberAvailable &&
 		oldStatus.NumberMisscheduled == newStatus.NumberMisscheduled &&
 		oldStatus.NumberReady == newStatus.NumberReady &&
-		oldStatus.UpdatedNumberScheduled == newStatus.UpdatedNumberScheduled {
+		oldStatus.UpdatedNumberScheduled == newStatus.UpdatedNumberScheduled &&
+		oldStatus.NumberUnavailable == newStatus.NumberUnavailable {
 		klog.V(3).Infof("ignore update daemonSet(%s/%s) status as up to date", daemonSet.Namespace, daemonSet.Name)
 		return object, nil
 	}
@@ -216,6 +218,7 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 	oldStatus.NumberMisscheduled = newStatus.NumberMisscheduled
 	oldStatus.NumberReady = newStatus.NumberReady
 	oldStatus.UpdatedNumberScheduled = newStatus.UpdatedNumberScheduled
+	oldStatus.NumberUnavailable = newStatus.NumberUnavailable
 
 	return helper.ToUnstructured(daemonSet)
 }
