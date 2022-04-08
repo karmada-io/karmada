@@ -28,6 +28,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
+	"github.com/karmada-io/karmada/pkg/controllers/autopropagation"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
@@ -166,6 +167,7 @@ func init() {
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
+	controllers["serviceSyncController"] = startServiceSyncController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -398,6 +400,17 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 	controller := federatedresourcequota.StatusController{
 		Client:        ctx.Mgr.GetClient(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName),
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startServiceSyncController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := autopropagation.ServiceController{
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(autopropagation.ServiceControllerName),
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
