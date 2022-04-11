@@ -21,14 +21,19 @@ import (
 )
 
 var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
-	ginkgo.Context("InterpreterOperation InterpretReplica testing", func() {
-		policyNamespace := testNamespace
-		policyName := workloadNamePrefix + rand.String(RandomStrLength)
-		workloadNamespace := testNamespace
-		workloadName := policyName
+	var policyNamespace, policyName string
+	var workloadNamespace, workloadName string
+	var workload *workloadv1alpha1.Workload
+	var policy *policyv1alpha1.PropagationPolicy
 
-		workload := testhelper.NewWorkload(workloadNamespace, workloadName)
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+	ginkgo.BeforeEach(func() {
+		policyNamespace = testNamespace
+		policyName = workloadNamePrefix + rand.String(RandomStrLength)
+		workloadNamespace = testNamespace
+		workloadName = policyName
+
+		workload = testhelper.NewWorkload(workloadNamespace, workloadName)
+		policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: workload.APIVersion,
 				Kind:       workload.Kind,
@@ -39,7 +44,9 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				ClusterNames: framework.ClusterNames(),
 			},
 		})
+	})
 
+	ginkgo.Context("InterpreterOperation InterpretReplica testing", func() {
 		ginkgo.It("InterpretReplica testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateWorkload(dynamicClient, workload)
@@ -67,26 +74,16 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 	// Now only support push mode cluster for Retain testing
 	// TODO(lonelyCZ): support pull mode cluster
 	ginkgo.Context("InterpreterOperation Retain testing", func() {
-		var waitTime = 5 * time.Second
-		var updatedPaused = true
+		var waitTime time.Duration
+		var updatedPaused bool
+		var pushModeClusters []string
 
-		policyNamespace := testNamespace
-		policyName := workloadNamePrefix + rand.String(RandomStrLength)
-		workloadNamespace := testNamespace
-		workloadName := policyName
-		pushModeClusters := []string{"member1", "member2"}
+		ginkgo.BeforeEach(func() {
+			waitTime = 5 * time.Second
+			updatedPaused = true
+			pushModeClusters = []string{"member1", "member2"}
 
-		workload := testhelper.NewWorkload(workloadNamespace, workloadName)
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: workload.APIVersion,
-				Kind:       workload.Kind,
-				Name:       workload.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: pushModeClusters,
-			},
+			policy.Spec.Placement.ClusterAffinity.ClusterNames = pushModeClusters
 		})
 
 		ginkgo.It("Retain testing", func() {
@@ -126,12 +123,6 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 	})
 
 	ginkgo.Context("InterpreterOperation ReviseReplica testing", func() {
-		policyNamespace := testNamespace
-		policyName := workloadNamePrefix + rand.String(RandomStrLength)
-		workloadNamespace := testNamespace
-		workloadName := policyName
-		workload := testhelper.NewWorkload(workloadNamespace, workloadName)
-
 		ginkgo.It("ReviseReplica testing", func() {
 			sumWeight := 0
 			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
@@ -146,7 +137,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				staticWeightLists = append(staticWeightLists, staticWeightList)
 			}
 			workload.Spec.Replicas = pointer.Int32Ptr(int32(sumWeight))
-			policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: workload.APIVersion,
 					Kind:       workload.Kind,
@@ -181,23 +172,6 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 	})
 
 	ginkgo.Context("InterpreterOperation AggregateStatus testing", func() {
-		policyNamespace := testNamespace
-		policyName := workloadNamePrefix + rand.String(RandomStrLength)
-		workloadNamespace := testNamespace
-		workloadName := policyName
-		workload := testhelper.NewWorkload(workloadNamespace, workloadName)
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: workload.APIVersion,
-				Kind:       workload.Kind,
-				Name:       workload.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-		})
-
 		ginkgo.It("AggregateStatus testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateWorkload(dynamicClient, workload)

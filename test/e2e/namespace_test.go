@@ -7,6 +7,7 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -21,11 +22,16 @@ import (
 )
 
 var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision testing", func() {
+	var namespaceName string
+	var namespace *corev1.Namespace
+
+	ginkgo.BeforeEach(func() {
+		namespaceName = "karmada-e2e-ns-" + rand.String(3)
+		namespace = helper.NewNamespace(namespaceName)
+	})
 
 	ginkgo.When("create a namespace in karmada-apiserver", func() {
-		namespaceName := "karmada-e2e-ns-" + rand.String(3)
 		ginkgo.BeforeEach(func() {
-			namespace := helper.NewNamespace(namespaceName)
 			framework.CreateNamespace(kubeClient, namespace)
 		})
 		ginkgo.AfterEach(func() {
@@ -38,10 +44,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 	})
 
 	ginkgo.When("delete a namespace from karmada apiserver", func() {
-		namespaceName := "karmada-e2e-ns-" + rand.String(3)
-
-		ginkgo.It("namespace should be propagated to member clusters", func() {
-			namespace := helper.NewNamespace(namespaceName)
+		ginkgo.BeforeEach(func() {
 			framework.CreateNamespace(kubeClient, namespace)
 			framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), namespaceName)
 		})
@@ -53,15 +56,21 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 	})
 
 	ginkgo.When("joining new cluster", func() {
-		clusterName := "member-e2e-" + rand.String(3)
-		homeDir := os.Getenv("HOME")
-		kubeConfigPath := fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-		controlPlane := fmt.Sprintf("%s-control-plane", clusterName)
-		clusterContext := fmt.Sprintf("kind-%s", clusterName)
+		var clusterName string
+		var homeDir string
+		var kubeConfigPath string
+		var controlPlane string
+		var clusterContext string
 
-		namespaceName := "karmada-e2e-ns-" + rand.String(3)
 		ginkgo.BeforeEach(func() {
-			namespace := helper.NewNamespace(namespaceName)
+			clusterName = "member-e2e-" + rand.String(3)
+			homeDir = os.Getenv("HOME")
+			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
+			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
+			clusterContext = fmt.Sprintf("kind-%s", clusterName)
+		})
+
+		ginkgo.BeforeEach(func() {
 			framework.CreateNamespace(kubeClient, namespace)
 		})
 

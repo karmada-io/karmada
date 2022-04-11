@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
-	worklodv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
@@ -430,10 +430,10 @@ func NewClusterWithResource(name string, allocatable, allocating, allocated core
 }
 
 // NewWorkload will build a workload object.
-func NewWorkload(namespace string, name string) *worklodv1alpha1.Workload {
+func NewWorkload(namespace string, name string) *workloadv1alpha1.Workload {
 	podLabels := map[string]string{"app": "nginx"}
 
-	return &worklodv1alpha1.Workload{
+	return &workloadv1alpha1.Workload{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "workload.example.io/v1alpha1",
 			Kind:       "Workload",
@@ -442,7 +442,7 @@ func NewWorkload(namespace string, name string) *worklodv1alpha1.Workload {
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: worklodv1alpha1.WorkloadSpec{
+		Spec: workloadv1alpha1.WorkloadSpec{
 			Replicas: pointer.Int32Ptr(3),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

@@ -5,6 +5,7 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
@@ -18,34 +19,44 @@ const (
 )
 
 var _ = ginkgo.Describe("Aggregated Kubernetes API Endpoint testing", func() {
-	member1, member2 := "member1", "member2"
+	var member1, member2 string
+	var saName, saNamespace string
+	var tomServiceAccount *corev1.ServiceAccount
+	var tomClusterRole *rbacv1.ClusterRole
+	var tomClusterRoleBinding *rbacv1.ClusterRoleBinding
+	var tomClusterRoleOnMember *rbacv1.ClusterRole
+	var tomClusterRoleBindingOnMember *rbacv1.ClusterRoleBinding
 
-	saName := fmt.Sprintf("tom-%s", rand.String(RandomStrLength))
-	saNamespace := testNamespace
-	tomServiceAccount := helper.NewServiceaccount(saNamespace, saName)
-	tomClusterRole := helper.NewClusterRole(tomServiceAccount.Name, []rbacv1.PolicyRule{
-		{
-			APIGroups:     []string{"cluster.karmada.io"},
-			Verbs:         []string{"*"},
-			Resources:     []string{"clusters/proxy"},
-			ResourceNames: []string{member1},
-		},
-	})
-	tomClusterRoleBinding := helper.NewClusterRoleBinding(tomServiceAccount.Name, tomClusterRole.Name, []rbacv1.Subject{
-		{Kind: "ServiceAccount", Name: tomServiceAccount.Name, Namespace: tomServiceAccount.Namespace},
-		{Kind: "Group", Name: "system:serviceaccounts"},
-		{Kind: "Group", Name: "system:serviceaccounts:" + tomServiceAccount.Namespace},
-	})
+	ginkgo.BeforeEach(func() {
+		member1, member2 = "member1", "member2"
 
-	tomClusterRoleOnMember := helper.NewClusterRole(tomServiceAccount.Name, []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{"*"},
-			Verbs:     []string{"*"},
-			Resources: []string{"*"},
-		},
-	})
-	tomClusterRoleBindingOnMember := helper.NewClusterRoleBinding(tomServiceAccount.Name, tomClusterRoleOnMember.Name, []rbacv1.Subject{
-		{Kind: "ServiceAccount", Name: tomServiceAccount.Name, Namespace: tomServiceAccount.Namespace},
+		saName = fmt.Sprintf("tom-%s", rand.String(RandomStrLength))
+		saNamespace = testNamespace
+		tomServiceAccount = helper.NewServiceaccount(saNamespace, saName)
+		tomClusterRole = helper.NewClusterRole(tomServiceAccount.Name, []rbacv1.PolicyRule{
+			{
+				APIGroups:     []string{"cluster.karmada.io"},
+				Verbs:         []string{"*"},
+				Resources:     []string{"clusters/proxy"},
+				ResourceNames: []string{member1},
+			},
+		})
+		tomClusterRoleBinding = helper.NewClusterRoleBinding(tomServiceAccount.Name, tomClusterRole.Name, []rbacv1.Subject{
+			{Kind: "ServiceAccount", Name: tomServiceAccount.Name, Namespace: tomServiceAccount.Namespace},
+			{Kind: "Group", Name: "system:serviceaccounts"},
+			{Kind: "Group", Name: "system:serviceaccounts:" + tomServiceAccount.Namespace},
+		})
+
+		tomClusterRoleOnMember = helper.NewClusterRole(tomServiceAccount.Name, []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"*"},
+				Verbs:     []string{"*"},
+				Resources: []string{"*"},
+			},
+		})
+		tomClusterRoleBindingOnMember = helper.NewClusterRoleBinding(tomServiceAccount.Name, tomClusterRoleOnMember.Name, []rbacv1.Subject{
+			{Kind: "ServiceAccount", Name: tomServiceAccount.Name, Namespace: tomServiceAccount.Namespace},
+		})
 	})
 
 	ginkgo.Context("Aggregated Kubernetes API Endpoint testing", func() {

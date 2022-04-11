@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/clientcmd"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -20,11 +21,16 @@ import (
 )
 
 var _ = ginkgo.Describe("[FederatedResourceQuota] auto-provision testing", func() {
-	ginkgo.Context("create a federatedResourceQuota", func() {
-		frqNamespace := testNamespace
-		frqName := federatedResourceQuotaPrefix + rand.String(RandomStrLength)
-		federatedResourceQuota := helper.NewFederatedResourceQuota(frqNamespace, frqName)
+	var frqNamespace, frqName string
+	var federatedResourceQuota *policyv1alpha1.FederatedResourceQuota
 
+	ginkgo.BeforeEach(func() {
+		frqNamespace = testNamespace
+		frqName = federatedResourceQuotaPrefix + rand.String(RandomStrLength)
+		federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName)
+	})
+
+	ginkgo.Context("create a federatedResourceQuota", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
 		})
@@ -36,10 +42,6 @@ var _ = ginkgo.Describe("[FederatedResourceQuota] auto-provision testing", func(
 	})
 
 	ginkgo.Context("delete a federatedResourceQuota", func() {
-		frqNamespace := testNamespace
-		frqName := federatedResourceQuotaPrefix + rand.String(RandomStrLength)
-		federatedResourceQuota := helper.NewFederatedResourceQuota(frqNamespace, frqName)
-
 		ginkgo.BeforeEach(func() {
 			framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
 			framework.WaitResourceQuotaPresentOnClusters(framework.ClusterNames(), frqNamespace, frqName)
@@ -52,15 +54,19 @@ var _ = ginkgo.Describe("[FederatedResourceQuota] auto-provision testing", func(
 	})
 
 	ginkgo.Context("join new cluster", func() {
-		frqNamespace := testNamespace
-		frqName := federatedResourceQuotaPrefix + rand.String(RandomStrLength)
-		federatedResourceQuota := helper.NewFederatedResourceQuota(frqNamespace, frqName)
+		var clusterName string
+		var homeDir string
+		var kubeConfigPath string
+		var controlPlane string
+		var clusterContext string
 
-		clusterName := "member-e2e-" + rand.String(3)
-		homeDir := os.Getenv("HOME")
-		kubeConfigPath := fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-		controlPlane := fmt.Sprintf("%s-control-plane", clusterName)
-		clusterContext := fmt.Sprintf("kind-%s", clusterName)
+		ginkgo.BeforeEach(func() {
+			clusterName = "member-e2e-" + rand.String(3)
+			homeDir = os.Getenv("HOME")
+			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
+			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
+			clusterContext = fmt.Sprintf("kind-%s", clusterName)
+		})
 
 		ginkgo.BeforeEach(func() {
 			framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
@@ -134,11 +140,16 @@ var _ = ginkgo.Describe("[FederatedResourceQuota] auto-provision testing", func(
 })
 
 var _ = ginkgo.Describe("[FederatedResourceQuota] status collection testing", func() {
-	ginkgo.Context("collect federatedResourceQuota status", func() {
-		frqNamespace := testNamespace
-		frqName := federatedResourceQuotaPrefix + rand.String(RandomStrLength)
-		federatedResourceQuota := helper.NewFederatedResourceQuota(frqNamespace, frqName)
+	var frqNamespace, frqName string
+	var federatedResourceQuota *policyv1alpha1.FederatedResourceQuota
 
+	ginkgo.BeforeEach(func() {
+		frqNamespace = testNamespace
+		frqName = federatedResourceQuotaPrefix + rand.String(RandomStrLength)
+		federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName)
+	})
+
+	ginkgo.Context("collect federatedResourceQuota status", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
 		})

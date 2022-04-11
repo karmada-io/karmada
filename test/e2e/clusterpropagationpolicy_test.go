@@ -14,25 +14,33 @@ import (
 
 var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation testing", func() {
 	ginkgo.Context("CustomResourceDefinition propagation testing", func() {
-		crdGroup := fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
-		randStr := rand.String(RandomStrLength)
-		crdSpecNames := apiextensionsv1.CustomResourceDefinitionNames{
-			Kind:     fmt.Sprintf("Foo%s", randStr),
-			ListKind: fmt.Sprintf("Foo%sList", randStr),
-			Plural:   fmt.Sprintf("foo%ss", randStr),
-			Singular: fmt.Sprintf("foo%s", randStr),
-		}
-		crd := testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-		crdPolicy := testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: crd.APIVersion,
-				Kind:       crd.Kind,
-				Name:       crd.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
+		var crdGroup string
+		var randStr string
+		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
+		var crd *apiextensionsv1.CustomResourceDefinition
+		var crdPolicy *policyv1alpha1.ClusterPropagationPolicy
+
+		ginkgo.BeforeEach(func() {
+			crdGroup = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
+			randStr = rand.String(RandomStrLength)
+			crdSpecNames = apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:     fmt.Sprintf("Foo%s", randStr),
+				ListKind: fmt.Sprintf("Foo%sList", randStr),
+				Plural:   fmt.Sprintf("foo%ss", randStr),
+				Singular: fmt.Sprintf("foo%s", randStr),
+			}
+			crd = testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+			crdPolicy = testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: crd.APIVersion,
+					Kind:       crd.Kind,
+					Name:       crd.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
 		})
 
 		ginkgo.It("crd propagation testing", func() {
