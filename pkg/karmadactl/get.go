@@ -232,6 +232,11 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 	}
 	wg.Wait()
 
+	if !g.IsHumanReadablePrinter {
+		// have printed objects in yaml or json format above
+		return nil
+	}
+
 	// sort objects by resource kind to classify them
 	sort.Slice(objs, func(i, j int) bool {
 		return objs[i].Info.Mapping.Resource.String() < objs[j].Info.Mapping.Resource.String()
@@ -385,15 +390,15 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 	}
 
 	if !g.IsHumanReadablePrinter {
-		err := fmt.Errorf("cluster(%s): %s", cluster, g.printGeneric(r))
-		*allErrs = append(*allErrs, err)
+		if err := g.printGeneric(r); err != nil {
+			*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
+		}
 		return
 	}
 
 	infos, err := r.Infos()
 	if err != nil {
-		err := fmt.Errorf("cluster(%s): %s", cluster, err)
-		*allErrs = append(*allErrs, err)
+		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
 		return
 	}
 
