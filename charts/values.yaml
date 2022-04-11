@@ -26,6 +26,10 @@ preInstallJob:
 postInstallJob:
   postInstallContainerImage: bitnami/kubectl:latest
 
+## post-delete job config
+postDeleteJob:
+  postDeleteContainerImage: bitnami/kubectl:latest
+
 ## karmada certificate config
 certs:
   ## @param certs.mode "auto" and "custom" are provided

@@ -41,6 +41,14 @@ $ helm uninstall karmada -n karmada-system
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
+> **Note**: There are some RBAC resources that are used by the `preJob` that can not be deleted by the `uninstall` command above. You might have to clean them manually with tools like `kubectl`.  You can clean them by commands:
+
+```console
+$ kubectl delete sa/karmada-pre-job -nkarmada-system
+$ kubectl delete clusterRole/karmada-pre-job 
+$ kubectl delete clusterRoleBinding/karmada-pre-job
+$ kubectl delete ns karmada-system
+```
 
 ## Example
 ### 1. Install agent
