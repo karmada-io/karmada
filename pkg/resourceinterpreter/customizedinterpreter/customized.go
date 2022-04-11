@@ -253,6 +253,9 @@ func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager
 func applyPatch(object *unstructured.Unstructured, patch []byte, patchType configv1alpha1.PatchType) (*unstructured.Unstructured, error) {
 	switch patchType {
 	case configv1alpha1.PatchTypeJSONPatch:
+		if len(patch) == 0 {
+			return object, nil
+		}
 		patchObj, err := jsonpatch.DecodePatch(patch)
 		if err != nil {
 			return nil, err
