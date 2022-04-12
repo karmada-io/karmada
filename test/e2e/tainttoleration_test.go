@@ -6,6 +6,7 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
@@ -19,35 +20,44 @@ import (
 
 var _ = ginkgo.Describe("propagation with taint and toleration testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		deploymentName := policyName
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		tolerationKey := "cluster-toleration.karmada.io"
-		tolerationValue := "member1"
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var tolerationKey, tolerationValue string
+		var clusterTolerations []corev1.Toleration
+		var policy *policyv1alpha1.PropagationPolicy
 
-		// set clusterTolerations to tolerate taints in member1.
-		clusterTolerations := []corev1.Toleration{
-			{
-				Key:      tolerationKey,
-				Operator: corev1.TolerationOpEqual,
-				Value:    tolerationValue,
-				Effect:   corev1.TaintEffectNoSchedule,
-			},
-		}
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+			tolerationKey = "cluster-toleration.karmada.io"
+			tolerationValue = "member1"
 
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-			ClusterTolerations: clusterTolerations,
+			// set clusterTolerations to tolerate taints in member1.
+			clusterTolerations = []corev1.Toleration{
+				{
+					Key:      tolerationKey,
+					Operator: corev1.TolerationOpEqual,
+					Value:    tolerationValue,
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			}
+
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+				ClusterTolerations: clusterTolerations,
+			})
 		})
 
 		ginkgo.BeforeEach(func() {

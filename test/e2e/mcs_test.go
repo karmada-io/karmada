@@ -176,30 +176,42 @@ func getPrepareInfo() (serviceExport mcsv1alpha1.ServiceExport, serviceImport mc
 }
 
 var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
-	serviceExportPolicyName := fmt.Sprintf("%s-%s-policy", serviceExportResource, rand.String(RandomStrLength))
-	serviceImportPolicyName := fmt.Sprintf("%s-%s-policy", serviceImportResource, rand.String(RandomStrLength))
+	var serviceExportPolicyName, serviceImportPolicyName string
+	var serviceExportPolicy, serviceImportPolicy *policyv1alpha1.ClusterPropagationPolicy
+	var serviceExport mcsv1alpha1.ServiceExport
+	var serviceImport mcsv1alpha1.ServiceImport
+	var exportPolicy, importPolicy *policyv1alpha1.PropagationPolicy
+	var demoDeployment appsv1.Deployment
+	var demoService corev1.Service
 
-	serviceExportPolicy := testhelper.NewClusterPropagationPolicy(serviceExportPolicyName, []policyv1alpha1.ResourceSelector{
-		{
-			APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
-			Kind:       util.CRDKind,
-			Name:       fmt.Sprintf("%s.%s", serviceExportResource, mcsv1alpha1.GroupName),
-		},
-	}, policyv1alpha1.Placement{
-		ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-			ClusterNames: framework.ClusterNames(),
-		},
-	})
-	serviceImportPolicy := testhelper.NewClusterPropagationPolicy(serviceImportPolicyName, []policyv1alpha1.ResourceSelector{
-		{
-			APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
-			Kind:       util.CRDKind,
-			Name:       fmt.Sprintf("%s.%s", serviceImportResource, mcsv1alpha1.GroupName),
-		},
-	}, policyv1alpha1.Placement{
-		ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-			ClusterNames: framework.ClusterNames(),
-		},
+	ginkgo.BeforeEach(func() {
+		serviceExportPolicyName = fmt.Sprintf("%s-%s-policy", serviceExportResource, rand.String(RandomStrLength))
+		serviceImportPolicyName = fmt.Sprintf("%s-%s-policy", serviceImportResource, rand.String(RandomStrLength))
+
+		serviceExportPolicy = testhelper.NewClusterPropagationPolicy(serviceExportPolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
+				Kind:       util.CRDKind,
+				Name:       fmt.Sprintf("%s.%s", serviceExportResource, mcsv1alpha1.GroupName),
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: framework.ClusterNames(),
+			},
+		})
+		serviceImportPolicy = testhelper.NewClusterPropagationPolicy(serviceImportPolicyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
+				Kind:       util.CRDKind,
+				Name:       fmt.Sprintf("%s.%s", serviceImportResource, mcsv1alpha1.GroupName),
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: framework.ClusterNames(),
+			},
+		})
+
+		serviceExport, serviceImport, exportPolicy, importPolicy, demoDeployment, demoService = getPrepareInfo()
 	})
 
 	ginkgo.BeforeEach(func() {
@@ -218,8 +230,6 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 	})
 
 	ginkgo.Context("Connectivity testing", func() {
-		serviceExport, serviceImport, exportPolicy, importPolicy, demoDeployment, demoService := getPrepareInfo()
-
 		ginkgo.BeforeEach(func() {
 			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
@@ -363,8 +373,6 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 	})
 
 	ginkgo.Context("EndpointSlices change testing", func() {
-		serviceExport, serviceImport, exportPolicy, importPolicy, demoDeployment, demoService := getPrepareInfo()
-
 		ginkgo.BeforeEach(func() {
 			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
