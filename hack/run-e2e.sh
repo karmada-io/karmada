@@ -27,7 +27,7 @@ ARTIFACTS_PATH=${ARTIFACTS_PATH:-"${HOME}/karmada-e2e-logs"}
 mkdir -p "$ARTIFACTS_PATH"
 
 # Install ginkgo
-GO111MODULE=on go install github.com/onsi/ginkgo/ginkgo
+GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
 
 # Pre run e2e for install extra conponents
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
