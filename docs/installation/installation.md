@@ -81,7 +81,7 @@ Step 2:  Create karmada kubeconfig secret
 Step 3: Create karmada agent
 (In member kubernetes)~#  MEMBER_CLUSTER_NAME="demo"
 (In member kubernetes)~#  sed -i "s/{member_cluster_name}/${MEMBER_CLUSTER_NAME}/g" karmada-agent.yaml
-(In member kubernetes)~#  kubectl create -f karmada-agent.yaml
+(In member kubernetes)~#  kubectl apply -f karmada-agent.yaml
                                                                                                                                                                              
 Step 4: Show members of karmada                                                                                                                                              
 (In karmada)~# kubectl  --kubeconfig /etc/karmada/karmada-apiserver.config get clusters
