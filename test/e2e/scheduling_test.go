@@ -74,10 +74,16 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 		})
 
-		ginkgo.It("deployment propagation with label and group constraints testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
 
+		ginkgo.It("deployment propagation with label and group constraints testing", func() {
 			ginkgo.By("collect the target clusters in resource binding", func() {
 				targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 				gomega.Expect(len(targetClusterNames) == minGroups).ShouldNot(gomega.BeFalse())
@@ -109,9 +115,6 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				func(deployment *appsv1.Deployment) bool {
 					return *deployment.Spec.Replicas == updateDeploymentReplicas
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 	ginkgo.Context("CustomResourceDefinition propagation testing", func() {
@@ -162,11 +165,18 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			crdGVR = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 		})
 
-		ginkgo.It("crd with specified label and group constraints propagation testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
 			framework.CreateCRD(dynamicClient, crd)
 			framework.GetCRD(dynamicClient, crd.Name)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveCRD(dynamicClient, crd.Name)
+				framework.WaitCRDDisappearedOnClusters(framework.GetClusterNamesFromClusters(groupMatchedClusters), crd.Name)
+				framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
+			})
+		})
 
+		ginkgo.It("crd with specified label and group constraints propagation testing", func() {
 			ginkgo.By("collect the target clusters in cluster resource binding", func() {
 				bindingName := names.GenerateBindingName(crd.Kind, crd.Name)
 				fmt.Printf("crd kind is %s, name is %s\n", crd.Kind, crd.Name)
@@ -221,10 +231,6 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				fmt.Printf("there are %d target clusters\n", len(groupMatchedClusters))
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
 			})
-
-			framework.RemoveCRD(dynamicClient, crd.Name)
-			framework.WaitCRDDisappearedOnClusters(framework.GetClusterNamesFromClusters(groupMatchedClusters), crd.Name)
-			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
 		})
 	})
 	ginkgo.Context("Job propagation testing", func() {
@@ -268,11 +274,17 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 		})
 
-		ginkgo.It("Job propagation with label and group constraints testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateJob(kubeClient, job)
 			framework.GetJob(kubeClient, job.Namespace, job.Name)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveJob(kubeClient, job.Namespace, job.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
 
+		ginkgo.It("Job propagation with label and group constraints testing", func() {
 			ginkgo.By("collect the target clusters in resource binding", func() {
 				bindingName := names.GenerateBindingName(job.Kind, job.Name)
 				binding := &workv1alpha2.ResourceBinding{}
@@ -322,9 +334,6 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				func(job *batchv1.Job) bool {
 					return *job.Spec.Parallelism == updateParallelism
 				})
-
-			framework.RemoveJob(kubeClient, job.Namespace, job.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })
@@ -375,12 +384,18 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 	})
 
+	ginkgo.JustBeforeEach(func() {
+		framework.CreatePropagationPolicy(karmadaClient, policy)
+		framework.CreateDeployment(kubeClient, deployment)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+		})
+	})
+
 	// Case 1: `ReplicaSchedulingType` value is `Duplicated`.
 	ginkgo.Context("ReplicaSchedulingType is Duplicated.", func() {
 		ginkgo.It("replicas duplicated testing", func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment's replicas are duplicate on member clusters")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deploy *appsv1.Deployment) bool {
@@ -388,18 +403,12 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, *deployment.Spec.Replicas))
 					return *deploy.Spec.Replicas == *deployment.Spec.Replicas
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
 	// Case 2: `ReplicaSchedulingType` value is `Duplicated`, trigger rescheduling when replicas have changed.
 	ginkgo.Context("ReplicaSchedulingType is Duplicated, trigger rescheduling when replicas have changed.", func() {
 		ginkgo.It("replicas duplicated testing when rescheduling", func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("make sure deployment has been propagated to member clusters")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
@@ -414,29 +423,25 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, *deployment.Spec.Replicas))
 					return *deploy.Spec.Replicas == *deployment.Spec.Replicas
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
 	// Case 3: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
 	// `WeightPreference` is nil.
 	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference is nil.", func() {
+		var expectedReplicas int32
 		ginkgo.BeforeEach(func() {
 			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
 				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
 			}
+
+			expectedReplicas = int32(2)
+			updateReplicas := expectedReplicas * int32(len(framework.Clusters()))
+			deployment.Spec.Replicas = &updateReplicas
 		})
 
 		ginkgo.It("replicas divided and weighted testing", func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			expectedReplicas := int32(2)
-			updateReplicas := expectedReplicas * int32(len(framework.Clusters()))
-			deployment.Spec.Replicas = &updateReplicas
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment's replicas are divided equally on member clusters")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deploy *appsv1.Deployment) bool {
@@ -444,9 +449,6 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, expectedReplicas))
 					return *deploy.Spec.Replicas == expectedReplicas
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -462,8 +464,6 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 		})
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateDeployment(kubeClient, deployment)
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
 					return true
@@ -480,9 +480,6 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, expectedReplicas))
 					return *deploy.Spec.Replicas == expectedReplicas
 				})
-
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
 	})
 
@@ -495,9 +492,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
 				WeightPreference:          &policyv1alpha1.ClusterPreferences{},
 			}
-		})
 
-		ginkgo.It("replicas divided and weighted testing", func() {
 			sumWeight := 0
 			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
 			for index, clusterName := range framework.ClusterNames() {
@@ -514,11 +509,11 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			policy.Spec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList = staticWeightLists
 			klog.Infof("Sum weight of clusters is %d", sumWeight)
 
-			framework.CreatePropagationPolicy(karmadaClient, policy)
 			sumReplicas := int32(sumWeight)
 			deployment.Spec.Replicas = &sumReplicas
-			framework.CreateDeployment(kubeClient, deployment)
+		})
 
+		ginkgo.It("replicas divided and weighted testing", func() {
 			ginkgo.By("check if deployment's replicas are divided equally on member clusters", func() {
 				for index, cluster := range framework.Clusters() {
 					expectedReplicas := int32(index + 1)
@@ -536,25 +531,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 				}
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
-
 	})
 
 	// Case 6: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
 	// `WeightPreference` isn't nil, trigger rescheduling when replicas have changed.
 	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference isn't "+
 		"nil, trigger rescheduling when replicas have changed.", func() {
-		ginkgo.BeforeEach(func() {
-			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
-				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-				WeightPreference:          &policyv1alpha1.ClusterPreferences{},
-			}
-		})
-
 		ginkgo.BeforeEach(func() {
 			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
 			for index, clusterName := range framework.ClusterNames() {
@@ -567,20 +550,13 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 				staticWeightLists = append(staticWeightLists, staticWeightList)
 			}
 			klog.Infof("StaticWeightList of policy is %+v", staticWeightLists)
-			policy.Spec.Placement.ReplicaScheduling.WeightPreference.StaticWeightList = staticWeightLists
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-		})
-
-		ginkgo.BeforeEach(func() {
-			framework.CreateDeployment(kubeClient, deployment)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+				WeightPreference: &policyv1alpha1.ClusterPreferences{
+					StaticWeightList: staticWeightLists,
+				},
+			}
 		})
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
@@ -653,6 +629,11 @@ var _ = ginkgo.Describe("[JobReplicaScheduling] JobReplicaSchedulingStrategy tes
 			})
 		})
 
+		ginkgo.AfterEach(func() {
+			framework.RemoveJob(kubeClient, job.Namespace, job.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+		})
+
 		ginkgo.It("job replicas divided and weighted testing", func() {
 			sumWeight := 0
 			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
@@ -693,9 +674,6 @@ var _ = ginkgo.Describe("[JobReplicaScheduling] JobReplicaSchedulingStrategy tes
 					}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 				}
 			})
-
-			framework.RemoveJob(kubeClient, job.Namespace, job.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })
