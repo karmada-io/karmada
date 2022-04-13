@@ -1,3 +1,4 @@
+{{- define "karmada.proxyRbac" -}}
 {{- $name := include "karmada.name" . -}}
 
 apiVersion: rbac.authorization.k8s.io/v1
@@ -23,4 +24,5 @@ roleRef:
 subjects:
   - kind: User
     name: "system:admin"
+{{- end -}}
 
