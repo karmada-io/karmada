@@ -18,10 +18,6 @@ LDFLAGS := "-X github.com/karmada-io/karmada/pkg/version.gitVersion=$(GIT_VERSIO
                       -X github.com/karmada-io/karmada/pkg/version.buildDate=$(BUILDDATE)"
 
 # Images management
-REGISTRY_REGION?="ap-southeast-1"
-ACCESS_KEY?=""
-REGISTRY_LOGIN_KEY?=""
-SWR_SERVICE_ADDRESS?="swr.ap-southeast-1.myhuaweicloud.com"
 REGISTRY?="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
@@ -122,28 +118,28 @@ test:
 images: image-karmada-aggregated-apiserver image-karmada-controller-manager image-karmada-scheduler image-karmada-descheduler image-karmada-webhook image-karmada-agent image-karmada-scheduler-estimator image-karmada-interpreter-webhook-example
 
 image-karmada-aggregated-apiserver: karmada-aggregated-apiserver
-	VERSION=$(VERSION) hack/docker.sh karmada-aggregated-apiserver
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) hack/docker.sh karmada-aggregated-apiserver
 
 image-karmada-controller-manager: karmada-controller-manager
-	VERSION=$(VERSION) hack/docker.sh karmada-controller-manager
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) hack/docker.sh karmada-controller-manager
 
 image-karmada-scheduler: karmada-scheduler
-	VERSION=$(VERSION) hack/docker.sh karmada-scheduler
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) hack/docker.sh karmada-scheduler
 
 image-karmada-descheduler: karmada-descheduler
-	VERSION=$(VERSION) hack/docker.sh karmada-descheduler
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) hack/docker.sh karmada-descheduler
 
 image-karmada-webhook: karmada-webhook
-	VERSION=$(VERSION) hack/docker.sh karmada-webhook
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) hack/docker.sh karmada-webhook
 
 image-karmada-agent: karmada-agent
-	VERSION=$(VERSION) hack/docker.sh karmada-agent
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) hack/docker.sh karmada-agent
 
 image-karmada-scheduler-estimator: karmada-scheduler-estimator
-	VERSION=$(VERSION) hack/docker.sh karmada-scheduler-estimator
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) hack/docker.sh karmada-scheduler-estimator
 
 image-karmada-interpreter-webhook-example: karmada-interpreter-webhook-example
-	VERSION=$(VERSION) hack/docker.sh karmada-interpreter-webhook-example
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) hack/docker.sh karmada-interpreter-webhook-example
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"

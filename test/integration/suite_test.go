@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 )
 
@@ -22,8 +22,8 @@ func TestIntegration(t *testing.T) {
 
 var _ = ginkgo.BeforeSuite(func() {
 	// suite set up, such as get karmada environment ready.
-}, TestSuiteSetupTimeOut.Seconds())
+})
 
 var _ = ginkgo.AfterSuite(func() {
 	// suite tear down, such as cleanup karmada environment.
-}, TestSuiteTeardownTimeOut.Seconds())
+})

@@ -93,6 +93,8 @@ Supported resources:
 - Service(v1)
 - Ingress(extensions/v1beta1)
 - Job(batch/v1)
+- DaemonSet(apps/v1)
+- StatefulSet(apps/v1)
 
 ## Customized Interpreter
 

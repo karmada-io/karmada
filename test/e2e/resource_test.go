@@ -3,8 +3,9 @@ package e2e
 import (
 	"context"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -18,22 +19,29 @@ import (
 var _ = ginkgo.Describe("[resource-status collection] resource status collection testing", func() {
 
 	ginkgo.Context("DeploymentStatus collection testing", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		deploymentName := policyName
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.PropagationPolicy
 
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
 		})
 
 		ginkgo.It("deployment status collection testing", func() {

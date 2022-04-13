@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/utils/pointer"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,11 +28,19 @@ import (
 // reschedule testing is used to test the rescheduling situation when some initially scheduled clusters are unjoined
 var _ = ginkgo.Describe("reschedule testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
-		newClusterName := "member-e2e-" + rand.String(3)
-		homeDir := os.Getenv("HOME")
-		kubeConfigPath := fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
-		controlPlane := fmt.Sprintf("%s-control-plane", newClusterName)
-		clusterContext := fmt.Sprintf("kind-%s", newClusterName)
+		var newClusterName string
+		var homeDir string
+		var kubeConfigPath string
+		var controlPlane string
+		var clusterContext string
+
+		ginkgo.BeforeEach(func() {
+			newClusterName = "member-e2e-" + rand.String(3)
+			homeDir = os.Getenv("HOME")
+			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
+			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
+			clusterContext = fmt.Sprintf("kind-%s", newClusterName)
+		})
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Creating cluster: %s", newClusterName), func() {
@@ -48,25 +57,32 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 			})
 		})
 
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		deploymentName := policyName
-		deployment := testhelper.NewDeployment(deploymentNamespace, deploymentName)
-		deployment.Spec.Replicas = pointer.Int32Ptr(10)
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.PropagationPolicy
 
-		// set MaxGroups=MinGroups=1, label is sync-mode=Push.
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-			},
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			deployment.Spec.Replicas = pointer.Int32Ptr(10)
+
+			// set MaxGroups=MinGroups=1, label is sync-mode=Push.
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+				},
+			})
 		})
 
 		ginkgo.It("deployment reschedule testing", func() {

@@ -115,6 +115,12 @@ func (g *genericScheduler) prioritizeClusters(
 		return result, err
 	}
 
+	if klog.V(4).Enabled() {
+		for plugin, nodeScoreList := range scoresMap {
+			klog.Infof("Plugin %s scores on %v/%v => %v", plugin, spec.Resource.Namespace, spec.Resource.Name, nodeScoreList)
+		}
+	}
+
 	result = make(framework.ClusterScoreList, len(clusters))
 	for i := range clusters {
 		result[i] = framework.ClusterScore{Cluster: clusters[i], Score: 0}

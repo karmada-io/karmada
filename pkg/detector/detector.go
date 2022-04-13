@@ -318,6 +318,19 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 		return false
 	}
 
+	if unstructObj, ok := obj.(*unstructured.Unstructured); ok {
+		switch unstructObj.GroupVersionKind() {
+		// The secret, with type 'kubernetes.io/service-account-token', is created along with `ServiceAccount` should be
+		// prevented from propagating.
+		// Refer to https://github.com/karmada-io/karmada/pull/1525#issuecomment-1091030659 for more details.
+		case corev1.SchemeGroupVersion.WithKind("Secret"):
+			secretType, found, _ := unstructured.NestedString(unstructObj.Object, "type")
+			if found && secretType == string(corev1.SecretTypeServiceAccountToken) {
+				return false
+			}
+		}
+	}
+
 	return true
 }
 
@@ -909,12 +922,19 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 		return err
 	}
 
-	for _, binding := range rbs.Items {
+	for index, binding := range rbs.Items {
+		// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+		if err := d.CleanupResourceBindingLabels(&rbs.Items[index], policyv1alpha1.PropagationPolicyNamespaceLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
+			klog.Errorf("Failed to cleanup label from resource binding(%s/%s) when propagation policy(%s/%s) removing, error: %v",
+				binding.Namespace, binding.Name, policyNS, policyName, err)
+			return err
+		}
+
 		// Cleanup the labels from the object referencing by binding.
 		// In addition, this will give the object a chance to match another policy.
 		if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.PropagationPolicyNamespaceLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
-			klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when resource binding(%s/%s) removing, error: %v",
-				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when propagation policy(%s/%s) removing, error: %v",
+				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, policyNS, policyName, err)
 			return err
 		}
 	}
@@ -938,7 +958,14 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		klog.Errorf("Failed to load cluster resource binding by policy(%s), error: %v", policyName, err)
 		errs = append(errs, err)
 	} else if len(crbs.Items) > 0 {
-		for _, binding := range crbs.Items {
+		for index, binding := range crbs.Items {
+			// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+			if err := d.CleanupClusterResourceBindingLabels(&crbs.Items[index], policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
+				klog.Errorf("Failed to cleanup label from cluster resource binding(%s) when cluster propagation policy(%s) removing, error: %v",
+					binding.Name, policyName, err)
+				errs = append(errs, err)
+			}
+
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
 			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
@@ -955,7 +982,14 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		klog.Errorf("Failed to load resource binding by policy(%s), error: %v", policyName, err)
 		errs = append(errs, err)
 	} else if len(rbs.Items) > 0 {
-		for _, binding := range rbs.Items {
+		for index, binding := range rbs.Items {
+			// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+			if err := d.CleanupResourceBindingLabels(&rbs.Items[index], policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
+				klog.Errorf("Failed to cleanup label from resource binding(%s/%s) when cluster propagation policy(%s) removing, error: %v",
+					binding.Namespace, binding.Name, policyName, err)
+				errs = append(errs, err)
+			}
+
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
 			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
@@ -1051,4 +1085,54 @@ func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, la
 	}
 	klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", newWorkload.GetKind(), newWorkload.GetNamespace(), newWorkload.GetName())
 	return nil
+}
+
+// CleanupResourceBindingLabels removes labels from resource binding.
+func (d *ResourceDetector) CleanupResourceBindingLabels(rb *workv1alpha2.ResourceBinding, labels ...string) error {
+	bindingLabels := rb.GetLabels()
+	for _, l := range labels {
+		delete(bindingLabels, l)
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		rb.SetLabels(bindingLabels)
+		updateErr := d.Client.Update(context.TODO(), rb)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &workv1alpha2.ResourceBinding{}
+		if err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: rb.GetNamespace(), Name: rb.GetName()}, updated); err == nil {
+			//make a copy, so we don't mutate the shared cache
+			rb = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated resource binding %s/%s: %v", rb.GetNamespace(), rb.GetName(), err)
+		}
+		return updateErr
+	})
+}
+
+// CleanupClusterResourceBindingLabels removes labels from cluster resource binding.
+func (d *ResourceDetector) CleanupClusterResourceBindingLabels(crb *workv1alpha2.ClusterResourceBinding, labels ...string) error {
+	bindingLabels := crb.GetLabels()
+	for _, l := range labels {
+		delete(bindingLabels, l)
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		crb.SetLabels(bindingLabels)
+		updateErr := d.Client.Update(context.TODO(), crb)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &workv1alpha2.ClusterResourceBinding{}
+		if err = d.Client.Get(context.TODO(), client.ObjectKey{Name: crb.GetName()}, updated); err == nil {
+			//make a copy, so we don't mutate the shared cache
+			crb = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated cluster resource binding %s: %v", crb.GetName(), err)
+		}
+		return updateErr
+	})
 }

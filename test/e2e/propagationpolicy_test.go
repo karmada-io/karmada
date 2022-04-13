@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -29,22 +29,29 @@ import (
 // BasicPropagation focus on basic propagation functionality testing.
 var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		deploymentName := policyName
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.PropagationPolicy
 
-		deployment := testhelper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
 		})
 
 		ginkgo.It("deployment propagation testing", func() {
@@ -68,22 +75,29 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 	})
 
 	ginkgo.Context("Service propagation testing", func() {
-		policyNamespace := testNamespace
-		policyName := serviceNamePrefix + rand.String(RandomStrLength)
-		serviceNamespace := policyNamespace
-		serviceName := policyName
+		var policyNamespace, policyName string
+		var serviceNamespace, serviceName string
+		var service *corev1.Service
+		var policy *policyv1alpha1.PropagationPolicy
 
-		service := testhelper.NewService(serviceNamespace, serviceName)
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: service.APIVersion,
-				Kind:       service.Kind,
-				Name:       service.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = serviceNamePrefix + rand.String(RandomStrLength)
+			serviceNamespace = policyNamespace
+			serviceName = policyName
+
+			service = testhelper.NewService(serviceNamespace, serviceName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: service.APIVersion,
+					Kind:       service.Kind,
+					Name:       service.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
 		})
 
 		ginkgo.It("service propagation testing", func() {
@@ -109,22 +123,28 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 	})
 
 	ginkgo.Context("Pod propagation testing", func() {
-		policyNamespace := testNamespace
-		policyName := podNamePrefix + rand.String(RandomStrLength)
-		podNamespace := policyNamespace
-		podName := policyName
+		var policyNamespace, policyName string
+		var podNamespace, podName string
+		var pod *corev1.Pod
+		var policy *policyv1alpha1.PropagationPolicy
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = podNamePrefix + rand.String(RandomStrLength)
+			podNamespace = policyNamespace
+			podName = policyName
 
-		pod := testhelper.NewPod(podNamespace, podName)
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: pod.APIVersion,
-				Kind:       pod.Kind,
-				Name:       pod.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
+			pod = testhelper.NewPod(podNamespace, podName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: pod.APIVersion,
+					Kind:       pod.Kind,
+					Name:       pod.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
 		})
 
 		ginkgo.It("pod propagation testing", func() {
@@ -150,43 +170,56 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 	})
 
 	ginkgo.Context("NamespaceScoped CustomResource propagation testing", func() {
-		crdGroup := fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
-		randStr := rand.String(RandomStrLength)
-		crdSpecNames := apiextensionsv1.CustomResourceDefinitionNames{
-			Kind:     fmt.Sprintf("Foo%s", randStr),
-			ListKind: fmt.Sprintf("Foo%sList", randStr),
-			Plural:   fmt.Sprintf("foo%ss", randStr),
-			Singular: fmt.Sprintf("foo%s", randStr),
-		}
-		crd := testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-		crdPolicy := testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: crd.APIVersion,
-				Kind:       crd.Kind,
-				Name:       crd.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-		})
+		var crdGroup string
+		var randStr string
+		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
+		var crd *apiextensionsv1.CustomResourceDefinition
+		var crdPolicy *policyv1alpha1.ClusterPropagationPolicy
+		var crNamespace, crName string
+		var crGVR schema.GroupVersionResource
+		var crAPIVersion string
+		var cr *unstructured.Unstructured
+		var crPolicy *policyv1alpha1.PropagationPolicy
 
-		crNamespace := testNamespace
-		crName := crdNamePrefix + rand.String(RandomStrLength)
-		crGVR := schema.GroupVersionResource{Group: crd.Spec.Group, Version: "v1alpha1", Resource: crd.Spec.Names.Plural}
+		ginkgo.BeforeEach(func() {
+			crdGroup = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
+			randStr = rand.String(RandomStrLength)
+			crdSpecNames = apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:     fmt.Sprintf("Foo%s", randStr),
+				ListKind: fmt.Sprintf("Foo%sList", randStr),
+				Plural:   fmt.Sprintf("foo%ss", randStr),
+				Singular: fmt.Sprintf("foo%s", randStr),
+			}
+			crd = testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+			crdPolicy = testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: crd.APIVersion,
+					Kind:       crd.Kind,
+					Name:       crd.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
 
-		crAPIVersion := fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
-		cr := testhelper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
-		crPolicy := testhelper.NewPropagationPolicy(crNamespace, crName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: crAPIVersion,
-				Kind:       crd.Spec.Names.Kind,
-				Name:       crName,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
+			crNamespace = testNamespace
+			crName = crdNamePrefix + rand.String(RandomStrLength)
+			crGVR = schema.GroupVersionResource{Group: crd.Spec.Group, Version: "v1alpha1", Resource: crd.Spec.Names.Plural}
+
+			crAPIVersion = fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
+			cr = testhelper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
+			crPolicy = testhelper.NewPropagationPolicy(crNamespace, crName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: crAPIVersion,
+					Kind:       crd.Spec.Names.Kind,
+					Name:       crName,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
 		})
 
 		ginkgo.It("namespaceScoped cr propagation testing", func() {
@@ -298,22 +331,29 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 	})
 
 	ginkgo.Context("Job propagation testing", func() {
-		policyNamespace := testNamespace
-		policyName := jobNamePrefix + rand.String(RandomStrLength)
-		jobNamespace := testNamespace
-		jobName := policyName
+		var policyNamespace, policyName string
+		var jobNamespace, jobName string
+		var job *batchv1.Job
+		var policy *policyv1alpha1.PropagationPolicy
 
-		job := testhelper.NewJob(jobNamespace, jobName)
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: job.APIVersion,
-				Kind:       job.Kind,
-				Name:       job.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = jobNamePrefix + rand.String(RandomStrLength)
+			jobNamespace = testNamespace
+			jobName = policyName
+
+			job = testhelper.NewJob(jobNamespace, jobName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: job.APIVersion,
+					Kind:       job.Kind,
+					Name:       job.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
 		})
 
 		ginkgo.It("job propagation testing", func() {

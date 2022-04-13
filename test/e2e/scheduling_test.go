@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -36,34 +36,42 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 	ginkgo.Context("Deployment propagation testing", func() {
 		var groupMatchedClusters []string
 		var targetClusterNames []string
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		deploymentName := policyName
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		maxGroups := rand.Intn(2) + 1
-		minGroups := maxGroups
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var maxGroups, minGroups int
+		var policy *policyv1alpha1.PropagationPolicy
 
-		// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: clusterLabels,
-				},
-			},
-			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+			maxGroups = rand.Intn(2) + 1
+			minGroups = maxGroups
+
+			// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
-					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-					MaxGroups:     maxGroups,
-					MinGroups:     minGroups,
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
 				},
-			},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: clusterLabels,
+					},
+				},
+				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+					{
+						SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+						MaxGroups:     maxGroups,
+						MinGroups:     minGroups,
+					},
+				},
+			})
 		})
 
 		ginkgo.It("deployment propagation with label and group constraints testing", func() {
@@ -109,40 +117,50 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 	ginkgo.Context("CustomResourceDefinition propagation testing", func() {
 		var groupMatchedClusters []*clusterv1alpha1.Cluster
 		var targetClusterNames []string
-		crdGroup := fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
-		randStr := rand.String(RandomStrLength)
-		crdSpecNames := apiextensionsv1.CustomResourceDefinitionNames{
-			Kind:     fmt.Sprintf("Foo%s", randStr),
-			ListKind: fmt.Sprintf("Foo%sList", randStr),
-			Plural:   fmt.Sprintf("foo%ss", randStr),
-			Singular: fmt.Sprintf("foo%s", randStr),
-		}
-		crd := helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
-		maxGroups := rand.Intn(2) + 1
-		minGroups := maxGroups
+		var crdGroup string
+		var randStr string
+		var crdSpecNames apiextensionsv1.CustomResourceDefinitionNames
+		var crd *apiextensionsv1.CustomResourceDefinition
+		var maxGroups, minGroups int
+		var crdPolicy *policyv1alpha1.ClusterPropagationPolicy
+		var crdGVR schema.GroupVersionResource
 
-		// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
-		crdPolicy := helper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: crd.APIVersion,
-				Kind:       crd.Kind,
-				Name:       crd.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: clusterLabels,
-				},
-			},
-			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+		ginkgo.BeforeEach(func() {
+			crdGroup = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
+			randStr = rand.String(RandomStrLength)
+			crdSpecNames = apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:     fmt.Sprintf("Foo%s", randStr),
+				ListKind: fmt.Sprintf("Foo%sList", randStr),
+				Plural:   fmt.Sprintf("foo%ss", randStr),
+				Singular: fmt.Sprintf("foo%s", randStr),
+			}
+			crd = helper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+			maxGroups = rand.Intn(2) + 1
+			minGroups = maxGroups
+
+			// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
+			crdPolicy = helper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
 				{
-					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-					MaxGroups:     maxGroups,
-					MinGroups:     minGroups,
+					APIVersion: crd.APIVersion,
+					Kind:       crd.Kind,
+					Name:       crd.Name,
 				},
-			},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: clusterLabels,
+					},
+				},
+				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+					{
+						SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+						MaxGroups:     maxGroups,
+						MinGroups:     minGroups,
+					},
+				},
+			})
+			crdGVR = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 		})
-		crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
 		ginkgo.It("crd with specified label and group constraints propagation testing", func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
@@ -212,34 +230,42 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 	ginkgo.Context("Job propagation testing", func() {
 		var groupMatchedClusters []string
 		var targetClusterNames []string
-		policyNamespace := testNamespace
-		policyName := jobNamePrefix + rand.String(RandomStrLength)
-		jobNamespace := testNamespace
-		jobName := policyName
-		job := helper.NewJob(jobNamespace, jobName)
-		maxGroups := rand.Intn(2) + 1
-		minGroups := maxGroups
+		var policyNamespace, policyName string
+		var jobNamespace, jobName string
+		var job *batchv1.Job
+		var maxGroups, minGroups int
+		var policy *policyv1alpha1.PropagationPolicy
 
-		// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: job.APIVersion,
-				Kind:       job.Kind,
-				Name:       job.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: clusterLabels,
-				},
-			},
-			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = jobNamePrefix + rand.String(RandomStrLength)
+			jobNamespace = testNamespace
+			jobName = policyName
+			job = helper.NewJob(jobNamespace, jobName)
+			maxGroups = rand.Intn(2) + 1
+			minGroups = maxGroups
+
+			// set MaxGroups=MinGroups=1 or 2, label is location=CHN.
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
-					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-					MaxGroups:     maxGroups,
-					MinGroups:     minGroups,
+					APIVersion: job.APIVersion,
+					Kind:       job.Kind,
+					Name:       job.Name,
 				},
-			},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: clusterLabels,
+					},
+				},
+				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+					{
+						SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+						MaxGroups:     maxGroups,
+						MinGroups:     minGroups,
+					},
+				},
+			})
 		})
 
 		ginkgo.It("Job propagation with label and group constraints testing", func() {
@@ -321,15 +347,19 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` isn't nil, trigger rescheduling when replicas have changed.
 */
 var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing", func() {
-	// Case 1: `ReplicaSchedulingType` value is `Duplicated`.
-	ginkgo.Context("ReplicaSchedulingType is Duplicated.", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := policyNamespace
-		deploymentName := policyName
+	var policyNamespace, policyName string
+	var deploymentNamespace, deploymentName string
+	var deployment *appsv1.Deployment
+	var policy *policyv1alpha1.PropagationPolicy
 
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+	ginkgo.BeforeEach(func() {
+		policyNamespace = testNamespace
+		policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+		deploymentNamespace = policyNamespace
+		deploymentName = policyName
+
+		deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+		policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: deployment.APIVersion,
 				Kind:       deployment.Kind,
@@ -343,7 +373,10 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
 			},
 		})
+	})
 
+	// Case 1: `ReplicaSchedulingType` value is `Duplicated`.
+	ginkgo.Context("ReplicaSchedulingType is Duplicated.", func() {
 		ginkgo.It("replicas duplicated testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
@@ -363,27 +396,6 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 
 	// Case 2: `ReplicaSchedulingType` value is `Duplicated`, trigger rescheduling when replicas have changed.
 	ginkgo.Context("ReplicaSchedulingType is Duplicated, trigger rescheduling when replicas have changed.", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := policyNamespace
-		deploymentName := policyName
-
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
-			},
-		})
-
 		ginkgo.It("replicas duplicated testing when rescheduling", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
@@ -411,26 +423,11 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 	// Case 3: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
 	// `WeightPreference` is nil.
 	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference is nil.", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := policyNamespace
-		deploymentName := policyName
-
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
 				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-			},
+			}
 		})
 
 		ginkgo.It("replicas divided and weighted testing", func() {
@@ -457,26 +454,11 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 	// `WeightPreference` is nil, trigger rescheduling when replicas have changed.
 	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference is "+
 		"nil, trigger rescheduling when replicas have changed.", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := policyNamespace
-		deploymentName := policyName
-
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
 				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-			},
+			}
 		})
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
@@ -507,27 +489,12 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 	// Case 5: `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
 	// `WeightPreference` isn't nil.
 	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference isn't nil.", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := policyNamespace
-		deploymentName := policyName
-
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
 				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
 				WeightPreference:          &policyv1alpha1.ClusterPreferences{},
-			},
+			}
 		})
 
 		ginkgo.It("replicas divided and weighted testing", func() {
@@ -580,27 +547,12 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 	// `WeightPreference` isn't nil, trigger rescheduling when replicas have changed.
 	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference isn't "+
 		"nil, trigger rescheduling when replicas have changed.", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := policyNamespace
-		deploymentName := policyName
-
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+		ginkgo.BeforeEach(func() {
+			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
 				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
 				WeightPreference:          &policyv1alpha1.ClusterPreferences{},
-			},
+			}
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -671,27 +623,34 @@ var _ = ginkgo.Describe("[JobReplicaScheduling] JobReplicaSchedulingStrategy tes
 	// `ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`,
 	// `WeightPreference` isn't nil, `spec.completions` isn't nil.
 	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference isn't nil, spec.completions isn`t nil.", func() {
-		policyNamespace := testNamespace
-		policyName := jobNamePrefix + rand.String(RandomStrLength)
-		jobNamespace := policyNamespace
-		jobName := policyName
+		var policyNamespace, policyName string
+		var jobNamespace, jobName string
+		var job *batchv1.Job
+		var policy *policyv1alpha1.PropagationPolicy
 
-		job := helper.NewJob(jobNamespace, jobName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: job.APIVersion,
-				Kind:       job.Kind,
-				Name:       job.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
-				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
-				WeightPreference:          &policyv1alpha1.ClusterPreferences{},
-			},
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = jobNamePrefix + rand.String(RandomStrLength)
+			jobNamespace = policyNamespace
+			jobName = policyName
+
+			job = helper.NewJob(jobNamespace, jobName)
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: job.APIVersion,
+					Kind:       job.Kind,
+					Name:       job.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference:          &policyv1alpha1.ClusterPreferences{},
+				},
+			})
 		})
 
 		ginkgo.It("job replicas divided and weighted testing", func() {

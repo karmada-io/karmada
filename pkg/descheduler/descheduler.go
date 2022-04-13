@@ -284,7 +284,7 @@ func (d *Descheduler) recordDescheduleResultEventForResourceBinding(rb *workv1al
 		d.eventRecorder.Event(rb, corev1.EventTypeNormal, workv1alpha2.EventReasonDescheduleBindingSucceed, message)
 		d.eventRecorder.Event(ref, corev1.EventTypeNormal, workv1alpha2.EventReasonDescheduleBindingSucceed, message)
 	} else {
-		d.eventRecorder.Event(rb, corev1.EventTypeNormal, workv1alpha2.EventReasonDescheduleBindingFailed, err.Error())
-		d.eventRecorder.Event(ref, corev1.EventTypeNormal, workv1alpha2.EventReasonDescheduleBindingFailed, err.Error())
+		d.eventRecorder.Event(rb, corev1.EventTypeWarning, workv1alpha2.EventReasonDescheduleBindingFailed, err.Error())
+		d.eventRecorder.Event(ref, corev1.EventTypeWarning, workv1alpha2.EventReasonDescheduleBindingFailed, err.Error())
 	}
 }
