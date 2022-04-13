@@ -27,7 +27,7 @@ ARTIFACTS_PATH=${ARTIFACTS_PATH:-"${HOME}/karmada-e2e-logs"}
 mkdir -p "$ARTIFACTS_PATH"
 
 # Install ginkgo
-GO111MODULE=on go install github.com/onsi/ginkgo/ginkgo
+GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
 
 # Pre run e2e for install extra conponents
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
@@ -38,7 +38,7 @@ export KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG}
 export PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS}
 
 set +e
-ginkgo -v -race -failFast ./test/e2e/
+ginkgo -v -race -fail-fast ./test/e2e/
 TESTING_RESULT=$?
 
 # Collect logs
