@@ -22,8 +22,8 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("test unjoin testing", func() {
-	ginkgo.Context(" unjoining not ready cluster", func() {
+var _ = framework.SerialDescribe("unJoin testing", ginkgo.Labels{NeedCreateCluster}, func() {
+	ginkgo.Context(" unJoining not ready cluster", func() {
 		var clusterName string
 		var homeDir string
 		var kubeConfigPath string
