@@ -2,12 +2,14 @@ package e2e
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -60,92 +62,88 @@ var _ = ginkgo.Describe("Aggregated Kubernetes API Endpoint testing", func() {
 	})
 
 	ginkgo.Context("Aggregated Kubernetes API Endpoint testing", func() {
+		var tomToken string
+
 		ginkgo.BeforeEach(func() {
 			framework.CreateServiceAccount(kubeClient, tomServiceAccount)
 			framework.CreateClusterRole(kubeClient, tomClusterRole)
 			framework.CreateClusterRoleBinding(kubeClient, tomClusterRoleBinding)
-		})
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveServiceAccount(kubeClient, tomServiceAccount.Namespace, tomServiceAccount.Name)
+				framework.RemoveClusterRole(kubeClient, tomClusterRole.Name)
+				framework.RemoveClusterRoleBinding(kubeClient, tomClusterRoleBinding.Name)
+			})
 
-		ginkgo.BeforeEach(func() {
-			// Wait for namespace present before creating resources in it.
-			framework.WaitNamespacePresentOnCluster(member1, tomServiceAccount.Namespace)
-
-			klog.Infof("Create ServiceAccount(%s) in the cluster(%s)", klog.KObj(tomServiceAccount).String(), member1)
-			clusterClient := framework.GetClusterClient(member1)
-			gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-			framework.CreateServiceAccount(clusterClient, tomServiceAccount)
-		})
-
-		ginkgo.AfterEach(func() {
-			klog.Infof("Delete ServiceAccount(%s) in the cluster(%s)", klog.KObj(tomServiceAccount).String(), member1)
-			clusterClient := framework.GetClusterClient(member1)
-			gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-			framework.RemoveServiceAccount(clusterClient, tomServiceAccount.Namespace, tomServiceAccount.Name)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemoveServiceAccount(kubeClient, tomServiceAccount.Namespace, tomServiceAccount.Name)
-			framework.RemoveClusterRole(kubeClient, tomClusterRole.Name)
-			framework.RemoveClusterRoleBinding(kubeClient, tomClusterRoleBinding.Name)
-		})
-
-		ginkgo.AfterEach(func() {
-			clusterClient := framework.GetClusterClient(member1)
-			gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
-			framework.RemoveClusterRole(clusterClient, tomClusterRoleOnMember.Name)
-			framework.RemoveClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember.Name)
-		})
-
-		ginkgo.It("Serviceaccount(tom) access the member1 cluster", func() {
-			tomToken, err := helper.GetTokenFromServiceAccount(kubeClient, tomServiceAccount.Namespace, tomServiceAccount.Name)
+			var err error
+			tomToken, err = helper.GetTokenFromServiceAccount(kubeClient, tomServiceAccount.Namespace, tomServiceAccount.Name)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
 
-			ginkgo.By("access the member1 /api path with right", func() {
-				gomega.Eventually(func() (bool, error) {
-					code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api", member1), tomToken)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					if code == 200 {
-						return true, nil
-					}
-					return false, nil
-				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		ginkgo.When("Serviceaccount(tom) access the member1 cluster", func() {
+			var clusterClient kubernetes.Interface
+
+			ginkgo.BeforeEach(func() {
+				clusterClient = framework.GetClusterClient(member1)
+				gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 			})
 
-			ginkgo.By("access the member1 /api/v1/nodes path without right", func() {
-				code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api/v1/nodes", member1), tomToken)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				gomega.Expect(code).Should(gomega.Equal(403))
+			ginkgo.BeforeEach(func() {
+				// Wait for namespace present before creating resources in it.
+				framework.WaitNamespacePresentOnCluster(member1, tomServiceAccount.Namespace)
+
+				klog.Infof("Create ServiceAccount(%s) in the cluster(%s)", klog.KObj(tomServiceAccount).String(), member1)
+				framework.CreateServiceAccount(clusterClient, tomServiceAccount)
+				ginkgo.DeferCleanup(func() {
+					klog.Infof("Delete ServiceAccount(%s) in the cluster(%s)", klog.KObj(tomServiceAccount).String(), member1)
+					framework.RemoveServiceAccount(clusterClient, tomServiceAccount.Namespace, tomServiceAccount.Name)
+				})
 			})
 
-			ginkgo.By("create rbac in member1 cluster", func() {
+			ginkgo.AfterEach(func() {
 				clusterClient := framework.GetClusterClient(member1)
 				gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-				framework.CreateClusterRole(clusterClient, tomClusterRoleOnMember)
-				framework.CreateClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember)
+				framework.RemoveClusterRole(clusterClient, tomClusterRoleOnMember.Name)
+				framework.RemoveClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember.Name)
 			})
 
-			ginkgo.By("access the member1 /api/v1/nodes path with right", func() {
-				gomega.Eventually(func() (bool, error) {
+			ginkgo.It("tom access the member cluster", func() {
+				ginkgo.By("access the cluster `/api` path with right", func() {
+					gomega.Eventually(func() (int, error) {
+						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api", member1), tomToken)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						return code, nil
+					}, pollTimeout, pollInterval).Should(gomega.Equal(http.StatusOK))
+				})
+
+				ginkgo.By("access the cluster /api/v1/nodes path without right", func() {
 					code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api/v1/nodes", member1), tomToken)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					if code == 200 {
-						return true, nil
-					}
-					return false, nil
-				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+					gomega.Expect(code).Should(gomega.Equal(http.StatusForbidden))
+				})
+
+				ginkgo.By("create rbac in the member1 cluster", func() {
+					framework.CreateClusterRole(clusterClient, tomClusterRoleOnMember)
+					framework.CreateClusterRoleBinding(clusterClient, tomClusterRoleBindingOnMember)
+				})
+
+				ginkgo.By("access the member1 /api/v1/nodes path with right", func() {
+					gomega.Eventually(func() (int, error) {
+						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api/v1/nodes", member1), tomToken)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						return code, nil
+					}, pollTimeout, pollInterval).Should(gomega.Equal(http.StatusOK))
+				})
 			})
 		})
 
-		ginkgo.It("Serviceaccount(tom) access the member2 cluster", func() {
-			tomToken, err := helper.GetTokenFromServiceAccount(kubeClient, tomServiceAccount.Namespace, tomServiceAccount.Name)
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-			ginkgo.By("access the member2 /api path without right", func() {
-				code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy, member2), tomToken)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				gomega.Expect(code).Should(gomega.Equal(403))
+		ginkgo.When("Serviceaccount(tom) access the member2 cluster", func() {
+			ginkgo.It("tom access the member cluster without right", func() {
+				ginkgo.By("access the cluster `/api` path without right", func() {
+					code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy, member2), tomToken)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(code).Should(gomega.Equal(http.StatusForbidden))
+				})
 			})
 		})
 	})

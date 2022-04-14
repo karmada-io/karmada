@@ -106,9 +106,16 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 			})
 		})
 
-		ginkgo.It("deployment with cluster tolerations testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
+
+		ginkgo.It("deployment with cluster tolerations testing", func() {
 
 			ginkgo.By(fmt.Sprintf("check if deployment(%s/%s) only scheduled to tolerated cluster(%s)", deploymentNamespace, deploymentName, tolerationValue), func() {
 				gomega.Eventually(func(g gomega.Gomega) {
@@ -117,9 +124,6 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 					g.Expect(targetClusterNames[0] == tolerationValue).Should(gomega.BeTrue())
 				}, pollTimeout, pollInterval).Should(gomega.Succeed())
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

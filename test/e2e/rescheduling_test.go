@@ -108,6 +108,10 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
 
 			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 
@@ -141,9 +145,6 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 				})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })
