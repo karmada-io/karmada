@@ -24,8 +24,8 @@ type TaintToleration struct{}
 var _ framework.FilterPlugin = &TaintToleration{}
 
 // New instantiates the TaintToleration plugin.
-func New() framework.Plugin {
-	return &TaintToleration{}
+func New() (framework.Plugin, error) {
+	return &TaintToleration{}, nil
 }
 
 // Name returns the plugin name.

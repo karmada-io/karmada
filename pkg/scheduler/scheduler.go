@@ -34,11 +34,7 @@ import (
 	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/apiinstalled"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusterlocality"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/spreadconstraint"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
+	frameworkplugins "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
@@ -91,7 +87,7 @@ type Scheduler struct {
 }
 
 // NewScheduler instantiates a scheduler
-func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts *options.Options) *Scheduler {
+func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts *options.Options) (*Scheduler, error) {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	bindingLister := factory.Work().V1alpha2().ResourceBindings().Lister()
 	policyLister := factory.Policy().V1alpha1().PropagationPolicies().Lister()
@@ -100,8 +96,16 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	schedulerCache := schedulercache.NewCache(clusterLister)
-	// TODO: make plugins as a flag
-	algorithm := core.NewGenericScheduler(schedulerCache, []string{clusteraffinity.Name, tainttoleration.Name, apiinstalled.Name, clusterlocality.Name, spreadconstraint.Name})
+
+	// algorithm := core.NewGenericScheduler(schedulerCache, []string{clusteraffinity.Name, tainttoleration.Name, apiinstalled.Name, clusterlocality.Name, spreadconstraint.Name})
+
+	// TODO(kerthcet): make plugins configurable via config file
+	registry := frameworkplugins.NewInTreeRegistry()
+	algorithm, err := core.NewGenericScheduler(schedulerCache, registry)
+	if err != nil {
+		return nil, err
+	}
+
 	sched := &Scheduler{
 		DynamicClient:            dynamicClient,
 		KarmadaClient:            karmadaClient,
@@ -131,7 +135,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	}
 
 	sched.addAllEventHandlers()
-	return sched
+	return sched, nil
 }
 
 // Run runs the scheduler

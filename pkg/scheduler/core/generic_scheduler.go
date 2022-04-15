@@ -35,12 +35,16 @@ type genericScheduler struct {
 // NewGenericScheduler creates a genericScheduler object.
 func NewGenericScheduler(
 	schedCache cache.Cache,
-	plugins []string,
-) ScheduleAlgorithm {
+	registry runtime.Registry,
+) (ScheduleAlgorithm, error) {
+	f, err := runtime.NewFramework(registry)
+	if err != nil {
+		return nil, err
+	}
 	return &genericScheduler{
 		schedulerCache:    schedCache,
-		scheduleFramework: runtime.NewFramework(plugins),
-	}
+		scheduleFramework: f,
+	}, nil
 }
 
 func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {

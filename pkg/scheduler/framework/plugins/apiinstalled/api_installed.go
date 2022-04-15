@@ -23,8 +23,8 @@ type APIInstalled struct{}
 var _ framework.FilterPlugin = &APIInstalled{}
 
 // New instantiates the APIInstalled plugin.
-func New() framework.Plugin {
-	return &APIInstalled{}
+func New() (framework.Plugin, error) {
+	return &APIInstalled{}, nil
 }
 
 // Name returns the plugin name.

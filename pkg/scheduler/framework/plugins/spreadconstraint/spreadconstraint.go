@@ -20,8 +20,8 @@ type SpreadConstraint struct{}
 var _ framework.FilterPlugin = &SpreadConstraint{}
 
 // New instantiates the spreadconstraint plugin.
-func New() framework.Plugin {
-	return &SpreadConstraint{}
+func New() (framework.Plugin, error) {
+	return &SpreadConstraint{}, nil
 }
 
 // Name returns the plugin name.

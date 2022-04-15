@@ -22,8 +22,8 @@ var _ framework.FilterPlugin = &ClusterAffinity{}
 var _ framework.ScorePlugin = &ClusterAffinity{}
 
 // New instantiates the clusteraffinity plugin.
-func New() framework.Plugin {
-	return &ClusterAffinity{}
+func New() (framework.Plugin, error) {
+	return &ClusterAffinity{}, nil
 }
 
 // Name returns the plugin name.
