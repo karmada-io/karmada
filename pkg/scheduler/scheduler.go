@@ -97,8 +97,6 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	schedulerCache := schedulercache.NewCache(clusterLister)
 
-	// algorithm := core.NewGenericScheduler(schedulerCache, []string{clusteraffinity.Name, tainttoleration.Name, apiinstalled.Name, clusterlocality.Name, spreadconstraint.Name})
-
 	// TODO(kerthcet): make plugins configurable via config file
 	registry := frameworkplugins.NewInTreeRegistry()
 	algorithm, err := core.NewGenericScheduler(schedulerCache, registry)
