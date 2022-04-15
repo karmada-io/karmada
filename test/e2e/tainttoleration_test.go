@@ -18,7 +18,7 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("propagation with taint and toleration testing", func() {
+var _ = framework.SerialDescribe("propagation with taint and toleration testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
 		var policyNamespace, policyName string
 		var deploymentNamespace, deploymentName string

@@ -20,7 +20,7 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("[FederatedResourceQuota] auto-provision testing", func() {
+var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() {
 	var frqNamespace, frqName string
 	var federatedResourceQuota *policyv1alpha1.FederatedResourceQuota
 
@@ -53,7 +53,7 @@ var _ = ginkgo.Describe("[FederatedResourceQuota] auto-provision testing", func(
 		})
 	})
 
-	ginkgo.Context("join new cluster", func() {
+	framework.SerialContext("join new cluster", ginkgo.Labels{NeedCreateCluster}, func() {
 		var clusterName string
 		var homeDir string
 		var kubeConfigPath string

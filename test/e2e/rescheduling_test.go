@@ -7,14 +7,13 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/utils/pointer"
-
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -27,7 +26,7 @@ import (
 
 // reschedule testing is used to test the rescheduling situation when some initially scheduled clusters are unjoined
 var _ = ginkgo.Describe("reschedule testing", func() {
-	ginkgo.Context("Deployment propagation testing", func() {
+	framework.SerialContext("Deployment propagation testing", ginkgo.Label(NeedCreateCluster), func() {
 		var newClusterName string
 		var homeDir string
 		var kubeConfigPath string

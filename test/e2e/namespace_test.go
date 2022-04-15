@@ -55,7 +55,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 		})
 	})
 
-	ginkgo.When("joining new cluster", func() {
+	framework.SerialWhen("joining new cluster", ginkgo.Labels{NeedCreateCluster}, func() {
 		var clusterName string
 		var homeDir string
 		var kubeConfigPath string

@@ -175,7 +175,7 @@ func getPrepareInfo() (serviceExport mcsv1alpha1.ServiceExport, serviceImport mc
 	return
 }
 
-var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
+var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 	var serviceExportPolicyName, serviceImportPolicyName string
 	var serviceExportPolicy, serviceImportPolicy *policyv1alpha1.ClusterPropagationPolicy
 	var serviceExport mcsv1alpha1.ServiceExport
