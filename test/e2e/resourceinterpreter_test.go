@@ -51,7 +51,6 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 		framework.CreateWorkload(dynamicClient, workload)
 		ginkgo.DeferCleanup(func() {
 			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
-			framework.WaitWorkloadDisappearOnClusters(framework.ClusterNames(), workload.Namespace, workload.Name)
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})

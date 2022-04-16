@@ -67,7 +67,7 @@ var (
 	karmadaClient         karmada.Interface
 	dynamicClient         dynamic.Interface
 	controlPlaneClient    client.Client
-	testNamespace         = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+	testNamespace         string
 	clusterProvider       *cluster.Provider
 	clusterLabels         = map[string]string{"location": "CHN"}
 	pushModeClusterLabels = map[string]string{"sync-mode": "Push"}
@@ -78,7 +78,9 @@ func TestE2E(t *testing.T) {
 	ginkgo.RunSpecs(t, "E2E Suite")
 }
 
-var _ = ginkgo.BeforeSuite(func() {
+var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
+	return nil
+}, func(bytes []byte) {
 	kubeconfig = os.Getenv("KUBECONFIG")
 	gomega.Expect(kubeconfig).ShouldNot(gomega.BeEmpty())
 
@@ -102,21 +104,22 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	framework.InitClusterInformation(karmadaClient, controlPlaneClient)
 
+	testNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	err = setupTestNamespace(testNamespace, kubeClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
 
-var _ = ginkgo.AfterSuite(func() {
+var _ = ginkgo.SynchronizedAfterSuite(func() {
+	// cleanup all namespaces we created both in control plane and member clusters.
+	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
+	err := cleanupTestNamespace(testNamespace, kubeClient)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+}, func() {
 	// cleanup clusterLabels set by the E2E test
 	for _, cluster := range framework.Clusters() {
 		err := deleteClusterLabel(controlPlaneClient, cluster.Name)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	}
-
-	// cleanup all namespaces we created both in control plane and member clusters.
-	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
-	err := cleanupTestNamespace(testNamespace, kubeClient)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
 
 // setupTestNamespace will create a namespace in control plane and all member clusters, most of cases will run against it.

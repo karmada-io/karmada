@@ -23,7 +23,7 @@ import (
 )
 
 // failover testing is used to test the rescheduling situation when some initially scheduled clusters fail
-var _ = ginkgo.Describe("failover testing", func() {
+var _ = framework.SerialDescribe("failover testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
 		var policyNamespace, policyName string
 		var deploymentNamespace, deploymentName string

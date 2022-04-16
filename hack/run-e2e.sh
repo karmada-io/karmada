@@ -29,7 +29,7 @@ mkdir -p "$ARTIFACTS_PATH"
 # Install ginkgo
 GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
 
-# Pre run e2e for install extra conponents
+# Pre run e2e for install extra components
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 "${REPO_ROOT}"/hack/pre-run-e2e.sh
 
@@ -38,7 +38,7 @@ export KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG}
 export PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS}
 
 set +e
-ginkgo -v -race -fail-fast ./test/e2e/
+ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/
 TESTING_RESULT=$?
 
 # Collect logs
@@ -54,7 +54,7 @@ fi
 echo "Collected logs at $ARTIFACTS_PATH:"
 ls -al "$ARTIFACTS_PATH"
 
-# Post run e2e for delete extra conponents
+# Post run e2e for delete extra components
 "${REPO_ROOT}"/hack/post-run-e2e.sh
 
 exit $TESTING_RESULT
