@@ -9,6 +9,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -126,11 +127,12 @@ func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
 }
 
 func createProxyTransport(cluster *clusterapis.Cluster) (*http.Transport, error) {
-	trans := &http.Transport{}
-	// #nosec
-	trans.TLSClientConfig = &tls.Config{
-		InsecureSkipVerify: true,
-	}
+	var proxyDialerFn utilnet.DialFunc
+	proxyTLSClientConfig := &tls.Config{InsecureSkipVerify: true} // #nosec
+	trans := utilnet.SetTransportDefaults(&http.Transport{
+		DialContext:     proxyDialerFn,
+		TLSClientConfig: proxyTLSClientConfig,
+	})
 
 	if cluster.Spec.ProxyURL != "" {
 		proxy, err := url.Parse(cluster.Spec.ProxyURL)
