@@ -33,6 +33,21 @@ $ kubectl get secret -n karmada-system karmada-kubeconfig -o jsonpath={.data.kub
 
 > **Tip**: List all releases using `helm list`
 
+For better scheduling effect, you can choose to install the `karmada-descheduler` component in the karmada controller plane. Link: [here](../docs/descheduler.md). The following is the specific installation guide.
+
+Edited values.yaml for karmada-descheduler
+```YAML
+installMode: "component"
+components: [
+  "descheduler"
+]
+```
+Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
+```console
+$ kubectl config use-context host
+$ helm install karmada-descheduler -n karmada-system ./charts
+```
+
 ## Uninstalling the Chart
 To uninstall/delete the `karmada` helm release in namespace `karmada-system`:
 
@@ -79,7 +94,7 @@ $ kubectl config use-context member
 $ helm install karmada-agent -n karmada-system --create-namespace ./charts
 ```
 ### 2. Install component
-Edited values.yaml
+Edited values.yaml for karmada-scheduler-estimator
 ```YAML
 installMode: "component"
 components: [
@@ -108,6 +123,7 @@ Execute command (switch to the `root` directory of the repo, and sets the `curre
 $ kubectl config use-context host
 $ helm install karmada-scheduler-estimator -n karmada-system ./charts
 ```
+
 ## Configuration
 | Name                                     | Description                                                                                                                                                                                                                                   | Value                                                                                                                                                      |
 |------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
