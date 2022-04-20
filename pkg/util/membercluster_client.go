@@ -121,11 +121,12 @@ func buildClusterConfig(clusterName string, client client.Client) (*rest.Config,
 		return nil, fmt.Errorf("the api endpoint of cluster %s is empty", clusterName)
 	}
 
+	if cluster.Spec.SecretRef == nil {
+		return nil, fmt.Errorf("cluster %s does not have a secret", clusterName)
+	}
+
 	secretNamespace := cluster.Spec.SecretRef.Namespace
 	secretName := cluster.Spec.SecretRef.Name
-	if secretName == "" {
-		return nil, fmt.Errorf("cluster %s does not have a secret name", clusterName)
-	}
 
 	secret := &corev1.Secret{}
 	if err := client.Get(context.TODO(), types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret); err != nil {
