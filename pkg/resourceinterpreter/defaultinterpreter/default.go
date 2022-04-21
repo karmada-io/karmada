@@ -4,11 +4,13 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // DefaultInterpreter contains all default operation interpreter factory
@@ -19,6 +21,7 @@ type DefaultInterpreter struct {
 	retentionHandlers       map[schema.GroupVersionKind]retentionInterpreter
 	aggregateStatusHandlers map[schema.GroupVersionKind]aggregateStatusInterpreter
 	dependenciesHandlers    map[schema.GroupVersionKind]dependenciesInterpreter
+	reflectStatusHandlers   map[schema.GroupVersionKind]reflectStatusInterpreter
 }
 
 // NewDefaultInterpreter return a new DefaultInterpreter.
@@ -55,6 +58,9 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 		if _, exist := e.dependenciesHandlers[kind]; exist {
 			return true
 		}
+	case configv1alpha1.InterpreterOperationInterpretStatus:
+		return true
+
 		// TODO(RainbowMango): more cases should be added here
 	}
 
@@ -105,4 +111,28 @@ func (e *DefaultInterpreter) GetDependencies(object *unstructured.Unstructured) 
 		return dependencies, fmt.Errorf("defalut interpreter for operation %s not found", configv1alpha1.InterpreterOperationInterpretDependency)
 	}
 	return handler(object)
+}
+
+// ReflectStatus returns the cluster object's running status after the grab.
+func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
+	handler, exist := e.reflectStatusHandlers[object.GroupVersionKind()]
+	if exist {
+		return handler(object)
+	}
+
+	// for no default build-in resource kind, directly collect the entire status.
+	return getEntireStatus(object)
+}
+
+func getEntireStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
+	statusMap, exist, err := unstructured.NestedMap(object.Object, "status")
+	if err != nil {
+		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v",
+			object.GetKind(), object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
+	if exist {
+		return helper.BuildStatusRawExtension(statusMap)
+	}
+	return nil, nil
 }

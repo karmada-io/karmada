@@ -21,6 +21,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -50,6 +51,7 @@ type WorkStatusController struct {
 	ClusterClientSetFunc      func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 	ClusterCacheSyncTimeout   metav1.Duration
 	RateLimiterOptions        ratelimiterflag.Options
+	ResourceInterpreter       resourceinterpreter.ResourceInterpreter
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -275,10 +277,10 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 
 // reflectStatus grabs cluster object's running status then updates to its owner object(Work).
 func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
-	statusMap, _, err := unstructured.NestedMap(clusterObj.Object, "status")
+	statusRaw, err := c.ResourceInterpreter.ReflectStatus(clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
-		return err
+		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter.",
+			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
 	}
 
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)
@@ -288,14 +290,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 
 	manifestStatus := workv1alpha1.ManifestStatus{
 		Identifier: *identifier,
-	}
-
-	if statusMap != nil {
-		rawExtension, err := helper.BuildStatusRawExtension(statusMap)
-		if err != nil {
-			return err
-		}
-		manifestStatus.Status = rawExtension
+		Status:     statusRaw,
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {

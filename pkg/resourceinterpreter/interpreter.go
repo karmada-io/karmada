@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
@@ -37,6 +38,10 @@ type ResourceInterpreter interface {
 
 	// GetDependencies returns the dependent resources of the given object.
 	GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error)
+
+	// ReflectStatus returns the cluster object's running status after the grab.
+	ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error)
+
 	// other common method
 }
 
@@ -172,5 +177,24 @@ func (i *customResourceInterpreterImpl) GetDependencies(object *unstructured.Uns
 	}
 
 	dependencies, err = i.defaultInterpreter.GetDependencies(object)
+	return
+}
+
+// ReflectStatus returns the cluster object's running status after the grab.
+func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
+	klog.V(4).Info("Begin to grab status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	status, hookEnabled, err := i.customizedInterpreter.ReflectStatus(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretStatus,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+
+	status, err = i.defaultInterpreter.ReflectStatus(object)
 	return
 }

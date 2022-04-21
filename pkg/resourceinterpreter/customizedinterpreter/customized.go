@@ -10,6 +10,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/klog/v2"
@@ -292,4 +293,19 @@ func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes 
 	}
 
 	return response.Dependencies, matched, nil
+}
+
+// ReflectStatus returns the cluster object's running status after the grab.
+// return matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *webhook.RequestAttributes) (status *runtime.RawExtension, matched bool, err error) {
+	var response *webhook.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+
+	return &response.RawStatus, matched, nil
 }
