@@ -4,14 +4,19 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"strings"
 
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/admission"
+	apirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
@@ -22,6 +27,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 const defaultEtcdPathPrefix = "/registry"
@@ -121,6 +127,8 @@ func (o *Options) Config() (*aggregatedapiserver.Config, error) {
 	}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(aggregatedapiserver.Codecs)
+	serverConfig.LongRunningFunc = customLongRunningRequestCheck(sets.NewString("watch", "proxy"),
+		sets.NewString("attach", "exec", "proxy", "log", "portforward"))
 	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}
@@ -130,4 +138,24 @@ func (o *Options) Config() (*aggregatedapiserver.Config, error) {
 		ExtraConfig:   aggregatedapiserver.ExtraConfig{},
 	}
 	return config, nil
+}
+
+func customLongRunningRequestCheck(longRunningVerbs, longRunningSubresources sets.String) apirequest.LongRunningRequestCheck {
+	return func(r *http.Request, requestInfo *apirequest.RequestInfo) bool {
+		reqClone := r.Clone(context.Background())
+		p := reqClone.URL.Path
+		currentParts := lifted.SplitPath(p)
+		if isClusterProxy(currentParts) {
+			currentParts = currentParts[6:]
+			reqClone.URL.Path = "/" + strings.Join(currentParts, "/")
+			requestInfo = lifted.NewRequestInfo(reqClone)
+		}
+
+		return genericfilters.BasicLongRunningRequestCheck(longRunningVerbs, longRunningSubresources)(r, requestInfo)
+	}
+}
+
+func isClusterProxy(pathParts []string) bool {
+	// cluster/proxy url path format: /apis/cluster.karmada.io/v1alpha1/clusters/{cluster}/proxy/...
+	return len(pathParts) >= 6 && pathParts[1] == "cluster.karmada.io" && pathParts[5] == "proxy"
 }
