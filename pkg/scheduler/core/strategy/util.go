@@ -50,8 +50,11 @@ func divideRemainingReplicas(remainingReplicas int, desiredReplicaInfos map[stri
 	}
 }
 
-func divideReplicasByAvailableReplica(clusterAvailableReplicas []workv1alpha2.TargetCluster, replicas int32,
-	clustersMaxReplicas int32) ([]workv1alpha2.TargetCluster, error) {
+func divideReplicasByAvailableReplica(
+	clusterAvailableReplicas []workv1alpha2.TargetCluster,
+	replicas int32,
+	clustersMaxReplicas int32,
+) ([]workv1alpha2.TargetCluster, error) {
 	desireReplicaInfos := make(map[string]int64)
 	allocatedReplicas := int32(0)
 	for _, clusterInfo := range clusterAvailableReplicas {
@@ -72,32 +75,6 @@ func divideReplicasByAvailableReplica(clusterAvailableReplicas []workv1alpha2.Ta
 		i++
 	}
 	return targetClusters, nil
-}
-
-func scaleReplicas(
-	assignedReplicas int32,
-	spec *workv1alpha2.ResourceBindingSpec,
-	clusters []*clusterv1alpha1.Cluster,
-) ([]workv1alpha2.TargetCluster, *workv1alpha2.ResourceBindingSpec, int32, error) {
-	// Set default ResourceBindingSpec and Cluster
-	newSpec := spec
-	newCluster := spec.Clusters
-
-	// Calculate scale ratio
-	scaleRatio := assignedReplicas - spec.Replicas
-
-	// ScaleUP
-	if scaleRatio < 0 {
-		if assignedReplicas > 0 {
-			newSpec = spec.DeepCopy()
-			newSpec.Replicas = spec.Replicas - assignedReplicas
-		}
-
-		// Calculate available replicas of all candidates
-		newCluster = calAvailableReplicas(clusters, newSpec)
-	}
-
-	return newCluster, newSpec, scaleRatio, nil
 }
 
 func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
@@ -165,4 +142,34 @@ func findOutScheduledCluster(tcs []workv1alpha2.TargetCluster, candidates []*clu
 	}
 
 	return validTarget
+}
+
+func scaleDownSchedule(
+	newCluster []workv1alpha2.TargetCluster,
+	replicas int32,
+	clustersMaxReplicas int32,
+) ([]workv1alpha2.TargetCluster, error) {
+	if clustersMaxReplicas < replicas {
+		return nil, fmt.Errorf("clusters resources are not enough to schedule, max %d replicas are support", clustersMaxReplicas)
+	}
+	return divideReplicasByAvailableReplica(newCluster, replicas, clustersMaxReplicas)
+}
+
+func scaleUpSchedule(
+	newCluster []workv1alpha2.TargetCluster,
+	scheduledClusters []workv1alpha2.TargetCluster,
+	replicas int32,
+	clustersMaxReplicas int32,
+) ([]workv1alpha2.TargetCluster, error) {
+	if clustersMaxReplicas < replicas {
+		return nil, fmt.Errorf("clusters resources are not enough to schedule, max %d replicas are support", clustersMaxReplicas)
+	}
+
+	result, err := divideReplicasByAvailableReplica(newCluster, replicas, clustersMaxReplicas)
+	if err != nil {
+		return result, err
+	}
+
+	// Merge clusters and return
+	return util.MergeTargetClusters(scheduledClusters, result), nil
 }

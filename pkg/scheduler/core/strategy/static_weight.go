@@ -72,6 +72,7 @@ func divideReplicasByStaticWeight(
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: key, Replicas: int32(value)}
 		i++
 	}
+
 	return targetClusters, nil
 }
 

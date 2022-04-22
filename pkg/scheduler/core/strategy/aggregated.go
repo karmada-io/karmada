@@ -1,7 +1,6 @@
 package strategy
 
 import (
-	"fmt"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -25,35 +24,41 @@ func (d Aggregated) AssignReplica(
 	// Step 2: calculate the assigned Replicas in scheduledClusters
 	assignedReplicas := util.GetSumOfReplicas(scheduledClusters)
 
-	// Step 3: scale replicas in scheduledClusters
-	if assignedReplicas != spec.Replicas {
-		clusterAvailableReplicas, newSpec, scaleRatio, _ := scaleReplicas(assignedReplicas, spec, clusters)
-
-		scheduledClusterNames := sets.NewString()
-		// scaleRatio > 0: scaleUp
-		// scaleRatio < 0: scaleDown
-		if scaleRatio > 0 {
-			scheduledClusterNames = util.ConvertToClusterNames(scheduledClusters)
+	// Step 3: scale replicas in scheduled clusters
+	// Case1: assignedReplicas < spec.Replicas -> scale up
+	// Case2: assignedReplicas > spec.Replicas -> scale down
+	// Case3: assignedReplicas > spec.Replicas -> No scale operation
+	newSpec := spec
+	newCluster := spec.Clusters
+	scheduledClusterNames := sets.NewString()
+	if assignedReplicas < spec.Replicas {
+		// Create a new spec
+		if assignedReplicas > 0 {
+			newSpec = spec.DeepCopy()
+			newSpec.Replicas = spec.Replicas - assignedReplicas
 		}
+		// Calculate available replicas of all candidates
+		newCluster = calAvailableReplicas(clusters, newSpec)
+		// Get the names of ready clusters
+		scheduledClusterNames = util.ConvertToClusterNames(scheduledClusters)
 
-		result, err := divideReplicasByAggregation(clusterAvailableReplicas, newSpec.Replicas, scheduledClusterNames)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scale: %v", err)
-		}
+		clusterAvailableReplicas, clustersMaxReplicas := calculateReplicas(newCluster, newSpec.Replicas, scheduledClusterNames)
+		return scaleUpSchedule(clusterAvailableReplicas, scheduledClusters, newSpec.Replicas, clustersMaxReplicas)
 
-		// Step 4: merge clusters
-		return util.MergeTargetClusters(scheduledClusters, result), nil
+	} else if assignedReplicas > spec.Replicas {
+		clusterAvailableReplicas, clustersMaxReplicas := calculateReplicas(newCluster, newSpec.Replicas, scheduledClusterNames)
+		return scaleDownSchedule(clusterAvailableReplicas, newSpec.Replicas, clustersMaxReplicas)
 	}
 
 	// Return default scheduled clusters
 	return scheduledClusters, nil
 }
 
-func divideReplicasByAggregation(
+func calculateReplicas(
 	clusterAvailableReplicas []workv1alpha2.TargetCluster,
 	replicas int32,
 	scheduledClusterNames sets.String,
-) ([]workv1alpha2.TargetCluster, error) {
+) ([]workv1alpha2.TargetCluster, int32) {
 	clusterAvailableReplicas = resortClusterList(clusterAvailableReplicas, scheduledClusterNames)
 	clustersNum, clustersMaxReplicas := 0, int32(0)
 
@@ -65,7 +70,8 @@ func divideReplicasByAggregation(
 		}
 	}
 
-	return divideReplicasByAvailableReplica(clusterAvailableReplicas[0:clustersNum], replicas, clustersMaxReplicas)
+	//return divideReplicasByAvailableReplica(clusterAvailableReplicas[0:clustersNum], replicas, clustersMaxReplicas)
+	return clusterAvailableReplicas[0:clustersNum], clustersMaxReplicas
 }
 
 // resortClusterList is used to make sure scheduledClusterNames are in front of the other clusters in the list of

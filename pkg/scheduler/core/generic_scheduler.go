@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/strategy"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -154,7 +155,7 @@ func (g *genericScheduler) assignReplicas(
 		return targetClusters, nil
 	}
 
-	if assigner, ok := GetAssignReplica(replicaSchedulingStrategy); ok {
+	if assigner, ok := strategy.GetAssignReplica(replicaSchedulingStrategy); ok {
 		return assigner.AssignReplica(spec, replicaSchedulingStrategy, clusters)
 	}
 

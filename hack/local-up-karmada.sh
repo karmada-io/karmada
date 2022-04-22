@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env base
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -172,3 +172,6 @@ function print_success() {
 }
 
 print_success
+
+[ $? -eq 99 ] || exit
+

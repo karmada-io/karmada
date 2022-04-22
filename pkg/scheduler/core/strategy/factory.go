@@ -1,10 +1,9 @@
-package core
+package strategy
 
 import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/scheduler/core/strategy"
 )
 
 type ReplicaAssigner interface {
@@ -23,7 +22,7 @@ func RegisterAssignReplicaFunc(name string, assigner ReplicaAssigner) {
 }
 
 // GetAssignReplica return a AssignReplicaInterface object based the ReplicaSchedulingStrategy configuration
-func GetAssignReplica(replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy) (replica ReplicaAssigner, ok bool) {
+func GetAssignReplicas(replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy) (replica ReplicaAssigner, ok bool) {
 
 	var strategyName = ""
 	switch replicaSchedulingStrategy.ReplicaSchedulingType {
@@ -42,15 +41,15 @@ func GetAssignReplica(replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulin
 		}
 	}
 
-	if assignReplica, ok := strategyFactory[strategyName]; ok {
-		return assignReplica, true
+	if assignReplicas, ok := strategyFactory[strategyName]; ok {
+		return assignReplicas, true
 	}
 	return nil, false
 }
 
 func init() {
-	RegisterAssignReplicaFunc("Duplicated", strategy.Duplicated{})
-	RegisterAssignReplicaFunc("StaticWeight", strategy.StaticWeight{})
-	RegisterAssignReplicaFunc("DynamicWeight", strategy.DynamicWeight{})
-	RegisterAssignReplicaFunc("Aggregated", strategy.Aggregated{})
+	RegisterAssignReplicaFunc("Duplicated", Duplicated{})
+	RegisterAssignReplicaFunc("StaticWeight", StaticWeight{})
+	RegisterAssignReplicaFunc("DynamicWeight", DynamicWeight{})
+	RegisterAssignReplicaFunc("Aggregated", Aggregated{})
 }

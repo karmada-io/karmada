@@ -1,7 +1,6 @@
 package strategy
 
 import (
-	"fmt"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -22,23 +21,27 @@ func (d DynamicWeight) AssignReplica(
 	// Step 2: calculate the assigned Replicas in scheduledClusters
 	assignedReplicas := util.GetSumOfReplicas(scheduledClusters)
 
-	// Step 3: scale replicas in scheduledClusters
-	if assignedReplicas != spec.Replicas {
-		clusterAvailableReplicas, newSpec, _, _ := scaleReplicas(assignedReplicas, spec, clusters)
+	// Step 3: scale replicas in scheduled clusters
+	// Case1: assignedReplicas < spec.Replicas -> scale up
+	// Case2: assignedReplicas > spec.Replicas -> scale down
+	// Case3: assignedReplicas > spec.Replicas -> No scale operation
+	newSpec := spec
+	newCluster := spec.Clusters
 
-		// Validation check
-		clustersMaxReplicas := util.GetSumOfReplicas(clusterAvailableReplicas)
-		if clustersMaxReplicas < newSpec.Replicas {
-			return nil, fmt.Errorf("clusters resources are not enough to schedule, max %d replicas are support", clustersMaxReplicas)
+	if assignedReplicas < spec.Replicas {
+		// Create a new spec
+		if assignedReplicas > 0 {
+			newSpec = spec.DeepCopy()
+			newSpec.Replicas = spec.Replicas - assignedReplicas
 		}
+		// Calculate available replicas of all candidates
+		newCluster = calAvailableReplicas(clusters, newSpec)
+		clustersMaxReplicas := util.GetSumOfReplicas(newCluster)
+		return scaleUpSchedule(newCluster, scheduledClusters, newSpec.Replicas, clustersMaxReplicas)
 
-		result, err := divideReplicasByAvailableReplica(clusterAvailableReplicas, newSpec.Replicas, clustersMaxReplicas)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scale: %v", err)
-		}
-
-		// Step 4: merge clusters
-		return util.MergeTargetClusters(scheduledClusters, result), nil
+	} else if assignedReplicas > spec.Replicas {
+		clustersMaxReplicas := util.GetSumOfReplicas(newCluster)
+		return scaleDownSchedule(newCluster, newSpec.Replicas, clustersMaxReplicas)
 	}
 
 	// Return default scheduled clusters
