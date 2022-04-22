@@ -40,6 +40,11 @@ package lifted
 | podtemplate.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L480-L486                  | func getPodsAnnotationSet               | N       |
 | podtemplate.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L488-L495                  | func getPodsPrefix                      | N       |
 | podtemplate.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L539-L562                  | func GetPodFromTemplate                 | Y       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L88-L247                  | func NewRequestInfo                     | Y       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L267-L274                 | func SplitPath                          | Y       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L73-L74                   | var specialVerbsNoSubresources          | N       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L76-L78                   | var namespaceSubresources               | N       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L67-L71                   | var specialVerbs                        | N       |
 | resourcename.go          | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/scheduler/util/utils.go#L144-L148                         | func IsScalarResourceName               | Y       |
 | retain.go                | https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go                            | func RetainServiceFields                | Y       |
 | retain.go                | https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go                            | func retainServiceHealthCheckNodePort   | Y       |
