@@ -39,7 +39,7 @@ type ResourceInterpreter interface {
 	// GetDependencies returns the dependent resources of the given object.
 	GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error)
 
-	// ReflectStatus returns the cluster object's running status after the grab.
+	// ReflectStatus returns the status of the object.
 	ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error)
 
 	// other common method
@@ -180,7 +180,7 @@ func (i *customResourceInterpreterImpl) GetDependencies(object *unstructured.Uns
 	return
 }
 
-// ReflectStatus returns the cluster object's running status after the grab.
+// ReflectStatus returns the status of the object.
 func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
 	klog.V(4).Info("Begin to grab status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 

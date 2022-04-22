@@ -295,7 +295,7 @@ func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes 
 	return response.Dependencies, matched, nil
 }
 
-// ReflectStatus returns the cluster object's running status after the grab.
+// ReflectStatus returns the status of the object.
 // return matched value to indicate whether there is a matching hook.
 func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *webhook.RequestAttributes) (status *runtime.RawExtension, matched bool, err error) {
 	var response *webhook.ResponseAttributes

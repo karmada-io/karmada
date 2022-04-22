@@ -10,7 +10,6 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // DefaultInterpreter contains all default operation interpreter factory
@@ -32,6 +31,7 @@ func NewDefaultInterpreter() *DefaultInterpreter {
 		retentionHandlers:       getAllDefaultRetentionInterpreter(),
 		aggregateStatusHandlers: getAllDefaultAggregateStatusInterpreter(),
 		dependenciesHandlers:    getAllDefaultDependenciesInterpreter(),
+		reflectStatusHandlers:   getAllDefaultReflectStatusInterpreter(),
 	}
 }
 
@@ -113,26 +113,13 @@ func (e *DefaultInterpreter) GetDependencies(object *unstructured.Unstructured) 
 	return handler(object)
 }
 
-// ReflectStatus returns the cluster object's running status after the grab.
+// ReflectStatus returns the status of the object.
 func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
 	handler, exist := e.reflectStatusHandlers[object.GroupVersionKind()]
 	if exist {
 		return handler(object)
 	}
 
-	// for no default build-in resource kind, directly collect the entire status.
-	return getEntireStatus(object)
-}
-
-func getEntireStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
-	statusMap, exist, err := unstructured.NestedMap(object.Object, "status")
-	if err != nil {
-		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v",
-			object.GetKind(), object.GetNamespace(), object.GetName(), err)
-		return nil, err
-	}
-	if exist {
-		return helper.BuildStatusRawExtension(statusMap)
-	}
-	return nil, nil
+	// for resource types that don't have a build-in handler, try to collect the whole status from '.status' filed.
+	return getWholeStatus(object)
 }

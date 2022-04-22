@@ -85,6 +85,16 @@ func ConvertToDeployment(obj *unstructured.Unstructured) (*appsv1.Deployment, er
 	return typedObj, nil
 }
 
+// ConvertToDeploymentStatus converts a DeploymentStatus object from unstructured to typed.
+func ConvertToDeploymentStatus(obj map[string]interface{}) (*appsv1.DeploymentStatus, error) {
+	typedObj := &appsv1.DeploymentStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToDaemonSet converts a DaemonSet object from unstructured to typed.
 func ConvertToDaemonSet(obj *unstructured.Unstructured) (*appsv1.DaemonSet, error) {
 	typedObj := &appsv1.DaemonSet{}

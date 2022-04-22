@@ -59,13 +59,13 @@ func Test_getEntireStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getEntireStatus(tt.args.object)
+			got, err := getWholeStatus(tt.args.object)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getEntireStatus() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("getWholeStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getEntireStatus() got = %v, want %v", got, tt.want)
+				t.Errorf("getWholeStatus() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

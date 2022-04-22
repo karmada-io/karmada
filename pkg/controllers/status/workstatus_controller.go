@@ -293,19 +293,24 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		Status:     statusRaw,
 	}
 
+	workCopy := work.DeepCopy()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
-		updateErr := c.Status().Update(context.TODO(), work)
+		manifestStatuses := c.mergeStatus(workCopy.Status.ManifestStatuses, manifestStatus)
+		if reflect.DeepEqual(workCopy.Status.ManifestStatuses, manifestStatuses) {
+			return nil
+		}
+		workCopy.Status.ManifestStatuses = manifestStatuses
+		updateErr := c.Status().Update(context.TODO(), workCopy)
 		if updateErr == nil {
 			return nil
 		}
 
 		updated := &workv1alpha1.Work{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: workCopy.Namespace, Name: workCopy.Name}, updated); err == nil {
 			//make a copy, so we don't mutate the shared cache
-			work = updated.DeepCopy()
+			workCopy = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
+			klog.Errorf("failed to get updated work %s/%s: %v", workCopy.Namespace, workCopy.Name, err)
 		}
 		return updateErr
 	})
