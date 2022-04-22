@@ -52,8 +52,7 @@ var (
 		{Name: "ADOPTION", Type: "string", Format: "", Priority: 0},
 	}
 
-	noPushModeMessage = "The karmadactl get command now only supports Push mode, [ %s ] are not push mode\n"
-	getShort          = `Display one or many resources`
+	getShort = `Display one or many resources`
 )
 
 // NewCmdGet New get command
@@ -194,8 +193,7 @@ func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
 // Obj cluster info
 type Obj struct {
 	Cluster string
-	Infos   runtime.Object
-	Mapping *meta.RESTMapping
+	Info    *resource.Info
 }
 
 // RBInfo resourcebinding info and print info
@@ -226,38 +224,31 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 		return err
 	}
 
-	var noPushModeCluster []string
 	wg.Add(len(g.Clusters))
 	for idx := range g.Clusters {
-		if clusterInfos[g.Clusters[idx]].ClusterSyncMode != clusterv1alpha1.Push {
-			noPushModeCluster = append(noPushModeCluster, g.Clusters[idx])
-			wg.Done()
-			continue
-		}
-
 		g.setClusterProxyInfo(karmadaRestConfig, g.Clusters[idx], clusterInfos)
 		f := getFactory(g.Clusters[idx], clusterInfos)
 		go g.getObjInfo(&wg, &mux, f, g.Clusters[idx], &objs, &allErrs, args)
 	}
 	wg.Wait()
-	if len(noPushModeCluster) != 0 {
-		fmt.Println(fmt.Sprintf(noPushModeMessage, strings.Join(noPushModeCluster, ",")))
+
+	if !g.IsHumanReadablePrinter {
+		// have printed objects in yaml or json format above
+		return nil
 	}
 
 	// sort objects by resource kind to classify them
 	sort.Slice(objs, func(i, j int) bool {
-		return objs[i].Mapping.Resource.String() < objs[j].Mapping.Resource.String()
+		return objs[i].Info.Mapping.Resource.String() < objs[j].Info.Mapping.Resource.String()
 	})
 
-	if err := g.printObjs(objs, &allErrs, args); err != nil {
-		return err
-	}
+	g.printObjs(objs, &allErrs, args)
 
 	return utilerrors.NewAggregate(allErrs)
 }
 
 // printObjs print objects in multi clusters
-func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []string) error {
+func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []string) {
 	var err error
 	errs := sets.NewString()
 
@@ -272,11 +263,13 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 	separatorWriter := &separatorWriterWrapper{Delegate: trackingWriter}
 
 	w := printers.GetNewTabWriter(separatorWriter)
+	allResourcesNamespaced := !g.AllNamespaces
 	sameKind := make([]Obj, 0)
 	for ix := range objs {
-		mapping := objs[ix].Mapping
+		mapping := objs[ix].Info.Mapping
 		sameKind = append(sameKind, objs[ix])
 
+		allResourcesNamespaced = allResourcesNamespaced && objs[ix].Info.Namespaced()
 		printWithNamespace := g.checkPrintWithNamespace(mapping)
 
 		if shouldGetNewPrinterForMapping(printer, lastMapping, mapping) {
@@ -303,11 +296,12 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 			lastMapping = mapping
 		}
 
-		if ix == len(objs)-1 || objs[ix].Mapping.Resource != objs[ix+1].Mapping.Resource {
+		if ix == len(objs)-1 || objs[ix].Info.Mapping.Resource != objs[ix+1].Info.Mapping.Resource {
 			table := &metav1.Table{}
 			allTableRows, mapping, err := g.reconstructionRow(sameKind, table)
 			if err != nil {
-				return err
+				*allErrs = append(*allErrs, err)
+				return
 			}
 			table.Rows = allTableRows
 
@@ -316,21 +310,33 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 
 			printObj, err := helper.ToUnstructured(table)
 			if err != nil {
-				return err
+				*allErrs = append(*allErrs, err)
+				return
 			}
 
 			err = printer.PrintObj(printObj, w)
 			if err != nil {
-				return err
+				*allErrs = append(*allErrs, err)
+				return
 			}
 
 			sameKind = make([]Obj, 0)
 		}
 	}
-
 	w.Flush()
 
-	return nil
+	g.printIfNotFindResource(trackingWriter.Written, allErrs, allResourcesNamespaced)
+}
+
+// printIfNotFindResource is sure we output something if we wrote no output, and had no errors, and are not ignoring NotFound
+func (g *CommandGetOptions) printIfNotFindResource(written int, allErrs *[]error, allResourcesNamespaced bool) {
+	if written == 0 && !g.IgnoreNotFound && len(*allErrs) == 0 {
+		if allResourcesNamespaced {
+			fmt.Fprintf(g.ErrOut, "No resources found in %s namespace.\n", g.Namespace)
+		} else {
+			fmt.Fprintln(g.ErrOut, "No resources found")
+		}
+	}
 }
 
 // checkPrintWithNamespace check if print objects with namespace
@@ -374,7 +380,9 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 		TransformRequests(g.transformRequests).
 		Do()
 
-	r.IgnoreErrors(apierrors.IsNotFound)
+	if g.IgnoreNotFound {
+		r.IgnoreErrors(apierrors.IsNotFound)
+	}
 
 	if err := r.Err(); err != nil {
 		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
@@ -382,15 +390,15 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 	}
 
 	if !g.IsHumanReadablePrinter {
-		err := fmt.Errorf("cluster(%s): %s", cluster, g.printGeneric(r))
-		*allErrs = append(*allErrs, err)
+		if err := g.printGeneric(r); err != nil {
+			*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
+		}
 		return
 	}
 
 	infos, err := r.Infos()
 	if err != nil {
-		err := fmt.Errorf("cluster(%s): %s", cluster, err)
-		*allErrs = append(*allErrs, err)
+		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
 		return
 	}
 
@@ -399,8 +407,7 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 	for ix := range infos {
 		objInfo = Obj{
 			Cluster: cluster,
-			Infos:   infos[ix].Object,
-			Mapping: infos[ix].Mapping,
+			Info:    infos[ix],
 		}
 		*objs = append(*objs, objInfo)
 	}
@@ -412,8 +419,8 @@ func (g *CommandGetOptions) reconstructionRow(objs []Obj, table *metav1.Table) (
 	var allTableRows []metav1.TableRow
 	var mapping *meta.RESTMapping
 	for ix := range objs {
-		mapping = objs[ix].Mapping
-		unstr, ok := objs[ix].Infos.(*unstructured.Unstructured)
+		mapping = objs[ix].Info.Mapping
+		unstr, ok := objs[ix].Info.Object.(*unstructured.Unstructured)
 		if !ok {
 			return nil, nil, fmt.Errorf("attempt to decode non-Unstructured object")
 		}
@@ -738,9 +745,9 @@ func multipleGVKsRequested(objs []Obj) bool {
 	if len(objs) < 2 {
 		return false
 	}
-	gvk := objs[0].Mapping.GroupVersionKind
+	gvk := objs[0].Info.Mapping.GroupVersionKind
 	for _, obj := range objs {
-		if obj.Mapping.GroupVersionKind != gvk {
+		if obj.Info.Mapping.GroupVersionKind != gvk {
 			return true
 		}
 	}

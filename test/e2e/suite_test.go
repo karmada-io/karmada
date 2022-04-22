@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,11 +31,6 @@ import (
 )
 
 const (
-	// TestSuiteSetupTimeOut defines the time after which the suite setup times out.
-	TestSuiteSetupTimeOut = 300 * time.Second
-	// TestSuiteTeardownTimeOut defines the time after which the suite tear down times out.
-	TestSuiteTeardownTimeOut = 300 * time.Second
-
 	// pollInterval defines the interval time for a poll operation.
 	pollInterval = 5 * time.Second
 	// pollTimeout defines the time after which the poll operation times out.
@@ -67,6 +62,7 @@ const (
 var (
 	kubeconfig            string
 	restConfig            *rest.Config
+	karmadaHost           string
 	kubeClient            kubernetes.Interface
 	karmadaClient         karmada.Interface
 	dynamicClient         dynamic.Interface
@@ -91,6 +87,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	karmadaHost = restConfig.Host
+
 	kubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -106,7 +104,7 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	err = setupTestNamespace(testNamespace, kubeClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-}, TestSuiteSetupTimeOut.Seconds())
+})
 
 var _ = ginkgo.AfterSuite(func() {
 	// cleanup clusterLabels set by the E2E test
@@ -119,7 +117,7 @@ var _ = ginkgo.AfterSuite(func() {
 	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
 	err := cleanupTestNamespace(testNamespace, kubeClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-}, TestSuiteTeardownTimeOut.Seconds())
+})
 
 // setupTestNamespace will create a namespace in control plane and all member clusters, most of cases will run against it.
 // The reason why we need a separated namespace is it will make it easier to cleanup resources deployed by the testing.

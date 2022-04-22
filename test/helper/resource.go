@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
-	worklodv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
@@ -320,6 +321,30 @@ func NewNode(node string, milliCPU, memory, pods, ephemeralStorage int64) *corev
 	}
 }
 
+// MakeNodesAndPods will make batch of nodes and pods based on template.
+func MakeNodesAndPods(allNodesNum, allPodsNum int, nodeTemplate *corev1.Node, podTemplate *corev1.Pod) ([]*corev1.Node, []*corev1.Pod) {
+	nodes := make([]*corev1.Node, 0, allNodesNum)
+	pods := make([]*corev1.Pod, 0, allPodsNum)
+
+	avg, residue := allPodsNum/allNodesNum, allPodsNum%allNodesNum
+	for i := 0; i < allNodesNum; i++ {
+		node := nodeTemplate.DeepCopy()
+		node.Name = fmt.Sprintf("node-%d", i)
+		nodes = append(nodes, node)
+		num := avg
+		if i < residue {
+			num++
+		}
+		for j := 0; j < num; j++ {
+			pod := podTemplate.DeepCopy()
+			pod.Name = fmt.Sprintf("node-%d-%d", i, j)
+			pod.Spec.NodeName = node.Name
+			pods = append(pods, pod)
+		}
+	}
+	return nodes, pods
+}
+
 // MakeNodeWithLabels will build a ready node with resource and labels.
 func MakeNodeWithLabels(node string, milliCPU, memory, pods, ephemeralStorage int64, labels map[string]string) *corev1.Node {
 	return &corev1.Node{
@@ -405,10 +430,10 @@ func NewClusterWithResource(name string, allocatable, allocating, allocated core
 }
 
 // NewWorkload will build a workload object.
-func NewWorkload(namespace string, name string) *worklodv1alpha1.Workload {
+func NewWorkload(namespace string, name string) *workloadv1alpha1.Workload {
 	podLabels := map[string]string{"app": "nginx"}
 
-	return &worklodv1alpha1.Workload{
+	return &workloadv1alpha1.Workload{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "workload.example.io/v1alpha1",
 			Kind:       "Workload",
@@ -417,7 +442,7 @@ func NewWorkload(namespace string, name string) *worklodv1alpha1.Workload {
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: worklodv1alpha1.WorkloadSpec{
+		Spec: workloadv1alpha1.WorkloadSpec{
 			Replicas: pointer.Int32Ptr(3),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -549,5 +574,33 @@ func NewConfigMap(namespace string, name string, data map[string]string) *corev1
 			Name:      name,
 		},
 		Data: data,
+	}
+}
+
+// NewServiceaccount will build a new serviceaccount.
+func NewServiceaccount(namespace, name string) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+	}
+}
+
+// NewClusterRole will build a new clusterRole object.
+func NewClusterRole(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Rules:      rules,
+	}
+}
+
+// NewClusterRoleBinding will build a new clusterRoleBinding object.
+func NewClusterRoleBinding(name, roleRefName string, subject []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Subjects:   subject,
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     roleRefName,
+		},
 	}
 }
