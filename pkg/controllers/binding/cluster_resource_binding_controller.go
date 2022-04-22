@@ -108,6 +108,9 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 
 	workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return controllerruntime.Result{}, nil
+		}
 		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
