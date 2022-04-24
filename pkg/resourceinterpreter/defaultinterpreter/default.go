@@ -121,5 +121,5 @@ func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (s
 	}
 
 	// for resource types that don't have a build-in handler, try to collect the whole status from '.status' filed.
-	return getWholeStatus(object)
+	return reflectWholeStatus(object)
 }
