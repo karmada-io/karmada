@@ -10,3 +10,14 @@ func (s *ResourceBindingSpec) TargetContains(name string) bool {
 
 	return false
 }
+
+// AssignedReplicasForCluster returns assigned replicas for specific cluster.
+func (s *ResourceBindingSpec) AssignedReplicasForCluster(targetCluster string) int32 {
+	for i := range s.Clusters {
+		if s.Clusters[i].Name == targetCluster {
+			return s.Clusters[i].Replicas
+		}
+	}
+
+	return 0
+}

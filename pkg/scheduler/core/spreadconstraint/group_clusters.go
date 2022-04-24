@@ -117,7 +117,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	clustersReplicas := calAvailableReplicas(clusters, rbSpec)
 	for i, clustersReplica := range clustersReplicas {
 		info.Clusters[i].AvailableReplicas = int64(clustersReplica.Replicas)
-		info.Clusters[i].AvailableReplicas += int64(getScheduledReplicas(rbSpec, clustersReplica.Name))
+		info.Clusters[i].AvailableReplicas += int64(rbSpec.AssignedReplicasForCluster(clustersReplica.Name))
 	}
 
 	sortClusters(info.Clusters)
@@ -238,20 +238,4 @@ func sortClusters(infos []ClusterDetailInfo) {
 
 		return infos[i].Name < infos[j].Name
 	})
-}
-
-func getScheduledReplicas(rbSpec *workv1alpha2.ResourceBindingSpec, clusterName string) int32 {
-	if rbSpec == nil {
-		return 0
-	}
-
-	var replicas int32
-	for _, cluster := range rbSpec.Clusters {
-		if cluster.Name == clusterName {
-			replicas = cluster.Replicas
-			break
-		}
-	}
-
-	return replicas
 }
