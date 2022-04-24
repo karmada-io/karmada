@@ -66,7 +66,7 @@ func selectClustersByAvailableResource(candidateClusters []ClusterDetailInfo, ne
 		updateClusterID--
 	}
 
-	if updateClusterID < 0 {
+	if !checkAvailableResource(retClusters, needReplicas) {
 		return nil
 	}
 	return retClusters
