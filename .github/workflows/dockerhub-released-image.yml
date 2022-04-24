@@ -8,6 +8,9 @@ jobs:
     name: publish to DockerHub
     strategy:
       matrix:
+        arch:
+          - amd64
+          - arm64
         target:
           - karmada-controller-manager
           - karmada-scheduler
@@ -41,4 +44,8 @@ jobs:
       - name: build and publish images
         env:
           VERSION: ${{ github.ref_name }}
-        run: make mp-image-${{ matrix.target }}
+          GOARCH: ${{ matrix.arch }}
+        # When we build binary for multiple platform, `go build` may be skipped as `$(SOURCES)` unchanged.
+        # So we clean the binary at first, and force to run `go build`.
+        # See https://github.com/karmada-io/karmada/pull/1649#issuecomment-1107959879 for more info.
+        run: make clean mp-image-${{ matrix.target }}
