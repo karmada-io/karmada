@@ -14,6 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// This code is directly lifted from the Kubernetes codebase.
+// For reference:
+// https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/logs/logs_test.go#L724-L789
+
 package lifted
 
 import (
