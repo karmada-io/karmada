@@ -59,7 +59,7 @@ webhooks:
         resources: ["clusteroverridepolicies"]
         scope: "Cluster"
     clientConfig:
-      url: https://karmada-webhook.karmada-system.svc:443/validate-clusteroverridepolicy
+      url: https://{{ $name }}.{{ $namespace }}.svc:443/validate-clusteroverridepolicy
       {{- include "karmada.webhook.caBundle" . | nindent 6 }}
     failurePolicy: Fail
     sideEffects: None
