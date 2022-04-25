@@ -14,11 +14,13 @@ func TestCreateScheduler(t *testing.T) {
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	karmadaClient := karmadafake.NewSimpleClientset()
 	kubeClient := fake.NewSimpleClientset()
+	port := 10025
 
 	testcases := []struct {
 		name                     string
 		opts                     []Option
 		enableSchedulerEstimator bool
+		schedulerEstimatorPort   int
 	}{
 		{
 			name:                     "scheduler with default configuration",
@@ -29,8 +31,18 @@ func TestCreateScheduler(t *testing.T) {
 			name: "scheduler with enableSchedulerEstimator enabled",
 			opts: []Option{
 				WithEnableSchedulerEstimator(true),
+				WithSchedulerEstimatorPort(port),
 			},
 			enableSchedulerEstimator: true,
+			schedulerEstimatorPort:   port,
+		},
+		{
+			name: "scheduler with enableSchedulerEstimator disabled, WithSchedulerEstimatorPort enabled",
+			opts: []Option{
+				WithEnableSchedulerEstimator(false),
+				WithSchedulerEstimatorPort(port),
+			},
+			enableSchedulerEstimator: false,
 		},
 	}
 
@@ -43,6 +55,10 @@ func TestCreateScheduler(t *testing.T) {
 
 			if tc.enableSchedulerEstimator != sche.enableSchedulerEstimator {
 				t.Errorf("unexpected enableSchedulerEstimator want %v, got %v", tc.enableSchedulerEstimator, sche.enableSchedulerEstimator)
+			}
+
+			if tc.schedulerEstimatorPort != sche.schedulerEstimatorPort {
+				t.Errorf("unexpected schedulerEstimatorPort want %v, got %v", tc.schedulerEstimatorPort, sche.schedulerEstimatorPort)
 			}
 		})
 	}
