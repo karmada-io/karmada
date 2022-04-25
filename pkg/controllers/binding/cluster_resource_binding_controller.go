@@ -109,6 +109,9 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 	workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			// It might happen when the resource template has been removed but the garbage collector hasn't removed
+			// the ClusterResourceBinding which dependent on resource template.
+			// So, just return without retry(requeue) would save unnecessary loop.
 			return controllerruntime.Result{}, nil
 		}
 		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
