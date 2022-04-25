@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -86,8 +85,41 @@ type Scheduler struct {
 	schedulerEstimatorWorker util.AsyncWorker
 }
 
+type schedulerOptions struct {
+	// enableSchedulerEstimator represents whether the accurate scheduler estimator should be enabled.
+	enableSchedulerEstimator bool
+	// schedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
+	schedulerEstimatorTimeout metav1.Duration
+	// schedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
+	schedulerEstimatorPort int
+}
+
+// Option configures a Scheduler
+type Option func(*schedulerOptions)
+
+// WithEnableSchedulerEstimator sets the enableSchedulerEstimator for scheduler
+func WithEnableSchedulerEstimator(enableSchedulerEstimator bool) Option {
+	return func(o *schedulerOptions) {
+		o.enableSchedulerEstimator = enableSchedulerEstimator
+	}
+}
+
+// WithSchedulerEstimatorTimeout sets the schedulerEstimatorTimeout for scheduler
+func WithSchedulerEstimatorTimeout(schedulerEstimatorTimeout metav1.Duration) Option {
+	return func(o *schedulerOptions) {
+		o.schedulerEstimatorTimeout = schedulerEstimatorTimeout
+	}
+}
+
+// WithSchedulerEstimatorPort sets the schedulerEstimatorPort for scheduler
+func WithSchedulerEstimatorPort(schedulerEstimatorPort int) Option {
+	return func(o *schedulerOptions) {
+		o.schedulerEstimatorPort = schedulerEstimatorPort
+	}
+}
+
 // NewScheduler instantiates a scheduler
-func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts *options.Options) (*Scheduler, error) {
+func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts ...Option) (*Scheduler, error) {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	bindingLister := factory.Work().V1alpha2().ResourceBindings().Lister()
 	policyLister := factory.Policy().V1alpha1().PropagationPolicies().Lister()
@@ -97,6 +129,11 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	schedulerCache := schedulercache.NewCache(clusterLister)
 
+	options := schedulerOptions{}
+	for _, opt := range opts {
+		opt(&options)
+	}
+
 	// TODO(kerthcet): make plugins configurable via config file
 	registry := frameworkplugins.NewInTreeRegistry()
 	algorithm, err := core.NewGenericScheduler(schedulerCache, registry)
@@ -105,30 +142,31 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	}
 
 	sched := &Scheduler{
-		DynamicClient:            dynamicClient,
-		KarmadaClient:            karmadaClient,
-		KubeClient:               kubeClient,
-		bindingLister:            bindingLister,
-		policyLister:             policyLister,
-		clusterBindingLister:     clusterBindingLister,
-		clusterPolicyLister:      clusterPolicyLister,
-		clusterLister:            clusterLister,
-		informerFactory:          factory,
-		queue:                    queue,
-		Algorithm:                algorithm,
-		schedulerCache:           schedulerCache,
-		enableSchedulerEstimator: opts.EnableSchedulerEstimator,
+		DynamicClient:        dynamicClient,
+		KarmadaClient:        karmadaClient,
+		KubeClient:           kubeClient,
+		bindingLister:        bindingLister,
+		policyLister:         policyLister,
+		clusterBindingLister: clusterBindingLister,
+		clusterPolicyLister:  clusterPolicyLister,
+		clusterLister:        clusterLister,
+		informerFactory:      factory,
+		queue:                queue,
+		Algorithm:            algorithm,
+		schedulerCache:       schedulerCache,
 	}
-	if opts.EnableSchedulerEstimator {
+
+	if options.enableSchedulerEstimator {
+		sched.enableSchedulerEstimator = options.enableSchedulerEstimator
+		sched.schedulerEstimatorPort = options.schedulerEstimatorPort
 		sched.schedulerEstimatorCache = estimatorclient.NewSchedulerEstimatorCache()
-		sched.schedulerEstimatorPort = opts.SchedulerEstimatorPort
 		schedulerEstimatorWorkerOptions := util.Options{
 			Name:          "scheduler-estimator",
 			KeyFunc:       nil,
 			ReconcileFunc: sched.reconcileEstimatorConnection,
 		}
 		sched.schedulerEstimatorWorker = util.NewAsyncWorker(schedulerEstimatorWorkerOptions)
-		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, opts.SchedulerEstimatorTimeout.Duration)
+		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, options.schedulerEstimatorTimeout.Duration)
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
 
