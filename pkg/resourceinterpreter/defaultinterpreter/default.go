@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
@@ -19,6 +20,7 @@ type DefaultInterpreter struct {
 	retentionHandlers       map[schema.GroupVersionKind]retentionInterpreter
 	aggregateStatusHandlers map[schema.GroupVersionKind]aggregateStatusInterpreter
 	dependenciesHandlers    map[schema.GroupVersionKind]dependenciesInterpreter
+	reflectStatusHandlers   map[schema.GroupVersionKind]reflectStatusInterpreter
 }
 
 // NewDefaultInterpreter return a new DefaultInterpreter.
@@ -29,6 +31,7 @@ func NewDefaultInterpreter() *DefaultInterpreter {
 		retentionHandlers:       getAllDefaultRetentionInterpreter(),
 		aggregateStatusHandlers: getAllDefaultAggregateStatusInterpreter(),
 		dependenciesHandlers:    getAllDefaultDependenciesInterpreter(),
+		reflectStatusHandlers:   getAllDefaultReflectStatusInterpreter(),
 	}
 }
 
@@ -55,6 +58,9 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 		if _, exist := e.dependenciesHandlers[kind]; exist {
 			return true
 		}
+	case configv1alpha1.InterpreterOperationInterpretStatus:
+		return true
+
 		// TODO(RainbowMango): more cases should be added here
 	}
 
@@ -105,4 +111,15 @@ func (e *DefaultInterpreter) GetDependencies(object *unstructured.Unstructured) 
 		return dependencies, fmt.Errorf("defalut interpreter for operation %s not found", configv1alpha1.InterpreterOperationInterpretDependency)
 	}
 	return handler(object)
+}
+
+// ReflectStatus returns the status of the object.
+func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
+	handler, exist := e.reflectStatusHandlers[object.GroupVersionKind()]
+	if exist {
+		return handler(object)
+	}
+
+	// for resource types that don't have a build-in handler, try to collect the whole status from '.status' filed.
+	return reflectWholeStatus(object)
 }

@@ -192,7 +192,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 			RateLimiterOptions:                opts.RateLimiterOpts,
 		},
-		StopChan: stopChan,
+		StopChan:            stopChan,
+		ResourceInterpreter: resourceInterpreter,
 	}
 
 	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
@@ -261,6 +262,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		ClusterCacheSyncTimeout:   ctx.Opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs: ctx.Opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:        ctx.Opts.RateLimiterOptions,
+		ResourceInterpreter:       ctx.ResourceInterpreter,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {

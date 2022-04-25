@@ -85,10 +85,30 @@ func ConvertToDeployment(obj *unstructured.Unstructured) (*appsv1.Deployment, er
 	return typedObj, nil
 }
 
+// ConvertToDeploymentStatus converts a DeploymentStatus object from unstructured to typed.
+func ConvertToDeploymentStatus(obj map[string]interface{}) (*appsv1.DeploymentStatus, error) {
+	typedObj := &appsv1.DeploymentStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToDaemonSet converts a DaemonSet object from unstructured to typed.
 func ConvertToDaemonSet(obj *unstructured.Unstructured) (*appsv1.DaemonSet, error) {
 	typedObj := &appsv1.DaemonSet{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToDaemonSetStatus converts a DaemonSetStatus object from unstructured to typed.
+func ConvertToDaemonSetStatus(obj map[string]interface{}) (*appsv1.DaemonSetStatus, error) {
+	typedObj := &appsv1.DaemonSetStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
 		return nil, err
 	}
 
@@ -105,10 +125,30 @@ func ConvertToStatefulSet(obj *unstructured.Unstructured) (*appsv1.StatefulSet, 
 	return typedObj, nil
 }
 
+// ConvertToStatefulSetStatus converts a StatefulSetStatus object from unstructured to typed.
+func ConvertToStatefulSetStatus(obj map[string]interface{}) (*appsv1.StatefulSetStatus, error) {
+	typedObj := &appsv1.StatefulSetStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToJob converts a Job object from unstructured to typed.
 func ConvertToJob(obj *unstructured.Unstructured) (*batchv1.Job, error) {
 	typedObj := &batchv1.Job{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToJobStatus converts a JobStatus from unstructured to typed.
+func ConvertToJobStatus(obj map[string]interface{}) (*batchv1.JobStatus, error) {
+	typedObj := &batchv1.JobStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
 		return nil, err
 	}
 
@@ -145,7 +185,17 @@ func ConvertToService(obj *unstructured.Unstructured) (*corev1.Service, error) {
 	return typedObj, nil
 }
 
-// ConvertToIngress converts a Service object from unstructured to typed.
+// ConvertToServiceStatus converts a ServiceStatus object from unstructured to typed.
+func ConvertToServiceStatus(obj map[string]interface{}) (*corev1.ServiceStatus, error) {
+	typedObj := &corev1.ServiceStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToIngress converts an Ingress object from unstructured to typed.
 func ConvertToIngress(obj *unstructured.Unstructured) (*extensionsv1beta1.Ingress, error) {
 	typedObj := &extensionsv1beta1.Ingress{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
