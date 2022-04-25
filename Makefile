@@ -39,61 +39,61 @@ endif
 all: karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmada-descheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
 
 karmada-aggregated-apiserver: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-aggregated-apiserver \
 		cmd/aggregated-apiserver/main.go
 
 karmada-controller-manager: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-controller-manager \
 		cmd/controller-manager/controller-manager.go
 
 karmada-scheduler: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-scheduler \
 		cmd/scheduler/main.go
 
 karmada-descheduler: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-descheduler \
 		cmd/descheduler/main.go
 
 karmadactl: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmadactl \
 		cmd/karmadactl/karmadactl.go
 
 kubectl-karmada: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o kubectl-karmada \
 		cmd/kubectl-karmada/kubectl-karmada.go
 
 karmada-webhook: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-webhook \
 		cmd/webhook/main.go
 
 karmada-agent: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-agent \
 		cmd/agent/main.go
 
 karmada-scheduler-estimator: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-scheduler-estimator \
 		cmd/scheduler-estimator/main.go
 
 karmada-interpreter-webhook-example: $(SOURCES)
-	CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build \
 		-ldflags $(LDFLAGS) \
 		-o karmada-interpreter-webhook-example \
 		examples/customresourceinterpreter/webhook/main.go
