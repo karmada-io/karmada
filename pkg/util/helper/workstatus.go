@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -193,6 +194,9 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 		}
 	}
 
+	sort.Slice(statuses, func(i, j int) bool {
+		return statuses[i].ClusterName < statuses[j].ClusterName
+	})
 	return statuses, nil
 }
 
