@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 
 	"k8s.io/klog/v2"
 
@@ -17,6 +18,8 @@ import (
 const (
 	// InvalidClusterID indicate a invalid cluster
 	InvalidClusterID = -1
+	// InvalidRegionID indicate a invalid region
+	InvalidRegionID = -1
 	// InvalidReplicas indicate that don't care about the available resource
 	InvalidReplicas = -1
 )
@@ -71,4 +74,14 @@ func IsSpreadConstraintExisted(spreadConstraints []policyv1alpha1.SpreadConstrai
 	}
 
 	return false
+}
+
+func sortClusters(infos []ClusterDetailInfo) {
+	sort.Slice(infos, func(i, j int) bool {
+		if infos[i].Score != infos[j].Score {
+			return infos[i].Score > infos[j].Score
+		}
+
+		return infos[i].Name < infos[j].Name
+	})
 }

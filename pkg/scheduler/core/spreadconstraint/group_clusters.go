@@ -1,8 +1,6 @@
 package spreadconstraint
 
 import (
-	"sort"
-
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -22,6 +20,7 @@ type GroupClustersInfo struct {
 // ProviderInfo indicate the provider information
 type ProviderInfo struct {
 	Name              string
+	Score             int64 // the highest score in all clusters of the provider
 	AvailableReplicas int64
 
 	// Regions under this provider
@@ -35,6 +34,7 @@ type ProviderInfo struct {
 // RegionInfo indicate the region information
 type RegionInfo struct {
 	Name              string
+	Score             int64 // the highest score in all clusters of the region
 	AvailableReplicas int64
 
 	// Zones under this provider
@@ -46,6 +46,7 @@ type RegionInfo struct {
 // ZoneInfo indicate the zone information
 type ZoneInfo struct {
 	Name              string
+	Score             int64 // the highest score in all clusters of the zone
 	AvailableReplicas int64
 
 	// Clusters under this zone, sorted by cluster.Score descending.
@@ -146,6 +147,11 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 		zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
 		info.Zones[zone] = zoneInfo
 	}
+
+	for zone, zoneInfo := range info.Zones {
+		zoneInfo.Score = zoneInfo.Clusters[0].Score
+		info.Zones[zone] = zoneInfo
+	}
 }
 
 func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
@@ -173,6 +179,11 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 		}
 		regionInfo.Clusters = append(regionInfo.Clusters, clusterInfo)
 		regionInfo.AvailableReplicas += clusterInfo.AvailableReplicas
+		info.Regions[region] = regionInfo
+	}
+
+	for region, regionInfo := range info.Regions {
+		regionInfo.Score = regionInfo.Clusters[0].Score
 		info.Regions[region] = regionInfo
 	}
 }
@@ -210,6 +221,11 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 		providerInfo.AvailableReplicas += clusterInfo.AvailableReplicas
 		info.Providers[provider] = providerInfo
 	}
+
+	for provider, providerInfo := range info.Providers {
+		providerInfo.Score = providerInfo.Clusters[0].Score
+		info.Providers[provider] = providerInfo
+	}
 }
 
 func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
@@ -228,14 +244,4 @@ func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
 	}
 
 	return false
-}
-
-func sortClusters(infos []ClusterDetailInfo) {
-	sort.Slice(infos, func(i, j int) bool {
-		if infos[i].Score != infos[j].Score {
-			return infos[i].Score > infos[j].Score
-		}
-
-		return infos[i].Name < infos[j].Name
-	})
 }
