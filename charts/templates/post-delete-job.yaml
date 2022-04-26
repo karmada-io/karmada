@@ -1,0 +1,48 @@
+{{- if and (eq .Values.installMode "host") (eq .Values.certs.mode "auto") }}
+{{- $name := include "karmada.name" . -}}
+{{- $namespace := include "karmada.namespace" . -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ $name }}-post-delete"
+  namespace: {{ $namespace }}
+  labels:
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      name: {{ $name }}
+      labels:
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      serviceAccountName: {{ $name }}-pre-job
+      restartPolicy: Never
+      containers:
+        - name: post-delete
+          image: {{ .Values.postDeleteJob.postDeleteContainerImage }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              bash <<'EOF'
+              set -ex
+              kubectl delete -f /opt/mount/
+              kubectl delete cm/{{ $name }}-config -n {{ $namespace }}
+              EOF
+          volumeMounts:
+            - name: mount
+              mountPath: /opt/mount
+      volumes:
+        - name: mount
+          configMap:
+            name: {{ $name }}-config
+{{- end }}

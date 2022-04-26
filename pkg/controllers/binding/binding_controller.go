@@ -115,6 +115,12 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 
 	workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// It might happen when the resource template has been removed but the garbage collector hasn't removed
+			// the ResourceBinding which dependent on resource template.
+			// So, just return without retry(requeue) would save unnecessary loop.
+			return controllerruntime.Result{}, nil
+		}
 		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err

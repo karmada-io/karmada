@@ -44,10 +44,16 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			})
 		})
 
-		ginkgo.It("deployment status collection testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
 
+		ginkgo.It("deployment status collection testing", func() {
 			ginkgo.By("check whether the deployment status can be correctly collected", func() {
 				wantedReplicas := *deployment.Spec.Replicas * int32(len(framework.Clusters()))
 
@@ -90,9 +96,6 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

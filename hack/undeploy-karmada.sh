@@ -39,6 +39,8 @@ rm -fr "${HOME}/.karmada"
 
 kubectl config use-context "${HOST_CLUSTER_NAME}" --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
+ETCD_HOST_IP=$(kubectl get pod -l app=etcd -n karmada-system -o jsonpath='{.items[0].status.hostIP}')
+
 # clear all in namespace karmada-system
 kubectl delete ns karmada-system --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
@@ -46,3 +48,11 @@ kubectl delete ns karmada-system --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 kubectl config delete-cluster karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 kubectl config unset users.karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 kubectl config delete-context karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
+
+function print_success() {
+  echo
+  echo "Karmada is undeployed successfully."
+  echo "Please remove the directory '/var/lib/karmada-etcd' in $ETCD_HOST_IP manually to clean the garbage resource thoroughly."
+}
+
+print_success

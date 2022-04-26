@@ -44,3 +44,35 @@ func TestResourceBindingSpec_TargetContains(t *testing.T) {
 		})
 	}
 }
+
+func TestResourceBindingSpec_AssignedReplicasForCluster(t *testing.T) {
+	tests := []struct {
+		Name           string
+		Spec           ResourceBindingSpec
+		ClusterName    string
+		ExpectReplicas int32
+	}{
+		{
+			Name:           "returns valid replicas in case cluster present",
+			Spec:           ResourceBindingSpec{Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}}},
+			ClusterName:    "m1",
+			ExpectReplicas: 1,
+		},
+		{
+			Name:           "returns 0 in case cluster not present",
+			Spec:           ResourceBindingSpec{Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}}},
+			ClusterName:    "non-exist",
+			ExpectReplicas: 0,
+		},
+	}
+
+	for _, test := range tests {
+		tc := test
+		t.Run(tc.Name, func(t *testing.T) {
+			got := tc.Spec.AssignedReplicasForCluster(tc.ClusterName)
+			if tc.ExpectReplicas != got {
+				t.Fatalf("expect: %d, but got: %d", tc.ExpectReplicas, got)
+			}
+		})
+	}
+}

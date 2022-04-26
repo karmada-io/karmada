@@ -54,9 +54,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			})
 		})
 
-		ginkgo.It("deployment propagation testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("deployment propagation testing", func() {
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
 					return true
@@ -67,10 +75,6 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 				func(deployment *appsv1.Deployment) bool {
 					return *deployment.Spec.Replicas == updateDeploymentReplicas
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -100,9 +104,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			})
 		})
 
-		ginkgo.It("service propagation testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateService(kubeClient, service)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.RemoveService(kubeClient, service.Namespace, service.Name)
+				framework.WaitServiceDisappearOnClusters(framework.ClusterNames(), service.Namespace, service.Name)
+			})
+		})
+
+		ginkgo.It("service propagation testing", func() {
 			framework.WaitServicePresentOnClustersFitWith(framework.ClusterNames(), service.Namespace, service.Name,
 				func(service *corev1.Service) bool {
 					return true
@@ -115,10 +127,6 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 				func(service *corev1.Service) bool {
 					return service.Spec.Ports[0].Port == updateServicePort
 				})
-
-			framework.RemoveService(kubeClient, service.Namespace, service.Name)
-			framework.WaitServiceDisappearOnClusters(framework.ClusterNames(), service.Namespace, service.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -147,9 +155,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			})
 		})
 
-		ginkgo.It("pod propagation testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreatePod(kubeClient, pod)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
+				framework.WaitPodDisappearOnClusters(framework.ClusterNames(), pod.Namespace, pod.Name)
+			})
+		})
+
+		ginkgo.It("pod propagation testing", func() {
 			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
 				func(pod *corev1.Pod) bool {
 					return true
@@ -162,10 +178,6 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 				func(pod *corev1.Pod) bool {
 					return pod.Spec.Containers[0].Image == updatePodImage
 				})
-
-			framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
-			framework.WaitPodDisappearOnClusters(framework.ClusterNames(), pod.Namespace, pod.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -222,14 +234,24 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			})
 		})
 
-		ginkgo.It("namespaceScoped cr propagation testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
 			framework.CreateCRD(dynamicClient, crd)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
+				framework.RemoveCRD(dynamicClient, crd.Name)
+			})
+		})
+
+		ginkgo.It("namespaceScoped cr propagation testing", func() {
 			framework.GetCRD(dynamicClient, crd.Name)
 			framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(),
 				fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1"), crd.Spec.Names.Kind)
 
 			framework.CreatePropagationPolicy(karmadaClient, crPolicy)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, crPolicy.Namespace, crPolicy.Name)
+			})
 
 			ginkgo.By(fmt.Sprintf("creating cr(%s/%s)", crNamespace, crName), func() {
 				_, err := dynamicClient.Resource(crGVR).Namespace(crNamespace).Create(context.TODO(), cr, metav1.CreateOptions{})
@@ -322,11 +344,6 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 			})
-
-			framework.RemovePropagationPolicy(karmadaClient, crPolicy.Namespace, crPolicy.Name)
-
-			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
-			framework.RemoveCRD(dynamicClient, crd.Name)
 		})
 	})
 
@@ -356,10 +373,17 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			})
 		})
 
-		ginkgo.It("job propagation testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateJob(kubeClient, job)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.RemoveJob(kubeClient, job.Namespace, job.Name)
+				framework.WaitJobDisappearOnClusters(framework.ClusterNames(), job.Namespace, job.Name)
+			})
+		})
 
+		ginkgo.It("job propagation testing", func() {
 			framework.WaitJobPresentOnClustersFitWith(framework.ClusterNames(), job.Namespace, job.Name,
 				func(job *batchv1.Job) bool {
 					return true
@@ -374,10 +398,6 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 				func(job *batchv1.Job) bool {
 					return *job.Spec.BackoffLimit == updateBackoffLimit
 				})
-
-			framework.RemoveJob(kubeClient, job.Namespace, job.Name)
-			framework.WaitJobDisappearOnClusters(framework.ClusterNames(), job.Namespace, job.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

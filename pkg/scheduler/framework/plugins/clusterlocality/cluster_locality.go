@@ -21,8 +21,8 @@ type ClusterLocality struct{}
 var _ framework.ScorePlugin = &ClusterLocality{}
 
 // New instantiates the clusteraffinity plugin.
-func New() framework.Plugin {
-	return &ClusterLocality{}
+func New() (framework.Plugin, error) {
+	return &ClusterLocality{}, nil
 }
 
 // Name returns the plugin name.

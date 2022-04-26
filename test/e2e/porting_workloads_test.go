@@ -61,6 +61,10 @@ var _ = ginkgo.Describe("porting workloads testing", func() {
 
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
 
 			ginkgo.By("check deployment's replicas", func() {
 				wantedReplicas := *deployment.Spec.Replicas * int32(len(framework.Clusters())-1)
@@ -110,9 +114,6 @@ var _ = ginkgo.Describe("porting workloads testing", func() {
 				})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

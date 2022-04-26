@@ -46,11 +46,17 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 		})
 	})
 
+	ginkgo.JustBeforeEach(func() {
+		framework.CreatePropagationPolicy(karmadaClient, policy)
+		framework.CreateWorkload(dynamicClient, workload)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+		})
+	})
+
 	ginkgo.Context("InterpreterOperation InterpretReplica testing", func() {
 		ginkgo.It("InterpretReplica testing", func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateWorkload(dynamicClient, workload)
-
 			ginkgo.By("check if workload's replica is interpreted", func() {
 				resourceBindingName := names.GenerateBindingName(workload.Kind, workload.Name)
 				expectedReplicas := *workload.Spec.Replicas
@@ -64,10 +70,6 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					return resourceBinding.Spec.Replicas, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(expectedReplicas))
 			})
-
-			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
-			framework.WaitWorkloadDisappearOnClusters(framework.ClusterNames(), workload.Namespace, workload.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
@@ -87,9 +89,6 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 		})
 
 		ginkgo.It("Retain testing", func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateWorkload(dynamicClient, workload)
-
 			ginkgo.By("update workload's spec.paused to true", func() {
 				for _, cluster := range pushModeClusters {
 					clusterDynamicClient := framework.GetClusterDynamicClient(cluster)
@@ -115,15 +114,11 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					}, pollTimeout, pollInterval).Should(gomega.Equal(updatedPaused))
 				}
 			})
-
-			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
-			framework.WaitWorkloadDisappearOnClusters(pushModeClusters, workload.Namespace, workload.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
 	ginkgo.Context("InterpreterOperation ReviseReplica testing", func() {
-		ginkgo.It("ReviseReplica testing", func() {
+		ginkgo.BeforeEach(func() {
 			sumWeight := 0
 			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
 			for index, clusterName := range framework.ClusterNames() {
@@ -155,27 +150,19 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					},
 				},
 			})
+		})
 
-			framework.CreateWorkload(dynamicClient, workload)
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-
+		ginkgo.It("ReviseReplica testing", func() {
 			for index, clusterName := range framework.ClusterNames() {
 				framework.WaitWorkloadPresentOnClusterFitWith(clusterName, workload.Namespace, workload.Name, func(workload *workloadv1alpha1.Workload) bool {
 					return *workload.Spec.Replicas == int32(index+1)
 				})
 			}
-
-			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
-			framework.WaitWorkloadDisappearOnClusters(framework.ClusterNames(), workload.Namespace, workload.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 
 	ginkgo.Context("InterpreterOperation AggregateStatus testing", func() {
 		ginkgo.It("AggregateStatus testing", func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateWorkload(dynamicClient, workload)
-
 			ginkgo.By("check whether the workload status can be correctly collected", func() {
 				// Simulate the workload resource controller behavior, update the status information of workload resources of member clusters manually.
 				for _, cluster := range framework.ClusterNames() {
@@ -201,10 +188,6 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
-
-			framework.RemoveWorkload(dynamicClient, workload.Namespace, workload.Name)
-			framework.WaitWorkloadDisappearOnClusters(framework.ClusterNames(), workload.Namespace, workload.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

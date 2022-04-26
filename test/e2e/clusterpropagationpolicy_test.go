@@ -43,16 +43,20 @@ var _ = ginkgo.Describe("[BasicClusterPropagation] basic cluster propagation tes
 			})
 		})
 
-		ginkgo.It("crd propagation testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
 			framework.CreateCRD(dynamicClient, crd)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
+				framework.RemoveCRD(dynamicClient, crd.Name)
+				framework.WaitCRDDisappearedOnClusters(framework.ClusterNames(), crd.Name)
+			})
+		})
+
+		ginkgo.It("crd propagation testing", func() {
 			framework.GetCRD(dynamicClient, crd.Name)
 			framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(),
 				fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1"), crd.Spec.Names.Kind)
-
-			framework.RemoveCRD(dynamicClient, crd.Name)
-			framework.WaitCRDDisappearedOnClusters(framework.ClusterNames(), crd.Name)
-			framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
 		})
 	})
 })

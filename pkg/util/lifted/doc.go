@@ -31,6 +31,8 @@ package lifted
 | deployment.go            | https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go#L536-L544   | func GetNewReplicaSet                   | Y       |
 | deployment.go            | https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go#L644-L658   | func FindNewReplicaSet                  | N       |
 | discovery.go             | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector.go#L696-L732 | func GetDeletableResources              | N       |
+| logs.go                  | https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/logs/logs.go#L411-L440     | func DefaultConsumeRequest              | N       |
+| logs.go                  | https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/util/util.go#L32-L42           | func ParseRFC3339                       | N       |
 | nodeselector.go          | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L365-L397                     | func NodeSelectorRequirementsAsSelector | N       |
 | objectwatcher.go         | https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L35-L43                  | func ObjectVersion                      | N       |
 | objectwatcher.go         | https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L45-L59                  | func ObjectNeedsUpdate                  | N       |
@@ -40,6 +42,11 @@ package lifted
 | podtemplate.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L480-L486                  | func getPodsAnnotationSet               | N       |
 | podtemplate.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L488-L495                  | func getPodsPrefix                      | N       |
 | podtemplate.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L539-L562                  | func GetPodFromTemplate                 | Y       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L88-L247                  | func NewRequestInfo                     | Y       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L267-L274                 | func SplitPath                          | Y       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L73-L74                   | var specialVerbsNoSubresources          | N       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L76-L78                   | var namespaceSubresources               | N       |
+| requestinfo.go           | https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L67-L71                   | var specialVerbs                        | N       |
 | resourcename.go          | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/scheduler/util/utils.go#L144-L148                         | func IsScalarResourceName               | Y       |
 | retain.go                | https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go                            | func RetainServiceFields                | Y       |
 | retain.go                | https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go                            | func retainServiceHealthCheckNodePort   | Y       |

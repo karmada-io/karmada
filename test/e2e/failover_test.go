@@ -23,7 +23,7 @@ import (
 )
 
 // failover testing is used to test the rescheduling situation when some initially scheduled clusters fail
-var _ = ginkgo.Describe("failover testing", func() {
+var _ = framework.SerialDescribe("failover testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
 		var policyNamespace, policyName string
 		var deploymentNamespace, deploymentName string
@@ -66,10 +66,16 @@ var _ = ginkgo.Describe("failover testing", func() {
 			})
 		})
 
-		ginkgo.It("deployment failover testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
 
+		ginkgo.It("deployment failover testing", func() {
 			var disabledClusters []string
 			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 
@@ -130,9 +136,6 @@ var _ = ginkgo.Describe("failover testing", func() {
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

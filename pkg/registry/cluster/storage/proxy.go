@@ -109,6 +109,10 @@ func newProxyHandler(location *url.URL, transport http.RoundTripper, impersonate
 
 		req.Header.Set("Authorization", fmt.Sprintf("bearer %s", impersonateToken))
 
+		// Retain RawQuery in location because upgrading the request will use it.
+		// See https://github.com/karmada-io/karmada/issues/1618#issuecomment-1103793290 for more info.
+		location.RawQuery = req.URL.RawQuery
+
 		handler := newThrottledUpgradeAwareProxyHandler(location, transport, true, false, responder)
 		handler.ServeHTTP(rw, req)
 	}), nil

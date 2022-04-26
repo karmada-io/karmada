@@ -118,6 +118,33 @@ app: {{$name}}-scheduler
 {{- end -}}
 
 
+{{- define "karmada.descheduler.labels" -}}
+{{ $name :=  include "karmada.name" . }}
+{{- if .Values.descheduler.labels -}}
+{{- range $key, $value := .Values.descheduler.labels}}
+{{ $key }}: {{ $value }}
+{{- end -}}
+{{- else -}}
+app: {{$name}}
+{{- end -}}
+{{- end -}}
+
+{{- define "karmada.descheduler.podLabels" -}}
+{{ $name :=  include "karmada.name" .}}
+{{- if .Values.descheduler.podLabels }}
+{{- range $key, $value := .Values.descheduler.podLabels}}
+{{ $key }}: {{ $value }}
+{{- end}}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.descheduler.kubeconfig.volume" -}}
+- name: kubeconfig-secret
+  secret:
+    secretName: karmada-kubeconfig
+{{- end -}}
+
+
 {{- define "karmada.webhook.labels" -}}
 {{ $name :=  include "karmada.name" .}}
 {{- if .Values.webhook.labels }}

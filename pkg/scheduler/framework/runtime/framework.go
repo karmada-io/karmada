@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"reflect"
 
-	"k8s.io/klog/v2"
-
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
-	plugins2 "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
 )
 
 // frameworkImpl implements the Framework interface and is responsible for initializing and running scheduler
@@ -24,27 +21,25 @@ type frameworkImpl struct {
 
 var _ framework.Framework = &frameworkImpl{}
 
-// NewFramework creates a scheduling framework.
-func NewFramework(plugins []string) framework.Framework {
-	pluginsMap := plugins2.NewPlugins()
-	out := &frameworkImpl{}
-	filterPluginsList := reflect.ValueOf(&out.filterPlugins).Elem()
-	scorePluginsList := reflect.ValueOf(&out.scorePlugins).Elem()
-
+// NewFramework creates a scheduling framework by registry.
+func NewFramework(r Registry) (framework.Framework, error) {
+	f := &frameworkImpl{}
+	filterPluginsList := reflect.ValueOf(&f.filterPlugins).Elem()
+	scorePluginsList := reflect.ValueOf(&f.scorePlugins).Elem()
 	filterType := filterPluginsList.Type().Elem()
 	scoreType := scorePluginsList.Type().Elem()
 
-	for _, p := range plugins {
-		plugin := pluginsMap[p]
-		if plugin == nil {
-			klog.Warningf("scheduling plugin %s not exists", p)
-			continue
+	for name, factory := range r {
+		p, err := factory()
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize plugin %q: %w", name, err)
 		}
-		addPluginToList(plugin, filterType, &filterPluginsList)
-		addPluginToList(plugin, scoreType, &scorePluginsList)
+
+		addPluginToList(p, filterType, &filterPluginsList)
+		addPluginToList(p, scoreType, &scorePluginsList)
 	}
 
-	return out
+	return f, nil
 }
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
