@@ -268,20 +268,6 @@ func IsResourceApplied(workStatus *workv1alpha1.WorkStatus) bool {
 	return meta.IsStatusConditionTrue(workStatus.Conditions, workv1alpha1.WorkApplied)
 }
 
-// IsWorkContains checks if the target resource exists in a work.
-// Note: This function checks the Work object's status to detect the target resource, so the Work should be 'Applied',
-// otherwise always returns false.
-func IsWorkContains(workStatus *workv1alpha1.WorkStatus, targetResource schema.GroupVersionKind) bool {
-	for _, manifestStatuses := range workStatus.ManifestStatuses {
-		if targetResource.Group == manifestStatuses.Identifier.Group &&
-			targetResource.Version == manifestStatuses.Identifier.Version &&
-			targetResource.Kind == manifestStatuses.Identifier.Kind {
-			return true
-		}
-	}
-	return false
-}
-
 // BuildStatusRawExtension builds raw JSON by a status map.
 func BuildStatusRawExtension(status interface{}) (*runtime.RawExtension, error) {
 	statusJSON, err := json.Marshal(status)
