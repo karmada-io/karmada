@@ -31,6 +31,8 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/logs/logs.go#L411-L440
+
 // DefaultConsumeRequest reads the data from request and writes into
 // the out writer. It buffers data from requests until the newline or io.EOF
 // occurs in the data, so it doesn't interleave logs sub-line
@@ -61,6 +63,8 @@ func DefaultConsumeRequest(request rest.ResponseWrapper, out io.Writer) error {
 		}
 	}
 }
+
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/util/util.go#L32-L42
 
 // ParseRFC3339 parses an RFC3339 date in either RFC3339Nano or RFC3339 format.
 func ParseRFC3339(s string, nowFn func() metav1.Time) (metav1.Time, error) {

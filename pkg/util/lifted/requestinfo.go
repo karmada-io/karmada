@@ -30,6 +30,9 @@ import (
 var apiPrefixes = sets.NewString("apis", "api")
 var grouplessAPIPrefixes = sets.NewString("api")
 
+// +lifted-source: https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L88-L247
+// +lifted-changed
+
 // TODO write an integration test against the swagger doc to test the RequestInfo and match up behavior to responses
 
 // NewRequestInfo returns the information from the http request.  If error is not nil, RequestInfo holds the information as best it is known before the failure
@@ -176,6 +179,9 @@ func NewRequestInfo(req *http.Request) *apirequest.RequestInfo {
 	return &requestInfo
 }
 
+// +lifted-source: https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L267-L274
+// +lifted-changed
+
 // SplitPath returns the segments for a URL path.
 func SplitPath(path string) []string {
 	path = strings.Trim(path, "/")
@@ -185,12 +191,18 @@ func SplitPath(path string) []string {
 	return strings.Split(path, "/")
 }
 
+// +lifted-source: https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L73-L74
+
 // specialVerbsNoSubresources contains root verbs which do not allow subresources
 var specialVerbsNoSubresources = sets.NewString("proxy")
+
+// +lifted-source: https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L76-L78
 
 // namespaceSubresources contains subresources of namespace
 // this list allows the parser to distinguish between a namespace subresource, and a namespaced resource
 var namespaceSubresources = sets.NewString("status", "finalize")
+
+// +lifted-source: https://github.com/kubernetes/apiserver/blob/release-1.23/pkg/endpoints/request/requestinfo.go#L67-L71
 
 // specialVerbs contains just strings which are used in REST paths for special actions that don't fall under the normal
 // CRUDdy GET/POST/PUT/DELETE actions on REST objects.
