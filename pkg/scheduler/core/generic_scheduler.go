@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/strategy"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -147,51 +148,25 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 func (g *genericScheduler) assignReplicas(
 	clusters []*clusterv1alpha1.Cluster,
 	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
-	object *workv1alpha2.ResourceBindingSpec,
+	spec *workv1alpha2.ResourceBindingSpec,
 ) ([]workv1alpha2.TargetCluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, time.Now())
+
 	if len(clusters) == 0 {
 		return nil, fmt.Errorf("no clusters available to schedule")
 	}
-	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 
-	if object.Replicas > 0 && replicaSchedulingStrategy != nil {
-		switch replicaSchedulingStrategy.ReplicaSchedulingType {
-		// 1. Duplicated Scheduling
-		case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
-			for i, cluster := range clusters {
-				targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
-			}
-			return targetClusters, nil
-		// 2. Divided Scheduling
-		case policyv1alpha1.ReplicaSchedulingTypeDivided:
-			switch replicaSchedulingStrategy.ReplicaDivisionPreference {
-			// 2.1 Weighted Scheduling
-			case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
-				// If ReplicaDivisionPreference is set to "Weighted" and WeightPreference is not set,
-				// scheduler will weight all clusters averagely.
-				if replicaSchedulingStrategy.WeightPreference == nil {
-					replicaSchedulingStrategy.WeightPreference = getDefaultWeightPreference(clusters)
-				}
-				// 2.1.1 Dynamic Weighted Scheduling (by resource)
-				if len(replicaSchedulingStrategy.WeightPreference.DynamicWeight) != 0 {
-					return divideReplicasByDynamicWeight(clusters, replicaSchedulingStrategy.WeightPreference.DynamicWeight, object)
-				}
-				// 2.1.2 Static Weighted Scheduling
-				return divideReplicasByStaticWeight(clusters, replicaSchedulingStrategy.WeightPreference.StaticWeightList, object.Replicas)
-			// 2.2 Aggregated scheduling (by resource)
-			case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
-				return divideReplicasByResource(clusters, object, policyv1alpha1.ReplicaDivisionPreferenceAggregated)
-			default:
-				return nil, fmt.Errorf("undefined replica division preference: %s", replicaSchedulingStrategy.ReplicaDivisionPreference)
-			}
-		default:
-			return nil, fmt.Errorf("undefined replica scheduling type: %s", replicaSchedulingStrategy.ReplicaSchedulingType)
+	if spec.Replicas <= 0 {
+		targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
+		for i, cluster := range clusters {
+			targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
 		}
+		return targetClusters, nil
 	}
 
-	for i, cluster := range clusters {
-		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
+	if assigner, ok := strategy.GetAssignReplicas(replicaSchedulingStrategy); ok {
+		return assigner.AssignReplica(spec, replicaSchedulingStrategy, clusters)
 	}
-	return targetClusters, nil
+
+	return nil, fmt.Errorf("undefined replica scheduling type")
 }
