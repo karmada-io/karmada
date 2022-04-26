@@ -118,18 +118,21 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 			})
 		})
 
-		ginkgo.It("propagation with fieldSelector testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
 
+		ginkgo.It("propagation with fieldSelector testing", func() {
 			ginkgo.By("check whether deployment is scheduled to clusters which meeting the fieldSelector requirements", func() {
 				targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 				gomega.Expect(len(targetClusterNames) == 1).Should(gomega.BeTrue())
 				gomega.Expect(targetClusterNames[0] == desiredScheduleResult).Should(gomega.BeTrue())
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

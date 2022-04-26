@@ -175,7 +175,7 @@ func getPrepareInfo() (serviceExport mcsv1alpha1.ServiceExport, serviceImport mc
 	return
 }
 
-var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
+var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 	var serviceExportPolicyName, serviceImportPolicyName string
 	var serviceExportPolicy, serviceImportPolicy *policyv1alpha1.ClusterPropagationPolicy
 	var serviceExport mcsv1alpha1.ServiceExport
@@ -219,67 +219,63 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 		framework.CreateClusterPropagationPolicy(karmadaClient, serviceImportPolicy)
 		framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(), mcsv1alpha1.GroupVersion.String(), util.ServiceExportKind)
 		framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(), mcsv1alpha1.GroupVersion.String(), util.ServiceImportKind)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveClusterPropagationPolicy(karmadaClient, serviceImportPolicy.Name)
+			framework.RemoveClusterPropagationPolicy(karmadaClient, serviceExportPolicy.Name)
+
+			// Now the deletion of ClusterPropagationPolicy will not cause the deletion of related binding and workload on member clusters,
+			// so we do not need to wait the disappearance of ServiceExport CRD and ServiceImport CRD
+		})
 	})
 
-	ginkgo.AfterEach(func() {
-		framework.RemoveClusterPropagationPolicy(karmadaClient, serviceImportPolicy.Name)
-		framework.RemoveClusterPropagationPolicy(karmadaClient, serviceExportPolicy.Name)
+	ginkgo.BeforeEach(func() {
+		exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
+		gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
 
-		// Now the deletion of ClusterPropagationPolicy will not cause the deletion of related binding and workload on member clusters,
-		// so we do not need to wait the disappearance of ServiceExport CRD and ServiceImport CRD
-	})
+		klog.Infof("Create Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName)
+		framework.CreateDeployment(exportClusterClient, &demoDeployment)
 
-	ginkgo.Context("Connectivity testing", func() {
-		ginkgo.BeforeEach(func() {
-			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
-			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
+		klog.Infof("Create Service(%s/%s) in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName)
+		framework.CreateService(exportClusterClient, &demoService)
 
-			klog.Infof("Create Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName)
-			framework.CreateDeployment(exportClusterClient, &demoDeployment)
+		ginkgo.By(fmt.Sprintf("Wait Service(%s/%s)'s EndpointSlice exist in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName), func() {
+			gomega.Eventually(func(g gomega.Gomega) (int, error) {
+				endpointSlices, err := exportClusterClient.DiscoveryV1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
+					LabelSelector: labels.Set{discoveryv1.LabelServiceName: demoService.Name}.AsSelector().String(),
+				})
+				g.Expect(err).NotTo(gomega.HaveOccurred())
 
-			klog.Infof("Create Service(%s/%s) in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName)
-			framework.CreateService(exportClusterClient, &demoService)
-
-			ginkgo.By(fmt.Sprintf("Wait Service(%s/%s)'s EndpointSlice exist in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName), func() {
-				gomega.Eventually(func(g gomega.Gomega) (int, error) {
-					endpointSlices, err := exportClusterClient.DiscoveryV1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
-						LabelSelector: labels.Set{discoveryv1.LabelServiceName: demoService.Name}.AsSelector().String(),
-					})
-					g.Expect(err).NotTo(gomega.HaveOccurred())
-
-					epNums := 0
-					for _, slice := range endpointSlices.Items {
-						epNums += len(slice.Endpoints)
-					}
-					return epNums, nil
-				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
-			})
+				epNums := 0
+				for _, slice := range endpointSlices.Items {
+					epNums += len(slice.Endpoints)
+				}
+				return epNums, nil
+			}, pollTimeout, pollInterval).Should(gomega.Equal(1))
 		})
 
-		ginkgo.AfterEach(func() {
-			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
-			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
-
+		ginkgo.DeferCleanup(func() {
 			klog.Infof("Delete Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName)
 			framework.RemoveDeployment(exportClusterClient, demoDeployment.Namespace, demoDeployment.Name)
 
 			klog.Infof("Delete Service(%s/%s) in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName)
 			framework.RemoveService(exportClusterClient, demoService.Namespace, demoService.Name)
 		})
+	})
 
-		ginkgo.AfterEach(func() {
-			ginkgo.By("Cleanup", func() {
-				err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	ginkgo.AfterEach(func() {
+		ginkgo.By("Cleanup", func() {
+			err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
-			framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
+			err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 
+		framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
+		framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
+	})
+
+	ginkgo.Context("Connectivity testing", func() {
 		ginkgo.It("Export Service from source-clusters, import Service to destination-clusters", func() {
 			importClusterClient := framework.GetClusterClient(serviceImportClusterName)
 			gomega.Expect(importClusterClient).ShouldNot(gomega.BeNil())
@@ -373,56 +369,6 @@ var _ = ginkgo.Describe("[MCS] Multi-Cluster Service testing", func() {
 	})
 
 	ginkgo.Context("EndpointSlices change testing", func() {
-		ginkgo.BeforeEach(func() {
-			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
-			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
-
-			klog.Infof(fmt.Sprintf("Create Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName))
-			framework.CreateDeployment(exportClusterClient, &demoDeployment)
-
-			klog.Infof(fmt.Sprintf("Create Service(%s/%s) in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName))
-			framework.CreateService(exportClusterClient, &demoService)
-
-			ginkgo.By(fmt.Sprintf("Wait Service(%s/%s)'s EndpointSlice exist in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName), func() {
-				gomega.Eventually(func(g gomega.Gomega) (int, error) {
-					endpointSlices, err := exportClusterClient.DiscoveryV1().EndpointSlices(demoService.Namespace).List(context.TODO(), metav1.ListOptions{
-						LabelSelector: labels.Set{discoveryv1.LabelServiceName: demoService.Name}.AsSelector().String(),
-					})
-					g.Expect(err).NotTo(gomega.HaveOccurred())
-
-					epNums := 0
-					for _, slice := range endpointSlices.Items {
-						epNums += len(slice.Endpoints)
-					}
-					return epNums, nil
-				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
-			})
-		})
-
-		ginkgo.AfterEach(func() {
-			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
-			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
-
-			klog.Infof(fmt.Sprintf("Delete Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName))
-			framework.RemoveDeployment(exportClusterClient, demoDeployment.Namespace, demoDeployment.Name)
-
-			klog.Infof(fmt.Sprintf("Delete Service(%s/%s) in %s cluster", demoService.Namespace, demoService.Name, serviceExportClusterName))
-			framework.RemoveService(exportClusterClient, demoService.Namespace, demoService.Name)
-		})
-
-		ginkgo.AfterEach(func() {
-			ginkgo.By("Cleanup", func() {
-				err := controlPlaneClient.Delete(context.TODO(), &serviceExport)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-				err = controlPlaneClient.Delete(context.TODO(), &serviceImport)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			framework.RemovePropagationPolicy(karmadaClient, exportPolicy.Namespace, exportPolicy.Name)
-			framework.RemovePropagationPolicy(karmadaClient, importPolicy.Namespace, importPolicy.Name)
-		})
-
 		ginkgo.It("Update Deployment's replicas", func() {
 			exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 			gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())

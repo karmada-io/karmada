@@ -1,21 +1,21 @@
 package plugins
 
 import (
-	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/apiinstalled"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusterlocality"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 )
 
-// NewPlugins builds all the scheduling plugins.
-func NewPlugins() map[string]framework.Plugin {
-	return map[string]framework.Plugin{
-		clusteraffinity.Name:  clusteraffinity.New(),
-		tainttoleration.Name:  tainttoleration.New(),
-		apiinstalled.Name:     apiinstalled.New(),
-		clusterlocality.Name:  clusterlocality.New(),
-		spreadconstraint.Name: spreadconstraint.New(),
+// NewInTreeRegistry builds the registry with all the in-tree plugins.
+func NewInTreeRegistry() runtime.Registry {
+	return runtime.Registry{
+		apiinstalled.Name:     apiinstalled.New,
+		tainttoleration.Name:  tainttoleration.New,
+		clusteraffinity.Name:  clusteraffinity.New,
+		spreadconstraint.Name: spreadconstraint.New,
+		clusterlocality.Name:  clusterlocality.New,
 	}
 }

@@ -117,6 +117,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	clustersReplicas := calAvailableReplicas(clusters, rbSpec)
 	for i, clustersReplica := range clustersReplicas {
 		info.Clusters[i].AvailableReplicas = int64(clustersReplica.Replicas)
+		info.Clusters[i].AvailableReplicas += int64(rbSpec.AssignedReplicasForCluster(clustersReplica.Name))
 	}
 
 	sortClusters(info.Clusters)

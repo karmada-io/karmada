@@ -21,6 +21,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -50,6 +51,7 @@ type WorkStatusController struct {
 	ClusterClientSetFunc      func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
 	ClusterCacheSyncTimeout   metav1.Duration
 	RateLimiterOptions        ratelimiterflag.Options
+	ResourceInterpreter       resourceinterpreter.ResourceInterpreter
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -275,10 +277,10 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 
 // reflectStatus grabs cluster object's running status then updates to its owner object(Work).
 func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
-	statusMap, _, err := unstructured.NestedMap(clusterObj.Object, "status")
+	statusRaw, err := c.ResourceInterpreter.ReflectStatus(clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
-		return err
+		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter.",
+			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
 	}
 
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)
@@ -288,29 +290,27 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 
 	manifestStatus := workv1alpha1.ManifestStatus{
 		Identifier: *identifier,
+		Status:     statusRaw,
 	}
 
-	if statusMap != nil {
-		rawExtension, err := helper.BuildStatusRawExtension(statusMap)
-		if err != nil {
-			return err
-		}
-		manifestStatus.Status = rawExtension
-	}
-
+	workCopy := work.DeepCopy()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
-		updateErr := c.Status().Update(context.TODO(), work)
+		manifestStatuses := c.mergeStatus(workCopy.Status.ManifestStatuses, manifestStatus)
+		if reflect.DeepEqual(workCopy.Status.ManifestStatuses, manifestStatuses) {
+			return nil
+		}
+		workCopy.Status.ManifestStatuses = manifestStatuses
+		updateErr := c.Status().Update(context.TODO(), workCopy)
 		if updateErr == nil {
 			return nil
 		}
 
 		updated := &workv1alpha1.Work{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: workCopy.Namespace, Name: workCopy.Name}, updated); err == nil {
 			//make a copy, so we don't mutate the shared cache
-			work = updated.DeepCopy()
+			workCopy = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
+			klog.Errorf("failed to get updated work %s/%s: %v", workCopy.Namespace, workCopy.Name, err)
 		}
 		return updateErr
 	})

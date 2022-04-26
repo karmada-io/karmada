@@ -191,14 +191,29 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 	clusterPredicateFunc := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			obj := createEvent.Object.(*clusterv1alpha1.Cluster)
+
+			if obj.Spec.SecretRef == nil {
+				return false
+			}
+
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
+
+			if obj.Spec.SecretRef == nil {
+				return false
+			}
+
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
+
+			if obj.Spec.SecretRef == nil {
+				return false
+			}
+
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
@@ -303,6 +318,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		ClusterCacheSyncTimeout:   opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs: opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:        ctx.Opts.RateLimiterOptions,
+		ResourceInterpreter:       ctx.ResourceInterpreter,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {

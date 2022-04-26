@@ -74,16 +74,15 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment present on member clusters have correct image value")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
@@ -94,10 +93,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 					}
 					return true
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
-
 	})
 
 	ginkgo.Context("Pod override all images in container list", func() {
@@ -156,16 +152,15 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.CreatePod(kubeClient, pod)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
+			})
 		})
 
 		ginkgo.It("pod imageOverride testing", func() {
-			framework.CreatePod(kubeClient, pod)
-
 			klog.Infof("check if pod present on member clusters have correct image value")
 			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name, func(pod *corev1.Pod) bool {
 				for _, container := range pod.Spec.Containers {
@@ -175,10 +170,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				}
 				return true
 			})
-
-			framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
 		})
-
 	})
 
 	ginkgo.Context("Deployment override specific images in container list", func() {
@@ -230,25 +222,21 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment present on member clusters have correct image value")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
 					return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
-
 	})
 })
 
@@ -300,25 +288,21 @@ var _ = ginkgo.Describe("OverridePolicy with nil resourceSelectors", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment present on member clusters have correct image value")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
 					return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
-
 	})
 })
 
@@ -389,16 +373,15 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment present on member clusters have correct image value")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
@@ -409,10 +392,7 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 					}
 					return true
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
-
 	})
 
 	ginkgo.Context("Pod override all images in container list", func() {
@@ -476,16 +456,15 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.CreatePod(kubeClient, pod)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
+			})
 		})
 
 		ginkgo.It("pod imageOverride testing", func() {
-			framework.CreatePod(kubeClient, pod)
-
 			klog.Infof("check if pod present on member clusters have correct image value")
 			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name, func(pod *corev1.Pod) bool {
 				for _, container := range pod.Spec.Containers {
@@ -495,10 +474,7 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 				}
 				return true
 			})
-
-			framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
 		})
-
 	})
 
 	ginkgo.Context("Deployment override specific images in container list", func() {
@@ -555,25 +531,21 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment present on member clusters have correct image value")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
 					return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
-
 	})
 })
 
@@ -631,24 +603,20 @@ var _ = ginkgo.Describe("OverrideRules with nil resourceSelectors", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
-		})
-
-		ginkgo.AfterEach(func() {
-			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
-			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment present on member clusters have correct image value")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
 					return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
 				})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
-
 	})
 })
