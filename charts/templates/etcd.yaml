@@ -103,7 +103,7 @@ spec:
             path: /var/lib/{{ include "karmada.namespace" . }}/karmada-etcd
             type: DirectoryOrCreate
           name: etcd-data
-        {{- end}}
+        {{- end }}
   {{- if eq .Values.etcd.internal.storageType "pvc"}}
   volumeClaimTemplates:
     - metadata:
@@ -114,7 +114,7 @@ spec:
         resources:
           requests:
             storage: {{ .Values.etcd.internal.pvc.size }}
-  {{- end}}
+  {{- end }}
 ---
 apiVersion: v1
 kind: Service

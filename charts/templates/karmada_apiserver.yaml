@@ -168,4 +168,4 @@ spec:
   selector:
   {{- include "karmada.apiserver.labels" . | nindent 4}}
 
-{{- end}}
+{{- end }}

@@ -12,7 +12,7 @@
 {{- if .Values.apiServer.labels }}
 {{- range $key, $value := .Values.apiServer.labels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- else}}
 app: {{- include "karmada.name" .}}-apiserver
 {{- end }}
@@ -22,7 +22,7 @@ app: {{- include "karmada.name" .}}-apiserver
 {{- if .Values.apiServer.podLabels }}
 {{- range $key, $value := .Values.apiServer.podLabels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -30,7 +30,7 @@ app: {{- include "karmada.name" .}}-apiserver
 {{- if .Values.aggregatedApiServer.labels }}
 {{- range $key, $value := .Values.aggregatedApiServer.labels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- else}}
 app: {{- include "karmada.name" .}}-aggregated-apiserver
 {{- end }}
@@ -40,7 +40,7 @@ app: {{- include "karmada.name" .}}-aggregated-apiserver
 {{- if .Values.aggregatedApiServer.podLabels }}
 {{- range $key, $value := .Values.aggregatedApiServer.podLabels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -48,7 +48,7 @@ app: {{- include "karmada.name" .}}-aggregated-apiserver
 {{- if .Values.kubeControllerManager.labels }}
 {{- range $key, $value := .Values.kubeControllerManager.labels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- else}}
 app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end }}
@@ -58,7 +58,7 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- if .Values.kubeControllerManager.podLabels }}
 {{- range $key, $value := .Values.kubeControllerManager.podLabels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -92,7 +92,7 @@ app: {{$name}}-controller-manager
 {{- if .Values.controllerManager.podLabels }}
 {{- range $key, $value := .Values.controllerManager.podLabels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -113,7 +113,7 @@ app: {{$name}}-scheduler
 {{- if .Values.scheduler.podLabels }}
 {{- range $key, $value := .Values.scheduler.podLabels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -134,7 +134,7 @@ app: {{$name}}
 {{- if .Values.descheduler.podLabels }}
 {{- range $key, $value := .Values.descheduler.podLabels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -150,7 +150,7 @@ app: {{$name}}
 {{- if .Values.webhook.labels }}
 {{- range $key, $value := .Values.webhook.labels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- else}}
 app: {{$name}}-webhook
 {{- end }}
@@ -161,7 +161,7 @@ app: {{$name}}-webhook
 {{- if .Values.webhook.podLabels }}
 {{- range $key, $value := .Values.webhook.podLabels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -171,7 +171,7 @@ app: {{$name}}-webhook
 {{- if .Values.agent.labels }}
 {{- range $key, $value := .Values.agent.labels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- else}}
 app: {{$name}}
 {{- end }}
@@ -182,7 +182,7 @@ app: {{$name}}
 {{- if .Values.agent.podLabels }}
 {{- range $key, $value := .Values.agent.podLabels }}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -199,7 +199,7 @@ caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- if .Values.schedulerEstimator.podLabels }}
 {{- range $key, $value := .Values.schedulerEstimator.podLabels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -207,6 +207,6 @@ caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 {{- if .Values.schedulerEstimator.labels }}
 {{- range $key, $value := .Values.schedulerEstimator.labels}}
 {{ $key }}: {{ $value }}
-{{- end}}
+{{- end }}
 {{- end }}
 {{- end -}}

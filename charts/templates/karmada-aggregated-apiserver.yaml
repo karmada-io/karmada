@@ -109,4 +109,4 @@ spec:
   selector:
     {{- include "karmada.aggregatedApiserver.labels" . | nindent 4}}
 
-{{- end}}
+{{- end }}
