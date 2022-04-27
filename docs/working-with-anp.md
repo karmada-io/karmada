@@ -264,8 +264,8 @@ cert_yaml=proxy-agent.yaml
 
 karmada_controlplan_addr=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' karmada-host-control-plane)
 member3_cluster_addr=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' member3-control-plane)
-sed -i'' -e "s/{{proxy_server_addr}}/${karmada_controlplan_addr}/g" proxy-agent.yaml 
-sed -i'' -e "s/{{identifiers}}/${member3_cluster_addr}/g" proxy-agent.yaml 
+sed -i'' -e "s/{{proxy_server_addr}}/${karmada_controlplan_addr}/g" ${cert_yaml}
+sed -i'' -e "s/{{identifiers}}/${member3_cluster_addr}/g" ${cert_yaml}
 
 PROXY_AGENT_CA_CRT=$(cat certs/agent/issued/ca.crt | base64 | tr "\n" " "|sed s/[[:space:]]//g)
 sed -i'' -e "s/{{proxy_agent_ca_crt}}/${PROXY_AGENT_CA_CRT}/g" ${cert_yaml}
