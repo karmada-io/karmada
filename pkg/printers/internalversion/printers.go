@@ -19,6 +19,7 @@ func AddHandlers(h printers.PrintHandler) {
 		{Name: "Mode", Type: "string", Description: "SyncMode describes how a cluster sync resources from karmada control plane."},
 		{Name: "Ready", Type: "string", Description: "The aggregate readiness state of this cluster for accepting workloads."},
 		{Name: "Age", Type: "string", Description: metav1.ObjectMeta{}.SwaggerDoc()["creationTimestamp"]},
+		{Name: "APIEndpoint", Type: "string", Priority: 1, Description: "The API endpoint of the member cluster."},
 	}
 	// ignore errors because we enable errcheck golangci-lint.
 	_ = h.TableHandler(clusterColumnDefinitions, printClusterList)
@@ -56,6 +57,9 @@ func printCluster(cluster *clusterapis.Cluster, options printers.GenerateOptions
 		cluster.Spec.SyncMode,
 		ready,
 		translateTimestampSince(cluster.CreationTimestamp))
+	if options.Wide {
+		row.Cells = append(row.Cells, cluster.Spec.APIEndpoint)
+	}
 	return []metav1.TableRow{row}, nil
 }
 
