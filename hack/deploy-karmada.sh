@@ -112,6 +112,11 @@ function installCRDs() {
     kubectl kustomize "${crd_path}"/_crds | kubectl apply -f -
 }
 
+# Use x.x.x.6 IP address, which is the same CIDR with the node address of the Kind cluster,
+# as the loadBalancer service address of component karmada-interpreter-webhook-example.
+interpreter_webhook_example_service_external_ip_prefix=$(echo $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}") | awk -F. '{printf "%s.%s.%s",$1,$2,$3}')
+interpreter_webhook_example_service_external_ip_address=${interpreter_webhook_example_service_external_ip_prefix}.6
+
 # generate cert
 util::cmd_must_exist "openssl"
 util::cmd_must_exist_cfssl ${CFSSL_VERSION}
@@ -119,7 +124,7 @@ util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 util::create_signing_certkey "" "${CERT_DIR}" server '"client auth","server auth"'
 util::create_signing_certkey "" "${CERT_DIR}" front-proxy '"client auth","server auth"'
 # signs a certificate
-util::create_certkey "" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
+util::create_certkey "" "${CERT_DIR}" "server-ca" karmada system:admin kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1" "${interpreter_webhook_example_service_external_ip_address}"
 util::create_certkey "" "${CERT_DIR}" "front-proxy-ca" front-proxy-client front-proxy-client kubernetes.default.svc "*.etcd.karmada-system.svc.cluster.local" "*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1"
 
 # create namespace for control plane components
