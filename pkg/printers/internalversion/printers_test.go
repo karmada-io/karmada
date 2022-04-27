@@ -13,8 +13,9 @@ import (
 
 func TestPrintCluster(t *testing.T) {
 	tests := []struct {
-		cluster clusterapis.Cluster
-		expect  []metav1.TableRow
+		cluster         clusterapis.Cluster
+		generateOptions printers.GenerateOptions
+		expect          []metav1.TableRow
 	}{
 		// Test name, kubernetes version, sync mode, cluster ready status,
 		{
@@ -30,12 +31,30 @@ func TestPrintCluster(t *testing.T) {
 					},
 				},
 			},
+			printers.GenerateOptions{Wide: false},
 			[]metav1.TableRow{{Cells: []interface{}{"test1", "1.21.7", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>"}}},
+		},
+		{
+			clusterapis.Cluster{
+				ObjectMeta: metav1.ObjectMeta{Name: "test2"},
+				Spec: clusterapis.ClusterSpec{
+					SyncMode:    clusterapis.Push,
+					APIEndpoint: "https://kubernetes.default.svc.cluster.local:6443",
+				},
+				Status: clusterapis.ClusterStatus{
+					KubernetesVersion: "1.21.7",
+					Conditions: []metav1.Condition{
+						{Type: clusterapis.ClusterConditionReady, Status: metav1.ConditionTrue},
+					},
+				},
+			},
+			printers.GenerateOptions{Wide: true},
+			[]metav1.TableRow{{Cells: []interface{}{"test2", "1.21.7", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>", "https://kubernetes.default.svc.cluster.local:6443"}}},
 		},
 	}
 
 	for i, test := range tests {
-		rows, err := printCluster(&test.cluster, printers.GenerateOptions{})
+		rows, err := printCluster(&test.cluster, test.generateOptions)
 		if err != nil {
 			t.Fatal(err)
 		}
