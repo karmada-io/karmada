@@ -12,9 +12,6 @@ jobs:
     if: ${{ github.repository == 'karmada-io/karmada' && github.ref == 'refs/heads/master' }}
     strategy:
       matrix:
-        arch:
-          - amd64
-          - arm64
         target:
           - karmada-controller-manager
           - karmada-scheduler
@@ -33,10 +30,6 @@ jobs:
           # 0 indicates all history for all branches and tags.
           # for `git describe --tags` in Makefile.
           fetch-depth: 0
-      - name: install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17.x
       - name: install QEMU
         uses: docker/setup-qemu-action@v1
       - name: install Buildx
@@ -49,8 +42,4 @@ jobs:
       - name: build and publish images
         env:
           VERSION: latest
-          GOARCH: ${{ matrix.arch }}
-        # When we build binary for multiple platform, `go build` may be skipped as `$(SOURCES)` unchanged.
-        # So we clean the binary at first, and force to run `go build`.
-        # See https://github.com/karmada-io/karmada/pull/1649#issuecomment-1107959879 for more info.
-        run: make clean mp-image-${{ matrix.target }}
+        run: make mp-image-${{ matrix.target }}
