@@ -6,7 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -22,7 +22,7 @@ func getAllDefaultReflectStatusInterpreter() map[schema.GroupVersionKind]reflect
 	s := make(map[schema.GroupVersionKind]reflectStatusInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = reflectDeploymentStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = reflectServiceStatus
-	s[extensionsv1beta1.SchemeGroupVersion.WithKind(util.IngressKind)] = reflectIngressStatus
+	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = reflectIngressStatus
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = reflectJobStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = reflectDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = reflectStatefulSetStatus

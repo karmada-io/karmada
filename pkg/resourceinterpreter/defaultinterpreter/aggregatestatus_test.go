@@ -7,7 +7,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -140,8 +140,8 @@ func TestAggregateIngressStatus(t *testing.T) {
 		{ClusterName: "member1", Status: raw, Applied: true},
 	}
 
-	oldIngress := &extensionsv1beta1.Ingress{}
-	newIngress := &extensionsv1beta1.Ingress{Status: extensionsv1beta1.IngressStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}}}
+	oldIngress := &networkingv1.Ingress{}
+	newIngress := &networkingv1.Ingress{Status: networkingv1.IngressStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}}}
 	oldObj, _ := helper.ToUnstructured(oldIngress)
 	newObj, _ := helper.ToUnstructured(newIngress)
 

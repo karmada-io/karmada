@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -549,4 +550,38 @@ func NewClusterRoleBinding(name, roleRefName string, subject []rbacv1.Subject) *
 			Name:     roleRefName,
 		},
 	}
+}
+
+// NewIngress will build a new ingress object.
+func NewIngress(namespace, name string) *networkingv1.Ingress {
+	nginxIngressClassName := "nginx"
+	pathTypePrefix := networkingv1.PathTypePrefix
+	return &networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "Ingress",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: &nginxIngressClassName,
+			Rules: []networkingv1.IngressRule{
+				{
+					Host: "www.demo.com",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Path:     "/testpath",
+									PathType: &pathTypePrefix,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: "test",
+											Port: networkingv1.ServiceBackendPort{
+												Number: 80,
+											},
+										},
+									}}}}}}}}}
 }

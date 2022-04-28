@@ -5,7 +5,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -196,8 +196,8 @@ func ConvertToServiceStatus(obj map[string]interface{}) (*corev1.ServiceStatus, 
 }
 
 // ConvertToIngress converts an Ingress object from unstructured to typed.
-func ConvertToIngress(obj *unstructured.Unstructured) (*extensionsv1beta1.Ingress, error) {
-	typedObj := &extensionsv1beta1.Ingress{}
+func ConvertToIngress(obj *unstructured.Unstructured) (*networkingv1.Ingress, error) {
+	typedObj := &networkingv1.Ingress{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}
