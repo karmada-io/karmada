@@ -486,6 +486,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 					"--bind-address=0.0.0.0",
 					"--cluster-status-update-frequency=10s",
 					"--secure-port=10357",
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
 				Ports: []corev1.ContainerPort{
