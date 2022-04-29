@@ -13,10 +13,8 @@ spec:
     kind: ClusterCache
     listKind: ClusterCacheList
     plural: clustercaches
-    shortNames:
-    - cc
     singular: clustercache
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:

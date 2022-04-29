@@ -19,7 +19,7 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=cc
+// +kubebuilder:resource:scope="Cluster"
 
 // ClusterCache defines a list of member cluster to be cached.
 type ClusterCache struct {
