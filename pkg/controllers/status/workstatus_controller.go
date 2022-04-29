@@ -334,7 +334,6 @@ func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, cl
 		Version: groupVersion.Version,
 		Kind:    clusterObj.GetKind(),
 		// TODO(RainbowMango): Consider remove Resource from Work API.
-		Resource:  "", // we don't need this fields.
 		Namespace: clusterObj.GetNamespace(),
 		Name:      clusterObj.GetName(),
 	}
