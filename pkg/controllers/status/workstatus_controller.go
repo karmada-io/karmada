@@ -330,11 +330,9 @@ func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, cl
 	identifier := &workv1alpha1.ResourceIdentifier{
 		Ordinal: ordinal,
 		// TODO(RainbowMango): Consider merge Group and Version to APIVersion from Work API.
-		Group:   groupVersion.Group,
-		Version: groupVersion.Version,
-		Kind:    clusterObj.GetKind(),
-		// TODO(RainbowMango): Consider remove Resource from Work API.
-		Resource:  "", // we don't need this fields.
+		Group:     groupVersion.Group,
+		Version:   groupVersion.Version,
+		Kind:      clusterObj.GetKind(),
 		Namespace: clusterObj.GetNamespace(),
 		Name:      clusterObj.GetName(),
 	}
