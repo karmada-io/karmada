@@ -50,6 +50,7 @@ const (
 	federatedResourceQuotaPrefix = "frq-"
 	configMapNamePrefix          = "configmap-"
 	secretNamePrefix             = "secret-"
+	ingressNamePrefix            = "ingress-"
 
 	updateDeploymentReplicas = 6
 	updateServicePort        = 81

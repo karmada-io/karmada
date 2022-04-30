@@ -7,7 +7,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
@@ -23,7 +23,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s := make(map[schema.GroupVersionKind]aggregateStatusInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = aggregateDeploymentStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = aggregateServiceStatus
-	s[extensionsv1beta1.SchemeGroupVersion.WithKind(util.IngressKind)] = aggregateIngressStatus
+	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = aggregateIngressStatus
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = aggregateJobStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = aggregateDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = aggregateStatefulSetStatus
@@ -122,12 +122,12 @@ func aggregateIngressStatus(object *unstructured.Unstructured, aggregatedStatusI
 		return nil, err
 	}
 
-	newStatus := &extensionsv1beta1.IngressStatus{}
+	newStatus := &networkingv1.IngressStatus{}
 	for _, item := range aggregatedStatusItems {
 		if item.Status == nil {
 			continue
 		}
-		temp := &extensionsv1beta1.IngressStatus{}
+		temp := &networkingv1.IngressStatus{}
 		if err := json.Unmarshal(item.Status.Raw, temp); err != nil {
 			klog.Errorf("Failed to unmarshal status ingress(%s/%s): %v", ingress.Namespace, ingress.Name, err)
 			return nil, err
