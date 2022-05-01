@@ -135,9 +135,6 @@ func verifyResourceInterpreterContextWithPatch(response *configv1alpha1.Resource
 	if response.PatchType == nil {
 		return fmt.Errorf("webhook returned nil response.patchType")
 	}
-	if len(response.Patch) == 0 {
-		return fmt.Errorf("webhook returned empty response.patch")
-	}
 	patchType := *response.PatchType
 	if patchType != configv1alpha1.PatchTypeJSONPatch {
 		return fmt.Errorf("webhook returned invalid response.patchType of %q", patchType)
