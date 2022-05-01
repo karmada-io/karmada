@@ -76,7 +76,7 @@ func (a *resourceExploringAccessor) GetTimeoutSeconds() *int32 {
 	return a.TimeoutSeconds
 }
 
-// GetExploreReviewVersions gets the webhook InterpreterContextVersions field.
+// GetInterpreterContextVersions gets the webhook InterpreterContextVersions field.
 func (a *resourceExploringAccessor) GetInterpreterContextVersions() []string {
 	return a.InterpreterContextVersions
 }

@@ -89,7 +89,7 @@ type ClusterCacheSpec struct {
 	StatusUpdatePeriodSeconds uint32 `json:"statusUpdatePeriodSeconds,omitempty"`
 }
 
-// ClusterAffinity represents the filter to select clusters.
+// ClusterSelector represents the filter to select clusters.
 type ClusterSelector struct {
 	// LabelSelector is a filter to select member clusters by labels.
 	// If non-nil and non-empty, only the clusters match this filter will be selected.
