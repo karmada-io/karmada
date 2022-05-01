@@ -93,6 +93,23 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			},
 		},
 	}
+	overridePolicy3 := &policyv1alpha1.OverridePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+			Name:      "overridePolicy3",
+		},
+		Spec: policyv1alpha1.OverrideSpec{
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{},
+			OverrideRules: []policyv1alpha1.RuleWithCluster{
+				{
+					TargetCluster: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{cluster1.Name, cluster2.Name},
+					},
+					Overriders: overriders3,
+				},
+			},
+		},
+	}
 	oldOverridePolicy := &policyv1alpha1.ClusterOverridePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
@@ -151,6 +168,19 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 				{
 					name:       overridePolicy2.Name,
 					namespace:  overridePolicy2.Namespace,
+					overriders: overriders3,
+				},
+			},
+		},
+		{
+			name:     "OverrideRules test 3",
+			policies: []GeneralOverridePolicy{overridePolicy3},
+			resource: deploymentObj,
+			cluster:  cluster2,
+			wantedOverriders: []policyOverriders{
+				{
+					name:       overridePolicy3.Name,
+					namespace:  overridePolicy3.Namespace,
 					overriders: overriders3,
 				},
 			},
