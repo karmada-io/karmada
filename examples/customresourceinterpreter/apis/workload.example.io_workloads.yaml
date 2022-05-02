@@ -6424,7 +6424,7 @@ spec:
                               type: string
                             nfs:
                               description: 'NFS represents an NFS mount on the host
-                                that shares a pod''s lifetime More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs'
+                                that shares a pod''s lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs'
                               properties:
                                 path:
                                   description: 'Path that is exported by the NFS server.
