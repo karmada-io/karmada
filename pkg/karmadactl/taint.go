@@ -14,9 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -25,10 +23,8 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
-
-// Following parseTaints(),validateTaintEffect(),etc. are directly lifted from the Kubernetes codebase.
-// For reference: https://github.com/kubernetes/kubernetes/blob/ed42bbd722a14640f8b5315a521745e7526ff31b/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go
 
 // Exported taint constant strings to mark the type of the current operation
 const (
@@ -115,7 +111,7 @@ func (o *CommandTaintOption) Complete(args []string) error {
 		return fmt.Errorf("at least one taint update is required")
 	}
 
-	if o.taintsToAdd, o.taintsToRemove, err = parseTaints(taintArgs); err != nil {
+	if o.taintsToAdd, o.taintsToRemove, err = lifted.ParseTaints(taintArgs); err != nil {
 		return err
 	}
 
@@ -274,97 +270,6 @@ func (o *CommandTaintOption) parseTaintArgs(args []string) ([]string, error) {
 		}
 	}
 	return taintArgs, nil
-}
-
-// parseTaints takes a spec which is an array and creates slices for new taints to be added, taints to be deleted.
-// It also validates the spec. For example, the form `<key>` may be used to remove a taint, but not to add one.
-func parseTaints(spec []string) ([]corev1.Taint, []corev1.Taint, error) {
-	var taints, taintsToRemove []corev1.Taint
-	uniqueTaints := map[corev1.TaintEffect]sets.String{}
-
-	for _, taintSpec := range spec {
-		if strings.HasSuffix(taintSpec, "-") {
-			taintToRemove, err := parseTaint(strings.TrimSuffix(taintSpec, "-"))
-			if err != nil {
-				return nil, nil, err
-			}
-			taintsToRemove = append(taintsToRemove, corev1.Taint{Key: taintToRemove.Key, Effect: taintToRemove.Effect})
-		} else {
-			newTaint, err := parseTaint(taintSpec)
-			if err != nil {
-				return nil, nil, err
-			}
-			// validate that the taint has an effect, which is required to add the taint
-			if len(newTaint.Effect) == 0 {
-				return nil, nil, fmt.Errorf("invalid taint spec: %v", taintSpec)
-			}
-			// validate if taint is unique by <key, effect>
-			if len(uniqueTaints[newTaint.Effect]) > 0 && uniqueTaints[newTaint.Effect].Has(newTaint.Key) {
-				return nil, nil, fmt.Errorf("duplicated taints with the same key and effect: %v", newTaint)
-			}
-			// add taint to existingTaints for uniqueness check
-			if len(uniqueTaints[newTaint.Effect]) == 0 {
-				uniqueTaints[newTaint.Effect] = sets.String{}
-			}
-			uniqueTaints[newTaint.Effect].Insert(newTaint.Key)
-
-			taints = append(taints, newTaint)
-		}
-	}
-	return taints, taintsToRemove, nil
-}
-
-// parseTaint parses a taint from a string, whose form must be either
-// '<key>=<value>:<effect>', '<key>:<effect>', or '<key>'.
-func parseTaint(st string) (corev1.Taint, error) {
-	var taint corev1.Taint
-
-	var key string
-	var value string
-	var effect corev1.TaintEffect
-
-	parts := strings.Split(st, ":")
-	switch len(parts) {
-	case 1:
-		key = parts[0]
-	case 2:
-		effect = corev1.TaintEffect(parts[1])
-		if err := validateTaintEffect(effect); err != nil {
-			return taint, err
-		}
-
-		partsKV := strings.Split(parts[0], "=")
-		if len(partsKV) > 2 {
-			return taint, fmt.Errorf("invalid taint spec: %v", st)
-		}
-		key = partsKV[0]
-		if len(partsKV) == 2 {
-			value = partsKV[1]
-			if errs := validation.IsValidLabelValue(value); len(errs) > 0 {
-				return taint, fmt.Errorf("invalid taint spec: %v, %s", st, strings.Join(errs, "; "))
-			}
-		}
-	default:
-		return taint, fmt.Errorf("invalid taint spec: %v", st)
-	}
-
-	if errs := validation.IsQualifiedName(key); len(errs) > 0 {
-		return taint, fmt.Errorf("invalid taint spec: %v, %s", st, strings.Join(errs, "; "))
-	}
-
-	taint.Key = key
-	taint.Value = value
-	taint.Effect = effect
-
-	return taint, nil
-}
-
-func validateTaintEffect(effect corev1.TaintEffect) error {
-	if effect != corev1.TaintEffectNoSchedule && effect != corev1.TaintEffectPreferNoSchedule && effect != corev1.TaintEffectNoExecute {
-		return fmt.Errorf("invalid taint effect: %v, unsupported taint effect", effect)
-	}
-
-	return nil
 }
 
 // reorganizeTaints returns the updated set of taints, taking into account old taints that were not updated,

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,11 +31,6 @@ import (
 )
 
 const (
-	// TestSuiteSetupTimeOut defines the time after which the suite setup times out.
-	TestSuiteSetupTimeOut = 300 * time.Second
-	// TestSuiteTeardownTimeOut defines the time after which the suite tear down times out.
-	TestSuiteTeardownTimeOut = 300 * time.Second
-
 	// pollInterval defines the interval time for a poll operation.
 	pollInterval = 5 * time.Second
 	// pollTimeout defines the time after which the poll operation times out.
@@ -46,12 +41,16 @@ const (
 )
 
 const (
-	deploymentNamePrefix = "deploy-"
-	serviceNamePrefix    = "service-"
-	podNamePrefix        = "pod-"
-	crdNamePrefix        = "cr-"
-	jobNamePrefix        = "job-"
-	workloadNamePrefix   = "workload-"
+	deploymentNamePrefix         = "deploy-"
+	serviceNamePrefix            = "service-"
+	podNamePrefix                = "pod-"
+	crdNamePrefix                = "cr-"
+	jobNamePrefix                = "job-"
+	workloadNamePrefix           = "workload-"
+	federatedResourceQuotaPrefix = "frq-"
+	configMapNamePrefix          = "configmap-"
+	secretNamePrefix             = "secret-"
+	ingressNamePrefix            = "ingress-"
 
 	updateDeploymentReplicas = 6
 	updateServicePort        = 81
@@ -64,11 +63,12 @@ const (
 var (
 	kubeconfig            string
 	restConfig            *rest.Config
+	karmadaHost           string
 	kubeClient            kubernetes.Interface
 	karmadaClient         karmada.Interface
 	dynamicClient         dynamic.Interface
 	controlPlaneClient    client.Client
-	testNamespace         = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+	testNamespace         string
 	clusterProvider       *cluster.Provider
 	clusterLabels         = map[string]string{"location": "CHN"}
 	pushModeClusterLabels = map[string]string{"sync-mode": "Push"}
@@ -79,7 +79,9 @@ func TestE2E(t *testing.T) {
 	ginkgo.RunSpecs(t, "E2E Suite")
 }
 
-var _ = ginkgo.BeforeSuite(func() {
+var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
+	return nil
+}, func(bytes []byte) {
 	kubeconfig = os.Getenv("KUBECONFIG")
 	gomega.Expect(kubeconfig).ShouldNot(gomega.BeEmpty())
 
@@ -87,6 +89,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	var err error
 	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	karmadaHost = restConfig.Host
 
 	kubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -101,22 +105,23 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	framework.InitClusterInformation(karmadaClient, controlPlaneClient)
 
+	testNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	err = setupTestNamespace(testNamespace, kubeClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-}, TestSuiteSetupTimeOut.Seconds())
+})
 
-var _ = ginkgo.AfterSuite(func() {
+var _ = ginkgo.SynchronizedAfterSuite(func() {
+	// cleanup all namespaces we created both in control plane and member clusters.
+	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
+	err := cleanupTestNamespace(testNamespace, kubeClient)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+}, func() {
 	// cleanup clusterLabels set by the E2E test
 	for _, cluster := range framework.Clusters() {
 		err := deleteClusterLabel(controlPlaneClient, cluster.Name)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	}
-
-	// cleanup all namespaces we created both in control plane and member clusters.
-	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
-	err := cleanupTestNamespace(testNamespace, kubeClient)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-}, TestSuiteTeardownTimeOut.Seconds())
+})
 
 // setupTestNamespace will create a namespace in control plane and all member clusters, most of cases will run against it.
 // The reason why we need a separated namespace is it will make it easier to cleanup resources deployed by the testing.

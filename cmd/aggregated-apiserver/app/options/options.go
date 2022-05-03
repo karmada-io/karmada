@@ -4,24 +4,31 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"strings"
 
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/admission"
+	"k8s.io/apiserver/pkg/endpoints/openapi"
+	apirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	netutils "k8s.io/utils/net"
 
 	"github.com/karmada-io/karmada/pkg/aggregatedapiserver"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 const defaultEtcdPathPrefix = "/registry"
@@ -53,9 +60,14 @@ func NewOptions() *Options {
 // AddFlags adds flags to the specified FlagSet.
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	o.RecommendedOptions.AddFlags(flags)
+	flags.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
 
 	flags.StringVar(&o.karmadaConfig, "karmada-config", o.karmadaConfig, "Path to a karmada-apiserver KubeConfig.")
+	// Remove it when we are in v1.2(+).
+	_ = flags.MarkDeprecated("karmada-config", "This flag is currently no-op and will be deleted.")
 	flags.StringVar(&o.Master, "master", o.Master, "The address of the Karmada API server. Overrides any value in KubeConfig.")
+	// Remove it when we are in v1.2(+).
+	_ = flags.MarkDeprecated("master", "This flag is currently no-op and will be deleted.")
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
@@ -80,10 +92,7 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 
-	restConfig, err := clientcmd.BuildConfigFromFlags(o.Master, o.karmadaConfig)
-	if err != nil {
-		return fmt.Errorf("error building kubeconfig: %s", err.Error())
-	}
+	restConfig := config.GenericConfig.ClientConfig
 	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
 	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
 
@@ -121,6 +130,10 @@ func (o *Options) Config() (*aggregatedapiserver.Config, error) {
 	}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(aggregatedapiserver.Codecs)
+	serverConfig.LongRunningFunc = customLongRunningRequestCheck(sets.NewString("watch", "proxy"),
+		sets.NewString("attach", "exec", "proxy", "log", "portforward"))
+	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(aggregatedapiserver.Scheme))
+	serverConfig.OpenAPIConfig.Info.Title = "Karmada"
 	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}
@@ -130,4 +143,24 @@ func (o *Options) Config() (*aggregatedapiserver.Config, error) {
 		ExtraConfig:   aggregatedapiserver.ExtraConfig{},
 	}
 	return config, nil
+}
+
+func customLongRunningRequestCheck(longRunningVerbs, longRunningSubresources sets.String) apirequest.LongRunningRequestCheck {
+	return func(r *http.Request, requestInfo *apirequest.RequestInfo) bool {
+		reqClone := r.Clone(context.Background())
+		p := reqClone.URL.Path
+		currentParts := lifted.SplitPath(p)
+		if isClusterProxy(currentParts) {
+			currentParts = currentParts[6:]
+			reqClone.URL.Path = "/" + strings.Join(currentParts, "/")
+			requestInfo = lifted.NewRequestInfo(reqClone)
+		}
+
+		return genericfilters.BasicLongRunningRequestCheck(longRunningVerbs, longRunningSubresources)(r, requestInfo)
+	}
+}
+
+func isClusterProxy(pathParts []string) bool {
+	// cluster/proxy url path format: /apis/cluster.karmada.io/v1alpha1/clusters/{cluster}/proxy/...
+	return len(pathParts) >= 6 && pathParts[1] == "cluster.karmada.io" && pathParts[5] == "proxy"
 }

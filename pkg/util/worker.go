@@ -3,8 +3,11 @@ package util
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 )
 
 const (
@@ -54,12 +57,22 @@ type asyncWorker struct {
 	queue workqueue.RateLimitingInterface
 }
 
+// Options are the arguments for creating a new AsyncWorker.
+type Options struct {
+	// Name is the queue's name that will be used to emit metrics.
+	// Defaults to "", which means disable metrics.
+	Name               string
+	KeyFunc            KeyFunc
+	ReconcileFunc      ReconcileFunc
+	RateLimiterOptions ratelimiterflag.Options
+}
+
 // NewAsyncWorker returns a asyncWorker which can process resource periodic.
-func NewAsyncWorker(name string, keyFunc KeyFunc, reconcileFunc ReconcileFunc) AsyncWorker {
+func NewAsyncWorker(opt Options) AsyncWorker {
 	return &asyncWorker{
-		keyFunc:       keyFunc,
-		reconcileFunc: reconcileFunc,
-		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
+		keyFunc:       opt.KeyFunc,
+		reconcileFunc: opt.ReconcileFunc,
+		queue:         workqueue.NewNamedRateLimitingQueue(ratelimiterflag.DefaultControllerRateLimiter(opt.RateLimiterOptions), opt.Name),
 	}
 }
 
@@ -121,4 +134,14 @@ func (w *asyncWorker) Run(workerNumber int, stopChan <-chan struct{}) {
 		<-stopChan
 		w.queue.ShutDown()
 	}()
+}
+
+// MetaNamespaceKeyFunc generates a namespaced key for object.
+func MetaNamespaceKeyFunc(obj interface{}) (QueueKey, error) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		return nil, err
+	}
+	return key, nil
 }

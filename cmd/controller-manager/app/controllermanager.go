@@ -8,31 +8,43 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/controllers/unifiedauth"
+	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/detector"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli"
+	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -60,9 +72,26 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+	fss := cliflag.NamedFlagSets{}
+
+	genericFlagSet := fss.FlagSet("generic")
+	// Add the flag(--kubeconfig) that is added by controller-runtime
+	// (https://github.com/kubernetes-sigs/controller-runtime/blob/v0.11.1/pkg/client/config/config.go#L39),
+	// and update the flag usage.
+	genericFlagSet.AddGoFlagSet(flag.CommandLine)
+	genericFlagSet.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
+	opts.AddFlags(genericFlagSet, controllers.ControllerNames(), controllersDisabledByDefault.List())
+
+	// Set klog flags
+	logsFlagSet := fss.FlagSet("logs")
+	klogflag.Add(logsFlagSet)
+
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-controller-manager"))
-	opts.AddFlags(cmd.Flags(), controllers.ControllerNames())
+	cmd.Flags().AddFlagSet(genericFlagSet)
+	cmd.Flags().AddFlagSet(logsFlagSet)
+
+	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
+	sharedcli.SetUsageAndHelpFunc(cmd, fss, cols)
 	return cmd
 }
 
@@ -76,12 +105,23 @@ func Run(ctx context.Context, opts *options.Options) error {
 	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:                     gclient.NewSchema(),
+		SyncPeriod:                 &opts.ResyncPeriod.Duration,
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           opts.LeaderElection.ResourceName,
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
 		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
 		LivenessEndpointName:       "/healthz",
+		MetricsBindAddress:         opts.MetricsBindAddress,
+		Controller: v1alpha1.ControllerConfigurationSpec{
+			GroupKindConcurrency: map[string]int{
+				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.ConcurrentResourceBindingSyncs,
+				workv1alpha2.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():   opts.ConcurrentClusterResourceBindingSyncs,
+				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.ConcurrentClusterSyncs,
+				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.ConcurrentNamespaceSyncs,
+			},
+		},
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)
@@ -107,6 +147,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 
 var controllers = make(controllerscontext.Initializers)
 
+// controllersDisabledByDefault is the set of controllers which is disabled by default
+var controllersDisabledByDefault = sets.NewString(
+	"hpa",
+)
+
 func init() {
 	controllers["cluster"] = startClusterController
 	controllers["clusterStatus"] = startClusterStatusController
@@ -119,6 +164,8 @@ func init() {
 	controllers["endpointSlice"] = startEndpointSliceController
 	controllers["serviceImport"] = startServiceImportController
 	controllers["unifiedAuth"] = startUnifiedAuthController
+	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
+	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -144,14 +191,29 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 	clusterPredicateFunc := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			obj := createEvent.Object.(*clusterv1alpha1.Cluster)
+
+			if obj.Spec.SecretRef == nil {
+				return false
+			}
+
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
+
+			if obj.Spec.SecretRef == nil {
+				return false
+			}
+
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
+
+			if obj.Spec.SecretRef == nil {
+				return false
+			}
+
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
@@ -172,6 +234,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
 		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
+		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		return false, err
@@ -202,6 +265,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		OverrideManager:     ctx.OverrideManager,
 		InformerManager:     ctx.ControlPlaneInformerManager,
 		ResourceInterpreter: ctx.ResourceInterpreter,
+		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
 	if err := bindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -215,6 +279,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		OverrideManager:     ctx.OverrideManager,
 		InformerManager:     ctx.ControlPlaneInformerManager,
 		ResourceInterpreter: ctx.ResourceInterpreter,
+		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
 	if err := clusterResourceBindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -231,6 +296,7 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 		PredicateFunc:        helper.NewExecutionPredicate(ctx.Mgr),
 		InformerManager:      informermanager.GetInstance(),
 		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
+		RatelimiterOptions:   ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -241,19 +307,22 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
-		Client:                  ctx.Mgr.GetClient(),
-		EventRecorder:           ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:              ctx.Mgr.GetRESTMapper(),
-		InformerManager:         informermanager.GetInstance(),
-		StopChan:                ctx.StopChan,
-		WorkerNumber:            1,
-		ObjectWatcher:           ctx.ObjectWatcher,
-		PredicateFunc:           helper.NewExecutionPredicate(ctx.Mgr),
-		ClusterClientSetFunc:    util.NewClusterDynamicClientSet,
-		ClusterCacheSyncTimeout: opts.ClusterCacheSyncTimeout,
+		Client:                    ctx.Mgr.GetClient(),
+		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:                ctx.Mgr.GetRESTMapper(),
+		InformerManager:           informermanager.GetInstance(),
+		StopChan:                  ctx.StopChan,
+		ObjectWatcher:             ctx.ObjectWatcher,
+		PredicateFunc:             helper.NewExecutionPredicate(ctx.Mgr),
+		ClusterClientSetFunc:      util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout:   opts.ClusterCacheSyncTimeout,
+		ConcurrentWorkStatusSyncs: opts.ConcurrentWorkSyncs,
+		RateLimiterOptions:        ctx.Opts.RateLimiterOptions,
+		ResourceInterpreter:       ctx.ResourceInterpreter,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
+		klog.Fatalf("Failed to setup work status controller: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -283,7 +352,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             informermanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
-		WorkerNumber:                1,
+		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
@@ -330,6 +399,28 @@ func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, e
 	return true, nil
 }
 
+func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := federatedresourcequota.SyncController{
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.SyncControllerName),
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
+	controller := federatedresourcequota.StatusController{
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName),
+	}
+	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // setupControllers initialize controllers and setup one by one.
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	restConfig := mgr.GetConfig()
@@ -358,18 +449,34 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
 
 	resourceDetector := &detector.ResourceDetector{
-		DiscoveryClientSet:           discoverClientSet,
-		Client:                       mgr.GetClient(),
-		InformerManager:              controlPlaneInformerManager,
-		RESTMapper:                   mgr.GetRESTMapper(),
-		DynamicClient:                dynamicClientSet,
-		SkippedResourceConfig:        skippedResourceConfig,
-		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
-		ResourceInterpreter:          resourceInterpreter,
-		EventRecorder:                mgr.GetEventRecorderFor("resource-detector"),
+		DiscoveryClientSet:              discoverClientSet,
+		Client:                          mgr.GetClient(),
+		InformerManager:                 controlPlaneInformerManager,
+		RESTMapper:                      mgr.GetRESTMapper(),
+		DynamicClient:                   dynamicClientSet,
+		SkippedResourceConfig:           skippedResourceConfig,
+		SkippedPropagatingNamespaces:    skippedPropagatingNamespaces,
+		ResourceInterpreter:             resourceInterpreter,
+		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
+		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
+		ConcurrentResourceBindingSyncs:  opts.ConcurrentResourceBindingSyncs,
+		RateLimiterOptions:              opts.RateLimiterOpts,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
+	}
+
+	if features.FeatureGate.Enabled(features.PropagateDeps) {
+		dependenciesDistributor := &dependenciesdistributor.DependenciesDistributor{
+			Client:              mgr.GetClient(),
+			DynamicClient:       dynamicClientSet,
+			InformerManager:     controlPlaneInformerManager,
+			ResourceInterpreter: resourceInterpreter,
+			RESTMapper:          mgr.GetRESTMapper(),
+		}
+		if err := mgr.Add(dependenciesDistributor); err != nil {
+			klog.Fatalf("Failed to setup dependencies distributor: %v", err)
+		}
 	}
 
 	setupClusterAPIClusterDetector(mgr, opts, stopChan)
@@ -388,6 +495,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
+			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
+			RateLimiterOptions:                opts.RateLimiterOpts,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
@@ -396,7 +505,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		ResourceInterpreter:         resourceInterpreter,
 	}
 
-	if err := controllers.StartControllers(controllerContext); err != nil {
+	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
 		klog.Fatalf("error starting controllers: %v", err)
 	}
 
@@ -432,6 +541,7 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,
 		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, stopChan),
+		ConcurrentReconciles:  3,
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {
 		klog.Fatalf("Failed to setup cluster-api cluster detector: %v", err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,18 +18,21 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/component-helpers/apimachinery/lease"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -80,6 +84,7 @@ type ClusterStatusController struct {
 	ClusterLeaseControllers sync.Map
 
 	ClusterCacheSyncTimeout metav1.Duration
+	RateLimiterOptions      ratelimiterflag.Options
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -111,7 +116,9 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).WithEventFilter(c.PredicateFunc).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).WithEventFilter(c.PredicateFunc).WithOptions(controller.Options{
+		RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
+	}).Complete(c)
 }
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
@@ -199,8 +206,22 @@ func (c *ClusterStatusController) setStatusCollectionFailedCondition(cluster *cl
 func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus) (controllerruntime.Result, error) {
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
-		cluster.Status = currentClusterStatus
-		err := c.Client.Status().Update(context.TODO(), cluster)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			cluster.Status = currentClusterStatus
+			updateErr := c.Status().Update(context.TODO(), cluster)
+			if updateErr == nil {
+				return nil
+			}
+
+			updated := &clusterv1alpha1.Cluster{}
+			if err = c.Get(context.TODO(), client.ObjectKey{Namespace: cluster.Namespace, Name: cluster.Name}, updated); err == nil {
+				// make a copy, so we don't mutate the shared cache
+				cluster = updated.DeepCopy()
+			} else {
+				klog.Errorf("failed to get updated cluster %s: %v", cluster.Name, err)
+			}
+			return updateErr
+		})
 		if err != nil {
 			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
 			return controllerruntime.Result{Requeue: true}, err
@@ -348,9 +369,7 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 	if err != nil {
 		return nil, err
 	}
-
 	var apiEnablements []clusterv1alpha1.APIEnablement
-
 	for _, list := range apiResourceList {
 		var apiResources []clusterv1alpha1.APIResource
 		for _, resource := range list.APIResources {
@@ -358,17 +377,20 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 			if strings.Contains(resource.Name, "/") {
 				continue
 			}
-
 			apiResource := clusterv1alpha1.APIResource{
 				Name: resource.Name,
 				Kind: resource.Kind,
 			}
-
 			apiResources = append(apiResources, apiResource)
 		}
+		sort.SliceStable(apiResources, func(i, j int) bool {
+			return apiResources[i].Name < apiResources[j].Name
+		})
 		apiEnablements = append(apiEnablements, clusterv1alpha1.APIEnablement{GroupVersion: list.GroupVersion, Resources: apiResources})
 	}
-
+	sort.SliceStable(apiEnablements, func(i, j int) bool {
+		return apiEnablements[i].GroupVersion < apiEnablements[j].GroupVersion
+	})
 	return apiEnablements, nil
 }
 

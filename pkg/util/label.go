@@ -22,3 +22,15 @@ func MergeLabel(obj *unstructured.Unstructured, labelKey string, labelValue stri
 	workloadLabel[labelKey] = labelValue
 	obj.SetLabels(workloadLabel)
 }
+
+// DedupeAndMergeLabels merges the new labels into exist labels.
+func DedupeAndMergeLabels(existLabel, newLabel map[string]string) map[string]string {
+	if existLabel == nil {
+		return newLabel
+	}
+
+	for k, v := range newLabel {
+		existLabel[k] = v
+	}
+	return existLabel
+}

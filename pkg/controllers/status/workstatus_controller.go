@@ -2,7 +2,6 @@ package status
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -10,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -18,10 +16,13 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -36,19 +37,21 @@ const WorkStatusControllerName = "work-status-controller"
 
 // WorkStatusController is to sync status of Work.
 type WorkStatusController struct {
-	client.Client        // used to operate Work resources.
-	EventRecorder        record.EventRecorder
-	RESTMapper           meta.RESTMapper
-	InformerManager      informermanager.MultiClusterInformerManager
-	eventHandler         cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
-	StopChan             <-chan struct{}
-	WorkerNumber         int              // WorkerNumber is the number of worker goroutines
-	worker               util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
-	ObjectWatcher        objectwatcher.ObjectWatcher
-	PredicateFunc        predicate.Predicate
-	ClusterClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
-
-	ClusterCacheSyncTimeout metav1.Duration
+	client.Client   // used to operate Work resources.
+	EventRecorder   record.EventRecorder
+	RESTMapper      meta.RESTMapper
+	InformerManager informermanager.MultiClusterInformerManager
+	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
+	StopChan        <-chan struct{}
+	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+	// ConcurrentWorkStatusSyncs is the number of Work status that are allowed to sync concurrently.
+	ConcurrentWorkStatusSyncs int
+	ObjectWatcher             objectwatcher.ObjectWatcher
+	PredicateFunc             predicate.Predicate
+	ClusterClientSetFunc      func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterCacheSyncTimeout   metav1.Duration
+	RateLimiterOptions        ratelimiterflag.Options
+	ResourceInterpreter       resourceinterpreter.ResourceInterpreter
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -116,8 +119,13 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker("work-status", generateKey, c.syncWorkStatus)
-	c.worker.Run(c.WorkerNumber, c.StopChan)
+	workerOptions := util.Options{
+		Name:          "work-status",
+		KeyFunc:       generateKey,
+		ReconcileFunc: c.syncWorkStatus,
+	}
+	c.worker = util.NewAsyncWorker(workerOptions)
+	c.worker.Run(c.ConcurrentWorkStatusSyncs, c.StopChan)
 }
 
 // generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
@@ -159,7 +167,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	obj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
+	observedObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return c.handleDeleteEvent(fedKey)
@@ -167,8 +175,8 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	workNamespace := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
-	workName := util.GetLabelValue(obj.GetLabels(), workv1alpha1.WorkNameLabel)
+	workNamespace := util.GetLabelValue(observedObj.GetLabels(), workv1alpha1.WorkNamespaceLabel)
+	workName := util.GetLabelValue(observedObj.GetLabels(), workv1alpha1.WorkNameLabel)
 	if len(workNamespace) == 0 || len(workName) == 0 {
 		klog.Infof("Ignore object(%s) which not managed by karmada.", fedKey.String())
 		return nil
@@ -185,8 +193,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	// consult with version manager if current status needs update.
-	desireObj, err := c.getRawManifest(workObject.Spec.Workload.Manifests, obj)
+	desiredObj, err := c.getRawManifest(workObject.Spec.Workload.Manifests, observedObj)
 	if err != nil {
 		return err
 	}
@@ -197,14 +204,15 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	// compare version to determine if need to update resource
-	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desireObj, obj)
+	// we should check if the observed status is consistent with the declaration to prevent accidental changes made
+	// in member clusters.
+	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desiredObj, observedObj)
 	if err != nil {
 		return err
 	}
 
 	if needUpdate {
-		if err := c.ObjectWatcher.Update(clusterName, desireObj, obj); err != nil {
+		if err := c.ObjectWatcher.Update(clusterName, desiredObj, observedObj); err != nil {
 			klog.Errorf("Update %s failed: %v", fedKey.String(), err)
 			return err
 		}
@@ -217,8 +225,8 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		// status changes.
 	}
 
-	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", obj.GetKind(), obj.GetNamespace(), obj.GetName(), workNamespace, workName)
-	return c.reflectStatus(workObject, obj)
+	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
+	return c.reflectStatus(workObject, observedObj)
 }
 
 func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
@@ -267,12 +275,12 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 	return nil
 }
 
-// reflectStatus grabs cluster object's running status then updates to it's owner object(Work).
+// reflectStatus grabs cluster object's running status then updates to its owner object(Work).
 func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
-	statusMap, _, err := unstructured.NestedMap(clusterObj.Object, "status")
+	statusRaw, err := c.ResourceInterpreter.ReflectStatus(clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
-		return err
+		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter.",
+			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
 	}
 
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)
@@ -282,22 +290,29 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 
 	manifestStatus := workv1alpha1.ManifestStatus{
 		Identifier: *identifier,
+		Status:     statusRaw,
 	}
 
-	if statusMap != nil {
-		rawExtension, err := c.buildStatusRawExtension(statusMap)
-		if err != nil {
-			return err
+	workCopy := work.DeepCopy()
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		manifestStatuses := c.mergeStatus(workCopy.Status.ManifestStatuses, manifestStatus)
+		if reflect.DeepEqual(workCopy.Status.ManifestStatuses, manifestStatuses) {
+			return nil
 		}
-		manifestStatus.Status = rawExtension
-	}
+		workCopy.Status.ManifestStatuses = manifestStatuses
+		updateErr := c.Status().Update(context.TODO(), workCopy)
+		if updateErr == nil {
+			return nil
+		}
 
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, work); err != nil {
-			return err
+		updated := &workv1alpha1.Work{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: workCopy.Namespace, Name: workCopy.Name}, updated); err == nil {
+			//make a copy, so we don't mutate the shared cache
+			workCopy = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated work %s/%s: %v", workCopy.Namespace, workCopy.Name, err)
 		}
-		work.Status.ManifestStatuses = c.mergeStatus(work.Status.ManifestStatuses, manifestStatus)
-		return c.Status().Update(context.TODO(), work)
+		return updateErr
 	})
 }
 
@@ -325,18 +340,6 @@ func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, cl
 	}
 
 	return identifier, nil
-}
-
-func (c *WorkStatusController) buildStatusRawExtension(status map[string]interface{}) (*runtime.RawExtension, error) {
-	statusJSON, err := json.Marshal(status)
-	if err != nil {
-		klog.Errorf("Failed to marshal status. Error: %v.", statusJSON)
-		return nil, err
-	}
-
-	return &runtime.RawExtension{
-		Raw: statusJSON,
-	}, nil
 }
 
 func (c *WorkStatusController) mergeStatus(statuses []workv1alpha1.ManifestStatus, newStatus workv1alpha1.ManifestStatus) []workv1alpha1.ManifestStatus {
@@ -448,5 +451,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).WithOptions(controller.Options{
+		RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
+	}).Complete(c)
 }

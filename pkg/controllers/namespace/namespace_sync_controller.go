@@ -6,8 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -91,12 +89,11 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 }
 
 func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv1alpha1.Cluster) error {
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(namespace)
+	namespaceObj, err := helper.ToUnstructured(namespace)
 	if err != nil {
 		klog.Errorf("Failed to transform namespace %s. Error: %v", namespace.GetName(), err)
-		return nil
+		return err
 	}
-	namespaceObj := &unstructured.Unstructured{Object: uncastObj}
 
 	for _, cluster := range clusters {
 		workNamespace, err := names.GenerateExecutionSpaceName(cluster.Name)

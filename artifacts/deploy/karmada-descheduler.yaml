@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-descheduler
+  namespace: karmada-system
+  labels:
+    app: karmada-descheduler
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: karmada-descheduler
+  template:
+    metadata:
+      labels:
+        app: karmada-descheduler
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+        - name: karmada-descheduler
+          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-descheduler:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/karmada-descheduler
+            - --kubeconfig=/etc/kubeconfig
+            - --bind-address=0.0.0.0
+            - --v=4
+          volumeMounts:
+            - name: kubeconfig
+              subPath: kubeconfig
+              mountPath: /etc/kubeconfig
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig

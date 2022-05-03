@@ -21,19 +21,13 @@ const (
 	labelSeparator = "="
 )
 
-//PathIsExist Determine whether the path exists
-func PathIsExist(path string) bool {
+// IsExist Determine whether the path exists
+func IsExist(path string) bool {
 	_, err := os.Stat(path)
-
-	if err != nil && os.IsNotExist(err) {
-		if err = os.MkdirAll(path, 0755); err != nil {
-			return false
-		}
-	}
-	return true
+	return err == nil
 }
 
-//StringToNetIP String To NetIP
+// StringToNetIP String To NetIP
 func StringToNetIP(addr string) net.IP {
 	if ip := net.ParseIP(addr); ip != nil {
 		return ip
@@ -74,7 +68,7 @@ func InternetIP() (net.IP, error) {
 	return StringToNetIP(string(content)), nil
 }
 
-//FileToBytes File Conversion Bytes
+// FileToBytes File Conversion Bytes
 func FileToBytes(path, name string) ([]byte, error) {
 	filename := filepath.Join(path, name)
 	file, err := os.Open(filename)
@@ -98,7 +92,7 @@ func FileToBytes(path, name string) ([]byte, error) {
 	return data, nil
 }
 
-//BytesToFile Bytes Conversion File
+// BytesToFile Bytes Conversion File
 func BytesToFile(path, name string, data []byte) error {
 	filename := filepath.Join(path, name)
 	_, err := os.Stat(filename)
@@ -142,7 +136,7 @@ func StringToMap(labels string) map[string]string {
 	return l
 }
 
-//StaticYamlToJSONByte  Static yaml file conversion JSON Byte
+// StaticYamlToJSONByte  Static yaml file conversion JSON Byte
 func StaticYamlToJSONByte(staticYaml string) []byte {
 	jsonByte, err := yaml.YAMLToJSON([]byte(staticYaml))
 	if err != nil {

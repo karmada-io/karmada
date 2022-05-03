@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,52 +17,65 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 // failover testing is used to test the rescheduling situation when some initially scheduled clusters fail
-var _ = ginkgo.Describe("failover testing", func() {
+var _ = framework.SerialDescribe("failover testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		deploymentName := policyName
-		deployment := testhelper.NewDeployment(deploymentNamespace, deploymentName)
-		maxGroups := 1
-		minGroups := 1
-		numOfFailedClusters := 1
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var maxGroups, minGroups, numOfFailedClusters int
+		var policy *policyv1alpha1.PropagationPolicy
 
-		// set MaxGroups=MinGroups=1, label is location=CHN.
-		policy := testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				LabelSelector: &metav1.LabelSelector{
-					// only test push mode clusters
-					// because pull mode clusters cannot be disabled by changing APIEndpoint
-					MatchLabels: pushModeClusterLabels,
-				},
-			},
-			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			maxGroups = 1
+			minGroups = 1
+			numOfFailedClusters = 1
+
+			// set MaxGroups=MinGroups=1, label is location=CHN.
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
-					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
-					MaxGroups:     maxGroups,
-					MinGroups:     minGroups,
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
 				},
-			},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					LabelSelector: &metav1.LabelSelector{
+						// only test push mode clusters
+						// because pull mode clusters cannot be disabled by changing APIEndpoint
+						MatchLabels: pushModeClusterLabels,
+					},
+				},
+				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+					{
+						SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+						MaxGroups:     maxGroups,
+						MinGroups:     minGroups,
+					},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
 		})
 
 		ginkgo.It("deployment failover testing", func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateDeployment(kubeClient, deployment)
-
 			var disabledClusters []string
 			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 
@@ -85,28 +98,19 @@ var _ = ginkgo.Describe("failover testing", func() {
 			})
 
 			ginkgo.By("check whether deployment of failed cluster is rescheduled to other available cluster", func() {
-				totalNum := 0
-
-				targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-				for _, targetClusterName := range targetClusterNames {
-					// the target cluster should be overwritten to another available cluster
-					gomega.Expect(isDisabled(targetClusterName, disabledClusters)).Should(gomega.BeFalse())
-
-					framework.WaitDeploymentPresentOnClusterFitWith(targetClusterName, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
-							return true
-						})
-					totalNum++
-				}
-				gomega.Expect(totalNum == minGroups).Should(gomega.BeTrue())
-			})
-
-			ginkgo.By("check if the scheduled condition is true", func() {
 				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
-					rb, err := getResourceBinding(deployment)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					return meta.IsStatusConditionTrue(rb.Status.Conditions, workv1alpha2.Scheduled), nil
+					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+					for _, targetClusterName := range targetClusterNames {
+						// the target cluster should be overwritten to another available cluster
+						if !testhelper.IsExclude(targetClusterName, disabledClusters) {
+							return false, nil
+						}
+					}
+
+					gomega.Expect(len(targetClusterNames) == minGroups).Should(gomega.BeTrue())
+					return true, nil
 				})
+
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -132,9 +136,6 @@ var _ = ginkgo.Describe("failover testing", func() {
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })
@@ -181,16 +182,6 @@ func recoverCluster(c client.Client, clusterName string, originalAPIEndpoint str
 		return true, nil
 	})
 	return err
-}
-
-// indicate if the cluster is disabled
-func isDisabled(clusterName string, disabledClusters []string) bool {
-	for _, cluster := range disabledClusters {
-		if cluster == clusterName {
-			return true
-		}
-	}
-	return false
 }
 
 // get the API endpoint of a specific cluster

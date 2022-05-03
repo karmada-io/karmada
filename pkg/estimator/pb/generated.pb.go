@@ -18,12 +18,14 @@ import (
 	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
+	time "time"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+var _ = time.Kitchen
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
@@ -115,10 +117,38 @@ func (m *NodeClaim) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_NodeClaim proto.InternalMessageInfo
 
+func (m *ObjectReference) Reset()      { *m = ObjectReference{} }
+func (*ObjectReference) ProtoMessage() {}
+func (*ObjectReference) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9773618571bdb725, []int{3}
+}
+func (m *ObjectReference) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ObjectReference) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *ObjectReference) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ObjectReference.Merge(m, src)
+}
+func (m *ObjectReference) XXX_Size() int {
+	return m.Size()
+}
+func (m *ObjectReference) XXX_DiscardUnknown() {
+	xxx_messageInfo_ObjectReference.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ObjectReference proto.InternalMessageInfo
+
 func (m *ReplicaRequirements) Reset()      { *m = ReplicaRequirements{} }
 func (*ReplicaRequirements) ProtoMessage() {}
 func (*ReplicaRequirements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{3}
+	return fileDescriptor_9773618571bdb725, []int{4}
 }
 func (m *ReplicaRequirements) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -143,15 +173,15 @@ func (m *ReplicaRequirements) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ReplicaRequirements proto.InternalMessageInfo
 
-func (m *UnimplementedEstimatorServer) Reset()      { *m = UnimplementedEstimatorServer{} }
-func (*UnimplementedEstimatorServer) ProtoMessage() {}
-func (*UnimplementedEstimatorServer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{4}
+func (m *UnschedulableReplicasRequest) Reset()      { *m = UnschedulableReplicasRequest{} }
+func (*UnschedulableReplicasRequest) ProtoMessage() {}
+func (*UnschedulableReplicasRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9773618571bdb725, []int{5}
 }
-func (m *UnimplementedEstimatorServer) XXX_Unmarshal(b []byte) error {
+func (m *UnschedulableReplicasRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *UnimplementedEstimatorServer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *UnschedulableReplicasRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	b = b[:cap(b)]
 	n, err := m.MarshalToSizedBuffer(b)
 	if err != nil {
@@ -159,26 +189,56 @@ func (m *UnimplementedEstimatorServer) XXX_Marshal(b []byte, deterministic bool)
 	}
 	return b[:n], nil
 }
-func (m *UnimplementedEstimatorServer) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UnimplementedEstimatorServer.Merge(m, src)
+func (m *UnschedulableReplicasRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UnschedulableReplicasRequest.Merge(m, src)
 }
-func (m *UnimplementedEstimatorServer) XXX_Size() int {
+func (m *UnschedulableReplicasRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *UnimplementedEstimatorServer) XXX_DiscardUnknown() {
-	xxx_messageInfo_UnimplementedEstimatorServer.DiscardUnknown(m)
+func (m *UnschedulableReplicasRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UnschedulableReplicasRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_UnimplementedEstimatorServer proto.InternalMessageInfo
+var xxx_messageInfo_UnschedulableReplicasRequest proto.InternalMessageInfo
+
+func (m *UnschedulableReplicasResponse) Reset()      { *m = UnschedulableReplicasResponse{} }
+func (*UnschedulableReplicasResponse) ProtoMessage() {}
+func (*UnschedulableReplicasResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9773618571bdb725, []int{6}
+}
+func (m *UnschedulableReplicasResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *UnschedulableReplicasResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *UnschedulableReplicasResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UnschedulableReplicasResponse.Merge(m, src)
+}
+func (m *UnschedulableReplicasResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *UnschedulableReplicasResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UnschedulableReplicasResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UnschedulableReplicasResponse proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*MaxAvailableReplicasRequest)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableReplicasRequest")
 	proto.RegisterType((*MaxAvailableReplicasResponse)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableReplicasResponse")
 	proto.RegisterType((*NodeClaim)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.NodeSelectorEntry")
+	proto.RegisterType((*ObjectReference)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.ObjectReference")
 	proto.RegisterType((*ReplicaRequirements)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements")
 	proto.RegisterMapType((k8s_io_api_core_v1.ResourceList)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.ResourceRequestEntry")
-	proto.RegisterType((*UnimplementedEstimatorServer)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.UnimplementedEstimatorServer")
+	proto.RegisterType((*UnschedulableReplicasRequest)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.UnschedulableReplicasRequest")
+	proto.RegisterType((*UnschedulableReplicasResponse)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.UnschedulableReplicasResponse")
 }
 
 func init() {
@@ -186,48 +246,59 @@ func init() {
 }
 
 var fileDescriptor_9773618571bdb725 = []byte{
-	// 649 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0xcf, 0x6f, 0xd3, 0x4a,
-	0x10, 0x8e, 0x13, 0x55, 0x55, 0xd6, 0x7d, 0x6a, 0x9f, 0xdb, 0x43, 0x94, 0x56, 0x4e, 0x94, 0x53,
-	0xde, 0xa1, 0x6b, 0x35, 0x7a, 0x48, 0x85, 0x03, 0xa8, 0x2e, 0x3d, 0x41, 0x2b, 0xb1, 0xa5, 0x08,
-	0x21, 0x21, 0xb4, 0x71, 0x26, 0xe9, 0x2a, 0xb6, 0xd7, 0xac, 0xd7, 0x51, 0x7b, 0x43, 0x20, 0xee,
-	0x88, 0xbf, 0xaa, 0xc7, 0x5e, 0x90, 0x7a, 0x21, 0x10, 0xf3, 0x5f, 0x70, 0x42, 0xfe, 0x15, 0x3b,
-	0xa9, 0x85, 0x54, 0xc4, 0x6d, 0x77, 0x67, 0xbe, 0x6f, 0x66, 0xbe, 0x6f, 0x6c, 0xf4, 0x70, 0xc4,
-	0xe4, 0x79, 0xd0, 0xc7, 0x16, 0x77, 0x8c, 0x31, 0x15, 0x0e, 0x1d, 0xd0, 0x5d, 0xc6, 0xb3, 0xa3,
-	0xe1, 0x8d, 0x47, 0x06, 0xf8, 0x92, 0x39, 0x54, 0x72, 0x61, 0x78, 0x7d, 0x63, 0x04, 0x2e, 0x08,
-	0x2a, 0x61, 0x80, 0x3d, 0xc1, 0x25, 0xd7, 0x70, 0x8e, 0xc7, 0x29, 0xe8, 0x0d, 0xe3, 0xd9, 0x11,
-	0x7b, 0xe3, 0x11, 0x9e, 0xe3, 0xb1, 0xd7, 0x6f, 0xee, 0x16, 0xea, 0x8d, 0xf8, 0x88, 0x1b, 0x31,
-	0x4d, 0x3f, 0x18, 0xc6, 0xb7, 0xf8, 0x12, 0x9f, 0x12, 0xfa, 0x66, 0x67, 0xbc, 0xef, 0x63, 0xc6,
-	0x0d, 0xea, 0x31, 0xc3, 0xe2, 0x02, 0x8c, 0xc9, 0xde, 0x72, 0x0b, 0xcd, 0xff, 0xf3, 0x1c, 0x87,
-	0x5a, 0xe7, 0xcc, 0x05, 0x71, 0x19, 0x37, 0x1e, 0x81, 0x04, 0xf8, 0x3c, 0x10, 0x16, 0x2c, 0xa3,
-	0x3a, 0x5f, 0x15, 0xb4, 0x7d, 0x4c, 0x2f, 0x0e, 0x26, 0x94, 0xd9, 0xb4, 0x6f, 0x03, 0x01, 0xcf,
-	0x66, 0x16, 0xf5, 0x09, 0xbc, 0x0d, 0xc0, 0x97, 0xda, 0x7f, 0x68, 0xd5, 0xb2, 0x03, 0x5f, 0x82,
-	0x68, 0x28, 0x6d, 0xa5, 0x5b, 0x37, 0xd7, 0xaf, 0xa6, 0xad, 0x4a, 0x38, 0x6d, 0xad, 0x1e, 0x26,
-	0xcf, 0x24, 0x8b, 0x6b, 0x9f, 0x15, 0xb4, 0x29, 0x12, 0x78, 0x84, 0x66, 0x02, 0x1c, 0x70, 0xa5,
-	0xdf, 0xa8, 0xb6, 0x95, 0xae, 0xda, 0x3b, 0xbc, 0xa3, 0x44, 0x98, 0xdc, 0xa6, 0x32, 0xb7, 0xd3,
-	0xe2, 0x9b, 0x25, 0x41, 0x52, 0x56, 0xbc, 0x73, 0x86, 0x76, 0xca, 0xc7, 0xf3, 0x3d, 0xee, 0xfa,
-	0xa0, 0xdd, 0x43, 0xaa, 0x43, 0x2f, 0xb2, 0xe7, 0x78, 0xc6, 0x15, 0x73, 0x33, 0x2d, 0xa3, 0x1e,
-	0xe7, 0x21, 0x52, 0xcc, 0xeb, 0x7c, 0xa8, 0xa1, 0xfa, 0x09, 0x1f, 0xc0, 0xa1, 0x4d, 0x99, 0xa3,
-	0xbd, 0x40, 0x6b, 0x2e, 0x1f, 0xc0, 0xc1, 0x70, 0xc8, 0x5c, 0x26, 0x2f, 0x63, 0x16, 0xb5, 0xd7,
-	0xc6, 0x89, 0x23, 0x98, 0x7a, 0x0c, 0x47, 0xae, 0xe1, 0xc9, 0x1e, 0x8e, 0x40, 0xa7, 0x60, 0x83,
-	0x25, 0xb9, 0x30, 0x37, 0xc2, 0x69, 0x6b, 0xed, 0xa4, 0x80, 0x24, 0x0b, 0x3c, 0xda, 0x47, 0x25,
-	0x21, 0xce, 0x00, 0x8d, 0x6a, 0xbb, 0xd6, 0x55, 0x7b, 0x4f, 0xee, 0x2a, 0xe5, 0xbc, 0xd3, 0x85,
-	0xf2, 0x47, 0xae, 0x14, 0x97, 0xe6, 0x56, 0x3a, 0xeb, 0x5a, 0x31, 0x44, 0x16, 0xca, 0x6a, 0x67,
-	0x48, 0x95, 0xdc, 0x8e, 0xf6, 0x86, 0x71, 0xd7, 0x6f, 0xd4, 0xe2, 0x2e, 0xf4, 0xb2, 0xf1, 0x9e,
-	0xcf, 0xd3, 0x72, 0x11, 0xf3, 0x37, 0x9f, 0x14, 0x79, 0x9a, 0x8f, 0xd0, 0xbf, 0xb7, 0xfa, 0xd1,
-	0x36, 0x50, 0x6d, 0x0c, 0x89, 0x84, 0x75, 0x12, 0x1d, 0xb5, 0x2d, 0xb4, 0x32, 0xa1, 0x76, 0x00,
-	0xf1, 0x22, 0xd5, 0x49, 0x72, 0x79, 0x50, 0xdd, 0x57, 0x3a, 0x5f, 0x6a, 0xa8, 0x6c, 0x13, 0xb4,
-	0x21, 0xaa, 0xbb, 0xd9, 0xc8, 0xa9, 0x19, 0xf7, 0xff, 0x58, 0x33, 0xf3, 0x9f, 0x70, 0xda, 0xca,
-	0xcd, 0x26, 0x39, 0xb5, 0x36, 0x53, 0xd0, 0x7a, 0xf6, 0x65, 0xa5, 0x1f, 0x4c, 0x6a, 0xd1, 0xcb,
-	0xbf, 0xb0, 0xed, 0x98, 0x2c, 0x52, 0x27, 0x7e, 0xbd, 0x4e, 0x65, 0x5d, 0x5f, 0x8a, 0xfe, 0x9c,
-	0xb6, 0x5a, 0xb7, 0xff, 0x12, 0x73, 0x8e, 0xa7, 0xcc, 0x97, 0xef, 0xbf, 0xfd, 0x36, 0xe5, 0x84,
-	0x3a, 0x40, 0x96, 0xe7, 0x69, 0x0a, 0xb4, 0x55, 0xd6, 0x47, 0x89, 0x4f, 0x8f, 0x8b, 0x3e, 0xa9,
-	0x3d, 0x5c, 0xd8, 0x8f, 0xf9, 0x0f, 0x29, 0x1e, 0x3c, 0x5a, 0x98, 0xac, 0x0c, 0x7e, 0x16, 0x50,
-	0x57, 0x46, 0xab, 0x5f, 0xf0, 0x55, 0x47, 0x3b, 0x67, 0x2e, 0x73, 0x3c, 0x3b, 0x16, 0x02, 0x06,
-	0x47, 0x99, 0x52, 0xa7, 0x20, 0x26, 0x20, 0xcc, 0xee, 0xd5, 0x4c, 0xaf, 0x5c, 0xcf, 0xf4, 0xca,
-	0xcd, 0x4c, 0xaf, 0xbc, 0x0b, 0x75, 0xe5, 0x2a, 0xd4, 0x95, 0xeb, 0x50, 0x57, 0x6e, 0x42, 0x5d,
-	0xf9, 0x1e, 0xea, 0xca, 0xa7, 0x1f, 0x7a, 0xe5, 0x55, 0xd5, 0xeb, 0xff, 0x0a, 0x00, 0x00, 0xff,
-	0xff, 0xe8, 0xc9, 0x85, 0xca, 0xd8, 0x05, 0x00, 0x00,
+	// 826 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0x41, 0x6f, 0x1b, 0x45,
+	0x14, 0xf6, 0xda, 0xa9, 0x5a, 0x8f, 0x53, 0x25, 0xdd, 0xa4, 0x95, 0xe5, 0xb6, 0x6b, 0xcb, 0xa7,
+	0x70, 0xe8, 0xac, 0x6a, 0x81, 0x54, 0x38, 0x50, 0x65, 0x53, 0x0e, 0xa8, 0x34, 0xc0, 0xb4, 0xa9,
+	0x10, 0x12, 0x42, 0xe3, 0xdd, 0x67, 0x7b, 0xf0, 0xee, 0xce, 0x32, 0x33, 0x1b, 0x35, 0x37, 0x04,
+	0xe2, 0x8e, 0xf8, 0x07, 0xfc, 0x0d, 0x7e, 0x41, 0x8e, 0xbd, 0x20, 0xf5, 0x82, 0xc1, 0xe6, 0x5f,
+	0xf4, 0x84, 0x76, 0x76, 0xd6, 0x5e, 0x3b, 0x1b, 0xa4, 0x00, 0xb7, 0x99, 0x79, 0xdf, 0xf7, 0xbd,
+	0x37, 0x6f, 0xbe, 0x79, 0xe8, 0xc3, 0x31, 0x53, 0x93, 0x74, 0x88, 0x7d, 0x1e, 0xb9, 0x53, 0x2a,
+	0x22, 0x1a, 0xd0, 0x07, 0x8c, 0x17, 0x4b, 0x37, 0x99, 0x8e, 0x5d, 0x90, 0x8a, 0x45, 0x54, 0x71,
+	0xe1, 0x26, 0x43, 0x77, 0x0c, 0x31, 0x08, 0xaa, 0x20, 0xc0, 0x89, 0xe0, 0x8a, 0xdb, 0x78, 0xc5,
+	0xc7, 0x86, 0xf4, 0x35, 0xe3, 0xc5, 0x12, 0x27, 0xd3, 0x31, 0x5e, 0xf2, 0x71, 0x32, 0xec, 0x3c,
+	0x28, 0xe5, 0x1b, 0xf3, 0x31, 0x77, 0xb5, 0xcc, 0x30, 0x1d, 0xe9, 0x9d, 0xde, 0xe8, 0x55, 0x2e,
+	0xdf, 0xe9, 0x4f, 0x1f, 0x49, 0xcc, 0xb8, 0x4b, 0x13, 0xe6, 0xfa, 0x5c, 0x80, 0x7b, 0xfa, 0x70,
+	0xb3, 0x84, 0xce, 0xbb, 0x2b, 0x4c, 0x44, 0xfd, 0x09, 0x8b, 0x41, 0x9c, 0xe9, 0xc2, 0x33, 0x92,
+	0x00, 0xc9, 0x53, 0xe1, 0xc3, 0x26, 0xab, 0xff, 0xbb, 0x85, 0xee, 0x3e, 0xa3, 0xaf, 0x0e, 0x4f,
+	0x29, 0x0b, 0xe9, 0x30, 0x04, 0x02, 0x49, 0xc8, 0x7c, 0x2a, 0x09, 0x7c, 0x9b, 0x82, 0x54, 0xf6,
+	0x3b, 0xe8, 0xba, 0x1f, 0xa6, 0x52, 0x81, 0x68, 0x5b, 0x3d, 0xeb, 0xa0, 0xe9, 0xed, 0x9c, 0xcf,
+	0xba, 0xb5, 0xc5, 0xac, 0x7b, 0xfd, 0x28, 0x3f, 0x26, 0x45, 0xdc, 0xfe, 0xd9, 0x42, 0x7b, 0x22,
+	0xa7, 0x67, 0x6c, 0x26, 0x20, 0x82, 0x58, 0xc9, 0x76, 0xbd, 0x67, 0x1d, 0xb4, 0x06, 0x47, 0x57,
+	0x6c, 0x11, 0x26, 0x17, 0xa5, 0xbc, 0xbb, 0x26, 0xf9, 0x5e, 0x45, 0x90, 0x54, 0x25, 0xef, 0x9f,
+	0xa0, 0x7b, 0xd5, 0xd7, 0x93, 0x09, 0x8f, 0x25, 0xd8, 0xef, 0xa1, 0x56, 0x44, 0x5f, 0x15, 0xc7,
+	0xfa, 0x8e, 0xd7, 0xbc, 0x3d, 0x93, 0xa6, 0xf5, 0x6c, 0x15, 0x22, 0x65, 0x5c, 0xff, 0x87, 0x06,
+	0x6a, 0x1e, 0xf3, 0x00, 0x8e, 0x42, 0xca, 0x22, 0xfb, 0x25, 0xda, 0x8e, 0x79, 0x00, 0x87, 0xa3,
+	0x11, 0x8b, 0x99, 0x3a, 0xd3, 0x2a, 0xad, 0x41, 0x0f, 0xe7, 0x2f, 0x82, 0x69, 0xc2, 0x70, 0xf6,
+	0x6a, 0xf8, 0xf4, 0x21, 0xce, 0x48, 0xcf, 0x21, 0x04, 0x5f, 0x71, 0xe1, 0xed, 0x2e, 0x66, 0xdd,
+	0xed, 0xe3, 0x12, 0x93, 0xac, 0xe9, 0xd8, 0x3f, 0x5a, 0xb9, 0x70, 0x41, 0x68, 0xd7, 0x7b, 0x8d,
+	0x83, 0xd6, 0xe0, 0xe9, 0x55, 0x5b, 0xb9, 0xac, 0x74, 0x2d, 0xfd, 0x47, 0xb1, 0x12, 0x67, 0xde,
+	0xbe, 0xb9, 0xeb, 0x76, 0x39, 0x44, 0xd6, 0xd2, 0xda, 0x27, 0xa8, 0xa5, 0x78, 0x98, 0xf9, 0x86,
+	0xf1, 0x58, 0xb6, 0x1b, 0xba, 0x0a, 0xa7, 0xea, 0x7a, 0x2f, 0x96, 0xb0, 0x55, 0x13, 0x57, 0x67,
+	0x92, 0x94, 0x75, 0x3a, 0x8f, 0xd1, 0xad, 0x0b, 0xf5, 0xd8, 0xbb, 0xa8, 0x31, 0x85, 0xbc, 0x85,
+	0x4d, 0x92, 0x2d, 0xed, 0x7d, 0x74, 0xed, 0x94, 0x86, 0x29, 0x68, 0x23, 0x35, 0x49, 0xbe, 0xf9,
+	0xa0, 0xfe, 0xc8, 0xea, 0xff, 0x6a, 0xa1, 0x9d, 0x4f, 0x87, 0xdf, 0x80, 0xaf, 0x08, 0x8c, 0x40,
+	0x40, 0xec, 0x83, 0x3d, 0x40, 0x88, 0x26, 0xec, 0x25, 0x08, 0xc9, 0x78, 0x6c, 0x3c, 0x6b, 0x9b,
+	0x52, 0xd0, 0xe1, 0x67, 0x1f, 0x9b, 0x08, 0x29, 0xa1, 0xec, 0x1e, 0xda, 0x9a, 0xb2, 0x38, 0xc8,
+	0x13, 0x78, 0xdb, 0x06, 0xbd, 0xf5, 0x94, 0xc5, 0x01, 0xd1, 0x11, 0xdb, 0x45, 0xcd, 0x98, 0x46,
+	0x20, 0x13, 0xea, 0x43, 0xbb, 0xa1, 0x61, 0xb7, 0x0c, 0xac, 0x79, 0x5c, 0x04, 0xc8, 0x0a, 0x93,
+	0x49, 0x66, 0x9b, 0xf6, 0xd6, 0xba, 0x64, 0x86, 0x25, 0x3a, 0xd2, 0xff, 0xad, 0x81, 0xaa, 0x6c,
+	0x6c, 0x8f, 0x50, 0x33, 0x2e, 0xde, 0xcb, 0x38, 0xe9, 0xfd, 0x7f, 0xfd, 0xe0, 0xde, 0x4d, 0x5d,
+	0x61, 0xb1, 0x25, 0x2b, 0x69, 0x7b, 0x6e, 0xa1, 0x9d, 0x62, 0x2c, 0x98, 0xdf, 0x6e, 0xfc, 0xf5,
+	0xc5, 0xff, 0xf0, 0x55, 0x31, 0x59, 0x97, 0xce, 0xcd, 0xf6, 0x95, 0xe9, 0xc3, 0xce, 0x46, 0xf4,
+	0xed, 0xac, 0xdb, 0xbd, 0x38, 0xe2, 0x96, 0x1a, 0x9f, 0x30, 0xa9, 0xbe, 0xff, 0xe3, 0x1f, 0x21,
+	0xba, 0xb1, 0x9b, 0xf7, 0xe9, 0x08, 0xb4, 0x5f, 0x55, 0x47, 0x85, 0xc9, 0x9e, 0x94, 0x4d, 0xd6,
+	0x1a, 0xe0, 0x92, 0xb9, 0x97, 0xd3, 0x54, 0x5f, 0x3c, 0x73, 0x7b, 0x91, 0x06, 0x7f, 0x9e, 0xd2,
+	0x58, 0x65, 0xff, 0xb6, 0x64, 0xca, 0x5f, 0xea, 0xe8, 0xde, 0x49, 0x2c, 0xfd, 0x09, 0x04, 0xe9,
+	0x7f, 0x1d, 0xa9, 0x11, 0xba, 0x51, 0xe4, 0x32, 0x85, 0x3d, 0xbe, 0xea, 0xdb, 0x6c, 0xfc, 0x0f,
+	0x6f, 0xd7, 0x24, 0xbb, 0xb1, 0x6c, 0xcc, 0x32, 0x85, 0x3d, 0x46, 0x77, 0xd2, 0x72, 0xe5, 0x2f,
+	0x26, 0x02, 0xe4, 0x84, 0x87, 0x81, 0xb6, 0x7c, 0xc3, 0x73, 0x0d, 0xf7, 0xce, 0x49, 0x25, 0xea,
+	0xed, 0xac, 0x7b, 0x53, 0xb1, 0x08, 0xf0, 0x93, 0x34, 0xff, 0xe2, 0xe4, 0x12, 0xb9, 0xbe, 0x42,
+	0xf7, 0x2f, 0x69, 0x91, 0x19, 0xcb, 0xcf, 0xd1, 0xed, 0xb4, 0x0a, 0x60, 0x06, 0xf4, 0x7d, 0x53,
+	0xc8, 0xed, 0x6a, 0x95, 0x6a, 0xae, 0x77, 0x70, 0x3e, 0x77, 0x6a, 0xaf, 0xe7, 0x4e, 0xed, 0xcd,
+	0xdc, 0xa9, 0x7d, 0xb7, 0x70, 0xac, 0xf3, 0x85, 0x63, 0xbd, 0x5e, 0x38, 0xd6, 0x9b, 0x85, 0x63,
+	0xfd, 0xb9, 0x70, 0xac, 0x9f, 0xfe, 0x72, 0x6a, 0x5f, 0xd6, 0x93, 0xe1, 0xdf, 0x01, 0x00, 0x00,
+	0xff, 0xff, 0x04, 0x00, 0x5c, 0x65, 0x0f, 0x08, 0x00, 0x00,
 }
 
 func (m *MaxAvailableReplicasRequest) Marshal() (dAtA []byte, err error) {
@@ -367,6 +438,49 @@ func (m *NodeClaim) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *ObjectReference) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ObjectReference) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ObjectReference) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0x22
+	i -= len(m.Namespace)
+	copy(dAtA[i:], m.Namespace)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Namespace)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.Kind)
+	copy(dAtA[i:], m.Kind)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Kind)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.APIVersion)
+	copy(dAtA[i:], m.APIVersion)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.APIVersion)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
 func (m *ReplicaRequirements) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -431,7 +545,7 @@ func (m *ReplicaRequirements) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *UnimplementedEstimatorServer) Marshal() (dAtA []byte, err error) {
+func (m *UnschedulableReplicasRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -441,16 +555,60 @@ func (m *UnimplementedEstimatorServer) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *UnimplementedEstimatorServer) MarshalTo(dAtA []byte) (int, error) {
+func (m *UnschedulableReplicasRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *UnimplementedEstimatorServer) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *UnschedulableReplicasRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
+	i = encodeVarintGenerated(dAtA, i, uint64(m.UnschedulableThreshold))
+	i--
+	dAtA[i] = 0x18
+	{
+		size, err := m.Resource.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Cluster)
+	copy(dAtA[i:], m.Cluster)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Cluster)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *UnschedulableReplicasResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *UnschedulableReplicasResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *UnschedulableReplicasResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i = encodeVarintGenerated(dAtA, i, uint64(m.UnschedulableReplicas))
+	i--
+	dAtA[i] = 0x8
 	return len(dAtA) - i, nil
 }
 
@@ -515,6 +673,23 @@ func (m *NodeClaim) Size() (n int) {
 	return n
 }
 
+func (m *ObjectReference) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.APIVersion)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Kind)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Namespace)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
 func (m *ReplicaRequirements) Size() (n int) {
 	if m == nil {
 		return 0
@@ -537,12 +712,27 @@ func (m *ReplicaRequirements) Size() (n int) {
 	return n
 }
 
-func (m *UnimplementedEstimatorServer) Size() (n int) {
+func (m *UnschedulableReplicasRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
+	l = len(m.Cluster)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = m.Resource.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	n += 1 + sovGenerated(uint64(m.UnschedulableThreshold))
+	return n
+}
+
+func (m *UnschedulableReplicasResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += 1 + sovGenerated(uint64(m.UnschedulableReplicas))
 	return n
 }
 
@@ -600,6 +790,19 @@ func (this *NodeClaim) String() string {
 	}, "")
 	return s
 }
+func (this *ObjectReference) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ObjectReference{`,
+		`APIVersion:` + fmt.Sprintf("%v", this.APIVersion) + `,`,
+		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
+		`Namespace:` + fmt.Sprintf("%v", this.Namespace) + `,`,
+		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func (this *ReplicaRequirements) String() string {
 	if this == nil {
 		return "nil"
@@ -621,11 +824,24 @@ func (this *ReplicaRequirements) String() string {
 	}, "")
 	return s
 }
-func (this *UnimplementedEstimatorServer) String() string {
+func (this *UnschedulableReplicasRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&UnimplementedEstimatorServer{`,
+	s := strings.Join([]string{`&UnschedulableReplicasRequest{`,
+		`Cluster:` + fmt.Sprintf("%v", this.Cluster) + `,`,
+		`Resource:` + strings.Replace(strings.Replace(this.Resource.String(), "ObjectReference", "ObjectReference", 1), `&`, ``, 1) + `,`,
+		`UnschedulableThreshold:` + fmt.Sprintf("%v", this.UnschedulableThreshold) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *UnschedulableReplicasResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&UnschedulableReplicasResponse{`,
+		`UnschedulableReplicas:` + fmt.Sprintf("%v", this.UnschedulableReplicas) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1069,6 +1285,184 @@ func (m *NodeClaim) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *ObjectReference) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ObjectReference: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ObjectReference: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field APIVersion", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.APIVersion = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Kind", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Kind = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Namespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *ReplicaRequirements) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1284,7 +1678,7 @@ func (m *ReplicaRequirements) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *UnimplementedEstimatorServer) Unmarshal(dAtA []byte) error {
+func (m *UnschedulableReplicasRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1307,12 +1701,165 @@ func (m *UnimplementedEstimatorServer) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: UnimplementedEstimatorServer: wiretype end group for non-group")
+			return fmt.Errorf("proto: UnschedulableReplicasRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: UnimplementedEstimatorServer: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: UnschedulableReplicasRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Cluster", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Cluster = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Resource", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Resource.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UnschedulableThreshold", wireType)
+			}
+			m.UnschedulableThreshold = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.UnschedulableThreshold |= time.Duration(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *UnschedulableReplicasResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: UnschedulableReplicasResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: UnschedulableReplicasResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UnschedulableReplicas", wireType)
+			}
+			m.UnschedulableReplicas = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.UnschedulableReplicas |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

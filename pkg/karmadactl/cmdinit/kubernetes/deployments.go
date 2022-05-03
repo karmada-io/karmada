@@ -36,6 +36,8 @@ const (
 	webhookTargetPort                                           = 8443
 	webhookPort                                                 = 443
 	karmadaAggregatedAPIServerDeploymentAndServiceName          = "karmada-aggregated-apiserver"
+	karmadaBootstrappingLabelKey                                = "karmada.io/bootstrapping"
+	karmadaBootstrappingLabelValue                              = "rbac-defaults"
 )
 
 var (
@@ -107,7 +109,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 
 	// Probes
 	livenesProbe := &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/livez",
 				Port: intstr.IntOrString{
@@ -122,7 +124,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		TimeoutSeconds:      5,
 	}
 	readinesProbe := &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/readyz",
 				Port: intstr.IntOrString{
@@ -485,6 +487,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 					"--bind-address=0.0.0.0",
 					"--cluster-status-update-frequency=10s",
 					"--secure-port=10357",
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
 				Ports: []corev1.ContainerPort{
@@ -609,7 +612,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 					},
 				},
 				ReadinessProbe: &corev1.Probe{
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						HTTPGet: &corev1.HTTPGetAction{
 							Path: "/readyz",
 							Port: intstr.IntOrString{

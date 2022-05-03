@@ -89,7 +89,7 @@ func (c *FakeOverridePolicies) Update(ctx context.Context, overridePolicy *v1alp
 // Delete takes name of the overridePolicy and deletes it. Returns an error if one occurs.
 func (c *FakeOverridePolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(overridepoliciesResource, c.ns, name), &v1alpha1.OverridePolicy{})
+		Invokes(testing.NewDeleteActionWithOptions(overridepoliciesResource, c.ns, name, opts), &v1alpha1.OverridePolicy{})
 
 	return err
 }

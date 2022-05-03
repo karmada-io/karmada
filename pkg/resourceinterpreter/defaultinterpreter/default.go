@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
@@ -14,17 +15,23 @@ import (
 // DefaultInterpreter contains all default operation interpreter factory
 // for interpreting common resource.
 type DefaultInterpreter struct {
-	replicaHandlers       map[schema.GroupVersionKind]replicaInterpreter
-	reviseReplicaHandlers map[schema.GroupVersionKind]reviseReplicaInterpreter
-	retentionHandlers     map[schema.GroupVersionKind]retentionInterpreter
+	replicaHandlers         map[schema.GroupVersionKind]replicaInterpreter
+	reviseReplicaHandlers   map[schema.GroupVersionKind]reviseReplicaInterpreter
+	retentionHandlers       map[schema.GroupVersionKind]retentionInterpreter
+	aggregateStatusHandlers map[schema.GroupVersionKind]aggregateStatusInterpreter
+	dependenciesHandlers    map[schema.GroupVersionKind]dependenciesInterpreter
+	reflectStatusHandlers   map[schema.GroupVersionKind]reflectStatusInterpreter
 }
 
 // NewDefaultInterpreter return a new DefaultInterpreter.
 func NewDefaultInterpreter() *DefaultInterpreter {
 	return &DefaultInterpreter{
-		replicaHandlers:       getAllDefaultReplicaInterpreter(),
-		reviseReplicaHandlers: getAllDefaultReviseReplicaInterpreter(),
-		retentionHandlers:     getAllDefaultRetentionInterpreter(),
+		replicaHandlers:         getAllDefaultReplicaInterpreter(),
+		reviseReplicaHandlers:   getAllDefaultReviseReplicaInterpreter(),
+		retentionHandlers:       getAllDefaultRetentionInterpreter(),
+		aggregateStatusHandlers: getAllDefaultAggregateStatusInterpreter(),
+		dependenciesHandlers:    getAllDefaultDependenciesInterpreter(),
+		reflectStatusHandlers:   getAllDefaultReflectStatusInterpreter(),
 	}
 }
 
@@ -43,6 +50,16 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 		if _, exist := e.retentionHandlers[kind]; exist {
 			return true
 		}
+	case configv1alpha1.InterpreterOperationAggregateStatus:
+		if _, exist := e.aggregateStatusHandlers[kind]; exist {
+			return true
+		}
+	case configv1alpha1.InterpreterOperationInterpretDependency:
+		if _, exist := e.dependenciesHandlers[kind]; exist {
+			return true
+		}
+	case configv1alpha1.InterpreterOperationInterpretStatus:
+		return true
 
 		// TODO(RainbowMango): more cases should be added here
 	}
@@ -75,6 +92,34 @@ func (e *DefaultInterpreter) Retain(desired *unstructured.Unstructured, observed
 	if !exist {
 		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationRetain, desired.GroupVersionKind())
 	}
-
 	return handler(desired, observed)
+}
+
+// AggregateStatus returns the objects that based on the 'object' but with status aggregated.
+func (e *DefaultInterpreter) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	handler, exist := e.aggregateStatusHandlers[object.GroupVersionKind()]
+	if !exist {
+		return nil, fmt.Errorf("defalut %s interpreter for %q not found", configv1alpha1.InterpreterOperationAggregateStatus, object.GroupVersionKind())
+	}
+	return handler(object, aggregatedStatusItems)
+}
+
+// GetDependencies returns the dependent resources of the given object.
+func (e *DefaultInterpreter) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error) {
+	handler, exist := e.dependenciesHandlers[object.GroupVersionKind()]
+	if !exist {
+		return dependencies, fmt.Errorf("defalut interpreter for operation %s not found", configv1alpha1.InterpreterOperationInterpretDependency)
+	}
+	return handler(object)
+}
+
+// ReflectStatus returns the status of the object.
+func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
+	handler, exist := e.reflectStatusHandlers[object.GroupVersionKind()]
+	if exist {
+		return handler(object)
+	}
+
+	// for resource types that don't have a build-in handler, try to collect the whole status from '.status' filed.
+	return reflectWholeStatus(object)
 }

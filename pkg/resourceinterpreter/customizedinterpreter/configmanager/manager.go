@@ -5,9 +5,7 @@ import (
 	"sort"
 	"sync/atomic"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -89,13 +87,13 @@ func (m *interpreterConfigManager) updateConfiguration() {
 
 	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, 0)
 	for _, c := range configurations {
-		unstructuredConfig, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c)
+		unstructuredConfig, err := helper.ToUnstructured(c)
 		if err != nil {
 			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: %w", err)
 			return
 		}
 
-		config, err := helper.ConvertToResourceExploringWebhookConfiguration(&unstructured.Unstructured{Object: unstructuredConfig})
+		config, err := helper.ConvertToResourceExploringWebhookConfiguration(unstructuredConfig)
 		if err != nil {
 			klog.Errorf("Failed to convert object(%s), err", config.GroupVersionKind().String(), err)
 			return

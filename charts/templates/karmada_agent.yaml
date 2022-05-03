@@ -13,7 +13,7 @@ metadata:
 rules:
   - apiGroups: ['*']
     resources: ['*']
-    verbs: ["get", "watch", "list", "create", "update", "delete"]
+    verbs: ['*']
   - nonResourceURLs: ['*']
     verbs: ["get"]
 ---
@@ -70,6 +70,10 @@ spec:
   selector:
     matchLabels:
       {{- include "karmada.agent.labels" . | indent 6}}
+  {{- with .Values.agent.strategy }}
+  strategy:
+  {{- toYaml . | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.agent.podAnnotations}}

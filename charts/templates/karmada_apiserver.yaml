@@ -12,6 +12,10 @@ spec:
   selector:
     matchLabels:
       {{- include "karmada.apiserver.labels" . | nindent 6}}
+  {{- with .Values.apiServer.strategy }}
+  strategy:
+  {{- toYaml . | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.apiServer.podAnnotations }}
@@ -70,6 +74,8 @@ spec:
             - --requestheader-username-headers=X-Remote-User
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --max-requests-inflight={{ .Values.apiServer.maxRequestsInflight }}
+            - --max-mutating-requests-inflight={{ .Values.apiServer.maxMutatingRequestsInflight }}
           ports:
             - name: http
               containerPort: 5443
@@ -162,4 +168,4 @@ spec:
   selector:
   {{- include "karmada.apiserver.labels" . | nindent 4}}
 
-{{- end}}
+{{- end }}

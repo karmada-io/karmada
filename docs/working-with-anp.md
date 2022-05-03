@@ -264,8 +264,8 @@ cert_yaml=proxy-agent.yaml
 
 karmada_controlplan_addr=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' karmada-host-control-plane)
 member3_cluster_addr=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' member3-control-plane)
-sed -i'' -e "s/{{proxy_server_addr}}/${karmada_controlplan_addr}/g" proxy-agent.yaml 
-sed -i'' -e "s/{{identifiers}}/${member3_cluster_addr}/g" proxy-agent.yaml 
+sed -i'' -e "s/{{proxy_server_addr}}/${karmada_controlplan_addr}/g" ${cert_yaml}
+sed -i'' -e "s/{{identifiers}}/${member3_cluster_addr}/g" ${cert_yaml}
 
 PROXY_AGENT_CA_CRT=$(cat certs/agent/issued/ca.crt | base64 | tr "\n" " "|sed s/[[:space:]]//g)
 sed -i'' -e "s/{{proxy_agent_ca_crt}}/${PROXY_AGENT_CA_CRT}/g" ${cert_yaml}
@@ -293,3 +293,15 @@ kind load docker-image swr.ap-southeast-1.myhuaweicloud.com/karmada/proxy-agent:
 kubectl --kubeconfig=/root/.kube/members.config --context=member3 apply -f proxy-agent.yaml
 ```
 **The ANP deployment is complete.**
+
+### Step 6: Add command flags for karmada-agent deployment
+
+After deploying the ANP deployment, we need to add extra command flags `--cluster-api-endpoint` and `--proxy-server-address` for `karmada-agent` deployment in `member3` cluster.
+
+Where `--cluster-api-endpoint` is the APIEndpoint of the cluster. You can obtain it from the KubeConfig file of the `member3` cluster.
+
+Where `--proxy-server-address` is the address of the proxy server that is used to proxy the cluster. In current case, we can set `--proxy-server-address` to `http://<karmada_controlplan_addr>:8088`. Get `karmada_controlplan_addr` value through the following command:
+```shell
+docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' karmada-host-control-plane
+```
+Port `8088` is set by our code modification in ANP: https://github.com/mrlihanbo/apiserver-network-proxy/blob/v0.0.24/dev/cmd/server/app/server.go#L267. You can also modify it to a different value.

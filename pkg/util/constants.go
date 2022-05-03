@@ -16,6 +16,12 @@ const (
 	// Note: This instruction is intended to set on Work objects to indicate the Work should be ignored by
 	// execution controller. The instruction maybe deprecated once we extend the Work API and no other scenario want this.
 	PropagationInstruction = "propagation.karmada.io/instruction"
+
+	// FederatedResourceQuotaNamespaceLabel is added to Work to specify associated FederatedResourceQuota's namespace.
+	FederatedResourceQuotaNamespaceLabel = "federatedresourcequota.karmada.io/namespace"
+
+	// FederatedResourceQuotaNameLabel is added to Work to specify associated FederatedResourceQuota's name.
+	FederatedResourceQuotaNameLabel = "federatedresourcequota.karmada.io/name"
 )
 
 // Define annotations used by karmada system.
@@ -111,6 +117,8 @@ const (
 	SpecField = "spec"
 	// ReplicasField indicates the 'replicas' field of a resource
 	ReplicasField = "replicas"
+	// ReadyReplicasField indicates the 'readyReplicas' field of a resource status
+	ReadyReplicasField = "readyReplicas"
 	// ParallelismField indicates the 'parallelism' field of a job
 	ParallelismField = "parallelism"
 	// CompletionsField indicates the 'completions' field of a job

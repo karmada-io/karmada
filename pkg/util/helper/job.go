@@ -15,7 +15,7 @@ import (
 
 // ParsingJobStatus generates new status of given 'AggregatedStatusItem'.
 //nolint:gocyclo
-func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusItem, clusters []workv1alpha2.TargetCluster) (*batchv1.JobStatus, error) {
+func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusItem) (*batchv1.JobStatus, error) {
 	var jobFailed []string
 	var startTime, completionTime *metav1.Time
 	successfulJobs, completionJobs := 0, 0
@@ -67,7 +67,7 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		})
 	}
 
-	if successfulJobs == len(clusters) {
+	if successfulJobs == len(status) {
 		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
 			Type:               batchv1.JobComplete,
 			Status:             corev1.ConditionTrue,
@@ -81,7 +81,7 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 	if startTime != nil {
 		newStatus.StartTime = startTime.DeepCopy()
 	}
-	if completionTime != nil && completionJobs == len(clusters) {
+	if completionTime != nil && completionJobs == len(status) {
 		newStatus.CompletionTime = completionTime.DeepCopy()
 	}
 

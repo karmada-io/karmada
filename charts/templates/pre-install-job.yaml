@@ -82,6 +82,8 @@ data:
         {{- include "karmada.systemNamespace" . | nindent 8 }}
       {{- print "apiservice.yaml: " | nindent 6 }} |-
         {{- include "karmada.apiservice" . | nindent 8 }}
+      {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 6 }} |-
+        {{- include "karmada.proxyRbac" . | nindent 8 }}
   crds-configmaps.yaml: |-
     apiVersion: v1
     kind: ConfigMap
@@ -199,7 +201,7 @@ spec:
         - |
           bash <<'EOF'
           set -ex
-          kubectl apply -f /opt/configs/
+          kubectl apply --server-side -f /opt/configs/
           EOF
         volumeMounts:
         - name: mount

@@ -1,6 +1,6 @@
 package integration
 
-import "github.com/onsi/ginkgo"
+import "github.com/onsi/ginkgo/v2"
 
 var _ = ginkgo.Describe("Work", func() {
 	ginkgo.BeforeEach(func() {

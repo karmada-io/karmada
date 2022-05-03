@@ -5,6 +5,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -84,10 +85,30 @@ func ConvertToDeployment(obj *unstructured.Unstructured) (*appsv1.Deployment, er
 	return typedObj, nil
 }
 
+// ConvertToDeploymentStatus converts a DeploymentStatus object from unstructured to typed.
+func ConvertToDeploymentStatus(obj map[string]interface{}) (*appsv1.DeploymentStatus, error) {
+	typedObj := &appsv1.DeploymentStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToDaemonSet converts a DaemonSet object from unstructured to typed.
 func ConvertToDaemonSet(obj *unstructured.Unstructured) (*appsv1.DaemonSet, error) {
 	typedObj := &appsv1.DaemonSet{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToDaemonSetStatus converts a DaemonSetStatus object from unstructured to typed.
+func ConvertToDaemonSetStatus(obj map[string]interface{}) (*appsv1.DaemonSetStatus, error) {
+	typedObj := &appsv1.DaemonSetStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
 		return nil, err
 	}
 
@@ -104,10 +125,30 @@ func ConvertToStatefulSet(obj *unstructured.Unstructured) (*appsv1.StatefulSet, 
 	return typedObj, nil
 }
 
+// ConvertToStatefulSetStatus converts a StatefulSetStatus object from unstructured to typed.
+func ConvertToStatefulSetStatus(obj map[string]interface{}) (*appsv1.StatefulSetStatus, error) {
+	typedObj := &appsv1.StatefulSetStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToJob converts a Job object from unstructured to typed.
 func ConvertToJob(obj *unstructured.Unstructured) (*batchv1.Job, error) {
 	typedObj := &batchv1.Job{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToJobStatus converts a JobStatus from unstructured to typed.
+func ConvertToJobStatus(obj map[string]interface{}) (*batchv1.JobStatus, error) {
+	typedObj := &batchv1.JobStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
 		return nil, err
 	}
 
@@ -134,6 +175,36 @@ func ConvertToResourceExploringWebhookConfiguration(obj *unstructured.Unstructur
 	return typedObj, nil
 }
 
+// ConvertToService converts a Service object from unstructured to typed.
+func ConvertToService(obj *unstructured.Unstructured) (*corev1.Service, error) {
+	typedObj := &corev1.Service{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToServiceStatus converts a ServiceStatus object from unstructured to typed.
+func ConvertToServiceStatus(obj map[string]interface{}) (*corev1.ServiceStatus, error) {
+	typedObj := &corev1.ServiceStatus{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToIngress converts an Ingress object from unstructured to typed.
+func ConvertToIngress(obj *unstructured.Unstructured) (*networkingv1.Ingress, error) {
+	typedObj := &networkingv1.Ingress{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ApplyReplica applies the Replica value for the specific field.
 func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, field string) error {
 	_, ok, err := unstructured.NestedInt64(workload.Object, util.SpecField, field)
@@ -147,4 +218,13 @@ func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, fiel
 		}
 	}
 	return nil
+}
+
+// ToUnstructured converts a typed object to an unstructured object.
+func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: uncastObj}, nil
 }

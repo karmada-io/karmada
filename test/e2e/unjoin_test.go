@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -21,40 +22,69 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("test unjoin testing", func() {
-	ginkgo.Context(" unjoining not ready cluster", func() {
-		clusterName := "member-e2e-" + rand.String(3)
-		homeDir := os.Getenv("HOME")
-		kubeConfigPath := fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-		clusterContext := fmt.Sprintf("kind-%s", clusterName)
-		deploymentName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		policyName := deploymentName
-		controlPlane := fmt.Sprintf("%s-control-plane", clusterName)
-		policyNamespace := testNamespace
+var _ = framework.SerialDescribe("unJoin testing", ginkgo.Labels{NeedCreateCluster}, func() {
+	ginkgo.Context(" unJoining not ready cluster", func() {
+		var clusterName string
+		var homeDir string
+		var kubeConfigPath string
+		var clusterContext string
+		var controlPlane string
+		var deploymentName, deploymentNamespace string
+		var policyName, policyNamespace string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.PropagationPolicy
+		var karmadaConfig karmadactl.KarmadaConfig
 
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: []string{deploymentName},
-			},
+		ginkgo.BeforeEach(func() {
+			clusterName = "member-e2e-" + rand.String(3)
+			homeDir = os.Getenv("HOME")
+			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
+			clusterContext = fmt.Sprintf("kind-%s", clusterName)
+			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
+			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			policyName = deploymentName
+			policyNamespace = testNamespace
+
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{deploymentName},
+				},
+			})
+			karmadaConfig = karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 		})
-		karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-		ginkgo.It("Test unjoining not ready cluster", func() {
+
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
 
+		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("create cluster: %s", clusterName), func() {
 				err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
+			ginkgo.DeferCleanup(func() {
+				ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
+					err := deleteCluster(clusterName, kubeConfigPath)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					_ = os.Remove(kubeConfigPath)
+				})
+			})
+		})
 
+		ginkgo.It("Test unjoining not ready cluster", func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
 				opts := karmadactl.CommandJoinOption{
 					GlobalCommandOptions: options.GlobalCommandOptions{
@@ -99,15 +129,6 @@ var _ = ginkgo.Describe("test unjoin testing", func() {
 				err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
-
-			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
-				err := deleteCluster(clusterName, kubeConfigPath)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				_ = os.Remove(kubeConfigPath)
-			})
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
-
 	})
 })

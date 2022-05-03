@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -18,11 +17,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/scheduler"
+	"github.com/karmada-io/karmada/pkg/sharedcli"
+	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -54,9 +57,21 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 		},
 	}
 
-	opts.AddFlags(cmd.Flags())
+	fss := cliflag.NamedFlagSets{}
+
+	genericFlagSet := fss.FlagSet("generic")
+	opts.AddFlags(genericFlagSet)
+
+	// Set klog flags
+	logsFlagSet := fss.FlagSet("logs")
+	klogflag.Add(logsFlagSet)
 	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-scheduler"))
-	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+
+	cmd.Flags().AddFlagSet(genericFlagSet)
+	cmd.Flags().AddFlagSet(logsFlagSet)
+
+	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
+	sharedcli.SetUsageAndHelpFunc(cmd, fss, cols)
 	return cmd
 }
 
@@ -80,7 +95,15 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		cancel()
 	}()
 
-	sched := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet, opts)
+	sched, err := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet,
+		scheduler.WithEnableSchedulerEstimator(opts.EnableSchedulerEstimator),
+		scheduler.WithSchedulerEstimatorPort(opts.SchedulerEstimatorPort),
+		scheduler.WithSchedulerEstimatorTimeout(opts.SchedulerEstimatorTimeout),
+	)
+	if err != nil {
+		return fmt.Errorf("couldn't create scheduler: %w", err)
+	}
+
 	if !opts.LeaderElection.LeaderElect {
 		sched.Run(ctx)
 		return fmt.Errorf("scheduler exited")

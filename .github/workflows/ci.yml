@@ -9,36 +9,45 @@ jobs:
     name: lint
     runs-on: ubuntu-18.04
     steps:
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
       - name: checkout code
         uses: actions/checkout@v2
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: vendor
         run: hack/verify-vendor.sh
       - name: lint
         run: hack/verify-staticcheck.sh
       - name: import alias
         run: hack/verify-import-aliases.sh
-      - name: protobuf
-        run: hack/verify-estimator-protobuf.sh
   codegen:
     name: codegen
     runs-on: ubuntu-18.04
+    env:
+      GOPATH: ${{ github.workspace }}
+    defaults:
+      run:
+        working-directory: ${{ env.GOPATH }}/src/github.com/karmada-io/karmada
     steps:
       - name: checkout code
         uses: actions/checkout@v2
+        with:
+          path: ${{ env.GOPATH }}/src/github.com/karmada-io/karmada
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
       - name: verify codegen
         run: hack/verify-codegen.sh
       - name: verify crdgen
         run: hack/verify-crdgen.sh
+      - name: verify protobuf
+        run: hack/verify-estimator-protobuf.sh
+      - name: verify swagger docs
+        run: hack/verify-swagger-docs.sh
   build:
     name: compile
     needs: codegen # rely on codegen successful completion
@@ -53,7 +62,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: compile
         run: make all
   test:
@@ -66,29 +75,34 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: make test
         run: make test
   e2e:
     name: e2e test
     needs: build
     runs-on: ubuntu-18.04
-    env:
-      ARTIFACTS_PATH: ${{ github.workspace }}/karmada-e2e-logs/
+    strategy:
+      matrix:
+        k8s: [v1.21.10, v1.22.7, v1.23.4]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.17.x
       - name: setup e2e test environment
-        run: hack/local-up-karmada.sh
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          hack/local-up-karmada.sh
       - name: run e2e
-        run: hack/run-e2e.sh
+        run: |
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
+          hack/run-e2e.sh
       - name: upload logs
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: karmada_e2e_log
-          path: ${{ github.workspace }}/karmada-e2e-logs/
+          name: karmada_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/

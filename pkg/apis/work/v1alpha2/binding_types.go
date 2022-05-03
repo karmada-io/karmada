@@ -7,6 +7,26 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const (
+	// ResourceKindResourceBinding is kind name of ResourceBinding.
+	ResourceKindResourceBinding = "ResourceBinding"
+	// ResourceSingularResourceBinding is singular name of ResourceBinding.
+	ResourceSingularResourceBinding = "resourcebinding"
+	// ResourcePluralResourceBinding is plural name of ResourceBinding.
+	ResourcePluralResourceBinding = "resourcebindings"
+	// ResourceNamespaceScopedResourceBinding indicates if ResourceBinding is NamespaceScoped.
+	ResourceNamespaceScopedResourceBinding = true
+
+	// ResourceKindClusterResourceBinding is kind name of ClusterResourceBinding.
+	ResourceKindClusterResourceBinding = "ClusterResourceBinding"
+	// ResourceSingularClusterResourceBinding is singular name of ClusterResourceBinding.
+	ResourceSingularClusterResourceBinding = "clusterresourcebinding"
+	// ResourcePluralClusterResourceBinding is kind plural of ClusterResourceBinding.
+	ResourcePluralClusterResourceBinding = "clusterresourcebindings"
+	// ResourceNamespaceScopedClusterResourceBinding indicates if ClusterResourceBinding is NamespaceScoped.
+	ResourceNamespaceScopedClusterResourceBinding = false
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status

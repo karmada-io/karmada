@@ -13,7 +13,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
-func mutatingConfig(caBundle string) string {
+func mutatingConfig(caBundle string, systemNamespace string) string {
 	return fmt.Sprintf(`apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
@@ -76,10 +76,10 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3`, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle)
+    timeoutSeconds: 3`, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle)
 }
 
-func validatingConfig(caBundle string) string {
+func validatingConfig(caBundle string, systemNamespace string) string {
 	return fmt.Sprintf(`apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
@@ -87,20 +87,6 @@ metadata:
   labels:
     app: validating-config
 webhooks:
-  - name: cluster.karmada.io
-    rules:
-      - operations: ["CREATE", "UPDATE"]
-        apiGroups: ["cluster.karmada.io"]
-        apiVersions: ["*"]
-        resources: ["clusters"]
-        scope: "Cluster"
-    clientConfig:
-      url: https://karmada-webhook.%s.svc:443/validate-cluster
-      caBundle: %s
-    failurePolicy: Fail
-    sideEffects: None
-    admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3
   - name: propagationpolicy.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
@@ -170,7 +156,7 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3`, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle, namespace, caBundle)
+    timeoutSeconds: 3`, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle)
 }
 
 func createValidatingWebhookConfiguration(c *kubernetes.Clientset, staticYaml string) error {

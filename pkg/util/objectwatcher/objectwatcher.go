@@ -3,8 +3,6 @@ package objectwatcher
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"strings"
 	"sync"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,12 +17,8 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
-)
-
-const (
-	generationPrefix      = "gen:"
-	resourceVersionPrefix = "rv:"
 )
 
 // ObjectWatcher manages operations for object dispatched to member clusters.
@@ -67,7 +61,7 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 
 	gvr, err := restmapper.GetGroupVersionResource(o.RESTMapper, desireObj.GroupVersionKind())
 	if err != nil {
-		klog.Errorf("Failed to create resource(%s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+		klog.Errorf("Failed to create resource(kind=%s, %s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err
 	}
 
@@ -129,7 +123,7 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	// and be set by user in karmada-controller-plane.
 	util.MergeAnnotations(desired, observed)
 
-	if o.resourceInterpreter.HookEnabled(desired, configv1alpha1.InterpreterOperationRetain) {
+	if o.resourceInterpreter.HookEnabled(desired.GroupVersionKind(), configv1alpha1.InterpreterOperationRetain) {
 		return o.resourceInterpreter.Retain(desired, observed)
 	}
 
@@ -145,7 +139,7 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 
 	gvr, err := restmapper.GetGroupVersionResource(o.RESTMapper, desireObj.GroupVersionKind())
 	if err != nil {
-		klog.Errorf("Failed to update resource(%s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+		klog.Errorf("Failed to update resource(kind=%s, %s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err
 	}
 
@@ -177,7 +171,7 @@ func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.U
 
 	gvr, err := restmapper.GetGroupVersionResource(o.RESTMapper, desireObj.GroupVersionKind())
 	if err != nil {
-		klog.Errorf("Failed to delete resource(%s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+		klog.Errorf("Failed to delete resource(kind=%s, %s/%s) in cluster %s as mapping GVK to GVR failed: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err
 	}
 
@@ -213,7 +207,7 @@ func (o *objectWatcherImpl) genObjectKey(obj *unstructured.Unstructured) string 
 
 // recordVersion will add or update resource version records
 func (o *objectWatcherImpl) recordVersion(clusterObj *unstructured.Unstructured, clusterName string) {
-	objVersion := objectVersion(clusterObj)
+	objVersion := lifted.ObjectVersion(clusterObj)
 	objectKey := o.genObjectKey(clusterObj)
 	if o.isClusterVersionRecordExist(clusterName) {
 		o.updateVersionRecord(clusterName, objectKey, objVersion)
@@ -266,59 +260,9 @@ func (o *objectWatcherImpl) NeedsUpdate(clusterName string, desiredObj, clusterO
 	// get resource version
 	version, exist := o.getVersionRecord(clusterName, desiredObj.GroupVersionKind().String()+"/"+desiredObj.GetNamespace()+"/"+desiredObj.GetName())
 	if !exist {
-		klog.Errorf("Failed to update resource %v/%v in cluster %s for the version record does not exist", desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
-		return false, fmt.Errorf("failed to update resource %v/%v in cluster %s for the version record does not exist", desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
+		klog.Errorf("Failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
+		return false, fmt.Errorf("failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
 	}
 
-	return objectNeedsUpdate(desiredObj, clusterObj, version), nil
-}
-
-/*
-This code is lifted from the kubefed codebase. It's a list of functions to determine whether the provided cluster
-object needs to be updated according to the desired object and the recorded version.
-For reference: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L30-L59
-*/
-
-// objectVersion retrieves the field type-prefixed value used for
-// determining currency of the given cluster object.
-func objectVersion(clusterObj *unstructured.Unstructured) string {
-	generation := clusterObj.GetGeneration()
-	if generation != 0 {
-		return fmt.Sprintf("%s%d", generationPrefix, generation)
-	}
-	return fmt.Sprintf("%s%s", resourceVersionPrefix, clusterObj.GetResourceVersion())
-}
-
-// objectNeedsUpdate determines whether the 2 objects provided cluster
-// object needs to be updated according to the desired object and the
-// recorded version.
-func objectNeedsUpdate(desiredObj, clusterObj *unstructured.Unstructured, recordedVersion string) bool {
-	targetVersion := objectVersion(clusterObj)
-
-	if recordedVersion != targetVersion {
-		return true
-	}
-
-	// If versions match and the version is sourced from the
-	// generation field, a further check of metadata equivalency is
-	// required.
-	return strings.HasPrefix(targetVersion, generationPrefix) && !objectMetaObjEquivalent(desiredObj, clusterObj)
-}
-
-// objectMetaObjEquivalent checks if cluster-independent, user provided data in two given ObjectMeta are equal. If in
-// the future the ObjectMeta structure is expanded then any field that is not populated
-// by the api server should be included here.
-func objectMetaObjEquivalent(a, b metav1.Object) bool {
-	if a.GetName() != b.GetName() {
-		return false
-	}
-	if a.GetNamespace() != b.GetNamespace() {
-		return false
-	}
-	aLabels := a.GetLabels()
-	bLabels := b.GetLabels()
-	if !reflect.DeepEqual(aLabels, bLabels) && (len(aLabels) != 0 || len(bLabels) != 0) {
-		return false
-	}
-	return true
+	return lifted.ObjectNeedsUpdate(desiredObj, clusterObj, version), nil
 }

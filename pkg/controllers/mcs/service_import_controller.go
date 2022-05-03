@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -124,17 +125,32 @@ func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.Ser
 			IP: ip,
 		})
 	}
-	derivedService.Status = corev1.ServiceStatus{
-		LoadBalancer: corev1.LoadBalancerStatus{
-			Ingress: ingress,
-		},
-	}
 
-	if err := c.Client.Status().Update(context.TODO(), derivedService); err != nil {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		derivedService.Status = corev1.ServiceStatus{
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: ingress,
+			},
+		}
+		updateErr := c.Status().Update(context.TODO(), derivedService)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &corev1.Service{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: derivedService.Namespace, Name: derivedService.Name}, updated); err == nil {
+			derivedService = updated
+		} else {
+			klog.Errorf("failed to get updated service %s/%s: %v", derivedService.Namespace, derivedService.Name, err)
+		}
+
+		return updateErr
+	})
+
+	if err != nil {
 		klog.Errorf("Update derived service(%s/%s) status failed, Error: %v", derivedService.Namespace, derivedService.Name, err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
 	return controllerruntime.Result{}, nil
 }
 

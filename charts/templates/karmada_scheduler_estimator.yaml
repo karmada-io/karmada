@@ -16,6 +16,10 @@ spec:
     matchLabels:
       app: karmada-scheduler-estimator-{{ $clusterName }}
       {{- include "karmada.schedulerEstimator.labels" . | nindent 6}}
+  {{- with .Values.schedulerEstimator.strategy }}
+  strategy:
+  {{- toYaml . | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.schedulerEstimator.podAnnotations }}

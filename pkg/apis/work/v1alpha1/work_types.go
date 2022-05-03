@@ -5,6 +5,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const (
+	// ResourceKindWork is kind name of Work.
+	ResourceKindWork = "Work"
+	// ResourceSingularWork is singular name of Work.
+	ResourceSingularWork = "work"
+	// ResourcePluralWork is plural name of Work.
+	ResourcePluralWork = "works"
+	// ResourceNamespaceScopedWork indicates if Work is NamespaceScoped.
+	ResourceNamespaceScopedWork = true
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status

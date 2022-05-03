@@ -24,6 +24,10 @@
 /karmada-controller-manager
 /karmada-interpreter-webhook-example
 /karmada-scheduler
+/karmada-descheduler
 /karmada-scheduler-estimator
 /karmada-webhook
 /kubectl-karmada
+
+# OSX trash
+.DS_Store

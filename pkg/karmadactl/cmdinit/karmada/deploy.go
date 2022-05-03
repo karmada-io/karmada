@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -19,17 +20,19 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"sigs.k8s.io/yaml"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
-const namespace = "karmada-system"
+const (
+	clusterProxyAdminRole = "cluster-proxy-admin"
+	clusterProxyAdminUser = "system:admin"
+)
 
-//InitKarmadaResources Initialize karmada resource
-func InitKarmadaResources(dir, caBase64 string) error {
+// InitKarmadaResources Initialize karmada resource
+func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	restConfig, err := utils.RestConfig(filepath.Join(dir, options.KarmadaKubeConfigName))
 	if err != nil {
 		return err
@@ -43,13 +46,13 @@ func InitKarmadaResources(dir, caBase64 string) error {
 	// create namespace
 	if _, err := clientSet.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: systemNamespace,
 		},
 	}, metav1.CreateOptions{}); err != nil {
 		klog.Exitln(err)
 	}
 
-	//New CRDsClient
+	// New CRDsClient
 	crdClient, err := utils.NewCRDsClient(restConfig)
 	if err != nil {
 		return err
@@ -80,19 +83,24 @@ func InitKarmadaResources(dir, caBase64 string) error {
 
 	// create webhook configuration
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/webhook-configuration.yaml
-	klog.Info("Crate MutatingWebhookConfiguration mutating-config.")
-	if err = createMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64)); err != nil {
+	klog.Info("Create MutatingWebhookConfiguration mutating-config.")
+	if err = createMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
-	klog.Info("Crate ValidatingWebhookConfiguration validating-config.")
+	klog.Info("Create ValidatingWebhookConfiguration validating-config.")
 
-	if err = createValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64)); err != nil {
+	if err = createValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
 
 	// karmada-aggregated-apiserver
-	if err = initAPIService(clientSet, restConfig); err != nil {
+	if err = initAPIService(clientSet, restConfig, systemNamespace); err != nil {
 		klog.Exitln(err)
+	}
+
+	// grant proxy permission to "system:admin".
+	if err := grantProxyPermissionToAdmin(clientSet); err != nil {
+		return err
 	}
 
 	return nil
@@ -113,7 +121,7 @@ func crdPatchesResources(filename, caBundle string) ([]byte, error) {
 	return []byte(repl), nil
 }
 
-//createCRDs create crd resource
+// createCRDs create crd resource
 func createCRDs(crdClient *clientset.Clientset, filename string) error {
 	obj := apiextensionsv1.CustomResourceDefinition{}
 	data, err := ioutil.ReadFile(filename)
@@ -163,12 +171,7 @@ func getName(str, start, end string) string {
 	return str
 }
 
-func apiServiceResourceVersion(c *aggregator.Clientset, name string) string {
-	apiService, _ := c.ApiregistrationV1().APIServices().Get(context.TODO(), name, metav1.GetOptions{})
-	return apiService.ResourceVersion
-}
-
-func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) error {
+func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, systemNamespace string) error {
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/apiservice.yaml
 	aaService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -177,17 +180,17 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "karmada-aggregated-apiserver",
-			Namespace: namespace,
+			Namespace: systemNamespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:         corev1.ServiceTypeExternalName,
-			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc.cluster.local", namespace),
+			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc", systemNamespace),
 		},
 	}
-	if _, err := clientSet.CoreV1().Services(namespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {
+	if _, err := clientSet.CoreV1().Services(systemNamespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {
 		return err
 	}
-	//new apiRegistrationClient
+	// new apiRegistrationClient
 	apiRegistrationClient, err := utils.NewAPIRegistrationClient(restConfig)
 	if err != nil {
 		return err
@@ -209,22 +212,23 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 			GroupPriorityMinimum:  2000,
 			Service: &apiregistrationv1.ServiceReference{
 				Name:      "karmada-aggregated-apiserver",
-				Namespace: namespace,
+				Namespace: systemNamespace,
 			},
 			Version:         "v1alpha1",
 			VersionPriority: 10,
 		},
 	}
 
-	allService, err := apiRegistrationClient.ApiregistrationV1().APIServices().List(context.TODO(), metav1.ListOptions{})
+	allAPIService, err := apiRegistrationClient.ApiregistrationV1().APIServices().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	for _, v := range allService.Items {
+	// Update if it exists.
+	for _, v := range allAPIService.Items {
 		if v.Name == aaAPIServiceObjName {
 			klog.Infof("Update APIService '%s'", aaAPIServiceObjName)
-			aaAPIService.ObjectMeta.ResourceVersion = apiServiceResourceVersion(apiRegistrationClient, aaAPIServiceObjName)
+			aaAPIService.ObjectMeta.ResourceVersion = v.ResourceVersion
 			if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), aaAPIService, metav1.UpdateOptions{}); err != nil {
 				return err
 			}
@@ -236,6 +240,8 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config) er
 	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), aaAPIService, metav1.CreateOptions{}); err != nil {
 		return err
 	}
-
+	if err := waitAPIServiceReady(apiRegistrationClient, aaAPIServiceObjName, 120*time.Second); err != nil {
+		return err
+	}
 	return nil
 }

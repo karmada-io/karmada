@@ -8,11 +8,15 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/karmada-io/karmada/examples/customresourceinterpreter/webhook/app/options"
+	"github.com/karmada-io/karmada/pkg/sharedcli"
+	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 	"github.com/karmada-io/karmada/pkg/webhook/interpreter"
@@ -38,10 +42,22 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().AddGoFlagSet(flag.CommandLine)
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-interpreter-webhook-example"))
-	opts.AddFlags(cmd.Flags())
+	fss := cliflag.NamedFlagSets{}
 
+	genericFlagSet := fss.FlagSet("generic")
+	genericFlagSet.AddGoFlagSet(flag.CommandLine)
+	opts.AddFlags(genericFlagSet)
+
+	// Set klog flags
+	logsFlagSet := fss.FlagSet("logs")
+	klogflag.Add(logsFlagSet)
+
+	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-interpreter-webhook-example"))
+	cmd.Flags().AddFlagSet(genericFlagSet)
+	cmd.Flags().AddFlagSet(logsFlagSet)
+
+	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
+	sharedcli.SetUsageAndHelpFunc(cmd, fss, cols)
 	return cmd
 }
 

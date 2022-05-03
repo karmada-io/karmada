@@ -112,7 +112,12 @@ func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *ServiceExportController) RunWorkQueue() {
-	c.worker = util.NewAsyncWorker("service-export", nil, c.syncServiceExportOrEndpointSlice)
+	workerOptions := util.Options{
+		Name:          "service-export",
+		KeyFunc:       nil,
+		ReconcileFunc: c.syncServiceExportOrEndpointSlice,
+	}
+	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 
@@ -264,7 +269,7 @@ func (c *ServiceExportController) genHandlerDeleteFunc(clusterName string) func(
 // For ServiceExport create or update event, reports the referencing service's EndpointSlice.
 // For ServiceExport delete event, cleanup the previously reported EndpointSlice.
 func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys.FederatedKey) error {
-	_, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, serviceExportKey, c.Client, c.ClusterDynamicClientSetFunc)
+	_, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, serviceExportKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return cleanupWorkWithServiceExportDelete(c.Client, serviceExportKey)
@@ -289,7 +294,7 @@ func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys
 // For EndpointSlice create or update event, reports the EndpointSlice when referencing service has been exported.
 // For EndpointSlice delete event, cleanup the previously reported EndpointSlice.
 func (c *ServiceExportController) handleEndpointSliceEvent(endpointSliceKey keys.FederatedKey) error {
-	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey, c.Client, c.ClusterDynamicClientSetFunc)
+	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return cleanupWorkWithEndpointSliceDelete(c.Client, endpointSliceKey)

@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-//ServiceAccountFromSpec sa spec
+// ServiceAccountFromSpec sa spec
 func (i *CommandInitOption) ServiceAccountFromSpec(name []string) []corev1.ServiceAccount {
 	var sa []corev1.ServiceAccount
 
@@ -29,7 +29,7 @@ func (i *CommandInitOption) ServiceAccountFromSpec(name []string) []corev1.Servi
 	return sa
 }
 
-//CreateServiceAccount receive ServiceAccountFromSpec create sa
+// CreateServiceAccount receive ServiceAccountFromSpec create sa
 func (i *CommandInitOption) CreateServiceAccount() error {
 	serviceAccount := i.ServiceAccountFromSpec([]string{controllerManagerDeploymentAndServiceName, schedulerDeploymentNameAndServiceAccountName, webhookDeploymentAndServiceAccountAndServiceName})
 	saClient := i.KubeClientSet.CoreV1().ServiceAccounts(i.Namespace)

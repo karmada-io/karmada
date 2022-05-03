@@ -7,6 +7,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -15,11 +16,18 @@ import (
 // CreateOrUpdateEndpointSlice creates a EndpointSlice object if not exist, or updates if it already exist.
 func CreateOrUpdateEndpointSlice(client client.Client, endpointSlice *discoveryv1.EndpointSlice) error {
 	runtimeObject := endpointSlice.DeepCopy()
-	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
-		runtimeObject.AddressType = endpointSlice.AddressType
-		runtimeObject.Endpoints = endpointSlice.Endpoints
-		runtimeObject.Labels = endpointSlice.Labels
-		runtimeObject.Ports = endpointSlice.Ports
+	var operationResult controllerutil.OperationResult
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
+			runtimeObject.AddressType = endpointSlice.AddressType
+			runtimeObject.Endpoints = endpointSlice.Endpoints
+			runtimeObject.Labels = endpointSlice.Labels
+			runtimeObject.Ports = endpointSlice.Ports
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {

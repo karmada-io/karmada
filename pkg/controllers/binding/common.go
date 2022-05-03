@@ -27,18 +27,18 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 		return false
 	},
 	UpdateFunc: func(e event.UpdateEvent) bool {
-		var statusesOld, statusesNew []workv1alpha1.ManifestStatus
+		var statusesOld, statusesNew workv1alpha1.WorkStatus
 
 		switch oldWork := e.ObjectOld.(type) {
 		case *workv1alpha1.Work:
-			statusesOld = oldWork.Status.ManifestStatuses
+			statusesOld = oldWork.Status
 		default:
 			return false
 		}
 
 		switch newWork := e.ObjectNew.(type) {
 		case *workv1alpha1.Work:
-			statusesNew = newWork.Status.ManifestStatuses
+			statusesNew = newWork.Status
 		default:
 			return false
 		}
@@ -54,45 +54,38 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 })
 
 // ensureWork ensure Work to be created or updated.
-// TODO(Garrybest): clean up the code to fix cyclomatic complexity
-//nolint:gocyclo
 func ensureWork(
 	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
+	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
 		bindingObj := binding.(*workv1alpha2.ResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
+		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
 	case apiextensionsv1.ClusterScoped:
 		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
+		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
 	}
 
-	hasScheduledReplica, desireReplicaInfos := getReplicaInfos(targetClusters)
+	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
 
 	var jobCompletions []workv1alpha2.TargetCluster
-	var jobHasCompletions = false
+	var err error
 	if workload.GetKind() == util.JobKind {
-		completions, found, err := unstructured.NestedInt64(workload.Object, util.SpecField, util.CompletionsField)
+		jobCompletions, err = divideReplicasByJobCompletions(workload, targetClusters)
 		if err != nil {
 			return err
 		}
-		if found {
-			jobCompletions = util.DivideReplicasByTargetCluster(targetClusters, int32(completions))
-			jobHasCompletions = true
-		}
 	}
+	hasScheduledReplica, desireReplicaInfos := getReplicaInfos(targetClusters)
 
 	for i := range targetClusters {
 		targetCluster := targetClusters[i]
 		clonedWorkload := workload.DeepCopy()
-		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
-		if err != nil {
-			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
-			return err
-		}
 
 		workNamespace, err := names.GenerateExecutionSpaceName(targetCluster.Name)
 		if err != nil {
@@ -102,23 +95,34 @@ func ensureWork(
 
 		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
 
-		if hasScheduledReplica && resourceInterpreter.HookEnabled(clonedWorkload, configv1alpha1.InterpreterOperationReviseReplica) {
-			clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name])
-			if err != nil {
-				klog.Errorf("failed to revise replica for %s/%s/%s in cluster %s, err is: %v",
-					workload.GetKind(), workload.GetNamespace(), workload.GetName(), targetCluster.Name, err)
-				return err
+		if hasScheduledReplica {
+			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
+				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name])
+				if err != nil {
+					klog.Errorf("failed to revise replica for %s/%s/%s in cluster %s, err is: %v",
+						workload.GetKind(), workload.GetNamespace(), workload.GetName(), targetCluster.Name, err)
+					return err
+				}
 			}
 
-			if clonedWorkload.GetKind() == util.JobKind && jobHasCompletions {
-				// For a work queue Job that usually leaves .spec.completions unset, in that case, we skip setting this field.
-				// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
+			// Set allocated completions for Job only when the '.spec.completions' field not omitted from resource template.
+			// For jobs running with a 'work queue' usually leaves '.spec.completions' unset, in that case we skip
+			// setting this field as well.
+			// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
+			if len(jobCompletions) > 0 {
 				if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
 					klog.Errorf("failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
 						clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
 					return err
 				}
 			}
+		}
+
+		// We should call ApplyOverridePolicies last, as override rules have the highest priority
+		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
+		if err != nil {
+			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
+			return err
 		}
 
 		annotations := mergeAnnotations(clonedWorkload, binding, scope)
@@ -143,6 +147,25 @@ func ensureWork(
 	return nil
 }
 
+func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredByBindingSnapshot []workv1alpha2.BindingSnapshot) []workv1alpha2.TargetCluster {
+	if len(requiredByBindingSnapshot) == 0 {
+		return targetClusters
+	}
+
+	scheduledClusterNames := util.ConvertToClusterNames(targetClusters)
+
+	for _, requiredByBinding := range requiredByBindingSnapshot {
+		for _, targetCluster := range requiredByBinding.Clusters {
+			if !scheduledClusterNames.Has(targetCluster.Name) {
+				scheduledClusterNames.Insert(targetCluster.Name)
+				targetClusters = append(targetClusters, targetCluster)
+			}
+		}
+	}
+
+	return targetClusters
+}
+
 func getReplicaInfos(targetClusters []workv1alpha2.TargetCluster) (bool, map[string]int64) {
 	if helper.HasScheduledReplica(targetClusters) {
 		return true, transScheduleResultToMap(targetClusters)
@@ -160,8 +183,8 @@ func transScheduleResultToMap(scheduleResult []workv1alpha2.TargetCluster) map[s
 
 func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
-	util.MergeLabel(workload, workv1alpha2.WorkNamespaceLabel, workNamespace)
-	util.MergeLabel(workload, workv1alpha2.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
+	util.MergeLabel(workload, workv1alpha1.WorkNamespaceLabel, workNamespace)
+	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
 		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
@@ -214,4 +237,18 @@ func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overrid
 	}
 
 	return annotations, nil
+}
+
+func divideReplicasByJobCompletions(workload *unstructured.Unstructured, clusters []workv1alpha2.TargetCluster) ([]workv1alpha2.TargetCluster, error) {
+	var targetClusters []workv1alpha2.TargetCluster
+	completions, found, err := unstructured.NestedInt64(workload.Object, util.SpecField, util.CompletionsField)
+	if err != nil {
+		return nil, err
+	}
+
+	if found {
+		targetClusters = util.DivideReplicasByTargetCluster(clusters, int32(completions))
+	}
+
+	return targetClusters, nil
 }

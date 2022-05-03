@@ -7,8 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
 	"k8s.io/client-go/tools/clientcmd"
 	apiserverflag "k8s.io/component-base/cli/flag"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
@@ -29,6 +31,9 @@ func NewKarmadaCtlCommand(out io.Writer, cmdUse, parentCommand string) *cobra.Co
 
 		RunE: runHelp,
 	}
+
+	// Init log flags
+	klog.InitFlags(flag.CommandLine)
 
 	// Add the command line flags from other dependencies (e.g., klog), but do not
 	// warn if they contain underscores.
@@ -51,6 +56,7 @@ func NewKarmadaCtlCommand(out io.Writer, cmdUse, parentCommand string) *cobra.Co
 	rootCmd.AddCommand(NewCmdGet(out, karmadaConfig, parentCommand))
 	rootCmd.AddCommand(NewCmdTaint(out, karmadaConfig, parentCommand))
 	rootCmd.AddCommand(NewCmdPromote(out, karmadaConfig, parentCommand))
+	rootCmd.AddCommand(NewCmdLogs(out, karmadaConfig, parentCommand))
 	rootCmd.AddCommand(cmdinit.NewCmdInit(out, parentCommand))
 
 	return rootCmd

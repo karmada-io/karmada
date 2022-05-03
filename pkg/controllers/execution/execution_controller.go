@@ -15,10 +15,12 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
@@ -41,6 +43,7 @@ type Controller struct {
 	PredicateFunc        predicate.Predicate
 	InformerManager      informermanager.MultiClusterInformerManager
 	ClusterClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	RatelimiterOptions   ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -100,6 +103,9 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		For(&workv1alpha1.Work{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithEventFilter(c.PredicateFunc).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RatelimiterOptions),
+		}).
 		Complete(c)
 }
 
@@ -133,7 +139,7 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 			return err
 		}
 
-		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
+		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
@@ -234,7 +240,7 @@ func (c *Controller) tryUpdateWorkload(clusterName string, workload *unstructure
 		return err
 	}
 
-	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey, c.Client, c.ClusterClientSetFunc)
+	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
@@ -270,11 +276,19 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		LastTransitionTime: metav1.Now(),
 	}
 
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, work); err != nil {
-			return err
-		}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
-		return c.Status().Update(context.TODO(), work)
+		updateErr := c.Status().Update(context.TODO(), work)
+		if updateErr == nil {
+			return nil
+		}
+		updated := &workv1alpha1.Work{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
+			// make a copy, so we don't mutate the shared cache
+			work = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
+		}
+		return updateErr
 	})
 }

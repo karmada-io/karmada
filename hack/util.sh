@@ -17,7 +17,21 @@ KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 INTERPRETER_WEBHOOK_EXAMPLE_LABEL="karmada-interpreter-webhook-example"
 
-MIN_Go_VERSION=go1.16.0
+MIN_Go_VERSION=go1.17.0
+
+#https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KARMADA
+KARMADA_GREETING='
+------------------------------------------------------------------------------------------------------
+ █████   ████   █████████   ███████████   ██████   ██████   █████████   ██████████     █████████
+░░███   ███░   ███░░░░░███ ░░███░░░░░███ ░░██████ ██████   ███░░░░░███ ░░███░░░░███   ███░░░░░███
+ ░███  ███    ░███    ░███  ░███    ░███  ░███░█████░███  ░███    ░███  ░███   ░░███ ░███    ░███
+ ░███████     ░███████████  ░██████████   ░███░░███ ░███  ░███████████  ░███    ░███ ░███████████
+ ░███░░███    ░███░░░░░███  ░███░░░░░███  ░███ ░░░  ░███  ░███░░░░░███  ░███    ░███ ░███░░░░░███
+ ░███ ░░███   ░███    ░███  ░███    ░███  ░███      ░███  ░███    ░███  ░███    ███  ░███    ░███
+ █████ ░░████ █████   █████ █████   █████ █████     █████ █████   █████ ██████████   █████   █████
+░░░░░   ░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░     ░░░░░ ░░░░░   ░░░░░ ░░░░░░░░░░   ░░░░░   ░░░░░
+------------------------------------------------------------------------------------------------------
+'
 
 # This function installs a Go tools by 'go install' command.
 # Parameters:
@@ -222,7 +236,7 @@ function util::wait_for_condition() {
   local timeout=${3:-}
 
   local start_msg="Waiting for ${msg}"
-  local error_msg="[ERROR] Timeout waiting for ${msg}"
+  local error_msg="[ERROR] Timeout waiting for condition ${msg}"
 
   local counter=0
   while ! eval ${condition}; do
@@ -251,12 +265,14 @@ function util::wait_for_condition() {
 function util::wait_file_exist() {
     local file_path=${1}
     local timeout=${2}
+    local error_msg="[ERROR] Timeout waiting for file exist ${file_path}"
     for ((time=0; time<${timeout}; time++)); do
         if [[ -e ${file_path} ]]; then
             return 0
         fi
         sleep 1
     done
+    echo -e "\n${error_msg}"
     return 1
 }
 
@@ -277,6 +293,8 @@ function util::wait_pod_ready() {
     if [ $ret -ne 0 ];then
       echo "kubectl describe info:"
       kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
+      echo "kubectl logs info:"
+      kubectl logs -l app=${pod_label} -n ${pod_namespace}
     fi
     return ${ret}
 }
@@ -339,7 +357,7 @@ function util::create_cluster() {
   rm -rf "${log_path}/${cluster_name}.log"
   rm -f "${kubeconfig}"
   nohup kind delete cluster --name="${cluster_name}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
-  echo "Creating cluster ${cluster_name}"
+  echo "Creating cluster ${cluster_name} and the log file is in ${log_path}/${cluster_name}.log"
 }
 
 # This function returns the IP address of a docker instance
@@ -536,4 +554,21 @@ function util::get_macos_ipaddress() {
   else # non-macOS
     MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-}
   fi
+}
+
+function util::get_GO_LDFLAGS() {
+  # Git information
+  GIT_VERSION=$(git describe --tags --dirty)
+  GIT_COMMIT_HASH=$(git rev-parse HEAD)
+  GIT_TREESTATE="clean"
+  GIT_DIFF=$(git diff --quiet >/dev/null 2>&1; if [[ $$ = 1 ]]; then echo "1"; fi)
+  if [[ "${GIT_DIFF}" == "1" ]];then
+      GIT_TREESTATE="dirty"
+  fi
+  BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+  LDFLAGS="-X github.com/karmada-io/karmada/pkg/version.gitVersion=${GIT_VERSION} \
+                        -X github.com/karmada-io/karmada/pkg/version.gitCommit=${GIT_COMMIT_HASH} \
+                        -X github.com/karmada-io/karmada/pkg/version.gitTreeState=${GIT_TREESTATE} \
+                        -X github.com/karmada-io/karmada/pkg/version.buildDate=${BUILDDATE}"
+  echo $LDFLAGS
 }

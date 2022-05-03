@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
@@ -17,37 +18,46 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("propagation with taint and toleration testing", func() {
+var _ = framework.SerialDescribe("propagation with taint and toleration testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		deploymentName := policyName
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		tolerationKey := "cluster-toleration.karmada.io"
-		tolerationValue := "member1"
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var tolerationKey, tolerationValue string
+		var clusterTolerations []corev1.Toleration
+		var policy *policyv1alpha1.PropagationPolicy
 
-		// set clusterTolerations to tolerate taints in member1.
-		clusterTolerations := []corev1.Toleration{
-			{
-				Key:      tolerationKey,
-				Operator: corev1.TolerationOpEqual,
-				Value:    tolerationValue,
-				Effect:   corev1.TaintEffectNoSchedule,
-			},
-		}
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+			tolerationKey = "cluster-toleration.karmada.io"
+			tolerationValue = "member1"
 
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: framework.ClusterNames(),
-			},
-			ClusterTolerations: clusterTolerations,
+			// set clusterTolerations to tolerate taints in member1.
+			clusterTolerations = []corev1.Toleration{
+				{
+					Key:      tolerationKey,
+					Operator: corev1.TolerationOpEqual,
+					Value:    tolerationValue,
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			}
+
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+				ClusterTolerations: clusterTolerations,
+			})
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -96,9 +106,16 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 			})
 		})
 
-		ginkgo.It("deployment with cluster tolerations testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
+
+		ginkgo.It("deployment with cluster tolerations testing", func() {
 
 			ginkgo.By(fmt.Sprintf("check if deployment(%s/%s) only scheduled to tolerated cluster(%s)", deploymentNamespace, deploymentName, tolerationValue), func() {
 				gomega.Eventually(func(g gomega.Gomega) {
@@ -107,9 +124,6 @@ var _ = ginkgo.Describe("propagation with taint and toleration testing", func() 
 					g.Expect(targetClusterNames[0] == tolerationValue).Should(gomega.BeTrue())
 				}, pollTimeout, pollInterval).Should(gomega.Succeed())
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

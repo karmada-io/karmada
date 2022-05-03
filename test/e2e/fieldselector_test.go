@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,45 +20,56 @@ import (
 
 var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
-		policyNamespace := testNamespace
-		policyName := deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace := testNamespace
-		deploymentName := policyName
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var originalClusterProviderInfo, originalClusterRegionInfo map[string]string
+		var desiredProvider, undesiredRegion []string
+		var desiredScheduleResult string
+		var filedSelector *policyv1alpha1.FieldSelector
+		var policy *policyv1alpha1.PropagationPolicy
 
-		originalClusterProviderInfo := make(map[string]string)
-		originalClusterRegionInfo := make(map[string]string)
-		desiredProvider := []string{"huaweicloud"}
-		undesiredRegion := []string{"cn-north-1"}
-		desiredScheduleResult := "member1"
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
 
-		// desire to schedule to clusters of huaweicloud but not in cn-north-1 region
-		filedSelector := &policyv1alpha1.FieldSelector{
-			MatchExpressions: []corev1.NodeSelectorRequirement{
-				{
-					Key:      util.ProviderField,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   desiredProvider,
+			originalClusterProviderInfo = make(map[string]string)
+			originalClusterRegionInfo = make(map[string]string)
+			desiredProvider = []string{"huaweicloud"}
+			undesiredRegion = []string{"cn-north-1"}
+			desiredScheduleResult = "member1"
+
+			// desire to schedule to clusters of huaweicloud but not in cn-north-1 region
+			filedSelector = &policyv1alpha1.FieldSelector{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      util.ProviderField,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   desiredProvider,
+					},
+					{
+						Key:      util.RegionField,
+						Operator: corev1.NodeSelectorOpNotIn,
+						Values:   undesiredRegion,
+					},
 				},
-				{
-					Key:      util.RegionField,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values:   undesiredRegion,
-				},
-			},
-		}
+			}
 
-		policy := helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames:  framework.ClusterNames(),
-				FieldSelector: filedSelector,
-			},
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames:  framework.ClusterNames(),
+					FieldSelector: filedSelector,
+				},
+			})
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -106,18 +118,21 @@ var _ = ginkgo.Describe("propagation with fieldSelector testing", func() {
 			})
 		})
 
-		ginkgo.It("propagation with fieldSelector testing", func() {
+		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
 
+		ginkgo.It("propagation with fieldSelector testing", func() {
 			ginkgo.By("check whether deployment is scheduled to clusters which meeting the fieldSelector requirements", func() {
 				targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 				gomega.Expect(len(targetClusterNames) == 1).Should(gomega.BeTrue())
 				gomega.Expect(targetClusterNames[0] == desiredScheduleResult).Should(gomega.BeTrue())
 			})
-
-			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 		})
 	})
 })

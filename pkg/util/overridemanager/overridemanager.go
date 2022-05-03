@@ -185,8 +185,12 @@ func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []Gener
 		if len(overrideRules) == 0 {
 			overrideRules = []policyv1alpha1.RuleWithCluster{
 				{
+					//nolint:staticcheck
+					// disable `deprecation` check for backward compatibility.
 					TargetCluster: policy.GetOverrideSpec().TargetCluster,
-					Overriders:    policy.GetOverrideSpec().Overriders,
+					//nolint:staticcheck
+					// disable `deprecation` check for backward compatibility.
+					Overriders: policy.GetOverrideSpec().Overriders,
 				},
 			}
 		}

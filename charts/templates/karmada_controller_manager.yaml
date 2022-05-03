@@ -18,6 +18,10 @@ spec:
   selector:
     matchLabels:
       {{- include "karmada.cm.labels" . | nindent 6}}
+  {{- with .Values.controllerManager.strategy }}
+  strategy:
+  {{- toYaml . | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.controllerManager.podAnnotations }}

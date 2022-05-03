@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -29,10 +30,12 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -63,17 +66,22 @@ type ResourceDetector struct {
 	clusterPolicyReconcileWorker   util.AsyncWorker
 	clusterPropagationPolicyLister cache.GenericLister
 
-	// bindingReconcileWorker maintains a rate limited queue which used to store ResourceBinding's key and
-	// a reconcile function to consume the items in queue.
-	bindingReconcileWorker util.AsyncWorker
-	resourceBindingLister  cache.GenericLister
-
 	RESTMapper meta.RESTMapper
 
 	// waitingObjects tracks of objects which haven't be propagated yet as lack of appropriate policies.
 	waitingObjects map[keys.ClusterWideKey]struct{}
 	// waitingLock is the lock for waitingObjects operation.
 	waitingLock sync.RWMutex
+	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
+	// Larger number means responsive resource template syncing but more CPU(and network) load.
+	ConcurrentResourceTemplateSyncs int
+	// ConcurrentResourceBindingSyncs is the number of ResourceBinding that are allowed to sync concurrently.
+	// Larger number means responsive resource template syncing but more CPU(and network) load.
+	ConcurrentResourceBindingSyncs int
+
+	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
+	// the controller.
+	RateLimiterOptions ratelimiterflag.Options
 
 	stopCh <-chan struct{}
 }
@@ -85,9 +93,19 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	// setup policy reconcile worker
-	d.policyReconcileWorker = util.NewAsyncWorker("propagationPolicy reconciler", ClusterWideKeyFunc, d.ReconcilePropagationPolicy)
+	policyWorkerOptions := util.Options{
+		Name:          "propagationPolicy reconciler",
+		KeyFunc:       ClusterWideKeyFunc,
+		ReconcileFunc: d.ReconcilePropagationPolicy,
+	}
+	d.policyReconcileWorker = util.NewAsyncWorker(policyWorkerOptions)
 	d.policyReconcileWorker.Run(1, d.stopCh)
-	d.clusterPolicyReconcileWorker = util.NewAsyncWorker("clusterPropagationPolicy reconciler", ClusterWideKeyFunc, d.ReconcileClusterPropagationPolicy)
+	clusterPolicyWorkerOptions := util.Options{
+		Name:          "clusterPropagationPolicy reconciler",
+		KeyFunc:       ClusterWideKeyFunc,
+		ReconcileFunc: d.ReconcileClusterPropagationPolicy,
+	}
+	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
 	d.clusterPolicyReconcileWorker.Run(1, d.stopCh)
 
 	// watch and enqueue PropagationPolicy changes.
@@ -110,32 +128,16 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.InformerManager.ForResource(clusterPropagationPolicyGVR, clusterPolicyHandler)
 	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
 
-	// setup binding reconcile worker
-	d.bindingReconcileWorker = util.NewAsyncWorker("resourceBinding reconciler", ClusterWideKeyFunc, d.ReconcileResourceBinding)
-	d.bindingReconcileWorker.Run(1, d.stopCh)
-
-	// watch and enqueue ResourceBinding changes.
-	resourceBindingGVR := schema.GroupVersionResource{
-		Group:    workv1alpha2.GroupVersion.Group,
-		Version:  workv1alpha2.GroupVersion.Version,
-		Resource: "resourcebindings",
+	detectorWorkerOptions := util.Options{
+		Name:               "resource detector",
+		KeyFunc:            ClusterWideKeyFunc,
+		ReconcileFunc:      d.Reconcile,
+		RateLimiterOptions: d.RateLimiterOptions,
 	}
-	bindingHandler := informermanager.NewHandlerOnEvents(d.OnResourceBindingAdd, d.OnResourceBindingUpdate, nil)
-	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
-	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
-
-	// watch and enqueue ClusterResourceBinding changes.
-	clusterResourceBindingGVR := schema.GroupVersionResource{
-		Group:    workv1alpha2.GroupVersion.Group,
-		Version:  workv1alpha2.GroupVersion.Version,
-		Resource: "clusterresourcebindings",
-	}
-	clusterBindingHandler := informermanager.NewHandlerOnEvents(d.OnClusterResourceBindingAdd, d.OnClusterResourceBindingUpdate, nil)
-	d.InformerManager.ForResource(clusterResourceBindingGVR, clusterBindingHandler)
 
 	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker("resource detector", ClusterWideKeyFunc, d.Reconcile)
-	d.Processor.Run(1, d.stopCh)
+	d.Processor = util.NewAsyncWorker(detectorWorkerOptions)
+	d.Processor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
 	<-d.stopCh
@@ -144,12 +146,14 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 }
 
 // Check if our ResourceDetector implements necessary interfaces
-var _ manager.Runnable = &ResourceDetector{}
-var _ manager.LeaderElectionRunnable = &ResourceDetector{}
+var (
+	_ manager.Runnable               = &ResourceDetector{}
+	_ manager.LeaderElectionRunnable = &ResourceDetector{}
+)
 
 func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
-		newResources := GetDeletableResources(d.DiscoveryClientSet)
+		newResources := lifted.GetDeletableResources(d.DiscoveryClientSet)
 		for r := range newResources {
 			if d.InformerManager.IsHandlerExist(r, d.EventHandler) || d.gvrDisabled(r) {
 				continue
@@ -231,7 +235,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", propagationPolicy.Namespace, propagationPolicy.Name)
 			return fmt.Errorf("waiting for dependent overrides")
 		}
-
+		d.RemoveWaiting(clusterWideKey)
 		return d.ApplyPolicy(object, clusterWideKey, propagationPolicy)
 	}
 
@@ -242,14 +246,20 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return err
 	}
 	if clusterPolicy != nil {
+		d.RemoveWaiting(clusterWideKey)
 		return d.ApplyClusterPolicy(object, clusterWideKey, clusterPolicy)
 	}
 
-	d.EventRecorder.Event(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "No policy match for resource")
-	// reaching here mean there is no appropriate policy for the object, put it into waiting list.
-	d.AddWaiting(clusterWideKey)
+	if d.isWaiting(clusterWideKey) {
+		// reaching here means there is no appropriate policy for the object
+		d.EventRecorder.Event(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "No policy match for resource")
+		return nil
+	}
 
-	return nil
+	// put it into waiting list and retry once in case the resource and propagation policy come at the same time
+	// see https://github.com/karmada-io/karmada/issues/1195
+	d.AddWaiting(clusterWideKey)
+	return fmt.Errorf("no matched propagation policy")
 }
 
 // EventFilter tells if an object should be take care of.
@@ -306,6 +316,19 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 	// if SkippedPropagatingNamespaces is set, skip object events in these namespaces.
 	if _, ok := d.SkippedPropagatingNamespaces[clusterWideKey.Namespace]; ok {
 		return false
+	}
+
+	if unstructObj, ok := obj.(*unstructured.Unstructured); ok {
+		switch unstructObj.GroupVersionKind() {
+		// The secret, with type 'kubernetes.io/service-account-token', is created along with `ServiceAccount` should be
+		// prevented from propagating.
+		// Refer to https://github.com/karmada-io/karmada/pull/1525#issuecomment-1091030659 for more details.
+		case corev1.SchemeGroupVersion.WithKind("Secret"):
+			secretType, found, _ := unstructured.NestedString(unstructObj.Object, "type")
+			if found && secretType == string(corev1.SecretTypeServiceAccountToken) {
+				return false
+			}
+		}
 	}
 
 	return true
@@ -381,7 +404,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 		return nil, err
 	}
 	if len(policyObjects) == 0 {
-		klog.V(2).Infof("no propagationpolicy find.")
+		klog.V(2).Infof("no clusterpropagationpolicy find.")
 		return nil, nil
 	}
 
@@ -417,7 +440,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply policy(%s/%s) failed", policy.Namespace, policy.Name)
 		} else {
-			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Namespace, policy.Name)
+			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Namespace, policy.Name)
 		}
 	}()
 
@@ -431,20 +454,28 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		policyv1alpha1.PropagationPolicyNameLabel:      policy.GetName(),
 	}
 
-	binding, err := d.BuildResourceBinding(object, objectKey, policyLabels)
+	binding, err := d.BuildResourceBinding(object, objectKey, policyLabels, policy.Spec.PropagateDeps)
 	if err != nil {
 		klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
 		return err
 	}
 	bindingCopy := binding.DeepCopy()
-	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-		// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-		bindingCopy.Labels = binding.Labels
-		bindingCopy.OwnerReferences = binding.OwnerReferences
-		bindingCopy.Finalizers = binding.Finalizers
-		bindingCopy.Spec.Resource = binding.Spec.Resource
-		bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
-		bindingCopy.Spec.Replicas = binding.Spec.Replicas
+	var operationResult controllerutil.OperationResult
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
+			bindingCopy.OwnerReferences = binding.OwnerReferences
+			bindingCopy.Finalizers = binding.Finalizers
+			bindingCopy.Spec.Resource = binding.Spec.Resource
+			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
+			bindingCopy.Spec.Replicas = binding.Spec.Replicas
+			bindingCopy.Spec.PropagateDeps = binding.Spec.PropagateDeps
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
@@ -470,7 +501,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply cluster policy(%s) failed", policy.Name)
 		} else {
-			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Name)
+			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Name)
 		}
 	}()
 
@@ -487,20 +518,27 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 	// For namespace-scoped resources, which namespace is not empty, building `ResourceBinding`.
 	// For cluster-scoped resources, which namespace is empty, building `ClusterResourceBinding`.
 	if object.GetNamespace() != "" {
-		binding, err := d.BuildResourceBinding(object, objectKey, policyLabels)
+		binding, err := d.BuildResourceBinding(object, objectKey, policyLabels, policy.Spec.PropagateDeps)
 		if err != nil {
 			klog.Errorf("Failed to build resourceBinding for object: %s. error: %v", objectKey, err)
 			return err
 		}
 		bindingCopy := binding.DeepCopy()
-		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-			bindingCopy.Labels = binding.Labels
-			bindingCopy.OwnerReferences = binding.OwnerReferences
-			bindingCopy.Finalizers = binding.Finalizers
-			bindingCopy.Spec.Resource = binding.Spec.Resource
-			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
-			bindingCopy.Spec.Replicas = binding.Spec.Replicas
+		var operationResult controllerutil.OperationResult
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+				bindingCopy.Labels = binding.Labels
+				bindingCopy.OwnerReferences = binding.OwnerReferences
+				bindingCopy.Finalizers = binding.Finalizers
+				bindingCopy.Spec.Resource = binding.Spec.Resource
+				bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
+				bindingCopy.Spec.Replicas = binding.Spec.Replicas
+				return nil
+			})
+			if err != nil {
+				return err
+			}
 			return nil
 		})
 
@@ -517,7 +555,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())
 		}
 	} else {
-		binding, err := d.BuildClusterResourceBinding(object, objectKey, policyLabels)
+		binding, err := d.BuildClusterResourceBinding(object, objectKey, policyLabels, policy.Spec.PropagateDeps)
 		if err != nil {
 			klog.Errorf("Failed to build clusterResourceBinding for object: %s. error: %v", objectKey, err)
 			return err
@@ -533,7 +571,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Spec.Replicas = binding.Spec.Replicas
 			return nil
 		})
-
 		if err != nil {
 			klog.Errorf("Failed to apply cluster policy(%s) for object: %s. error: %v", policy.Name, objectKey, err)
 			return err
@@ -567,13 +604,13 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 		return nil, err
 	}
 
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+	unstructuredObj, err := helper.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s), error: %v", objectKey, err)
 		return nil, err
 	}
 
-	return &unstructured.Unstructured{Object: uncastObj}, nil
+	return unstructuredObj, nil
 }
 
 // GetObject retrieves object from local cache.
@@ -625,7 +662,7 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
-func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha2.ResourceBinding, error) {
+func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string, propagateDeps bool) (*workv1alpha2.ResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	propagationBinding := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -638,6 +675,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			Finalizers: []string{util.BindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
+			PropagateDeps: propagateDeps,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
@@ -649,7 +687,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 		},
 	}
 
-	if d.ResourceInterpreter.HookEnabled(object, configv1alpha1.InterpreterOperationInterpretReplica) {
+	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
@@ -663,7 +701,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
-func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string) (*workv1alpha2.ClusterResourceBinding, error) {
+func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string, propagateDeps bool) (*workv1alpha2.ClusterResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
 	binding := &workv1alpha2.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -675,6 +713,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			Finalizers: []string{util.ClusterResourceBindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
+			PropagateDeps: propagateDeps,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
@@ -685,7 +724,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		},
 	}
 
-	if d.ResourceInterpreter.HookEnabled(object, configv1alpha1.InterpreterOperationInterpretReplica) {
+	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
@@ -696,6 +735,14 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 	}
 
 	return binding, nil
+}
+
+// isWaiting indicates if the object is in waiting list.
+func (d *ResourceDetector) isWaiting(objectKey keys.ClusterWideKey) bool {
+	d.waitingLock.RLock()
+	_, ok := d.waitingObjects[objectKey]
+	d.waitingLock.RUnlock()
+	return ok
 }
 
 // AddWaiting adds object's key to waiting list.
@@ -875,12 +922,19 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyNS string, poli
 		return err
 	}
 
-	for _, binding := range rbs.Items {
+	for index, binding := range rbs.Items {
+		// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+		if err := d.CleanupResourceBindingLabels(&rbs.Items[index], policyv1alpha1.PropagationPolicyNamespaceLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
+			klog.Errorf("Failed to cleanup label from resource binding(%s/%s) when propagation policy(%s/%s) removing, error: %v",
+				binding.Namespace, binding.Name, policyNS, policyName, err)
+			return err
+		}
+
 		// Cleanup the labels from the object referencing by binding.
 		// In addition, this will give the object a chance to match another policy.
 		if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.PropagationPolicyNamespaceLabel, policyv1alpha1.PropagationPolicyNameLabel); err != nil {
-			klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when resource binding(%s/%s) removing, error: %v",
-				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to cleanup label from resource(%s-%s/%s) when propagation policy(%s/%s) removing, error: %v",
+				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, policyNS, policyName, err)
 			return err
 		}
 	}
@@ -904,7 +958,14 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		klog.Errorf("Failed to load cluster resource binding by policy(%s), error: %v", policyName, err)
 		errs = append(errs, err)
 	} else if len(crbs.Items) > 0 {
-		for _, binding := range crbs.Items {
+		for index, binding := range crbs.Items {
+			// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+			if err := d.CleanupClusterResourceBindingLabels(&crbs.Items[index], policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
+				klog.Errorf("Failed to cleanup label from cluster resource binding(%s) when cluster propagation policy(%s) removing, error: %v",
+					binding.Name, policyName, err)
+				errs = append(errs, err)
+			}
+
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
 			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
@@ -921,7 +982,14 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 		klog.Errorf("Failed to load resource binding by policy(%s), error: %v", policyName, err)
 		errs = append(errs, err)
 	} else if len(rbs.Items) > 0 {
-		for _, binding := range rbs.Items {
+		for index, binding := range rbs.Items {
+			// Cleanup the labels from the reference binding so that the karmada scheduler won't reschedule the binding.
+			if err := d.CleanupResourceBindingLabels(&rbs.Items[index], policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
+				klog.Errorf("Failed to cleanup label from resource binding(%s/%s) when cluster propagation policy(%s) removing, error: %v",
+					binding.Namespace, binding.Name, policyName, err)
+				errs = append(errs, err)
+			}
+
 			// Cleanup the labels from the object referencing by binding.
 			// In addition, this will give the object a chance to match another policy.
 			if err := d.CleanupLabels(binding.Spec.Resource, policyv1alpha1.ClusterPropagationPolicyLabel); err != nil {
@@ -986,71 +1054,6 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreation(policy *policy
 	return nil
 }
 
-// OnResourceBindingAdd handles object add event.
-func (d *ResourceDetector) OnResourceBindingAdd(obj interface{}) {
-	key, err := ClusterWideKeyFunc(obj)
-	if err != nil {
-		return
-	}
-
-	d.bindingReconcileWorker.Add(key)
-}
-
-// OnResourceBindingUpdate handles object update event and push the object to queue.
-func (d *ResourceDetector) OnResourceBindingUpdate(_, newObj interface{}) {
-	d.OnResourceBindingAdd(newObj)
-}
-
-// ReconcileResourceBinding handles ResourceBinding object changes.
-// For each ResourceBinding changes, we will try to calculate the summary status and update to original object
-// that the ResourceBinding refer to.
-func (d *ResourceDetector) ReconcileResourceBinding(key util.QueueKey) error {
-	ckey, ok := key.(keys.ClusterWideKey)
-	if !ok { // should not happen
-		klog.Error("Found invalid key when reconciling resource binding.")
-		return fmt.Errorf("invalid key")
-	}
-
-	unstructuredObj, err := d.resourceBindingLister.Get(ckey.NamespaceKey())
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-
-	binding, err := helper.ConvertToResourceBinding(unstructuredObj.(*unstructured.Unstructured))
-	if err != nil {
-		klog.Errorf("Failed to convert ResourceBinding(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
-		return err
-	}
-
-	klog.Infof("Reconciling resource binding(%s/%s)", binding.Namespace, binding.Name)
-	switch binding.Spec.Resource.Kind {
-	case util.DeploymentKind:
-		return d.AggregateDeploymentStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
-	case util.ServiceKind:
-		return d.AggregateServiceStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
-	case util.IngressKind:
-		return d.AggregateIngressStatus(binding.Spec.Resource, binding.Status.AggregatedStatus)
-	case util.JobKind:
-		return d.AggregateJobStatus(binding.Spec.Resource, binding.Status.AggregatedStatus, binding.Spec.Clusters)
-	default:
-		// Unsupported resource type.
-		return nil
-	}
-}
-
-// OnClusterResourceBindingAdd handles object add event.
-func (d *ResourceDetector) OnClusterResourceBindingAdd(obj interface{}) {
-
-}
-
-// OnClusterResourceBindingUpdate handles object update event and push the object to queue.
-func (d *ResourceDetector) OnClusterResourceBindingUpdate(oldObj, newObj interface{}) {
-	d.OnClusterResourceBindingAdd(newObj)
-}
-
 // CleanupLabels removes labels from object referencing by objRef.
 func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, labels ...string) error {
 	workload, err := helper.FetchWorkload(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef)
@@ -1082,4 +1085,54 @@ func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, la
 	}
 	klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", newWorkload.GetKind(), newWorkload.GetNamespace(), newWorkload.GetName())
 	return nil
+}
+
+// CleanupResourceBindingLabels removes labels from resource binding.
+func (d *ResourceDetector) CleanupResourceBindingLabels(rb *workv1alpha2.ResourceBinding, labels ...string) error {
+	bindingLabels := rb.GetLabels()
+	for _, l := range labels {
+		delete(bindingLabels, l)
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		rb.SetLabels(bindingLabels)
+		updateErr := d.Client.Update(context.TODO(), rb)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &workv1alpha2.ResourceBinding{}
+		if err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: rb.GetNamespace(), Name: rb.GetName()}, updated); err == nil {
+			//make a copy, so we don't mutate the shared cache
+			rb = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated resource binding %s/%s: %v", rb.GetNamespace(), rb.GetName(), err)
+		}
+		return updateErr
+	})
+}
+
+// CleanupClusterResourceBindingLabels removes labels from cluster resource binding.
+func (d *ResourceDetector) CleanupClusterResourceBindingLabels(crb *workv1alpha2.ClusterResourceBinding, labels ...string) error {
+	bindingLabels := crb.GetLabels()
+	for _, l := range labels {
+		delete(bindingLabels, l)
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		crb.SetLabels(bindingLabels)
+		updateErr := d.Client.Update(context.TODO(), crb)
+		if updateErr == nil {
+			return nil
+		}
+
+		updated := &workv1alpha2.ClusterResourceBinding{}
+		if err = d.Client.Get(context.TODO(), client.ObjectKey{Name: crb.GetName()}, updated); err == nil {
+			//make a copy, so we don't mutate the shared cache
+			crb = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated cluster resource binding %s: %v", crb.GetName(), err)
+		}
+		return updateErr
+	})
 }

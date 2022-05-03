@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -39,10 +40,17 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	}
 
 	runtimeObject := work.DeepCopy()
-	operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
-		runtimeObject.Spec = work.Spec
-		runtimeObject.Labels = work.Labels
-		runtimeObject.Annotations = work.Annotations
+	var operationResult controllerutil.OperationResult
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
+			runtimeObject.Spec = work.Spec
+			runtimeObject.Labels = work.Labels
+			runtimeObject.Annotations = work.Annotations
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
@@ -61,13 +69,10 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	return nil
 }
 
-// GetWorksByLabelSelector get WorkList by matching label selector.
-func GetWorksByLabelSelector(c client.Client, selector labels.Selector) (*workv1alpha1.WorkList, error) {
+// GetWorksByLabelsSet get WorkList by matching labels.Set.
+func GetWorksByLabelsSet(c client.Client, ls labels.Set) (*workv1alpha1.WorkList, error) {
 	workList := &workv1alpha1.WorkList{}
-	err := c.List(context.TODO(), workList, &client.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return nil, err
-	}
+	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
-	return workList, nil
+	return workList, c.List(context.TODO(), workList, listOpt)
 }

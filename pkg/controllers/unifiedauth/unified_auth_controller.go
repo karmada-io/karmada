@@ -7,7 +7,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -147,13 +146,12 @@ func (c *Controller) buildImpersonationClusterRole(cluster *clusterv1alpha1.Clus
 		Rules: rules,
 	}
 
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(impersonationClusterRole)
+	clusterRoleObj, err := helper.ToUnstructured(impersonationClusterRole)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterrole %s. Error: %v", impersonationClusterRole.GetName(), err)
 		return nil
 	}
 
-	clusterRoleObj := &unstructured.Unstructured{Object: uncastObj}
 	return c.buildWorks(cluster, clusterRoleObj)
 }
 
@@ -180,13 +178,12 @@ func (c *Controller) buildImpersonationClusterRoleBinding(cluster *clusterv1alph
 		},
 	}
 
-	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(impersonatorClusterRoleBinding)
+	clusterRoleBindingObj, err := helper.ToUnstructured(impersonatorClusterRoleBinding)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterrolebinding %s. Error: %v", impersonatorClusterRoleBinding.GetName(), err)
 		return nil
 	}
 
-	clusterRoleBindingObj := &unstructured.Unstructured{Object: uncastObj}
 	return c.buildWorks(cluster, clusterRoleBindingObj)
 }
 
@@ -247,7 +244,8 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	return utilerrors.NewAggregate([]error{
 		controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).WithEventFilter(clusterPredicateFunc).
 			Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleMapFunc())).
-			Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).Complete(c),
+			Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).
+			Complete(c),
 		mgr.Add(c),
 	})
 }

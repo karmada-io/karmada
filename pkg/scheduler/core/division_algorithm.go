@@ -34,10 +34,13 @@ func divideReplicasByResource(
 	spec *workv1alpha2.ResourceBindingSpec,
 	preference policyv1alpha1.ReplicaDivisionPreference,
 ) ([]workv1alpha2.TargetCluster, error) {
-	// Step 1: Get previous total sum of replicas.
-	assignedReplicas := util.GetSumOfReplicas(spec.Clusters)
+	// Step 1: Find the ready clusters that have old replicas
+	scheduledClusters := findOutScheduledCluster(spec.Clusters, clusters)
 
-	// Step 2: Check the scale type (up or down).
+	// Step 2: calculate the assigned Replicas in scheduledClusters
+	assignedReplicas := util.GetSumOfReplicas(scheduledClusters)
+
+	// Step 3: Check the scale type (up or down).
 	if assignedReplicas > spec.Replicas {
 		// We need to reduce the replicas in terms of the previous result.
 		newTargetClusters, err := scaleDownScheduleByReplicaDivisionPreference(spec, preference)
@@ -48,13 +51,13 @@ func divideReplicasByResource(
 	} else if assignedReplicas < spec.Replicas {
 		// We need to enlarge the replicas in terms of the previous result (if exists).
 		// First scheduling is considered as a special kind of scaling up.
-		newTargetClusters, err := scaleUpScheduleByReplicaDivisionPreference(clusters, spec, preference, assignedReplicas)
+		newTargetClusters, err := scaleUpScheduleByReplicaDivisionPreference(clusters, spec, preference, scheduledClusters, assignedReplicas)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scaleUp: %v", err)
 		}
 		return newTargetClusters, nil
 	} else {
-		return spec.Clusters, nil
+		return scheduledClusters, nil
 	}
 }
 
@@ -96,12 +99,6 @@ func divideReplicasByStaticWeight(clusters []*clusterv1alpha1.Cluster, weightLis
 	}
 
 	divideRemainingReplicas(int(replicas-allocatedReplicas), desireReplicaInfos, clusterNames)
-
-	for _, cluster := range clusters {
-		if _, exist := matchClusters[cluster.Name]; !exist {
-			desireReplicaInfos[cluster.Name] = 0
-		}
-	}
 
 	targetClusters := make([]workv1alpha2.TargetCluster, len(desireReplicaInfos))
 	i := 0
@@ -208,31 +205,30 @@ func scaleUpScheduleByReplicaDivisionPreference(
 	clusters []*clusterv1alpha1.Cluster,
 	spec *workv1alpha2.ResourceBindingSpec,
 	preference policyv1alpha1.ReplicaDivisionPreference,
+	scheduledClusters []workv1alpha2.TargetCluster,
 	assignedReplicas int32,
 ) ([]workv1alpha2.TargetCluster, error) {
-	// Step 1: Find the clusters that have old replicas, so we can prefer to assign new replicas towards them.
-	scheduledClusterNames := findOutScheduledCluster(spec.Clusters, clusters)
-
-	// Step 2: Get how many replicas should be scheduled in this cycle and construct a new object if necessary
+	// Step 1: Get how many replicas should be scheduled in this cycle and construct a new object if necessary
 	newSpec := spec
 	if assignedReplicas > 0 {
 		newSpec = spec.DeepCopy()
 		newSpec.Replicas = spec.Replicas - assignedReplicas
 	}
 
-	// Step 3: Calculate available replicas of all candidates
+	// Step 2: Calculate available replicas of all candidates
 	clusterAvailableReplicas := calAvailableReplicas(clusters, newSpec)
 
-	// Step 4: Begin dividing.
+	// Step 3: Begin dividing.
 	// Only the new replicas are considered during this scheduler, the old replicas will not be moved.
 	// If not, the old replicas may be recreated which is not expected during scaling up.
 	// The parameter `scheduledClusterNames` is used to make sure that we assign new replicas to them preferentially
 	// so that all the replicas are aggregated.
-	result, err := divideReplicasByPreference(clusterAvailableReplicas, newSpec.Replicas, preference, scheduledClusterNames)
+	result, err := divideReplicasByPreference(clusterAvailableReplicas, newSpec.Replicas,
+		preference, util.ConvertToClusterNames(scheduledClusters))
 	if err != nil {
 		return result, err
 	}
 
-	// Step 5: Merge the result of previous and new results.
-	return util.MergeTargetClusters(spec.Clusters, result), nil
+	// Step 4: Merge the result of previous and new results.
+	return util.MergeTargetClusters(scheduledClusters, result), nil
 }

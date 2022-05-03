@@ -10,16 +10,24 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
+const (
+	// MinClusterScore is the minimum score a Score plugin is expected to return.
+	MinClusterScore int64 = 0
+
+	// MaxClusterScore is the maximum score a Score plugin is expected to return.
+	MaxClusterScore int64 = 100
+)
+
 // Framework manages the set of plugins in use by the scheduling framework.
 // Configured plugins are called at specified points in a scheduling context.
 type Framework interface {
 
 	// RunFilterPlugins runs the set of configured Filter plugins for resources on
 	// the given cluster.
-	RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, clusterv1alpha1 *clusterv1alpha1.Cluster) PluginToResult
+	RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, clusterv1alpha1 *clusterv1alpha1.Cluster) *Result
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin name to cores
-	RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, error)
+	RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, error)
 }
 
 // Plugin is the parent type for all the scheduling framework plugins.
@@ -125,13 +133,24 @@ type ScorePlugin interface {
 	// Score is called on each filtered cluster. It must return success and an integer
 	// indicating the rank of the cluster. All scoring plugins must return success or
 	// the resource will be rejected.
-	Score(ctx context.Context, placement *policyv1alpha1.Placement, clusterv1alpha1 *clusterv1alpha1.Cluster) (float64, *Result)
+	Score(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *Result)
+
+	// ScoreExtensions returns a ScoreExtensions interface
+	// if it implements one, or nil if does not.
+	ScoreExtensions() ScoreExtensions
+}
+
+// ScoreExtensions is an interface for Score extended functionality.
+type ScoreExtensions interface {
+	// NormalizeScore is called for all cluster scores produced
+	// by the same plugin's "Score"
+	NormalizeScore(ctx context.Context, scores ClusterScoreList) *Result
 }
 
 // ClusterScore represent the cluster score.
 type ClusterScore struct {
-	Name  string
-	Score float64
+	Cluster *clusterv1alpha1.Cluster
+	Score   int64
 }
 
 // ClusterScoreList declares a list of clusters and their scores.

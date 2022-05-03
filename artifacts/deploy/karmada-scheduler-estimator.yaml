@@ -6,7 +6,7 @@ metadata:
   labels:
     cluster: {{member_cluster_name}}
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: karmada-scheduler-estimator-{{member_cluster_name}}

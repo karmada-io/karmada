@@ -1,0 +1,153 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
+  name: federatedresourcequotas.policy.karmada.io
+spec:
+  group: policy.karmada.io
+  names:
+    kind: FederatedResourceQuota
+    listKind: FederatedResourceQuotaList
+    plural: federatedresourcequotas
+    singular: federatedresourcequota
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: FederatedResourceQuota sets aggregate quota restrictions enforced
+          per namespace across all clusters.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired quota.
+            properties:
+              overall:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Overall is the set of desired hard limits for each named
+                  resource.
+                type: object
+              staticAssignments:
+                description: 'StaticAssignments represents the subset of desired hard
+                  limits for each cluster. Note: for clusters not present in this
+                  list, Karmada will set an empty ResourceQuota to them, which means
+                  these clusters will have no quotas in the referencing namespace.'
+                items:
+                  description: StaticClusterAssignment represents the set of desired
+                    hard limits for a specific cluster.
+                  properties:
+                    clusterName:
+                      description: ClusterName is the name of the cluster the limits
+                        enforce to.
+                      type: string
+                    hard:
+                      additionalProperties:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      description: Hard is the set of desired hard limits for each
+                        named resource.
+                      type: object
+                  required:
+                  - clusterName
+                  - hard
+                  type: object
+                type: array
+            required:
+            - overall
+            type: object
+          status:
+            description: Status defines the actual enforced quota and its current
+              usage.
+            properties:
+              aggregatedStatus:
+                description: AggregatedStatus is the observed quota usage of each
+                  cluster.
+                items:
+                  description: ClusterQuotaStatus represents the set of desired limits
+                    and observed usage for a specific cluster.
+                  properties:
+                    clusterName:
+                      description: ClusterName is the name of the cluster the limits
+                        enforce to.
+                      type: string
+                    hard:
+                      additionalProperties:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      description: 'Hard is the set of enforced hard limits for each
+                        named resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/'
+                      type: object
+                    used:
+                      additionalProperties:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      description: Used is the current observed total usage of the
+                        resource in the namespace.
+                      type: object
+                  required:
+                  - clusterName
+                  type: object
+                type: array
+              overall:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Overall is the set of enforced hard limits for each named
+                  resource.
+                type: object
+              overallUsed:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: OverallUsed is the current observed total usage of the
+                  resource in the namespace.
+                type: object
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

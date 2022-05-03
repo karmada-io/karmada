@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -20,7 +22,7 @@ type ResourceInterpreter interface {
 	Start(ctx context.Context) (err error)
 
 	// HookEnabled tells if any hook exist for specific resource type and operation.
-	HookEnabled(object *unstructured.Unstructured, operationType configv1alpha1.InterpreterOperation) bool
+	HookEnabled(objGVK schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool
 
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
@@ -30,6 +32,15 @@ type ResourceInterpreter interface {
 
 	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
+
+	// AggregateStatus returns the objects that based on the 'object' but with status aggregated.
+	AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error)
+
+	// GetDependencies returns the dependent resources of the given object.
+	GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error)
+
+	// ReflectStatus returns the status of the object.
+	ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error)
 
 	// other common method
 }
@@ -68,12 +79,9 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 }
 
 // HookEnabled tells if any hook exist for specific resource type and operation.
-func (i *customResourceInterpreterImpl) HookEnabled(object *unstructured.Unstructured, operation configv1alpha1.InterpreterOperation) bool {
-	attributes := &webhook.RequestAttributes{
-		Operation: operation,
-		Object:    object,
-	}
-	return i.customizedInterpreter.HookEnabled(attributes) || i.defaultInterpreter.HookEnabled(object.GroupVersionKind(), operation)
+func (i *customResourceInterpreterImpl) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
+	return i.customizedInterpreter.HookEnabled(objGVK, operation) ||
+		i.defaultInterpreter.HookEnabled(objGVK, operation)
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
@@ -132,4 +140,61 @@ func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructure
 	}
 
 	return i.defaultInterpreter.Retain(desired, observed)
+}
+
+// AggregateStatus returns the objects that based on the 'object' but with status aggregated.
+func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	klog.V(4).Infof("Begin to aggregate status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	obj, hookEnabled, err := i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
+		Operation:        configv1alpha1.InterpreterOperationAggregateStatus,
+		Object:           object.DeepCopy(),
+		AggregatedStatus: aggregatedStatusItems,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
+
+	return i.defaultInterpreter.AggregateStatus(object, aggregatedStatusItems)
+}
+
+// GetDependencies returns the dependent resources of the given object.
+func (i *customResourceInterpreterImpl) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error) {
+	klog.V(4).Infof("Begin to get dependencies for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	dependencies, hookEnabled, err := i.customizedInterpreter.GetDependencies(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretDependency,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+
+	dependencies, err = i.defaultInterpreter.GetDependencies(object)
+	return
+}
+
+// ReflectStatus returns the status of the object.
+func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
+	klog.V(4).Info("Begin to grab status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	status, hookEnabled, err := i.customizedInterpreter.ReflectStatus(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretStatus,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+
+	status, err = i.defaultInterpreter.ReflectStatus(object)
+	return
 }

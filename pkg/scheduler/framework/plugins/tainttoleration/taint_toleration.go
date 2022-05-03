@@ -22,11 +22,10 @@ const (
 type TaintToleration struct{}
 
 var _ framework.FilterPlugin = &TaintToleration{}
-var _ framework.ScorePlugin = &TaintToleration{}
 
 // New instantiates the TaintToleration plugin.
-func New() framework.Plugin {
-	return &TaintToleration{}
+func New() (framework.Plugin, error) {
+	return &TaintToleration{}, nil
 }
 
 // Name returns the plugin name.
@@ -49,9 +48,4 @@ func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.
 
 	return framework.NewResult(framework.Unschedulable, fmt.Sprintf("cluster had taint {%s: %s}, that the propagation policy didn't tolerate",
 		taint.Key, taint.Value))
-}
-
-// Score calculates the score on the candidate cluster.
-func (p *TaintToleration) Score(ctx context.Context, placement *policyv1alpha1.Placement, cluster *clusterv1alpha1.Cluster) (float64, *framework.Result) {
-	return 0, framework.NewResult(framework.Success)
 }

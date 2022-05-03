@@ -10,6 +10,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/klog/v2"
@@ -51,17 +52,16 @@ func NewCustomizedInterpreter(kubeconfig string, informer informermanager.Single
 	}, nil
 }
 
-// HookEnabled tells if any hook exist for specific resource type and operation type.
-func (e *CustomizedInterpreter) HookEnabled(attributes *webhook.RequestAttributes) bool {
+// HookEnabled tells if any hook exist for specific resource gvk and operation type.
+func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
 	if !e.hookManager.HasSynced() {
 		klog.Errorf("not yet ready to handle request")
 		return false
 	}
 
-	hook := e.getFirstRelevantHook(attributes)
+	hook := e.getFirstRelevantHook(objGVK, operation)
 	if hook == nil {
-		klog.V(4).Infof("Hook interpreter is not enabled for kind %q with operation %q.",
-			attributes.Object.GroupVersionKind(), attributes.Operation)
+		klog.V(4).Infof("Hook interpreter is not enabled for kind %q with operation %q.", objGVK, operation)
 	}
 	return hook != nil
 }
@@ -99,10 +99,10 @@ func (e *CustomizedInterpreter) Patch(ctx context.Context, attributes *webhook.R
 	return
 }
 
-func (e *CustomizedInterpreter) getFirstRelevantHook(attributes *webhook.RequestAttributes) configmanager.WebhookAccessor {
+func (e *CustomizedInterpreter) getFirstRelevantHook(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) configmanager.WebhookAccessor {
 	relevantHooks := make([]configmanager.WebhookAccessor, 0)
 	for _, hook := range e.hookManager.HookAccessors() {
-		if shouldCallHook(hook, attributes) {
+		if shouldCallHook(hook, objGVK, operation) {
 			relevantHooks = append(relevantHooks, hook)
 		}
 	}
@@ -123,7 +123,7 @@ func (e *CustomizedInterpreter) interpret(ctx context.Context, attributes *webho
 		return nil, false, fmt.Errorf("not yet ready to handle request")
 	}
 
-	hook := e.getFirstRelevantHook(attributes)
+	hook := e.getFirstRelevantHook(attributes.Object.GroupVersionKind(), attributes.Operation)
 	if hook == nil {
 		return nil, false, nil
 	}
@@ -161,11 +161,11 @@ func (e *CustomizedInterpreter) interpret(ctx context.Context, attributes *webho
 	return response, true, nil
 }
 
-func shouldCallHook(hook configmanager.WebhookAccessor, attributes *webhook.RequestAttributes) bool {
+func shouldCallHook(hook configmanager.WebhookAccessor, objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
 	for _, rule := range hook.GetRules() {
 		matcher := interpreterutil.Matcher{
-			Operation: attributes.Operation,
-			Object:    attributes.Object,
+			ObjGVK:    objGVK,
+			Operation: operation,
 			Rule:      rule,
 		}
 		if matcher.Matches() {
@@ -253,6 +253,9 @@ func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager
 func applyPatch(object *unstructured.Unstructured, patch []byte, patchType configv1alpha1.PatchType) (*unstructured.Unstructured, error) {
 	switch patchType {
 	case configv1alpha1.PatchTypeJSONPatch:
+		if len(patch) == 0 {
+			return object, nil
+		}
 		patchObj, err := jsonpatch.DecodePatch(patch)
 		if err != nil {
 			return nil, err
@@ -275,4 +278,34 @@ func applyPatch(object *unstructured.Unstructured, patch []byte, patchType confi
 	default:
 		return nil, fmt.Errorf("return patch type %s is not support", patchType)
 	}
+}
+
+// GetDependencies returns the dependencies of give object.
+// return matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes *webhook.RequestAttributes) (dependencies []configv1alpha1.DependentObjectReference, matched bool, err error) {
+	var response *webhook.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+
+	return response.Dependencies, matched, nil
+}
+
+// ReflectStatus returns the status of the object.
+// return matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *webhook.RequestAttributes) (status *runtime.RawExtension, matched bool, err error) {
+	var response *webhook.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+
+	return &response.RawStatus, matched, nil
 }

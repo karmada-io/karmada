@@ -8,6 +8,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -47,6 +48,10 @@ type Options struct {
 	SkippedPropagatingNamespaces []string
 	// ClusterName is the name of cluster.
 	ClusterName string
+	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
+	ConcurrentWorkSyncs int
+	// RateLimiterOptions contains the options for rate limiter.
+	RateLimiterOptions ratelimiterflag.Options
 }
 
 // Context defines the context object for controller.
@@ -62,7 +67,7 @@ type Context struct {
 }
 
 // IsControllerEnabled check if a specified controller enabled or not.
-func (c Context) IsControllerEnabled(name string) bool {
+func (c Context) IsControllerEnabled(name string, disabledByDefaultControllers sets.String) bool {
 	hasStar := false
 	for _, ctrl := range c.Opts.Controllers {
 		if ctrl == name {
@@ -75,7 +80,13 @@ func (c Context) IsControllerEnabled(name string) bool {
 			hasStar = true
 		}
 	}
-	return hasStar
+	// if we get here, there was no explicit choice
+	if !hasStar {
+		// nothing on by default
+		return false
+	}
+
+	return !disabledByDefaultControllers.Has(name)
 }
 
 // InitFunc is used to launch a particular controller.
@@ -92,9 +103,9 @@ func (i Initializers) ControllerNames() []string {
 }
 
 // StartControllers starts a set of controllers with a specified ControllerContext
-func (i Initializers) StartControllers(ctx Context) error {
+func (i Initializers) StartControllers(ctx Context, controllersDisabledByDefault sets.String) error {
 	for controllerName, initFn := range i {
-		if !ctx.IsControllerEnabled(controllerName) {
+		if !ctx.IsControllerEnabled(controllerName, controllersDisabledByDefault) {
 			klog.Warningf("%q is disabled", controllerName)
 			continue
 		}

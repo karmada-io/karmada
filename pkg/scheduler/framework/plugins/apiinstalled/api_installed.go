@@ -21,11 +21,10 @@ const (
 type APIInstalled struct{}
 
 var _ framework.FilterPlugin = &APIInstalled{}
-var _ framework.ScorePlugin = &APIInstalled{}
 
 // New instantiates the APIInstalled plugin.
-func New() framework.Plugin {
-	return &APIInstalled{}
+func New() (framework.Plugin, error) {
+	return &APIInstalled{}, nil
 }
 
 // Name returns the plugin name.
@@ -41,9 +40,4 @@ func (p *APIInstalled) Filter(ctx context.Context, placement *policyv1alpha1.Pla
 	}
 
 	return framework.NewResult(framework.Success)
-}
-
-// Score calculates the score on the candidate cluster.
-func (p *APIInstalled) Score(ctx context.Context, placement *policyv1alpha1.Placement, cluster *clusterv1alpha1.Cluster) (float64, *framework.Result) {
-	return 0, framework.NewResult(framework.Success)
 }

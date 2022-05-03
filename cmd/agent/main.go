@@ -21,12 +21,19 @@ import (
 )
 
 func main() {
+	if err := runAgentCmd(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func runAgentCmd() error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
 	ctx := apiserver.SetupSignalContext()
-
 	if err := app.NewAgentCommand(ctx).Execute(); err != nil {
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }

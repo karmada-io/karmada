@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -33,7 +35,9 @@ var certList = []string{
 	options.FrontProxyClientCertAndKeyName,
 }
 
-//CommandInitOption holds all flags options for init.
+var defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
+
+// CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
 	EtcdImage                          string
 	EtcdReplicas                       int32
@@ -70,10 +74,6 @@ type CommandInitOption struct {
 
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
-	if !utils.PathIsExist(i.KubeConfig) {
-		return fmt.Errorf("kubeconfig file does not exist.absolute path to the kubeconfig file")
-	}
-
 	if i.EtcdStorageMode == "hostPath" && i.EtcdHostDataPath == "" {
 		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
@@ -95,6 +95,16 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 
 // Complete Initialize k8s client
 func (i *CommandInitOption) Complete() error {
+	// check config path of host kubernetes cluster
+	if i.KubeConfig == "" {
+		env := os.Getenv("KUBECONFIG")
+		if env != "" {
+			i.KubeConfig = env
+		} else {
+			i.KubeConfig = defaultKubeConfig
+		}
+	}
+
 	restConfig, err := utils.RestConfig(i.KubeConfig)
 	if err != nil {
 		return err
@@ -109,7 +119,7 @@ func (i *CommandInitOption) Complete() error {
 	i.KubeClientSet = clientSet
 
 	if !i.isNodePortExist() {
-		return fmt.Errorf("nodePort %v already exist", i.KarmadaAPIServerNodePort)
+		return fmt.Errorf("nodePort of karmada apiserver %v already exist", i.KarmadaAPIServerNodePort)
 	}
 
 	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels == "" {
@@ -126,6 +136,13 @@ func (i *CommandInitOption) Complete() error {
 	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
 		if !i.isNodeExist(i.EtcdNodeSelectorLabels) {
 			return fmt.Errorf("no node found by label %s", i.EtcdNodeSelectorLabels)
+		}
+	}
+
+	// Determine whether KarmadaDataPath exists, if so, delete it
+	if utils.IsExist(i.KarmadaDataPath) {
+		if err := os.RemoveAll(i.KarmadaDataPath); err != nil {
+			return err
 		}
 	}
 
@@ -194,7 +211,7 @@ func (i *CommandInitOption) genCerts() error {
 	return nil
 }
 
-//prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
+// prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
 func (i *CommandInitOption) prepareCRD() error {
 	if strings.HasPrefix(i.CRDs, "http") {
 		filename := i.KarmadaDataPath + "/" + path.Base(i.CRDs)
@@ -212,7 +229,7 @@ func (i *CommandInitOption) prepareCRD() error {
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
-	//Create kubeconfig Secret
+	// Create kubeconfig Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.cluster.local:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
@@ -284,11 +301,24 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(apiServerLabels), 120); err != nil {
 		return err
 	}
+
+	// Create karmada-aggregated-apiserver
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver.yaml
+	klog.Info("create karmada aggregated apiserver Deployment")
+	if err := i.CreateService(i.karmadaAggregatedAPIServerService()); err != nil {
+		klog.Exitln(err)
+	}
+	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
+		klog.Warning(err)
+	}
+	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(aggregatedAPIServerLabels), 30); err != nil {
+		klog.Warning(err)
+	}
 	return nil
 }
 
 func (i *CommandInitOption) initKarmadaComponent() error {
-	//wait pod ready timeout 30s
+	// wait pod ready timeout 30s
 	waitPodReadyTimeout := 30
 
 	deploymentClient := i.KubeClientSet.AppsV1().Deployments(i.Namespace)
@@ -316,7 +346,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	}
 
 	// Create karmada-controller-manager
-	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/controller-manager.yaml
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-controller-manager.yaml
 	klog.Info("create karmada controller manager Deployment")
 	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
@@ -337,24 +367,12 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(webhookLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
-	// Create karmada-aggregated-apiserver
-	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver.yaml
-	klog.Info("create karmada aggregated apiserver Deployment")
-	if err := i.CreateService(i.karmadaAggregatedAPIServerService()); err != nil {
-		klog.Exitln(err)
-	}
-	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
-		klog.Warning(err)
-	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(aggregatedAPIServerLabels), waitPodReadyTimeout); err != nil {
-		klog.Warning(err)
-	}
 	return nil
 }
 
-//RunInit Deploy karmada in kubernetes
+// RunInit Deploy karmada in kubernetes
 func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
-	//generate certificate
+	// generate certificate
 	if err := i.genCerts(); err != nil {
 		return fmt.Errorf("certificate generation failed.%v", err)
 	}
@@ -375,7 +393,7 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)] = key
 	}
 
-	//prepare karmada CRD resources
+	// prepare karmada CRD resources
 	if err := i.prepareCRD(); err != nil {
 		return fmt.Errorf("prepare karmada failed.%v", err)
 	}
@@ -400,8 +418,8 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 	}
 
 	// Create karmada-controller-manager ClusterRole and ClusterRoleBinding
-	if err := i.CreateClusterRole(); err != nil {
-		klog.Exitln(err)
+	if err := i.CreateControllerManagerRBAC(); err != nil {
+		return err
 	}
 
 	// Create Secrets
@@ -414,17 +432,24 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 		return err
 	}
 
-	//Create CRDs in karmada
+	// Create CRDs in karmada
 	caBase64 := base64.StdEncoding.EncodeToString(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)])
-	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64); err != nil {
+	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64, i.Namespace); err != nil {
 		return err
 	}
 
-	//install karmada Component
+	// install karmada Component
 	if err := i.initKarmadaComponent(); err != nil {
 		return err
 	}
 
 	utils.GenExamples(i.KarmadaDataPath, parentCommand)
 	return nil
+}
+
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	return os.Getenv("USERPROFILE") // windows
 }
