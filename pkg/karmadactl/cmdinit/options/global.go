@@ -14,9 +14,9 @@ const (
 	// FrontProxyClientCertAndKeyName front-proxy-client  certificate key name
 	FrontProxyClientCertAndKeyName = "front-proxy-client"
 	// ClusterName karmada cluster name
-	ClusterName = "karmada"
+	ClusterName = "karmada-apiserver"
 	// UserName karmada cluster user name
-	UserName = "admin"
+	UserName = "karmada-admin"
 	// KarmadaKubeConfigName karmada kubeconfig name
 	KarmadaKubeConfigName = "karmada-apiserver.config"
 )
