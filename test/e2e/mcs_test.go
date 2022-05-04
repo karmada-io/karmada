@@ -232,6 +232,12 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 		exportClusterClient := framework.GetClusterClient(serviceExportClusterName)
 		gomega.Expect(exportClusterClient).ShouldNot(gomega.BeNil())
 
+		gomega.Eventually(func() bool {
+			klog.Infof("Waiting for namespace(%s) to exist on cluster %s", testNamespace, serviceExportClusterName)
+			_, err := exportClusterClient.CoreV1().Namespaces().Get(context.TODO(), testNamespace, metav1.GetOptions{})
+			return err == nil
+		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+
 		klog.Infof("Create Deployment(%s/%s) in %s cluster", demoDeployment.Namespace, demoDeployment.Name, serviceExportClusterName)
 		framework.CreateDeployment(exportClusterClient, &demoDeployment)
 
