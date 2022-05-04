@@ -237,7 +237,12 @@ func (s *Scheduler) enqueueAffectedClusterBinding(notReadyClusterName string) {
 	}
 }
 
-func (s *Scheduler) updateCluster(_, newObj interface{}) {
+func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
+	oldCluster, ok := oldObj.(*clusterv1alpha1.Cluster)
+	if !ok {
+		klog.Errorf("cannot convert oldObj to Cluster: %v", oldObj)
+		return
+	}
 	newCluster, ok := newObj.(*clusterv1alpha1.Cluster)
 	if !ok {
 		klog.Errorf("cannot convert newObj to Cluster: %v", newObj)
@@ -250,7 +255,8 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 	}
 
 	// Check if cluster becomes failure
-	if meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+	if meta.IsStatusConditionPresentAndEqual(oldCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue) &&
+		meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
 		klog.Infof("Found cluster(%s) failure and failover flag is %v", newCluster.Name, features.FeatureGate.Enabled(features.Failover))
 
 		if features.FeatureGate.Enabled(features.Failover) { // Trigger reschedule on cluster failure only when flag is true.
@@ -258,6 +264,16 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 			s.enqueueAffectedClusterBinding(newCluster.Name)
 			return
 		}
+	}
+
+	// Check if cluster becomes ready
+	if meta.IsStatusConditionPresentAndEqual(oldCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) &&
+		meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue) {
+		klog.Infof("Found cluster(%s) ready", newCluster.Name)
+
+		s.enqueueAffectedBinding(newCluster.Name)
+		s.enqueueAffectedClusterBinding(newCluster.Name)
+		return
 	}
 }
 
