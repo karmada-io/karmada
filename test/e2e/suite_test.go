@@ -108,6 +108,8 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	testNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	err = setupTestNamespace(testNamespace, kubeClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), testNamespace)
 })
 
 var _ = ginkgo.SynchronizedAfterSuite(func() {
