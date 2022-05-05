@@ -44,6 +44,12 @@ ETCD_HOST_IP=$(kubectl get pod -l app=etcd -n karmada-system -o jsonpath='{.item
 # clear all in namespace karmada-system
 kubectl delete ns karmada-system --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
+# delete clusterroles
+kubectl delete clusterrole karmada-controller-manager --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
+
+# delete clusterrolebindings
+kubectl delete clusterrolebindings karmada-controller-manager --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
+
 # clear configs about karmada-apiserver in kubeconfig
 kubectl config delete-cluster karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 kubectl config unset users.karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
