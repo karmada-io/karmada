@@ -283,6 +283,10 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
 	}
 
+	if statusRaw == nil {
+		return nil
+	}
+
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)
 	if err != nil {
 		return err
