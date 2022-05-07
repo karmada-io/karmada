@@ -69,6 +69,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint":                            schema_pkg_apis_policy_v1alpha1_SpreadConstraint(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterAssignment":                     schema_pkg_apis_policy_v1alpha1_StaticClusterAssignment(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight":                         schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ClusterSelector":                             schema_pkg_apis_search_v1alpha1_ClusterSelector(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.FieldSelector":                               schema_pkg_apis_search_v1alpha1_FieldSelector(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistry":                            schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryList":                        schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec":                        schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryStatus":                      schema_pkg_apis_search_v1alpha1_ResourceRegistryStatus(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector":                            schema_pkg_apis_search_v1alpha1_ResourceSelector(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.AggregatedStatusItem":                          schema_pkg_apis_work_v1alpha1_AggregatedStatusItem(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ClusterResourceBinding":                        schema_pkg_apis_work_v1alpha1_ClusterResourceBinding(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ClusterResourceBindingList":                    schema_pkg_apis_work_v1alpha1_ClusterResourceBindingList(ref),
@@ -2968,6 +2975,308 @@ func schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_ClusterSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterSelector represents the filter to select clusters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelSelector is a filter to select member clusters by labels. If non-nil and non-empty, only the clusters match this filter will be selected.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"fieldSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FieldSelector is a filter to select member clusters by fields. If non-nil and non-empty, only the clusters match this filter will be selected.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.FieldSelector"),
+						},
+					},
+					"clusterNames": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterNames is the list of clusters to be selected.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"exclude": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExcludedClusters is the list of clusters to be ignored.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.FieldSelector", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_FieldSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FieldSelector is a field filter.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"matchExpressions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A list of field selector requirements.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.NodeSelectorRequirement"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.NodeSelectorRequirement"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceRegistry defines a list of member cluster to be cached.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec represents the desired behavior of ResourceRegistry.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status represents the status of ResoruceRegistry.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec", "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceRegistryList if a collection of ResourceRegistry.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Items holds a list of ResourceRegistry.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistry"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistry", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceRegistrySpec defines the desired state of ResourceRegistry.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"clusterSelectors": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterSelectors represents the filter to select clusters.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ClusterSelector"),
+									},
+								},
+							},
+						},
+					},
+					"resourceSelectors": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceSelectors used to select resources.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector"),
+									},
+								},
+							},
+						},
+					},
+					"statusUpdatePeriodSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StatusUpdatePeriodSeconds is the period to update the status of the resource. default is 10s.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+				Required: []string{"clusterSelectors", "resourceSelectors"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ClusterSelector", "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_ResourceRegistryStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceRegistryStatus defines the observed state of ResourceRegistry",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions contain the different condition statuses.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_ResourceSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceSelector the resources will be selected.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion represents the API version of the target resources.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind represents the Kind of the target resources.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace of the target resource. Default is empty, which means all namespaces.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"apiVersion", "kind"},
+			},
+		},
 	}
 }
 
