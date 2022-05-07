@@ -21,7 +21,7 @@ spec:
           operator: Exists
       containers:
         - name: karmada-webhook
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook:latest
+          image: {{REGISTRY}}/karmada-webhook:{{VERSION}}
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-webhook

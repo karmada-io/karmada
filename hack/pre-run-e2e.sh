@@ -16,8 +16,8 @@ MEMBER_CLUSTER_1_NAME=${MEMBER_CLUSTER_1_NAME:-"member1"}
 MEMBER_CLUSTER_2_NAME=${MEMBER_CLUSTER_2_NAME:-"member2"}
 PULL_MODE_CLUSTER_NAME=${PULL_MODE_CLUSTER_NAME:-"member3"}
 
-export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+export VERSION=${VERSION:-"latest"}
+export REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
 
 CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
 ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
@@ -61,7 +61,12 @@ data:
 EOF
 
 # deploy interpreter webhook example in karmada-host
-kubectl apply -f "${REPO_ROOT}"/examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml
+TEMP_PATH=$(mktemp -d)
+cp "${REPO_ROOT}"/examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+sed -i'' -e "s|{{REGISTRY}}|${REGISTRY}|g" "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+sed -i'' -e "s|{{VERSION}}|${VERSION}|g" "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+kubectl apply -f "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+rm -rf "${TEMP_PATH}"
 util::wait_pod_ready "${INTERPRETER_WEBHOOK_EXAMPLE_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # deploy interpreter workload webhook-configuration.yaml

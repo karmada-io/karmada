@@ -18,7 +18,12 @@ PULL_MODE_CLUSTER_NAME=${PULL_MODE_CLUSTER_NAME:-"member3"}
 # delete interpreter webhook example in karmada-host
 export KUBECONFIG="${MAIN_KUBECONFIG}"
 kubectl config use-context "${HOST_CLUSTER_NAME}"
-kubectl delete -f "${REPO_ROOT}"/examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml
+TEMP_PATH=$(mktemp -d)
+cp "${REPO_ROOT}"/examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+sed -i'' -e "s|{{REGISTRY}}|${REGISTRY}|g" "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+sed -i'' -e "s|{{VERSION}}|${VERSION}|g" "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+kubectl delete -f "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+rm -rf "${TEMP_PATH}"
 
 # uninstall metallb
 kubectl delete configmap config -n metallb-system

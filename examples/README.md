@@ -79,8 +79,35 @@ chmod +x webhook-configuration.sh
 
 #### Step3: Deploy interpreter webhook example in karmada-host
 
+Execute below script:
+
+karmada-interpreter-webhook-example.sh
+
+<details>
+
+<summary>unfold me to see the script</summary>
+
 ```bash
-kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-host apply -f examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml
+#!/usr/bin/env bash
+
+REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
+VERSION=${VERSION:-"latest"}
+TEMP_PATH=$(mktemp -d)
+
+cp examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+sed -i'' -e "s|{{REGISTRY}}|${REGISTRY}|g" "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+sed -i'' -e "s|{{VERSION}}|${VERSION}|g" "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-host apply -f "${TEMP_PATH}"/karmada-interpreter-webhook-example.yaml
+
+rm -rf "${TEMP_PATH}"
+```
+
+</details>
+
+```bash
+chmod +x karmada-interpreter-webhook-example.sh
+
+./karmada-interpreter-webhook-example.sh
 ```
 
 ### Usage

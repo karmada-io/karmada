@@ -31,16 +31,10 @@ KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 ping -c 3 -i 0.2 -W 3 k8s.gcr.io &>/dev/null || CHINA_MAINLAND=yes
 
 if [[ -n ${CHINA_MAINLAND:-} ]]; then
-export GOPROXY=https://goproxy.cn,direct # set domestic go proxy
-# set mirror registry of k8s.gcr.io
-registry_files=( # Yaml files that contain image host 'k8s.gcr.io' need to be replaced
-  "artifacts/deploy/karmada-etcd.yaml"
-  "artifacts/deploy/karmada-apiserver.yaml"
-  "artifacts/deploy/kube-controller-manager.yaml"
-)
-for registry_file in "${registry_files[@]}"; do
-  sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${REPO_ROOT}/${registry_file}
-done
+# set domestic go proxy
+export GOPROXY=https://goproxy.cn,direct
+# set kube registry
+export KUBE_REGISTRY=${KUBE_REGISTRY:-"registry.aliyuncs.com/google_containers"}
 # set mirror registry in the dockerfile of components of karmada
 dockerfile_list=( # Dockerfile files need to be replaced
   "cluster/images/karmada-controller-manager/Dockerfile"
@@ -108,8 +102,8 @@ util::create_cluster "${MEMBER_CLUSTER_2_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "
 util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
 
 #step2. make images and get karmadactl
-export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+export VERSION=${VERSION:-"latest"}
+export REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
 make images GOOS="linux" --directory="${REPO_ROOT}"
 
 GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl"
@@ -121,8 +115,6 @@ echo "Waiting for the host clusters to be ready..."
 util::check_clusters_ready "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}"
 
 #step4. load components images to kind cluster
-export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-descheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"

@@ -4,10 +4,18 @@ set -o errexit
 set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+
+#define karmada control plane image registry and version
+REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
+VERSION=${VERSION:-"latest"}
+
 function usage() {
   echo "This script will deploy karmada-scheduler-estimator of a cluster."
   echo "Usage: hack/deploy-scheduler-estimator.sh <HOST_CLUSTER_KUBECONFIG> <HOST_CLUSTER_NAME> <MEMBER_CLUSTER_KUBECONFIG> <MEMBER_CLUSTER_NAME>"
   echo "Example: hack/deploy-scheduler-estimator.sh ~/.kube/karmada.config karmada-host ~/.kube/members.config member1"
+  echo -e "Environment Variable(Optional):\n\tREGISTRY\t\tThe registry that you want to pull karmada image from,"
+  echo -e "\t\t\t\tdefault value is is swr.ap-southeast-1.myhuaweicloud.com/karmada."
+  echo -e "\tVERSION\t\t\tThe version of karmada image, default value is latest."
 }
 
 if [[ $# -ne 4 ]]; then
@@ -61,6 +69,8 @@ fi
 TEMP_PATH=$(mktemp -d)
 cp "${REPO_ROOT}"/artifacts/deploy/karmada-scheduler-estimator.yaml "${TEMP_PATH}"/karmada-scheduler-estimator.yaml
 sed -i'' -e "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" "${TEMP_PATH}"/karmada-scheduler-estimator.yaml
+sed -i'' -e "s|{{REGISTRY}}|${REGISTRY}|g" "${TEMP_PATH}"/karmada-scheduler-estimator.yaml
+sed -i'' -e "s/{{VERSION}}/${VERSION}/g" "${TEMP_PATH}"/karmada-scheduler-estimator.yaml
 echo -e "Apply dynamic rendered deployment in ${TEMP_PATH}/karmada-scheduler-estimator.yaml\n"
 kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/karmada-scheduler-estimator.yaml
 rm -rf "${TEMP_PATH}"

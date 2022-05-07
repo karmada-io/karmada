@@ -5,10 +5,17 @@ set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
+#define karmada agent image registry and version
+REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
+VERSION=${VERSION:-"latest"}
+
 function usage() {
   echo "This script will deploy karmada agent to a cluster."
   echo "Usage: hack/deploy-karmada-agent.sh <KARMADA_APISERVER_KUBECONFIG> <KARMADA_APISERVER_CONTEXT_NAME> <MEMBER_CLUSTER_KUBECONFIG> <MEMBER_CLUSTER_CONTEXT_NAME>"
   echo "Example: hack/deploy-karmada-agent.sh ~/.kube/karmada.config karmada-apiserver ~/.kube/members.config member1"
+  echo -e "Environment Variable(Optional):\n\tREGISTRY\t\tThe registry that you want to pull karmada image from,"
+  echo -e "\t\t\t\tdefault value is is swr.ap-southeast-1.myhuaweicloud.com/karmada."
+  echo -e "\tVERSION\t\t\tThe version of karmada image, default value is latest."
 }
 
 if [[ $# -ne 4 ]]; then
@@ -64,8 +71,8 @@ AGENT_IMAGE_PULL_POLICY="Always" # default is 'always' for standalone member clu
 if kubectl config get-clusters | grep "kind-${MEMBER_CLUSTER_NAME}"
 then
   # make agent image
-  export VERSION="latest"
-  export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+  export REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
+  export VERSION=${VERSION:-"latest"}
   make image-karmada-agent --directory="${REPO_ROOT}"
   kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${MEMBER_CLUSTER_NAME}"
   AGENT_IMAGE_PULL_POLICY="IfNotPresent" # It must not reload the image when member cluster created by kind
@@ -91,6 +98,8 @@ TEMP_PATH=$(mktemp -d)
 cp "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s/{{karmada_context}}/${KARMADA_APISERVER_CONTEXT_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
+sed -i'' -e "s|{{REGISTRY}}|${REGISTRY}|g" "${TEMP_PATH}"/karmada-agent.yaml
+sed -i'' -e "s/{{VERSION}}/${VERSION}/g" "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s/{{image_pull_policy}}/${AGENT_IMAGE_PULL_POLICY}/g" "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s|{{member_cluster_api_endpoint}}|${MEMBER_CLUSTER_API_ENDPOINT}|g" "${TEMP_PATH}"/karmada-agent.yaml
 echo -e "Apply dynamic rendered deployment in ${TEMP_PATH}/karmada-agent.yaml.\n"
