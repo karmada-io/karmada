@@ -17,6 +17,8 @@ KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 INTERPRETER_WEBHOOK_EXAMPLE_LABEL="karmada-interpreter-webhook-example"
 
+KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
+
 MIN_Go_VERSION=go1.17.0
 
 #https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KARMADA
@@ -571,4 +573,22 @@ function util::get_GO_LDFLAGS() {
                         -X github.com/karmada-io/karmada/pkg/version.gitTreeState=${GIT_TREESTATE} \
                         -X github.com/karmada-io/karmada/pkg/version.buildDate=${BUILDDATE}"
   echo $LDFLAGS
+}
+
+# util::create_gopath_tree create the GOPATH tree
+# Parameters:
+#  - $1: the root path of repo
+#  - $2: go path
+function util:create_gopath_tree() {
+  local repo_root=$1
+  local go_path=$2
+
+  local go_pkg_dir="${go_path}/src/${KARMADA_GO_PACKAGE}"
+  go_pkg_dir=$(dirname "${go_pkg_dir}")
+
+  mkdir -p "${go_pkg_dir}"
+
+  if [[ ! -e "${go_pkg_dir}" || "$(readlink "${go_pkg_dir}")" != "${repo_root}" ]]; then
+    ln -snf "${repo_root}" "${go_pkg_dir}"
+  fi
 }
