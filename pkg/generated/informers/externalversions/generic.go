@@ -9,7 +9,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	queryv1alpha1 "github.com/karmada-io/karmada/pkg/apis/query/v1alpha1"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -66,9 +66,9 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	case policyv1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Policy().V1alpha1().PropagationPolicies().Informer()}, nil
 
-		// Group=query.karmada.io, Version=v1alpha1
-	case queryv1alpha1.SchemeGroupVersion.WithResource("clustercaches"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Query().V1alpha1().ClusterCaches().Informer()}, nil
+		// Group=search.karmada.io, Version=v1alpha1
+	case searchv1alpha1.SchemeGroupVersion.WithResource("resourceregistries"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Search().V1alpha1().ResourceRegistries().Informer()}, nil
 
 		// Group=work.karmada.io, Version=v1alpha1
 	case workv1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"):

@@ -5,29 +5,29 @@ package v1alpha1
 import (
 	"net/http"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/query/v1alpha1"
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
-type QueryV1alpha1Interface interface {
+type SearchV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	ClusterCachesGetter
+	ResourceRegistriesGetter
 }
 
-// QueryV1alpha1Client is used to interact with features provided by the query.karmada.io group.
-type QueryV1alpha1Client struct {
+// SearchV1alpha1Client is used to interact with features provided by the search.karmada.io group.
+type SearchV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *QueryV1alpha1Client) ClusterCaches(namespace string) ClusterCacheInterface {
-	return newClusterCaches(c, namespace)
+func (c *SearchV1alpha1Client) ResourceRegistries(namespace string) ResourceRegistryInterface {
+	return newResourceRegistries(c, namespace)
 }
 
-// NewForConfig creates a new QueryV1alpha1Client for the given config.
+// NewForConfig creates a new SearchV1alpha1Client for the given config.
 // NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
 // where httpClient was generated with rest.HTTPClientFor(c).
-func NewForConfig(c *rest.Config) (*QueryV1alpha1Client, error) {
+func NewForConfig(c *rest.Config) (*SearchV1alpha1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
@@ -39,9 +39,9 @@ func NewForConfig(c *rest.Config) (*QueryV1alpha1Client, error) {
 	return NewForConfigAndClient(&config, httpClient)
 }
 
-// NewForConfigAndClient creates a new QueryV1alpha1Client for the given config and http client.
+// NewForConfigAndClient creates a new SearchV1alpha1Client for the given config and http client.
 // Note the http client provided takes precedence over the configured transport values.
-func NewForConfigAndClient(c *rest.Config, h *http.Client) (*QueryV1alpha1Client, error) {
+func NewForConfigAndClient(c *rest.Config, h *http.Client) (*SearchV1alpha1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
@@ -50,12 +50,12 @@ func NewForConfigAndClient(c *rest.Config, h *http.Client) (*QueryV1alpha1Client
 	if err != nil {
 		return nil, err
 	}
-	return &QueryV1alpha1Client{client}, nil
+	return &SearchV1alpha1Client{client}, nil
 }
 
-// NewForConfigOrDie creates a new QueryV1alpha1Client for the given config and
+// NewForConfigOrDie creates a new SearchV1alpha1Client for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *QueryV1alpha1Client {
+func NewForConfigOrDie(c *rest.Config) *SearchV1alpha1Client {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -63,9 +63,9 @@ func NewForConfigOrDie(c *rest.Config) *QueryV1alpha1Client {
 	return client
 }
 
-// New creates a new QueryV1alpha1Client for the given RESTClient.
-func New(c rest.Interface) *QueryV1alpha1Client {
-	return &QueryV1alpha1Client{c}
+// New creates a new SearchV1alpha1Client for the given RESTClient.
+func New(c rest.Interface) *SearchV1alpha1Client {
+	return &SearchV1alpha1Client{c}
 }
 
 func setConfigDefaults(config *rest.Config) error {
@@ -83,7 +83,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *QueryV1alpha1Client) RESTClient() rest.Interface {
+func (c *SearchV1alpha1Client) RESTClient() rest.Interface {
 	if c == nil {
 		return nil
 	}

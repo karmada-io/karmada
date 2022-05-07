@@ -8,8 +8,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// ClusterCaches returns a ClusterCacheInformer.
-	ClusterCaches() ClusterCacheInformer
+	// ResourceRegistries returns a ResourceRegistryInformer.
+	ResourceRegistries() ResourceRegistryInformer
 }
 
 type version struct {
@@ -23,7 +23,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// ClusterCaches returns a ClusterCacheInformer.
-func (v *version) ClusterCaches() ClusterCacheInformer {
-	return &clusterCacheInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// ResourceRegistries returns a ResourceRegistryInformer.
+func (v *version) ResourceRegistries() ResourceRegistryInformer {
+	return &resourceRegistryInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

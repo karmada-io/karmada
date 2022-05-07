@@ -2,4 +2,4 @@
 
 package v1alpha1
 
-type ClusterCacheExpansion interface{}
+type ResourceRegistryExpansion interface{}

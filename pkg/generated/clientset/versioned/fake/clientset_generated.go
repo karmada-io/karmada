@@ -12,8 +12,8 @@ import (
 	fakenetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/networking/v1alpha1/fake"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	fakepolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1/fake"
-	queryv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/query/v1alpha1"
-	fakequeryv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/query/v1alpha1/fake"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
+	fakesearchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1/fake"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	fakeworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1/fake"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha2"
@@ -95,9 +95,9 @@ func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
 	return &fakepolicyv1alpha1.FakePolicyV1alpha1{Fake: &c.Fake}
 }
 
-// QueryV1alpha1 retrieves the QueryV1alpha1Client
-func (c *Clientset) QueryV1alpha1() queryv1alpha1.QueryV1alpha1Interface {
-	return &fakequeryv1alpha1.FakeQueryV1alpha1{Fake: &c.Fake}
+// SearchV1alpha1 retrieves the SearchV1alpha1Client
+func (c *Clientset) SearchV1alpha1() searchv1alpha1.SearchV1alpha1Interface {
+	return &fakesearchv1alpha1.FakeSearchV1alpha1{Fake: &c.Fake}
 }
 
 // WorkV1alpha1 retrieves the WorkV1alpha1Client

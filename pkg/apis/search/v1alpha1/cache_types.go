@@ -6,14 +6,14 @@ import (
 )
 
 const (
-	// ResourceKindClusterCache is kind name of ClusterCache.
-	ResourceKindClusterCache = "ClusterCache"
-	// ResourceSingularClusterCache is singular name of ClusterCache.
-	ResourceSingularClusterCache = "clusterCache"
-	// ResourcePluralClusterCache is plural name of ClusterCache.
-	ResourcePluralClusterCache = "clusterCaches"
-	// ResourceNamespaceScopedClusterCache indicates if ClusterCache is not NamespaceScoped.
-	ResourceNamespaceScopedClusterCache = false
+	// ResourceKindResourceRegistry is the name of the resource registry
+	ResourceKindResourceRegistry = "ResourceRegistry"
+	// ResourceSingularResourceRegistry is singular name of ResourceRegistry.
+	ResourceSingularResourceRegistry = "resourceRegistry"
+	// ResourcePluralResourceRegistry is plural name of ResourceRegistry.
+	ResourcePluralResourceRegistry = "resourceRegistries"
+	// ResourceNamespaceScopedResourceRegistry is the scope of the ResourceRegistry
+	ResourceNamespaceScopedResourceRegistry = false
 )
 
 // +genclient
@@ -21,21 +21,21 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope="Cluster"
 
-// ClusterCache defines a list of member cluster to be cached.
-type ClusterCache struct {
+// ResourceRegistry defines a list of member cluster to be cached.
+type ResourceRegistry struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec represents the desired behavior of ClusterCache.
-	Spec ClusterCacheSpec `json:"spec,omitempty"`
+	// Spec represents the desired behavior of ResourceRegistry.
+	Spec ResourceRegistrySpec `json:"spec,omitempty"`
 
-	// Status represents the status of ClusterCache.
+	// Status represents the status of ResoruceRegistry.
 	// +optional
-	Status ClusterCacheStatus `json:"status,omitempty"`
+	Status ResourceRegistryStatus `json:"status,omitempty"`
 }
 
-// ClusterCacheSpec defines the desired state of ClusterCache
-type ClusterCacheSpec struct {
+// ResourceRegistrySpec defines the desired state of ResourceRegistry.
+type ResourceRegistrySpec struct {
 	// ClusterSelectors represents the filter to select clusters.
 	// +required
 	ClusterSelectors []ClusterSelector `json:"clusterSelectors"`
@@ -93,59 +93,21 @@ type ResourceSelector struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// ClusterCacheStatus defines the observed state of ClusterCache
-type ClusterCacheStatus struct {
+// ResourceRegistryStatus defines the observed state of ResourceRegistry
+type ResourceRegistryStatus struct {
+	// Conditions contain the different condition statuses.
 	// +optional
-	ResourceStatuses []ResourceStatusRef `json:"resources,omitempty"`
-	// +optional
-	StartTime *metav1.Time `json:"startTime,omitempty"`
-}
-
-// ResourceStatusRef is the status of the resource.
-type ResourceStatusRef struct {
-	// +required
-	Cluster string `json:"cluster"`
-	// +optional
-	APIVersion string `json:"apiVersion,omitempty"`
-	// +optional
-	Kind string `json:"kind"`
-	// +optional
-	Namespace string `json:"namespace,omitempty"`
-	// +required
-	State CachePhase `json:"state"`
-	// +required
-	TotalNum int32 `json:"totalNum"`
-	// +required
-	UpdateTime *metav1.Time `json:"updateTime"`
-}
-
-// CachePhase is the current state of the cache
-// +enum
-type CachePhase string
-
-// These are the valid statuses of cache.
-const (
-	CacheRunning CachePhase = "Running"
-	CacheFailed  CachePhase = "Failed"
-	CacheUnknown CachePhase = "Unknown"
-)
-
-// ResourceStateRef is the state of the resource.
-type ResourceStateRef struct {
-	// +required
-	Phase CachePhase `json:"phase"`
-	// +optional
-	Reason string `json:"reason"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ClusterCacheList if a collection of ClusterCache.
-type ClusterCacheList struct {
+// ResourceRegistryList if a collection of ResourceRegistry.
+type ResourceRegistryList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	// Items holds a list of ClusterCache.
-	Items []ClusterCache `json:"items"`
+	// Items holds a list of ResourceRegistry.
+	Items []ResourceRegistry `json:"items"`
 }
