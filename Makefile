@@ -86,7 +86,7 @@ karmada-interpreter-webhook-example: $(SOURCES)
 		examples/customresourceinterpreter/webhook/main.go
 
 clean:
-	rm -rf karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmada-descheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example
+	rm -rf karmada-aggregated-apiserver karmada-controller-manager karmada-scheduler karmada-descheduler karmadactl kubectl-karmada karmada-webhook karmada-agent karmada-scheduler-estimator karmada-interpreter-webhook-example kubectl-karmada-*-*.tgz
 
 .PHONY: update
 update:
@@ -183,3 +183,6 @@ multi-platform-images: mp-image-karmada-controller-manager \
  mp-image-karmada-scheduler-estimator \
  mp-image-karmada-interpreter-webhook-example \
  mp-image-karmada-aggregated-apiserver
+
+package-kubectl-karmada: kubectl-karmada
+	tar czf kubectl-karmada-${GOOS}-${GOARCH}.tgz kubectl-karmada LICENSE

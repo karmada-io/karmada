@@ -24,13 +24,11 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: 1.17.x
-    - name: Making kubectl-karmada
-      run: make kubectl-karmada
+    - name: Packaging kubectl-karmada
+      run: make package-kubectl-karmada
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
-    - name: Packaging...
-      run: tar czf kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz kubectl-karmada LICENSE
     - name: Uploading assets...
       if: ${{ !env.ACT }}
       uses: softprops/action-gh-release@v1
