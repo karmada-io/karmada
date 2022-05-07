@@ -51,13 +51,16 @@ const (
 	configMapNamePrefix          = "configmap-"
 	secretNamePrefix             = "secret-"
 	ingressNamePrefix            = "ingress-"
+	daemonSetNamePrefix          = "daemonset-"
+	statefulSetNamePrefix        = "statefulset-"
 
-	updateDeploymentReplicas = 6
-	updateServicePort        = 81
-	updatePodImage           = "nginx:latest"
-	updateCRnamespace        = "e2e-test"
-	updateBackoffLimit       = 3
-	updateParallelism        = 3
+	updateDeploymentReplicas  = 6
+	updateStatefulSetReplicas = 6
+	updateServicePort         = 81
+	updatePodImage            = "nginx:latest"
+	updateCRnamespace         = "e2e-test"
+	updateBackoffLimit        = 3
+	updateParallelism         = 3
 )
 
 var (
