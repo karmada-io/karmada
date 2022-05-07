@@ -28,6 +28,7 @@ KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 #step0: prepare
 # proxy setting in China mainland
+ping -c 3 -i 0.2 -W 3 k8s.gcr.io &>/dev/null || CHINA_MAINLAND=yes
 
 if [[ -n ${CHINA_MAINLAND:-} ]]; then
 export GOPROXY=https://goproxy.cn,direct # set domestic go proxy

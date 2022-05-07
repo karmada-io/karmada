@@ -411,7 +411,7 @@ In this case, you will use Gatekeeper v3.7.2. Related deployment files are from 
 
 ### Extra steps
 
-    After all, we need to copy the secret `gatekeeper-webhook-server-cert` in karmada-apiserver context to that in karmada-host context to keep secrets stored in `etcd` and volumes mounted in controller the same.
+   After all, we need to copy the secret `gatekeeper-webhook-server-cert` in karmada-apiserver context to that in karmada-host context to keep secrets stored in `etcd` and volumes mounted in controller the same.
 
 ## Run demo
 ### Create k8srequiredlabels template

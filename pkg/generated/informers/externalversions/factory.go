@@ -13,6 +13,7 @@ import (
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
 	networking "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/networking"
 	policy "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/policy"
+	search "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/search"
 	work "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/work"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -164,6 +165,7 @@ type SharedInformerFactory interface {
 	Config() config.Interface
 	Networking() networking.Interface
 	Policy() policy.Interface
+	Search() search.Interface
 	Work() work.Interface
 }
 
@@ -181,6 +183,10 @@ func (f *sharedInformerFactory) Networking() networking.Interface {
 
 func (f *sharedInformerFactory) Policy() policy.Interface {
 	return policy.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Search() search.Interface {
+	return search.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Work() work.Interface {

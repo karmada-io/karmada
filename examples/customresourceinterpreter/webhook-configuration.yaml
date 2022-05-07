@@ -11,7 +11,7 @@ webhooks:
         apiVersions: [ "v1alpha1" ]
         kinds: [ "Workload" ]
     clientConfig:
-      url: https://karmada-interpreter-webhook-example.karmada-system.svc:443/interpreter-workload
+      url: https://{{karmada-interpreter-webhook-example-svc-address}}:443/interpreter-workload
       caBundle: {{caBundle}}
     interpreterContextVersions: [ "v1alpha1" ]
     timeoutSeconds: 3
