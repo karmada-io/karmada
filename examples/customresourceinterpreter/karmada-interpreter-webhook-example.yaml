@@ -63,6 +63,7 @@ spec:
   ports:
     - port: 443
       targetPort: 8445
+  type: LoadBalancer
 ---
 apiVersion: v1
 kind: ServiceAccount
