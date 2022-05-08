@@ -9,4 +9,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: karmada-agent-sa
-    namespace: karmada-system
+    namespace: karmada-cluster

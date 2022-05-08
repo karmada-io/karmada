@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: karmada-agent
-  namespace: karmada-system
+  namespace: karmada-cluster
   labels:
     app: karmada-agent
 spec:

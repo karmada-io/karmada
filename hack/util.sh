@@ -7,6 +7,7 @@ set -o pipefail
 # This script holds common bash variables and utility functions.
 
 KARMADA_SYSTEM_NAMESPACE="karmada-system"
+KARMADA_CLUSTER_NAMESPACE="karmada-cluster"
 ETCD_POD_LABEL="etcd"
 APISERVER_POD_LABEL="karmada-apiserver"
 KUBE_CONTROLLER_POD_LABEL="kube-controller-manager"

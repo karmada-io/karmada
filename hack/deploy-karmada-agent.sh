@@ -80,7 +80,7 @@ kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrole.yaml"
 kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
 
 # create secret
-kubectl create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" -n "${KARMADA_SYSTEM_NAMESPACE}"
+kubectl create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" -n "${KARMADA_CLUSTER_NAMESPACE}"
 
 # extract api endpoint of member cluster
 MEMBER_CLUSTER=$(kubectl config view -o jsonpath='{.contexts[?(@.name == "'${MEMBER_CLUSTER_NAME}'")].context.cluster}')
@@ -96,8 +96,8 @@ sed -i'' -e "s|{{member_cluster_api_endpoint}}|${MEMBER_CLUSTER_API_ENDPOINT}|g"
 echo -e "Apply dynamic rendered deployment in ${TEMP_PATH}/karmada-agent.yaml.\n"
 kubectl apply -f "${TEMP_PATH}"/karmada-agent.yaml
 
-# Wait for karmada-etcd to come up before launching the rest of the components.
-util::wait_pod_ready "${AGENT_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+# Wait for karmada-agent to come up before launching the rest of the components.
+util::wait_pod_ready "${AGENT_POD_LABEL}" "${KARMADA_CLUSTER_NAMESPACE}"
 
 # recover the kubeconfig before installing agent if necessary
 if [ -n "${CURR_KUBECONFIG+x}" ];then
