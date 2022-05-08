@@ -499,8 +499,22 @@ func (d *DependenciesDistributor) listAttachedBindings(bindingNamespace, binding
 
 func generateBindingDependedByLabel(bindingNamespace, bindingName string) map[string]string {
 	labelKey := generateBindingDependedByLabelKey(bindingNamespace, bindingName)
-	labelValue := fmt.Sprintf(bindingNamespace + "_" + bindingName)
-	return map[string]string{labelKey: labelValue}
+	name, kind, err := names.SplitBindingName(bindingName)
+	if err != nil {
+		// illegal binding name.
+		// in general, not reach here
+		labelValue := fmt.Sprint(bindingNamespace + "_" + bindingName)
+		return map[string]string{labelKey: labelValue}
+	}
+
+	dependLabels := make(map[string]string)
+	// namespace
+	dependLabels[labelKey+".namespace"] = bindingNamespace
+	// name
+	dependLabels[labelKey+".name"] = name
+	// kind
+	dependLabels[labelKey+".kind"] = kind
+	return dependLabels
 }
 
 func generateBindingDependedByLabelKey(bindingNamespace, bindingName string) string {
@@ -533,11 +547,13 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 		return nil
 	}
 
-	bindingLabelKey := generateBindingDependedByLabelKey(bindingNamespace, bindingName)
+	bindingLabelKey := generateBindingDependedByLabel(bindingNamespace, bindingName)
 
 	var errs []error
 	for index, binding := range attachedBindings {
-		delete(attachedBindings[index].Labels, bindingLabelKey)
+		for labelKey := range bindingLabelKey {
+			delete(attachedBindings[index].Labels, labelKey)
+		}
 		updatedSnapshot := deleteBindingFromSnapshot(bindingNamespace, bindingName, attachedBindings[index].Spec.RequiredBy)
 		attachedBindings[index].Spec.RequiredBy = updatedSnapshot
 		if err := d.Client.Update(context.TODO(), attachedBindings[index]); err != nil {
