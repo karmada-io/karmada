@@ -507,7 +507,7 @@ func generateBindingDependedByLabel(bindingNamespace, bindingName string) map[st
 		return map[string]string{labelKey: labelValue}
 	}
 
-	dependLabels := make(map[string]string, 0)
+	dependLabels := make(map[string]string)
 	// namespace
 	dependLabels[labelKey+".namespace"] = bindingNamespace
 	// name
