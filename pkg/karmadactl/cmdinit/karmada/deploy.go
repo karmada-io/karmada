@@ -33,7 +33,7 @@ const (
 
 // InitKarmadaResources Initialize karmada resource
 func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
-	restConfig, err := utils.RestConfig(filepath.Join(dir, options.KarmadaKubeConfigName))
+	restConfig, err := utils.RestConfig("", filepath.Join(dir, options.KarmadaKubeConfigName))
 	if err != nil {
 		return err
 	}

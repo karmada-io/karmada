@@ -9,18 +9,23 @@ import (
 )
 
 // RestConfig  Kubernetes kubeconfig
-func RestConfig(kubeconfigPath string) (*rest.Config, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
+	pathOptions := clientcmd.NewDefaultPathOptions()
+
+	loadingRules := *pathOptions.LoadingRules
+	loadingRules.Precedence = pathOptions.GetLoadingPrecedence()
+	loadingRules.ExplicitPath = kubeconfigPath
+	overrides := &clientcmd.ConfigOverrides{
+		CurrentContext: context,
+	}
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(&loadingRules, overrides)
+
+	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
 		return nil, err
 	}
-	config.QPS = float32(5.000000)
-	config.Burst = 10
-	config.ContentType = "application/json"
-	config.AcceptContentTypes = "application/json"
-	config.UserAgent = rest.DefaultKubernetesUserAgent()
 
-	return config, err
+	return restConfig, err
 }
 
 // NewClientSet Kubernetes ClientSet

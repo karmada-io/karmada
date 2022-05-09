@@ -61,6 +61,7 @@ type CommandInitOption struct {
 	KarmadaAggregatedAPIServerReplicas int32
 	Namespace                          string
 	KubeConfig                         string
+	Context                            string
 	StorageClassesName                 string
 	KarmadaDataPath                    string
 	CRDs                               string
@@ -105,7 +106,7 @@ func (i *CommandInitOption) Complete() error {
 		}
 	}
 
-	restConfig, err := utils.RestConfig(i.KubeConfig)
+	restConfig, err := utils.RestConfig(i.Context, i.KubeConfig)
 	if err != nil {
 		return err
 	}
