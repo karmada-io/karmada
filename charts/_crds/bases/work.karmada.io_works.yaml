@@ -167,9 +167,6 @@ spec:
                             so the condition can still be linked to a manifest even
                             though manifest cannot be parsed successfully.
                           type: integer
-                        resource:
-                          description: Resource is the resource type of the resource
-                          type: string
                         version:
                           description: Version is the version of the resource.
                           type: string
@@ -177,7 +174,6 @@ spec:
                       - kind
                       - name
                       - ordinal
-                      - resource
                       - version
                       type: object
                     status:

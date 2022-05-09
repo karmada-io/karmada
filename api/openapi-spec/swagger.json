@@ -14381,7 +14381,6 @@
         "ordinal",
         "version",
         "kind",
-        "resource",
         "name"
       ],
       "properties": {
@@ -14408,11 +14407,6 @@
           "type": "integer",
           "format": "int32",
           "default": 0
-        },
-        "resource": {
-          "description": "Resource is the resource type of the resource",
-          "type": "string",
-          "default": ""
         },
         "version": {
           "description": "Version is the version of the resource.",

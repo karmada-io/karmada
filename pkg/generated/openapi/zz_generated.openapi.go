@@ -3758,14 +3758,6 @@ func schema_pkg_apis_work_v1alpha1_ResourceIdentifier(ref common.ReferenceCallba
 							Format:      "",
 						},
 					},
-					"resource": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Resource is the resource type of the resource",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Namespace is the namespace of the resource, the resource is cluster scoped if the value is empty",
@@ -3782,7 +3774,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceIdentifier(ref common.ReferenceCallba
 						},
 					},
 				},
-				Required: []string{"ordinal", "version", "kind", "resource", "name"},
+				Required: []string{"ordinal", "version", "kind", "name"},
 			},
 		},
 	}
