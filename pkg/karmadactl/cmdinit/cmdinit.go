@@ -53,6 +53,7 @@ func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "Kubernetes namespace")
 	flags.StringVar(&opts.StorageClassesName, "storage-classes-name", "", "Kubernetes StorageClasses Name")
 	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "absolute path to the kubeconfig file")
+	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
 	// etcd
 	flags.StringVarP(&opts.EtcdStorageMode, "etcd-storage-mode", "", "emptyDir",
 		"etcd data storage mode(emptyDir,hostPath,PVC). value is PVC, specify --storage-classes-name")
