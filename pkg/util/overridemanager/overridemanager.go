@@ -167,7 +167,7 @@ func (o *overrideManagerImpl) applyNamespacedOverrides(rawObj *unstructured.Unst
 func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []GeneralOverridePolicy, resource *unstructured.Unstructured, cluster *clusterv1alpha1.Cluster) []policyOverriders {
 	resourceMatchingPolicies := make([]GeneralOverridePolicy, 0)
 	for _, policy := range policies {
-		if policy.GetOverrideSpec().ResourceSelectors == nil {
+		if len(policy.GetOverrideSpec().ResourceSelectors) == 0 {
 			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
 			continue
 		}
