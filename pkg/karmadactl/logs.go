@@ -43,7 +43,7 @@ func NewCmdLogs(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string
 		Use:          logsUsageStr,
 		Short:        "Print the logs for a container in a pod in a cluster",
 		SilenceUsage: true,
-		Example:      getLogsExample(parentCommand),
+		Example:      logsExample(parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(karmadaConfig, cmd, args); err != nil {
 				return err
@@ -64,8 +64,7 @@ func NewCmdLogs(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string
 	return cmd
 }
 
-// getLogsExample logs examples by cmd type
-func getLogsExample(parentCommand string) string {
+func logsExample(parentCommand string) string {
 	example := `
 # Return snapshot logs from pod nginx with only one container in cluster(member1)` + "\n" +
 		fmt.Sprintf("%s logs nginx -C=member1", parentCommand) + `

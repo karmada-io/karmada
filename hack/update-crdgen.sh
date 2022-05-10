@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 CONTROLLER_GEN_PKG="sigs.k8s.io/controller-tools/cmd/controller-gen"
-CONTROLLER_GEN_VER="v0.6.2"
+CONTROLLER_GEN_VER="v0.8.0"
 
 source hack/util.sh
 
@@ -18,3 +18,4 @@ controller-gen crd paths=./pkg/apis/policy/... output:crd:dir=./charts/_crds/bas
 controller-gen crd paths=./pkg/apis/work/... output:crd:dir=./charts/_crds/bases
 controller-gen crd paths=./pkg/apis/networking/... output:crd:dir=./charts/_crds/bases
 controller-gen crd paths=./examples/customresourceinterpreter/apis/... output:crd:dir=./examples/customresourceinterpreter/apis/
+controller-gen crd paths=./pkg/apis/search/... output:crd:dir=./charts/_crds/bases

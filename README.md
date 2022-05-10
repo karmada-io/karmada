@@ -62,22 +62,21 @@ The Karmada Control Plane consists of the following components:
 - Karmada Controller Manager
 - Karmada Scheduler
 
-ETCD stores the karmada API objects, the API Server is the REST endpoint all other components talk to, and the Karmada Controller Manager perform operations based on the API objects you create through the API server.
+ETCD stores the Karmada API objects, the API Server is the REST endpoint all other components talk to, and the Karmada Controller Manager performs operations based on the API objects you create through the API server.
 
-The Karmada Controller Manager runs the various controllers,  the controllers watch karmada objects and then talk to the underlying clusters' API servers to create regular Kubernetes resources.
+The Karmada Controller Manager runs the various controllers,  the controllers watch Karmada objects and then talk to the underlying clusters' API servers to create regular Kubernetes resources.
 
-1. Cluster Controller: attach kubernetes clusters to Karmada for managing the lifecycle of the clusters by creating cluster object.
-
-2. Policy Controller: the controller watches PropagationPolicy objects. When PropagationPolicy object is added, it selects a group of resources matching the resourceSelector and create ResourceBinding with each single resource object.
-3. Binding Controller: the controller watches ResourceBinding object and create Work object corresponding to each cluster with single resource manifest.
-4. Execution Controller: the controller watches Work objects.When Work objects are created, it will distribute the resources to member clusters.
+1. Cluster Controller: attach Kubernetes clusters to Karmada for managing the lifecycle of the clusters by creating cluster objects.
+2. Policy Controller: the controller watches PropagationPolicy objects. When the PropagationPolicy object is added, it selects a group of resources matching the resourceSelector and creates ResourceBinding with each single resource object.
+3. Binding Controller: the controller watches ResourceBinding object and create Work object corresponding to each cluster with a single resource manifest.
+4. Execution Controller: the controller watches Work objects. When Work objects are created, it will distribute the resources to member clusters.
 
 
 ## Concepts
 
 **Resource template**: Karmada uses Kubernetes Native API definition for federated resource template, to make it easy to integrate with existing tools that already adopt on Kubernetes
 
-**Propagation Policy**: Karmada offers standalone Propagation(placement) Policy API to define multi-cluster scheduling and spreading requirements.
+**Propagation Policy**: Karmada offers a standalone Propagation(placement) Policy API to define multi-cluster scheduling and spreading requirements.
 - Support 1:n mapping of Policy: workload, users don't need to indicate scheduling constraints every time creating federated applications.
 - With default policies, users can just interact with K8s API
 
@@ -93,28 +92,28 @@ The following diagram shows how Karmada resources are involved when propagating 
 ## Quick Start
 
 This guide will cover:
-- Install `karmada` control plane components in a Kubernetes cluster which as known as `host cluster`.
+- Install `karmada` control plane components in a Kubernetes cluster which is known as `host cluster`.
 - Join a member cluster to `karmada` control plane.
-- Propagate an application by `karmada`.
+- Propagate an application by using `karmada`.
 
 ### Prerequisites
 - [Go](https://golang.org/) version v1.17+
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
 - [kind](https://kind.sigs.k8s.io/) version v0.9.0+
 
-### Install karmada control plane
+### Install the Karmada control plane
 
 #### 1. Clone this repo to your machine:
 ```
 git clone https://github.com/karmada-io/karmada
 ```
 
-#### 2. Change to karmada directory:
+#### 2. Change to the karmada directory:
 ```
 cd karmada
 ```
 
-#### 3. Deploy and run karmada control plane:
+#### 3. Deploy and run Karmada control plane:
 
 run the following script:
 
@@ -122,16 +121,16 @@ run the following script:
 # hack/local-up-karmada.sh
 ```
 This script will do following tasks for you:
-- Start a Kubernetes cluster to run the karmada control plane, aka. the `host cluster`.
-- Build karmada control plane components based on a current codebase.
-- Deploy karmada control plane components on `host cluster`.
-- Create member clusters and join to Karmada.
+- Start a Kubernetes cluster to run the Karmada control plane, aka. the `host cluster`.
+- Build Karmada control plane components based on a current codebase.
+- Deploy Karmada control plane components on the `host cluster`.
+- Create member clusters and join Karmada.
 
 If everything goes well, at the end of the script output, you will see similar messages as follows:
 ```
 Local Karmada is running.
 
-To start using your karmada, run:
+To start using your Karmada environment, run:
   export KUBECONFIG="$HOME/.kube/karmada.config"
 Please use 'kubectl config use-context karmada-host/karmada-apiserver' to switch the host and control plane cluster.
 
@@ -140,11 +139,11 @@ To manage your member clusters, run:
 Please use 'kubectl config use-context member1/member2/member3' to switch to the different member cluster.
 ```
 
-There are two contexts about karmada:
+There are two contexts in Karmada:
 - karmada-apiserver `kubectl config use-context karmada-apiserver`
 - karmada-host `kubectl config use-context karmada-host`
 
-The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with karmada control plane, while `karmada-host` is only used for debugging karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
+The `karmada-apiserver` is the **main kubeconfig** to be used when interacting with the Karmada control plane, while `karmada-host` is only used for debugging Karmada installation with the host cluster. You can check all clusters at any time by running: `kubectl config view`. To switch cluster contexts, run `kubectl config use-context [CONTEXT_NAME]`
 
 
 ### Demo
@@ -152,22 +151,22 @@ The `karmada-apiserver` is the **main kubeconfig** to be used when interacting w
 ![Demo](docs/images/sample-nginx.svg)
 
 ### Propagate application
-In the following steps, we are going to propagate a deployment by karmada.
+In the following steps, we are going to propagate a deployment by Karmada.
 
-#### 1. Create nginx deployment in karmada.
+#### 1. Create nginx deployment in Karmada.
 First, create a [deployment](samples/nginx/deployment.yaml) named `nginx`:
 ```
 kubectl create -f samples/nginx/deployment.yaml
 ```
 
 #### 2. Create PropagationPolicy that will propagate nginx to member cluster
-Then, we need create a policy to drive the deployment to our member cluster.
+Then, we need to create a policy to propagate the deployment to our member cluster.
 ```
 kubectl create -f samples/nginx/propagationpolicy.yaml
 ```
 
-#### 3. Check the deployment status from karmada
-You can check deployment status from karmada, don't need to access member cluster:
+#### 3. Check the deployment status from Karmada
+You can check deployment status from Karmada, don't need to access member cluster:
 ```
 $ kubectl get deployment
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE

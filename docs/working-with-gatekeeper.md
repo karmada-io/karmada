@@ -44,7 +44,7 @@ In this case, you will use Gatekeeper v3.7.2. Related deployment files are from 
          - v1
          - v1beta1
        clientConfig:
-         #Change the clientconfig from service type to url type cause wehbhook config and service are not in the same cluster.
+         #Change the clientconfig from service type to url type cause webhook config and service are not in the same cluster.
          url: https://gatekeeper-webhook-service.gatekeeper-system.svc:443/v1/mutate
        failurePolicy: Ignore
        matchPolicy: Exact
@@ -77,7 +77,7 @@ In this case, you will use Gatekeeper v3.7.2. Related deployment files are from 
          - v1
          - v1beta1
        clientConfig:
-         #Change the clientconfig from service type to url type cause wehbhook config and service are not in the same cluster.
+         #Change the clientconfig from service type to url type cause webhook config and service are not in the same cluster.
          url: https://gatekeeper-webhook-service.gatekeeper-system.svc:443/v1/admit
        failurePolicy: Ignore
        matchPolicy: Exact
@@ -102,7 +102,7 @@ In this case, you will use Gatekeeper v3.7.2. Related deployment files are from 
          - v1
          - v1beta1
        clientConfig:
-         #Change the clientconfig from service type to url type cause wehbhook config and service are not in the same cluster.
+         #Change the clientconfig from service type to url type cause webhook config and service are not in the same cluster.
          url: https://gatekeeper-webhook-service.gatekeeper-system.svc:443/v1/admitlabel
        failurePolicy: Fail
        matchPolicy: Exact
@@ -411,7 +411,7 @@ In this case, you will use Gatekeeper v3.7.2. Related deployment files are from 
 
 ### Extra steps
 
-    After all, we need to copy the secret `gatekeeper-webhook-server-cert` in karmada-apiserver context to that in karmada-host context to keep secrets stored in `etcd` and volumes mounted in controller the same.
+   After all, we need to copy the secret `gatekeeper-webhook-server-cert` in karmada-apiserver context to that in karmada-host context to keep secrets stored in `etcd` and volumes mounted in controller the same.
 
 ## Run demo
 ### Create k8srequiredlabels template

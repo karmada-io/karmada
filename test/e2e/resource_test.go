@@ -8,9 +8,11 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -249,6 +251,250 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					klog.Infof("the latest ingressStatus loadBalancer: %v", latestIng.Status.LoadBalancer)
 					return reflect.DeepEqual(latestIng.Status.LoadBalancer, ingLoadBalancer), nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
+		})
+	})
+
+	ginkgo.Context("JobStatus collection testing", func() {
+		var jobNamespace, jobName string
+		var job *batchv1.Job
+		var patch []map[string]interface{}
+
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = jobNamePrefix + rand.String(RandomStrLength)
+			jobNamespace = testNamespace
+			jobName = policyName
+
+			job = helper.NewJob(jobNamespace, jobName)
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: job.APIVersion,
+					Kind:       job.Kind,
+					Name:       job.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+
+			patch = []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "/spec/placement/clusterAffinity/clusterNames",
+					"value": framework.ClusterNames()[0 : len(framework.ClusterNames())-1],
+				},
+			}
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateJob(kubeClient, job)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveJob(kubeClient, jobNamespace, jobName)
+			})
+		})
+
+		ginkgo.It("job status collection testing", func() {
+			ginkgo.By("check whether the job status can be correctly collected", func() {
+				wantedSucceedPods := int32(len(framework.Clusters()))
+
+				klog.Infof("Waiting for job(%s/%s) collecting correctly status", jobNamespace, jobName)
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					currentJob, err := kubeClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					klog.Infof("job(%s/%s) succeedPods: %d, wanted succeedPods: %d", jobNamespace, jobName, currentJob.Status.Succeeded, wantedSucceedPods)
+					if currentJob.Status.Succeeded == wantedSucceedPods {
+						return true, nil
+					}
+
+					return false, nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policyName, patch, types.JSONPatchType)
+
+			ginkgo.By("check if job status has been update with new collection", func() {
+				wantedSucceedPods := int32(len(framework.Clusters()) - 1)
+
+				klog.Infof("Waiting for job(%s/%s) collecting correctly status", jobNamespace, jobName)
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					currentJob, err := kubeClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					if currentJob.Status.Succeeded == wantedSucceedPods {
+						return true, nil
+					}
+
+					return false, nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+	})
+
+	ginkgo.Context("DaemonSetStatus collection testing", func() {
+		var daemonSetNamespace, daemonSetName string
+		var daemonSet *appsv1.DaemonSet
+		var patch []map[string]interface{}
+
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = daemonSetNamePrefix + rand.String(RandomStrLength)
+			daemonSetNamespace = testNamespace
+			daemonSetName = policyName
+
+			daemonSet = helper.NewDaemonSet(daemonSetNamespace, daemonSetName)
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: daemonSet.APIVersion,
+					Kind:       daemonSet.Kind,
+					Name:       daemonSet.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+
+			patch = []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "/spec/placement/clusterAffinity/clusterNames",
+					"value": framework.ClusterNames()[0 : len(framework.ClusterNames())-1],
+				},
+			}
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateDaemonSet(kubeClient, daemonSet)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDaemonSet(kubeClient, daemonSetNamespace, daemonSetName)
+			})
+		})
+
+		ginkgo.It("daemonSet status collection testing", func() {
+			ginkgo.By("check whether the daemonSet status can be correctly collected", func() {
+				wantedReplicas := int32(len(framework.Clusters()))
+
+				klog.Infof("Waiting for daemonSet(%s/%s) collecting correctly status", daemonSetNamespace, daemonSetName)
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					currentDaemonSet, err := kubeClient.AppsV1().DaemonSets(daemonSetNamespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					klog.Infof("daemonSet(%s/%s) replicas: %d, wanted replicas: %d", daemonSetNamespace, daemonSetName, currentDaemonSet.Status.NumberReady, wantedReplicas)
+					if currentDaemonSet.Status.NumberReady == wantedReplicas &&
+						currentDaemonSet.Status.CurrentNumberScheduled == wantedReplicas &&
+						currentDaemonSet.Status.DesiredNumberScheduled == wantedReplicas &&
+						currentDaemonSet.Status.UpdatedNumberScheduled == wantedReplicas &&
+						currentDaemonSet.Status.NumberAvailable == wantedReplicas {
+						return true, nil
+					}
+
+					return false, nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policyName, patch, types.JSONPatchType)
+
+			ginkgo.By("check if daemonSet status has been update with new collection", func() {
+				wantedReplicas := int32(len(framework.Clusters()) - 1)
+
+				klog.Infof("Waiting for daemonSet(%s/%s) collecting correctly status", daemonSetNamespace, daemonSetName)
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					currentDaemonSet, err := kubeClient.AppsV1().DaemonSets(daemonSetNamespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					if currentDaemonSet.Status.NumberReady == wantedReplicas &&
+						currentDaemonSet.Status.CurrentNumberScheduled == wantedReplicas &&
+						currentDaemonSet.Status.DesiredNumberScheduled == wantedReplicas &&
+						currentDaemonSet.Status.UpdatedNumberScheduled == wantedReplicas &&
+						currentDaemonSet.Status.NumberAvailable == wantedReplicas {
+						return true, nil
+					}
+
+					return false, nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+	})
+
+	ginkgo.Context("StatefulSetStatus collection testing", func() {
+		var statefulSetNamespace, statefulSetName string
+		var statefulSet *appsv1.StatefulSet
+
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = statefulSetNamePrefix + rand.String(RandomStrLength)
+			statefulSetNamespace = testNamespace
+			statefulSetName = policyName
+
+			statefulSet = helper.NewStatefulSet(statefulSetNamespace, statefulSetName)
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: statefulSet.APIVersion,
+					Kind:       statefulSet.Kind,
+					Name:       statefulSet.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateStatefulSet(kubeClient, statefulSet)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveStatefulSet(kubeClient, statefulSetNamespace, statefulSetName)
+			})
+		})
+
+		ginkgo.It("statefulSet status collection testing", func() {
+			ginkgo.By("check whether the statefulSet status can be correctly collected", func() {
+				wantedReplicas := *statefulSet.Spec.Replicas * int32(len(framework.Clusters()))
+				klog.Infof("Waiting for statefulSet(%s/%s) collecting correctly status", statefulSetNamespace, statefulSetName)
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					currentStatefulSet, err := kubeClient.AppsV1().StatefulSets(statefulSetNamespace).Get(context.TODO(), statefulSetName, metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					klog.Infof("statefulSet(%s/%s) replicas: %d, wanted replicas: %d", statefulSetNamespace, statefulSetName, currentStatefulSet.Status.Replicas, wantedReplicas)
+					if currentStatefulSet.Status.Replicas == wantedReplicas &&
+						currentStatefulSet.Status.ReadyReplicas == wantedReplicas &&
+						currentStatefulSet.Status.CurrentReplicas == wantedReplicas &&
+						currentStatefulSet.Status.UpdatedReplicas == wantedReplicas {
+						return true, nil
+					}
+
+					return false, nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			framework.UpdateStatefulSetReplicas(kubeClient, statefulSet, updateStatefulSetReplicas)
+
+			ginkgo.By("check if statefulSet status has been update with new collection", func() {
+				wantedReplicas := updateStatefulSetReplicas * int32(len(framework.Clusters()))
+
+				klog.Infof("Waiting for statefulSet(%s/%s) collecting correctly status", statefulSetNamespace, statefulSetName)
+				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					currentStatefulSet, err := kubeClient.AppsV1().StatefulSets(statefulSetNamespace).Get(context.TODO(), statefulSetName, metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					if currentStatefulSet.Status.Replicas == wantedReplicas &&
+						currentStatefulSet.Status.ReadyReplicas == wantedReplicas &&
+						currentStatefulSet.Status.CurrentReplicas == wantedReplicas &&
+						currentStatefulSet.Status.UpdatedReplicas == wantedReplicas {
+						return true, nil
+					}
+
+					return false, nil
+				})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 	})
