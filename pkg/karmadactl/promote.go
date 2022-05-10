@@ -46,7 +46,7 @@ func NewCmdPromote(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand 
 		Use:          "promote <RESOURCE_TYPE> <RESOURCE_NAME> -n <NAME_SPACE> -c <CLUSTER_NAME>",
 		Short:        promoteShort,
 		Long:         promoteLong,
-		Example:      getPromoteExample(parentCommand),
+		Example:      promoteExample(parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -68,27 +68,26 @@ func NewCmdPromote(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand 
 	return cmd
 }
 
-func getPromoteExample(parentCommand string) string {
-	promoteExample := `
-# Promote deployment(default/nginx) from cluster1 to Karmada.
-` + parentCommand + ` promote deployment nginx -n default -c cluster1
+func promoteExample(parentCommand string) string {
+	example := `
+# Promote deployment(default/nginx) from cluster1 to Karmada` + "\n" +
+		fmt.Sprintf("%s promote deployment nginx -n default -c cluster1", parentCommand) + `
 
-# Promote deployment((default/nginx) with gvk from cluster1 to Karmada.
-` + parentCommand + ` promote deployment.v1.apps nginx -n default -c cluster1
+# Promote deployment((default/nginx) with gvk from cluster1 to Karmada` + "\n" +
+		fmt.Sprintf("%s promote deployment.v1.apps nginx -n default -c cluster1", parentCommand) + `
 
-# Dumps the artifacts but does not deploy them to Karmada, same as 'dry run'.
-` + parentCommand + ` promote deployment nginx -n default -c cluster1 -o yaml|json
+# Dumps the artifacts but does not deploy them to Karmada, same as 'dry run'` + "\n" +
+		fmt.Sprintf("%s promote deployment nginx -n default -c cluster1 -o yaml|json", parentCommand) + `
 
-# Promote secret(default/default-token) from cluster1 to Karmada.
-` + parentCommand + ` promote secret default-token -n default -c cluster1
-
-# For clusters with 'Pull' mode, use '--cluster-kubeconfig' to specify the configuration.
-` + parentCommand + ` promote deployment nginx -n default -c cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH>
-
-# For clusters with 'Pull' mode, use '--cluster-kubeconfig' and '--cluster-context' to specify the configuration.
-` + parentCommand + ` promote deployment nginx -n default -c cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH> --cluster-context=<CLUSTER_CONTEXT>
-`
-	return promoteExample
+# Promote secret(default/default-token) from cluster1 to Karmada` + "\n" +
+		fmt.Sprintf("%s promote secret default-token -n default -c cluster1", parentCommand) + `
+		
+# For clusters with 'Pull' mode, use '--cluster-kubeconfig' to specify the configuration` + "\n" +
+		fmt.Sprintf("%s promote deployment nginx -n default -c cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH>", parentCommand) + `
+		
+# For clusters with 'Pull' mode, use '--cluster-kubeconfig' and '--cluster-context' to specify the configuration` + "\n" +
+		fmt.Sprintf("%s promote deployment nginx -n default -c cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH> --cluster-context=<CLUSTER_CONTEXT>", parentCommand)
+	return example
 }
 
 // CommandPromoteOption holds all command options for promote

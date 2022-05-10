@@ -25,12 +25,8 @@ import (
 )
 
 var (
-	joinShort   = `Register a cluster to control plane`
-	joinLong    = `Join registers a cluster to control plane.`
-	joinExample = `
-# Join cluster into karamada control plane
-%s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
-`
+	joinShort = `Register a cluster to control plane`
+	joinLong  = `Join registers a cluster to control plane.`
 )
 
 var (
@@ -54,14 +50,14 @@ var (
 var clusterResourceKind = clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")
 
 // NewCmdJoin defines the `join` command that registers a cluster.
-func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
+func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandJoinOption{}
 
 	cmd := &cobra.Command{
 		Use:          "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
 		Short:        joinShort,
 		Long:         joinLong,
-		Example:      fmt.Sprintf(joinExample, cmdStr),
+		Example:      joinExample(parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -81,6 +77,13 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *c
 	opts.AddFlags(flags)
 
 	return cmd
+}
+
+func joinExample(parentCommand string) string {
+	example := `
+# Join cluster into karamada control plane, if '--cluster-context' not specified, take the cluster name as the context` + "\n" +
+		fmt.Sprintf("%s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>", parentCommand)
+	return example
 }
 
 // CommandJoinOption holds all command options.
