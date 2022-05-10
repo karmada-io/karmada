@@ -379,6 +379,9 @@ func preprocessResource(obj *unstructured.Unstructured) error {
 // addOverwriteAnnotation add annotation "work.karmada.io/conflict-resolution" to the resource
 func addOverwriteAnnotation(obj *unstructured.Unstructured) {
 	annotations := obj.DeepCopy().GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
 	if _, exist := annotations[workv1alpha2.ResourceConflictResolutionAnnotation]; !exist {
 		annotations[workv1alpha2.ResourceConflictResolutionAnnotation] = workv1alpha2.ResourceConflictResolutionOverwrite
 		obj.SetAnnotations(annotations)
