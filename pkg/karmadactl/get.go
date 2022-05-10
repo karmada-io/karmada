@@ -1027,7 +1027,6 @@ func Exists(path string) bool {
 	return true
 }
 
-// getExample get examples by cmd type
 func getExample(parentCommand string) string {
 	example := `
 # List all pods in ps output format` + "\n" +

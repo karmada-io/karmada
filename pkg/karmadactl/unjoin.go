@@ -23,26 +23,19 @@ import (
 )
 
 var (
-	unjoinShort   = `Remove the registration of a cluster from control plane`
-	unjoinLong    = `Unjoin removes the registration of a cluster from control plane.`
-	unjoinExample = `
-# Unjoin cluster from karamada control plane
-%s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
-
-# Unjoin cluster from karamada control plane with timeout
-%s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --wait 2m
-`
+	unjoinShort = `Remove the registration of a cluster from control plane`
+	unjoinLong  = `Unjoin removes the registration of a cluster from control plane.`
 )
 
 // NewCmdUnjoin defines the `unjoin` command that removes registration of a cluster from control plane.
-func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
+func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandUnjoinOption{}
 
 	cmd := &cobra.Command{
 		Use:          "unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
 		Short:        unjoinShort,
 		Long:         unjoinLong,
-		Example:      getUnjoinExample(cmdStr),
+		Example:      unjoinExample(parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -64,8 +57,17 @@ func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 	return cmd
 }
 
-func getUnjoinExample(cmdStr string) string {
-	return fmt.Sprintf(unjoinExample, cmdStr, cmdStr)
+func unjoinExample(parentCommand string) string {
+	example := `
+# Unjoin cluster from karamada control plane, but not to remove resources created by karmada in the unjoining cluster` + "\n" +
+		fmt.Sprintf("%s unjoin CLUSTER_NAME", parentCommand) + `
+
+# Unjoin cluster from karamada control plane and attempt to remove resources created by karmada in the unjoining cluster` + "\n" +
+		fmt.Sprintf("%s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>", parentCommand) + `
+		
+# Unjoin cluster from karamada control plane with timeout` + "\n" +
+		fmt.Sprintf("%s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --wait 2m", parentCommand)
+	return example
 }
 
 // CommandUnjoinOption holds all command options.

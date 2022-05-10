@@ -19,19 +19,11 @@ import (
 )
 
 var (
-	cordonShort   = `Mark cluster as unschedulable`
-	cordonLong    = `Mark cluster as unschedulable.`
-	cordonExample = `
-# Mark cluster "foo" as unschedulable.
-%s cordon foo
-`
+	cordonShort = `Mark cluster as unschedulable`
+	cordonLong  = `Mark cluster as unschedulable.`
 
-	uncordonShort   = `Mark cluster as schedulable`
-	uncordonLong    = `Mark cluster as schedulable.`
-	uncordonExample = `
-# Mark cluster "foo" as schedulable.
-%s uncordon foo
-`
+	uncordonShort = `Mark cluster as schedulable`
+	uncordonLong  = `Mark cluster as schedulable.`
 )
 
 const (
@@ -40,13 +32,13 @@ const (
 )
 
 // NewCmdCordon defines the `cordon` command that mark cluster as unschedulable.
-func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
+func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:          "cordon CLUSTER",
 		Short:        cordonShort,
 		Long:         cordonLong,
-		Example:      fmt.Sprintf(cordonExample, cmdStr),
+		Example:      cordonExample(parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -65,14 +57,21 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) 
 	return cmd
 }
 
+func cordonExample(parentCommand string) string {
+	example := `
+# Mark cluster "foo" as unschedulable` + "\n" +
+		fmt.Sprintf("%s cordon foo", parentCommand)
+	return example
+}
+
 // NewCmdUncordon defines the `uncordon` command that mark cluster as schedulable.
-func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string) *cobra.Command {
+func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:          "uncordon CLUSTER",
 		Short:        uncordonShort,
 		Long:         uncordonLong,
-		Example:      fmt.Sprintf(uncordonExample, cmdStr),
+		Example:      uncordonExample(parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -89,6 +88,13 @@ func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, cmdStr string
 	opts.AddFlags(flags)
 
 	return cmd
+}
+
+func uncordonExample(parentCommand string) string {
+	example := `
+# Mark cluster "foo" as schedulable.` + "\n" +
+		fmt.Sprintf("%s uncordon foo", parentCommand)
+	return example
 }
 
 // CommandCordonOption holds all command options for cordon and uncordon
