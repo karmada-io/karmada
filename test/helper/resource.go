@@ -62,6 +62,71 @@ func NewDeployment(namespace string, name string) *appsv1.Deployment {
 	}
 }
 
+// NewDaemonSet will build a daemonSet object.
+func NewDaemonSet(namespace string, name string) *appsv1.DaemonSet {
+	podLabels := map[string]string{"app": "nginx"}
+
+	return &appsv1.DaemonSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "DaemonSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podLabels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "nginx",
+						Image: "nginx:1.19.0",
+					}},
+				},
+			},
+		},
+	}
+}
+
+// NewStatefulSet will build a statefulSet object.
+func NewStatefulSet(namespace string, name string) *appsv1.StatefulSet {
+	podLabels := map[string]string{"app": "nginx"}
+
+	return &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "StatefulSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Replicas: pointer.Int32Ptr(3),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podLabels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "nginx",
+						Image: "nginx:1.19.0",
+					}},
+				},
+			},
+		},
+	}
+}
+
 // NewService will build a service object.
 func NewService(namespace string, name string) *corev1.Service {
 	return &corev1.Service{
