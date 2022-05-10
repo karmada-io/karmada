@@ -26,19 +26,32 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
-var certList = []string{
-	options.CaCertAndKeyName,
-	options.EtcdServerCertAndKeyName,
-	options.EtcdClientCertAndKeyName,
-	options.KarmadaCertAndKeyName,
-	options.FrontProxyCaCertAndKeyName,
-	options.FrontProxyClientCertAndKeyName,
-}
+var (
+	imageRepositories = map[string]string{
+		"global": "k8s.gcr.io",
+		"cn":     "registry.cn-hangzhou.aliyuncs.com/google_containers",
+	}
 
-var defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
+	certList = []string{
+		options.CaCertAndKeyName,
+		options.EtcdServerCertAndKeyName,
+		options.EtcdClientCertAndKeyName,
+		options.KarmadaCertAndKeyName,
+		options.FrontProxyCaCertAndKeyName,
+		options.FrontProxyClientCertAndKeyName,
+	}
+
+	defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
+
+	defaultEtcdImage                  = "etcd:3.5.1-0"
+	defaultKubeAPIServerImage         = "kube-apiserver:v1.21.7"
+	defaultKubeControllerManagerImage = "kube-controller-manager:v1.21.7"
+)
 
 // CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
+	KubeImageRegistry                  string
+	KubeImageMirrorCountry             string
 	EtcdImage                          string
 	EtcdReplicas                       int32
 	EtcdInitImage                      string
@@ -446,6 +459,49 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 
 	utils.GenExamples(i.KarmadaDataPath, parentCommand)
 	return nil
+}
+
+// get kube components registry
+func (i *CommandInitOption) kubeRegistry() string {
+	registry := i.KubeImageRegistry
+	mirrorCountry := strings.ToLower(i.KubeImageMirrorCountry)
+
+	if registry != "" {
+		return registry
+	}
+
+	if mirrorCountry != "" {
+		value, ok := imageRepositories[mirrorCountry]
+		if ok {
+			return value
+		}
+	}
+
+	return imageRepositories["global"]
+}
+
+// get kube-apiserver image
+func (i *CommandInitOption) kubeAPIServerImage() string {
+	if i.KarmadaAPIServerImage != "" {
+		return i.KarmadaAPIServerImage
+	}
+	return i.kubeRegistry() + "/" + defaultKubeAPIServerImage
+}
+
+// get kube-controller-manager image
+func (i *CommandInitOption) kubeControllerManagerImage() string {
+	if i.KubeControllerManagerImage != "" {
+		return i.KubeControllerManagerImage
+	}
+	return i.kubeRegistry() + "/" + defaultKubeControllerManagerImage
+}
+
+// get etcd image
+func (i *CommandInitOption) etcdImage() string {
+	if i.EtcdImage != "" {
+		return i.EtcdImage
+	}
+	return i.kubeRegistry() + "/" + defaultEtcdImage
 }
 
 func homeDir() string {
