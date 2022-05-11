@@ -42,12 +42,8 @@ for registry_file in "${registry_files[@]}"; do
 done
 # set mirror registry in the dockerfile of components of karmada
 dockerfile_list=( # Dockerfile files need to be replaced
-  "cluster/images/karmada-controller-manager/Dockerfile"
-  "cluster/images/karmada-agent/Dockerfile"
-  "cluster/images/karmada-scheduler-estimator/Dockerfile"
-  "cluster/images/karmada-scheduler/Dockerfile"
-  "cluster/images/karmada-webhook/Dockerfile"
-  "cluster/images/karmada-aggregated-apiserver/Dockerfile"
+  "cluster/images/Dockerfile"
+  "cluster/images/buildx.Dockerfile"
 )
 for dockerfile in "${dockerfile_list[@]}"; do
   grep 'mirrors.ustc.edu.cn' ${REPO_ROOT}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.15.1#FROM alpine:3.15.1\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.15/main/ > /etc/apk/repositories#" ${REPO_ROOT}/${dockerfile}
