@@ -31,7 +31,7 @@ REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
 VERSION=${VERSION:="unknown"}
 
 function build_images() {
-  local -ra target=$1
+  local -r target=$1
   local -r output_type=${OUTPUT_TYPE:-docker}
   local platforms="${BUILD_PLATFORMS:-"$(util:host_platform)"}"
 
