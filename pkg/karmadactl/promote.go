@@ -254,9 +254,9 @@ func promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured
 		return nil
 	}
 
-	controlplaneDynamicClient := dynamic.NewForConfigOrDie(controlPlaneRestConfig)
+	controlPlaneDynamicClient := dynamic.NewForConfigOrDie(controlPlaneRestConfig)
 
-	_, err := controlplaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Get(context.TODO(), opts.name, metav1.GetOptions{})
+	_, err := controlPlaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Get(context.TODO(), opts.name, metav1.GetOptions{})
 	if err == nil {
 		fmt.Printf("Resource %q(%s/%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
 			gvr, opts.Namespace, opts.name)
@@ -267,7 +267,7 @@ func promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured
 		return fmt.Errorf("failed to get resource %q(%s/%s) in control plane: %v", gvr, opts.Namespace, opts.name, err)
 	}
 
-	_, err = controlplaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
+	_, err = controlPlaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create resource %q(%s/%s) in control plane: %v", gvr, opts.Namespace, opts.name, err)
 	}
