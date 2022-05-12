@@ -48,6 +48,8 @@ jobs:
         run: hack/verify-estimator-protobuf.sh
       - name: verify swagger docs
         run: hack/verify-swagger-docs.sh
+      - name: verify lifted docs
+        run: hack/verify-lifted.sh
   build:
     name: compile
     needs: codegen # rely on codegen successful completion

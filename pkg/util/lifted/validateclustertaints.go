@@ -31,6 +31,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation.go#L5001-L5033
+// +lifted-changed
+
 // ValidateClusterTaints tests if given taints have valid data.
 func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.ErrorList {
 	allErrors := field.ErrorList{}
@@ -65,6 +68,8 @@ func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.Err
 	return allErrors
 }
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/validation/validation.go#L3305-L3326
+// +lifted-changed
 func validateClusterTaintEffect(effect *corev1.TaintEffect, allowEmpty bool, fldPath *field.Path) field.ErrorList {
 	if !allowEmpty && len(*effect) == 0 {
 		return field.ErrorList{field.Required(fldPath, "")}

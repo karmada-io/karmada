@@ -31,6 +31,9 @@ const (
 	SecretsField = "secrets"
 )
 
+// +lifted-source: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go
+// +lifted-changed
+
 // RetainServiceFields updates the desired service object with values retained from the cluster object.
 func RetainServiceFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	// healthCheckNodePort is allocated by APIServer and unchangeable, so it should be retained while updating
@@ -46,6 +49,8 @@ func RetainServiceFields(desired, observed *unstructured.Unstructured) (*unstruc
 	return desired, nil
 }
 
+// +lifted-source: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go
+// +lifted-changed
 func retainServiceHealthCheckNodePort(desired, observed *unstructured.Unstructured) error {
 	healthCheckNodePort, ok, err := unstructured.NestedInt64(observed.Object, "spec", "healthCheckNodePort")
 	if err != nil {
@@ -59,6 +64,8 @@ func retainServiceHealthCheckNodePort(desired, observed *unstructured.Unstructur
 	return nil
 }
 
+// +lifted-source: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go
+// +lifted-changed
 func retainServiceClusterIP(desired, observed *unstructured.Unstructured) error {
 	clusterIP, ok, err := unstructured.NestedString(observed.Object, "spec", "clusterIP")
 	if err != nil {
@@ -73,6 +80,9 @@ func retainServiceClusterIP(desired, observed *unstructured.Unstructured) error 
 	}
 	return nil
 }
+
+// +lifted-source: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go
+// +lifted-changed
 
 // RetainServiceAccountFields retains the 'secrets' field of a service account
 // if the desired representation does not include a value for the field.  This

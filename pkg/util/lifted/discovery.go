@@ -26,6 +26,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector.go#L696-L732
+
 // GetDeletableResources returns all resources from discoveryClient that the
 // garbage collector should recognize and work with. More specifically, all
 // preferred resources which support the 'delete', 'list', and 'watch' verbs.

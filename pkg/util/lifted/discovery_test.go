@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector_test.go#L943-L990
 type fakeServerResources struct {
 	PreferredResources []*metav1.APIResourceList
 	Error              error
@@ -59,6 +60,8 @@ func (f *fakeServerResources) ServerPreferredResources() ([]*metav1.APIResourceL
 func (*fakeServerResources) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
 	return nil, nil
 }
+
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector_test.go#L707-L797
 
 // TestGetDeletableResources ensures GetDeletableResources always returns
 // something usable regardless of discovery output.

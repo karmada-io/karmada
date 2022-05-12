@@ -28,6 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 )
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L365-L397
+
 // NodeSelectorRequirementsAsSelector converts the []NodeSelectorRequirement core type into a struct that implements
 // labels.Selector.
 func NodeSelectorRequirementsAsSelector(nsm []corev1.NodeSelectorRequirement) (labels.Selector, error) {
