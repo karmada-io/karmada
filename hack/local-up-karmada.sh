@@ -147,9 +147,9 @@ echo "cluster networks connected"
 #join push mode member clusters
 export KUBECONFIG="${MAIN_KUBECONFIG}"
 kubectl config use-context "${KARMADA_APISERVER_CLUSTER_NAME}"
-${KARMADACTL_BIN} join member1 --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}"
+${KARMADACTL_BIN} join member1 --kubeconfig="${KUBECONFIG}" --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}"
 "${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_1_NAME}"
-${KARMADACTL_BIN} join member2 --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}"
+${KARMADACTL_BIN} join member2 --kubeconfig="${KUBECONFIG}" --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}"
 "${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_2_NAME}"
 
 # wait until the pull mode cluster ready
