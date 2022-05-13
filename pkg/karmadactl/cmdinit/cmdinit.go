@@ -109,7 +109,7 @@ func initExample(parentCommand string) string {
 		fmt.Sprintf("%s init --etcd-image local.registry.com/library/etcd:3.5.1-0", parentCommand) + `
 
 # Deploy highly available(HA) karmada` + "\n" +
-		fmt.Sprintf("%s init --karmada-apiserver-replicas 3 --etcd-replicas 3 --storage-classes-name PVC --storage-classes-name {StorageClassesName}", parentCommand) + `
+		fmt.Sprintf("%s init --karmada-apiserver-replicas 3 --etcd-replicas 3 --etcd-storage-mode PVC --storage-classes-name {StorageClassesName}", parentCommand) + `
 		
 # Specify external IPs(load balancer or HA IP) which used to sign the certificate` + "\n" +
 		fmt.Sprintf("%s init --cert-external-ip 10.235.1.2 --cert-external-dns www.karmada.io", parentCommand)
