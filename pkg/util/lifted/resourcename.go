@@ -24,6 +24,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/scheduler/util/utils.go#L144-L148
+// +lifted-changed
+
 // IsScalarResourceName validates the resource for Extended, Hugepages, Native and AttachableVolume resources
 func IsScalarResourceName(name corev1.ResourceName) bool {
 	return IsExtendedResourceName(name) || IsHugePageResourceName(name) ||

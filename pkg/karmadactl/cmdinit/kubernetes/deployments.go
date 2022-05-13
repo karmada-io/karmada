@@ -160,7 +160,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		Containers: []corev1.Container{
 			{
 				Name:    karmadaAPIServerDeploymentAndServiceName,
-				Image:   i.KarmadaAPIServerImage,
+				Image:   i.kubeAPIServerImage(),
 				Command: i.karmadaAPIServerContainerCommand(),
 				Ports: []corev1.ContainerPort{
 					{
@@ -255,7 +255,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 		Containers: []corev1.Container{
 			{
 				Name:  kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-				Image: i.KubeControllerManagerImage,
+				Image: i.kubeControllerManagerImage(),
 				Command: []string{
 					"kube-controller-manager",
 					"--allocate-node-cidrs=true",

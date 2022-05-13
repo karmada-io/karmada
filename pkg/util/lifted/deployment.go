@@ -39,6 +39,8 @@ type PodListFunc func(string, labels.Selector) ([]*corev1.Pod, error)
 // ReplicaSetListFunc returns the ReplicaSet slice from the ReplicaSet namespace and a selector.
 type ReplicaSetListFunc func(string, labels.Selector) ([]*appsv1.ReplicaSet, error)
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/controller_utils.go#L1003-L1012
+
 // ReplicaSetsByCreationTimestamp sorts a list of ReplicaSet by creation timestamp, using their names as a tie breaker.
 type ReplicaSetsByCreationTimestamp []*appsv1.ReplicaSet
 
@@ -50,6 +52,9 @@ func (o ReplicaSetsByCreationTimestamp) Less(i, j int) bool {
 	}
 	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
+
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go#L569-L594
+// +lifted-changed
 
 // ListReplicaSetsByDeployment returns a slice of RSes the given deployment targets.
 // Note that this does NOT attempt to reconcile ControllerRef (adopt/orphan),
@@ -76,6 +81,9 @@ func ListReplicaSetsByDeployment(deployment *appsv1.Deployment, f ReplicaSetList
 	}
 	return owned, nil
 }
+
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go#L596-L628
+// +lifted-changed
 
 // ListPodsByRS returns a list of pods the given deployment targets.
 // This needs a list of ReplicaSets for the Deployment,
@@ -112,6 +120,8 @@ func ListPodsByRS(deployment *appsv1.Deployment, rsList []*appsv1.ReplicaSet, f 
 	return owned, nil
 }
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go#L630-L642
+
 // EqualIgnoreHash returns true if two given podTemplateSpec are equal, ignoring the diff in value of Labels[pod-template-hash]
 // We ignore pod-template-hash because:
 // 1. The hash result would be different upon podTemplateSpec API changes
@@ -126,6 +136,9 @@ func EqualIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
 	return equality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go#L536-L544
+// +lifted-changed
+
 // GetNewReplicaSet returns a replica set that matches the intent of the given deployment; get ReplicaSetList from client interface.
 // Returns nil if the new replica set doesn't exist yet.
 func GetNewReplicaSet(deployment *appsv1.Deployment, f ReplicaSetListFunc) (*appsv1.ReplicaSet, error) {
@@ -135,6 +148,8 @@ func GetNewReplicaSet(deployment *appsv1.Deployment, f ReplicaSetListFunc) (*app
 	}
 	return FindNewReplicaSet(deployment, rsList), nil
 }
+
+// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/controller/deployment/util/deployment_util.go#L644-L658
 
 // FindNewReplicaSet returns the new RS this given deployment targets (the one with the same pod template).
 func FindNewReplicaSet(deployment *appsv1.Deployment, rsList []*appsv1.ReplicaSet) *appsv1.ReplicaSet {

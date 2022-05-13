@@ -48,9 +48,9 @@ E.g. Specify a controller list:
 --controllers=cluster,clusterStatus,binding,xxx
 ```
 
-E.g. Disable some controllers:
+E.g. Disable some controllers(remember to keep `*` if you want to keep the rest controllers in the default list):
 ```bash
---controllers=-hpa,-unifiedAuth
+--controllers=-hpa,-unifiedAuth,*
 ```
 Use `-foo` to disable the controller named `foo`.
 

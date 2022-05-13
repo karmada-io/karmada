@@ -203,11 +203,11 @@ func TestAggregateJobStatus(t *testing.T) {
 	}
 
 	oldJob := &batchv1.Job{}
-	newJob := &batchv1.Job{Status: batchv1.JobStatus{Active: 0, Succeeded: 2, Failed: 0, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, LastProbeTime: metav1.Now(), LastTransitionTime: metav1.Now(), Reason: "Completed", Message: "Job completed"}}}}
+	newJob := &batchv1.Job{Status: batchv1.JobStatus{Active: 0, Succeeded: 2, Failed: 0, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, Reason: "Completed", Message: "Job completed"}}}}
 	oldObj, _ := helper.ToUnstructured(oldJob)
 	newObj, _ := helper.ToUnstructured(newJob)
 
-	newJobWithJobFailed := &batchv1.Job{Status: batchv1.JobStatus{Active: 0, Succeeded: 1, Failed: 1, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, LastProbeTime: metav1.Now(), LastTransitionTime: metav1.Now(), Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}}}}
+	newJobWithJobFailed := &batchv1.Job{Status: batchv1.JobStatus{Active: 0, Succeeded: 1, Failed: 1, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}}}}
 	newObjWithJobFailed, _ := helper.ToUnstructured(newJobWithJobFailed)
 
 	tests := []struct {
@@ -238,6 +238,8 @@ func TestAggregateJobStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		actualObj, _ := aggregateJobStatus(tt.curObj, tt.aggregatedStatusItems)
+		// Clean condition time before compare, due to issue: https://github.com/karmada-io/karmada/issues/1767
+		actualObj = cleanUnstructuredJobConditionTime(actualObj)
 		assert.Equal(t, tt.expectedObj, actualObj)
 	}
 }
@@ -332,4 +334,15 @@ func TestAggregateStatefulSetStatus(t *testing.T) {
 		actualObj, _ := aggregateStatefulSetStatus(tt.curObj, tt.aggregatedStatusItems)
 		assert.Equal(t, tt.expectedObj, actualObj)
 	}
+}
+
+func cleanUnstructuredJobConditionTime(object *unstructured.Unstructured) *unstructured.Unstructured {
+	job, _ := helper.ConvertToJob(object)
+	for i := range job.Status.Conditions {
+		cond := &job.Status.Conditions[i]
+		cond.LastProbeTime = metav1.Time{}
+		cond.LastTransitionTime = metav1.Time{}
+	}
+	ret, _ := helper.ToUnstructured(job)
+	return ret
 }

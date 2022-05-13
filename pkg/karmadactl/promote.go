@@ -254,37 +254,57 @@ func promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured
 		return nil
 	}
 
-	controlplaneDynamicClient := dynamic.NewForConfigOrDie(controlPlaneRestConfig)
-
-	_, err := controlplaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Get(context.TODO(), opts.name, metav1.GetOptions{})
-	if err == nil {
-		fmt.Printf("Resource %q(%s/%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
-			gvr, opts.Namespace, opts.name)
-
-		return nil
-	}
-	if !apierrors.IsNotFound(err) {
-		return fmt.Errorf("failed to get resource %q(%s/%s) in control plane: %v", gvr, opts.Namespace, opts.name, err)
-	}
-
-	_, err = controlplaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to create resource %q(%s/%s) in control plane: %v", gvr, opts.Namespace, opts.name, err)
-	}
+	controlPlaneDynamicClient := dynamic.NewForConfigOrDie(controlPlaneRestConfig)
 
 	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	if len(obj.GetNamespace()) == 0 {
+		_, err := controlPlaneDynamicClient.Resource(gvr).Get(context.TODO(), opts.name, metav1.GetOptions{})
+		if err == nil {
+			fmt.Printf("Resource %q(%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
+				gvr, opts.name)
+			return nil
+		}
+
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get resource %q(%s) in control plane: %v", gvr, opts.name, err)
+		}
+
+		_, err = controlPlaneDynamicClient.Resource(gvr).Create(context.TODO(), obj, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create resource %q(%s) in control plane: %v", gvr, opts.name, err)
+		}
+
 		err = createOrUpdateClusterPropagationPolicy(karmadaClient, gvr, opts)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Resource %q(%s) is promoted successfully\n", gvr, opts.name)
 	} else {
+		_, err := controlPlaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Get(context.TODO(), opts.name, metav1.GetOptions{})
+		if err == nil {
+			fmt.Printf("Resource %q(%s/%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
+				gvr, opts.Namespace, opts.name)
+			return nil
+		}
+
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get resource %q(%s/%s) in control plane: %v", gvr, opts.Namespace, opts.name, err)
+		}
+
+		_, err = controlPlaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create resource %q(%s/%s) in control plane: %v", gvr, opts.Namespace, opts.name, err)
+		}
+
 		err = createOrUpdatePropagationPolicy(karmadaClient, gvr, opts)
-	}
+		if err != nil {
+			return err
+		}
 
-	if err != nil {
-		return err
+		fmt.Printf("Resource %q(%s/%s) is promoted successfully\n", gvr, opts.Namespace, opts.name)
 	}
-
-	fmt.Printf("Resource %q(%s/%s) is promoted successfully\n", gvr, opts.Namespace, opts.name)
 
 	return nil
 }
@@ -378,6 +398,9 @@ func preprocessResource(obj *unstructured.Unstructured) error {
 // addOverwriteAnnotation add annotation "work.karmada.io/conflict-resolution" to the resource
 func addOverwriteAnnotation(obj *unstructured.Unstructured) {
 	annotations := obj.DeepCopy().GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
 	if _, exist := annotations[workv1alpha2.ResourceConflictResolutionAnnotation]; !exist {
 		annotations[workv1alpha2.ResourceConflictResolutionAnnotation] = workv1alpha2.ResourceConflictResolutionOverwrite
 		obj.SetAnnotations(annotations)

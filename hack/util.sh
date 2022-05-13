@@ -21,6 +21,19 @@ KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
 MIN_Go_VERSION=go1.17.0
 
+KARMADA_TARGET_SOURCE=(
+  karmada-aggregated-apiserver=cmd/aggregated-apiserver
+  karmada-controller-manager=cmd/controller-manager
+  karmada-scheduler=cmd/scheduler
+  karmada-descheduler=cmd/descheduler
+  karmadactl=cmd/karmadactl
+  kubectl-karmada=cmd/kubectl-karmada
+  karmada-webhook=cmd/webhook
+  karmada-agent=cmd/agent
+  karmada-scheduler-estimator=cmd/scheduler-estimator
+  karmada-interpreter-webhook-example=examples/customresourceinterpreter/webhook
+)
+
 #https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KARMADA
 KARMADA_GREETING='
 ------------------------------------------------------------------------------------------------------
@@ -34,6 +47,16 @@ KARMADA_GREETING='
 ░░░░░   ░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░     ░░░░░ ░░░░░   ░░░░░ ░░░░░░░░░░   ░░░░░   ░░░░░
 ------------------------------------------------------------------------------------------------------
 '
+
+function util::get_target_source() {
+  local target=$1
+  for s in "${KARMADA_TARGET_SOURCE[@]}"; do
+    if [[ "$s" == ${target}=* ]]; then
+      echo "${s##${target}=}"
+      return
+    fi
+  done
+}
 
 # This function installs a Go tools by 'go install' command.
 # Parameters:
@@ -591,4 +614,8 @@ function util:create_gopath_tree() {
   if [[ ! -e "${go_pkg_dir}" || "$(readlink "${go_pkg_dir}")" != "${repo_root}" ]]; then
     ln -snf "${repo_root}" "${go_pkg_dir}"
   fi
+}
+
+function util:host_platform() {
+  echo "$(go env GOHOSTOS)/$(go env GOHOSTARCH)"
 }

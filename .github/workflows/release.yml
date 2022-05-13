@@ -29,13 +29,15 @@ jobs:
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
+    - name: Make release directory
+      run: mkdir -p _output/release
     - name: Packaging...
-      run: tar czf kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz kubectl-karmada LICENSE
+      run: tar czf _output/release/kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz LICENSE -C _output/bin/${{ matrix.goos }}/${{ matrix.goarch }} kubectl-karmada
     - name: Uploading assets...
       if: ${{ !env.ACT }}
       uses: softprops/action-gh-release@v1
       with:
-        files: ./kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz
+        files: _output/release/kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz
   update-krew-index:
     needs: release-assests
     name: Update krew-index
