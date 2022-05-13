@@ -18,10 +18,6 @@ github.com/PuerkitoBio/purell
 # github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
 ## explicit
 github.com/PuerkitoBio/urlesc
-# github.com/agiledragon/gomonkey/v2 v2.5.0
-## explicit; go 1.14
-github.com/agiledragon/gomonkey/v2
-github.com/agiledragon/gomonkey/v2/creflect
 # github.com/alessio/shellescape v1.4.1
 ## explicit; go 1.14
 github.com/alessio/shellescape
