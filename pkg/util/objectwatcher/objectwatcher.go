@@ -107,7 +107,7 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 	return nil
 }
 
-func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (o *objectWatcherImpl) retainClusterFields(clusterName string, desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	// Pass the same ResourceVersion as in the cluster object for update operation, otherwise operation will fail.
 	desired.SetResourceVersion(observed.GetResourceVersion())
 
@@ -124,7 +124,7 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	util.MergeAnnotations(desired, observed)
 
 	if o.resourceInterpreter.HookEnabled(desired.GroupVersionKind(), configv1alpha1.InterpreterOperationRetain) {
-		return o.resourceInterpreter.Retain(desired, observed)
+		return o.resourceInterpreter.Retain(clusterName, desired, observed)
 	}
 
 	return desired, nil
@@ -143,7 +143,7 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 		return err
 	}
 
-	desireObj, err = o.retainClusterFields(desireObj, clusterObj)
+	desireObj, err = o.retainClusterFields(clusterName, desireObj, clusterObj)
 	if err != nil {
 		klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName, err)
 		return err

@@ -15,6 +15,7 @@ type RequestAttributes struct {
 	ObservedObj      *unstructured.Unstructured
 	ReplicasSet      int32
 	AggregatedStatus []workv1alpha2.AggregatedStatusItem
+	ClusterName      string
 }
 
 // ResponseAttributes contains the attributes that response by the webhook.

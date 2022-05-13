@@ -45,6 +45,7 @@ func CreateV1alpha1ResourceInterpreterContext(uid types.UID, attributes *Request
 			},
 			DesiredReplicas:  &attributes.ReplicasSet,
 			AggregatedStatus: attributes.AggregatedStatus,
+			ClusterName:      attributes.ClusterName,
 		},
 	}
 

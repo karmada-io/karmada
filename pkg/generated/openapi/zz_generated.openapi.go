@@ -1096,6 +1096,13 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref common.Refer
 							},
 						},
 					},
+					"clusterName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterName represents member cluster incoming request",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"uid", "kind", "name", "operation"},
 			},

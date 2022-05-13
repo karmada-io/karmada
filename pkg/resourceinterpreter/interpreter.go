@@ -31,7 +31,7 @@ type ResourceInterpreter interface {
 	ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error)
 
 	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
-	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
+	Retain(clusterName string, desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
 
 	// AggregateStatus returns the objects that based on the 'object' but with status aggregated.
 	AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error)
@@ -124,13 +124,14 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
-func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (i *customResourceInterpreterImpl) Retain(clusterName string, desired *unstructured.Unstructured, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	klog.V(4).Infof("Begin to retain object: %v %s/%s.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
 
 	obj, hookEnabled, err := i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
 		Operation:   configv1alpha1.InterpreterOperationRetain,
 		Object:      desired,
 		ObservedObj: observed,
+		ClusterName: clusterName,
 	})
 	if err != nil {
 		return nil, err
