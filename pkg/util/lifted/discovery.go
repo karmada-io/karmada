@@ -28,27 +28,27 @@ import (
 
 // GetDeletableResources returns all resources from discoveryClient that the
 // garbage collector should recognize and work with. More specifically, all
-// preferred resources which support the 'delete', 'list', and 'watch' verbs.
+// resources which support the 'delete', 'list', and 'watch' verbs.
 //
 // All discovery errors are considered temporary. Upon encountering any error,
 // GetDeletableResources will log and return any discovered resources it was
 // able to process (which may be none).
 func GetDeletableResources(discoveryClient discovery.ServerResourcesInterface) map[schema.GroupVersionResource]struct{} {
-	preferredResources, err := discoveryClient.ServerPreferredResources()
+	_, allResources, err := discoveryClient.ServerGroupsAndResources()
 	if err != nil {
 		if discovery.IsGroupDiscoveryFailedError(err) {
 			klog.Warningf("failed to discover some groups: %v", err.(*discovery.ErrGroupDiscoveryFailed).Groups)
 		} else {
-			klog.Warningf("failed to discover preferred resources: %v", err)
+			klog.Warningf("failed to discover all resources: %v", err)
 		}
 	}
-	if preferredResources == nil {
+	if allResources == nil {
 		return map[schema.GroupVersionResource]struct{}{}
 	}
 
 	// This is extracted from discovery.GroupVersionResources to allow tolerating
 	// failures on a per-resource basis.
-	deletableResources := discovery.FilteredBy(discovery.SupportsAllVerbs{Verbs: []string{"delete", "list", "watch"}}, preferredResources)
+	deletableResources := discovery.FilteredBy(discovery.SupportsAllVerbs{Verbs: []string{"delete", "list", "watch"}}, allResources)
 	deletableGroupVersionResources := map[schema.GroupVersionResource]struct{}{}
 	for _, rl := range deletableResources {
 		gv, err := schema.ParseGroupVersion(rl.GroupVersion)
