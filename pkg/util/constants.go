@@ -59,6 +59,10 @@ const (
 	// ClusterResourceBindingControllerFinalizer is added to ClusterResourceBinding to ensure related Works are deleted
 	// before ClusterResourceBinding itself is deleted.
 	ClusterResourceBindingControllerFinalizer = "karmada.io/cluster-resource-binding-controller"
+
+	// HelmControllerFinalizer is added to Work with helmrelease kind to ensure helmrelease propagated to member cluster
+	// is deleted before Work itself is deleted.
+	HelmControllerFinalizer = "karmada.io/helm-controller"
 )
 
 const (
@@ -109,6 +113,9 @@ const (
 	ClusterRoleKind = "ClusterRole"
 	// ClusterRoleBindingKind indicates the target resource is a clusterrolebinding
 	ClusterRoleBindingKind = "ClusterRoleBinding"
+
+	// HelmReleaseKind indicates the target resource is a helmrelease
+	HelmReleaseKind = "HelmRelease"
 )
 
 // Define resource filed

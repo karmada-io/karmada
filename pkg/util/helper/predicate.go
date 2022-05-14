@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"strings"
+
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -10,6 +12,10 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
+)
+
+const (
+	ReleaseSuffix = "-helmrelease"
 )
 
 // NewExecutionPredicate generates the event filter function to skip events that the controllers are uninterested.
@@ -213,6 +219,130 @@ func NewExecutionPredicateOnAgent() predicate.Funcs {
 				return false
 			}
 
+			return true
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
+// NewHelmReleasePredicate generates the event filter function to skip events that the controllers are uninterested.
+// Used by controllers:
+// - helm controller working in karmada-controller-manager
+func NewHelmReleasePredicate(mgr controllerruntime.Manager) predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			obj := createEvent.Object.(*workv1alpha1.Work)
+			annotations := obj.GetAnnotations()
+			if annotations == nil {
+				return false
+			}
+			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+				return false
+			}
+			clusterName, err := names.GetClusterName(obj.Namespace)
+			if err != nil {
+				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
+				return false
+			}
+
+			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
+			if err != nil {
+				klog.Errorf("Failed to get the given member cluster %s", clusterName)
+				return false
+			}
+
+			return clusterObj.Spec.SyncMode == clusterv1alpha1.Push
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
+			annotations := obj.GetAnnotations()
+			if annotations == nil {
+				return false
+			}
+			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+				return false
+			}
+			clusterName, err := names.GetClusterName(obj.Namespace)
+			if err != nil {
+				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
+				return false
+			}
+
+			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
+			if err != nil {
+				klog.Errorf("Failed to get the given member cluster %s", clusterName)
+				return false
+			}
+
+			return clusterObj.Spec.SyncMode == clusterv1alpha1.Push
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			obj := deleteEvent.Object.(*workv1alpha1.Work)
+			annotations := obj.GetAnnotations()
+			if annotations == nil {
+				return false
+			}
+			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+				return false
+			}
+			clusterName, err := names.GetClusterName(obj.Namespace)
+			if err != nil {
+				klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
+				return false
+			}
+
+			clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
+			if err != nil {
+				klog.Errorf("Failed to get the given member cluster %s", clusterName)
+				return false
+			}
+
+			return clusterObj.Spec.SyncMode == clusterv1alpha1.Push
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
+// NewHelmReleasePredicateOnAgent generates the event filter function to skip events that the controllers are uninterested.
+// Used by controllers:
+// - helm controller working in agent
+func NewHelmReleasePredicateOnAgent() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			obj := createEvent.Object.(*workv1alpha1.Work)
+			annotations := obj.GetAnnotations()
+			if annotations == nil {
+				return false
+			}
+			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+				return false
+			}
+			return true
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
+			annotations := obj.GetAnnotations()
+			if annotations == nil {
+				return false
+			}
+			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+				return false
+			}
+			return true
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			obj := deleteEvent.Object.(*workv1alpha1.Work)
+			annotations := obj.GetAnnotations()
+			if annotations == nil {
+				return false
+			}
+			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+				return false
+			}
 			return true
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {

@@ -62,8 +62,13 @@ type Options struct {
 	// ConcurrentWorkSyncs is the number of work objects that are
 	// allowed to sync concurrently.
 	ConcurrentWorkSyncs int
-
-	RateLimiterOpts ratelimiterflag.Options
+	// HelmControllerRequeueDependency is the interval at which failing dependencies are reevaluated for helm-controller.
+	HelmControllerRequeueDependency time.Duration
+	// HelmControllerHttpRetry is the maximum number of retries when failing to fetch artifacts over HTTP.
+	HelmControllerHttpRetry int
+	// HelmControllerNoCrossNamespaceRefs is the flag whether references between custom resources are allowed.
+	HelmControllerNoCrossNamespaceRefs bool
+	RateLimiterOpts                    ratelimiterflag.Options
 }
 
 // NewOptions builds an default scheduler options.
@@ -108,5 +113,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
 	fs.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of Clusters that are allowed to sync concurrently.")
 	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
+	fs.DurationVar(&o.HelmControllerRequeueDependency, "helm-controller-requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
+	fs.IntVar(&o.HelmControllerHttpRetry, "helm-controller-http-retry", 9, "The maximum number of retries when failing to fetch artifacts over HTTP.")
+	fs.BoolVar(&o.HelmControllerNoCrossNamespaceRefs, "helm-controller-no-cross-namespace-refs", false, "When set to true, references between custom resources are allowed "+"only if the reference and the referee are in the same namespace.")
 	o.RateLimiterOpts.AddFlags(fs)
 }

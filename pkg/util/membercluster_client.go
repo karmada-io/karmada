@@ -47,7 +47,7 @@ type ClientOption struct {
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
 func NewClusterClientSet(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
-	clusterConfig, err := buildClusterConfig(clusterName, client)
+	clusterConfig, err := BuildClusterConfig(clusterName, client)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func NewClusterClientSetForAgent(clusterName string, client client.Client, clien
 
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
 func NewClusterDynamicClientSet(clusterName string, client client.Client) (*DynamicClusterClient, error) {
-	clusterConfig, err := buildClusterConfig(clusterName, client)
+	clusterConfig, err := BuildClusterConfig(clusterName, client)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client
 	return &clusterClientSet, nil
 }
 
-func buildClusterConfig(clusterName string, client client.Client) (*rest.Config, error) {
+func BuildClusterConfig(clusterName string, client client.Client) (*rest.Config, error) {
 	cluster, err := GetCluster(client, clusterName)
 	if err != nil {
 		return nil, err

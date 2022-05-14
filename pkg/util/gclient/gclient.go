@@ -9,6 +9,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	helmreleasev2beta1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	helmsourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	networkv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
@@ -31,6 +33,8 @@ func init() {
 	var _ = mcsv1alpha1.AddToScheme(aggregatedScheme)        // add mcs-api schemes
 	var _ = clusterapiv1alpha4.AddToScheme(aggregatedScheme) // add cluster-api v1alpha4 schemes
 	var _ = clusterapiv1beta1.AddToScheme(aggregatedScheme)  // add cluster-api v1beta1 schemes
+	var _ = helmreleasev2beta1.AddToScheme(aggregatedScheme) // add helmrelease v2beta1 schemes
+	var _ = helmsourcev1beta2.AddToScheme(aggregatedScheme)  // add helmsource v1beta2 schemes
 }
 
 // NewSchema returns a singleton schema set which aggregated Kubernetes's schemes and extended schemes.

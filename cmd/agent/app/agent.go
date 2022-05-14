@@ -25,6 +25,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/controllers/helm"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -98,6 +99,7 @@ func init() {
 	controllers["execution"] = startExecutionController
 	controllers["workStatus"] = startWorkStatusController
 	controllers["serviceExport"] = startServiceExportController
+	controllers["helm"] = startHelmController
 }
 
 func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *options.Options) error {
@@ -181,16 +183,19 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
 		Opts: controllerscontext.Options{
-			Controllers:                       opts.Controllers,
-			ClusterName:                       opts.ClusterName,
-			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
-			ClusterAPIQPS:                     opts.ClusterAPIQPS,
-			ClusterAPIBurst:                   opts.ClusterAPIBurst,
-			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
-			RateLimiterOptions:                opts.RateLimiterOpts,
+			Controllers:                        opts.Controllers,
+			ClusterName:                        opts.ClusterName,
+			ClusterStatusUpdateFrequency:       opts.ClusterStatusUpdateFrequency,
+			ClusterLeaseDuration:               opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction:  opts.ClusterLeaseRenewIntervalFraction,
+			ClusterCacheSyncTimeout:            opts.ClusterCacheSyncTimeout,
+			ClusterAPIQPS:                      opts.ClusterAPIQPS,
+			ClusterAPIBurst:                    opts.ClusterAPIBurst,
+			ConcurrentWorkSyncs:                opts.ConcurrentWorkSyncs,
+			RateLimiterOptions:                 opts.RateLimiterOpts,
+			HelmControllerRequeueDependency:    opts.HelmControllerRequeueDependency,
+			HelmControllerHttpRetry:            opts.HelmControllerHttpRetry,
+			HelmControllerNoCrossNamespaceRefs: opts.HelmControllerNoCrossNamespaceRefs,
 		},
 		StopChan:            stopChan,
 		ResourceInterpreter: resourceInterpreter,
@@ -244,6 +249,24 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 		RatelimiterOptions:   ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startHelmController(ctx controllerscontext.Context) (enabled bool, err error) {
+	helmReleaseWatcher := objectwatcher.NewHelmReleaseWatcher(ctx.Mgr.GetClient(), util.BuildClusterConfig)
+	helmController := &helm.HelmController{
+		Client:              ctx.Mgr.GetClient(),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(helm.HelmControllerName),
+		HelmReleaseWatcher:  helmReleaseWatcher,
+		PredicateFunc:       helper.NewHelmReleasePredicateOnAgent(),
+		RatelimiterOptions:  ctx.Opts.RateLimiterOptions,
+		RequeueDependency:   ctx.Opts.HelmControllerRequeueDependency,
+		NoCrossNamespaceRef: ctx.Opts.HelmControllerNoCrossNamespaceRefs,
+		HTTPRetry:           ctx.Opts.HelmControllerHttpRetry,
+	}
+	if err = helmController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
