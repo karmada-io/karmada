@@ -170,7 +170,7 @@ func (o *CommandLogsOptions) AddFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.Prefix, "prefix", o.Prefix, "Prefix each log line with the log source (pod name and container name)")
 
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "default", "-n=namespace or -n namespace")
-	cmd.Flags().StringVarP(&o.Cluster, "cluster", "C", "", "-C=member1")
+	cmd.Flags().StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
 }
 
 // Complete ensures that options are valid and marshals them if necessary
@@ -219,7 +219,7 @@ func (o *CommandLogsOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Co
 			o.KarmadaContext, o.KubeConfig, err)
 	}
 
-	clusterInfo, err := o.getClusterInfo(karmadaRestConfig, o.Cluster)
+	clusterInfo, err := getClusterInfo(karmadaRestConfig, o.Cluster, o.KubeConfig, o.KarmadaContext)
 	if err != nil {
 		return err
 	}
@@ -422,27 +422,27 @@ func (o *CommandLogsOptions) addPrefixIfNeeded(ref corev1.ObjectReference, write
 }
 
 // getClusterInfo get information of cluster
-func (o *CommandLogsOptions) getClusterInfo(karmadaRestConfig *rest.Config, name string) (map[string]*ClusterInfo, error) {
+func getClusterInfo(karmadaRestConfig *rest.Config, clusterName, kubeConfig, karmadaContext string) (map[string]*ClusterInfo, error) {
 	clusterClient := karmadaclientset.NewForConfigOrDie(karmadaRestConfig).ClusterV1alpha1().Clusters()
 
 	// check if the cluster exist in karmada control plane
-	_, err := clusterClient.Get(context.TODO(), o.Cluster, metav1.GetOptions{})
+	_, err := clusterClient.Get(context.TODO(), clusterName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	clusterInfos := make(map[string]*ClusterInfo)
-	clusterInfos[name] = &ClusterInfo{}
+	clusterInfos[clusterName] = &ClusterInfo{}
 
-	clusterInfos[name].APIEndpoint = karmadaRestConfig.Host + fmt.Sprintf(proxyURL, name)
-	clusterInfos[name].KubeConfig = o.KubeConfig
-	clusterInfos[name].Context = o.KarmadaContext
-	if clusterInfos[name].KubeConfig == "" {
+	clusterInfos[clusterName].APIEndpoint = karmadaRestConfig.Host + fmt.Sprintf(proxyURL, clusterName)
+	clusterInfos[clusterName].KubeConfig = kubeConfig
+	clusterInfos[clusterName].Context = karmadaContext
+	if clusterInfos[clusterName].KubeConfig == "" {
 		env := os.Getenv("KUBECONFIG")
 		if env != "" {
-			clusterInfos[name].KubeConfig = env
+			clusterInfos[clusterName].KubeConfig = env
 		} else {
-			clusterInfos[name].KubeConfig = defaultKubeConfig
+			clusterInfos[clusterName].KubeConfig = defaultKubeConfig
 		}
 	}
 
