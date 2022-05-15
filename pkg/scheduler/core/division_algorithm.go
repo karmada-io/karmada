@@ -48,6 +48,7 @@ func divideReplicasByResource(
 		if err != nil {
 			return nil, fmt.Errorf("failed to scale down: %v", err)
 		}
+
 		return newTargetClusters, nil
 	} else if assignedReplicas < spec.Replicas {
 		// We need to enlarge the replicas in terms of the previous result (if exists).
