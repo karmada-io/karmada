@@ -80,7 +80,7 @@ data:
         {{- include "karmada.webhook.configuration" . | nindent 8 }}
       {{- print "system-namespace.yaml: " | nindent 6 }} |-
         {{- include "karmada.systemNamespace" . | nindent 8 }}
-      {{- print "apiservice.yaml: " | nindent 6 }} |-
+      {{- print "karmada-aggregated-apiserver-apiservice.yaml: " | nindent 6 }} |-
         {{- include "karmada.apiservice" . | nindent 8 }}
       {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 6 }} |-
         {{- include "karmada.proxyRbac" . | nindent 8 }}

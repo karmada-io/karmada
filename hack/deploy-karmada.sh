@@ -208,6 +208,9 @@ kubectl apply -f "${REPO_ROOT}/artifacts/deploy/kube-controller-manager.yaml"
 # deploy aggregated-apiserver on host cluster
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver.yaml"
 util::wait_pod_ready "${KARMADA_AGGREGATION_APISERVER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+# deploy karmada-search on host cluster
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-search.yaml"
+util::wait_pod_ready "${KARMADA_SEARCH_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # install CRD APIs on karmada apiserver.
 if ! kubectl config use-context karmada-apiserver > /dev/null 2>&1;
@@ -228,9 +231,14 @@ rm -rf "${TEMP_PATH_CRDS}"
 util::deploy_webhook_configuration "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"
 
 # deploy APIService on karmada apiserver for karmada-aggregated-apiserver
-kubectl apply -f "${REPO_ROOT}/artifacts/deploy/apiservice.yaml"
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver-apiservice.yaml"
 # make sure apiservice for v1alpha1.cluster.karmada.io is Available
 util::wait_apiservice_ready "${KARMADA_AGGREGATION_APISERVER_LABEL}"
+
+# deploy APIService on karmada apiserver for karmada-search
+kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-search-apiservice.yaml"
+# make sure apiservice for v1alpha1.search.karmada.io is Available
+util::wait_apiservice_ready "${KARMADA_SEARCH_LABEL}"
 
 # deploy cluster proxy rbac for admin
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/cluster-proxy-admin-rbac.yaml"

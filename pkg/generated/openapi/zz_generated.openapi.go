@@ -76,6 +76,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec":                        schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryStatus":                      schema_pkg_apis_search_v1alpha1_ResourceRegistryStatus(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector":                            schema_pkg_apis_search_v1alpha1_ResourceSelector(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.Search":                                      schema_pkg_apis_search_v1alpha1_Search(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.AggregatedStatusItem":                          schema_pkg_apis_work_v1alpha1_AggregatedStatusItem(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ClusterResourceBinding":                        schema_pkg_apis_work_v1alpha1_ClusterResourceBinding(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ClusterResourceBindingList":                    schema_pkg_apis_work_v1alpha1_ClusterResourceBindingList(ref),
@@ -3275,6 +3276,33 @@ func schema_pkg_apis_search_v1alpha1_ResourceSelector(ref common.ReferenceCallba
 					},
 				},
 				Required: []string{"apiVersion", "kind"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_Search(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Search define a flag for resource search that do not have actual resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 	}

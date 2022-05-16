@@ -76,6 +76,11 @@ deepcopy-gen \
   --input-dirs=github.com/karmada-io/karmada/pkg/apis/search/v1alpha1 \
   --output-package=github.com/karmada-io/karmada/pkg/apis/search/v1alpha1 \
   --output-file-base=zz_generated.deepcopy
+deepcopy-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs=github.com/karmada-io/karmada/pkg/apis/search \
+  --output-package=github.com/karmada-io/karmada/pkg/apis/search \
+  --output-file-base=zz_generated.deepcopy
 
 echo "Generating with register-gen"
 register-gen \
@@ -124,6 +129,11 @@ conversion-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --input-dirs=github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1 \
   --output-package=github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1 \
+  --output-file-base=zz_generated.conversion
+conversion-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs=github.com/karmada-io/karmada/pkg/apis/search/v1alpha1 \
+  --output-package=github.com/karmada-io/karmada/pkg/apis/search/v1alpha1 \
   --output-file-base=zz_generated.conversion
 
 echo "Generating with client-gen"

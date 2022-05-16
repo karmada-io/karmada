@@ -15,8 +15,9 @@ type ResourceRegistryLister interface {
 	// List lists all ResourceRegistries in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.ResourceRegistry, err error)
-	// ResourceRegistries returns an object that can list and get ResourceRegistries.
-	ResourceRegistries(namespace string) ResourceRegistryNamespaceLister
+	// Get retrieves the ResourceRegistry from the index for a given name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*v1alpha1.ResourceRegistry, error)
 	ResourceRegistryListerExpansion
 }
 
@@ -38,41 +39,9 @@ func (s *resourceRegistryLister) List(selector labels.Selector) (ret []*v1alpha1
 	return ret, err
 }
 
-// ResourceRegistries returns an object that can list and get ResourceRegistries.
-func (s *resourceRegistryLister) ResourceRegistries(namespace string) ResourceRegistryNamespaceLister {
-	return resourceRegistryNamespaceLister{indexer: s.indexer, namespace: namespace}
-}
-
-// ResourceRegistryNamespaceLister helps list and get ResourceRegistries.
-// All objects returned here must be treated as read-only.
-type ResourceRegistryNamespaceLister interface {
-	// List lists all ResourceRegistries in the indexer for a given namespace.
-	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ResourceRegistry, err error)
-	// Get retrieves the ResourceRegistry from the indexer for a given namespace and name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ResourceRegistry, error)
-	ResourceRegistryNamespaceListerExpansion
-}
-
-// resourceRegistryNamespaceLister implements the ResourceRegistryNamespaceLister
-// interface.
-type resourceRegistryNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all ResourceRegistries in the indexer for a given namespace.
-func (s resourceRegistryNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.ResourceRegistry, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.ResourceRegistry))
-	})
-	return ret, err
-}
-
-// Get retrieves the ResourceRegistry from the indexer for a given namespace and name.
-func (s resourceRegistryNamespaceLister) Get(name string) (*v1alpha1.ResourceRegistry, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+// Get retrieves the ResourceRegistry from the index for a given name.
+func (s *resourceRegistryLister) Get(name string) (*v1alpha1.ResourceRegistry, error) {
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}

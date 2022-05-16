@@ -30,6 +30,7 @@ _output/
 /karmada-scheduler-estimator
 /karmada-webhook
 /kubectl-karmada
+/karmada-search
 
 # OSX trash
 .DS_Store

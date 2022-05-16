@@ -17,7 +17,6 @@ import (
 // FakeResourceRegistries implements ResourceRegistryInterface
 type FakeResourceRegistries struct {
 	Fake *FakeSearchV1alpha1
-	ns   string
 }
 
 var resourceregistriesResource = schema.GroupVersionResource{Group: "search.karmada.io", Version: "v1alpha1", Resource: "resourceregistries"}
@@ -27,8 +26,7 @@ var resourceregistriesKind = schema.GroupVersionKind{Group: "search.karmada.io",
 // Get takes name of the resourceRegistry, and returns the corresponding resourceRegistry object, and an error if there is any.
 func (c *FakeResourceRegistries) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ResourceRegistry, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(resourceregistriesResource, c.ns, name), &v1alpha1.ResourceRegistry{})
-
+		Invokes(testing.NewRootGetAction(resourceregistriesResource, name), &v1alpha1.ResourceRegistry{})
 	if obj == nil {
 		return nil, err
 	}
@@ -38,8 +36,7 @@ func (c *FakeResourceRegistries) Get(ctx context.Context, name string, options v
 // List takes label and field selectors, and returns the list of ResourceRegistries that match those selectors.
 func (c *FakeResourceRegistries) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ResourceRegistryList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(resourceregistriesResource, resourceregistriesKind, c.ns, opts), &v1alpha1.ResourceRegistryList{})
-
+		Invokes(testing.NewRootListAction(resourceregistriesResource, resourceregistriesKind, opts), &v1alpha1.ResourceRegistryList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -60,15 +57,13 @@ func (c *FakeResourceRegistries) List(ctx context.Context, opts v1.ListOptions) 
 // Watch returns a watch.Interface that watches the requested resourceRegistries.
 func (c *FakeResourceRegistries) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(resourceregistriesResource, c.ns, opts))
-
+		InvokesWatch(testing.NewRootWatchAction(resourceregistriesResource, opts))
 }
 
 // Create takes the representation of a resourceRegistry and creates it.  Returns the server's representation of the resourceRegistry, and an error, if there is any.
 func (c *FakeResourceRegistries) Create(ctx context.Context, resourceRegistry *v1alpha1.ResourceRegistry, opts v1.CreateOptions) (result *v1alpha1.ResourceRegistry, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(resourceregistriesResource, c.ns, resourceRegistry), &v1alpha1.ResourceRegistry{})
-
+		Invokes(testing.NewRootCreateAction(resourceregistriesResource, resourceRegistry), &v1alpha1.ResourceRegistry{})
 	if obj == nil {
 		return nil, err
 	}
@@ -78,8 +73,7 @@ func (c *FakeResourceRegistries) Create(ctx context.Context, resourceRegistry *v
 // Update takes the representation of a resourceRegistry and updates it. Returns the server's representation of the resourceRegistry, and an error, if there is any.
 func (c *FakeResourceRegistries) Update(ctx context.Context, resourceRegistry *v1alpha1.ResourceRegistry, opts v1.UpdateOptions) (result *v1alpha1.ResourceRegistry, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(resourceregistriesResource, c.ns, resourceRegistry), &v1alpha1.ResourceRegistry{})
-
+		Invokes(testing.NewRootUpdateAction(resourceregistriesResource, resourceRegistry), &v1alpha1.ResourceRegistry{})
 	if obj == nil {
 		return nil, err
 	}
@@ -90,8 +84,7 @@ func (c *FakeResourceRegistries) Update(ctx context.Context, resourceRegistry *v
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *FakeResourceRegistries) UpdateStatus(ctx context.Context, resourceRegistry *v1alpha1.ResourceRegistry, opts v1.UpdateOptions) (*v1alpha1.ResourceRegistry, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(resourceregistriesResource, "status", c.ns, resourceRegistry), &v1alpha1.ResourceRegistry{})
-
+		Invokes(testing.NewRootUpdateSubresourceAction(resourceregistriesResource, "status", resourceRegistry), &v1alpha1.ResourceRegistry{})
 	if obj == nil {
 		return nil, err
 	}
@@ -101,14 +94,13 @@ func (c *FakeResourceRegistries) UpdateStatus(ctx context.Context, resourceRegis
 // Delete takes name of the resourceRegistry and deletes it. Returns an error if one occurs.
 func (c *FakeResourceRegistries) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(resourceregistriesResource, c.ns, name, opts), &v1alpha1.ResourceRegistry{})
-
+		Invokes(testing.NewRootDeleteActionWithOptions(resourceregistriesResource, name, opts), &v1alpha1.ResourceRegistry{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeResourceRegistries) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(resourceregistriesResource, c.ns, listOpts)
+	action := testing.NewRootDeleteCollectionAction(resourceregistriesResource, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.ResourceRegistryList{})
 	return err
@@ -117,8 +109,7 @@ func (c *FakeResourceRegistries) DeleteCollection(ctx context.Context, opts v1.D
 // Patch applies the patch and returns the patched resourceRegistry.
 func (c *FakeResourceRegistries) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ResourceRegistry, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(resourceregistriesResource, c.ns, name, pt, data, subresources...), &v1alpha1.ResourceRegistry{})
-
+		Invokes(testing.NewRootPatchSubresourceAction(resourceregistriesResource, name, pt, data, subresources...), &v1alpha1.ResourceRegistry{})
 	if obj == nil {
 		return nil, err
 	}

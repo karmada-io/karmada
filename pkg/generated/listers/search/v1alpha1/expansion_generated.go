@@ -5,7 +5,3 @@ package v1alpha1
 // ResourceRegistryListerExpansion allows custom methods to be added to
 // ResourceRegistryLister.
 type ResourceRegistryListerExpansion interface{}
-
-// ResourceRegistryNamespaceListerExpansion allows custom methods to be added to
-// ResourceRegistryNamespaceLister.
-type ResourceRegistryNamespaceListerExpansion interface{}

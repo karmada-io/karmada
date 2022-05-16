@@ -20,8 +20,8 @@ type SearchV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *SearchV1alpha1Client) ResourceRegistries(namespace string) ResourceRegistryInterface {
-	return newResourceRegistries(c, namespace)
+func (c *SearchV1alpha1Client) ResourceRegistries() ResourceRegistryInterface {
+	return newResourceRegistries(c)
 }
 
 // NewForConfig creates a new SearchV1alpha1Client for the given config.

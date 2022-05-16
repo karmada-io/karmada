@@ -172,7 +172,7 @@ func getName(str, start, end string) string {
 }
 
 func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, systemNamespace string) error {
-	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/apiservice.yaml
+	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver-apiservice.yaml
 	aaService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
