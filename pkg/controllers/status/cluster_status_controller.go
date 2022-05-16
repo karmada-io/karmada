@@ -47,6 +47,9 @@ const (
 	clusterNotReachableReason = "ClusterNotReachable"
 	clusterNotReachableMsg    = "cluster is not reachable"
 	statusCollectionFailed    = "StatusCollectionFailed"
+	metadataSufficientMsg     = "all APIs installed in the cluster have been obtained"
+	metadataSufficient        = "MetadataSufficient"
+	metadataInSufficient      = "MetadataInSufficient"
 )
 
 var (
@@ -137,7 +140,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	online, healthy := getClusterHealthStatus(clusterClient)
 	observedReadyCondition := generateReadyCondition(online, healthy)
 	readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
-
+	metadataSufficientCondition := generateMetadataSufficientCondition()
 	// cluster is offline after retry timeout, update cluster status immediately and return.
 	if !online && readyCondition.Status != metav1.ConditionTrue {
 		klog.V(2).Infof("Cluster(%s) still offline after %s, ensuring offline is set.",
@@ -166,8 +169,11 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 
 		// get the list of APIs installed in the member cluster
 		apiEnables, err := getAPIEnablements(clusterClient)
-		if err != nil {
-			klog.Errorf("Failed to get APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
+		if err != nil && apiEnables == nil {
+			klog.Errorf("Failed to get any APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
+		} else if err != nil && apiEnables != nil {
+			klog.Warningf("Failed to get all APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
+			setMetadataInSufficientCondition(&metadataSufficientCondition, fmt.Sprintf("Failed to get all APIs installed in cluster. Error: %v", err))
 		}
 
 		nodes, err := listNodes(clusterInformerManager)
@@ -188,8 +194,18 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 
 	setTransitionTime(currentClusterStatus.Conditions, readyCondition)
 	meta.SetStatusCondition(&currentClusterStatus.Conditions, *readyCondition)
-
+	meta.SetStatusCondition(&currentClusterStatus.Conditions, metadataSufficientCondition)
 	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
+}
+
+func setMetadataInSufficientCondition(metadataSufficientCondition *metav1.Condition, message string) {
+	metadataSufficientCondition.Reason = metadataInSufficient
+	metadataSufficientCondition.Message = message
+	metadataSufficientCondition.Status = metav1.ConditionFalse
+}
+
+func generateMetadataSufficientCondition() metav1.Condition {
+	return util.NewCondition(clusterv1alpha1.ClusterMetadataSufficient, metadataSufficient, metadataSufficientMsg, metav1.ConditionTrue)
 }
 
 func (c *ClusterStatusController) setStatusCollectionFailedCondition(cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus, message string) (controllerruntime.Result, error) {
@@ -361,11 +377,16 @@ func getKubernetesVersion(clusterClient *util.ClusterClient) (string, error) {
 	return clusterVersion.GitVersion, nil
 }
 
+// getAPIEnablements get the list of APIs installed in the member cluster
 func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.APIEnablement, error) {
+	// This can return an error *and* the results it was able to find.
+	// If the length of api resources is not zero,we don't need to fail on the error.
 	_, apiResourceList, err := clusterClient.KubeClient.Discovery().ServerGroupsAndResources()
-	if err != nil {
+	if len(apiResourceList) == 0 {
+		klog.Errorf("unable to get any supported resources from server. Error: %v.", err)
 		return nil, err
 	}
+
 	var apiEnablements []clusterv1alpha1.APIEnablement
 	for _, list := range apiResourceList {
 		var apiResources []clusterv1alpha1.APIResource
@@ -388,7 +409,7 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 	sort.SliceStable(apiEnablements, func(i, j int) bool {
 		return apiEnablements[i].GroupVersion < apiEnablements[j].GroupVersion
 	})
-	return apiEnablements, nil
+	return apiEnablements, err
 }
 
 // listPods returns the Pod list from the informerManager cache.

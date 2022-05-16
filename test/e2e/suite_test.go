@@ -49,6 +49,7 @@ const (
 	ingressNamePrefix            = "ingress-"
 	daemonSetNamePrefix          = "daemonset-"
 	statefulSetNamePrefix        = "statefulset-"
+	apiServicePrefix             = "api-"
 
 	updateDeploymentReplicas  = 6
 	updateStatefulSetReplicas = 6

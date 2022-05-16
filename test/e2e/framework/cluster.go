@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	aggregatorclient "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -28,11 +29,12 @@ const (
 )
 
 var (
-	clusters              []*clusterv1alpha1.Cluster
-	clusterNames          []string
-	clusterClients        []*util.ClusterClient
-	clusterDynamicClients []*util.DynamicClusterClient
-	pullModeClusters      map[string]string
+	clusters                 []*clusterv1alpha1.Cluster
+	clusterNames             []string
+	clusterClients           []*util.ClusterClient
+	clusterDynamicClients    []*util.DynamicClusterClient
+	clusterAggregatorClients []*util.AggregatorClusterClient
+	pullModeClusters         map[string]string
 )
 
 // Clusters will return all member clusters we have.
@@ -61,11 +63,12 @@ func InitClusterInformation(karmadaClient karmada.Interface, controlPlaneClient 
 	gomega.Expect(meetRequirement).Should(gomega.BeTrue())
 
 	for _, cluster := range clusters {
-		clusterClient, clusterDynamicClient, err := newClusterClientSet(controlPlaneClient, cluster)
+		clusterClient, clusterDynamicClient, clusterAggregatorClient, err := newClusterClientSet(controlPlaneClient, cluster)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		clusterNames = append(clusterNames, cluster.Name)
 		clusterClients = append(clusterClients, clusterClient)
 		clusterDynamicClients = append(clusterDynamicClients, clusterDynamicClient)
+		clusterAggregatorClients = append(clusterAggregatorClients, clusterAggregatorClient)
 
 		err = setClusterLabel(controlPlaneClient, cluster.Name)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -89,6 +92,17 @@ func GetClusterDynamicClient(clusterName string) dynamic.Interface {
 	for _, clusterClient := range clusterDynamicClients {
 		if clusterClient.ClusterName == clusterName {
 			return clusterClient.DynamicClientSet
+		}
+	}
+
+	return nil
+}
+
+// GetClusterAggregatorClient get cluster aggregatorClient
+func GetClusterAggregatorClient(clusterName string) aggregatorclient.Interface {
+	for _, aggrclient := range clusterAggregatorClients {
+		if aggrclient.ClusterName == clusterName {
+			return aggrclient.AggregatorClient
 		}
 	}
 
@@ -163,31 +177,37 @@ func isClusterMeetRequirements(clusters []*clusterv1alpha1.Cluster) (bool, error
 	return true, nil
 }
 
-func newClusterClientSet(controlPlaneClient client.Client, c *clusterv1alpha1.Cluster) (*util.ClusterClient, *util.DynamicClusterClient, error) {
+func newClusterClientSet(controlPlaneClient client.Client, c *clusterv1alpha1.Cluster) (*util.ClusterClient, *util.DynamicClusterClient, *util.AggregatorClusterClient, error) {
 	if c.Spec.SyncMode == clusterv1alpha1.Push {
 		clusterClient, err := util.NewClusterClientSet(c.Name, controlPlaneClient, nil)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		clusterDynamicClient, err := util.NewClusterDynamicClientSet(c.Name, controlPlaneClient)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		return clusterClient, clusterDynamicClient, nil
+		clusterAggregatorClient, err := util.NewClusterAggregatorClientSet(c.Name, controlPlaneClient)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return clusterClient, clusterDynamicClient, clusterAggregatorClient, nil
 	}
 
 	clusterConfigPath := pullModeClusters[c.Name]
 	clusterConfig, err := clientcmd.BuildConfigFromFlags("", clusterConfigPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	clusterClientSet := util.ClusterClient{ClusterName: c.Name}
 	clusterDynamicClientSet := util.DynamicClusterClient{ClusterName: c.Name}
+	clusterAggregatorClientSet := util.AggregatorClusterClient{ClusterName: c.Name}
 	clusterClientSet.KubeClient = kubernetes.NewForConfigOrDie(clusterConfig)
 	clusterDynamicClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
+	clusterAggregatorClientSet.AggregatorClient = aggregatorclient.NewForConfigOrDie(clusterConfig)
 
-	return &clusterClientSet, &clusterDynamicClientSet, nil
+	return &clusterClientSet, &clusterDynamicClientSet, &clusterAggregatorClientSet, nil
 }
 
 // setClusterLabel set cluster label of E2E

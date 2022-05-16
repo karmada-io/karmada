@@ -18,6 +18,7 @@ func AddHandlers(h printers.PrintHandler) {
 		{Name: "Version", Type: "string", Description: "KubernetesVersion represents version of the member cluster."},
 		{Name: "Mode", Type: "string", Description: "SyncMode describes how a cluster sync resources from karmada control plane."},
 		{Name: "Ready", Type: "string", Description: "The aggregate readiness state of this cluster for accepting workloads."},
+		{Name: "MetadataSufficient", Type: "string", Description: "The status indicate that all APIs are obtained"},
 		{Name: "Age", Type: "string", Description: metav1.ObjectMeta{}.SwaggerDoc()["creationTimestamp"]},
 		{Name: "APIEndpoint", Type: "string", Priority: 1, Description: "The API endpoint of the member cluster."},
 	}
@@ -40,10 +41,13 @@ func printClusterList(clusterList *clusterapis.ClusterList, options printers.Gen
 
 func printCluster(cluster *clusterapis.Cluster, options printers.GenerateOptions) ([]metav1.TableRow, error) {
 	ready := "Unknown"
+	metadataSufficient := "Unknown"
 	for _, condition := range cluster.Status.Conditions {
 		if condition.Type == clusterapis.ClusterConditionReady {
 			ready = string(condition.Status)
-			break
+		}
+		if condition.Type == clusterapis.ClusterMetadataSufficient {
+			metadataSufficient = string(condition.Status)
 		}
 	}
 
@@ -56,6 +60,7 @@ func printCluster(cluster *clusterapis.Cluster, options printers.GenerateOptions
 		cluster.Status.KubernetesVersion,
 		cluster.Spec.SyncMode,
 		ready,
+		metadataSufficient,
 		translateTimestampSince(cluster.CreationTimestamp))
 	if options.Wide {
 		row.Cells = append(row.Cells, cluster.Spec.APIEndpoint)

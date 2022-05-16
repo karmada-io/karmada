@@ -127,6 +127,12 @@ type LocalSecretReference struct {
 const (
 	// ClusterConditionReady means the cluster is healthy and ready to accept workloads.
 	ClusterConditionReady = "Ready"
+	// ClusterMetadataSufficient means some metadata of the cluster is unavailable, such as Kubernetes version, or
+	// API enablement list.
+	// Clusters in insufficient mode condition(MetadataSufficient=false) are still ready to accept workloads,
+	// but the scheduler might be favor to cluster in sufficient condition(MetadataSufficient=true), that depends on
+	// scheduler implementation.
+	ClusterMetadataSufficient = "MetadataSufficient"
 )
 
 // ClusterStatus contains information about the current status of a
