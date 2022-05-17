@@ -182,7 +182,7 @@ func (i *customResourceInterpreterImpl) GetDependencies(object *unstructured.Uns
 
 // ReflectStatus returns the status of the object.
 func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
-	klog.V(4).Info("Begin to grab status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	klog.V(4).Infof("Begin to grab status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
 	status, hookEnabled, err := i.customizedInterpreter.ReflectStatus(context.TODO(), &webhook.RequestAttributes{
 		Operation: configv1alpha1.InterpreterOperationInterpretStatus,
