@@ -80,7 +80,7 @@ Or append `/apis/cluster.karmada.io/v1alpha1/clusters/{clustername}/proxy ` to t
 kubectl --kubeconfig karmada-apiserver.config get node
 ```
 
-> Note: For a member cluster that joins karmada in pull mode, we can [deploy apiserver-network-proxy (ANP)](../working-with-anp.md) to access it.
+> Note: For a member cluster that joins karmada in pull mode and allows only cluster-to-karmada access, we can [deploy apiserver-network-proxy (ANP)](../working-with-anp.md) to access it.
 
 ## Unified authentication
 
@@ -253,4 +253,4 @@ Or we can append `/apis/cluster.karmada.io/v1alpha1/clusters/member1/proxy ` to 
 kubectl --kubeconfig tom.config get node
 ```
 
-> Note: For a member cluster that joins karmada in pull mode,  we can [deploy apiserver-network-proxy (ANP)](../working-with-anp.md) to access it.
+> Note: For a member cluster that joins karmada in pull mode and allows only cluster-to-karmada access, we can [deploy apiserver-network-proxy (ANP)](../working-with-anp.md) to access it.
