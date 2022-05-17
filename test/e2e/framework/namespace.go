@@ -29,6 +29,16 @@ func RemoveNamespace(client kubernetes.Interface, name string) {
 	})
 }
 
+// WaitNamespacePresentOnClusterByClient wait namespace present on cluster until timeout directly by kube client.
+func WaitNamespacePresentOnClusterByClient(client kubernetes.Interface, name string) {
+	klog.Infof("Waiting for namespace present on karmada control client")
+	gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+		_, err := client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+		return true, nil
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
 // WaitNamespacePresentOnCluster wait namespace present on cluster until timeout.
 func WaitNamespacePresentOnCluster(cluster, name string) {
 	clusterClient := GetClusterClient(cluster)

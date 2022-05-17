@@ -136,3 +136,14 @@ func ExtractTargetClustersFrom(c client.Client, deployment *appsv1.Deployment) [
 	klog.Infof("The ResourceBinding(%s/%s) schedule result is: %s", binding.Namespace, binding.Name, strings.Join(targetClusterNames, ","))
 	return targetClusterNames
 }
+
+// CheckDeploymentReadyStatus check the deployment status By checking the replicas
+func CheckDeploymentReadyStatus(deployment *appsv1.Deployment, wantedReplicas int32) bool {
+	if deployment.Status.ReadyReplicas == wantedReplicas &&
+		deployment.Status.AvailableReplicas == wantedReplicas &&
+		deployment.Status.UpdatedReplicas == wantedReplicas &&
+		deployment.Status.Replicas == wantedReplicas {
+		return true
+	}
+	return false
+}
