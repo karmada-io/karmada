@@ -1,19 +1,8 @@
-package v1alpha1
+package search
 
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	// ResourceKindResourceRegistry is the name of the resource registry
-	ResourceKindResourceRegistry = "ResourceRegistry"
-	// ResourceSingularResourceRegistry is singular name of ResourceRegistry.
-	ResourceSingularResourceRegistry = "resourceRegistry"
-	// ResourcePluralResourceRegistry is plural name of ResourceRegistry.
-	ResourcePluralResourceRegistry = "resourceRegistries"
-	// ResourceNamespaceScopedResourceRegistry is the scope of the ResourceRegistry
-	ResourceNamespaceScopedResourceRegistry = false
 )
 
 // +genclient
@@ -22,31 +11,31 @@ const (
 
 // ResourceRegistry defines a list of member cluster to be cached.
 type ResourceRegistry struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta
+	metav1.ObjectMeta
 
 	// Spec represents the desired behavior of ResourceRegistry.
-	Spec ResourceRegistrySpec `json:"spec,omitempty"`
+	Spec ResourceRegistrySpec
 
 	// Status represents the status of ResoruceRegistry.
 	// +optional
-	Status ResourceRegistryStatus `json:"status,omitempty"`
+	Status ResourceRegistryStatus
 }
 
 // ResourceRegistrySpec defines the desired state of ResourceRegistry.
 type ResourceRegistrySpec struct {
 	// ClusterSelectors represents the filter to select clusters.
 	// +required
-	ClusterSelectors []ClusterSelector `json:"clusterSelectors"`
+	ClusterSelectors []ClusterSelector
 
 	// ResourceSelectors used to select resources.
 	// +required
-	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
+	ResourceSelectors []ResourceSelector
 
 	// StatusUpdatePeriodSeconds is the period to update the status of the resource.
 	// default is 10s.
 	// +optional
-	StatusUpdatePeriodSeconds uint32 `json:"statusUpdatePeriodSeconds,omitempty"`
+	StatusUpdatePeriodSeconds uint32
 }
 
 // ClusterSelector represents the filter to select clusters.
@@ -54,66 +43,65 @@ type ClusterSelector struct {
 	// LabelSelector is a filter to select member clusters by labels.
 	// If non-nil and non-empty, only the clusters match this filter will be selected.
 	// +optional
-	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
+	LabelSelector *metav1.LabelSelector
 
 	// FieldSelector is a filter to select member clusters by fields.
 	// If non-nil and non-empty, only the clusters match this filter will be selected.
 	// +optional
-	FieldSelector *FieldSelector `json:"fieldSelector,omitempty"`
+	FieldSelector *FieldSelector
 
 	// ClusterNames is the list of clusters to be selected.
 	// +optional
-	ClusterNames []string `json:"clusterNames,omitempty"`
+	ClusterNames []string
 
 	// ExcludedClusters is the list of clusters to be ignored.
 	// +optional
-	ExcludeClusters []string `json:"exclude,omitempty"`
+	ExcludeClusters []string
 }
 
 // FieldSelector is a field filter.
 type FieldSelector struct {
 	// A list of field selector requirements.
-	MatchExpressions []corev1.NodeSelectorRequirement `json:"matchExpressions,omitempty"`
+	MatchExpressions []corev1.NodeSelectorRequirement
 }
 
 // ResourceSelector the resources will be selected.
 type ResourceSelector struct {
 	// APIVersion represents the API version of the target resources.
 	// +required
-	APIVersion string `json:"apiVersion"`
+	APIVersion string
 
 	// Kind represents the Kind of the target resources.
 	// +required
-	Kind string `json:"kind"`
+	Kind string
 
 	// Namespace of the target resource.
 	// Default is empty, which means all namespaces.
 	// +optional
-	Namespace string `json:"namespace,omitempty"`
+	Namespace string
 }
 
 // ResourceRegistryStatus defines the observed state of ResourceRegistry
 type ResourceRegistryStatus struct {
 	// Conditions contain the different condition statuses.
 	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions []metav1.Condition
 }
 
-// +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ResourceRegistryList if a collection of ResourceRegistry.
 type ResourceRegistryList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta
+	metav1.ListMeta
 
 	// Items holds a list of ResourceRegistry.
-	Items []ResourceRegistry `json:"items"`
+	Items []ResourceRegistry
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Search define a flag for resource search that do not have actual resources.
 type Search struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta
 }

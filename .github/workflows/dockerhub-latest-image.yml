@@ -21,6 +21,7 @@ jobs:
           - karmada-scheduler-estimator
           - karmada-interpreter-webhook-example
           - karmada-aggregated-apiserver
+          - karmada-search
     runs-on: ubuntu-18.04
     steps:
       - name: checkout code

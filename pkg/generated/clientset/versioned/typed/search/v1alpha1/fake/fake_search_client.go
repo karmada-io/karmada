@@ -12,8 +12,8 @@ type FakeSearchV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeSearchV1alpha1) ResourceRegistries(namespace string) v1alpha1.ResourceRegistryInterface {
-	return &FakeResourceRegistries{c, namespace}
+func (c *FakeSearchV1alpha1) ResourceRegistries() v1alpha1.ResourceRegistryInterface {
+	return &FakeResourceRegistries{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

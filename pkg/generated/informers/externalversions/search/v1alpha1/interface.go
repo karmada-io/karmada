@@ -25,5 +25,5 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 
 // ResourceRegistries returns a ResourceRegistryInformer.
 func (v *version) ResourceRegistries() ResourceRegistryInformer {
-	return &resourceRegistryInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+	return &resourceRegistryInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

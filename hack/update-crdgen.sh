@@ -18,4 +18,3 @@ controller-gen crd paths=./pkg/apis/policy/... output:crd:dir=./charts/_crds/bas
 controller-gen crd paths=./pkg/apis/work/... output:crd:dir=./charts/_crds/bases
 controller-gen crd paths=./pkg/apis/networking/... output:crd:dir=./charts/_crds/bases
 controller-gen crd paths=./examples/customresourceinterpreter/apis/... output:crd:dir=./examples/customresourceinterpreter/apis/
-controller-gen crd paths=./pkg/apis/search/... output:crd:dir=./charts/_crds/bases

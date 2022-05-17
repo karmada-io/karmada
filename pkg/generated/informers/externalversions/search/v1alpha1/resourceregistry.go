@@ -26,33 +26,32 @@ type ResourceRegistryInformer interface {
 type resourceRegistryInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
-	namespace        string
 }
 
 // NewResourceRegistryInformer constructs a new informer for ResourceRegistry type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewResourceRegistryInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredResourceRegistryInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewResourceRegistryInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredResourceRegistryInformer(client, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredResourceRegistryInformer constructs a new informer for ResourceRegistry type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredResourceRegistryInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredResourceRegistryInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SearchV1alpha1().ResourceRegistries(namespace).List(context.TODO(), options)
+				return client.SearchV1alpha1().ResourceRegistries().List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SearchV1alpha1().ResourceRegistries(namespace).Watch(context.TODO(), options)
+				return client.SearchV1alpha1().ResourceRegistries().Watch(context.TODO(), options)
 			},
 		},
 		&searchv1alpha1.ResourceRegistry{},
@@ -62,7 +61,7 @@ func NewFilteredResourceRegistryInformer(client versioned.Interface, namespace s
 }
 
 func (f *resourceRegistryInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredResourceRegistryInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewFilteredResourceRegistryInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *resourceRegistryInformer) Informer() cache.SharedIndexInformer {

@@ -16,6 +16,7 @@ KARMADA_SCHEDULER_LABEL="karmada-scheduler"
 KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 INTERPRETER_WEBHOOK_EXAMPLE_LABEL="karmada-interpreter-webhook-example"
+KARMADA_SEARCH_LABEL="karmada-search"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
@@ -32,6 +33,7 @@ KARMADA_TARGET_SOURCE=(
   karmada-agent=cmd/agent
   karmada-scheduler-estimator=cmd/scheduler-estimator
   karmada-interpreter-webhook-example=examples/customresourceinterpreter/webhook
+  karmada-search=cmd/karmada-search
 )
 
 #https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KARMADA
