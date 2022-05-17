@@ -19,18 +19,5 @@ _output/
 .idea/
 .vscode/
 
-# karamada binary
-/karmadactl
-/karmada-agent
-/karmada-aggregated-apiserver
-/karmada-controller-manager
-/karmada-interpreter-webhook-example
-/karmada-scheduler
-/karmada-descheduler
-/karmada-scheduler-estimator
-/karmada-webhook
-/kubectl-karmada
-/karmada-search
-
 # OSX trash
 .DS_Store
