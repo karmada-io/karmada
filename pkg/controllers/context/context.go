@@ -32,6 +32,8 @@ type Options struct {
 	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
 	// It must work with ClusterMonitorGracePeriod.
 	ClusterStatusUpdateFrequency metav1.Duration
+	// FailoverEvictionTimeout is the grace period for deleting scheduling result on failed clusters.
+	FailoverEvictionTimeout metav1.Duration
 	// ClusterLeaseDuration is a duration that candidates for a lease need to wait to force acquire it.
 	// This is measure against time of last observed lease RenewTime.
 	ClusterLeaseDuration metav1.Duration

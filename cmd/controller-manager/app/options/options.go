@@ -38,6 +38,8 @@ type Options struct {
 	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
 	// It must work with ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
 	ClusterStatusUpdateFrequency metav1.Duration
+	// FailoverEvictionTimeout is the grace period for deleting scheduling result on failed clusters.
+	FailoverEvictionTimeout metav1.Duration
 	// ClusterLeaseDuration is a duration that candidates for a lease need to wait to force acquire it.
 	// This is measure against time of last observed lease RenewTime.
 	ClusterLeaseDuration metav1.Duration
@@ -138,6 +140,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 		"Specifies the grace period of allowing a running cluster to be unresponsive before marking it unhealthy.")
 	flags.DurationVar(&o.ClusterStartupGracePeriod.Duration, "cluster-startup-grace-period", 60*time.Second,
 		"Specifies the grace period of allowing a cluster to be unresponsive during startup before marking it unhealthy.")
+	flags.DurationVar(&o.FailoverEvictionTimeout.Duration, "failover-eviction-timeout", 5*time.Minute,
+		"Specifies the grace period for deleting scheduling result on failed clusters.")
 	flags.StringVar(&o.SkippedPropagatingAPIs, "skipped-propagating-apis", "", "Semicolon separated resources that should be skipped from propagating in addition to the default skip list(cluster.karmada.io;policy.karmada.io;work.karmada.io). Supported formats are:\n"+
 		"<group> for skip resources with a specific API group(e.g. networking.k8s.io),\n"+
 		"<group>/<version> for skip resources with a specific API version(e.g. networking.k8s.io/v1beta1),\n"+

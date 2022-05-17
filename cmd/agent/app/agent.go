@@ -330,18 +330,19 @@ func registerWithControlPlaneAPIServer(controlPlaneRestConfig, clusterRestConfig
 }
 
 func generateClusterInControllerPlane(controlPlaneRestConfig *restclient.Config, opts *options.Options, impersonatorSecret corev1.Secret) (*clusterv1alpha1.Cluster, error) {
-	clusterObj := &clusterv1alpha1.Cluster{}
-	clusterObj.Name = opts.ClusterName
-	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
-	clusterObj.Spec.APIEndpoint = opts.ClusterAPIEndpoint
-	clusterObj.Spec.ProxyURL = opts.ProxyServerAddress
-	clusterObj.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
-		Namespace: impersonatorSecret.Namespace,
-		Name:      impersonatorSecret.Name,
+	clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
+	mutateFunc := func(cluster *clusterv1alpha1.Cluster) {
+		cluster.Spec.SyncMode = clusterv1alpha1.Pull
+		cluster.Spec.APIEndpoint = opts.ClusterAPIEndpoint
+		cluster.Spec.ProxyURL = opts.ProxyServerAddress
+		cluster.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+			Namespace: impersonatorSecret.Namespace,
+			Name:      impersonatorSecret.Name,
+		}
 	}
 
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
-	cluster, err := util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, clusterObj)
+	cluster, err := util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, clusterObj, mutateFunc)
 	if err != nil {
 		klog.Errorf("Failed to create cluster(%s) object, error: %v", clusterObj.Name, err)
 		return nil, err
