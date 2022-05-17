@@ -14,10 +14,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -179,6 +182,76 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					klog.Infof("the latest serviceStatus loadBalancer: %v", latestSvc.Status.LoadBalancer)
 					return reflect.DeepEqual(latestSvc.Status.LoadBalancer, svcLoadBalancer), nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
+		})
+	})
+
+	ginkgo.Context("NodePort Service collection testing", func() {
+		var serviceNamespace, serviceName string
+		var service *corev1.Service
+
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = serviceNamePrefix + rand.String(RandomStrLength)
+			serviceNamespace = testNamespace
+			serviceName = policyName
+
+			service = helper.NewService(serviceNamespace, serviceName)
+			service.Spec.Type = corev1.ServiceTypeNodePort
+			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: service.APIVersion,
+					Kind:       service.Kind,
+					Name:       service.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateService(kubeClient, service)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveService(kubeClient, serviceNamespace, serviceName)
+			})
+		})
+
+		ginkgo.It("NodePort service apply status collection testing", func() {
+			nodePorts := sets.NewInt32()
+			// collect the NodePort of the service in member clusters.
+			ginkgo.By("Update service status in member clusters", func() {
+
+				for _, clusterName := range framework.ClusterNames() {
+					clusterClient := framework.GetClusterClient(clusterName)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+					gomega.Eventually(func(g gomega.Gomega) {
+						memberSvc, err := clusterClient.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+						for _, servicePort := range memberSvc.Spec.Ports {
+							nodePorts.Insert(servicePort.NodePort)
+						}
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
+				}
+				// check service nodePort
+				gomega.Expect(nodePorts.Len() == 1).Should(gomega.BeTrue())
+			})
+			klog.Infof("svcNodePort: %v", nodePorts.List()[0])
+
+			ginkgo.By("check service ResourceBindings apply status ", func() {
+				gomega.Eventually(func(g gomega.Gomega) (metav1.ConditionStatus, error) {
+					resourceBindingName := names.GenerateBindingName(service.Kind, service.Name)
+					resourceBinding, err := karmadaClient.WorkV1alpha2().ResourceBindings(serviceNamespace).Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
+					g.Expect(err).NotTo(gomega.HaveOccurred())
+					var fullyAppliedStatus metav1.ConditionStatus
+					for _, condition := range resourceBinding.Status.Conditions {
+						if condition.Type == workv1alpha2.FullyApplied {
+							fullyAppliedStatus = condition.Status
+						}
+					}
+					return fullyAppliedStatus, nil
+				}, pollTimeout, pollInterval).Should(gomega.Equal(metav1.ConditionTrue))
 			})
 		})
 	})
