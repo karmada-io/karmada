@@ -17,12 +17,10 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -82,10 +80,10 @@ func promoteExample(parentCommand string) string {
 # Promote secret(default/default-token) from cluster1 to Karmada` + "\n" +
 		fmt.Sprintf("%s promote secret default-token -n default -c cluster1", parentCommand) + `
 		
-# For clusters with 'Pull' mode, use '--cluster-kubeconfig' to specify the configuration` + "\n" +
+# Support to use '--cluster-kubeconfig' to specify the configuration of member cluster` + "\n" +
 		fmt.Sprintf("%s promote deployment nginx -n default -c cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH>", parentCommand) + `
 		
-# For clusters with 'Pull' mode, use '--cluster-kubeconfig' and '--cluster-context' to specify the configuration` + "\n" +
+# Support to use '--cluster-kubeconfig' and '--cluster-context' to specify the configuration of member cluster` + "\n" +
 		fmt.Sprintf("%s promote deployment nginx -n default -c cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH> --cluster-context=<CLUSTER_CONTEXT>", parentCommand)
 	return example
 }
@@ -209,10 +207,7 @@ func RunPromote(_ io.Writer, karmadaConfig KarmadaConfig, opts CommandPromoteOpt
 
 		f = cmdutil.NewFactory(kubeConfigFlags)
 	} else {
-		if err := opts.getSecretTokenInKarmada(controlPlaneRestConfig, opts.Cluster, clusterInfos); err != nil {
-			return fmt.Errorf("failed to get Secret info in karmada control plane. err: %v", err)
-		}
-
+		opts.setClusterProxyInfo(controlPlaneRestConfig, opts.Cluster, clusterInfos)
 		f = getFactory(opts.Cluster, clusterInfos)
 	}
 
@@ -342,19 +337,19 @@ func (o *CommandPromoteOption) getObjInfo(f cmdutil.Factory, cluster string, arg
 	return obj, nil
 }
 
-// getSecretTokenInKarmada get token ca in karmada cluster
-func (o *CommandPromoteOption) getSecretTokenInKarmada(client *rest.Config, name string, clusterInfos map[string]*ClusterInfo) error {
-	clusterClient, err := kubernetes.NewForConfig(client)
-	if err != nil {
-		return err
+// setClusterProxyInfo set proxy information of cluster
+func (o *CommandPromoteOption) setClusterProxyInfo(karmadaRestConfig *rest.Config, name string, clusterInfos map[string]*ClusterInfo) {
+	clusterInfos[name].APIEndpoint = karmadaRestConfig.Host + fmt.Sprintf(proxyURL, name)
+	clusterInfos[name].KubeConfig = o.KubeConfig
+	clusterInfos[name].Context = o.KarmadaContext
+	if clusterInfos[name].KubeConfig == "" {
+		env := os.Getenv("KUBECONFIG")
+		if env != "" {
+			clusterInfos[name].KubeConfig = env
+		} else {
+			clusterInfos[name].KubeConfig = defaultKubeConfig
+		}
 	}
-	secret, err := clusterClient.CoreV1().Secrets(o.ClusterNamespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	clusterInfos[name].BearerToken = string(secret.Data[clusterv1alpha1.SecretTokenKey])
-	clusterInfos[name].CAData = string(secret.Data[clusterv1alpha1.SecretCADataKey])
-	return nil
 }
 
 // printObjectAndPolicy print the converted resource

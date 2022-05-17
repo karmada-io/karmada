@@ -832,8 +832,6 @@ type ClusterInfo struct {
 	Context    string
 
 	APIEndpoint     string
-	BearerToken     string
-	CAData          string
 	ClusterSyncMode clusterv1alpha1.ClusterSyncMode
 }
 
@@ -865,16 +863,10 @@ func getFactory(clusterName string, clusterInfos map[string]*ClusterInfo) cmduti
 	// Build member cluster kubeConfigFlags
 	kubeConfigFlags.APIServer = stringptr(clusterInfos[clusterName].APIEndpoint)
 
-	if clusterInfos[clusterName].KubeConfig != "" {
-		// Use kubeconfig to access member cluster
-		kubeConfigFlags.KubeConfig = stringptr(clusterInfos[clusterName].KubeConfig)
-		kubeConfigFlags.Context = stringptr(clusterInfos[clusterName].Context)
-		kubeConfigFlags.usePersistentConfig = true
-	} else {
-		// Use BearerToken to access member cluster
-		kubeConfigFlags.BearerToken = stringptr(clusterInfos[clusterName].BearerToken)
-		kubeConfigFlags.CaBundle = stringptr(clusterInfos[clusterName].CAData)
-	}
+	// Use kubeconfig to access member cluster
+	kubeConfigFlags.KubeConfig = stringptr(clusterInfos[clusterName].KubeConfig)
+	kubeConfigFlags.Context = stringptr(clusterInfos[clusterName].Context)
+	kubeConfigFlags.usePersistentConfig = true
 
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	return cmdutil.NewFactory(matchVersionKubeConfigFlags)
