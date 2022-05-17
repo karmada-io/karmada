@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"sort"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
@@ -70,7 +69,6 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 		}
 	}
 
-	sort.Sort(TargetClustersList(availableTargetClusters))
 	klog.V(4).Infof("Target cluster: %v", availableTargetClusters)
 	return availableTargetClusters
 }

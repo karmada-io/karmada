@@ -15,6 +15,8 @@ type GroupClustersInfo struct {
 
 	// Clusters from global view, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
+
+	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster
 }
 
 // ProviderInfo indicate the provider information
@@ -67,25 +69,27 @@ func GroupClustersWithScore(
 	clustersScore framework.ClusterScoreList,
 	placement *policyv1alpha1.Placement,
 	spec *workv1alpha2.ResourceBindingSpec,
+	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
 ) *GroupClustersInfo {
 	if isTopologyIgnored(placement) {
-		return groupClustersIngoreTopology(clustersScore, spec)
+		return groupClustersIngoreTopology(clustersScore, spec, calAvailableReplicasFunc)
 	}
 
-	return groupClustersBasedTopology(clustersScore, spec, placement.SpreadConstraints)
+	return groupClustersBasedTopology(clustersScore, spec, placement.SpreadConstraints, calAvailableReplicasFunc)
 }
 
 func groupClustersBasedTopology(
 	clustersScore framework.ClusterScoreList,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
 	spreadConstraints []policyv1alpha1.SpreadConstraint,
+	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
 ) *GroupClustersInfo {
 	groupClustersInfo := &GroupClustersInfo{
 		Providers: make(map[string]ProviderInfo),
 		Regions:   make(map[string]RegionInfo),
 		Zones:     make(map[string]ZoneInfo),
 	}
-
+	groupClustersInfo.calAvailableReplicasFunc = calAvailableReplicasFunc
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
 	groupClustersInfo.generateZoneInfo(spreadConstraints)
 	groupClustersInfo.generateRegionInfo(spreadConstraints)
@@ -97,8 +101,10 @@ func groupClustersBasedTopology(
 func groupClustersIngoreTopology(
 	clustersScore framework.ClusterScoreList,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
+	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
 ) *GroupClustersInfo {
 	groupClustersInfo := &GroupClustersInfo{}
+	groupClustersInfo.calAvailableReplicasFunc = calAvailableReplicasFunc
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
 
 	return groupClustersInfo
@@ -115,7 +121,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 		clusters = append(clusters, clusterScore.Cluster)
 	}
 
-	clustersReplicas := calAvailableReplicas(clusters, rbSpec)
+	clustersReplicas := info.calAvailableReplicasFunc(clusters, rbSpec)
 	for i, clustersReplica := range clustersReplicas {
 		info.Clusters[i].AvailableReplicas = int64(clustersReplica.Replicas)
 		info.Clusters[i].AvailableReplicas += int64(rbSpec.AssignedReplicasForCluster(clustersReplica.Name))

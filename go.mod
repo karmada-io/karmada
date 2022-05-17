@@ -3,7 +3,6 @@ module github.com/karmada-io/karmada
 go 1.17
 
 require (
-	github.com/agiledragon/gomonkey/v2 v2.5.0
 	github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
 	github.com/evanphx/json-patch/v5 v5.6.0
 	github.com/gogo/protobuf v1.3.2
