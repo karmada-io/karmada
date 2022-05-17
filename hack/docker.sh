@@ -52,7 +52,7 @@ function build_local_image() {
 
   local -r image_name="${REGISTRY}/${target}:${VERSION}"
 
-  echo "Building image for ${platform}: ${image_name}"
+  echo "!!! Building image for ${platform}: ${image_name}"
   set -x
   docker build --build-arg BINARY="${target}" \
           --tag "${image_name}" \
@@ -72,7 +72,7 @@ function build_cross_image() {
 
   local -r image_name="${REGISTRY}/${target}:${VERSION}"
 
-  echo "Cross building image for ${platforms}: ${image_name}"
+  echo "!!! Cross building image for ${platforms}: ${image_name}"
   set -x
   docker buildx build --output=type="${output_type}" \
           --platform "${platforms}" \

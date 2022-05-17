@@ -1,6 +1,5 @@
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
-SOURCES := $(shell find . -type f  -name '*.go')
 LDFLAGS='$(shell hack/version.sh)'
 
 # Images management
@@ -21,17 +20,8 @@ ifeq ($(VERSION), "")
     endif
 endif
 
-TARGETS := karmada-aggregated-apiserver \
-			karmada-controller-manager \
-			karmada-scheduler \
-			karmada-descheduler \
-			karmada-webhook \
-			karmada-agent \
-			karmada-scheduler-estimator \
-			karmada-interpreter-webhook-example \
-			karmada-search
-
-CTL_TARGETS := karmadactl kubectl-karmada
+TARGETS := $(shell hack/package.sh server)
+CTL_TARGETS := $(shell hack/package.sh ctl)
 
 # Build code.
 #
@@ -50,8 +40,8 @@ CMD_TARGET=$(TARGETS) $(CTL_TARGETS)
 all: $(CMD_TARGET)
 
 .PHONY: $(CMD_TARGET)
-$(CMD_TARGET): $(SOURCES)
-	LDFLAGS=$(LDFLAGS) BUILD_PLATFORMS=$(GOOS)/$(GOARCH) hack/build.sh $@
+$(CMD_TARGET):
+	@LDFLAGS=$(LDFLAGS) BUILD_PLATFORMS=$(GOOS)/$(GOARCH) hack/build.sh $@
 
 # Build image.
 #
@@ -66,7 +56,7 @@ $(CMD_TARGET): $(SOURCES)
 IMAGE_TARGET=$(addprefix image-, $(TARGETS))
 .PHONY: $(IMAGE_TARGET)
 $(IMAGE_TARGET):
-	set -e;\
+	@set -e;\
 	target=$$(echo $(subst image-,,$@));\
 	make $$target GOOS=linux;\
 	VERSION=$(VERSION) REGISTRY=$(REGISTRY) BUILD_PLATFORMS=linux/$(GOARCH) hack/docker.sh $$target
@@ -81,7 +71,7 @@ images: $(IMAGE_TARGET)
 MP_TARGET=$(addprefix mp-image-, $(TARGETS))
 .PHONY: $(MP_TARGET)
 $(MP_TARGET):
-	set -e;\
+	@set -e;\
 	target=$$(echo $(subst mp-image-,,$@));\
 	make $$target GOOS=linux GOARCH=amd64;\
 	make $$target GOOS=linux GOARCH=arm64;\
@@ -115,15 +105,12 @@ upload-images: images
 ifneq ($(REGISTRY_USER_NAME), "")
 	docker login -u ${REGISTRY_USER_NAME} -p ${REGISTRY_PASSWORD} ${REGISTRY_SERVER_ADDRESS}
 endif
-	docker push ${REGISTRY}/karmada-controller-manager:${VERSION}
-	docker push ${REGISTRY}/karmada-scheduler:${VERSION}
-	docker push ${REGISTRY}/karmada-descheduler:${VERSION}
-	docker push ${REGISTRY}/karmada-webhook:${VERSION}
-	docker push ${REGISTRY}/karmada-agent:${VERSION}
-	docker push ${REGISTRY}/karmada-scheduler-estimator:${VERSION}
-	docker push ${REGISTRY}/karmada-interpreter-webhook-example:${VERSION}
-	docker push ${REGISTRY}/karmada-aggregated-apiserver:${VERSION}
-	docker push ${REGISTRY}/karmada-search:${VERSION}
+	@set -e;\
+	for image in $(TARGETS); do\
+	  echo !!! docker push $(REGISTRY)/$$image:$(VERSION);\
+	  docker push $(REGISTRY)/$$image:$(VERSION);\
+	done
+
 
 # Build and package binary
 #
