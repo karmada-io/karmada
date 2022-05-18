@@ -123,8 +123,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			serviceNamespace = testNamespace
 			serviceName = policyName
 
-			service = helper.NewService(serviceNamespace, serviceName)
-			service.Spec.Type = corev1.ServiceTypeLoadBalancer
+			service = helper.NewService(serviceNamespace, serviceName, corev1.ServiceTypeLoadBalancer)
 			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: service.APIVersion,
@@ -196,8 +195,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			serviceNamespace = testNamespace
 			serviceName = policyName
 
-			service = helper.NewService(serviceNamespace, serviceName)
-			service.Spec.Type = corev1.ServiceTypeNodePort
+			service = helper.NewService(serviceNamespace, serviceName, corev1.ServiceTypeNodePort)
 			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: service.APIVersion,
