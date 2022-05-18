@@ -70,13 +70,13 @@ func logsExample(parentCommand string) string {
 		fmt.Sprintf("%s logs nginx -C=member1", parentCommand) + `
 
 # Return snapshot logs from pod nginx with multi containers in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s get logs nginx --all-containers=true -C=member1", parentCommand) + `
+		fmt.Sprintf("%s logs nginx --all-containers=true -C=member1", parentCommand) + `
 
 # Return snapshot logs from all containers in pods defined by label app=nginx in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s get logs -l app=nginx --all-containers=true -C=member1", parentCommand) + `
+		fmt.Sprintf("%s logs -l app=nginx --all-containers=true -C=member1", parentCommand) + `
 
 # Return snapshot of previous terminated ruby container logs from pod web-1 in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s get logs -p -c ruby web-1 -C=member1", parentCommand) + `
+		fmt.Sprintf("%s logs -p -c ruby web-1 -C=member1", parentCommand) + `
 
 # Begin streaming the logs of the ruby container in pod web-1 in cluster(member1)` + "\n" +
 		fmt.Sprintf("%s logs -f -c ruby web-1 -C=member1", parentCommand) + `
@@ -88,7 +88,7 @@ func logsExample(parentCommand string) string {
 		fmt.Sprintf("%s logs --tail=20 nginx -C=member1", parentCommand) + `
 
 # Show all logs from pod nginx written in the last hour in cluster(member1) ` + "\n" +
-		fmt.Sprintf("%s --since=1h nginx -C=member1", parentCommand)
+		fmt.Sprintf("%s logs --since=1h nginx -C=member1", parentCommand)
 	return example
 }
 
