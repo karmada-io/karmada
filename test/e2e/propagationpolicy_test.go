@@ -90,7 +90,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			serviceNamespace = policyNamespace
 			serviceName = policyName
 
-			service = testhelper.NewService(serviceNamespace, serviceName)
+			service = testhelper.NewService(serviceNamespace, serviceName, corev1.ServiceTypeClusterIP)
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: service.APIVersion,
