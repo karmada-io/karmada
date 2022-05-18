@@ -26,6 +26,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter/prune"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -403,7 +404,7 @@ func addOverwriteAnnotation(obj *unstructured.Unstructured) {
 
 // createOrUpdatePropagationPolicy create PropagationPolicy in karmada control plane
 func createOrUpdatePropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, opts CommandPromoteOption) error {
-	name := opts.name + "-propagation"
+	name := names.GeneratePolicyName(opts.Namespace, opts.name, opts.gvk.String())
 
 	_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(opts.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
@@ -422,7 +423,7 @@ func createOrUpdatePropagationPolicy(karmadaClient *karmadaclientset.Clientset, 
 
 // createOrUpdateClusterPropagationPolicy create ClusterPropagationPolicy in karmada control plane
 func createOrUpdateClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, opts CommandPromoteOption) error {
-	name := opts.name + "-propagation"
+	name := names.GeneratePolicyName("", opts.name, opts.gvk.String())
 
 	_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
@@ -441,13 +442,12 @@ func createOrUpdateClusterPropagationPolicy(karmadaClient *karmadaclientset.Clie
 
 // buildPropagationPolicy build PropagationPolicy according to resource and cluster
 func buildPropagationPolicy(gvr schema.GroupVersionResource, opts CommandPromoteOption) *policyv1alpha1.PropagationPolicy {
-	name := opts.name + "-propagation"
-	ns := opts.Namespace
+	name := names.GeneratePolicyName(opts.Namespace, opts.name, opts.gvk.String())
 
 	pp := &policyv1alpha1.PropagationPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: ns,
+			Namespace: opts.Namespace,
 		},
 		Spec: policyv1alpha1.PropagationSpec{
 			ResourceSelectors: []policyv1alpha1.ResourceSelector{
@@ -470,7 +470,7 @@ func buildPropagationPolicy(gvr schema.GroupVersionResource, opts CommandPromote
 
 // buildClusterPropagationPolicy build ClusterPropagationPolicy according to resource and cluster
 func buildClusterPropagationPolicy(gvr schema.GroupVersionResource, opts CommandPromoteOption) *policyv1alpha1.ClusterPropagationPolicy {
-	name := opts.name + "-propagation"
+	name := names.GeneratePolicyName("", opts.name, opts.gvk.String())
 
 	cpp := &policyv1alpha1.ClusterPropagationPolicy{
 		ObjectMeta: metav1.ObjectMeta{
