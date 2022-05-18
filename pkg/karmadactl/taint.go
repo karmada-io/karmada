@@ -115,6 +115,12 @@ func (o *CommandTaintOption) Complete(args []string) error {
 	}
 
 	kubeConfigFlags := genericclioptions.NewConfigFlags(false).WithDeprecatedPasswordFlag()
+
+	if o.KubeConfig != "" {
+		kubeConfigFlags.KubeConfig = &o.KubeConfig
+		kubeConfigFlags.Context = &o.KarmadaContext
+	}
+
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
 
