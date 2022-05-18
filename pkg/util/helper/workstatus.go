@@ -177,21 +177,23 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 			continue
 		}
 
+		// resources with no status,only record whether the propagation is successful in work
+		aggregatedStatus := workv1alpha2.AggregatedStatusItem{
+			ClusterName: clusterName,
+			Applied:     applied,
+		}
+
 		for _, manifestStatus := range work.Status.ManifestStatuses {
 			equal, err := equalIdentifier(&manifestStatus.Identifier, identifierIndex, workload)
 			if err != nil {
 				return nil, err
 			}
 			if equal {
-				aggregatedStatus := workv1alpha2.AggregatedStatusItem{
-					ClusterName: clusterName,
-					Status:      manifestStatus.Status,
-					Applied:     applied,
-				}
-				statuses = append(statuses, aggregatedStatus)
+				aggregatedStatus.Status = manifestStatus.Status
 				break
 			}
 		}
+		statuses = append(statuses, aggregatedStatus)
 	}
 
 	sort.Slice(statuses, func(i, j int) bool {
