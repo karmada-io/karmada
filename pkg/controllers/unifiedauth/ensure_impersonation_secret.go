@@ -84,11 +84,14 @@ func (c *Controller) ensureImpersonationSecretForCluster(cluster *clusterv1alpha
 	}
 
 	if cluster.Spec.ImpersonatorSecretRef == nil {
-		cluster.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
-			Namespace: impersonatorSecret.Namespace,
-			Name:      impersonatorSecret.Name,
+		mutateFunc := func(cluster *clusterv1alpha1.Cluster) {
+			cluster.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+				Namespace: impersonatorSecret.Namespace,
+				Name:      impersonatorSecret.Name,
+			}
 		}
-		_, err = util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, cluster)
+
+		_, err = util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, cluster, mutateFunc)
 		if err != nil {
 			return err
 		}

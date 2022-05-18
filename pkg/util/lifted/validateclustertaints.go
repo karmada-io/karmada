@@ -77,14 +77,11 @@ func validateClusterTaintEffect(effect *corev1.TaintEffect, allowEmpty bool, fld
 
 	allErrors := field.ErrorList{}
 	switch *effect {
-	// TODO: Replace next line with subsequent commented-out line when implement TaintEffectNoExecute.
-	case corev1.TaintEffectNoSchedule:
-	// case corev1.TaintEffectNoSchedule, corev1.TaintEffectNoExecute:
+	case corev1.TaintEffectNoSchedule, corev1.TaintEffectNoExecute:
 	default:
 		validValues := []string{
 			string(corev1.TaintEffectNoSchedule),
-			// TODO: Uncomment this block when implement TaintEffectNoExecute.
-			// string(corev1.TaintEffectNoExecute),
+			string(corev1.TaintEffectNoExecute),
 		}
 		allErrors = append(allErrors, field.NotSupported(fldPath, *effect, validValues))
 	}

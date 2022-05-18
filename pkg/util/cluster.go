@@ -56,7 +56,7 @@ func CreateClusterObject(controlPlaneClient *karmadaclientset.Clientset, cluster
 
 // CreateOrUpdateClusterObject create cluster object in karmada control plane,
 // if cluster object has been existed and different from input clusterObj, update it.
-func CreateOrUpdateClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
+func CreateOrUpdateClusterObject(controlPlaneClient *karmadaclientset.Clientset, clusterObj *clusterv1alpha1.Cluster, mutate func(*clusterv1alpha1.Cluster)) (*clusterv1alpha1.Cluster, error) {
 	cluster, exist, err := GetClusterWithKarmadaClient(controlPlaneClient, clusterObj.Name)
 	if err != nil {
 		return nil, err
@@ -67,8 +67,7 @@ func CreateOrUpdateClusterObject(controlPlaneClient *karmadaclientset.Clientset,
 			klog.Warningf("cluster(%s) already exist and newest", clusterObj.Name)
 			return cluster, nil
 		}
-
-		cluster.Spec = clusterObj.Spec
+		mutate(cluster)
 		cluster, err = updateCluster(controlPlaneClient, cluster)
 		if err != nil {
 			klog.Warningf("failed to create cluster(%s). error: %v", clusterObj.Name, err)
@@ -77,6 +76,7 @@ func CreateOrUpdateClusterObject(controlPlaneClient *karmadaclientset.Clientset,
 		return cluster, nil
 	}
 
+	mutate(clusterObj)
 	if cluster, err = createCluster(controlPlaneClient, clusterObj); err != nil {
 		klog.Warningf("failed to create cluster(%s). error: %v", clusterObj.Name, err)
 		return nil, err

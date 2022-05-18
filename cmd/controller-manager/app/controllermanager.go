@@ -177,6 +177,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
 		ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
 		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
+		FailoverEvictionTimeout:   opts.FailoverEvictionTimeout.Duration,
 	}
 	if err := clusterController.SetupWithManager(mgr); err != nil {
 		return false, err
@@ -489,6 +490,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterMonitorGracePeriod:         opts.ClusterMonitorGracePeriod,
 			ClusterStartupGracePeriod:         opts.ClusterStartupGracePeriod,
 			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
+			FailoverEvictionTimeout:           opts.FailoverEvictionTimeout,
 			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
