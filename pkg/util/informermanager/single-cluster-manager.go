@@ -22,13 +22,13 @@ type SingleClusterInformerManager interface {
 	ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler)
 
 	// IsInformerSynced checks if the resource's informer is synced.
-	// A informer is synced means:
+	// An informer is synced means:
 	// - The informer has been created(by method 'ForResource' or 'Lister').
 	// - The informer has started(by method 'Start').
 	// - The informer's cache has been synced.
 	IsInformerSynced(resource schema.GroupVersionResource) bool
 
-	// IsHandlerExist checks if handler already added to a the informer that watches the 'resource'.
+	// IsHandlerExist checks if handler already added to the informer that watches the 'resource'.
 	IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool
 
 	// Lister returns a generic lister used to get 'resource' from informer's store.
