@@ -121,6 +121,7 @@ deploy.yaml:
 <summary>unfold me to see the yaml</summary>
 
 ```yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web
