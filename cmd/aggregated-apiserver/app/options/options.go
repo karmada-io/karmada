@@ -38,8 +38,6 @@ type Options struct {
 	RecommendedOptions    *genericoptions.RecommendedOptions
 	SharedInformerFactory informers.SharedInformerFactory
 
-	karmadaConfig string
-	Master        string
 	// KubeAPIQPS is the QPS to use while talking with karmada-apiserver.
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
@@ -62,12 +60,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	o.RecommendedOptions.AddFlags(flags)
 	flags.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
 
-	flags.StringVar(&o.karmadaConfig, "karmada-config", o.karmadaConfig, "Path to a karmada-apiserver KubeConfig.")
-	// Remove it when we are in v1.2(+).
-	_ = flags.MarkDeprecated("karmada-config", "This flag is currently no-op and will be deleted.")
-	flags.StringVar(&o.Master, "master", o.Master, "The address of the Karmada API server. Overrides any value in KubeConfig.")
-	// Remove it when we are in v1.2(+).
-	_ = flags.MarkDeprecated("master", "This flag is currently no-op and will be deleted.")
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
