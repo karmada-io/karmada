@@ -3,7 +3,6 @@ package karmadactl
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +31,7 @@ type CommandDeInitOption struct {
 }
 
 // NewCmdDeInit removes Karmada from Kubernetes
-func NewCmdDeInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
+func NewCmdDeInit(parentCommand string) *cobra.Command {
 	opts := CommandDeInitOption{}
 	cmd := &cobra.Command{
 		Use:          "deinit",

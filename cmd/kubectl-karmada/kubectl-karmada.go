@@ -18,7 +18,7 @@ func runKarmadaCtlCmd() error {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	if err := karmadactl.NewKarmadaCtlCommand(os.Stdout, "karmada", "kubectl karmada").Execute(); err != nil {
+	if err := karmadactl.NewKarmadaCtlCommand("karmada", "kubectl karmada").Execute(); err != nil {
 		return err
 	}
 

@@ -61,7 +61,7 @@ var (
 )
 
 // NewCmdGet New get command
-func NewCmdGet(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdGet(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
 	o := NewCommandGetOptions("karmadactl", ioStreams)
 	cmd := &cobra.Command{

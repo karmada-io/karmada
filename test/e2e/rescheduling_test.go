@@ -96,7 +96,7 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(os.Stdout, karmadaConfig, opts)
+				err := karmadactl.RunJoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// wait for the current cluster status changing to true
@@ -125,7 +125,7 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
 				}
-				err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
+				err := karmadactl.RunUnjoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 

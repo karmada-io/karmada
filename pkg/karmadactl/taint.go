@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -39,7 +38,7 @@ var (
 )
 
 // NewCmdTaint defines the `taint` command that mark cluster with taints
-func NewCmdTaint(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdTaint(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandTaintOption{}
 
 	cmd := &cobra.Command{
@@ -55,7 +54,7 @@ func NewCmdTaint(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand st
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunTaint(cmdOut, karmadaConfig, opts); err != nil {
+			if err := RunTaint(karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -179,7 +178,7 @@ func (o *CommandTaintOption) AddFlags(flags *pflag.FlagSet) {
 }
 
 // RunTaint set taints for the clusters
-func RunTaint(_ io.Writer, karmadaConfig KarmadaConfig, opts CommandTaintOption) error {
+func RunTaint(karmadaConfig KarmadaConfig, opts CommandTaintOption) error {
 	// Get control plane kube-apiserver client
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KubeConfig)
 	if err != nil {

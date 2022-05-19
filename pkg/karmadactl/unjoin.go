@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -28,7 +27,7 @@ var (
 )
 
 // NewCmdUnjoin defines the `unjoin` command that removes registration of a cluster from control plane.
-func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdUnjoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandUnjoinOption{}
 
 	cmd := &cobra.Command{
@@ -44,7 +43,7 @@ func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand s
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunUnjoin(cmdOut, karmadaConfig, opts); err != nil {
+			if err := RunUnjoin(karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -132,7 +131,7 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 }
 
 // RunUnjoin is the implementation of the 'unjoin' command.
-func RunUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandUnjoinOption) error {
+func RunUnjoin(karmadaConfig KarmadaConfig, opts CommandUnjoinOption) error {
 	klog.V(1).Infof("unjoining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("unjoining cluster. cluster namespace: %s", opts.ClusterNamespace)
 

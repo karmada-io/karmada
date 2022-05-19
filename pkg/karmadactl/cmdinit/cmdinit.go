@@ -2,7 +2,6 @@ package cmdinit
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -17,7 +16,7 @@ const (
 )
 
 // NewCmdInit install karmada on kubernetes
-func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
+func NewCmdInit(parentCommand string) *cobra.Command {
 	opts := kubernetes.CommandInitOption{}
 	cmd := &cobra.Command{
 		Use:          "init",
@@ -32,7 +31,7 @@ func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 			if err := opts.Complete(); err != nil {
 				return err
 			}
-			if err := opts.RunInit(cmdOut, parentCommand); err != nil {
+			if err := opts.RunInit(parentCommand); err != nil {
 				return err
 			}
 			return nil

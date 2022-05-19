@@ -67,7 +67,7 @@ karmada-scheduler-estimator to get replica status.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-descheduler"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-descheduler"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

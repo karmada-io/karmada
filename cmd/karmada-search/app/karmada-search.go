@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"os"
 
 	"github.com/spf13/cobra"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -44,7 +43,7 @@ func NewKarmadaSearchCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-search"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-search"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

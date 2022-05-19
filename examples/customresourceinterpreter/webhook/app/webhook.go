@@ -52,7 +52,7 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-interpreter-webhook-example"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-interpreter-webhook-example"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
