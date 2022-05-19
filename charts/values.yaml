@@ -20,15 +20,19 @@ components: []
 
 ## pre-install job config
 preInstallJob:
+  ## @param preInstallJob.initContainerImage image of the pre-install job's initContainer
   initContainerImage: cfssl/cfssl
+  ## @param preInstallJob.preInstallContainerImage image of the pre-install job
   preInstallContainerImage: bitnami/kubectl:latest
 
 ## post-install job config
 postInstallJob:
+  ## @param postInstallJob.postInstallContainerImage image of the post-install job
   postInstallContainerImage: bitnami/kubectl:latest
 
 ## post-delete job config
 postDeleteJob:
+  ## @param postDeleteJob.postDeleteContainerImage image of the post-delete job
   postDeleteContainerImage: bitnami/kubectl:latest
 
 ## karmada certificate config
