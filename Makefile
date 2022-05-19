@@ -60,9 +60,9 @@ $(CMD_TARGET): $(SOURCES)
 #   OUTPUT_TYPE: Destination to save image(docker/registry).
 #
 # Example:
-#   make image
-#   make image-aggregated-apiserver
-#   make image-aggregated-apiserver GOARCH=arm64
+#   make images
+#   make image-karmada-aggregated-apiserver
+#   make image-karmada-aggregated-apiserver GOARCH=arm64
 IMAGE_TARGET=$(addprefix image-, $(TARGETS))
 .PHONY: $(IMAGE_TARGET)
 $(IMAGE_TARGET):
