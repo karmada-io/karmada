@@ -206,6 +206,15 @@ If you have questions, feel free to reach out to us in the following ways:
 - [slack](https://cloud-native.slack.com/archives/C02MUF8QXUN) | [Join](https://slack.cncf.io/)
 - [twitter](https://twitter.com/karmada_io)
 
+## Talks and References
+
+|                  | Link                                                                                                                    |
+|------------------|-------------------------------------------------------------------------------------------------------------------------|
+| KubeCon(EU 2021) | [Beyond federation: automating multi-cloud workloads with K8s native APIs](https://www.youtube.com/watch?v=LJJoaGszBVk) |
+| KubeCon(EU 2022) | TBD                                                                                                                     |
+
+For blogs please refer to [website](https://karmada.io/blog/).
+
 ## Contributing
 
 If you're interested in being a contributor and want to get involved in
