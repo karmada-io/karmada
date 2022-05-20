@@ -33,7 +33,7 @@ func (k ClusterWideKey) String() string {
 	return fmt.Sprintf("%s, kind=%s, %s", k.GroupVersion().String(), k.Kind, k.NamespaceKey())
 }
 
-// NamespaceKey returns the traditional key of a object.
+// NamespaceKey returns the traditional key of an object.
 func (k *ClusterWideKey) NamespaceKey() string {
 	if len(k.Namespace) > 0 {
 		return k.Namespace + "/" + k.Name
