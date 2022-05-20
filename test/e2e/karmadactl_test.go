@@ -8,6 +8,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -301,6 +303,164 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 				}
 				err := karmadactl.RunUnjoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+	})
+})
+
+var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.Labels{NeedCreateCluster}, func() {
+	var member1 string
+	var controlPlane string
+	var clusterName string
+	var homeDir string
+	var kubeConfigPath string
+	var clusterContext string
+	var deploymentName, deploymentNamespace string
+	var policyName, policyNamespace string
+	var deployment *appsv1.Deployment
+	var policy *policyv1alpha1.PropagationPolicy
+	var karmadaConfig karmadactl.KarmadaConfig
+
+	ginkgo.BeforeEach(func() {
+		member1 = "member1"
+		clusterName = "member-e2e-" + rand.String(3)
+		homeDir = os.Getenv("HOME")
+		kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
+		controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
+		clusterContext = fmt.Sprintf("kind-%s", clusterName)
+		deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+		deploymentNamespace = testNamespace
+		policyName = deploymentName
+		policyNamespace = testNamespace
+
+		deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+		policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{member1, clusterName},
+			},
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
+			},
+		})
+		karmadaConfig = karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
+	})
+
+	ginkgo.BeforeEach(func() {
+		ginkgo.By(fmt.Sprintf("Creating cluster: %s", clusterName), func() {
+			err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
+			karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
+			opts := karmadactl.CommandJoinOption{
+				GlobalCommandOptions: options.GlobalCommandOptions{
+					DryRun: false,
+				},
+				ClusterNamespace:  "karmada-cluster",
+				ClusterName:       clusterName,
+				ClusterContext:    clusterContext,
+				ClusterKubeConfig: kubeConfigPath,
+			}
+			err := karmadactl.RunJoin(karmadaConfig, opts)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+		// When a newly joined cluster is unready at the beginning, the scheduler will ignore it.
+		ginkgo.By(fmt.Sprintf("wait cluster %s ready", clusterName), func() {
+			framework.WaitClusterFitWith(controlPlaneClient, clusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+				return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+			})
+		})
+		ginkgo.DeferCleanup(func() {
+			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
+				opts := karmadactl.CommandUnjoinOption{
+					GlobalCommandOptions: options.GlobalCommandOptions{
+						DryRun: false,
+					},
+					ClusterNamespace:  "karmada-cluster",
+					ClusterName:       clusterName,
+					ClusterContext:    clusterContext,
+					ClusterKubeConfig: kubeConfigPath,
+					Wait:              options.DefaultKarmadactlCommandDuration,
+				}
+				err := karmadactl.RunUnjoin(karmadaConfig, opts)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
+				err := deleteCluster(clusterName, kubeConfigPath)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				_ = os.Remove(kubeConfigPath)
+			})
+		})
+	})
+	ginkgo.Context("cordon cluster", func() {
+		ginkgo.BeforeEach(func() {
+			opts := karmadactl.CommandCordonOption{
+				GlobalCommandOptions: options.GlobalCommandOptions{
+					DryRun: false,
+				},
+				ClusterName: clusterName,
+			}
+			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredCordon, karmadaConfig, opts)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			ginkgo.By("cluster should have a taint", func() {
+				clusterObj := &clusterv1alpha1.Cluster{}
+				err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				taints := clusterObj.Spec.Taints
+				var unschedulable corev1.Taint
+				for index := range taints {
+					if taints[index].Key == clusterv1alpha1.TaintClusterUnscheduler {
+						unschedulable = taints[index]
+						break
+					}
+				}
+				gomega.Expect(unschedulable).ShouldNot(gomega.BeNil())
+				gomega.Expect(unschedulable.Effect).Should(gomega.Equal(corev1.TaintEffectNoSchedule))
+			})
+		})
+
+		ginkgo.It(fmt.Sprintf("deploy deployment should not schedule to cordon cluster %s", clusterName), func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+			targetClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+			gomega.Expect(targetClusters).ShouldNot(gomega.ContainElement(clusterName))
+		})
+
+		ginkgo.It("uncordon cluster", func() {
+			opts := karmadactl.CommandCordonOption{
+				GlobalCommandOptions: options.GlobalCommandOptions{
+					DryRun: false,
+				},
+				ClusterName: clusterName,
+			}
+			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredUnCordon, karmadaConfig, opts)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			ginkgo.By(fmt.Sprintf("cluster %s taint will be removed", clusterName), func() {
+				clusterObj := &clusterv1alpha1.Cluster{}
+				err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(clusterObj.Spec.Taints).Should(gomega.BeEmpty())
+			})
+
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+			ginkgo.By(fmt.Sprintf("deployment will schedule to cluster %s", clusterName), func() {
+				targetClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+				gomega.Expect(targetClusters).Should(gomega.ContainElement(clusterName))
 			})
 		})
 	})
