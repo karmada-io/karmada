@@ -159,6 +159,74 @@ func Test_divideReplicasByStaticWeight(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "insufficient replica assignment should get 0 replica",
+			args: struct {
+				clusters   []*clusterv1alpha1.Cluster
+				weightList []policyv1alpha1.StaticClusterWeight
+				replicas   int32
+			}{
+				clusters: []*clusterv1alpha1.Cluster{
+					helper.NewCluster(ClusterMember1),
+					helper.NewCluster(ClusterMember2),
+				},
+				weightList: []policyv1alpha1.StaticClusterWeight{
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember1},
+						},
+						Weight: 1,
+					},
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember2},
+						},
+						Weight: 1,
+					},
+				},
+				replicas: 0,
+			},
+			want: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 0,
+				},
+				{
+					Name:     ClusterMember2,
+					Replicas: 0,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "selected cluster without weight should be ignored",
+			args: struct {
+				clusters   []*clusterv1alpha1.Cluster
+				weightList []policyv1alpha1.StaticClusterWeight
+				replicas   int32
+			}{
+				clusters: []*clusterv1alpha1.Cluster{
+					helper.NewCluster(ClusterMember1),
+					helper.NewCluster(ClusterMember2),
+				},
+				weightList: []policyv1alpha1.StaticClusterWeight{
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember1},
+						},
+						Weight: 1,
+					},
+				},
+				replicas: 2,
+			},
+			want: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 2,
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -63,6 +63,13 @@ func divideReplicasByResource(
 }
 
 // divideReplicasByStaticWeight assigns a total number of replicas to the selected clusters by the weight list.
+// For example, we want to assign replicas to two clusters named A and B.
+// | Total | Weight(A:B) | Assignment(A:B) |
+// |   9   |   1:2       |     3:6         |
+// |   9   |   1:3       |     2:7         | Approximate assignment
+// Note:
+// 1. If any selected cluster which not present on the weight list will be ignored(different with '0' replica).
+// 2. In case of not enough replica for specific cluster which will get '0' replica.
 func divideReplicasByStaticWeight(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight,
 	replicas int32) ([]workv1alpha2.TargetCluster, error) {
 	weightSum := int64(0)
