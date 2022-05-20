@@ -186,6 +186,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+			ClusterFailureThreshold:           opts.ClusterFailureThreshold,
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
@@ -223,6 +224,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		ClusterStatusUpdateFrequency:      ctx.Opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              ctx.Opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: ctx.Opts.ClusterLeaseRenewIntervalFraction,
+		ClusterFailureThreshold:           ctx.Opts.ClusterFailureThreshold,
 		ClusterCacheSyncTimeout:           ctx.Opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
 	}
