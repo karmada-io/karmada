@@ -4,6 +4,20 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+#https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KARMADA
+KARMADA_GREETING='
+------------------------------------------------------------------------------------------------------
+ █████   ████   █████████   ███████████   ██████   ██████   █████████   ██████████     █████████
+░░███   ███░   ███░░░░░███ ░░███░░░░░███ ░░██████ ██████   ███░░░░░███ ░░███░░░░███   ███░░░░░███
+ ░███  ███    ░███    ░███  ░███    ░███  ░███░█████░███  ░███    ░███  ░███   ░░███ ░███    ░███
+ ░███████     ░███████████  ░██████████   ░███░░███ ░███  ░███████████  ░███    ░███ ░███████████
+ ░███░░███    ░███░░░░░███  ░███░░░░░███  ░███ ░░░  ░███  ░███░░░░░███  ░███    ░███ ░███░░░░░███
+ ░███ ░░███   ░███    ░███  ░███    ░███  ░███      ░███  ░███    ░███  ░███    ███  ░███    ░███
+ █████ ░░████ █████   █████ █████   █████ █████     █████ █████   █████ ██████████   █████   █████
+░░░░░   ░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░     ░░░░░ ░░░░░   ░░░░░ ░░░░░░░░░░   ░░░░░   ░░░░░
+------------------------------------------------------------------------------------------------------
+'
+
 function usage() {
   echo "This script will deploy karmada control plane to a given cluster."
   echo "Usage: hack/remote-up-karmada.sh <KUBECONFIG> <CONTEXT_NAME> [LOAD_BALANCER]"
@@ -45,7 +59,6 @@ fi
 
 # deploy karmada control plane
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-source "${SCRIPT_ROOT}"/hack/util.sh
 "${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "remote"
 kubectl config use-context karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
