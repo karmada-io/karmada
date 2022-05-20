@@ -6,4 +6,6 @@ const (
 	EventReasonCreateExecutionSpaceFailed = "CreateExecutionSpaceFailed"
 	// EventReasonRemoveExecutionSpaceFailed indicates that remove execution space failed.
 	EventReasonRemoveExecutionSpaceFailed = "RemoveExecutionSpaceFailed"
+	// EventReasonTaintClusterByConditionFailed indicates that taint cluster by condition
+	EventReasonTaintClusterByConditionFailed = "TaintClusterByCondition"
 )
