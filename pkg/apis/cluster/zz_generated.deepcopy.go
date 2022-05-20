@@ -147,6 +147,13 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = new(LocalSecretReference)
 		**out = **in
 	}
+	if in.ProxyHeader != nil {
+		in, out := &in.ProxyHeader, &out.ProxyHeader
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Taints != nil {
 		in, out := &in.Taints, &out.Taints
 		*out = make([]v1.Taint, len(*in))
