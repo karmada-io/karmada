@@ -90,6 +90,16 @@ func (o *Options) Run(ctx context.Context) error {
 		return nil
 	})
 
+	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
+		// start ResourceRegistry controller
+		ctl, err := search.NewController(restConfig, search.CachedResourceHandler())
+		if err != nil {
+			return err
+		}
+		ctl.Start(context.StopCh)
+		return nil
+	})
+
 	return server.GenericAPIServer.PrepareRun().Run(ctx.Done())
 }
 
