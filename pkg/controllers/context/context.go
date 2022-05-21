@@ -61,6 +61,8 @@ type Options struct {
 	// If set to true enables NoExecute Taints and will evict all not-tolerating
 	// objects propagating on Clusters tainted with this kind of Taints.
 	EnableTaintManager bool
+
+	EnableClusterResourceModeling bool
 }
 
 // Context defines the context object for controller.
