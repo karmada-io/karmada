@@ -3,7 +3,6 @@ package karmadactl
 import (
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -50,7 +49,7 @@ var (
 var clusterResourceKind = clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")
 
 // NewCmdJoin defines the `join` command that registers a cluster.
-func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandJoinOption{}
 
 	cmd := &cobra.Command{
@@ -66,7 +65,7 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand str
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunJoin(cmdOut, karmadaConfig, opts); err != nil {
+			if err := RunJoin(karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -145,7 +144,7 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 }
 
 // RunJoin is the implementation of the 'join' command.
-func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
+func RunJoin(karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
 	klog.V(1).Infof("joining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("joining cluster. cluster namespace: %s", opts.ClusterNamespace)
 

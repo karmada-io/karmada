@@ -3,7 +3,6 @@ package karmadactl
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -36,7 +35,7 @@ var (
 )
 
 // NewCmdPromote defines the `promote` command that promote resources from legacy clusters
-func NewCmdPromote(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdPromote(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandPromoteOption{}
 	opts.JSONYamlPrintFlags = genericclioptions.NewJSONYamlPrintFlags()
 
@@ -53,7 +52,7 @@ func NewCmdPromote(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand 
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunPromote(cmdOut, karmadaConfig, opts, args); err != nil {
+			if err := RunPromote(karmadaConfig, opts, args); err != nil {
 				return err
 			}
 			return nil
@@ -180,7 +179,7 @@ func (o *CommandPromoteOption) Validate() error {
 }
 
 // RunPromote promote resources from legacy clusters
-func RunPromote(_ io.Writer, karmadaConfig KarmadaConfig, opts CommandPromoteOption, args []string) error {
+func RunPromote(karmadaConfig KarmadaConfig, opts CommandPromoteOption, args []string) error {
 	// Get control plane karmada-apiserver client
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KubeConfig)
 	if err != nil {

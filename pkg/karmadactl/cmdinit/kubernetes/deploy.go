@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path"
@@ -385,7 +384,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 }
 
 // RunInit Deploy karmada in kubernetes
-func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
+func (i *CommandInitOption) RunInit(parentCommand string) error {
 	// generate certificate
 	if err := i.genCerts(); err != nil {
 		return fmt.Errorf("certificate generation failed.%v", err)

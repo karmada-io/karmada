@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"net"
-	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -86,7 +85,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-controller-manager"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-controller-manager"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

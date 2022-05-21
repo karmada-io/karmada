@@ -36,7 +36,7 @@ var (
 )
 
 // NewCmdLogs new logs command.
-func NewCmdLogs(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
 	o := NewCommandLogsOptions(ioStreams, false)
 	cmd := &cobra.Command{

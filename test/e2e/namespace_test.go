@@ -93,7 +93,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(os.Stdout, karmadaConfig, opts)
+				err := karmadactl.RunJoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
@@ -111,7 +111,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					ClusterKubeConfig: kubeConfigPath,
 					Wait:              options.DefaultKarmadactlCommandDuration,
 				}
-				err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
+				err := karmadactl.RunUnjoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})

@@ -31,7 +31,7 @@ const (
 )
 
 // NewCmdExec new exec command.
-func NewCmdExec(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
 	o := &ExecOptions{
 		streamOptions: streamOptions{

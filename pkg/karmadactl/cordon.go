@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +31,7 @@ const (
 )
 
 // NewCmdCordon defines the `cordon` command that mark cluster as unschedulable.
-func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:          "cordon CLUSTER",
@@ -44,7 +43,7 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand s
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(cmdOut, desiredCordon, karmadaConfig, opts); err != nil {
+			if err := RunCordonOrUncordon(desiredCordon, karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -65,7 +64,7 @@ func cordonExample(parentCommand string) string {
 }
 
 // NewCmdUncordon defines the `uncordon` command that mark cluster as schedulable.
-func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:          "uncordon CLUSTER",
@@ -77,7 +76,7 @@ func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(cmdOut, desiredUnCordon, karmadaConfig, opts); err != nil {
+			if err := RunCordonOrUncordon(desiredUnCordon, karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -206,7 +205,7 @@ func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clien
 
 // RunCordonOrUncordon exec marks the cluster unschedulable or schedulable according to desired.
 // if true cordon cluster otherwise uncordon cluster.
-func RunCordonOrUncordon(_ io.Writer, desired int, karmadaConfig KarmadaConfig, opts CommandCordonOption) error {
+func RunCordonOrUncordon(desired int, karmadaConfig KarmadaConfig, opts CommandCordonOption) error {
 	cordonOrUncordon := "cordon"
 	if desired == desiredUnCordon {
 		cordonOrUncordon = "un" + cordonOrUncordon

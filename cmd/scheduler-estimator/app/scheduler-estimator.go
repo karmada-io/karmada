@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -54,7 +53,7 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-scheduler-estimator"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler-estimator"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

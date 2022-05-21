@@ -73,7 +73,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote a namespace from member1
-				err = karmadactl.RunPromote(os.Stdout, karmadaConfig, opts, args)
+				err = karmadactl.RunPromote(karmadaConfig, opts, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				framework.WaitNamespacePresentOnClusterByClient(kubeClient, deploymentNamespace)
@@ -92,7 +92,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote a deployment from member1
-				err = karmadactl.RunPromote(os.Stdout, karmadaConfig, opts, args)
+				err = karmadactl.RunPromote(karmadaConfig, opts, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -169,7 +169,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote clusterrole from member1
-				err = karmadactl.RunPromote(os.Stdout, karmadaConfig, opts, args)
+				err = karmadactl.RunPromote(karmadaConfig, opts, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				args = []string{"clusterrolebinding", clusterRoleBindingName}
@@ -178,7 +178,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote clusterrolebinding from member1
-				err = karmadactl.RunPromote(os.Stdout, karmadaConfig, opts, args)
+				err = karmadactl.RunPromote(karmadaConfig, opts, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -268,7 +268,7 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(os.Stdout, karmadaConfig, opts)
+				err := karmadactl.RunJoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.By("Waiting for deployment have been propagated to the member cluster.", func() {
@@ -299,7 +299,7 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 					ClusterKubeConfig: kubeConfigPath,
 					Wait:              options.DefaultKarmadactlCommandDuration,
 				}
-				err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
+				err := karmadactl.RunUnjoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})

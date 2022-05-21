@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -80,7 +79,7 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-agent"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-agent"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 

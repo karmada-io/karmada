@@ -2,7 +2,6 @@ package karmadactl
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -19,7 +18,7 @@ import (
 )
 
 // NewCmdDescribe new describe command.
-func NewCmdDescribe(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
 	o := &CommandDescribeOptions{
 		FilenameOptions: &resource.FilenameOptions{},

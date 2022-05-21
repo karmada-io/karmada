@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"os"
 
 	"github.com/spf13/cobra"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -44,7 +43,7 @@ func NewAggregatedApiserverCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-aggregated-apiserver"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-aggregated-apiserver"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
