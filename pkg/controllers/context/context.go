@@ -64,6 +64,8 @@ type Options struct {
 	// GracefulEvictionTimeout is the timeout period waiting for the grace-eviction-controller performs the final
 	// removal since the workload(resource) has been moved to the graceful eviction tasks.
 	GracefulEvictionTimeout metav1.Duration
+
+	EnableClusterResourceModeling bool
 }
 
 // Context defines the context object for controller.

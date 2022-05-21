@@ -91,6 +91,8 @@ type ClusterStatusController struct {
 
 	ClusterCacheSyncTimeout metav1.Duration
 	RateLimiterOptions      ratelimiterflag.Options
+
+	EnableClusterResourceModeling bool
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -170,7 +172,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	}
 
 	// skip collecting cluster status if not ready
-	if online && healthy && readyCondition.Status == metav1.ConditionTrue {
+	if online && healthy && readyCondition.Status == metav1.ConditionTrue && c.EnableClusterResourceModeling {
 		// get or create informer for pods and nodes in member cluster
 		clusterInformerManager, err := c.buildInformerForCluster(clusterClient)
 		if err != nil {

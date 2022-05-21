@@ -273,6 +273,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		ClusterFailureThreshold:           opts.ClusterFailureThreshold,
 		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
+		EnableClusterResourceModeling:     ctx.Opts.EnableClusterResourceModeling,
 	}
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		return false, err
@@ -562,6 +563,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			EnableTaintManager:                opts.EnableTaintManager,
 			RateLimiterOptions:                opts.RateLimiterOpts,
 			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
+			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
