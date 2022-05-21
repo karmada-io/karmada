@@ -4,6 +4,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+source "${SCRIPT_ROOT}"/hack/util.sh
+
 function usage() {
   echo "This script will deploy karmada control plane to a given cluster."
   echo "Usage: hack/remote-up-karmada.sh <KUBECONFIG> <CONTEXT_NAME> [LOAD_BALANCER]"
@@ -38,14 +41,29 @@ then
   exit 1
 fi
 
+# Make sure go exists and the go version is a viable version.
+util::cmd_must_exist "go"
+util::verify_go_version
+
+# get arch name and os name in bootstrap
+BS_ARCH=$(go env GOARCH)
+BS_OS=$(go env GOOS)
+# check arch and os name before installing
+util::install_environment_check "${BS_ARCH}" "${BS_OS}"
+echo -n "Preparing: 'kubectl' existence check - "
+if util::cmd_exist kubectl; then
+  echo "passed"
+else
+  echo "not pass"
+  util::install_kubectl "" "${BS_ARCH}" "${BS_OS}"
+fi
+
 if [ "${3:-false}" = true ]; then
   LOAD_BALANCER=true
   export LOAD_BALANCER
 fi
 
 # deploy karmada control plane
-SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-source "${SCRIPT_ROOT}"/hack/util.sh
 "${SCRIPT_ROOT}"/hack/deploy-karmada.sh "${HOST_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "remote"
 kubectl config use-context karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
