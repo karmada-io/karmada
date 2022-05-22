@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 )
 
 const (
@@ -71,7 +73,7 @@ spec:
           command:
             - /bin/karmada-agent
             - --karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig
-            - --karmada-context=karmada
+            - --karmada-context=%s
             - --cluster-name={member_cluster_name}
             - --cluster-status-update-frequency=10s
             - --v=4
@@ -138,7 +140,8 @@ spec:
 
 //GenExamples Generate sample files
 func GenExamples(path, parentCommand string) {
-	if err := BytesToFile(path, "karmada-agent.yaml", []byte(karmadaAgent)); err != nil {
+	karmadaAgentStr := fmt.Sprintf(karmadaAgent, options.ClusterName)
+	if err := BytesToFile(path, "karmada-agent.yaml", []byte(karmadaAgentStr)); err != nil {
 		klog.Warning(err)
 	}
 
