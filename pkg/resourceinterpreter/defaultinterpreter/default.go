@@ -123,3 +123,8 @@ func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (s
 	// for resource types that don't have a build-in handler, try to collect the whole status from '.status' filed.
 	return reflectWholeStatus(object)
 }
+
+// GetDependenciesHandlers returns the dependenciesHandlers of the defaultInterpreter.
+func (e *DefaultInterpreter) GetDependenciesHandlers() map[schema.GroupVersionKind]dependenciesInterpreter {
+	return e.dependenciesHandlers
+}

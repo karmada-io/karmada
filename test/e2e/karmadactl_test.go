@@ -69,7 +69,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 				}
 				args := []string{"namespace", deploymentNamespace}
 				// init args: place namespace name to CommandPromoteOption.name
-				err := opts.Complete(args)
+				err := opts.Complete(karmadaConfig, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote a namespace from member1
@@ -88,7 +88,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 				}
 				args := []string{"deployment", deploymentName}
 				// init args: place deployment name to CommandPromoteOption.name
-				err := opts.Complete(args)
+				err := opts.Complete(karmadaConfig, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote a deployment from member1
@@ -165,7 +165,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 				args := []string{"clusterrole", clusterRoleName}
 				// init args: place clusterrole name to CommandPromoteOption.name
-				err := opts.Complete(args)
+				err := opts.Complete(karmadaConfig, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote clusterrole from member1
@@ -174,7 +174,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 				args = []string{"clusterrolebinding", clusterRoleBindingName}
 				// init args: place clusterrolebinding name to CommandPromoteOption.name
-				err = opts.Complete(args)
+				err = opts.Complete(karmadaConfig, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote clusterrolebinding from member1
