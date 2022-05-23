@@ -36,7 +36,6 @@ spec:
             - --kubeconfig=/etc/kubeconfig
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
-            - --karmada-config=/etc/kubeconfig
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
             - --etcd-cafile=/etc/kubernetes/pki/server-ca.crt
             - --etcd-certfile=/etc/kubernetes/pki/karmada.crt

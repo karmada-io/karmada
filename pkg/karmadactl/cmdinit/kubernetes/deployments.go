@@ -712,7 +712,6 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 					"--kubeconfig=/etc/kubeconfig",
 					"--authentication-kubeconfig=/etc/kubeconfig",
 					"--authorization-kubeconfig=/etc/kubeconfig",
-					"--karmada-config=/etc/kubeconfig",
 					fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(i.etcdServers(), ",")),
 					fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
 					fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
