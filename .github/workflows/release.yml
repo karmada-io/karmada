@@ -9,35 +9,33 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        include:
-          - goarch: amd64
-            goos: linux
-          - goarch: amd64
-            goos: darwin
-          - goarch: arm64
-            goos: linux
-          - goarch: arm64
-            goos: darwin
+        target:
+          - karmadactl
+          - kubectl-karmada
+        os:
+          - linux
+          - darwin
+        arch:
+          - amd64
+          - arm64
     steps:
     - uses: actions/checkout@master
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
         go-version: 1.17.x
-    - name: Making kubectl-karmada
-      run: make kubectl-karmada
+    - name: Making and packaging
       env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-    - name: Make release directory
-      run: mkdir -p _output/release
-    - name: Packaging...
-      run: tar czf _output/release/kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz LICENSE -C _output/bin/${{ matrix.goos }}/${{ matrix.goarch }} kubectl-karmada
+        GOOS: ${{ matrix.os }}
+        GOARCH: ${{ matrix.arch }}
+      run: make release-${{ matrix.target }}
     - name: Uploading assets...
       if: ${{ !env.ACT }}
       uses: softprops/action-gh-release@v1
       with:
-        files: _output/release/kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz
+        files: |
+          _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
+          _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz.sha256
   update-krew-index:
     needs: release-assests
     name: Update krew-index

@@ -124,3 +124,31 @@ endif
 	docker push ${REGISTRY}/karmada-interpreter-webhook-example:${VERSION}
 	docker push ${REGISTRY}/karmada-aggregated-apiserver:${VERSION}
 	docker push ${REGISTRY}/karmada-search:${VERSION}
+
+# Build and package binary
+#
+# Example
+#   make release-karmadactl
+#   make release-kubectl-karmada
+#   make release-kubectl-karmada GOOS=darwin GOARCH=amd64
+RELEASE_TARGET=$(addprefix release-, $(CTL_TARGETS))
+.PHONY: $(RELEASE_TARGET)
+$(RELEASE_TARGET):
+	@set -e;\
+	target=$$(echo $(subst release-,,$@));\
+	make $$target;\
+	hack/release.sh $$target $(GOOS) $(GOARCH)
+
+# Build and package binary for all platforms
+#
+# Example
+#   make release
+release:
+	@make release-karmadactl GOOS=linux GOARCH=amd64
+	@make release-karmadactl GOOS=linux GOARCH=arm64
+	@make release-karmadactl GOOS=darwin GOARCH=amd64
+	@make release-karmadactl GOOS=darwin GOARCH=arm64
+	@make release-kubectl-karmada GOOS=linux GOARCH=amd64
+	@make release-kubectl-karmada GOOS=linux GOARCH=arm64
+	@make release-kubectl-karmada GOOS=darwin GOARCH=amd64
+	@make release-kubectl-karmada GOOS=darwin GOARCH=arm64
