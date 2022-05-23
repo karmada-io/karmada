@@ -103,7 +103,7 @@ func GetClusterWithKarmadaClient(client karmadaclientset.Interface, name string)
 func createCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
 	newCluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
-		klog.Warningf("failed to create cluster(%s). error: %v", cluster.Name, err)
+		klog.Warningf("failed to create cluster(%s). error: %v. May be karmada-aggregated-apiserver is not ready.", cluster.Name, err)
 		return nil, err
 	}
 
