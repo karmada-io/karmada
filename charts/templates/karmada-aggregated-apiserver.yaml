@@ -45,7 +45,6 @@ spec:
             - --kubeconfig=/etc/kubeconfig
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
-            - --karmada-config=/etc/kubeconfig
             {{- if eq .Values.etcd.mode "external" }}
             - --etcd-cafile=/etc/etcd/pki/ca.crt
             - --etcd-certfile=/etc/etcd/pki/tls.crt
