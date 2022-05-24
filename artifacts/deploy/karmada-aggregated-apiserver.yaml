@@ -49,6 +49,14 @@ spec:
           resources:
             requests:
               cpu: 100m
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            timeoutSeconds: 15
       volumes:
         - name: k8s-certs
           secret:

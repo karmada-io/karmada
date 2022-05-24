@@ -736,6 +736,20 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 						MountPath: karmadaCertsVolumeMountPath,
 					},
 				},
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: "/readyz",
+							Port: intstr.IntOrString{
+								IntVal: 443,
+							},
+							Scheme: corev1.URISchemeHTTPS,
+						},
+					},
+					InitialDelaySeconds: 1,
+					PeriodSeconds:       3,
+					TimeoutSeconds:      15,
+				},
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU: resource.MustParse("100m"),

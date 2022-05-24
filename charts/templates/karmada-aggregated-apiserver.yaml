@@ -66,6 +66,14 @@ spec:
             - --audit-log-maxbackup=0
           resources:
             {{- toYaml .Values.aggregatedApiServer.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            timeoutSeconds: 15
       {{- with .Values.aggregatedApiServer.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}
