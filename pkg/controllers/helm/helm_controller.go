@@ -222,6 +222,7 @@ func (h *HelmController) syncWork(ctx context.Context, clusterName string, work 
 func (h *HelmController) syncToClusters(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	var errs []error
 	var msg string
+	isReady := false
 	// If there is no error or just error from reconcileV2HelmRelease, the requeue internal depends on reconcileV2HelmRelease.
 	// Else it will requeue again.
 	result := controllerruntime.Result{Requeue: true}
@@ -255,10 +256,9 @@ func (h *HelmController) syncToClusters(ctx context.Context, clusterName string,
 		}
 
 		*hr, result, err = h.reconcileV2HelmRelease(ctx, *hr, clusterName)
-		if err != nil || !meta.IsStatusConditionTrue(hr.Status.Conditions, Ready) {
-			reconcileErr := fmt.Errorf("Failed to reconcile helmrelease(%v/%v) in the given member cluster %s", hr.GetNamespace(), hr.GetName(), clusterName)
-			klog.Error(reconcileErr)
-			errs = append(errs, reconcileErr)
+		if err != nil {
+			klog.Errorf("Failed to reconcile helmrelease(%v/%v) in the given member cluster %s, err is: %v", hr.GetNamespace(), hr.GetName(), clusterName, err)
+			errs = append(errs, err)
 			continue
 		}
 
@@ -269,12 +269,16 @@ func (h *HelmController) syncToClusters(ctx context.Context, clusterName string,
 			result = controllerruntime.Result{Requeue: true}
 			continue
 		}
-		msg = fmt.Sprintf("Successfully synced helmrelease(%v/%v) to cluster %s", hr.GetNamespace(), hr.GetName(), clusterName)
-		klog.V(4).Info(msg)
-		syncSucceedNum++
+
+		if meta.IsStatusConditionTrue(hr.Status.Conditions, Ready) {
+			isReady = true
+			msg = fmt.Sprintf("Successfully synced helmrelease(%v/%v) to cluster %s", hr.GetNamespace(), hr.GetName(), clusterName)
+			klog.V(4).Info(msg)
+			syncSucceedNum++
+		}
 	}
 
-	if len(errs) > 0 {
+	if len(errs) > 0 || !isReady {
 		total := len(work.Spec.Workload.Manifests)
 		message := fmt.Sprintf("Failed to apply all manifests (%v/%v): %v", syncSucceedNum, total, errors.NewAggregate(errs).Error())
 		err := h.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message)
@@ -331,31 +335,6 @@ func (h *HelmController) updateAppliedCondition(work *workv1alpha1.Work, status 
 			work = updated.DeepCopy()
 		} else {
 			klog.Errorf("Failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
-		}
-		return updateErr
-	})
-}
-
-func (h *HelmController) updateHelmReleaseCondition(hr *v2.HelmRelease, conditionType string, status metav1.ConditionStatus, reason string, message string) error {
-	newCondition := metav1.Condition{
-		Type:    conditionType,
-		Status:  status,
-		Reason:  reason,
-		Message: message,
-	}
-
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		meta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-		updateErr := h.Status().Update(context.TODO(), hr)
-		if updateErr == nil {
-			return nil
-		}
-		updated := &v2.HelmRelease{}
-		if err = h.Get(context.TODO(), client.ObjectKey{Namespace: hr.Namespace, Name: hr.Name}, updated); err == nil {
-			// make a copy, so we don't mutate the shared cache
-			hr = updated.DeepCopy()
-		} else {
-			klog.Errorf("Failed to get updated helmrelease %s/%s: %v", hr.Namespace, hr.Name, err)
 		}
 		return updateErr
 	})
