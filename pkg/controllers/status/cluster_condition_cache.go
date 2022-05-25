@@ -19,6 +19,8 @@ type clusterData struct {
 
 type clusterConditionStore struct {
 	clusterDataMap sync.Map
+	// successThreshold is the duration of successes for the cluster to be considered healthy after recovery.
+	successThreshold time.Duration
 	// failureThreshold is the duration of failure for the cluster to be considered unhealthy.
 	failureThreshold time.Duration
 }
@@ -46,9 +48,19 @@ func (c *clusterConditionStore) thresholdAdjustedReadyCondition(cluster *cluster
 		}
 		c.update(cluster.Name, saved)
 	}
-	if observedReadyCondition.Status != metav1.ConditionTrue &&
-		curReadyCondition.Status == metav1.ConditionTrue &&
-		now.Before(saved.thresholdStartTime.Add(c.failureThreshold)) {
+
+	var threshold time.Duration
+	if observedReadyCondition.Status == metav1.ConditionTrue {
+		threshold = c.successThreshold
+	} else {
+		threshold = c.failureThreshold
+	}
+
+	// we only care about true/not true
+	// for unknown->false, just return the observed ready condition
+	if ((observedReadyCondition.Status == metav1.ConditionTrue && curReadyCondition.Status != metav1.ConditionTrue) ||
+		(observedReadyCondition.Status != metav1.ConditionTrue && curReadyCondition.Status == metav1.ConditionTrue)) &&
+		now.Before(saved.thresholdStartTime.Add(threshold)) {
 		// retain old status until threshold exceeded to avoid network unstable problems.
 		return curReadyCondition
 	}

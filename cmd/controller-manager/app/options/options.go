@@ -46,6 +46,8 @@ type Options struct {
 	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
 	// how long the current holder of a lease has last updated the lease.
 	ClusterLeaseRenewIntervalFraction float64
+	// ClusterSuccessThreshold is the duration of successes for the cluster to be considered healthy after recovery.
+	ClusterSuccessThreshold metav1.Duration
 	// ClusterFailureThreshold is the duration of failure for the cluster to be considered unhealthy.
 	ClusterFailureThreshold metav1.Duration
 	// ClusterMonitorPeriod represents cluster-controller monitoring period, i.e. how often does
@@ -136,6 +138,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 		"Specifies the expiration period of a cluster lease.")
 	flags.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
 		"Specifies the cluster lease renew interval fraction.")
+	flags.DurationVar(&o.ClusterSuccessThreshold.Duration, "cluster-success-threshold", 30*time.Second, "The duration of successes for the cluster to be considered healthy after recovery.")
 	flags.DurationVar(&o.ClusterFailureThreshold.Duration, "cluster-failure-threshold", 30*time.Second, "The duration of failure for the cluster to be considered unhealthy.")
 	flags.DurationVar(&o.ClusterMonitorPeriod.Duration, "cluster-monitor-period", 5*time.Second,
 		"Specifies how often karmada-controller-manager monitors cluster health status.")

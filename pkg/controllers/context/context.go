@@ -40,6 +40,8 @@ type Options struct {
 	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
 	// how long the current holder of a lease has last updated the lease.
 	ClusterLeaseRenewIntervalFraction float64
+	// ClusterSuccessThreshold is the duration of successes for the cluster to be considered healthy after recovery.
+	ClusterSuccessThreshold metav1.Duration
 	// ClusterFailureThreshold is the duration of failure for the cluster to be considered unhealthy.
 	ClusterFailureThreshold metav1.Duration
 	// ClusterCacheSyncTimeout is the timeout period waiting for cluster cache to sync.
