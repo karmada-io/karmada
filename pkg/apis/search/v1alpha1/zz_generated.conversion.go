@@ -8,7 +8,6 @@ package v1alpha1
 import (
 	unsafe "unsafe"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	search "github.com/karmada-io/karmada/pkg/apis/search"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
@@ -140,9 +139,8 @@ func Convert_search_ResourceRegistryList_To_v1alpha1_ResourceRegistryList(in *se
 }
 
 func autoConvert_v1alpha1_ResourceRegistrySpec_To_search_ResourceRegistrySpec(in *ResourceRegistrySpec, out *search.ResourceRegistrySpec, s conversion.Scope) error {
-	out.TargetCluster = (*policyv1alpha1.ClusterAffinity)(unsafe.Pointer(in.TargetCluster))
+	out.TargetCluster = in.TargetCluster
 	out.ResourceSelectors = *(*[]search.ResourceSelector)(unsafe.Pointer(&in.ResourceSelectors))
-	out.StatusUpdatePeriodSeconds = in.StatusUpdatePeriodSeconds
 	return nil
 }
 
@@ -152,9 +150,8 @@ func Convert_v1alpha1_ResourceRegistrySpec_To_search_ResourceRegistrySpec(in *Re
 }
 
 func autoConvert_search_ResourceRegistrySpec_To_v1alpha1_ResourceRegistrySpec(in *search.ResourceRegistrySpec, out *ResourceRegistrySpec, s conversion.Scope) error {
-	out.TargetCluster = (*policyv1alpha1.ClusterAffinity)(unsafe.Pointer(in.TargetCluster))
+	out.TargetCluster = in.TargetCluster
 	out.ResourceSelectors = *(*[]ResourceSelector)(unsafe.Pointer(&in.ResourceSelectors))
-	out.StatusUpdatePeriodSeconds = in.StatusUpdatePeriodSeconds
 	return nil
 }
 

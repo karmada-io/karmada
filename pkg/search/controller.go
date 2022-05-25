@@ -216,7 +216,7 @@ func (c *Controller) addResourceRegistry(obj interface{}) {
 	rr := obj.(*v1alpha1.ResourceRegistry)
 	resources := c.getResources(rr.Spec.ResourceSelectors)
 
-	for _, cluster := range c.getClusters(*rr.Spec.TargetCluster) {
+	for _, cluster := range c.getClusters(rr.Spec.TargetCluster) {
 		v, _ := c.clusterRegistry.LoadOrStore(cluster, clusterRegistry{
 			resources:  make(map[schema.GroupVersionResource]struct{}),
 			registries: make(map[string]struct{})})
@@ -240,7 +240,7 @@ func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
 	// TODO: stop resource informers if it is not in the new resource registry
 	resources := c.getResources(newRR.Spec.ResourceSelectors)
 
-	clusters := c.getClusters(*newRR.Spec.TargetCluster)
+	clusters := c.getClusters(newRR.Spec.TargetCluster)
 	clusterSets := make(map[string]struct{})
 
 	for _, cls := range clusters {
@@ -259,7 +259,7 @@ func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
 		c.queue.Add(cls)
 	}
 
-	for _, cls := range c.getClusters(*oldRR.Spec.TargetCluster) {
+	for _, cls := range c.getClusters(oldRR.Spec.TargetCluster) {
 		if _, ok := clusterSets[cls]; ok {
 			continue
 		}
@@ -281,7 +281,7 @@ func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
 func (c *Controller) deleteResourceRegistry(obj interface{}) {
 	rr := obj.(*v1alpha1.ResourceRegistry)
 
-	for _, cluster := range c.getClusters(*rr.Spec.TargetCluster) {
+	for _, cluster := range c.getClusters(rr.Spec.TargetCluster) {
 		v, ok := c.clusterRegistry.Load(cluster)
 		if !ok {
 			return

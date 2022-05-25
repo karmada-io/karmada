@@ -2981,7 +2981,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref common.ReferenceCallba
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ResourceRegistry defines a list of member cluster to be cached.",
+				Description: "ResourceRegistry represents the configuration of the cache scope, mainly describes which resources in which clusters should be cached.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -3013,7 +3013,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref common.ReferenceCallba
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status represents the status of ResoruceRegistry.",
+							Description: "Status represents the status of ResourceRegistry.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryStatus"),
 						},
@@ -3085,13 +3085,14 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref common.ReferenceCa
 				Properties: map[string]spec.Schema{
 					"targetCluster": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TargetCluster is the cluster that the resource registry is targeting.",
+							Description: "TargetCluster specifies the clusters where the cache system collect resource from.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
 						},
 					},
 					"resourceSelectors": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ResourceSelectors used to select resources.",
+							Description: "ResourceSelectors specifies the resources type that should be cached by cache system.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3101,13 +3102,6 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref common.ReferenceCa
 									},
 								},
 							},
-						},
-					},
-					"statusUpdatePeriodSeconds": {
-						SchemaProps: spec.SchemaProps{
-							Description: "StatusUpdatePeriodSeconds is the period to update the status of the resource. default is 10s.",
-							Type:        []string{"integer"},
-							Format:      "int64",
 						},
 					},
 				},
@@ -3152,7 +3146,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceSelector(ref common.ReferenceCallba
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ResourceSelector the resources will be selected.",
+				Description: "ResourceSelector specifies the resources type and its scope.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"apiVersion": {
