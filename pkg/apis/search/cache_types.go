@@ -1,8 +1,9 @@
 package search
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // +genclient
@@ -24,9 +25,9 @@ type ResourceRegistry struct {
 
 // ResourceRegistrySpec defines the desired state of ResourceRegistry.
 type ResourceRegistrySpec struct {
-	// ClusterSelectors represents the filter to select clusters.
+	// TargetCluster is the cluster that the resource registry is targeting.
 	// +required
-	ClusterSelectors []ClusterSelector
+	TargetCluster *policyv1alpha1.ClusterAffinity `json:"targetCluster"`
 
 	// ResourceSelectors used to select resources.
 	// +required
@@ -38,42 +39,15 @@ type ResourceRegistrySpec struct {
 	StatusUpdatePeriodSeconds uint32
 }
 
-// ClusterSelector represents the filter to select clusters.
-type ClusterSelector struct {
-	// LabelSelector is a filter to select member clusters by labels.
-	// If non-nil and non-empty, only the clusters match this filter will be selected.
-	// +optional
-	LabelSelector *metav1.LabelSelector
-
-	// FieldSelector is a filter to select member clusters by fields.
-	// If non-nil and non-empty, only the clusters match this filter will be selected.
-	// +optional
-	FieldSelector *FieldSelector
-
-	// ClusterNames is the list of clusters to be selected.
-	// +optional
-	ClusterNames []string
-
-	// ExcludedClusters is the list of clusters to be ignored.
-	// +optional
-	ExcludeClusters []string
-}
-
-// FieldSelector is a field filter.
-type FieldSelector struct {
-	// A list of field selector requirements.
-	MatchExpressions []corev1.NodeSelectorRequirement
-}
-
 // ResourceSelector the resources will be selected.
 type ResourceSelector struct {
 	// APIVersion represents the API version of the target resources.
 	// +required
 	APIVersion string
 
-	// Kind represents the Kind of the target resources.
+	// Kind represents the kind of the target resources.
 	// +required
-	Kind string
+	Kind string `json:"kind"`
 
 	// Namespace of the target resource.
 	// Default is empty, which means all namespaces.

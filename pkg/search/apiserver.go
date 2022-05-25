@@ -105,8 +105,8 @@ func (c completedConfig) New(kubeClient kubernetes.Interface) (*APIServer, error
 	searchREST := searchstorage.NewSearchREST(kubeClient)
 
 	v1alpha1search := map[string]rest.Storage{}
-	v1alpha1search["resourceRegistry"] = resourceRegistryStorage.ResourceRegistry
-	v1alpha1search["resourceRegistry/status"] = resourceRegistryStorage.Status
+	v1alpha1search["resourceregistries"] = resourceRegistryStorage.ResourceRegistry
+	v1alpha1search["resourceregistries/status"] = resourceRegistryStorage.Status
 	v1alpha1search["search"] = searchREST
 	apiGroupInfo.VersionedResourcesStorageMap["v1alpha1"] = v1alpha1search
 
