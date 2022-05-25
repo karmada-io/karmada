@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
@@ -44,6 +45,10 @@ type ResourceRegistrySpec struct {
 	// ResourceSelectors specifies the resources type that should be cached by cache system.
 	// +required
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
+
+	// BackendStore specifies the location where to store the cached items.
+	// +optional
+	BackendStore *BackendStoreConfig `json:"backendStore,omitempty"`
 }
 
 // ResourceSelector specifies the resources type and its scope.
@@ -60,6 +65,32 @@ type ResourceSelector struct {
 	// Default is empty, which means all namespaces.
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+}
+
+// BackendStoreConfig specifies backend store.
+type BackendStoreConfig struct {
+	// OpenSearch is a community-driven, open source search and analytics suite.
+	// Refer to website(https://opensearch.org/) for more details about OpenSearch.
+	// +optional
+	OpenSearch *OpenSearchConfig `json:"openSearch,omitempty"`
+}
+
+// OpenSearchConfig holds the necessary configuration for client to access and config an OpenSearch server.
+type OpenSearchConfig struct {
+	// Addresses is a list of node endpoint(e.g. 'https://localhost:9200') to use.
+	// For the 'node' concept, please refer to:
+	// https://opensearch.org/docs/latest/opensearch/index/#clusters-and-nodes
+	// +required
+	Addresses []string `json:"addresses"`
+
+	// SecretRef represents the secret contains mandatory credentials to access the server.
+	// The secret should hold credentials as follows:
+	// - secret.data.userName
+	// - secret.data.password
+	// +required
+	SecretRef clusterv1alpha1.LocalSecretReference `json:"secretRef,omitempty"`
+
+	// More configurations such as transport, index should be added from here.
 }
 
 // ResourceRegistryStatus defines the observed state of ResourceRegistry

@@ -69,6 +69,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint":                            schema_pkg_apis_policy_v1alpha1_SpreadConstraint(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterAssignment":                     schema_pkg_apis_policy_v1alpha1_StaticClusterAssignment(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight":                         schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.BackendStoreConfig":                          schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.OpenSearchConfig":                            schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistry":                            schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryList":                        schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec":                        schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref),
@@ -2977,6 +2979,65 @@ func schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BackendStoreConfig specifies backend store.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"openSearch": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OpenSearch is a community-driven, open source search and analytics suite. Refer to website(https://opensearch.org/) for more details about OpenSearch.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.OpenSearchConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.OpenSearchConfig"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OpenSearchConfig holds the necessary configuration for client to access and config an OpenSearch server.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"addresses": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Addresses is a list of node endpoint(e.g. 'https://localhost:9200') to use. For the 'node' concept, please refer to: https://opensearch.org/docs/latest/opensearch/index/#clusters-and-nodes",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecretRef represents the secret contains mandatory credentials to access the server. The secret should hold credentials as follows: - secret.data.userName - secret.data.password",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"),
+						},
+					},
+				},
+				Required: []string{"addresses"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"},
+	}
+}
+
 func schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3104,12 +3165,18 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"backendStore": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BackendStore specifies the location where to store the cached items.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.BackendStoreConfig"),
+						},
+					},
 				},
 				Required: []string{"targetCluster", "resourceSelectors"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.BackendStoreConfig", "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector"},
 	}
 }
 
