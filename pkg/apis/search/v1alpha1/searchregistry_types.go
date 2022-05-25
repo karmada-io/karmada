@@ -21,7 +21,8 @@ const (
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ResourceRegistry defines a list of member cluster to be cached.
+// ResourceRegistry represents the configuration of the cache scope, mainly describes which resources in
+// which clusters should be cached.
 type ResourceRegistry struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -29,28 +30,23 @@ type ResourceRegistry struct {
 	// Spec represents the desired behavior of ResourceRegistry.
 	Spec ResourceRegistrySpec `json:"spec,omitempty"`
 
-	// Status represents the status of ResoruceRegistry.
+	// Status represents the status of ResourceRegistry.
 	// +optional
 	Status ResourceRegistryStatus `json:"status,omitempty"`
 }
 
 // ResourceRegistrySpec defines the desired state of ResourceRegistry.
 type ResourceRegistrySpec struct {
-	// TargetCluster is the cluster that the resource registry is targeting.
+	// TargetCluster specifies the clusters where the cache system collect resource from.
 	// +required
-	TargetCluster *policyv1alpha1.ClusterAffinity `json:"targetCluster"`
+	TargetCluster policyv1alpha1.ClusterAffinity `json:"targetCluster"`
 
-	// ResourceSelectors used to select resources.
+	// ResourceSelectors specifies the resources type that should be cached by cache system.
 	// +required
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
-
-	// StatusUpdatePeriodSeconds is the period to update the status of the resource.
-	// default is 10s.
-	// +optional
-	StatusUpdatePeriodSeconds uint32 `json:"statusUpdatePeriodSeconds,omitempty"`
 }
 
-// ResourceSelector the resources will be selected.
+// ResourceSelector specifies the resources type and its scope.
 type ResourceSelector struct {
 	// APIVersion represents the API version of the target resources.
 	// +required

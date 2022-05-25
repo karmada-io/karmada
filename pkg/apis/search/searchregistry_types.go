@@ -18,28 +18,23 @@ type ResourceRegistry struct {
 	// Spec represents the desired behavior of ResourceRegistry.
 	Spec ResourceRegistrySpec
 
-	// Status represents the status of ResoruceRegistry.
+	// Status represents the status of ResourceRegistry.
 	// +optional
 	Status ResourceRegistryStatus
 }
 
 // ResourceRegistrySpec defines the desired state of ResourceRegistry.
 type ResourceRegistrySpec struct {
-	// TargetCluster is the cluster that the resource registry is targeting.
+	// TargetCluster specifies the clusters where the cache system collect resource from.
 	// +required
-	TargetCluster *policyv1alpha1.ClusterAffinity `json:"targetCluster"`
+	TargetCluster policyv1alpha1.ClusterAffinity `json:"targetCluster"`
 
-	// ResourceSelectors used to select resources.
+	// ResourceSelectors specifies the resources type that should be cached by cache system.
 	// +required
-	ResourceSelectors []ResourceSelector
-
-	// StatusUpdatePeriodSeconds is the period to update the status of the resource.
-	// default is 10s.
-	// +optional
-	StatusUpdatePeriodSeconds uint32
+	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
 }
 
-// ResourceSelector the resources will be selected.
+// ResourceSelector specifies the resources type and its scope.
 type ResourceSelector struct {
 	// APIVersion represents the API version of the target resources.
 	// +required
