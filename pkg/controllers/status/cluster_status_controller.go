@@ -78,6 +78,8 @@ type ClusterStatusController struct {
 	ClusterLeaseRenewIntervalFraction float64
 	// ClusterLeaseControllers store clusters and their corresponding lease controllers.
 	ClusterLeaseControllers sync.Map
+	// ClusterSuccessThreshold is the duration of successes for the cluster to be considered healthy after recovery.
+	ClusterSuccessThreshold metav1.Duration
 	// ClusterFailureThreshold is the duration of failure for the cluster to be considered unhealthy.
 	ClusterFailureThreshold metav1.Duration
 	// clusterConditionCache stores the condition status of each cluster.
@@ -118,6 +120,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.clusterConditionCache = clusterConditionStore{
+		successThreshold: c.ClusterSuccessThreshold.Duration,
 		failureThreshold: c.ClusterFailureThreshold.Duration,
 	}
 	return controllerruntime.NewControllerManagedBy(mgr).
@@ -152,7 +155,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	}
 
 	// skip collecting cluster status if not ready
-	if online && healthy {
+	if online && healthy && readyCondition.Status == metav1.ConditionTrue {
 		// get or create informer for pods and nodes in member cluster
 		clusterInformerManager, err := c.buildInformerForCluster(cluster)
 		if err != nil {
@@ -441,7 +444,7 @@ func getNodeSummary(nodes []*corev1.Node) *clusterv1alpha1.NodeSummary {
 		}
 	}
 
-	var nodeSummary = &clusterv1alpha1.NodeSummary{}
+	nodeSummary := &clusterv1alpha1.NodeSummary{}
 	nodeSummary.TotalNum = int32(totalNum)
 	nodeSummary.ReadyNum = int32(readyNum)
 
@@ -453,7 +456,7 @@ func getResourceSummary(nodes []*corev1.Node, pods []*corev1.Pod) *clusterv1alph
 	allocating := getAllocatingResource(pods)
 	allocated := getAllocatedResource(pods)
 
-	var resourceSummary = &clusterv1alpha1.ResourceSummary{}
+	resourceSummary := &clusterv1alpha1.ResourceSummary{}
 	resourceSummary.Allocatable = allocatable
 	resourceSummary.Allocating = allocating
 	resourceSummary.Allocated = allocated

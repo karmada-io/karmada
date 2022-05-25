@@ -11,6 +11,7 @@ import (
 )
 
 func TestThresholdAdjustedReadyCondition(t *testing.T) {
+	clusterSuccessThreshold := 30 * time.Second
 	clusterFailureThreshold := 30 * time.Second
 
 	tests := []struct {
@@ -65,7 +66,7 @@ func TestThresholdAdjustedReadyCondition(t *testing.T) {
 			},
 		},
 		{
-			name: "cluster becomes not ready but still not reach threshold",
+			name: "cluster becomes not ready but still not reach failure threshold",
 			clusterData: &clusterData{
 				readyCondition:     metav1.ConditionFalse,
 				thresholdStartTime: time.Now().Add(-clusterFailureThreshold / 2),
@@ -84,7 +85,7 @@ func TestThresholdAdjustedReadyCondition(t *testing.T) {
 			},
 		},
 		{
-			name: "cluster becomes not ready and reaches threshold",
+			name: "cluster becomes not ready and reaches failure threshold",
 			clusterData: &clusterData{
 				readyCondition:     metav1.ConditionFalse,
 				thresholdStartTime: time.Now().Add(-clusterFailureThreshold),
@@ -122,10 +123,29 @@ func TestThresholdAdjustedReadyCondition(t *testing.T) {
 			},
 		},
 		{
-			name: "cluster recovers",
+			name: "cluster recovers but still not reach success threshold",
 			clusterData: &clusterData{
-				readyCondition:     metav1.ConditionFalse,
-				thresholdStartTime: time.Now().Add(-3 * clusterFailureThreshold),
+				readyCondition:     metav1.ConditionTrue,
+				thresholdStartTime: time.Now().Add(-clusterSuccessThreshold / 2),
+			},
+			currentCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionFalse,
+			},
+			observedCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionTrue,
+			},
+			expectedCondition: &metav1.Condition{
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: metav1.ConditionFalse,
+			},
+		},
+		{
+			name: "cluster recovers and reaches success threshold",
+			clusterData: &clusterData{
+				readyCondition:     metav1.ConditionTrue,
+				thresholdStartTime: time.Now().Add(-clusterSuccessThreshold),
 			},
 			currentCondition: &metav1.Condition{
 				Type:   clusterv1alpha1.ClusterConditionReady,
@@ -145,6 +165,7 @@ func TestThresholdAdjustedReadyCondition(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cache := clusterConditionStore{
+				successThreshold: clusterSuccessThreshold,
 				failureThreshold: clusterFailureThreshold,
 			}
 
