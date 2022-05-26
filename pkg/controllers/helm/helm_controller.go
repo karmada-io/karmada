@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -13,12 +12,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/hashicorp/go-retryablehttp"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,10 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
-	"github.com/hashicorp/go-retryablehttp"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -121,20 +118,21 @@ func (h *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		func(o client.Object) []string {
 			work := o.(*workv1alpha1.Work)
 			annotations := work.Annotations
-			if annotations == nil {
+			if !helper.CheckAnnotations(annotations) {
 				return []string{}
 			}
-			rbName := annotations[workv1alpha1.ResourceBindingNameLabel]
-			rbNamespace := annotations[workv1alpha1.ResourceBindingNamespaceLabel]
 
-			hrNamespaceName := types.NamespacedName{
-				Namespace: rbNamespace,
-				Name:      strings.Split(rbName, "-")[0],
-			}
-			hr := &v2.HelmRelease{}
-			if err := h.Client.Get(context.TODO(), hrNamespaceName, hr); err != nil {
+			workload := &unstructured.Unstructured{}
+			err := workload.UnmarshalJSON(work.Spec.Workload.Manifests[0].Raw)
+			if err != nil {
 				return []string{}
 			}
+
+			hr, err := helper.ConvertToHelmRelease(workload)
+			if err != nil {
+				return []string{}
+			}
+
 			return []string{
 				fmt.Sprintf("%s/%s", hr.Spec.Chart.GetNamespace(hr.GetNamespace()), hr.GetHelmChartName()),
 			}

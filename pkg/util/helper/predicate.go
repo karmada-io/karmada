@@ -234,7 +234,7 @@ func NewHelmReleasePredicate(mgr controllerruntime.Manager) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			obj := createEvent.Object.(*workv1alpha1.Work)
-			if !checkAnnotations(obj.GetAnnotations()) {
+			if !CheckAnnotations(obj.GetAnnotations()) {
 				return false
 			}
 			clusterName, err := names.GetClusterName(obj.Namespace)
@@ -253,7 +253,7 @@ func NewHelmReleasePredicate(mgr controllerruntime.Manager) predicate.Funcs {
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
-			if !checkAnnotations(obj.GetAnnotations()) {
+			if !CheckAnnotations(obj.GetAnnotations()) {
 				return false
 			}
 			clusterName, err := names.GetClusterName(obj.Namespace)
@@ -272,7 +272,7 @@ func NewHelmReleasePredicate(mgr controllerruntime.Manager) predicate.Funcs {
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*workv1alpha1.Work)
-			if !checkAnnotations(obj.GetAnnotations()) {
+			if !CheckAnnotations(obj.GetAnnotations()) {
 				return false
 			}
 			clusterName, err := names.GetClusterName(obj.Namespace)
@@ -302,15 +302,15 @@ func NewHelmReleasePredicateOnAgent() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			obj := createEvent.Object.(*workv1alpha1.Work)
-			return checkAnnotations(obj.GetAnnotations())
+			return CheckAnnotations(obj.GetAnnotations())
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
-			return checkAnnotations(obj.GetAnnotations())
+			return CheckAnnotations(obj.GetAnnotations())
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*workv1alpha1.Work)
-			return checkAnnotations(obj.GetAnnotations())
+			return CheckAnnotations(obj.GetAnnotations())
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
@@ -318,7 +318,8 @@ func NewHelmReleasePredicateOnAgent() predicate.Funcs {
 	}
 }
 
-func checkAnnotations(annotations map[string]string) bool {
+// CheckAnnotations check annotations of work to judge whether it is a helmRelease workload.
+func CheckAnnotations(annotations map[string]string) bool {
 	if annotations == nil {
 		return false
 	}

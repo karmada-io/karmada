@@ -33,7 +33,6 @@ type ClientConfigSetFunc func(c string, client client.Client) (*rest.Config, err
 type helmReleaseWatcherImpl struct {
 	KubeClientSet              client.Client
 	ClusterClientConfigSetFunc ClientConfigSetFunc
-	//HelmRunner                 *runner.Runner
 }
 
 // NewHelmReleaseWatcher returns an instance of HelmReleaseWatcher
