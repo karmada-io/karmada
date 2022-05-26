@@ -722,7 +722,7 @@ func (sc *serverConn) canonicalHeader(v string) string {
 	// maxCachedCanonicalHeaders is an arbitrarily-chosen limit on the number of
 	// entries in the canonHeader cache. This should be larger than the number
 	// of unique, uncommon header keys likely to be sent by the peer, while not
-	// so high as to permit unreaasonable memory usage if the peer sends an unbounded
+	// so high as to permit unreasonable memory usage if the peer sends an unbounded
 	// number of unique header keys.
 	const maxCachedCanonicalHeaders = 32
 	if len(sc.canonHeader) < maxCachedCanonicalHeaders {
@@ -2546,8 +2546,9 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 // prior to the headers being written. If the set of trailers is fixed
 // or known before the header is written, the normal Go trailers mechanism
 // is preferred:
-//    https://golang.org/pkg/net/http/#ResponseWriter
-//    https://golang.org/pkg/net/http/#example_ResponseWriter_trailers
+//
+//	https://golang.org/pkg/net/http/#ResponseWriter
+//	https://golang.org/pkg/net/http/#example_ResponseWriter_trailers
 const TrailerPrefix = "Trailer:"
 
 // promoteUndeclaredTrailers permits http.Handlers to set trailers
