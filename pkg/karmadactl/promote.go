@@ -417,7 +417,7 @@ func createOrUpdatePropagationPolicy(karmadaClient *karmadaclientset.Clientset, 
 	}
 
 	// PropagationPolicy already exists, not to create it
-	return fmt.Errorf("the PropagationPolicy(%s/%s) in control plane: %v", opts.Namespace, name, err)
+	return fmt.Errorf("the PropagationPolicy(%s/%s) already exist, please edit it to propagate resource", opts.Namespace, name)
 }
 
 // createOrUpdateClusterPropagationPolicy create ClusterPropagationPolicy in karmada control plane
