@@ -58,8 +58,8 @@ type Options struct {
 	ConcurrentWorkSyncs int
 	// HelmControllerRequeueDependency is the interval at which failing dependencies are reevaluated for helm-controller.
 	HelmControllerRequeueDependency time.Duration
-	// HelmControllerHttpRetry is the maximum number of retries when failing to fetch artifacts over HTTP.
-	HelmControllerHttpRetry int
+	// HelmControllerHTTPRetry is the maximum number of retries when failing to fetch artifacts over HTTP.
+	HelmControllerHTTPRetry int
 	// HelmControllerNoCrossNamespaceRefs is the flag whether references between custom resources are allowed.
 	HelmControllerNoCrossNamespaceRefs bool
 	// RateLimiterOptions contains the options for rate limiter.

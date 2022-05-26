@@ -427,15 +427,15 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 
 func startHelmController(ctx controllerscontext.Context) (enabled bool, err error) {
 	helmReleaseWatcher := objectwatcher.NewHelmReleaseWatcher(ctx.Mgr.GetClient(), util.BuildClusterConfig)
-	helmController := &helm.HelmController{
+	helmController := &helm.Controller{
 		Client:              ctx.Mgr.GetClient(),
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(helm.HelmControllerName),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(helm.ControllerName),
 		HelmReleaseWatcher:  helmReleaseWatcher,
 		PredicateFunc:       helper.NewHelmReleasePredicate(ctx.Mgr),
 		RatelimiterOptions:  ctx.Opts.RateLimiterOptions,
 		RequeueDependency:   ctx.Opts.HelmControllerRequeueDependency,
 		NoCrossNamespaceRef: ctx.Opts.HelmControllerNoCrossNamespaceRefs,
-		HTTPRetry:           ctx.Opts.HelmControllerHttpRetry,
+		HTTPRetry:           ctx.Opts.HelmControllerHTTPRetry,
 	}
 	if err = helmController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -522,7 +522,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ConcurrentWorkSyncs:                opts.ConcurrentWorkSyncs,
 			RateLimiterOptions:                 opts.RateLimiterOpts,
 			HelmControllerRequeueDependency:    opts.HelmControllerRequeueDependency,
-			HelmControllerHttpRetry:            opts.HelmControllerHttpRetry,
+			HelmControllerHTTPRetry:            opts.HelmControllerHTTPRetry,
 			HelmControllerNoCrossNamespaceRefs: opts.HelmControllerNoCrossNamespaceRefs,
 		},
 		StopChan:                    stopChan,

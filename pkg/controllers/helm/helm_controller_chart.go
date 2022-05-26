@@ -18,7 +18,6 @@ package helm
 
 import (
 	"context"
-	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -47,7 +46,7 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
-func (h *HelmController) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
+func (h *Controller) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
 	chartName := types.NamespacedName{
 		Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
 		Name:      hr.GetHelmChartName(),
@@ -93,22 +92,10 @@ func (h *HelmController) reconcileChart(ctx context.Context, hr *v2.HelmRelease)
 	return &helmChart, nil
 }
 
-// getHelmChart retrieves the v1beta2.HelmChart for the given
-// v2beta1.HelmRelease using the name that is advertised in the status
-// object. It returns the v1beta2.HelmChart, or an error.
-func (h *HelmController) getHelmChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
-	namespace, name := hr.Status.GetHelmChart()
-	hc := &sourcev1.HelmChart{}
-	if err := h.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hc); err != nil {
-		return nil, err
-	}
-	return hc, nil
-}
-
 // loadHelmChart attempts to download the artifact from the provided source,
 // loads it into a chart.Chart, and removes the downloaded artifact.
 // It returns the loaded chart.Chart on success, or an error.
-func (h *HelmController) loadHelmChart(source *sourcev1.HelmChart) (*chart.Chart, error) {
+func (h *Controller) loadHelmChart(source *sourcev1.HelmChart) (*chart.Chart, error) {
 	f, err := os.CreateTemp("", fmt.Sprintf("%s-%s-*.tgz", source.GetNamespace(), source.GetName()))
 	if err != nil {
 		return nil, err
@@ -149,13 +136,8 @@ func (h *HelmController) loadHelmChart(source *sourcev1.HelmChart) (*chart.Chart
 	return loader.Load(f.Name())
 }
 
-func (h *HelmController) copyAndVerifyArtifact(artifact *sourcev1.Artifact, reader io.Reader, writer io.Writer) error {
+func (h *Controller) copyAndVerifyArtifact(artifact *sourcev1.Artifact, reader io.Reader, writer io.Writer) error {
 	hasher := sha256.New()
-
-	// for backwards compatibility with source-controller v0.17.2 and older
-	if len(artifact.Checksum) == 40 {
-		hasher = sha1.New()
-	}
 
 	// compute checksum
 	mw := io.MultiWriter(hasher, writer)
@@ -173,7 +155,7 @@ func (h *HelmController) copyAndVerifyArtifact(artifact *sourcev1.Artifact, read
 
 // deleteHelmChart deletes the v1beta2.HelmChart of the v2beta1.HelmRelease.
 // input is a helmRelease instance, not a template
-func (h *HelmController) deleteHelmChart(ctx context.Context, hr *v2.HelmRelease) error {
+func (h *Controller) deleteHelmChart(ctx context.Context, hr *v2.HelmRelease) error {
 	if hr.Status.HelmChart == "" {
 		return nil
 	}
@@ -261,7 +243,8 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool
 // composeValues attempts to resolve all v2beta1.ValuesReference resources
 // and merges them as defined. Referenced resources are only retrieved once
 // to ensure a single version is taken into account during the merge.
-func (h *HelmController) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
+//nolint:gocyclo
+func (h *Controller) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
 	result := chartutil.Values{}
 
 	configMaps := make(map[string]*corev1.ConfigMap)
@@ -300,11 +283,11 @@ func (h *HelmController) composeValues(ctx context.Context, hr v2.HelmRelease) (
 				}
 				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 			}
-			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
+			var data string
+			if data, ok = resource.Data[v.GetValuesKey()]; !ok {
 				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
-			} else {
-				valuesData = []byte(data)
 			}
+			valuesData = []byte(data)
 		case "Secret":
 			resource, ok := secrets[namespacedName.String()]
 			if !ok {
@@ -333,11 +316,11 @@ func (h *HelmController) composeValues(ctx context.Context, hr v2.HelmRelease) (
 				}
 				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 			}
-			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
+			var data []byte
+			if data, ok = resource.Data[v.GetValuesKey()]; !ok {
 				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
-			} else {
-				valuesData = data
 			}
+			valuesData = data
 		default:
 			return nil, fmt.Errorf("unsupported ValuesReference kind '%s'", v.Kind)
 		}

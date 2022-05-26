@@ -23,10 +23,12 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 )
 
+// SourceRevisionChangePredicate is a predicate func to watch helmChart source revision changes.
 type SourceRevisionChangePredicate struct {
 	predicate.Funcs
 }
 
+// Update predicates updateEvents when helmChart source revision changes.
 func (SourceRevisionChangePredicate) Update(e event.UpdateEvent) bool {
 	if e.ObjectOld == nil || e.ObjectNew == nil {
 		return false
@@ -54,10 +56,12 @@ func (SourceRevisionChangePredicate) Update(e event.UpdateEvent) bool {
 	return false
 }
 
+// Create predicates createEvents.
 func (SourceRevisionChangePredicate) Create(e event.CreateEvent) bool {
 	return false
 }
 
+// Delete predicates deleteEvents.
 func (SourceRevisionChangePredicate) Delete(e event.DeleteEvent) bool {
 	return false
 }

@@ -16,6 +16,7 @@ limitations under the License.
 
 package helm
 
+//nolint:gosec
 import (
 	"context"
 	"crypto/sha1"
@@ -35,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ConditionError represents an error with a status condition reason attached.
@@ -48,7 +48,7 @@ func (c ConditionError) Error() string {
 	return c.Err.Error()
 }
 
-func (h *HelmController) reconcileV2HelmRelease(ctx context.Context, hr v2.HelmRelease, clusterName string) (v2.HelmRelease, controllerruntime.Result, error) {
+func (h *Controller) reconcileV2HelmRelease(ctx context.Context, hr v2.HelmRelease, clusterName string) (v2.HelmRelease, controllerruntime.Result, error) {
 	start := time.Now()
 	// Return early if the HelmRelease is suspended.
 	if hr.Spec.Suspend {
@@ -59,7 +59,7 @@ func (h *HelmController) reconcileV2HelmRelease(ctx context.Context, hr v2.HelmR
 	hr, result, err := h.reconcile(ctx, hr, clusterName)
 
 	// Log reconciliation duration
-	durationMsg := fmt.Sprintf("HelmRelease reconcilation finished in %s", time.Now().Sub(start).String())
+	durationMsg := fmt.Sprintf("HelmRelease reconcilation finished in %s", time.Since(start).String())
 	if result.RequeueAfter > 0 {
 		durationMsg = fmt.Sprintf("%s, next run in %s", durationMsg, result.RequeueAfter.String())
 	}
@@ -68,7 +68,7 @@ func (h *HelmController) reconcileV2HelmRelease(ctx context.Context, hr v2.HelmR
 	return hr, result, err
 }
 
-func (h *HelmController) reconcile(ctx context.Context, hr v2.HelmRelease, clusterName string) (v2.HelmRelease, controllerruntime.Result, error) {
+func (h *Controller) reconcile(ctx context.Context, hr v2.HelmRelease, clusterName string) (v2.HelmRelease, controllerruntime.Result, error) {
 	// Record the value of the reconciliation request, if any
 	if v, ok := meta.ReconcileAnnotationValue(hr.GetAnnotations()); ok {
 		hr.Status.SetLastHandledReconcileRequest(v)
@@ -134,7 +134,7 @@ func (h *HelmController) reconcile(ctx context.Context, hr v2.HelmRelease, clust
 	return reconciledHr, controllerruntime.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
 }
 
-func (h *HelmController) checkDependencies(hr v2.HelmRelease) error {
+func (h *Controller) checkDependencies(hr v2.HelmRelease) error {
 	for _, d := range hr.Spec.DependsOn {
 		if d.Namespace == "" {
 			d.Namespace = hr.GetNamespace()
@@ -160,7 +160,8 @@ func (h *HelmController) checkDependencies(hr v2.HelmRelease) error {
 	return nil
 }
 
-func (h *HelmController) reconcileRelease(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values, clusterName string) (v2.HelmRelease, error) {
+//nolint:gocyclo
+func (h *Controller) reconcileRelease(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values, clusterName string) (v2.HelmRelease, error) {
 	var err error
 
 	// Determine last release revision.
@@ -256,7 +257,7 @@ func (h *HelmController) reconcileRelease(hr v2.HelmRelease, chart *chart.Chart,
 		// Remediate deployment failure if necessary.
 		if !remediation.RetriesExhausted(hr) || remediation.MustRemediateLastFailure() {
 			if ReleaseRevision(rel) <= releaseRevision {
-				klog.V(6).Info(fmt.Sprintf("skipping remediation, no new release revision created"))
+				klog.V(6).Info("skipping remediation, no new release revision created")
 			} else {
 				var remediationErr error
 				switch remediation.GetStrategy() {
@@ -297,16 +298,7 @@ func (h *HelmController) reconcileRelease(hr v2.HelmRelease, chart *chart.Chart,
 	return v2.HelmReleaseReady(hr), nil
 }
 
-func (h *HelmController) patchStatus(ctx context.Context, hr *v2.HelmRelease) error {
-	key := client.ObjectKeyFromObject(hr)
-	latest := &v2.HelmRelease{}
-	if err := h.Client.Get(ctx, key, latest); err != nil {
-		return err
-	}
-	return h.Client.Status().Patch(ctx, hr, client.MergeFrom(latest))
-}
-
-func (h *HelmController) handleHelmActionResult(
+func (h *Controller) handleHelmActionResult(
 	hr *v2.HelmRelease, err error, action string, condition string, succeededReason string, failedReason string) error {
 	if err != nil {
 		err = fmt.Errorf("Helm %s failed: %w", action, err)
@@ -319,21 +311,21 @@ func (h *HelmController) handleHelmActionResult(
 		}
 		apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
 		return &ConditionError{Reason: failedReason, Err: err}
-	} else {
-		msg := fmt.Sprintf("Helm %s succeeded", action)
-		newCondition := metav1.Condition{
-			Type:    condition,
-			Status:  metav1.ConditionTrue,
-			Reason:  succeededReason,
-			Message: msg,
-		}
-		apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-		return nil
 	}
+	msg := fmt.Sprintf("Helm %s succeeded", action)
+	newCondition := metav1.Condition{
+		Type:    condition,
+		Status:  metav1.ConditionTrue,
+		Reason:  succeededReason,
+		Message: msg,
+	}
+	apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
+	return nil
 }
 
 // ValuesChecksum calculates and returns the SHA1 checksum for the
 // given chartutil.Values.
+//nolint:gosec
 func ValuesChecksum(values chartutil.Values) string {
 	var s string
 	if len(values) != 0 {

@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	HelmDriver = "secret"
+	helmDriver = "secret"
 )
 
 // Runner represents a Helm action runner capable of performing Helm
@@ -63,7 +63,7 @@ type Runner struct {
 func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string) (*Runner, error) {
 	runner := &Runner{}
 	runner.config = new(action.Configuration)
-	if err := runner.config.Init(getter, storageNamespace, HelmDriver, klog.V(6).Infof); err != nil {
+	if err := runner.config.Init(getter, storageNamespace, helmDriver, klog.V(6).Infof); err != nil {
 		return nil, err
 	}
 	return runner, nil
@@ -123,7 +123,7 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	if cRDsPolicy == v2.CreateReplace {
 		crds := chart.CRDObjects()
 		if len(crds) > 0 {
-			if err := r.applyCRDs(cRDsPolicy, hr, chart); err != nil {
+			if err := r.applyCRDs(cRDsPolicy, chart); err != nil {
 				return nil, err
 			}
 		}
@@ -163,7 +163,7 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	if cRDsPolicy != v2.Skip {
 		crds := chart.CRDObjects()
 		if len(crds) > 0 {
-			if err := r.applyCRDs(cRDsPolicy, hr, chart); err != nil {
+			if err := r.applyCRDs(cRDsPolicy, chart); err != nil {
 				return nil, err
 			}
 		}
@@ -197,7 +197,8 @@ func (*rootScoped) Name() meta.RESTScopeName {
 }
 
 // This has been adapted from https://github.com/helm/helm/blob/v3.5.4/pkg/action/install.go#L127
-func (r *Runner) applyCRDs(policy v2.CRDsPolicy, hr v2.HelmRelease, chart *chart.Chart) error {
+//nolint:gocyclo
+func (r *Runner) applyCRDs(policy v2.CRDsPolicy, chart *chart.Chart) error {
 	cfg := r.config
 	cfg.Log("apply CRDs with policy %s", policy)
 	// Collect all CRDs from all files in `crds` directory.
@@ -207,7 +208,7 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, hr v2.HelmRelease, chart *chart
 		res, err := cfg.KubeClient.Build(bytes.NewBuffer(obj.File.Data), false)
 		if err != nil {
 			cfg.Log("failed to parse CRDs from %s: %s", obj.Name, err)
-			return errors.New(fmt.Sprintf("failed to parse CRDs from %s: %s", obj.Name, err))
+			return fmt.Errorf(fmt.Sprintf("failed to parse CRDs from %s: %s", obj.Name, err))
 		}
 		allCrds = append(allCrds, res...)
 	}
@@ -217,7 +218,9 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, hr v2.HelmRelease, chart *chart
 		break
 	case v2.Create:
 		for i := range allCrds {
-			if rr, err := cfg.KubeClient.Create(allCrds[i : i+1]); err != nil {
+			var rr *kube.Result
+			var err error
+			if rr, err = cfg.KubeClient.Create(allCrds[i : i+1]); err != nil {
 				crdName := allCrds[i].Name
 				// If the error is CRD already exists, continue.
 				if apierrors.IsAlreadyExists(err) {
@@ -228,14 +231,12 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, hr v2.HelmRelease, chart *chart
 					continue
 				}
 				cfg.Log("failed to create CRD %s: %s", crdName, err)
-				return errors.New(fmt.Sprintf("failed to create CRD %s: %s", crdName, err))
-			} else {
-				if rr != nil && rr.Created != nil {
-					totalItems = append(totalItems, rr.Created...)
-				}
+				return fmt.Errorf(fmt.Sprintf("failed to create CRD %s: %s", crdName, err))
+			}
+			if rr != nil && rr.Created != nil {
+				totalItems = append(totalItems, rr.Created...)
 			}
 		}
-		break
 	case v2.CreateReplace:
 		config, err := r.config.RESTClientGetter.ToRESTConfig()
 		if err != nil {
@@ -281,23 +282,22 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, hr v2.HelmRelease, chart *chart
 			}
 		}
 		// Send them to Kube
-		if rr, err := cfg.KubeClient.Update(original, allCrds, true); err != nil {
+		var rr *kube.Result
+		if rr, err = cfg.KubeClient.Update(original, allCrds, true); err != nil {
 			cfg.Log("failed to apply CRD %s", err)
-			return errors.New(fmt.Sprintf("failed to apply CRD %s", err))
-		} else {
-			if rr != nil {
-				if rr.Created != nil {
-					totalItems = append(totalItems, rr.Created...)
-				}
-				if rr.Updated != nil {
-					totalItems = append(totalItems, rr.Updated...)
-				}
-				if rr.Deleted != nil {
-					totalItems = append(totalItems, rr.Deleted...)
-				}
+			return fmt.Errorf(fmt.Sprintf("failed to apply CRD %s", err))
+		}
+		if rr != nil {
+			if rr.Created != nil {
+				totalItems = append(totalItems, rr.Created...)
+			}
+			if rr.Updated != nil {
+				totalItems = append(totalItems, rr.Updated...)
+			}
+			if rr.Deleted != nil {
+				totalItems = append(totalItems, rr.Deleted...)
 			}
 		}
-		break
 	}
 	if len(totalItems) > 0 {
 		// Invalidate the local cache, since it will not have the new CRDs
@@ -315,7 +315,9 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, hr v2.HelmRelease, chart *chart
 			return err
 		}
 		// Make sure to force a rebuild of the cache.
-		discoveryClient.ServerGroups()
+		if _, err = discoveryClient.ServerGroups(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

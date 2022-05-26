@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	ReleaseSuffix = "-helmrelease"
+	releaseSuffix = "-helmrelease"
 )
 
 // NewExecutionPredicate generates the event filter function to skip events that the controllers are uninterested.
@@ -234,11 +234,7 @@ func NewHelmReleasePredicate(mgr controllerruntime.Manager) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			obj := createEvent.Object.(*workv1alpha1.Work)
-			annotations := obj.GetAnnotations()
-			if annotations == nil {
-				return false
-			}
-			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+			if !checkAnnotations(obj.GetAnnotations()) {
 				return false
 			}
 			clusterName, err := names.GetClusterName(obj.Namespace)
@@ -257,11 +253,7 @@ func NewHelmReleasePredicate(mgr controllerruntime.Manager) predicate.Funcs {
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
-			annotations := obj.GetAnnotations()
-			if annotations == nil {
-				return false
-			}
-			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+			if !checkAnnotations(obj.GetAnnotations()) {
 				return false
 			}
 			clusterName, err := names.GetClusterName(obj.Namespace)
@@ -280,11 +272,7 @@ func NewHelmReleasePredicate(mgr controllerruntime.Manager) predicate.Funcs {
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*workv1alpha1.Work)
-			annotations := obj.GetAnnotations()
-			if annotations == nil {
-				return false
-			}
-			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
+			if !checkAnnotations(obj.GetAnnotations()) {
 				return false
 			}
 			clusterName, err := names.GetClusterName(obj.Namespace)
@@ -314,39 +302,28 @@ func NewHelmReleasePredicateOnAgent() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			obj := createEvent.Object.(*workv1alpha1.Work)
-			annotations := obj.GetAnnotations()
-			if annotations == nil {
-				return false
-			}
-			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
-				return false
-			}
-			return true
+			return checkAnnotations(obj.GetAnnotations())
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			obj := updateEvent.ObjectNew.(*workv1alpha1.Work)
-			annotations := obj.GetAnnotations()
-			if annotations == nil {
-				return false
-			}
-			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
-				return false
-			}
-			return true
+			return checkAnnotations(obj.GetAnnotations())
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*workv1alpha1.Work)
-			annotations := obj.GetAnnotations()
-			if annotations == nil {
-				return false
-			}
-			if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, ReleaseSuffix) {
-				return false
-			}
-			return true
+			return checkAnnotations(obj.GetAnnotations())
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
 		},
 	}
+}
+
+func checkAnnotations(annotations map[string]string) bool {
+	if annotations == nil {
+		return false
+	}
+	if val, ok := annotations[workv1alpha1.ResourceBindingNameLabel]; !ok || !strings.HasSuffix(val, releaseSuffix) {
+		return false
+	}
+	return true
 }

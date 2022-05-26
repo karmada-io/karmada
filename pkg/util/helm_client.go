@@ -12,11 +12,13 @@ import (
 
 var _ genericclioptions.RESTClientGetter = &ClusterRESTClientGetter{}
 
+// ClusterRESTClientGetter implements a cluster RESTClientGetter for the given member cluster.
 type ClusterRESTClientGetter struct {
 	clusterConfig rest.Config
 	namespace     string
 }
 
+// NewClusterRESTClientGetter returns a ClusterRESTClientGetter for the given member cluster.
 func NewClusterRESTClientGetter(config rest.Config, namespace string) ClusterRESTClientGetter {
 	return ClusterRESTClientGetter{
 		clusterConfig: config,
@@ -24,11 +26,13 @@ func NewClusterRESTClientGetter(config rest.Config, namespace string) ClusterRES
 	}
 }
 
+// ToDiscoveryClient implements the interface of RESTClientGetter.
 func (c *ClusterRESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
 	discoveryClient, _ := discovery.NewDiscoveryClientForConfig(&c.clusterConfig)
 	return memory.NewMemCacheClient(discoveryClient), nil
 }
 
+// ToRESTMapper implements the interface of RESTClientGetter.
 func (c *ClusterRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
 	discoveryClient, err := c.ToDiscoveryClient()
 	if err != nil {
@@ -40,6 +44,7 @@ func (c *ClusterRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
 	return expander, nil
 }
 
+// ToRawKubeConfigLoader implements the interface of RESTClientGetter.
 func (c *ClusterRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
@@ -50,6 +55,7 @@ func (c *ClusterRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
 }
 
+// ToRESTConfig implements the interface of RESTClientGetter.
 func (c *ClusterRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	return &c.clusterConfig, nil
 }

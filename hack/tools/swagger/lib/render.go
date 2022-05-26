@@ -115,6 +115,7 @@ func RenderOpenAPISpec(cfg Config) (string, error) {
 	}
 
 	// Create Swagger Spec.
+	//nolint:staticcheck
 	spec, err := builder.BuildOpenAPISpec(genericServer.Handler.GoRestfulContainer.RegisteredWebServices(), serverConfig.OpenAPIConfig)
 	if err != nil {
 		klog.Fatal(err)

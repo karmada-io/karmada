@@ -39,7 +39,7 @@ func (c *combinedPostRenderer) addRenderer(renderer postrender.PostRenderer) {
 }
 
 func (c *combinedPostRenderer) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
-	var result *bytes.Buffer = renderedManifests
+	var result = renderedManifests
 	for _, renderer := range c.renderers {
 		result, err = renderer.Run(result)
 		if err != nil {

@@ -111,6 +111,7 @@ func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client
 	return &clusterClientSet, nil
 }
 
+// BuildClusterConfig returns a rest config object for the given member cluster.
 func BuildClusterConfig(clusterName string, client client.Client) (*rest.Config, error) {
 	cluster, err := GetCluster(client, clusterName)
 	if err != nil {

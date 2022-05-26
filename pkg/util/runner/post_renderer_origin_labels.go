@@ -16,6 +16,7 @@ limitations under the License.
 
 package runner
 
+//nolint:staticcheck
 import (
 	"bytes"
 	"fmt"

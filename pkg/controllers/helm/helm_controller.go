@@ -42,14 +42,14 @@ import (
 )
 
 const (
-	// HelmControllerName and SourceControllerName is the controller name that will be used when reporting events.
-	HelmControllerName = "helm-controller"
+	// ControllerName is the controller name that will be used when reporting events.
+	ControllerName = "helm-controller"
 
-	Ready = "Ready"
+	ready = "Ready"
 )
 
-// HelmController is to sync Work with helm release.
-type HelmController struct {
+// Controller is to sync Work with helm release.
+type Controller struct {
 	client.Client
 	EventRecorder      record.EventRecorder
 	HelmReleaseWatcher objectwatcher.HelmReleaseWatcher
@@ -66,7 +66,7 @@ type HelmController struct {
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (h *HelmController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
+func (h *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
 
 	work := &workv1alpha1.Work{}
@@ -115,7 +115,7 @@ func (h *HelmController) Reconcile(ctx context.Context, req controllerruntime.Re
 }
 
 // SetupWithManager creates a controller and register to controller manager.
-func (h *HelmController) SetupWithManager(mgr controllerruntime.Manager) error {
+func (h *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	// Index the work by the HelmChart references they point at
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &workv1alpha1.Work{}, v2.SourceIndexKey,
 		func(o client.Object) []string {
@@ -165,7 +165,8 @@ func (h *HelmController) SetupWithManager(mgr controllerruntime.Manager) error {
 		Complete(h)
 }
 
-func (h *HelmController) requestsForHelmChartChange(o client.Object) []reconcile.Request {
+//nolint:gosec
+func (h *Controller) requestsForHelmChartChange(o client.Object) []reconcile.Request {
 	hc, ok := o.(*sourcev1.HelmChart)
 	if !ok {
 		panic(fmt.Sprintf("Expected a HelmChart, got %T", o))
@@ -205,7 +206,7 @@ func (h *HelmController) requestsForHelmChartChange(o client.Object) []reconcile
 	return reqs
 }
 
-func (h *HelmController) syncWork(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (h *Controller) syncWork(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	result, err := h.syncToClusters(ctx, clusterName, work)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, clusterName, err)
@@ -220,7 +221,7 @@ func (h *HelmController) syncWork(ctx context.Context, clusterName string, work 
 }
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
-func (h *HelmController) syncToClusters(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (h *Controller) syncToClusters(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	var errs []error
 	var msg string
 	isReady := false
@@ -271,7 +272,7 @@ func (h *HelmController) syncToClusters(ctx context.Context, clusterName string,
 			continue
 		}
 
-		if meta.IsStatusConditionTrue(hr.Status.Conditions, Ready) {
+		if meta.IsStatusConditionTrue(hr.Status.Conditions, ready) {
 			isReady = true
 			msg = fmt.Sprintf("Successfully synced helmrelease(%v/%v) to cluster %s", hr.GetNamespace(), hr.GetName(), clusterName)
 			klog.V(4).Info(msg)
@@ -301,7 +302,7 @@ func (h *HelmController) syncToClusters(ctx context.Context, clusterName string,
 }
 
 // removeFinalizer remove finalizer from the given Work
-func (h *HelmController) removeFinalizer(work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (h *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	if !controllerutil.ContainsFinalizer(work, util.HelmControllerFinalizer) {
 		return controllerruntime.Result{}, nil
 	}
@@ -315,7 +316,7 @@ func (h *HelmController) removeFinalizer(work *workv1alpha1.Work) (controllerrun
 }
 
 // updateAppliedCondition update the Applied condition for the given Work
-func (h *HelmController) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
+func (h *Controller) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
 	newWorkAppliedCondition := metav1.Condition{
 		Type:               workv1alpha1.WorkApplied,
 		Status:             status,
@@ -341,7 +342,7 @@ func (h *HelmController) updateAppliedCondition(work *workv1alpha1.Work, status 
 	})
 }
 
-func (h *HelmController) patchManifestStatus(work *workv1alpha1.Work, hr v2.HelmRelease) error {
+func (h *Controller) patchManifestStatus(work *workv1alpha1.Work, hr v2.HelmRelease) error {
 	status, err := helper.BuildStatusRawExtension(hr.Status)
 	if err != nil {
 		klog.Errorf("Failed to convert status from helmrelease, err is: %v", err)
@@ -382,7 +383,7 @@ func (h *HelmController) patchManifestStatus(work *workv1alpha1.Work, hr v2.Helm
 	})
 }
 
-func (h *HelmController) tryDeleteWorkload(ctx context.Context, clusterName string, work *workv1alpha1.Work) error {
+func (h *Controller) tryDeleteWorkload(ctx context.Context, clusterName string, work *workv1alpha1.Work) error {
 	for i, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
@@ -421,7 +422,7 @@ func (h *HelmController) tryDeleteWorkload(ctx context.Context, clusterName stri
 	return nil
 }
 
-func (h *HelmController) mergeStatus(statuses []workv1alpha1.ManifestStatus, newStatus workv1alpha1.ManifestStatus) []workv1alpha1.ManifestStatus {
+func (h *Controller) mergeStatus(statuses []workv1alpha1.ManifestStatus, newStatus workv1alpha1.ManifestStatus) []workv1alpha1.ManifestStatus {
 	// For now, we only have at most one manifest in Work, so just override current 'statuses'.
 	return []workv1alpha1.ManifestStatus{newStatus}
 }
