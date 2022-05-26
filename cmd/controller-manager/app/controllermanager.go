@@ -16,6 +16,7 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
+
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -32,6 +33,7 @@ import (
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
+	"github.com/karmada-io/karmada/pkg/controllers/helm"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
@@ -165,6 +167,7 @@ func init() {
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
+	controllers["helm"] = startHelmController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -422,6 +425,24 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 	return true, nil
 }
 
+func startHelmController(ctx controllerscontext.Context) (enabled bool, err error) {
+	helmReleaseWatcher := objectwatcher.NewHelmReleaseWatcher(ctx.Mgr.GetClient(), util.BuildClusterConfig)
+	helmController := &helm.HelmController{
+		Client:              ctx.Mgr.GetClient(),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(helm.HelmControllerName),
+		HelmReleaseWatcher:  helmReleaseWatcher,
+		PredicateFunc:       helper.NewHelmReleasePredicate(ctx.Mgr),
+		RatelimiterOptions:  ctx.Opts.RateLimiterOptions,
+		RequeueDependency:   ctx.Opts.HelmControllerRequeueDependency,
+		NoCrossNamespaceRef: ctx.Opts.HelmControllerNoCrossNamespaceRefs,
+		HTTPRetry:           ctx.Opts.HelmControllerHttpRetry,
+	}
+	if err = helmController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // setupControllers initialize controllers and setup one by one.
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	restConfig := mgr.GetConfig()
@@ -485,21 +506,24 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
 		Opts: controllerscontext.Options{
-			Controllers:                       opts.Controllers,
-			ClusterMonitorPeriod:              opts.ClusterMonitorPeriod,
-			ClusterMonitorGracePeriod:         opts.ClusterMonitorGracePeriod,
-			ClusterStartupGracePeriod:         opts.ClusterStartupGracePeriod,
-			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-			FailoverEvictionTimeout:           opts.FailoverEvictionTimeout,
-			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-			ClusterFailureThreshold:           opts.ClusterFailureThreshold,
-			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
-			ClusterAPIQPS:                     opts.ClusterAPIQPS,
-			ClusterAPIBurst:                   opts.ClusterAPIBurst,
-			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
-			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
-			RateLimiterOptions:                opts.RateLimiterOpts,
+			Controllers:                        opts.Controllers,
+			ClusterMonitorPeriod:               opts.ClusterMonitorPeriod,
+			ClusterMonitorGracePeriod:          opts.ClusterMonitorGracePeriod,
+			ClusterStartupGracePeriod:          opts.ClusterStartupGracePeriod,
+			ClusterStatusUpdateFrequency:       opts.ClusterStatusUpdateFrequency,
+			FailoverEvictionTimeout:            opts.FailoverEvictionTimeout,
+			ClusterLeaseDuration:               opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction:  opts.ClusterLeaseRenewIntervalFraction,
+			ClusterFailureThreshold:            opts.ClusterFailureThreshold,
+			ClusterCacheSyncTimeout:            opts.ClusterCacheSyncTimeout,
+			ClusterAPIQPS:                      opts.ClusterAPIQPS,
+			ClusterAPIBurst:                    opts.ClusterAPIBurst,
+			SkippedPropagatingNamespaces:       opts.SkippedPropagatingNamespaces,
+			ConcurrentWorkSyncs:                opts.ConcurrentWorkSyncs,
+			RateLimiterOptions:                 opts.RateLimiterOpts,
+			HelmControllerRequeueDependency:    opts.HelmControllerRequeueDependency,
+			HelmControllerHttpRetry:            opts.HelmControllerHttpRetry,
+			HelmControllerNoCrossNamespaceRefs: opts.HelmControllerNoCrossNamespaceRefs,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,

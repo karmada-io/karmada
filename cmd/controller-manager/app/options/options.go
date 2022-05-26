@@ -102,8 +102,13 @@ type Options struct {
 	ConcurrentNamespaceSyncs int
 	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
 	ConcurrentResourceTemplateSyncs int
-
-	RateLimiterOpts ratelimiterflag.Options
+	// HelmControllerRequeueDependency is the interval at which failing dependencies are reevaluated for helm-controller.
+	HelmControllerRequeueDependency time.Duration
+	// HelmControllerHttpRetry is the maximum number of retries when failing to fetch artifacts over HTTP.
+	HelmControllerHttpRetry int
+	// HelmControllerNoCrossNamespaceRefs is the flag whether references between custom resources are allowed.
+	HelmControllerNoCrossNamespaceRefs bool
+	RateLimiterOpts                    ratelimiterflag.Options
 }
 
 // NewOptions builds an empty options.
@@ -167,6 +172,9 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.IntVar(&o.ConcurrentNamespaceSyncs, "concurrent-namespace-syncs", 1, "The number of Namespaces that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
 
+	flags.DurationVar(&o.HelmControllerRequeueDependency, "helm-controller-requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
+	flags.IntVar(&o.HelmControllerHttpRetry, "helm-controller-http-retry", 9, "The maximum number of retries when failing to fetch artifacts over HTTP.")
+	flags.BoolVar(&o.HelmControllerNoCrossNamespaceRefs, "helm-controller-no-cross-namespace-refs", false, "When set to true, references between custom resources are allowed "+"only if the reference and the referee are in the same namespace.")
 	o.RateLimiterOpts.AddFlags(flags)
 	features.FeatureGate.AddFlag(flags)
 }

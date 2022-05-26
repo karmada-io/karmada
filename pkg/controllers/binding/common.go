@@ -93,7 +93,14 @@ func ensureWork(
 			return err
 		}
 
+		finalizer := util.ExecutionControllerFinalizer
 		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
+		// the helmrelease kind resource should not be propagated
+		// And it will be managed by helm-controller, not execution_controller
+		if workload.GetKind() == util.HelmReleaseKind {
+			workLabel[util.PropagationInstruction] = util.PropagationInstructionSuppressed
+			finalizer = util.HelmControllerFinalizer
+		}
 
 		if hasScheduledReplica {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
@@ -135,7 +142,7 @@ func ensureWork(
 		workMeta := metav1.ObjectMeta{
 			Name:        names.GenerateWorkName(clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace()),
 			Namespace:   workNamespace,
-			Finalizers:  []string{util.ExecutionControllerFinalizer},
+			Finalizers:  []string{finalizer},
 			Labels:      workLabel,
 			Annotations: annotations,
 		}

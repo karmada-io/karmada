@@ -1,0 +1,238 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: source-controller
+  namespace: karmada-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: source-controller
+  namespace: karmada-system
+  labels:
+    control-plane: controller
+spec:
+  type: ClusterIP
+  selector:
+    app: source-controller
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller
+  name: source-controller
+  namespace: karmada-system
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: source-controller
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+      labels:
+        app: source-controller
+    spec:
+      containers:
+        - args:
+            - --watch-all-namespaces=true
+            - --log-level=info
+            - --log-encoding=json
+            - --storage-path=/data
+            - --storage-adv-addr=source-controller.$(RUNTIME_NAMESPACE).svc.cluster.local.
+          env:
+            - name: RUNTIME_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: KUBECONFIG
+              value: /etc/kubeconfig
+          image: ghcr.io/fluxcd/source-controller:v0.24.4
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: manager
+          ports:
+            - containerPort: 9090
+              name: http
+              protocol: TCP
+            - containerPort: 8080
+              name: http-prom
+              protocol: TCP
+            - containerPort: 9440
+              name: healthz
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /data
+              name: data
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /etc/kubeconfig
+              name: kubeconfig
+              subPath: kubeconfig
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 1337
+      serviceAccount: source-controller
+      serviceAccountName: source-controller
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - emptyDir: {}
+          name: data
+        - emptyDir: {}
+          name: tmp
+        - name: kubeconfig
+          secret:
+            defaultMode: 420
+            secretName: kubeconfig
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crd-controller-flux-system
+rules:
+  - apiGroups:
+      - source.toolkit.fluxcd.io
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - kustomize.toolkit.fluxcd.io
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - helm.toolkit.fluxcd.io
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - notification.toolkit.fluxcd.io
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - image.toolkit.fluxcd.io
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - secrets
+      - configmaps
+      - serviceaccounts
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps/status
+    verbs:
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crd-controller-flux-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: crd-controller-flux-system
+subjects:
+  - kind: ServiceAccount
+    name: source-controller
+    namespace: karmada-system

@@ -9,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -227,4 +229,14 @@ func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 		return nil, err
 	}
 	return &unstructured.Unstructured{Object: uncastObj}, nil
+}
+
+// ConvertToHelmRelease converts a HelmRelease object from unstructured to typed.
+func ConvertToHelmRelease(obj *unstructured.Unstructured) (*v2.HelmRelease, error) {
+	typedObj := &v2.HelmRelease{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
 }

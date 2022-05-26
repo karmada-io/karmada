@@ -15797,6 +15797,11 @@
           "version": "v1beta2"
         },
         {
+          "group": "helm.toolkit.fluxcd.io",
+          "kind": "DeleteOptions",
+          "version": "v2beta1"
+        },
+        {
           "group": "internal.apiserver.k8s.io",
           "kind": "DeleteOptions",
           "version": "v1alpha1"
@@ -15880,6 +15885,11 @@
           "group": "scheduling.k8s.io",
           "kind": "DeleteOptions",
           "version": "v1beta1"
+        },
+        {
+          "group": "source.toolkit.fluxcd.io",
+          "kind": "DeleteOptions",
+          "version": "v1beta2"
         },
         {
           "group": "storage.k8s.io",
@@ -16502,6 +16512,11 @@
           "version": "v1beta2"
         },
         {
+          "group": "helm.toolkit.fluxcd.io",
+          "kind": "WatchEvent",
+          "version": "v2beta1"
+        },
+        {
           "group": "internal.apiserver.k8s.io",
           "kind": "WatchEvent",
           "version": "v1alpha1"
@@ -16585,6 +16600,11 @@
           "group": "scheduling.k8s.io",
           "kind": "WatchEvent",
           "version": "v1beta1"
+        },
+        {
+          "group": "source.toolkit.fluxcd.io",
+          "kind": "WatchEvent",
+          "version": "v1beta2"
         },
         {
           "group": "storage.k8s.io",

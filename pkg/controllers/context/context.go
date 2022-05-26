@@ -1,6 +1,8 @@
 package context
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
@@ -54,6 +56,12 @@ type Options struct {
 	ClusterName string
 	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
 	ConcurrentWorkSyncs int
+	// HelmControllerRequeueDependency is the interval at which failing dependencies are reevaluated for helm-controller.
+	HelmControllerRequeueDependency time.Duration
+	// HelmControllerHttpRetry is the maximum number of retries when failing to fetch artifacts over HTTP.
+	HelmControllerHttpRetry int
+	// HelmControllerNoCrossNamespaceRefs is the flag whether references between custom resources are allowed.
+	HelmControllerNoCrossNamespaceRefs bool
 	// RateLimiterOptions contains the options for rate limiter.
 	RateLimiterOptions ratelimiterflag.Options
 }

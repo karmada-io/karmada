@@ -1,0 +1,37 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: HelmRepository
+metadata:
+  name: podinfo
+spec:
+  interval: 1m
+  url: https://stefanprodan.github.io/podinfo
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: podinfo
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: podinfo
+      interval: 10s
+      version: 5.0.3
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: helm-release
+spec:
+  resourceSelectors:
+    - apiVersion: helm.toolkit.fluxcd.io/v2beta1
+      kind: HelmRelease
+      name: podinfo
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
