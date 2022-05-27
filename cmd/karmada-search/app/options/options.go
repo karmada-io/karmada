@@ -14,7 +14,6 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/client-go/kubernetes"
 	netutils "k8s.io/utils/net"
 
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
@@ -76,11 +75,7 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 
-	restConfig := config.GenericConfig.ClientConfig
-	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
-	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
-
-	server, err := config.Complete().New(kubeClientSet)
+	server, err := config.Complete().New()
 	if err != nil {
 		return err
 	}
@@ -92,11 +87,7 @@ func (o *Options) Run(ctx context.Context) error {
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
 		// start ResourceRegistry controller
-		ctl, err := search.NewController(restConfig, search.CachedResourceHandler())
-		if err != nil {
-			return err
-		}
-		ctl.Start(context.StopCh)
+		config.Controller.Start(context.StopCh)
 		return nil
 	})
 
@@ -117,9 +108,16 @@ func (o *Options) Config() (*search.Config, error) {
 		return nil, err
 	}
 
+	serverConfig.ClientConfig.QPS = o.KubeAPIQPS
+	serverConfig.ClientConfig.Burst = o.KubeAPIBurst
+	ctl, err := search.NewController(serverConfig.ClientConfig, search.CachedResourceHandler())
+	if err != nil {
+		return nil, err
+	}
+
 	config := &search.Config{
 		GenericConfig: serverConfig,
-		ExtraConfig:   search.ExtraConfig{},
+		Controller:    ctl,
 	}
 	return config, nil
 }

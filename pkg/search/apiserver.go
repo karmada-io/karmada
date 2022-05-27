@@ -8,12 +8,13 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	searchapis "github.com/karmada-io/karmada/pkg/apis/search"
 	searchinstall "github.com/karmada-io/karmada/pkg/apis/search/install"
+	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	searchstorage "github.com/karmada-io/karmada/pkg/registry/search/storage"
+	"github.com/karmada-io/karmada/pkg/util/informermanager"
 )
 
 var (
@@ -46,13 +47,16 @@ func init() {
 
 // ExtraConfig holds custom apiserver config
 type ExtraConfig struct {
+	MultiClusterInformerManager informermanager.MultiClusterInformerManager
+	ClusterLister               clusterlister.ClusterLister
+
 	// Add custom config if necessary.
 }
 
 // Config defines the config for the APIServer.
 type Config struct {
 	GenericConfig *genericapiserver.RecommendedConfig
-	ExtraConfig   ExtraConfig
+	Controller    *Controller
 }
 
 // APIServer contains state for karmada-search.
@@ -74,7 +78,10 @@ type CompletedConfig struct {
 func (cfg *Config) Complete() CompletedConfig {
 	c := completedConfig{
 		cfg.GenericConfig.Complete(),
-		&cfg.ExtraConfig,
+		&ExtraConfig{
+			MultiClusterInformerManager: cfg.Controller.InformerManager,
+			ClusterLister:               cfg.Controller.clusterLister,
+		},
 	}
 
 	c.GenericConfig.Version = &version.Info{
@@ -85,7 +92,7 @@ func (cfg *Config) Complete() CompletedConfig {
 	return CompletedConfig{&c}
 }
 
-func (c completedConfig) New(kubeClient kubernetes.Interface) (*APIServer, error) {
+func (c completedConfig) New() (*APIServer, error) {
 	genericServer, err := c.GenericConfig.New("karmada-search", genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
@@ -102,7 +109,7 @@ func (c completedConfig) New(kubeClient kubernetes.Interface) (*APIServer, error
 		klog.Errorf("unable to create REST storage for a resource due to %v, will die", err)
 		return nil, err
 	}
-	searchREST := searchstorage.NewSearchREST(kubeClient)
+	searchREST := searchstorage.NewSearchREST(c.ExtraConfig.MultiClusterInformerManager, c.ExtraConfig.ClusterLister)
 
 	v1alpha1search := map[string]rest.Storage{}
 	v1alpha1search["resourceregistries"] = resourceRegistryStorage.ResourceRegistry
