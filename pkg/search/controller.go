@@ -1,20 +1,22 @@
 package search
 
 import (
+	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog/v2"
+	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -23,15 +25,18 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
+type registrySet map[string]struct{}
+
 type clusterRegistry struct {
-	registries map[string]struct{}
-	resources  map[schema.GroupVersionResource]struct{}
+	registries registrySet
+	resources  map[schema.GroupVersionResource]registrySet
 }
 
 func (c *clusterRegistry) unregistry() bool {
@@ -48,12 +53,11 @@ type Controller struct {
 
 	clusterRegistry sync.Map
 
-	resourceHandler cache.ResourceEventHandler
 	InformerManager informermanager.MultiClusterInformerManager
 }
 
 // NewController returns a new ResourceRegistry controller
-func NewController(restConfig *rest.Config, rh cache.ResourceEventHandler) (*Controller, error) {
+func NewController(restConfig *rest.Config) (*Controller, error) {
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
@@ -72,10 +76,16 @@ func NewController(restConfig *rest.Config, rh cache.ResourceEventHandler) (*Con
 		queue:           queue,
 		restMapper:      restMapper,
 
-		resourceHandler: rh,
 		InformerManager: informermanager.GetInstance(),
 	}
 	c.addAllEventHandlers()
+
+	// TODO: leader election and full sync
+	cs, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	backendstore.Init(cs)
 	return c, nil
 }
 
@@ -197,16 +207,25 @@ func (c *Controller) doCacheCluster(cluster string) error {
 		_ = c.InformerManager.ForCluster(cluster, clusterDynamicClient.DynamicClientSet, 0)
 	}
 
-	if c.resourceHandler != nil {
-		sci := c.InformerManager.GetSingleClusterManager(cluster)
-		for gvr := range cr.resources {
-			klog.Infof("try to start informer for %s, %v", cluster, gvr)
-			// TODO: gvr exists check
-			sci.ForResource(gvr, c.resourceHandler)
-		}
-		sci.Start()
-		_ = sci.WaitForCacheSync()
+	handler := backendstore.GetBackend(cluster).ResourceEventHandlerFuncs()
+	if handler == nil {
+		return fmt.Errorf("failed to get resource event handler for cluster %s", cluster)
 	}
+
+	sci := c.InformerManager.GetSingleClusterManager(cluster)
+	for gvr, registries := range cr.resources {
+		if len(registries) == 0 {
+			// unregisted resource, do nothing.
+			continue
+		}
+
+		klog.Infof("add informer for %s, %v", cluster, gvr)
+		sci.ForResource(gvr, handler)
+	}
+	klog.Infof("start informer for %s", cluster)
+	sci.Start()
+	_ = sci.WaitForCacheSync()
+	klog.Infof("start informer for %s done", cluster)
 
 	return nil
 }
@@ -218,15 +237,23 @@ func (c *Controller) addResourceRegistry(obj interface{}) {
 
 	for _, cluster := range c.getClusters(rr.Spec.TargetCluster) {
 		v, _ := c.clusterRegistry.LoadOrStore(cluster, clusterRegistry{
-			resources:  make(map[schema.GroupVersionResource]struct{}),
-			registries: make(map[string]struct{})})
+			resources:  make(map[schema.GroupVersionResource]registrySet),
+			registries: make(registrySet)})
 		cr := v.(clusterRegistry)
 
 		for _, r := range resources {
-			cr.resources[r] = struct{}{}
+			if cr.resources[r] == nil {
+				cr.resources[r] = make(registrySet)
+			}
+			// add registry record for the resource.
+			cr.resources[r][rr.GetName()] = struct{}{}
 		}
+		// add registry record for the cluster.
 		cr.registries[rr.GetName()] = struct{}{}
 		c.clusterRegistry.Store(cluster, cr)
+
+		// set backendstore
+		backendstore.AddBackend(cluster, rr.Spec.BackendStore)
 
 		c.queue.Add(cluster)
 	}
@@ -245,32 +272,46 @@ func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
 
 	for _, cls := range clusters {
 		v, _ := c.clusterRegistry.LoadOrStore(cls, clusterRegistry{
-			resources:  make(map[schema.GroupVersionResource]struct{}),
-			registries: make(map[string]struct{})})
+			resources:  make(map[schema.GroupVersionResource]registrySet),
+			registries: make(registrySet)})
 		cr := v.(clusterRegistry)
 
 		for _, r := range resources {
-			cr.resources[r] = struct{}{}
+			if cr.resources[r] == nil {
+				cr.resources[r] = make(registrySet)
+			}
+			// add registry record for the resource.
+			cr.resources[r][newRR.GetName()] = struct{}{}
 		}
+		// add registry record for the cluster.
 		cr.registries[newRR.GetName()] = struct{}{}
 		c.clusterRegistry.Store(cls, cr)
 
 		clusterSets[cls] = struct{}{}
+
+		// set backendstore
+		backendstore.AddBackend(cls, newRR.Spec.BackendStore)
+
 		c.queue.Add(cls)
 	}
 
 	for _, cls := range c.getClusters(oldRR.Spec.TargetCluster) {
 		if _, ok := clusterSets[cls]; ok {
+			// Cluster is in both old and new clusters, do nothing.
 			continue
 		}
 
 		v, ok := c.clusterRegistry.Load(cls)
 		if !ok {
+			// unregisted cluster, do nothing.
 			continue
 		}
 
 		cr := v.(clusterRegistry)
 		delete(cr.registries, oldRR.GetName())
+		if cr.unregistry() {
+			cr.resources = make(map[schema.GroupVersionResource]registrySet)
+		}
 		c.clusterRegistry.Store(cls, cr)
 
 		c.queue.Add(cls)
@@ -280,14 +321,25 @@ func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
 // deleteResourceRegistry parse the resourceRegistry object and add deleted Cluster to the queue
 func (c *Controller) deleteResourceRegistry(obj interface{}) {
 	rr := obj.(*v1alpha1.ResourceRegistry)
-
 	for _, cluster := range c.getClusters(rr.Spec.TargetCluster) {
 		v, ok := c.clusterRegistry.Load(cluster)
 		if !ok {
-			return
+			// unregisted cluster, do nothing.
+			continue
 		}
+
 		cr := v.(clusterRegistry)
+		// delete registry record for the cluster.
 		delete(cr.registries, rr.GetName())
+		if cr.unregistry() {
+			cr.resources = make(map[schema.GroupVersionResource]registrySet)
+		}
+
+		// delete registry record for the resource.
+		for k := range cr.resources {
+			delete(cr.resources[k], rr.GetName())
+		}
+
 		c.clusterRegistry.Store(cluster, cr)
 
 		c.queue.Add(cluster)
@@ -296,37 +348,53 @@ func (c *Controller) deleteResourceRegistry(obj interface{}) {
 
 // addCluster adds a cluster object to the queue if needed
 func (c *Controller) addCluster(obj interface{}) {
-	cluster, ok := obj.(*clusterV1alpha1.Cluster)
-	if !ok {
-		klog.Errorf("cannot convert to *clusterV1alpha1.Cluster: %v", obj)
-		return
-	}
-
-	_, ok = c.clusterRegistry.Load(cluster.GetName())
+	cluster := obj.(*clusterV1alpha1.Cluster)
+	_, ok := c.clusterRegistry.Load(cluster.GetName())
 	if ok {
 		// unregistered cluster, do nothing.
 		return
 	}
-
 	c.queue.Add(cluster.GetName())
 }
 
-// updateCluster TODO: rebuild informer if Cluster.Spec is changed
-func (c *Controller) updateCluster(oldObj, newObj interface{}) {}
-
-// deleteCluster set cluster to not exists
-func (c *Controller) deleteCluster(obj interface{}) {
-	cluster, ok := obj.(*clusterV1alpha1.Cluster)
-	if !ok {
-		klog.Errorf("cannot convert to *clusterV1alpha1.Cluster: %v", obj)
-		return
-	}
-
-	_, ok = c.clusterRegistry.Load(cluster.GetName())
+// updateCluster rebuild informer if Cluster.Spec is changed
+func (c *Controller) updateCluster(oldObj, curObj interface{}) {
+	curCluster := curObj.(*clusterV1alpha1.Cluster)
+	_, ok := c.clusterRegistry.Load(curCluster.GetName())
 	if !ok {
 		// unregistered cluster, do nothing.
 		return
 	}
+
+	oldCluster := oldObj.(*clusterV1alpha1.Cluster)
+	if curCluster.ResourceVersion == oldCluster.ResourceVersion {
+		// no change, do nothing.
+		return
+	}
+
+	if curCluster.DeletionTimestamp != nil {
+		// cluster is being deleted.
+		c.queue.Add(curCluster.GetName())
+	}
+
+	if !reflect.DeepEqual(curCluster.Spec, oldCluster.Spec) {
+		// Cluster.Spec is changed, rebuild informer.
+		c.InformerManager.Stop(curCluster.GetName())
+		c.queue.Add(curCluster.GetName())
+	}
+}
+
+// deleteCluster set cluster to not exists
+func (c *Controller) deleteCluster(obj interface{}) {
+	cluster := obj.(*clusterV1alpha1.Cluster)
+	_, ok := c.clusterRegistry.Load(cluster.GetName())
+	if !ok {
+		// unregistered cluster, do nothing.
+		return
+	}
+
+	// remote backend store
+	backendstore.DeleteBackend(cluster.GetName())
 
 	c.queue.Add(cluster.GetName())
 }
@@ -361,31 +429,4 @@ func (c *Controller) getResources(selectors []v1alpha1.ResourceSelector) []schem
 		resources = append(resources, gvr)
 	}
 	return resources
-}
-
-// CachedResourceHandler is the default handler for resource events
-func CachedResourceHandler() cache.ResourceEventHandler {
-	return &cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			us, ok := obj.(*unstructured.Unstructured)
-			if !ok {
-				klog.Errorf("cannot convert to Unstructured: %v", obj)
-			}
-			klog.V(4).Infof("add resource %s, %s, %s, %s", us.GetAPIVersion(), us.GetKind(), us.GetNamespace(), us.GetName())
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			us, ok := newObj.(*unstructured.Unstructured)
-			if !ok {
-				klog.Errorf("cannot convert to Unstructured: %v", newObj)
-			}
-			klog.V(4).Infof("update resource %s, %s, %s, %s", us.GetAPIVersion(), us.GetKind(), us.GetNamespace(), us.GetName())
-		},
-		DeleteFunc: func(obj interface{}) {
-			us, ok := obj.(*unstructured.Unstructured)
-			if !ok {
-				klog.Errorf("cannot convert to Unstructured: %v", obj)
-			}
-			klog.V(4).Infof("delete resource %s, %s, %s, %s", us.GetAPIVersion(), us.GetKind(), us.GetNamespace(), us.GetName())
-		},
-	}
 }
