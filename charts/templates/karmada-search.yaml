@@ -1,0 +1,94 @@
+{{- $name := include "karmada.name" . -}}
+
+{{- if and (eq .Values.installMode "component") (has "search" .Values.components) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-search
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+  {{- include "karmada.search.labels" . | nindent 4}}
+spec:
+  selector:
+    matchLabels:
+    {{- include "karmada.search.labels" . | nindent 6}}
+  replicas: {{ .Values.search.replicaCount }}
+  template:
+    metadata:
+      {{- with .Values.search.podAnnotations}}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "karmada.search.labels" . | nindent 8}}
+      {{- include "karmada.search.podLabels" . | indent 8}}
+    spec:
+      {{- with .Values.search.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.search.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.search.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.search.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      containers:
+        - name: {{ $name }}-search
+          image: {{ .Values.search.image.repository}}:{{ .Values.search.image.tag | default "latest" }}
+          imagePullPolicy: {{ .Values.search.image.pullPolicy }}
+          volumeMounts:
+            - name: k8s-certs
+              mountPath: /etc/kubernetes/pki
+              readOnly: true
+            - name: kubeconfig
+              subPath: kubeconfig
+              mountPath: /etc/kubeconfig
+          command:
+            - /bin/karmada-search
+            - --kubeconfig=/etc/kubeconfig
+            - --authentication-kubeconfig=/etc/kubeconfig
+            - --authorization-kubeconfig=/etc/kubeconfig
+            - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
+            - --etcd-cafile=/etc/kubernetes/pki/server-ca.crt
+            - --etcd-certfile=/etc/kubernetes/pki/karmada.crt
+            - --etcd-keyfile=/etc/kubernetes/pki/karmada.key
+            - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
+            - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --audit-log-path=-
+            - --feature-gates=APIPriorityAndFairness=false
+            - --audit-log-maxage=0
+            - --audit-log-maxbackup=0
+          resources:
+          {{- toYaml .Values.apiServer.resources | nindent 12 }}
+      volumes:
+        - name: k8s-certs
+          secret:
+            secretName: karmada-cert
+        - name: kubeconfig
+          secret:
+            secretName: {{ $name }}-kubeconfig
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-search
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.search.labels" . | nindent 4}}
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 443
+  selector:
+    {{- include "karmada.search.labels" . | nindent 4}}
+
+{{- end }}
