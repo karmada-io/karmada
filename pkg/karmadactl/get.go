@@ -71,7 +71,7 @@ func NewCmdGet(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command
 		SilenceUsage:          true,
 		Example:               getExample(parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd, args); err != nil {
+			if err := o.Complete(); err != nil {
 				return err
 			}
 			if err := o.Validate(cmd); err != nil {
@@ -152,7 +152,7 @@ func NewCommandGetOptions(parent string, streams genericclioptions.IOStreams) *C
 }
 
 // Complete takes the command arguments and infers any remaining options.
-func (g *CommandGetOptions) Complete(cmd *cobra.Command, args []string) error {
+func (g *CommandGetOptions) Complete() error {
 	newScheme := gclient.NewSchema()
 
 	templateArg := ""
