@@ -88,16 +88,16 @@ certs:
 
 ## scheduler config
 scheduler:
-  ## @param scheduler.labels
+  ## @param scheduler.labels labels of the schedeler deployment
   labels:
     app: karmada-scheduler
-  ## @param scheduler.replicaCount target replicas
+  ## @param scheduler.replicaCount target replicas of the scheduler
   replicaCount: 1
-  ## @param scheduler.podAnnotations
+  ## @param scheduler.podAnnotations annotaions of the scheduler pods
   podAnnotations: { }
-  ## @param scheduler.podLabels
+  ## @param scheduler.podLabels labels of the scheduler pods
   podLabels: { }
-  ## @param scheduler.imagePullSecrets
+  ## @param scheduler.imagePullSecrets image pull secret of the scheduler
   imagePullSecrets: [ ]
   image:
     ## @param scheduler.image.repository image of the scheduler
@@ -106,7 +106,7 @@ scheduler:
     pullPolicy: IfNotPresent
     ## @param scheduler.image.tag overrides the image tag whose default is the latest
     tag: latest
-  ## @param scheduler.resources
+  ## @param scheduler.resources resource quota of the scheduler
   resources: { }
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
@@ -116,14 +116,15 @@ scheduler:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-  ## @param scheduler.nodeSelector
+  ## @param scheduler.nodeSelector node selector of the scheduler
   nodeSelector: { }
-  ## @param scheduler.affinity
+  ## @param scheduler.affinity affinity of the scheduler
   affinity: { }
-  ## @param scheduler.tolerations
+  ## @param scheduler.tolerations tolerations of the scheduler
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  ## @param scheduler.strategy strategy of the scheduler
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -132,16 +133,16 @@ scheduler:
 
 ## webhook config
 webhook:
-  ## @param webhook.labels
+  ## @param webhook.labels labels of the webhook deployment
   labels:
     app: karmada-webhook
   ## @param webhook.replicaCount target replicas
   replicaCount: 1
-  ## @param webhook.podAnnotations
+  ## @param webhook.podAnnotations annotaions of the webhook pods
   podAnnotations: { }
-  ## @param webhook.podLabels
+  ## @param webhook.podLabels labels of the webhook pods
   podLabels: { }
-  ## @param webhook.imagePullSecrets
+  ## @param webhook.imagePullSecrets image pull secret of the webhook
   imagePullSecrets: [ ]
   image:
     ## @param webhook.image.repository image of the webhook
@@ -150,7 +151,7 @@ webhook:
     pullPolicy: IfNotPresent
     ## @param webhook.image.tag overrides the image tag whose default is the latest
     tag: latest
-  ## @param webhook.resources
+  ## @param webhook.resources resource quota of the webhook
   resources: { }
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
@@ -160,14 +161,15 @@ webhook:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-  ## @param webhook.nodeSelector
+  ## @param webhook.nodeSelector node selector of the webhook
   nodeSelector: { }
-  ## @param webhook.affinity
+  ## @param webhook.affinity affinity of the webhook
   affinity: { }
-  ## @param webhook.tolerations
+  ## @param webhook.tolerations tolerations of the webhook
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  ## @param webhook.strategy strategy of the webhook
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -176,16 +178,16 @@ webhook:
 
 ## controller manager config
 controllerManager:
-  ## @param controllerManager.labels
+  ## @param controllerManager.labels labels of the karmada-controller-manager deployment
   labels:
     app: karmada-controller-manager
-  ## @param controllerManager.replicaCount target replicas
+  ## @param controllerManager.replicaCount target replicas of the karmada-controller-manager
   replicaCount: 1
-  ## @param controllerManager.podAnnotations
+  ## @param controllerManager.podAnnotations annotaions of the karmada-controller-manager pods
   podAnnotations: { }
-  ## @param controllerManager.podLabels
+  ## @param controllerManager.podLabels labels of the karmada-controller-manager pods
   podLabels: { }
-  ## @param controllerManager.imagePullSecrets
+  ## @param controllerManager.imagePullSecrets image pull secret of the karmada-controller-manager
   imagePullSecrets: [ ]
   image:
     ## @param controllerManager.image.repository image of the controller manager
@@ -194,7 +196,7 @@ controllerManager:
     pullPolicy: IfNotPresent
     ## @param controllerManager.image.tag overrides the image tag whose default is the latest
     tag: latest
-  ## @param controllerManager.resources
+  ## @param controllerManager.resources resource quota of the karmada-controller-manager
   resources: { }
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
@@ -204,14 +206,15 @@ controllerManager:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-  ## @param controllerManager.nodeSelector
+  ## @param controllerManager.nodeSelector node selector of the karmada-controller-manager
   nodeSelector: { }
-  ## @param controllerManager.affinity
+  ## @param controllerManager.affinity affinity of the karmada-controller-manager
   affinity: { }
-  ## @param controllerManager.tolerations
+  ## @param controllerManager.tolerations tolerations of the karmada-controller-manager
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  ## @param controllerManager.strategy strategy of the controller manager
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -220,16 +223,16 @@ controllerManager:
 
 ## karmada apiserver config
 apiServer:
-  ## @param apiServer.labels
+  ## @param apiServer.labels labels of the karmada-apiserver deployment
   labels:
     app: karmada-apiserver
-  ## @param apiServer.replicaCount target replicas
+  ## @param apiServer.replicaCount target replicas of the karmada-apiserver
   replicaCount: 1
-  ## @param apiServer.podAnnotations
+  ## @param apiServer.podAnnotations annotaions of the karmada-apiserver pods
   podAnnotations: { }
-  ## @param apiServer.podLabels
+  ## @param apiServer.podLabels labels of the karmada-apiserver pods
   podLabels: { }
-  ## @param apiServer.imagePullSecrets
+  ## @param apiServer.imagePullSecrets image pull secret of the karmada-apiserver
   imagePullSecrets: []
   image:
     ## @param apiServer.image.repository image of the apiserver
@@ -238,7 +241,7 @@ apiServer:
     pullPolicy: IfNotPresent
     ## @param apiServer.image.tag overrides the image tag whose default is the latest
     tag: "v1.21.7"
-  ## @param apiServer.resources
+  ## @param apiServer.resources resource quota of the karmada-apiserver
   resources: { }
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
@@ -252,9 +255,9 @@ apiServer:
   ## "true" means using hostNetwork
   ## "false" means normal network
   hostNetwork: true
-  ## @param apiServer.nodeSelector
+  ## @param apiServer.nodeSelector node selector of the karmada-apiserver
   nodeSelector: { }
-  ## @param apiServer.affinity
+  ## @param apiServer.affinity affinity of the karmada-apiserver
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -265,7 +268,7 @@ apiServer:
                 values:
                   - karmada-apiserver
           topologyKey: kubernetes.io/hostname
-  ## @param apiServer.tolerations
+  ## @param apiServer.tolerations tolerations of the karmada-apiserver
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
@@ -280,6 +283,7 @@ apiServer:
   nodePort: 0
   maxRequestsInflight: 1500
   maxMutatingRequestsInflight: 500
+  ## @param apiserver.strategy strategy of the apiserver
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -288,16 +292,16 @@ apiServer:
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:
-  ## @param aggregatedApiServer.labels
+  ## @param aggregatedApiServer.labels labels of the karmada-aggregated-apiserver pods
   labels: 
     app: karmada-aggregated-apiserver
-  ## @param aggregatedApiServer.replicaCount target replicas
+  ## @param aggregatedApiServer.replicaCount target replicas of the karmada-aggregated-apiserver
   replicaCount: 1
-  ## @param aggregatedApiServer.podAnnotations
+  ## @param aggregatedApiServer.podAnnotations annotaions of the karmada-aggregated-apiserver pods
   podAnnotations: { }
-  ## @param aggregatedApiServer.podLabels
+  ## @param aggregatedApiServer.podLabels labels of the karmada-aggregated-apiserver pods
   podLabels: { }
-  ## @param aggregatedApiServer.imagePullSecrets
+  ## @param aggregatedApiServer.imagePullSecrets image of the karmada-aggregated-apiserver
   imagePullSecrets: []
   image:
     ## @param aggregatedApiServer.image.repository image of the apiserver
@@ -306,7 +310,7 @@ aggregatedApiServer:
     pullPolicy: IfNotPresent
     ## @param aggregatedApiServer.image.tag overrides the image tag whose default is the latest
     tag: latest
-  ## @param aggregatedApiServer.resources
+  ## @param aggregatedApiServer.resources resource quota of the karmada-aggregated-apiserver
   resources: 
     requests:
       cpu: 100m
@@ -318,14 +322,15 @@ aggregatedApiServer:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-  ## @param aggregatedApiServer.nodeSelector
+  ## @param aggregatedApiServer.nodeSelector node selector of the karmada-aggregated-apiserver
   nodeSelector: { }
-  ## @param aggregatedApiServer.affinity
+  ## @param aggregatedApiServer.affinity affinity of the karmada-aggregated-apiserver
   affinity: { }
-  ## @param aggregatedApiServer.tolerations
+  ## @param aggregatedApiServer.tolerations tolerations of the karmada-aggregated-apiserver
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  ## @param aggregatedApiServer.strategy strategy of the karmada-aggregated-apiserver
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -334,16 +339,16 @@ aggregatedApiServer:
 
 ## kubernetes controller manager config
 kubeControllerManager:
-  ## @param kubeControllerManager.labels
+  ## @param kubeControllerManager.labels labels of the kube-controller-manager deployment
   labels:
     app: kube-controller-manager
-  ## @param kubeControllerManager.replicaCount target replicas
+  ## @param kubeControllerManager.replicaCount target replicas of the kube-controller-manager
   replicaCount: 1
-  ## @param kubeControllerManager.podAnnotations
+  ## @param kubeControllerManager.podAnnotations annotaions of the kube-controller-manager pods
   podAnnotations: {}
-  ## @param kubeControllerManager.podLabels
+  ## @param kubeControllerManager.podLabels labels of the kube-controller-manager pods
   podLabels: {}
-  ## @param kubeControllerManager.imagePullSecrets
+  ## @param kubeControllerManager.imagePullSecrets image pull secret of the kube-controller-manager
   imagePullSecrets: []
   image:
     ## @param kubeControllerManager.image.repository image of the kube controller manager
@@ -352,7 +357,7 @@ kubeControllerManager:
     pullPolicy: IfNotPresent
     ## @param kubeControllerManager.image.tag overrides the image tag whose default is the latest
     tag: "v1.21.7"
-  ## @param kubeControllerManager.resources
+  ## @param kubeControllerManager.resources resource quota of the kube-controller-manager
   resources:
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
@@ -362,14 +367,15 @@ kubeControllerManager:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-  ## @param kubeControllerManager.nodeSelector
+  ## @param kubeControllerManager.nodeSelector node selector of the kube-controller-manager
   nodeSelector: {}
-  ## @param kubeControllerManager.affinity
+  ## @param kubeControllerManager.affinity affinity of the kube-controller-manager
   affinity: {}
-  ## @param kubeControllerManager.tolerations
+  ## @param kubeControllerManager.tolerations tolerations of the kube-controller-manager
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  ## @param kubeControllerManager.strategy strategy of the kube controller manager
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -457,16 +463,16 @@ agent:
       -----END RSA PRIVATE KEY-----
     ## @param agent.kubeconfig.server apiserver of the karmada
     server: ""
-  ## @param agent.labels
+  ## @param agent.labels labels of the agent deployment
   labels:
     app: karmada-agent
   ## @param agent.replicaCount target replicas
   replicaCount: 1
-  ## @param agent.podAnnotations
+  ## @param agent.podAnnotations annotaions of the agent pods
   podAnnotations: { }
-  ## @param agent.podLabels
+  ## @param agent.podLabels labels of the agent pods
   podLabels: { }
-  ## @param agent.imagePullSecrets
+  ## @param agent.imagePullSecrets image pull secret of the agent
   imagePullSecrets: [ ]
   image:
     ## @param agent.image.repository image of the agent
@@ -485,14 +491,15 @@ agent:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-  ## @param agent.nodeSelector
+  ## @param agent.nodeSelector node selector of the agent
   nodeSelector: { }
-  ## @param agent.affinity
+  ## @param agent.affinity affinity of the agent
   affinity: { }
-  ## @param agent.tolerations
+  ## @param agent.tolerations tolerations of the agent
   tolerations: { }
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  ## @param agent.strategy strategy of the agent
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -522,15 +529,15 @@ schedulerEstimator:
       -----END RSA PRIVATE KEY-----
     ## @param schedulerEstimator.kubeconfig.server apiserver of the member cluster
     server: ""
-  ## @param schedulerEstimator.labels
+  ## @param schedulerEstimator.labels labels of the scheduler-estimator deployment
   labels: {}
   ## @param schedulerEstimator.replicaCount target replicas
   replicaCount: 1
-  ## @param schedulerEstimator.podAnnotations
+  ## @param schedulerEstimator.podAnnotations annotaions of the scheduler-estimator pods
   podAnnotations: { }
-  ## @param schedulerEstimator.podLabels
+  ## @param schedulerEstimator.podLabels labels of the scheduler-estimator pods
   podLabels: { }
-  ## @param schedulerEstimator.imagePullSecrets
+  ## @param schedulerEstimator.imagePullSecrets image pull secret of the scheduler-estimator
   imagePullSecrets: [ ]
   image:
     ## @param schedulerEstimator.image.repository image of the apiserver
@@ -539,7 +546,7 @@ schedulerEstimator:
     pullPolicy: IfNotPresent
     ## @param schedulerEstimator.image.tag overrides the image tag whose default is the latest
     tag: "latest"
-  ## @param schedulerEstimator.resources
+  ## @param schedulerEstimator.resources resource quota of the scheduler-estimator
   resources: { }
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
@@ -549,14 +556,15 @@ schedulerEstimator:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-  ## @param schedulerEstimator.nodeSelector
+  ## @param schedulerEstimator.nodeSelector node selector of the scheduler-estimator
   nodeSelector: { }
-  ## @param schedulerEstimator.affinity
+  ## @param schedulerEstimator.affinity affinity of the scheduler-estimator
   affinity: { }
-  ## @param schedulerEstimator.tolerations
+  ## @param schedulerEstimator.tolerations tolerations of the scheduler-estimator
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  ## @param schedulerEstimator.strategy strategy of the scheduler-estimator
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -565,16 +573,16 @@ schedulerEstimator:
 
 ## descheduler config
 descheduler:
-  ## @param descheduler.labels
+  ## @param descheduler.labels labels of the descheduler deployment
   labels:
     app: karmada-descheduler
-  ## @param descheduler.replicaCount target replicas
+  ## @param descheduler.replicaCount target replicas of the descheduler
   replicaCount: 2
-  ## @param descheduler.podAnnotations
+  ## @param descheduler.podAnnotations annotaions of the descheduler pods
   podAnnotations: { }
-  ## @param descheduler.podLabels
+  ## @param descheduler.podLabels labels of the descheduler pods
   podLabels: { }
-  ## @param descheduler.imagePullSecrets
+  ## @param descheduler.imagePullSecrets image pull secret of the descheduler
   imagePullSecrets: [ ]
   image:
     ## @param descheduler.image.repository image of the descheduler
@@ -583,7 +591,7 @@ descheduler:
     pullPolicy: IfNotPresent
     ## @param descheduler.image.tag overrides the image tag whose default is the latest
     tag: latest
-  ## @param descheduler.resources
+  ## @param descheduler.resources resource quota of the descheduler
   resources: { }
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
@@ -593,14 +601,15 @@ descheduler:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-  ## @param descheduler.nodeSelector
+  ## @param descheduler.nodeSelector node selector of the descheduler
   nodeSelector: { }
-  ## @param descheduler.affinity
+  ## @param descheduler.affinity affinity of the descheduler
   affinity: { }
-  ## @param descheduler.tolerations
+  ## @param descheduler.tolerations tolerations of the descheduler
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  ## @param descheduler.strategy strategy of the descheduler
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -609,17 +618,17 @@ descheduler:
 
 ## karmada-search config
 search:
-  ## @param search.labels
+  ## @param search.labels labels of the search deployment
   labels:
     app: karmada-search
     apiserver: "true"
   ## @param search.replicaCount target replicas
   replicaCount: 2
-  ## @param search.podAnnotations
+  ## @param search.podAnnotations annotaions of the search pods
   podAnnotations: { }
-  ## @param search.podLabels
+  ## @param search.podLabels labels of the search pods
   podLabels: { }
-  ## @param search.imagePullSecrets
+  ## @param search.imagePullSecrets image pull secret of the search
   imagePullSecrets: [ ]
   image:
     ## @param search.image.repository image of the descheduler
@@ -628,7 +637,7 @@ search:
     pullPolicy: IfNotPresent
     ## @param search.image.tag overrides the image tag whose default is the latest
     tag: latest
-  ## @param search.resources
+  ## @param search.resources resource quota of the search
   resources: { }
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
@@ -638,14 +647,15 @@ search:
     # requests:
     #   cpu: 100m
   #   memory: 128Mi
-  ## @param search.nodeSelector
+  ## @param search.nodeSelector node selector of the search
   nodeSelector: { }
-  ## @param search.affinity
+  ## @param search.affinity affinity of the search
   affinity: { }
-  ## @param search.tolerations
+  ## @param search.tolerations tolerations of the search
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
   #   operator: Exists
+  ## @param search.strategy strategy of the search
   strategy:
     type: RollingUpdate
     rollingUpdate:
