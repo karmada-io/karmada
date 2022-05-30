@@ -19,7 +19,12 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *policyv1alpha1.Placement, *workv1alpha2.ResourceBindingSpec, *ScheduleAlgorithmOption) (scheduleResult ScheduleResult, err error)
+}
+
+// ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
+type ScheduleAlgorithmOption struct {
+	EnableEmptyWorkloadPropagation bool
 }
 
 // ScheduleResult includes the clusters selected.
@@ -47,7 +52,7 @@ func NewGenericScheduler(
 	}, nil
 }
 
-func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
+func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, scheduleAlgorithmOption *ScheduleAlgorithmOption) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
@@ -77,6 +82,9 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
 	if err != nil {
 		return result, fmt.Errorf("failed to assignReplicas: %v", err)
+	}
+	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
+		clustersWithReplicas = attachZeroReplicasCluster(clusters, clustersWithReplicas)
 	}
 	result.SuggestedClusters = clustersWithReplicas
 
