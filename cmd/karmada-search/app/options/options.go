@@ -16,6 +16,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	netutils "k8s.io/utils/net"
 
+	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
 	"github.com/karmada-io/karmada/pkg/search"
@@ -38,7 +39,7 @@ func NewOptions() *Options {
 	o := &Options{
 		RecommendedOptions: genericoptions.NewRecommendedOptions(
 			defaultEtcdPathPrefix,
-			search.Codecs.LegacyCodec(searchv1alpha1.SchemeGroupVersion)),
+			searchscheme.Codecs.LegacyCodec(searchv1alpha1.SchemeGroupVersion)),
 	}
 	o.RecommendedOptions.Etcd.StorageConfig.EncodeVersioner = runtime.NewMultiGroupVersioner(searchv1alpha1.SchemeGroupVersion,
 		schema.GroupKind{Group: searchv1alpha1.GroupName})
@@ -101,8 +102,8 @@ func (o *Options) Config() (*search.Config, error) {
 		return nil, fmt.Errorf("error creating self-signed certificates: %v", err)
 	}
 
-	serverConfig := genericapiserver.NewRecommendedConfig(search.Codecs)
-	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(search.Scheme))
+	serverConfig := genericapiserver.NewRecommendedConfig(searchscheme.Codecs)
+	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
 	serverConfig.OpenAPIConfig.Info.Title = "karmada-search"
 	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
 		return nil, err

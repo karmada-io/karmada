@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	metainternalversionvalidation "k8s.io/apimachinery/pkg/apis/meta/internalversion/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -13,6 +15,9 @@ import (
 	genericrequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/klog/v2"
+
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
 )
 
 type errorResponse struct {
@@ -36,6 +41,26 @@ func (r *SearchREST) newCacheHandler(info *genericrequest.RequestInfo, responder
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		enc := json.NewEncoder(rw)
 
+		opts := metainternalversion.ListOptions{}
+		if err := searchscheme.ParameterCodec.DecodeParameters(req.URL.Query(), metav1.SchemeGroupVersion, &opts); err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			klog.Errorf("Failed to decode parameters from req.URL.Query(): %v", err)
+			_ = enc.Encode(errorResponse{Error: err.Error()})
+			return
+		}
+
+		if errs := metainternalversionvalidation.ValidateListOptions(&opts); len(errs) > 0 {
+			rw.WriteHeader(http.StatusBadRequest)
+			klog.Errorf("Invalid decoded ListOptions: %v.", errs)
+			_ = enc.Encode(errorResponse{Error: errs.ToAggregate().Error()})
+			return
+		}
+
+		label := labels.Everything()
+		if opts.LabelSelector != nil {
+			label = opts.LabelSelector
+		}
+
 		clusters, err := r.clusterLister.List(labels.Everything())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
@@ -43,52 +68,67 @@ func (r *SearchREST) newCacheHandler(info *genericrequest.RequestInfo, responder
 			return
 		}
 
-		items := make([]runtime.Object, 0)
-		for _, cluster := range clusters {
-			singleClusterManger := r.multiClusterInformerManager.GetSingleClusterManager(cluster.Name)
-			if singleClusterManger == nil {
-				klog.Warningf("SingleClusterInformerManager for cluster(%s) is nil.", cluster.Name)
-				continue
-			}
-
-			switch {
-			case len(info.Namespace) > 0 && len(info.Name) > 0:
-				resourceObject, err := singleClusterManger.Lister(resourceGVR).ByNamespace(info.Namespace).Get(info.Name)
-				if err != nil {
-					klog.Errorf("Failed to get %s resource(%s/%s) from cluster(%s)'s informer cache.",
-						resourceGVR, info.Namespace, info.Name, cluster.Name)
-				}
-				items = append(items, addAnnotationWithClusterName([]runtime.Object{resourceObject}, cluster.Name)...)
-			case len(info.Namespace) > 0:
-				resourceObjects, err := singleClusterManger.Lister(resourceGVR).ByNamespace(info.Namespace).List(labels.Everything())
-				if err != nil {
-					klog.Errorf("Failed to list %s resource under namespace(%s) from cluster(%s)'s informer cache.",
-						resourceGVR, info.Namespace, cluster.Name)
-				}
-				items = append(items, addAnnotationWithClusterName(resourceObjects, cluster.Name)...)
-			case len(info.Name) > 0:
-				resourceObject, err := singleClusterManger.Lister(resourceGVR).Get(info.Name)
-				if err != nil {
-					klog.Errorf("Failed to get %s resource(%s) from cluster(%s)'s informer cache.",
-						resourceGVR, info.Name, cluster.Name)
-				}
-				items = append(items, addAnnotationWithClusterName([]runtime.Object{resourceObject}, cluster.Name)...)
-			default:
-				resourceObjects, err := singleClusterManger.Lister(resourceGVR).List(labels.Everything())
-				if err != nil {
-					klog.Errorf("Failed to list %s resource from cluster(%s)'s informer cache.",
-						resourceGVR, cluster.Name)
-				}
-				items = append(items, addAnnotationWithClusterName(resourceObjects, cluster.Name)...)
-			}
+		// TODO: process opts.Limit to prevent the client from being unable to process the response
+		// due to the large size of the response body.
+		objItems := r.getObjectItemsFromClusters(clusters, resourceGVR, info.Namespace, info.Name, label)
+		rr := reqResponse{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: resourceGVR.GroupVersion().String(),
+				Kind:       "List", // TODO: obtains the kind type of the actual resource list.
+			},
+			Items: objItems,
 		}
-
-		rr := reqResponse{}
-		rr.APIVersion = fmt.Sprintf("%s/%s", info.APIGroup, info.APIVersion)
-		rr.Kind = "List"
-		rr.Items = items
 		_ = enc.Encode(rr)
 	}), nil
+}
+
+func (r *SearchREST) getObjectItemsFromClusters(
+	clusters []*clusterv1alpha1.Cluster,
+	objGVR schema.GroupVersionResource,
+	namespace, name string,
+	label labels.Selector) []runtime.Object {
+	items := make([]runtime.Object, 0)
+
+	// TODO: encapsulating the Interface for Obtaining resource from the Multi-Cluster Cache.
+	for _, cluster := range clusters {
+		singleClusterManger := r.multiClusterInformerManager.GetSingleClusterManager(cluster.Name)
+		if singleClusterManger == nil {
+			klog.Warningf("SingleClusterInformerManager for cluster(%s) is nil.", cluster.Name)
+			continue
+		}
+
+		var err error
+		objLister := singleClusterManger.Lister(objGVR)
+		if len(name) > 0 {
+			var resourceObject runtime.Object
+			if len(namespace) > 0 {
+				resourceObject, err = objLister.ByNamespace(namespace).Get(name)
+			} else {
+				resourceObject, err = objLister.Get(name)
+			}
+			if err != nil {
+				klog.Errorf("Failed to get %s resource(%s/%s) from cluster(%s)'s informer cache: %v",
+					objGVR, namespace, name, cluster.Name, err)
+				continue
+			}
+			items = append(items, addAnnotationWithClusterName([]runtime.Object{resourceObject}, cluster.Name)...)
+		} else {
+			var resourceObjects []runtime.Object
+			if len(namespace) > 0 {
+				resourceObjects, err = objLister.ByNamespace(namespace).List(label)
+			} else {
+				resourceObjects, err = objLister.List(label)
+			}
+			if err != nil {
+				klog.Errorf("Failed to list %s resource from cluster(%s)'s informer cache: %v",
+					objGVR, cluster.Name, err)
+				continue
+			}
+			items = append(items, addAnnotationWithClusterName(resourceObjects, cluster.Name)...)
+		}
+	}
+
+	return items
 }
 
 func addAnnotationWithClusterName(resourceObjects []runtime.Object, clusterName string) []runtime.Object {
@@ -100,6 +140,7 @@ func addAnnotationWithClusterName(resourceObjects []runtime.Object, clusterName 
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
+		// TODO: move this annotation key `cluster.karmada.io/name` to the Cluster API.
 		annotations["cluster.karmada.io/name"] = clusterName
 
 		resource.SetAnnotations(annotations)
