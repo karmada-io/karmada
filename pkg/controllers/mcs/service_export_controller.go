@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -124,7 +125,7 @@ func isWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).Complete(c)
 }
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
