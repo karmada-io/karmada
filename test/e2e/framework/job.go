@@ -68,10 +68,18 @@ func WaitJobDisappearOnCluster(cluster, namespace, name string) {
 	clusterClient := GetClusterClient(cluster)
 	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-	klog.Infof("Waiting for job disappear on cluster(%s)", cluster)
+	klog.Infof("Waiting for job(%s/%s) disappear on cluster(%s)", namespace, name, cluster)
 	gomega.Eventually(func() bool {
 		_, err := clusterClient.BatchV1().Jobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		return apierrors.IsNotFound(err)
+		if err == nil {
+			return false
+		}
+		if apierrors.IsNotFound(err) {
+			return true
+		}
+
+		klog.Errorf("Failed to get job(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
+		return false
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 }
 

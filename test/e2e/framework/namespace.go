@@ -66,10 +66,18 @@ func WaitNamespaceDisappearOnCluster(cluster, name string) {
 	clusterClient := GetClusterClient(cluster)
 	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-	klog.Infof("Waiting for namespace disappear on cluster(%s)", cluster)
+	klog.Infof("Waiting for namespace(%s) disappear on cluster(%s)", name, cluster)
 	gomega.Eventually(func() bool {
 		_, err := clusterClient.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
-		return apierrors.IsNotFound(err)
+		if err == nil {
+			return false
+		}
+		if apierrors.IsNotFound(err) {
+			return true
+		}
+
+		klog.Errorf("Failed to get namespace(%s) on cluster(%s), err: %v", name, cluster, err)
+		return false
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 }
 
