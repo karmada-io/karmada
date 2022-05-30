@@ -25,6 +25,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -119,9 +120,11 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 	c.clusterConditionCache = clusterConditionStore{
 		failureThreshold: c.ClusterFailureThreshold.Duration,
 	}
-	return controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).WithEventFilter(c.PredicateFunc).WithOptions(controller.Options{
-		RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
-	}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).
+		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(c.PredicateFunc)).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
+		}).Complete(c)
 }
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
