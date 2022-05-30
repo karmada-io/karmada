@@ -48,7 +48,7 @@ func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 		Example:               execExample(parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			argsLenAtDash := cmd.ArgsLenAtDash()
-			if err := o.Complete(karmadaConfig, cmd, args, argsLenAtDash); err != nil {
+			if err := o.Complete(karmadaConfig, args, argsLenAtDash); err != nil {
 				return err
 			}
 			if err := o.Validate(cmd); err != nil {
@@ -159,7 +159,7 @@ type ExecOptions struct {
 }
 
 // Complete verifies command line arguments and loads data from the command environment
-func (p *ExecOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Command, argsIn []string, argsLenAtDash int) error {
+func (p *ExecOptions) Complete(karmadaConfig KarmadaConfig, argsIn []string, argsLenAtDash int) error {
 	if len(argsIn) > 0 && argsLenAtDash != 0 {
 		p.ResourceName = argsIn[0]
 	}

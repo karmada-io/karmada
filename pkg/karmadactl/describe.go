@@ -39,7 +39,7 @@ func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 		SilenceUsage:          true,
 		Example:               describeExample(parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(karmadaConfig, cmd, args); err != nil {
+			if err := o.Complete(karmadaConfig, args); err != nil {
 				return err
 			}
 			if err := o.Run(); err != nil {
@@ -107,7 +107,7 @@ func describeExample(parentCommand string) string {
 }
 
 // Complete ensures that options are valid and marshals them if necessary
-func (o *CommandDescribeOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Command, args []string) error {
+func (o *CommandDescribeOptions) Complete(karmadaConfig KarmadaConfig, args []string) error {
 	var err error
 
 	if len(o.Cluster) == 0 {
