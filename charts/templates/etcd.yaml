@@ -61,10 +61,10 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
           ports:
-            - containerPort: 2369
+            - containerPort: 2379
               name: client
               protocol: TCP
-            - containerPort: 2370
+            - containerPort: 2380
               name: server
               protocol: TCP
           resources:
