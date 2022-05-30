@@ -16,6 +16,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
+	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -25,6 +26,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter/prune"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -252,6 +254,8 @@ func promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured
 
 	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
+	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
+
 	if len(obj.GetNamespace()) == 0 {
 		_, err := controlPlaneDynamicClient.Resource(gvr).Get(context.TODO(), opts.name, metav1.GetOptions{})
 		if err == nil {
@@ -285,6 +289,10 @@ func promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured
 
 		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("failed to get resource %q(%s/%s) in control plane: %v", gvr, opts.Namespace, opts.name, err)
+		}
+
+		if _, err = util.EnsureNamespaceExist(controlPlaneKubeClient, opts.Namespace, opts.DryRun); err != nil {
+			return err
 		}
 
 		_, err = controlPlaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
