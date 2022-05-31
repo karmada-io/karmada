@@ -260,7 +260,7 @@ func removeLabels(node *corev1.Node, removesLabel string) {
 
 // deleteConfirmation delete karmada confirmation
 func deleteConfirmation() bool {
-	fmt.Println("Please type (y)es or (n)o and then press enter:")
+	fmt.Print("Please type (y)es or (n)o and then press enter:")
 	var response string
 	_, err := fmt.Scanln(&response)
 	if err != nil {
