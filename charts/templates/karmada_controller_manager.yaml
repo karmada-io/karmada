@@ -55,6 +55,17 @@ spec:
         - name: {{ $name }}-controller-manager
           image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              host: 127.0.0.1
+              path: /healthz
+              port: 10357
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/kubeconfig
