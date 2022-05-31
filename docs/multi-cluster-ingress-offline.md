@@ -86,7 +86,7 @@ helm install ingress-nginx -n ingress-nginx ./ingress-nginx
 测试应用可以参考官方文档[multi-cluster-ingress](https://github.com/karmada-io/karmada/blob/master/docs/multi-cluster-ingress.md)
 
 ### FAQ
-- 在测试应用的最后一步通过port-forward端口转发时没有添加--address参数时，默认走的时127.0.0.1，所以在hosts中添加域名映射时，需要加到127.0.0.1后面
+- 在测试应用的最后一步通过port-forward端口转发时没有添加--address参数时，默认走的是127.0.0.1，所以在hosts中添加域名映射时，需要加到127.0.0.1后面
 ```
 127.0.0.1   localhost localhost.localdomain localhost4 demo.localdev.me
 ```
