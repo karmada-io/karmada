@@ -97,6 +97,9 @@ func addAnnotationWithClusterName(resourceObjects []runtime.Object, clusterName 
 		resource := resourceObjects[index].(*unstructured.Unstructured)
 
 		annotations := resource.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
 		annotations["cluster.karmada.io/name"] = clusterName
 
 		resource.SetAnnotations(annotations)
