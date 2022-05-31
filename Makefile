@@ -104,6 +104,10 @@ update:
 verify:
 	hack/verify-all.sh
 
+.PHONY: release-chart
+release-chart:
+	hack/release-helm-chart.sh $(VERSION)
+
 .PHONY: test
 test:
 	go test --race --v ./pkg/...

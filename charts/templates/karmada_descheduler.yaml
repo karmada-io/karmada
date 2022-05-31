@@ -51,6 +51,15 @@ spec:
             - --kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
             - --v=4
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10358
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:

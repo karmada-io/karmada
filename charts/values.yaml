@@ -16,6 +16,7 @@ components: []
   # components: [
   #   "schedulerEstimator"
   #   "descheduler"
+  #   "search"
   # ]
 
 ## pre-install job config
@@ -600,6 +601,51 @@ descheduler:
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## karmada-search config
+search:
+  ## @param search.labels
+  labels:
+    app: karmada-search
+    apiserver: "true"
+  ## @param search.replicaCount target replicas
+  replicaCount: 2
+  ## @param search.podAnnotations
+  podAnnotations: { }
+  ## @param search.podLabels
+  podLabels: { }
+  ## @param search.imagePullSecrets
+  imagePullSecrets: [ ]
+  image:
+    ## @param search.image.repository image of the descheduler
+    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-search
+    ## @param search.image.pullPolicy pull policy of image
+    pullPolicy: IfNotPresent
+    ## @param search.image.tag overrides the image tag whose default is the latest
+    tag: latest
+  ## @param search.resources
+  resources: { }
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+  #   memory: 128Mi
+  ## @param search.nodeSelector
+  nodeSelector: { }
+  ## @param search.affinity
+  affinity: { }
+  ## @param search.tolerations
+  tolerations: [ ]
+    # - key: node-role.kubernetes.io/master
+  #   operator: Exists
   strategy:
     type: RollingUpdate
     rollingUpdate:

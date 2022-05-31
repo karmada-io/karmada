@@ -83,6 +83,8 @@ type Scheduler struct {
 	schedulerEstimatorCache  *estimatorclient.SchedulerEstimatorCache
 	schedulerEstimatorPort   int
 	schedulerEstimatorWorker util.AsyncWorker
+
+	enableEmptyWorkloadPropagation bool
 }
 
 type schedulerOptions struct {
@@ -92,6 +94,8 @@ type schedulerOptions struct {
 	schedulerEstimatorTimeout metav1.Duration
 	// schedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
 	schedulerEstimatorPort int
+	//enableEmptyWorkloadPropagation represents whether allow workload with replicas 0 propagated to member clusters should be enabled
+	enableEmptyWorkloadPropagation bool
 }
 
 // Option configures a Scheduler
@@ -115,6 +119,13 @@ func WithSchedulerEstimatorTimeout(schedulerEstimatorTimeout metav1.Duration) Op
 func WithSchedulerEstimatorPort(schedulerEstimatorPort int) Option {
 	return func(o *schedulerOptions) {
 		o.schedulerEstimatorPort = schedulerEstimatorPort
+	}
+}
+
+// WithEnableEmptyWorkloadPropagation sets the enablePropagateEmptyWorkLoad for scheduler
+func WithEnableEmptyWorkloadPropagation(enableEmptyWorkloadPropagation bool) Option {
+	return func(o *schedulerOptions) {
+		o.enableEmptyWorkloadPropagation = enableEmptyWorkloadPropagation
 	}
 }
 
@@ -169,6 +180,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, options.schedulerEstimatorTimeout.Duration)
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
+	sched.enableEmptyWorkloadPropagation = options.enableEmptyWorkloadPropagation
 
 	sched.addAllEventHandlers()
 	return sched, nil
@@ -421,7 +433,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.Resour
 		return err
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec)
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
 	if err != nil {
 		klog.Errorf("Failed scheduling ResourceBinding %s/%s: %v", resourceBinding.Namespace, resourceBinding.Name, err)
 		return err
@@ -472,7 +484,7 @@ func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv
 		return err
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
 	if err != nil {
 		klog.V(2).Infof("Failed scheduling ClusterResourceBinding %s: %v", clusterResourceBinding.Name, err)
 		return err

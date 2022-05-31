@@ -119,7 +119,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 
 		ginkgo.BeforeEach(func() {
 			policyNamespace = testNamespace
-			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			policyName = serviceNamePrefix + rand.String(RandomStrLength)
 			serviceNamespace = testNamespace
 			serviceName = policyName
 

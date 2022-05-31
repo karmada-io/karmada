@@ -99,6 +99,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		scheduler.WithEnableSchedulerEstimator(opts.EnableSchedulerEstimator),
 		scheduler.WithSchedulerEstimatorPort(opts.SchedulerEstimatorPort),
 		scheduler.WithSchedulerEstimatorTimeout(opts.SchedulerEstimatorTimeout),
+		scheduler.WithEnableEmptyWorkloadPropagation(opts.EnableEmptyWorkloadPropagation),
 	)
 	if err != nil {
 		return fmt.Errorf("couldn't create scheduler: %w", err)

@@ -161,6 +161,11 @@ function util::install_kubectl {
     fi
 }
 
+# util::install_helm will install the helm command
+function util::install_helm {
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+}
+
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose
 function util::create_signing_certkey {
     local sudo=$1

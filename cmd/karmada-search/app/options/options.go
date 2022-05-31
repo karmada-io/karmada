@@ -110,7 +110,7 @@ func (o *Options) Config() (*search.Config, error) {
 
 	serverConfig.ClientConfig.QPS = o.KubeAPIQPS
 	serverConfig.ClientConfig.Burst = o.KubeAPIBurst
-	ctl, err := search.NewController(serverConfig.ClientConfig, search.CachedResourceHandler())
+	ctl, err := search.NewController(serverConfig.ClientConfig)
 	if err != nil {
 		return nil, err
 	}

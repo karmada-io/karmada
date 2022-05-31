@@ -60,6 +60,15 @@ spec:
             - --bind-address=0.0.0.0
             - --secure-port=10351
             - --feature-gates=Failover=true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10351
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
