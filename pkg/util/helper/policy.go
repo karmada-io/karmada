@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"encoding/json"
 	"fmt"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -152,4 +153,17 @@ func IsReplicaDynamicDivided(strategy *policyv1alpha1.ReplicaSchedulingStrategy)
 	default:
 		return false
 	}
+}
+
+// GetAppliedPlacement will get applied placement from annotations.
+func GetAppliedPlacement(annotations map[string]string) (*policyv1alpha1.Placement, error) {
+	appliedPlacement := util.GetLabelValue(annotations, util.PolicyPlacementAnnotation)
+	if len(appliedPlacement) == 0 {
+		return nil, nil
+	}
+	placement := &policyv1alpha1.Placement{}
+	if err := json.Unmarshal([]byte(appliedPlacement), placement); err != nil {
+		return nil, err
+	}
+	return placement, nil
 }

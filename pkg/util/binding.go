@@ -8,9 +8,9 @@ import (
 )
 
 // GetBindingClusterNames will get clusterName list from bind clusters field
-func GetBindingClusterNames(binding *workv1alpha2.ResourceBinding) []string {
+func GetBindingClusterNames(spec *workv1alpha2.ResourceBindingSpec) []string {
 	var clusterNames []string
-	for _, targetCluster := range binding.Spec.Clusters {
+	for _, targetCluster := range spec.Clusters {
 		clusterNames = append(clusterNames, targetCluster.Name)
 	}
 	return clusterNames
@@ -110,4 +110,15 @@ func MergeTargetClusters(old, new []workv1alpha2.TargetCluster) []workv1alpha2.T
 		new = append(new, workv1alpha2.TargetCluster{Name: key, Replicas: value})
 	}
 	return new
+}
+
+// RemoveTargetCluster will delete a target cluster from cluster list.
+func RemoveTargetCluster(clusters []workv1alpha2.TargetCluster, target string) []workv1alpha2.TargetCluster {
+	res := make([]workv1alpha2.TargetCluster, 0, len(clusters)-1)
+	for _, cluster := range clusters {
+		if cluster.Name != target {
+			res = append(res, cluster)
+		}
+	}
+	return res
 }

@@ -1,15 +1,11 @@
 package core
 
 import (
-	"encoding/json"
-
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
@@ -41,14 +37,12 @@ func validateGVK(reference *workv1alpha2.ObjectReference) bool {
 }
 
 func validatePlacement(binding *workv1alpha2.ResourceBinding) bool {
-	// Check whether the policy allows rescheduling.
-	appliedPlacement := util.GetLabelValue(binding.Annotations, util.PolicyPlacementAnnotation)
-	if len(appliedPlacement) == 0 {
+	placement, err := helper.GetAppliedPlacement(binding.Annotations)
+	if err != nil {
+		klog.ErrorS(err, "Failed to get applied placement when validating", "ResourceBinding", klog.KObj(binding))
 		return false
 	}
-	placement := &policyv1alpha1.Placement{}
-	if err := json.Unmarshal([]byte(appliedPlacement), placement); err != nil {
-		klog.ErrorS(err, "Failed to unmarshal placement when validating", "ResourceBinding", klog.KObj(binding))
+	if placement == nil {
 		return false
 	}
 	return helper.IsReplicaDynamicDivided(placement.ReplicaScheduling)

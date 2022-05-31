@@ -1,6 +1,8 @@
 package util
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
@@ -25,6 +27,9 @@ const (
 type AsyncWorker interface {
 	// Add adds the 'item' to queue immediately(without any delay).
 	Add(item interface{})
+
+	// AddAfter adds an item to the workqueue after the indicated duration has passed
+	AddAfter(item interface{}, duration time.Duration)
 
 	// Enqueue generates the key of 'obj' according to a 'KeyFunc' then adds the key as an item to queue by 'Add'.
 	Enqueue(obj runtime.Object)
@@ -97,6 +102,15 @@ func (w *asyncWorker) Add(item interface{}) {
 	}
 
 	w.queue.Add(item)
+}
+
+func (w *asyncWorker) AddAfter(item interface{}, duration time.Duration) {
+	if item == nil {
+		klog.Warningf("Ignore nil item from queue")
+		return
+	}
+
+	w.queue.AddAfter(item, duration)
 }
 
 func (w *asyncWorker) handleError(err error, key interface{}) {
