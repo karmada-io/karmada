@@ -313,7 +313,7 @@ func NewJob(namespace string, name string) *batchv1.Job {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:    "pi",
-						Image:   "perl",
+						Image:   "perl:5.34.0",
 						Command: []string{"perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"},
 					}},
 					RestartPolicy: corev1.RestartPolicyNever,
