@@ -1,31 +1,33 @@
-# Use flux support helm chart propagation
+# Use Flux to support Helm chart propagation
 
-[Flux](https://github.com/fluxcd/flux) is most useful when used as a deployment tool at the end of a Continuous Delivery pipeline. Flux will make sure that your new container images and config changes are propagated to the cluster.
+[Flux](https://fluxcd.io/) is most useful when used as a deployment tool at the end of a Continuous Delivery pipeline. Flux will make sure that your new container images and config changes are propagated to the cluster.
 
 ## Start up Karmada clusters
-You just need to clone Karmada repo, and run the following script in Karmada directory. 
+You just need to clone the Karmada repo, and run the following script in the `karmada` directory. 
 
 ```
 hack/local-up-karmada.sh
 ```
 
-## Start up flux 
+## Start up Flux 
+
+Install the `flux` binary:
 
 ```
 curl -s https://fluxcd.io/install.sh | sudo bash 
 ```
 
-Install the toolkit controllers in the flux-system namespace:
+Install the toolkit controllers in the `flux-system` namespace:
 
 ```
 flux install
 ```
 
-tips: 
+Tips:
 
- 1. The flux tool is installed on each cluster,Using flux Install requires scientific surfing
+ 1. The Flux toolkit controllers need to be installed on each cluster using the `flux install` command.
 
- 2. If flux is successfully installed, you can see the following Pod
+ 2. If the Flux toolkit controllers are successfully installed, you should see the following Pods:
 
     ```
     [root@10-6-201-150 ~]# kubectl get pod -n flux-system
@@ -36,7 +38,7 @@ tips:
     source-controller-6b8d9cb5cc-7dbcb         1/1     Running   0          15d
     ```
 
-## helm chart propagation
+## Helm chart propagation
 
 1. Define a HelmRepository source
 
@@ -98,7 +100,7 @@ tips:
            - member2
    ```
 
-3. Apply those YAML to karmada-apiserver
+3. Apply those YAMLs to the karmada-apiserver
 
    ```
    [root@10-6-201-150 helm]# kubectl apply -f ../helm/
@@ -122,7 +124,7 @@ tips:
    [root@10-6-201-150 ~]#
    ```
 
-## kustomize propagation
+## Kustomize propagation
 
    1. Define a Git repository source
 
@@ -186,7 +188,7 @@ tips:
            - member2
    ```
 
-3. Apply those YAML to karmada-apiserver
+3. Apply those YAMLs to the karmada-apiserver
 
    ```
    [root@10-6-201-150 flux]# kubectl apply -f kust/
@@ -208,6 +210,4 @@ tips:
 
 ## Reference
 - https://fluxcd.io
-- https://github.com/fluxcd/flux
-- https://github.com/fluxcd/helm-operator
-- https://github.com/fluxcd/kustomize-controller
+- https://github.com/fluxcd
