@@ -1325,6 +1325,7 @@ k8s.io/code-generator/third_party/forked/golang/reflect
 # k8s.io/component-base v0.23.4
 ## explicit; go 1.16
 k8s.io/component-base/cli/flag
+k8s.io/component-base/cli/globalflag
 k8s.io/component-base/config
 k8s.io/component-base/config/v1alpha1
 k8s.io/component-base/featuregate

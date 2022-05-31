@@ -21,6 +21,7 @@ import (
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/component-base/cli/globalflag"
 	netutils "k8s.io/utils/net"
 
 	"github.com/karmada-io/karmada/pkg/aggregatedapiserver"
@@ -63,6 +64,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
+
+	globalflag.AddGlobalFlags(flags, "global")
 }
 
 // Complete fills in fields required to have valid data.
