@@ -32,7 +32,7 @@ spec:
         - operator: Exists
       containers:
         - name: etcd
-          image: k8s.gcr.io/etcd:3.4.13-0
+          image: k8s.gcr.io/etcd:3.5.3-0
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
