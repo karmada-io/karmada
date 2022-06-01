@@ -54,6 +54,17 @@ spec:
             - --v=4
           image: k8s.gcr.io/kube-controller-manager:v1.22.10
           imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              host: 127.0.0.1
+              path: /healthz
+              port: 10257
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
           name: kube-controller-manager
           resources:
             requests:
