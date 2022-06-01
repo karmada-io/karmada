@@ -240,7 +240,7 @@ apiServer:
     ## @param apiServer.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
     ## @param apiServer.image.tag overrides the image tag whose default is the latest
-    tag: "v1.21.7"
+    tag: "v1.22.10"
   ## @param apiServer.resources resource quota of the karmada-apiserver
   resources: { }
     # If you do want to specify resources, uncomment the following
@@ -356,7 +356,7 @@ kubeControllerManager:
     ## @param kubeControllerManager.image.pullPolicy pull policy of image
     pullPolicy: IfNotPresent
     ## @param kubeControllerManager.image.tag overrides the image tag whose default is the latest
-    tag: "v1.21.7"
+    tag: "v1.22.10"
   ## @param kubeControllerManager.resources resource quota of the kube-controller-manager
   resources:
     # If you do want to specify resources, uncomment the following
@@ -419,7 +419,7 @@ etcd:
       ## @param etcd.internal.image.pullPolicy pull policy of image
       pullPolicy: IfNotPresent
       ## @param etcd.internal.image.tag overrides the image tag whose default is the latest
-      tag: "3.4.13-0"
+      tag: "3.5.3-0"
     ## @param etcd.internal.storageType storage type for etcd data
     ## "pvc" means using volumeClaimTemplates
     ## "hostPath" means using hostPath
