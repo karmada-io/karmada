@@ -113,7 +113,7 @@ func initExample(parentCommand string) string {
 		fmt.Sprintf("%s init --etcd-storage-mode hostPath --etcd-node-selector-labels karmada.io/etcd=true", parentCommand) + `
 
 # Private registry can be specified for all images` + "\n" +
-		fmt.Sprintf("%s init --etcd-image local.registry.com/library/etcd:3.5.1-0", parentCommand) + `
+		fmt.Sprintf("%s init --etcd-image local.registry.com/library/etcd:3.5.3-0", parentCommand) + `
 
 # Deploy highly available(HA) karmada` + "\n" +
 		fmt.Sprintf("%s init --karmada-apiserver-replicas 3 --etcd-replicas 3 --etcd-storage-mode PVC --storage-classes-name {StorageClassesName}", parentCommand) + `
