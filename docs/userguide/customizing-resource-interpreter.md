@@ -10,7 +10,9 @@
     - [ReviseReplica](#revisereplica)
     - [Retain](#retain)
     - [AggregateStatus](#aggregatestatus)
-  - [Customize Interpreter](#customize-interpreter)
+    - [InterpretStatus](#interpretstatus)
+    - [InterpretDependency](#interpretdependency)
+  - [Customized Interpreter](#customized-interpreter)
     - [What are interpreter webhooks?](#what-are-interpreter-webhooks)
     - [Write an interpreter webhook server](#write-an-interpreter-webhook-server)
     - [Deploy the admission webhook service](#deploy-the-admission-webhook-service)
@@ -93,6 +95,25 @@ Supported resources:
 - Service(v1)
 - Ingress(extensions/v1beta1)
 - Job(batch/v1)
+- DaemonSet(apps/v1)
+- StatefulSet(apps/v1)
+
+### InterpretStatus
+
+Supported resources:
+- Deployment(apps/v1)
+- Service(v1)
+- Ingress(extensions/v1beta1)
+- Job(batch/v1)
+- DaemonSet(apps/v1)
+- StatefulSet(apps/v1)
+
+### InterpretDependency
+
+Supported resources:
+- Deployment(apps/v1)
+- Job(batch/v1)
+- Pod(v1)
 - DaemonSet(apps/v1)
 - StatefulSet(apps/v1)
 
