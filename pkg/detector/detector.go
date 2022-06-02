@@ -426,7 +426,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 	}
 
 	if matchedClusterPolicy == nil {
-		klog.V(2).Infof("no propagationpolicy match for resource(%s)", objectKey)
+		klog.V(2).Infof("no clusterpropagationpolicy match for resource(%s)", objectKey)
 		return nil, nil
 	}
 	klog.V(2).Infof("Matched cluster policy(%s) for resource(%s)", matchedClusterPolicy.Name, objectKey)
