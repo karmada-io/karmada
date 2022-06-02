@@ -58,7 +58,7 @@ func (i CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVol
 	Volumes = append(Volumes, secretVolume, configVolume)
 
 	switch i.EtcdStorageMode {
-	case "PVC":
+	case etcdStorageModePVC:
 		mode := corev1.PersistentVolumeFilesystem
 		persistentVolumeClaim := corev1.PersistentVolumeClaim{
 			TypeMeta: metav1.TypeMeta{
@@ -83,7 +83,7 @@ func (i CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVol
 		}
 		return &Volumes, &persistentVolumeClaim
 
-	case "hostPath":
+	case etcdStorageModeHostPath:
 		t := corev1.HostPathDirectoryOrCreate
 		hostPath := corev1.Volume{
 			Name: etcdContainerDataVolumeMountName,

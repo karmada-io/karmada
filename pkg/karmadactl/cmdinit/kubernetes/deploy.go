@@ -47,6 +47,12 @@ var (
 	defaultKubeControllerManagerImage = "kube-controller-manager:v1.22.10"
 )
 
+const (
+	etcdStorageModePVC      = "PVC"
+	etcdStorageModeEmptyDir = "emptyDir"
+	etcdStorageModeHostPath = "hostPath"
+)
+
 // CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
 	KubeImageRegistry                  string
@@ -87,22 +93,31 @@ type CommandInitOption struct {
 
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
-	if i.EtcdStorageMode == "hostPath" && i.EtcdHostDataPath == "" {
+	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdHostDataPath == "" {
 		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
 
-	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" && utils.StringToMap(i.EtcdNodeSelectorLabels) == nil {
+	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdNodeSelectorLabels != "" && utils.StringToMap(i.EtcdNodeSelectorLabels) == nil {
 		return fmt.Errorf("the label does not seem to be 'key=value'")
 	}
 
-	if i.EtcdStorageMode == "hostPath" && i.EtcdReplicas != 1 {
+	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdReplicas != 1 {
 		return fmt.Errorf("for data security,when etcd storage mode is hostPath,etcd-replicas can only be 1")
 	}
 
-	if i.EtcdStorageMode == "PVC" && i.StorageClassesName == "" {
+	if i.EtcdStorageMode == etcdStorageModePVC && i.StorageClassesName == "" {
 		return fmt.Errorf("when etcd storage mode is PVC, storageClassesName is not empty. See '%s init --help'", parentCommand)
 	}
 
+	supportedStorageMode := SupportedStorageMode()
+	if i.EtcdStorageMode != "" {
+		for _, mode := range supportedStorageMode {
+			if i.EtcdStorageMode == mode {
+				return nil
+			}
+		}
+		return fmt.Errorf("unsupported etcd-storage-mode %s. See '%s init --help'", i.EtcdStorageMode, parentCommand)
+	}
 	return nil
 }
 
@@ -508,4 +523,9 @@ func homeDir() string {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // windows
+}
+
+// SupportedStorageMode Return install etcd supported storage mode
+func SupportedStorageMode() []string {
+	return []string{etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC}
 }
