@@ -626,3 +626,30 @@ function util:create_gopath_tree() {
 function util:host_platform() {
   echo "$(go env GOHOSTOS)/$(go env GOHOSTARCH)"
 }
+
+# util::set_mirror_registry_for_china_mainland will do proxy setting in China mainland
+# Parameters:
+#  - $1: the root path of repo
+function util::set_mirror_registry_for_china_mainland() {
+  local repo_root=${1}
+  export GOPROXY=https://goproxy.cn,direct # set domestic go proxy
+  # set mirror registry of k8s.gcr.io
+  registry_files=( # Yaml files that contain image host 'k8s.gcr.io' need to be replaced
+    "artifacts/deploy/karmada-etcd.yaml"
+    "artifacts/deploy/karmada-apiserver.yaml"
+    "artifacts/deploy/kube-controller-manager.yaml"
+  )
+  for registry_file in "${registry_files[@]}"; do
+    sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${repo_root}/${registry_file}
+  done
+
+  # set mirror registry in the dockerfile of components of karmada
+  dockerfile_list=( # Dockerfile files need to be replaced
+    "cluster/images/Dockerfile"
+    "cluster/images/buildx.Dockerfile"
+  )
+  for dockerfile in "${dockerfile_list[@]}"; do
+    grep 'mirrors.ustc.edu.cn' ${repo_root}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.15.1#FROM alpine:3.15.1\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.15/main/ > /etc/apk/repositories#" ${repo_root}/${dockerfile}
+  done
+}
+
