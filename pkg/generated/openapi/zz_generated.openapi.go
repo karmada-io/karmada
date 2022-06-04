@@ -682,6 +682,22 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 							Format:      "",
 						},
 					},
+					"proxyHeader": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"provider": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provider represents the cloud provider name of the member cluster.",

@@ -14151,6 +14151,14 @@
           "description": "Provider represents the cloud provider name of the member cluster.",
           "type": "string"
         },
+        "proxyHeader": {
+          "description": "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "default": ""
+          }
+        },
         "proxyURL": {
           "description": "ProxyURL is the proxy URL for the cluster. If not empty, the karmada control plane will use this proxy to talk to the cluster. More details please refer to: https://github.com/kubernetes/client-go/issues/351",
           "type": "string"
