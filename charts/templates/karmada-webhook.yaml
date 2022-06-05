@@ -14,25 +14,25 @@ metadata:
   name: {{ $name }}-webhook
   namespace: {{ include "karmada.namespace" . }}
   labels:
-  {{- include "karmada.webhook.labels" . | nindent 4}}
+  {{- include "karmada.webhook.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.webhook.replicaCount }}
   selector:
     matchLabels:
-      {{- include "karmada.webhook.labels" . | nindent 6}}
+      {{- include "karmada.webhook.labels" . | nindent 6 }}
   {{- with .Values.webhook.strategy }}
   strategy:
   {{- toYaml . | nindent 8 }}
   {{- end }}
   template:
     metadata:
-      {{- with .Values.webhook.podAnnotations}}
+      {{- with .Values.webhook.podAnnotations }}
       annotations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "karmada.webhook.labels" . | nindent 8}}
-        {{- include "karmada.webhook.podLabels" . | nindent 8}}
+        {{- include "karmada.webhook.labels" . | nindent 8 }}
+        {{- include "karmada.webhook.podLabels" . | nindent 8 }}
     spec:
       {{- with .Values.webhook.imagePullSecrets }}
       imagePullSecrets:
@@ -74,7 +74,7 @@ spec:
               port: 8443
               scheme: HTTPS
       volumes:
-      {{- include "karmada.kubeconfig.volume" . | nindent 8}}
+      {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         - name: {{ $name }}-webhook-cert-secret
           secret:
             secretName: {{ $name }}-webhook-cert
@@ -86,7 +86,7 @@ metadata:
   namespace: {{ include "karmada.namespace" . }}
 spec:
   selector:
-    {{- include "karmada.webhook.podLabels" . | nindent 8}}
+    {{- include "karmada.webhook.podLabels" . | nindent 8 }}
     app: {{ $name }}-webhook
   ports:
     - port: 443

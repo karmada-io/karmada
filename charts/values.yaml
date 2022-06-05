@@ -94,11 +94,11 @@ scheduler:
   ## @param scheduler.replicaCount target replicas of the scheduler
   replicaCount: 1
   ## @param scheduler.podAnnotations annotaions of the scheduler pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param scheduler.podLabels labels of the scheduler pods
-  podLabels: { }
+  podLabels: {}
   ## @param scheduler.imagePullSecrets image pull secret of the scheduler
-  imagePullSecrets: [ ]
+  imagePullSecrets: []
   image:
     ## @param scheduler.image.repository image of the scheduler
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler
@@ -107,7 +107,7 @@ scheduler:
     ## @param scheduler.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param scheduler.resources resource quota of the scheduler
-  resources: { }
+  resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
@@ -117,11 +117,11 @@ scheduler:
     #   cpu: 100m
     #   memory: 128Mi
   ## @param scheduler.nodeSelector node selector of the scheduler
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param scheduler.affinity affinity of the scheduler
-  affinity: { }
+  affinity: {}
   ## @param scheduler.tolerations tolerations of the scheduler
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param scheduler.strategy strategy of the scheduler
@@ -139,11 +139,11 @@ webhook:
   ## @param webhook.replicaCount target replicas
   replicaCount: 1
   ## @param webhook.podAnnotations annotaions of the webhook pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param webhook.podLabels labels of the webhook pods
-  podLabels: { }
+  podLabels: {}
   ## @param webhook.imagePullSecrets image pull secret of the webhook
-  imagePullSecrets: [ ]
+  imagePullSecrets: []
   image:
     ## @param webhook.image.repository image of the webhook
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook
@@ -152,7 +152,7 @@ webhook:
     ## @param webhook.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param webhook.resources resource quota of the webhook
-  resources: { }
+  resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
@@ -162,11 +162,11 @@ webhook:
     #   cpu: 100m
     #   memory: 128Mi
   ## @param webhook.nodeSelector node selector of the webhook
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param webhook.affinity affinity of the webhook
-  affinity: { }
+  affinity: {}
   ## @param webhook.tolerations tolerations of the webhook
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param webhook.strategy strategy of the webhook
@@ -184,11 +184,11 @@ controllerManager:
   ## @param controllerManager.replicaCount target replicas of the karmada-controller-manager
   replicaCount: 1
   ## @param controllerManager.podAnnotations annotaions of the karmada-controller-manager pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param controllerManager.podLabels labels of the karmada-controller-manager pods
-  podLabels: { }
+  podLabels: {}
   ## @param controllerManager.imagePullSecrets image pull secret of the karmada-controller-manager
-  imagePullSecrets: [ ]
+  imagePullSecrets: []
   image:
     ## @param controllerManager.image.repository image of the controller manager
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager
@@ -197,7 +197,7 @@ controllerManager:
     ## @param controllerManager.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param controllerManager.resources resource quota of the karmada-controller-manager
-  resources: { }
+  resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
@@ -207,11 +207,11 @@ controllerManager:
     #   cpu: 100m
     #   memory: 128Mi
   ## @param controllerManager.nodeSelector node selector of the karmada-controller-manager
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param controllerManager.affinity affinity of the karmada-controller-manager
-  affinity: { }
+  affinity: {}
   ## @param controllerManager.tolerations tolerations of the karmada-controller-manager
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param controllerManager.strategy strategy of the controller manager
@@ -229,9 +229,9 @@ apiServer:
   ## @param apiServer.replicaCount target replicas of the karmada-apiserver
   replicaCount: 1
   ## @param apiServer.podAnnotations annotaions of the karmada-apiserver pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param apiServer.podLabels labels of the karmada-apiserver pods
-  podLabels: { }
+  podLabels: {}
   ## @param apiServer.imagePullSecrets image pull secret of the karmada-apiserver
   imagePullSecrets: []
   image:
@@ -242,7 +242,7 @@ apiServer:
     ## @param apiServer.image.tag overrides the image tag whose default is the latest
     tag: "v1.22.10"
   ## @param apiServer.resources resource quota of the karmada-apiserver
-  resources: { }
+  resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
@@ -256,7 +256,7 @@ apiServer:
   ## "false" means normal network
   hostNetwork: true
   ## @param apiServer.nodeSelector node selector of the karmada-apiserver
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param apiServer.affinity affinity of the karmada-apiserver
   affinity:
     podAntiAffinity:
@@ -269,7 +269,7 @@ apiServer:
                   - karmada-apiserver
           topologyKey: kubernetes.io/hostname
   ## @param apiServer.tolerations tolerations of the karmada-apiserver
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param apiServer.serviceType default service type for apiserver
@@ -298,9 +298,9 @@ aggregatedApiServer:
   ## @param aggregatedApiServer.replicaCount target replicas of the karmada-aggregated-apiserver
   replicaCount: 1
   ## @param aggregatedApiServer.podAnnotations annotaions of the karmada-aggregated-apiserver pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param aggregatedApiServer.podLabels labels of the karmada-aggregated-apiserver pods
-  podLabels: { }
+  podLabels: {}
   ## @param aggregatedApiServer.imagePullSecrets image of the karmada-aggregated-apiserver
   imagePullSecrets: []
   image:
@@ -323,11 +323,11 @@ aggregatedApiServer:
     #   cpu: 100m
     #   memory: 128Mi
   ## @param aggregatedApiServer.nodeSelector node selector of the karmada-aggregated-apiserver
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param aggregatedApiServer.affinity affinity of the karmada-aggregated-apiserver
-  affinity: { }
+  affinity: {}
   ## @param aggregatedApiServer.tolerations tolerations of the karmada-aggregated-apiserver
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param aggregatedApiServer.strategy strategy of the karmada-aggregated-apiserver
@@ -372,7 +372,7 @@ kubeControllerManager:
   ## @param kubeControllerManager.affinity affinity of the kube-controller-manager
   affinity: {}
   ## @param kubeControllerManager.tolerations tolerations of the kube-controller-manager
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param kubeControllerManager.strategy strategy of the kube controller manager
@@ -430,7 +430,7 @@ etcd:
       ## @param etcd.internal.pvc.size size of PVC
       size: ""
     ## @param etcd.internal.resources
-    resources: { }
+    resources: {}
       # If you do want to specify resources, uncomment the following
       # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
       # limits:
@@ -469,11 +469,11 @@ agent:
   ## @param agent.replicaCount target replicas
   replicaCount: 1
   ## @param agent.podAnnotations annotaions of the agent pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param agent.podLabels labels of the agent pods
-  podLabels: { }
+  podLabels: {}
   ## @param agent.imagePullSecrets image pull secret of the agent
-  imagePullSecrets: [ ]
+  imagePullSecrets: []
   image:
     ## @param agent.image.repository image of the agent
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-agent
@@ -482,7 +482,7 @@ agent:
     ## @param agent.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param agent.resources 
-  resources: { }
+  resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
@@ -492,11 +492,11 @@ agent:
     #   cpu: 100m
     #   memory: 128Mi
   ## @param agent.nodeSelector node selector of the agent
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param agent.affinity affinity of the agent
-  affinity: { }
+  affinity: {}
   ## @param agent.tolerations tolerations of the agent
-  tolerations: { }
+  tolerations: {}
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param agent.strategy strategy of the agent
@@ -534,11 +534,11 @@ schedulerEstimator:
   ## @param schedulerEstimator.replicaCount target replicas
   replicaCount: 1
   ## @param schedulerEstimator.podAnnotations annotaions of the scheduler-estimator pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param schedulerEstimator.podLabels labels of the scheduler-estimator pods
-  podLabels: { }
+  podLabels: {}
   ## @param schedulerEstimator.imagePullSecrets image pull secret of the scheduler-estimator
-  imagePullSecrets: [ ]
+  imagePullSecrets: []
   image:
     ## @param schedulerEstimator.image.repository image of the apiserver
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler-estimator
@@ -547,7 +547,7 @@ schedulerEstimator:
     ## @param schedulerEstimator.image.tag overrides the image tag whose default is the latest
     tag: "latest"
   ## @param schedulerEstimator.resources resource quota of the scheduler-estimator
-  resources: { }
+  resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
@@ -557,11 +557,11 @@ schedulerEstimator:
     #   cpu: 100m
     #   memory: 128Mi
   ## @param schedulerEstimator.nodeSelector node selector of the scheduler-estimator
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param schedulerEstimator.affinity affinity of the scheduler-estimator
-  affinity: { }
+  affinity: {}
   ## @param schedulerEstimator.tolerations tolerations of the scheduler-estimator
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param schedulerEstimator.strategy strategy of the scheduler-estimator
@@ -579,11 +579,11 @@ descheduler:
   ## @param descheduler.replicaCount target replicas of the descheduler
   replicaCount: 2
   ## @param descheduler.podAnnotations annotaions of the descheduler pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param descheduler.podLabels labels of the descheduler pods
-  podLabels: { }
+  podLabels: {}
   ## @param descheduler.imagePullSecrets image pull secret of the descheduler
-  imagePullSecrets: [ ]
+  imagePullSecrets: []
   image:
     ## @param descheduler.image.repository image of the descheduler
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-descheduler
@@ -592,7 +592,7 @@ descheduler:
     ## @param descheduler.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param descheduler.resources resource quota of the descheduler
-  resources: { }
+  resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
@@ -602,11 +602,11 @@ descheduler:
     #   cpu: 100m
     #   memory: 128Mi
   ## @param descheduler.nodeSelector node selector of the descheduler
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param descheduler.affinity affinity of the descheduler
-  affinity: { }
+  affinity: {}
   ## @param descheduler.tolerations tolerations of the descheduler
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param descheduler.strategy strategy of the descheduler
@@ -625,11 +625,11 @@ search:
   ## @param search.replicaCount target replicas
   replicaCount: 2
   ## @param search.podAnnotations annotaions of the search pods
-  podAnnotations: { }
+  podAnnotations: {}
   ## @param search.podLabels labels of the search pods
-  podLabels: { }
+  podLabels: {}
   ## @param search.imagePullSecrets image pull secret of the search
-  imagePullSecrets: [ ]
+  imagePullSecrets: []
   image:
     ## @param search.image.repository image of the descheduler
     repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-search
@@ -638,7 +638,7 @@ search:
     ## @param search.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param search.resources resource quota of the search
-  resources: { }
+  resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
@@ -648,11 +648,11 @@ search:
     #   cpu: 100m
   #   memory: 128Mi
   ## @param search.nodeSelector node selector of the search
-  nodeSelector: { }
+  nodeSelector: {}
   ## @param search.affinity affinity of the search
-  affinity: { }
+  affinity: {}
   ## @param search.tolerations tolerations of the search
-  tolerations: [ ]
+  tolerations: []
     # - key: node-role.kubernetes.io/master
   #   operator: Exists
   ## @param search.strategy strategy of the search

@@ -7,11 +7,11 @@ metadata:
   name: {{ $name }}-aggregated-apiserver
   namespace: {{ include "karmada.namespace" . }}
   labels:
-    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4}}
+    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      {{- include "karmada.aggregatedApiserver.labels" . | nindent 6}}
+      {{- include "karmada.aggregatedApiserver.labels" . | nindent 6 }}
   replicas: {{ .Values.aggregatedApiServer.replicaCount }}
   {{- with .Values.aggregatedApiServer.strategy }}
   strategy:
@@ -24,8 +24,8 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "karmada.aggregatedApiserver.labels" . | nindent 8}}
-        {{- include "karmada.aggregatedApiserver.podLabels" . | nindent 8}}
+        {{- include "karmada.aggregatedApiserver.labels" . | nindent 8 }}
+        {{- include "karmada.aggregatedApiserver.podLabels" . | nindent 8 }}
     spec:
       automountServiceAccountToken: false
       containers:
@@ -33,7 +33,7 @@ spec:
           image: "{{ .Values.aggregatedApiServer.image.repository }}:{{ .Values.aggregatedApiServer.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.aggregatedApiServer.image.pullPolicy }}
           volumeMounts:
-            {{- include "karmada.kubeconfig.volumeMount" . | nindent 12}}
+            {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
             - name: etcd-cert
               mountPath: /etc/etcd/pki
               readOnly: true
@@ -51,13 +51,13 @@ spec:
             - --etcd-keyfile=/etc/etcd/pki/tls.key
             - --etcd-servers={{ .Values.etcd.external.servers }}
             - --etcd-prefix={{ .Values.etcd.external.registryPrefix }}
-            {{- end  }}
+            {{- end }}
             {{- if eq .Values.etcd.mode "internal" }}
             - --etcd-cafile=/etc/etcd/pki/server-ca.crt
             - --etcd-certfile=/etc/etcd/pki/karmada.crt
             - --etcd-keyfile=/etc/etcd/pki/karmada.key
             - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
-            {{- end  }}
+            {{- end }}
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
             - --audit-log-path=-
@@ -87,7 +87,7 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- include "karmada.kubeconfig.volume" . | nindent 8}}
+        {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
         - name: apiserver-cert
           secret:
             secretName: {{ $name }}-cert
@@ -99,7 +99,6 @@ spec:
           {{- if eq .Values.etcd.mode "external" }}
             secretName: external-etcd-cert
           {{- end }}
-
 ---
 apiVersion: v1
 kind: Service
@@ -107,13 +106,13 @@ metadata:
   name: {{ $name }}-aggregated-apiserver
   namespace: {{ include "karmada.namespace" . }}
   labels:
-    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4}}
+    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
 spec:
   ports:
     - port: 443
       protocol: TCP
       targetPort: 443
   selector:
-    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4}}
+    {{- include "karmada.aggregatedApiserver.labels" . | nindent 4 }}
 
 {{- end }}
