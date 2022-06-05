@@ -40,6 +40,10 @@ jobs:
         with:
           version: v3.6.0
 
+      - name: Add dependency chart repos
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+
       - name: Run chart-testing (list-changed)
         id: list-changed
         run: |

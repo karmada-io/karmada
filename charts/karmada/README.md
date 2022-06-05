@@ -125,6 +125,16 @@ helm install karmada-scheduler-estimator -n karmada-system ./charts/karmada
 ```
 
 ## Configuration
+
+### Global parameters
+
+| Name                      | Description                                     | Value |
+| ------------------------- | ----------------------------------------------- | ----- |
+| `global.imageRegistry`    | Global Docker image registry                    | `""`  |
+
+
+### Common parameters
+
 | Name                                      | Description                                                                                                                                                                                                                                   | Value                                                                                                                                                      |
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `installMode`                             | InstallMode "host", "agent" and "component" are provided, "host" means install karmada in the control-cluster, "agent" means install agent client in the member cluster, "component" means install selected components in the control-cluster | `"host"`                                                                                                                                                   |

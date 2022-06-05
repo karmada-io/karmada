@@ -37,7 +37,7 @@ spec:
       {{- end }}
       containers:
         - name: karmada-scheduler-estimator
-          image: "{{ .Values.schedulerEstimator.image.repository }}:{{ .Values.schedulerEstimator.image.tag | default "latest" }}"
+          image: {{ template "karmada.schedulerEstimator.image" . }}
           imagePullPolicy: {{ .Values.schedulerEstimator.image.pullPolicy }}
           command:
             - /bin/karmada-scheduler-estimator

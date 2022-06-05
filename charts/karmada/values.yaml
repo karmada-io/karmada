@@ -2,6 +2,11 @@
 ## This is a YAML-formatted file.
 ## Declare variables to be passed into your templates.
 
+## @param global karmada global config
+global:
+  ## @param global.imageRegistry Global Docker image registry
+  imageRegistry: ""
+
 ## @param installMode "host" and "agent" are provided
 ## "host" means install karmada in the control-cluster
 ## "agent" means install agent client in the member cluster
@@ -99,13 +104,19 @@ scheduler:
   podLabels: {}
   ## @param scheduler.imagePullSecrets image pull secret of the scheduler
   imagePullSecrets: []
+  ## @param image.registry karmada scheduler image registry
+  ## @param image.repository karmada scheduler image repository
+  ## @param image.tag karmada scheduler image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada scheduler image pull policy
+  ##
   image:
-    ## @param scheduler.image.repository image of the scheduler
-    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler
-    ## @param scheduler.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param scheduler.image.tag overrides the image tag whose default is the latest
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-scheduler
     tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param scheduler.resources resource quota of the scheduler
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -144,13 +155,19 @@ webhook:
   podLabels: {}
   ## @param webhook.imagePullSecrets image pull secret of the webhook
   imagePullSecrets: []
+  ## @param image.registry karmada webhook image registry
+  ## @param image.repository karmada webhook image repository
+  ## @param image.tag karmada webhook image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada webhook image pull policy
+  ##
   image:
-    ## @param webhook.image.repository image of the webhook
-    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-webhook
-    ## @param webhook.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param webhook.image.tag overrides the image tag whose default is the latest
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-webhook
     tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param webhook.resources resource quota of the webhook
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -189,13 +206,19 @@ controllerManager:
   podLabels: {}
   ## @param controllerManager.imagePullSecrets image pull secret of the karmada-controller-manager
   imagePullSecrets: []
+  ## @param image.registry karmada controller manager image registry
+  ## @param image.repository karmada controller manager image repository
+  ## @param image.tag karmada controller manager image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada controller manager image pull policy
+  ##
   image:
-    ## @param controllerManager.image.repository image of the controller manager
-    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager
-    ## @param controllerManager.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param controllerManager.image.tag overrides the image tag whose default is the latest
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-controller-manager
     tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param controllerManager.resources resource quota of the karmada-controller-manager
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -234,13 +257,19 @@ apiServer:
   podLabels: {}
   ## @param apiServer.imagePullSecrets image pull secret of the karmada-apiserver
   imagePullSecrets: []
+  ## @param image.registry keube-apiserver image registry
+  ## @param image.repository keube-apiserver image repository
+  ## @param image.tag keube-apiserver image tag (immutable tags are recommended)
+  ## @param image.pullPolicy keube-apiserver image pull policy
+  ##
   image:
-    ## @param apiServer.image.repository image of the apiserver
-    repository: k8s.gcr.io/kube-apiserver
-    ## @param apiServer.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param apiServer.image.tag overrides the image tag whose default is the latest
+    registry: k8s.gcr.io
+    repository: kube-apiserver
     tag: "v1.22.10"
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param apiServer.resources resource quota of the karmada-apiserver
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -303,13 +332,19 @@ aggregatedApiServer:
   podLabels: {}
   ## @param aggregatedApiServer.imagePullSecrets image of the karmada-aggregated-apiserver
   imagePullSecrets: []
+  ## @param image.registry karmada aggregatedApiServer image registry
+  ## @param image.repository karmada aggregatedApiServer image repository
+  ## @param image.tag karmada aggregatedApiServer image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada aggregatedApiServer image pull policy
+  ##
   image:
-    ## @param aggregatedApiServer.image.repository image of the apiserver
-    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-aggregated-apiserver
-    ## @param aggregatedApiServer.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param aggregatedApiServer.image.tag overrides the image tag whose default is the latest
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-aggregated-apiserver
     tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param aggregatedApiServer.resources resource quota of the karmada-aggregated-apiserver
   resources:
     requests:
@@ -350,13 +385,19 @@ kubeControllerManager:
   podLabels: {}
   ## @param kubeControllerManager.imagePullSecrets image pull secret of the kube-controller-manager
   imagePullSecrets: []
+  ## @param image.registry kubeControllerManager image registry
+  ## @param image.repository kubeControllerManager image repository
+  ## @param image.tag kubeControllerManager image tag (immutable tags are recommended)
+  ## @param image.pullPolicy kubeControllerManager image pull policy
+  ##
   image:
-    ## @param kubeControllerManager.image.repository image of the kube controller manager
-    repository: k8s.gcr.io/kube-controller-manager
-    ## @param kubeControllerManager.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param kubeControllerManager.image.tag overrides the image tag whose default is the latest
+    registry: k8s.gcr.io
+    repository: kube-controller-manager
     tag: "v1.22.10"
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param kubeControllerManager.resources resource quota of the kube-controller-manager
   resources:
     # If you do want to specify resources, uncomment the following
@@ -413,13 +454,19 @@ etcd:
   internal:
     ## @param etcd.internal.replicaCount target replicas
     replicaCount: 1
+    ## @param image.registry etcd image registry
+    ## @param image.repository etcd image repository
+    ## @param image.tag etcd image tag (immutable tags are recommended)
+    ## @param image.pullPolicy etcd image pull policy
+    ##
     image:
-      ## @param etcd.internal.image.repository image of the etcd
-      repository: k8s.gcr.io/etcd
-      ## @param etcd.internal.image.pullPolicy pull policy of image
-      pullPolicy: IfNotPresent
-      ## @param etcd.internal.image.tag overrides the image tag whose default is the latest
+      registry: k8s.gcr.io
+      repository: etcd
       tag: "3.5.3-0"
+      ## Specify a imagePullPolicy
+      ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+      ##
+      pullPolicy: IfNotPresent
     ## @param etcd.internal.storageType storage type for etcd data
     ## "pvc" means using volumeClaimTemplates
     ## "hostPath" means using hostPath
@@ -474,13 +521,19 @@ agent:
   podLabels: {}
   ## @param agent.imagePullSecrets image pull secret of the agent
   imagePullSecrets: []
+  ## @param image.registry karmada agent image registry
+  ## @param image.repository karmada agent image repository
+  ## @param image.tag karmada agent image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada agent image pull policy
+  ##
   image:
-    ## @param agent.image.repository image of the agent
-    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-agent
-    ## @param agent.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param agent.image.tag overrides the image tag whose default is the latest
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-agent
     tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param agent.resources
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -539,13 +592,19 @@ schedulerEstimator:
   podLabels: {}
   ## @param schedulerEstimator.imagePullSecrets image pull secret of the scheduler-estimator
   imagePullSecrets: []
+  ## @param image.registry karmada schedulerEstimator image registry
+  ## @param image.repository karmada schedulerEstimator image repository
+  ## @param image.tag karmada schedulerEstimator image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada schedulerEstimator image pull policy
+  ##
   image:
-    ## @param schedulerEstimator.image.repository image of the apiserver
-    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler-estimator
-    ## @param schedulerEstimator.image.pullPolicy pull policy of image
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-scheduler-estimator
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
     pullPolicy: IfNotPresent
-    ## @param schedulerEstimator.image.tag overrides the image tag whose default is the latest
-    tag: "latest"
   ## @param schedulerEstimator.resources resource quota of the scheduler-estimator
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -584,13 +643,19 @@ descheduler:
   podLabels: {}
   ## @param descheduler.imagePullSecrets image pull secret of the descheduler
   imagePullSecrets: []
+  ## @param image.registry karmada descheduler image registry
+  ## @param image.repository karmada descheduler image repository
+  ## @param image.tag karmada descheduler image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada descheduler image pull policy
+  ##
   image:
-    ## @param descheduler.image.repository image of the descheduler
-    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-descheduler
-    ## @param descheduler.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param descheduler.image.tag overrides the image tag whose default is the latest
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-descheduler
     tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param descheduler.resources resource quota of the descheduler
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -630,13 +695,19 @@ search:
   podLabels: {}
   ## @param search.imagePullSecrets image pull secret of the search
   imagePullSecrets: []
+  ## @param image.registry karmada search image registry
+  ## @param image.repository karmada search image repository
+  ## @param image.tag karmada search image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada search image pull policy
+  ##
   image:
-    ## @param search.image.repository image of the descheduler
-    repository: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-search
-    ## @param search.image.pullPolicy pull policy of image
-    pullPolicy: IfNotPresent
-    ## @param search.image.tag overrides the image tag whose default is the latest
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-search
     tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
   ## @param search.resources resource quota of the search
   resources: {}
     # If you do want to specify resources, uncomment the following

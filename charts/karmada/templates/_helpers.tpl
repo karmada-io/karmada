@@ -227,3 +227,83 @@ app: {{- include "karmada.name" .}}-search
 {{- end }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Return the proper karmada internal etcd image name
+*/}}
+{{- define "karmada.internal.etcd.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.etcd.internal.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada agent image name
+*/}}
+{{- define "karmada.agent.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.agent.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada apiServer image name
+*/}}
+{{- define "karmada.apiServer.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.apiServer.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada controllerManager image name
+*/}}
+{{- define "karmada.controllerManager.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.controllerManager.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada descheduler image name
+*/}}
+{{- define "karmada.descheduler.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.descheduler.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada schedulerEstimator image name
+*/}}
+{{- define "karmada.schedulerEstimator.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.schedulerEstimator.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada scheduler image name
+*/}}
+{{- define "karmada.scheduler.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.scheduler.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada webhook image name
+*/}}
+{{- define "karmada.webhook.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.webhook.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada aggregatedApiServer image name
+*/}}
+{{- define "karmada.aggregatedApiServer.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.aggregatedApiServer.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada search image name
+*/}}
+{{- define "karmada.search.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.search.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada kubeControllerManager image name
+*/}}
+{{- define "karmada.kubeControllerManager.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.kubeControllerManager.image "global" .Values.global) }}
+{{- end -}}
+
+
+

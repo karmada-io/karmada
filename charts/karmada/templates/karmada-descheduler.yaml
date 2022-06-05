@@ -44,7 +44,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ $name }}
-          image: {{ .Values.descheduler.image.repository}}:{{ .Values.descheduler.image.tag | default "latest" }}
+          image: {{ template "karmada.descheduler.image" . }}
           imagePullPolicy: {{ .Values.descheduler.image.pullPolicy }}
           command:
             - /bin/karmada-descheduler

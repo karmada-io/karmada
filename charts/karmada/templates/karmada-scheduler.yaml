@@ -52,7 +52,7 @@ spec:
       serviceAccountName: {{ $name}}-scheduler
       containers:
         - name: {{ $name }}-scheduler
-          image: {{ .Values.scheduler.image.repository}}:{{ .Values.scheduler.image.tag | default "latest" }}
+          image: {{ template "karmada.scheduler.image" .}}
           imagePullPolicy: {{ .Values.scheduler.image.pullPolicy }}
           command:
             - /bin/karmada-scheduler

@@ -53,7 +53,7 @@ spec:
       {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
       containers:
         - name: {{ $name }}-controller-manager
-          image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag | default "latest" }}"
+          image: {{ template "karmada.controllerManager.image" . }}
           imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
           command:
             - /bin/karmada-controller-manager

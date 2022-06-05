@@ -53,7 +53,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ $name }}-webhook
-          image: {{ .Values.webhook.image.repository}}:{{ .Values.webhook.image.tag | default "latest" }}
+          image: {{ template "karmada.webhook.image" . }}
           imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
           command:
             - /bin/karmada-webhook
