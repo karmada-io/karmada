@@ -58,6 +58,17 @@ func GenerateBindingName(kind, name string) string {
 	return strings.ToLower(name + "-" + kind)
 }
 
+// SplitBindingName will split binding name to name and kind
+func SplitBindingName(bindingName string) (string, string, error)  {
+	splits := strings.Split(bindingName, "-")
+	if len(splits) < 2 {
+		return "", "", fmt.Errorf("illegal binding name")
+	}
+	kind := splits[len(splits) - 1]
+	name := bindingName[:len(bindingName) - len(kind) - 1]
+	return name, kind, nil
+}
+
 // GenerateBindingReferenceKey will generate the key of binding object with the hash of its namespace and name.
 func GenerateBindingReferenceKey(namespace, name string) string {
 	var bindingName string

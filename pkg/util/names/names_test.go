@@ -344,3 +344,53 @@ func TestGenerateImpersonationSecretName(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitBindingName(t *testing.T) {
+	type args struct {
+		bindingName string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		want1   string
+		wantErr bool
+	}{
+		{
+			name:    "test",
+			args:    args{bindingName: "test-Deployment"},
+			want:    "test",
+			want1:   "Deployment",
+			wantErr: false,
+		},
+		{
+			name:    "test1",
+			args:    args{bindingName: "Deployment"},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name:    "test2",
+			args:    args{bindingName: "test-1-Job"},
+			want:    "test-1",
+			want1:   "Job",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := SplitBindingName(tt.args.bindingName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SplitBindingName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("SplitBindingName() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("SplitBindingName() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
