@@ -175,7 +175,8 @@ func (os *OpenSearch) upsert(obj interface{}) {
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
-	annotations["cluster.karmada.io/name"] = os.cluster
+
+	annotations[clusterv1alpha1.CacheSourceAnnotationKey] = os.cluster
 	us.SetAnnotations(annotations)
 
 	doc := map[string]interface{}{
