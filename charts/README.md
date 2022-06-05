@@ -8,7 +8,7 @@ Karmada aims to provide turnkey automation for multi-cluster application managem
 
 Switch to the `root` directory of the repo.
 ```console
-$ helm install karmada -n karmada-system --create-namespace ./charts
+helm install karmada -n karmada-system --create-namespace ./charts
 ```
 
 ## Prerequisites
@@ -22,13 +22,13 @@ To install the chart with the release name `karmada` in namespace `karmada-syste
 
 Switch to the `root` directory of the repo.
 ```console
-$ helm install karmada -n karmada-system --create-namespace ./charts
+helm install karmada -n karmada-system --create-namespace ./charts
 ```
 
 Get kubeconfig from the cluster:
 
 ```console
-$ kubectl get secret -n karmada-system karmada-kubeconfig -o jsonpath={.data.kubeconfig} | base64 -d
+kubectl get secret -n karmada-system karmada-kubeconfig -o jsonpath={.data.kubeconfig} | base64 -d
 ```
 
 > **Tip**: List all releases using `helm list`
@@ -44,25 +44,25 @@ components: [
 ```
 Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
 ```console
-$ kubectl config use-context host
-$ helm install karmada-descheduler -n karmada-system ./charts
+kubectl config use-context host
+helm install karmada-descheduler -n karmada-system ./charts
 ```
 
 ## Uninstalling the Chart
 To uninstall/delete the `karmada` helm release in namespace `karmada-system`:
 
 ```console
-$ helm uninstall karmada -n karmada-system
+helm uninstall karmada -n karmada-system
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 > **Note**: There are some RBAC resources that are used by the `preJob` that can not be deleted by the `uninstall` command above. You might have to clean them manually with tools like `kubectl`.  You can clean them by commands:
 
 ```console
-$ kubectl delete sa/karmada-pre-job -nkarmada-system
-$ kubectl delete clusterRole/karmada-pre-job 
-$ kubectl delete clusterRoleBinding/karmada-pre-job
-$ kubectl delete ns karmada-system
+kubectl delete sa/karmada-pre-job -nkarmada-system
+kubectl delete clusterRole/karmada-pre-job 
+kubectl delete clusterRoleBinding/karmada-pre-job
+kubectl delete ns karmada-system
 ```
 
 ## Example
@@ -90,8 +90,8 @@ agent:
 ```
 Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
 ```console
-$ kubectl config use-context member
-$ helm install karmada-agent -n karmada-system --create-namespace ./charts
+kubectl config use-context member
+helm install karmada-agent -n karmada-system --create-namespace ./charts
 ```
 ### 2. Install component
 Edited values.yaml for karmada-scheduler-estimator
@@ -120,8 +120,8 @@ schedulerEstimator:
 ```
 Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
 ```console
-$ kubectl config use-context host
-$ helm install karmada-scheduler-estimator -n karmada-system ./charts
+kubectl config use-context host
+helm install karmada-scheduler-estimator -n karmada-system ./charts
 ```
 
 ## Configuration
