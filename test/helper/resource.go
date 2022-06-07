@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	v1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"k8s.io/utils/pointer"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
@@ -649,4 +650,22 @@ func NewIngress(namespace, name string) *networkingv1.Ingress {
 											},
 										},
 									}}}}}}}}}
+}
+
+// NewAPIService will build a new apiservice object for test.
+func NewAPIService(group string) *v1.APIService {
+	return &v1.APIService{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "APIService",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "v1." + group,
+		},
+		Spec: v1.APIServiceSpec{
+			Group:                group,
+			GroupPriorityMinimum: 2000,
+			Version:              "v1",
+			VersionPriority:      10,
+		},
+	}
 }

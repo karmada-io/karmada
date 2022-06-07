@@ -28,11 +28,12 @@ func TestPrintCluster(t *testing.T) {
 					KubernetesVersion: "1.21.7",
 					Conditions: []metav1.Condition{
 						{Type: clusterapis.ClusterConditionReady, Status: metav1.ConditionTrue},
+						{Type: clusterapis.ClusterMetadataSufficient, Status: metav1.ConditionTrue},
 					},
 				},
 			},
 			printers.GenerateOptions{Wide: false},
-			[]metav1.TableRow{{Cells: []interface{}{"test1", "1.21.7", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>"}}},
+			[]metav1.TableRow{{Cells: []interface{}{"test1", "1.21.7", clusterapis.ClusterSyncMode("Push"), "True", "True", "<unknown>"}}},
 		},
 		{
 			clusterapis.Cluster{
@@ -45,11 +46,12 @@ func TestPrintCluster(t *testing.T) {
 					KubernetesVersion: "1.21.7",
 					Conditions: []metav1.Condition{
 						{Type: clusterapis.ClusterConditionReady, Status: metav1.ConditionTrue},
+						{Type: clusterapis.ClusterMetadataSufficient, Status: metav1.ConditionTrue},
 					},
 				},
 			},
 			printers.GenerateOptions{Wide: true},
-			[]metav1.TableRow{{Cells: []interface{}{"test2", "1.21.7", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>", "https://kubernetes.default.svc.cluster.local:6443"}}},
+			[]metav1.TableRow{{Cells: []interface{}{"test2", "1.21.7", clusterapis.ClusterSyncMode("Push"), "True", "True", "<unknown>", "https://kubernetes.default.svc.cluster.local:6443"}}},
 		},
 	}
 

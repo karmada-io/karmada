@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -19,8 +20,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
+	v1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	aggregatorclient "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"k8s.io/utils/pointer"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -397,6 +401,78 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			framework.WaitJobPresentOnClustersFitWith(framework.ClusterNames(), job.Namespace, job.Name,
 				func(job *batchv1.Job) bool {
 					return *job.Spec.BackoffLimit == updateBackoffLimit
+				})
+		})
+	})
+})
+
+var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing when cluster is in status of MetadataInSufficient", func() {
+	ginkgo.Context("Deployment propagation testing", func() {
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.PropagationPolicy
+		var apiGroup string
+		var apiService *v1.APIService
+		var clusterAggrclient aggregatorclient.Interface
+		member3 := "member3"
+
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			apiGroup = apiServicePrefix + rand.String(RandomStrLength)
+			clusterAggrclient = framework.GetClusterAggregatorClient(member3)
+
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+			apiService = testhelper.NewAPIService(apiGroup)
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			framework.CreateAPIService(clusterAggrclient, apiService)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.WaitDeploymentDisappearOnClusters(framework.ClusterNames(), deployment.Namespace, deployment.Name)
+			framework.RemoveAPIService(clusterAggrclient, apiService.Name)
+			framework.WaitAPIServiceDisappearOnCluster(member3, apiService.Name)
+		})
+
+		ginkgo.It("check cluster status in MetadataInSufficient", func() {
+			gomega.Eventually(func() bool {
+				cluster, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), member3, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				condition := meta.IsStatusConditionTrue(cluster.Status.Conditions, clusterv1alpha1.ClusterMetadataSufficient)
+				return condition
+			}, pollTimeout, pollInterval).Should(gomega.Equal(false))
+		})
+
+		ginkgo.It("deployment propagation testing", func() {
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return true
+				})
+
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					return *deployment.Spec.Replicas == updateDeploymentReplicas
 				})
 		})
 	})

@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	aggregatorclient "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -28,6 +29,12 @@ type ClusterClient struct {
 // DynamicClusterClient stands for a dynamic client for the given member cluster
 type DynamicClusterClient struct {
 	DynamicClientSet dynamic.Interface
+	ClusterName      string
+}
+
+// AggregatorClusterClient stands for a aggregator client for the given member cluster
+type AggregatorClusterClient struct {
+	AggregatorClient *aggregatorclient.Clientset
 	ClusterName      string
 }
 
@@ -95,6 +102,20 @@ func NewClusterDynamicClientSet(clusterName string, client client.Client) (*Dyna
 		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
+}
+
+// NewClusterAggregatorClientSet returns a aggregator client for the given member cluster.
+func NewClusterAggregatorClientSet(clusterName string, client client.Client) (*AggregatorClusterClient, error) {
+	clusterConfig, err := buildClusterConfig(clusterName, client)
+	if err != nil {
+		return nil, err
+	}
+	var aggrClientSet = AggregatorClusterClient{ClusterName: clusterName}
+
+	if clusterConfig != nil {
+		aggrClientSet.AggregatorClient = aggregatorclient.NewForConfigOrDie(clusterConfig)
+	}
+	return &aggrClientSet, nil
 }
 
 // NewClusterDynamicClientSetForAgent returns a dynamic client for the given member cluster which will be used in karmada agent.
