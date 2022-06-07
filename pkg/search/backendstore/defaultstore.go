@@ -15,14 +15,15 @@ type Default struct {
 func NewDefaultBackend(cluster string) *Default {
 	klog.Infof("create default backend store: %s", cluster)
 	return &Default{
-		resourceEventHander: cache.ResourceEventHandlerFuncs{
+		resourceEventHander: &cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				us, ok := obj.(*unstructured.Unstructured)
 				if !ok {
 					klog.Errorf("unexpected type %T", obj)
 					return
 				}
-				klog.V(4).Infof("add %s %s", cluster, us.GroupVersionKind().String())
+				klog.V(4).Infof("AddFunc Cluster(%s) GVK(%s) Name(%s/%s)",
+					cluster, us.GroupVersionKind().String(), us.GetNamespace(), us.GetName())
 			},
 			UpdateFunc: func(oldObj, curObj interface{}) {
 				us, ok := curObj.(*unstructured.Unstructured)
@@ -30,7 +31,8 @@ func NewDefaultBackend(cluster string) *Default {
 					klog.Errorf("unexpected type %T", curObj)
 					return
 				}
-				klog.V(4).Infof("udpate %s %s", cluster, us.GroupVersionKind().String())
+				klog.V(4).Infof("UpdateFunc Cluster(%s) GVK(%s) Name(%s/%s)",
+					cluster, us.GroupVersionKind().String(), us.GetNamespace(), us.GetName())
 			},
 			DeleteFunc: func(obj interface{}) {
 				us, ok := obj.(*unstructured.Unstructured)
@@ -38,7 +40,8 @@ func NewDefaultBackend(cluster string) *Default {
 					klog.Errorf("unexpected type %T", obj)
 					return
 				}
-				klog.V(4).Infof("delete %s %s", cluster, us.GroupVersionKind().String())
+				klog.V(4).Infof("DeleteFunc Cluster(%s) GVK(%s) Name(%s/%s)",
+					cluster, us.GroupVersionKind().String(), us.GetNamespace(), us.GetName())
 			}}}
 }
 
