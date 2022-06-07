@@ -169,8 +169,10 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 
 		// get the list of APIs installed in the member cluster
 		apiEnables, err := getAPIEnablements(clusterClient)
-		if err != nil {
-			klog.Errorf("Failed to get APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
+		if len(apiEnables) == 0 {
+			klog.Errorf("Failed to get any APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
+		} else if err != nil {
+			klog.Warningf("Maybe get partial(%d) APIs installed in Cluster %s. Error: %v.", len(apiEnables), cluster.GetName(), err)
 		}
 
 		nodes, err := listNodes(clusterInformerManager)
@@ -364,11 +366,14 @@ func getKubernetesVersion(clusterClient *util.ClusterClient) (string, error) {
 	return clusterVersion.GitVersion, nil
 }
 
+// getAPIEnablements returns the list of API enablement(supported groups and resources).
+// The returned lists might be non-nil with partial results even in the case of non-nil error.
 func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.APIEnablement, error) {
 	_, apiResourceList, err := clusterClient.KubeClient.Discovery().ServerGroupsAndResources()
-	if err != nil {
+	if len(apiResourceList) == 0 {
 		return nil, err
 	}
+
 	var apiEnablements []clusterv1alpha1.APIEnablement
 	for _, list := range apiResourceList {
 		var apiResources []clusterv1alpha1.APIResource
@@ -391,7 +396,7 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 	sort.SliceStable(apiEnablements, func(i, j int) bool {
 		return apiEnablements[i].GroupVersion < apiEnablements[j].GroupVersion
 	})
-	return apiEnablements, nil
+	return apiEnablements, err
 }
 
 // listPods returns the Pod list from the informerManager cache.
