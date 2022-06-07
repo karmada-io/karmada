@@ -277,7 +277,7 @@ apiServer:
   ## "ClusterIP" means using ClusterIP
   ## "NodePort" means using NodePort
   serviceType: ClusterIP
-  ## @param apiServer.nodePort node port for apiserver service, 
+  ## @param apiServer.nodePort node port for apiserver service,
   ## will take effect when 'apiServer.serviceType' is 'NodePort'.
   ## If no port is specified, the nodePort will be automatically assigned.
   nodePort: 0
@@ -293,7 +293,7 @@ apiServer:
 ## karmada aggregated apiserver config
 aggregatedApiServer:
   ## @param aggregatedApiServer.labels labels of the karmada-aggregated-apiserver pods
-  labels: 
+  labels:
     app: karmada-aggregated-apiserver
   ## @param aggregatedApiServer.replicaCount target replicas of the karmada-aggregated-apiserver
   replicaCount: 1
@@ -311,7 +311,7 @@ aggregatedApiServer:
     ## @param aggregatedApiServer.image.tag overrides the image tag whose default is the latest
     tag: latest
   ## @param aggregatedApiServer.resources resource quota of the karmada-aggregated-apiserver
-  resources: 
+  resources:
     requests:
       cpu: 100m
     # If you do want to specify resources, uncomment the following
@@ -385,7 +385,7 @@ kubeControllerManager:
 ## etcd config
 etcd:
   ## @param etcd.mode "external" and "internal" are provided
-  ## "external" means use external ectd 
+  ## "external" means use external ectd
   ## "internal" means install a etcd in the cluster
   mode: "internal"
   external:
@@ -481,7 +481,7 @@ agent:
     pullPolicy: IfNotPresent
     ## @param agent.image.tag overrides the image tag whose default is the latest
     tag: latest
-  ## @param agent.resources 
+  ## @param agent.resources
   resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
