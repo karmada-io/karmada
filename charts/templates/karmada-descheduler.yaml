@@ -6,25 +6,25 @@ metadata:
   name: {{ $name }}
   namespace: {{ include "karmada.namespace" . }}
   labels:
-  {{- include "karmada.descheduler.labels" . | nindent 4}}
+  {{- include "karmada.descheduler.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.descheduler.replicaCount }}
   selector:
     matchLabels:
-      {{- include "karmada.descheduler.labels" . | nindent 6}}
+      {{- include "karmada.descheduler.labels" . | nindent 6 }}
   {{- with .Values.descheduler.strategy }}
   strategy:
   {{- toYaml . | nindent 8 }}
   {{- end }}
   template:
     metadata:
-      {{- with .Values.descheduler.podAnnotations}}
+      {{- with .Values.descheduler.podAnnotations }}
       annotations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "karmada.descheduler.labels" . | nindent 8}}
-        {{- include "karmada.descheduler.podLabels" . | nindent 8}}
+        {{- include "karmada.descheduler.labels" . | nindent 8 }}
+        {{- include "karmada.descheduler.podLabels" . | nindent 8 }}
     spec:
       {{- with .Values.descheduler.imagePullSecrets }}
       imagePullSecrets:
@@ -38,7 +38,7 @@ spec:
       affinity:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.descheduler.tolerations}}
+      {{- with .Values.descheduler.tolerations }}
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -65,5 +65,5 @@ spec:
           resources:
           {{- toYaml .Values.descheduler.resources | nindent 12 }}
       volumes:
-      {{- include "karmada.descheduler.kubeconfig.volume" . | nindent 8}}
+      {{- include "karmada.descheduler.kubeconfig.volume" . | nindent 8 }}
 {{- end }}

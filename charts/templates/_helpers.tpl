@@ -10,7 +10,7 @@
 
 {{- define "karmada.apiserver.labels" -}}
 {{- if .Values.apiServer.labels }}
-{{- range $key, $value := .Values.apiServer.labels}}
+{{- range $key, $value := .Values.apiServer.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- else}}
@@ -20,7 +20,7 @@ app: {{- include "karmada.name" .}}-apiserver
 
 {{- define "karmada.apiserver.podLabels" -}}
 {{- if .Values.apiServer.podLabels }}
-{{- range $key, $value := .Values.apiServer.podLabels}}
+{{- range $key, $value := .Values.apiServer.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
@@ -28,7 +28,7 @@ app: {{- include "karmada.name" .}}-apiserver
 
 {{- define "karmada.aggregatedApiserver.labels" -}}
 {{- if .Values.aggregatedApiServer.labels }}
-{{- range $key, $value := .Values.aggregatedApiServer.labels}}
+{{- range $key, $value := .Values.aggregatedApiServer.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- else}}
@@ -38,7 +38,7 @@ app: {{- include "karmada.name" .}}-aggregated-apiserver
 
 {{- define "karmada.aggregatedApiserver.podLabels" -}}
 {{- if .Values.aggregatedApiServer.podLabels }}
-{{- range $key, $value := .Values.aggregatedApiServer.podLabels}}
+{{- range $key, $value := .Values.aggregatedApiServer.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
@@ -46,7 +46,7 @@ app: {{- include "karmada.name" .}}-aggregated-apiserver
 
 {{- define "karmada.kube-cm.labels" -}}
 {{- if .Values.kubeControllerManager.labels }}
-{{- range $key, $value := .Values.kubeControllerManager.labels}}
+{{- range $key, $value := .Values.kubeControllerManager.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- else}}
@@ -56,7 +56,7 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 
 {{- define "karmada.kube-cm.podLabels" -}}
 {{- if .Values.kubeControllerManager.podLabels }}
-{{- range $key, $value := .Values.kubeControllerManager.podLabels}}
+{{- range $key, $value := .Values.kubeControllerManager.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
@@ -79,7 +79,7 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- define "karmada.cm.labels" -}}
 {{ $name :=  include "karmada.name" . }}
 {{- if .Values.controllerManager.labels -}}
-{{- range $key, $value := .Values.controllerManager.labels}}
+{{- range $key, $value := .Values.controllerManager.labels }}
 {{ $key }}: {{ $value }}
 {{- end -}}
 {{- else -}}
@@ -90,7 +90,7 @@ app: {{$name}}-controller-manager
 {{- define "karmada.cm.podLabels" -}}
 {{ $name :=  include "karmada.name" .}}
 {{- if .Values.controllerManager.podLabels }}
-{{- range $key, $value := .Values.controllerManager.podLabels}}
+{{- range $key, $value := .Values.controllerManager.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
@@ -100,7 +100,7 @@ app: {{$name}}-controller-manager
 {{- define "karmada.scheduler.labels" -}}
 {{ $name :=  include "karmada.name" . }}
 {{- if .Values.scheduler.labels -}}
-{{- range $key, $value := .Values.scheduler.labels}}
+{{- range $key, $value := .Values.scheduler.labels }}
 {{ $key }}: {{ $value }}
 {{- end -}}
 {{- else -}}
@@ -111,7 +111,7 @@ app: {{$name}}-scheduler
 {{- define "karmada.scheduler.podLabels" -}}
 {{ $name :=  include "karmada.name" .}}
 {{- if .Values.scheduler.podLabels }}
-{{- range $key, $value := .Values.scheduler.podLabels}}
+{{- range $key, $value := .Values.scheduler.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
@@ -121,7 +121,7 @@ app: {{$name}}-scheduler
 {{- define "karmada.descheduler.labels" -}}
 {{ $name :=  include "karmada.name" . }}
 {{- if .Values.descheduler.labels -}}
-{{- range $key, $value := .Values.descheduler.labels}}
+{{- range $key, $value := .Values.descheduler.labels }}
 {{ $key }}: {{ $value }}
 {{- end -}}
 {{- else -}}
@@ -132,7 +132,7 @@ app: {{$name}}
 {{- define "karmada.descheduler.podLabels" -}}
 {{ $name :=  include "karmada.name" .}}
 {{- if .Values.descheduler.podLabels }}
-{{- range $key, $value := .Values.descheduler.podLabels}}
+{{- range $key, $value := .Values.descheduler.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
@@ -148,7 +148,7 @@ app: {{$name}}
 {{- define "karmada.webhook.labels" -}}
 {{ $name :=  include "karmada.name" .}}
 {{- if .Values.webhook.labels }}
-{{- range $key, $value := .Values.webhook.labels}}
+{{- range $key, $value := .Values.webhook.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- else}}
@@ -159,17 +159,16 @@ app: {{$name}}-webhook
 {{- define "karmada.webhook.podLabels" -}}
 {{ $name :=  include "karmada.name" .}}
 {{- if .Values.webhook.podLabels }}
-{{- range $key, $value := .Values.webhook.podLabels}}
+{{- range $key, $value := .Values.webhook.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
 {{- end -}}
 
-
 {{- define "karmada.agent.labels" -}}
 {{ $name :=  include "karmada.name" .}}
 {{- if .Values.agent.labels }}
-{{- range $key, $value := .Values.agent.labels}}
+{{- range $key, $value := .Values.agent.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- else}}
@@ -197,7 +196,7 @@ caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 
 {{- define "karmada.schedulerEstimator.podLabels" -}}
 {{- if .Values.schedulerEstimator.podLabels }}
-{{- range $key, $value := .Values.schedulerEstimator.podLabels}}
+{{- range $key, $value := .Values.schedulerEstimator.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
@@ -205,7 +204,7 @@ caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 
 {{- define "karmada.schedulerEstimator.labels" -}}
 {{- if .Values.schedulerEstimator.labels }}
-{{- range $key, $value := .Values.schedulerEstimator.labels}}
+{{- range $key, $value := .Values.schedulerEstimator.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
@@ -213,7 +212,7 @@ caBundle: {{ b64enc .Values.certs.custom.caCrt }}
 
 {{- define "karmada.search.labels" -}}
 {{- if .Values.search.labels }}
-{{- range $key, $value := .Values.search.labels}}
+{{- range $key, $value := .Values.search.labels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- else}}
@@ -223,7 +222,7 @@ app: {{- include "karmada.name" .}}-search
 
 {{- define "karmada.search.podLabels" -}}
 {{- if .Values.search.podLabels }}
-{{- range $key, $value := .Values.search.podLabels}}
+{{- range $key, $value := .Values.search.podLabels }}
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}

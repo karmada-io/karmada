@@ -7,7 +7,7 @@
   {{- end -}}
   {{- printf $uri | trimSuffix "," | quote -}}
 {{- end }}
-{{- if and (eq .Values.etcd.mode "internal") (eq .Values.installMode "host")}}
+{{- if and (eq .Values.etcd.mode "internal") (eq .Values.installMode "host") }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -104,7 +104,7 @@ spec:
             type: DirectoryOrCreate
           name: etcd-data
         {{- end }}
-  {{- if eq .Values.etcd.internal.storageType "pvc"}}
+  {{- if eq .Values.etcd.internal.storageType "pvc" }}
   volumeClaimTemplates:
     - metadata:
         name: etcd-data
@@ -152,5 +152,4 @@ spec:
   clusterIP: None
   selector:
     app: etcd
-
 {{- end }}

@@ -12,12 +12,12 @@ metadata:
   name: {{ $name }}-controller-manager
   namespace: {{ include "karmada.namespace" . }}
   labels:
-  {{- include "karmada.cm.labels" . | nindent 4}}
+  {{- include "karmada.cm.labels" . | nindent 4 }}
 spec:
   replicas: {{  .Values.controllerManager.replicaCount }}
   selector:
     matchLabels:
-      {{- include "karmada.cm.labels" . | nindent 6}}
+      {{- include "karmada.cm.labels" . | nindent 6 }}
   {{- with .Values.controllerManager.strategy }}
   strategy:
   {{- toYaml . | nindent 8 }}
@@ -29,8 +29,8 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "karmada.cm.labels" . | nindent 8}}
-        {{- include "karmada.cm.podLabels" . | nindent 8}}
+        {{- include "karmada.cm.labels" . | nindent 8 }}
+        {{- include "karmada.cm.podLabels" . | nindent 8 }}
     spec:
       {{- with .Values.controllerManager.imagePullSecrets }}
       imagePullSecrets:
@@ -50,7 +50,7 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      {{- include "karmada.kubeconfig.volume" . | nindent 8}}
+      {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
       containers:
         - name: {{ $name }}-controller-manager
           image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag | default "latest" }}"
@@ -63,7 +63,7 @@ spec:
             - --secure-port=10357
             - --v=2
           volumeMounts:
-          {{- include "karmada.kubeconfig.volumeMount" . | nindent 12}}
+          {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
           {{- toYaml .Values.controllerManager.resources | nindent 12 }}
 ---
