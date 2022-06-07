@@ -1,0 +1,8 @@
+apiVersion: webapp.my.domain/v1
+kind: Guestbook
+metadata:
+  name: guestbook-sample
+spec:
+  size: 2
+  configMapName: test
+  alias: Name

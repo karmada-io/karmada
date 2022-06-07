@@ -1,0 +1,12 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: example-policy
+spec:
+  resourceSelectors:
+    - apiVersion: webapp.my.domain/v1
+      kind: Guestbook
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
