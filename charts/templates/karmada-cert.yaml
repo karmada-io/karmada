@@ -33,7 +33,7 @@ data:
 ---
 {{- end }}
 
-{{- if and (eq .Values.installMode "host") (eq .Values.etcd.mode "external")}}
+{{- if and (eq .Values.installMode "host") (eq .Values.etcd.mode "external") }}
 apiVersion: v1
 kind: Secret
 metadata:

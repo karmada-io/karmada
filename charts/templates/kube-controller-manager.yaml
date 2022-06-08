@@ -13,12 +13,12 @@ metadata:
   name: {{ $name }}-kube-controller-manager
   namespace: {{ include "karmada.namespace" . }}
   labels:
-  {{- include "karmada.kube-cm.labels" . | nindent 4}}
+  {{- include "karmada.kube-cm.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.kubeControllerManager.replicaCount }}
   selector:
     matchLabels:
-      {{- include "karmada.kube-cm.labels" . | nindent 6}}
+      {{- include "karmada.kube-cm.labels" . | nindent 6 }}
   {{- with .Values.kubeControllerManager.strategy }}
   strategy:
   {{- toYaml . | nindent 8 }}
@@ -30,8 +30,8 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "karmada.kube-cm.labels" . | nindent 8}}
-        {{- include "karmada.kube-cm.podLabels" . | nindent 8}}
+        {{- include "karmada.kube-cm.labels" . | nindent 8 }}
+        {{- include "karmada.kube-cm.podLabels" . | nindent 8 }}
     spec:
       {{- with .Values.kubeControllerManager.imagePullSecrets }}
       imagePullSecrets:
@@ -46,7 +46,7 @@ spec:
       affinity:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.kubeControllerManager.tolerations}}
+      {{- with .Values.kubeControllerManager.tolerations }}
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -92,11 +92,11 @@ spec:
             - mountPath: /etc/karmada/pki
               name: apisever-cert
               readOnly: true
-            {{- include "karmada.kubeconfig.volumeMount" . | nindent 12}}
+            {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
       priorityClassName: system-node-critical
       volumes:
         - name: apisever-cert
           secret:
             secretName: {{ $name }}-cert
-        {{- include "karmada.kubeconfig.volume" . | nindent 8}}
+        {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
 {{- end }}

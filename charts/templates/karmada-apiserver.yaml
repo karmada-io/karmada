@@ -6,12 +6,12 @@ metadata:
   name: {{ $name }}-apiserver
   namespace: {{ include "karmada.namespace" . }}
   labels:
-  {{- include "karmada.apiserver.labels" . | nindent 4}}
+  {{- include "karmada.apiserver.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.apiServer.replicaCount }}
   selector:
     matchLabels:
-      {{- include "karmada.apiserver.labels" . | nindent 6}}
+      {{- include "karmada.apiserver.labels" . | nindent 6 }}
   {{- with .Values.apiServer.strategy }}
   strategy:
   {{- toYaml . | nindent 8 }}
@@ -23,8 +23,8 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "karmada.apiserver.labels" . | nindent 8}}
-        {{- include "karmada.apiserver.podLabels" . | nindent 8}}
+        {{- include "karmada.apiserver.labels" . | nindent 8 }}
+        {{- include "karmada.apiserver.podLabels" . | nindent 8 }}
     spec:
       {{- with .Values.apiServer.imagePullSecrets }}
       imagePullSecrets:
@@ -47,13 +47,13 @@ spec:
             - --etcd-keyfile=/etc/etcd/pki/tls.key
             - --etcd-servers={{ .Values.etcd.external.servers }}
             - --etcd-prefix={{ .Values.etcd.external.registryPrefix }}
-            {{- end  }}
+            {{- end }}
             {{- if eq .Values.etcd.mode "internal" }}
             - --etcd-cafile=/etc/etcd/pki/server-ca.crt
             - --etcd-certfile=/etc/etcd/pki/karmada.crt
             - --etcd-keyfile=/etc/etcd/pki/karmada.key
             - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
-            {{- end  }}
+            {{- end }}
             - --bind-address=0.0.0.0
             - --insecure-port=0
             - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
@@ -154,7 +154,7 @@ metadata:
   name: {{ $name }}-apiserver
   namespace: {{ include "karmada.namespace" . }}
   labels:
-  {{- include "karmada.apiserver.labels" . | nindent 4}}
+  {{- include "karmada.apiserver.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.apiServer.serviceType }}
   ports:
