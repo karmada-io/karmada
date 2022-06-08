@@ -11,6 +11,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -21,6 +22,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -39,6 +41,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 	ginkgo.Context("Test promoting namespaced resource: deployment", func() {
 		var deployment *appsv1.Deployment
 		var deploymentNamespace, deploymentName string
+		var deploymentOpts, namespaceOpts karmadactl.CommandPromoteOption
 
 		ginkgo.BeforeEach(func() {
 			deploymentNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
@@ -47,9 +50,22 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		})
 
 		ginkgo.AfterEach(func() {
+			deploymentGVK := schema.GroupVersionKind{
+				Group:   "apps",
+				Version: "v1",
+				Kind:    "Deployment",
+			}
+			namespaceGVK := schema.GroupVersionKind{
+				Group:   "",
+				Version: "v1",
+				Kind:    "Namespace",
+			}
+			ppName := names.GeneratePolicyName(deploymentNamespace, deploymentName, deploymentGVK.String())
+			cppName := names.GeneratePolicyName("", deploymentNamespace, namespaceGVK.String())
 			framework.RemoveDeployment(kubeClient, deploymentNamespace, deploymentName)
-			framework.RemovePropagationPolicy(karmadaClient, deploymentNamespace, deploymentName+"-propagation")
+			framework.RemovePropagationPolicy(karmadaClient, deploymentNamespace, ppName)
 			framework.RemoveNamespace(kubeClient, deploymentNamespace)
+			framework.RemoveClusterPropagationPolicy(karmadaClient, cppName)
 		})
 
 		ginkgo.It("Test promoting a deployment from cluster member", func() {
@@ -63,17 +79,17 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step 2, promote namespace used by the deployment from member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", deploymentNamespace, member1), func() {
-				opts := karmadactl.CommandPromoteOption{
+				namespaceOpts = karmadactl.CommandPromoteOption{
 					Cluster:          member1,
 					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 				}
 				args := []string{"namespace", deploymentNamespace}
 				// init args: place namespace name to CommandPromoteOption.name
-				err := opts.Complete(args)
+				err := namespaceOpts.Complete(args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote a namespace from member1
-				err = karmadactl.RunPromote(karmadaConfig, opts, args)
+				err = karmadactl.RunPromote(karmadaConfig, namespaceOpts, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				framework.WaitNamespacePresentOnClusterByClient(kubeClient, deploymentNamespace)
@@ -81,18 +97,18 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step 3,  promote deployment from cluster member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting deployment %s from member: %s to karmada", deploymentName, member1), func() {
-				opts := karmadactl.CommandPromoteOption{
+				deploymentOpts = karmadactl.CommandPromoteOption{
 					Namespace:        deploymentNamespace,
 					Cluster:          member1,
 					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 				}
 				args := []string{"deployment", deploymentName}
 				// init args: place deployment name to CommandPromoteOption.name
-				err := opts.Complete(args)
+				err := deploymentOpts.Complete(args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote a deployment from member1
-				err = karmadactl.RunPromote(karmadaConfig, opts, args)
+				err = karmadactl.RunPromote(karmadaConfig, deploymentOpts, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -122,6 +138,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		var clusterRoleName, clusterRoleBindingName string
 		var clusterRole *rbacv1.ClusterRole
 		var clusterRoleBinding *rbacv1.ClusterRoleBinding
+		var clusterRoleOpts, clusterRoleBindingOpts karmadactl.CommandPromoteOption
 
 		ginkgo.BeforeEach(func() {
 			var nameFlag = rand.String(RandomStrLength)
@@ -141,11 +158,23 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		})
 
 		ginkgo.AfterEach(func() {
+			clusterRoleGVK := schema.GroupVersionKind{
+				Group:   "rbac.authorization.k8s.io",
+				Version: "v1",
+				Kind:    "ClusterRole",
+			}
+			clusterRoleBindingGVK := schema.GroupVersionKind{
+				Group:   "rbac.authorization.k8s.io",
+				Version: "v1",
+				Kind:    "ClusterRoleBinding",
+			}
+			clusterRoleClusterPropagationPolicy := names.GeneratePolicyName("", clusterRoleName, clusterRoleGVK.String())
+			clusterRoleBindingClusterPropagationPolicy := names.GeneratePolicyName("", clusterRoleBindingName, clusterRoleBindingGVK.String())
 			framework.RemoveClusterRole(kubeClient, clusterRoleName)
-			framework.RemoveClusterPropagationPolicy(karmadaClient, clusterRoleName+"-propagation")
+			framework.RemoveClusterPropagationPolicy(karmadaClient, clusterRoleClusterPropagationPolicy)
 
 			framework.RemoveClusterRoleBinding(kubeClient, clusterRoleBindingName)
-			framework.RemoveClusterPropagationPolicy(karmadaClient, clusterRoleBindingName+"-propagation")
+			framework.RemoveClusterPropagationPolicy(karmadaClient, clusterRoleBindingClusterPropagationPolicy)
 		})
 
 		ginkgo.It("Test promoting clusterrole and clusterrolebindings", func() {
@@ -158,27 +187,32 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step2, promote clusterrole and clusterrolebinding from member1
 			ginkgo.By(fmt.Sprintf("Promoting clusterrole %s and clusterrolebindings %s from member to karmada", clusterRoleName, clusterRoleBindingName), func() {
-				opts := karmadactl.CommandPromoteOption{
+				clusterRoleOpts = karmadactl.CommandPromoteOption{
 					Cluster:          member1,
 					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 				}
 
 				args := []string{"clusterrole", clusterRoleName}
 				// init args: place clusterrole name to CommandPromoteOption.name
-				err := opts.Complete(args)
+				err := clusterRoleOpts.Complete(args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote clusterrole from member1
-				err = karmadactl.RunPromote(karmadaConfig, opts, args)
+				err = karmadactl.RunPromote(karmadaConfig, clusterRoleOpts, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				clusterRoleBindingOpts = karmadactl.CommandPromoteOption{
+					Cluster:          member1,
+					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+				}
 
 				args = []string{"clusterrolebinding", clusterRoleBindingName}
 				// init args: place clusterrolebinding name to CommandPromoteOption.name
-				err = opts.Complete(args)
+				err = clusterRoleBindingOpts.Complete(args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote clusterrolebinding from member1
-				err = karmadactl.RunPromote(karmadaConfig, opts, args)
+				err = karmadactl.RunPromote(karmadaConfig, clusterRoleBindingOpts, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 

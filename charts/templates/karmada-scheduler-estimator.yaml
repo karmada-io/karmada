@@ -9,13 +9,13 @@ metadata:
   namespace: {{ $namespace }}
   labels:
     cluster: {{ $clusterName }}
-    {{- include "karmada.schedulerEstimator.labels" . | nindent 4}}
+    {{- include "karmada.schedulerEstimator.labels" . | nindent 4 }}
 spec:
   replicas: {{  .Values.schedulerEstimator.replicaCount }}
   selector:
     matchLabels:
       app: karmada-scheduler-estimator-{{ $clusterName }}
-      {{- include "karmada.schedulerEstimator.labels" . | nindent 6}}
+      {{- include "karmada.schedulerEstimator.labels" . | nindent 6 }}
   {{- with .Values.schedulerEstimator.strategy }}
   strategy:
   {{- toYaml . | nindent 8 }}
@@ -28,10 +28,10 @@ spec:
       {{- end }}
       labels:
         app: karmada-scheduler-estimator-{{ $clusterName }}
-        {{- include "karmada.schedulerEstimator.labels" . | nindent 8}}
-        {{- include "karmada.schedulerEstimator.podLabels" . | nindent 8}}
+        {{- include "karmada.schedulerEstimator.labels" . | nindent 8 }}
+        {{- include "karmada.schedulerEstimator.podLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.schedulerEstimator.tolerations}}
+      {{- with .Values.schedulerEstimator.tolerations }}
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -71,7 +71,7 @@ metadata:
 spec:
   selector:
     app: karmada-scheduler-estimator-{{ $clusterName }}
-    {{- include "karmada.schedulerEstimator.labels" . | nindent 4}}
+    {{- include "karmada.schedulerEstimator.labels" . | nindent 4 }}
   ports:
     - protocol: TCP
       port: 10352

@@ -7,21 +7,21 @@ metadata:
   name: {{ $name }}-search
   namespace: {{ include "karmada.namespace" . }}
   labels:
-  {{- include "karmada.search.labels" . | nindent 4}}
+  {{- include "karmada.search.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-    {{- include "karmada.search.labels" . | nindent 6}}
+    {{- include "karmada.search.labels" . | nindent 6 }}
   replicas: {{ .Values.search.replicaCount }}
   template:
     metadata:
-      {{- with .Values.search.podAnnotations}}
+      {{- with .Values.search.podAnnotations }}
       annotations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-      {{- include "karmada.search.labels" . | nindent 8}}
-      {{- include "karmada.search.podLabels" . | indent 8}}
+      {{- include "karmada.search.labels" . | nindent 8 }}
+      {{- include "karmada.search.podLabels" . | indent 8 }}
     spec:
       {{- with .Values.search.imagePullSecrets }}
       imagePullSecrets:
@@ -35,7 +35,7 @@ spec:
       affinity:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.search.tolerations}}
+      {{- with .Values.search.tolerations }}
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -82,13 +82,13 @@ metadata:
   name: {{ $name }}-search
   namespace: {{ include "karmada.namespace" . }}
   labels:
-    {{- include "karmada.search.labels" . | nindent 4}}
+    {{- include "karmada.search.labels" . | nindent 4 }}
 spec:
   ports:
     - port: 443
       protocol: TCP
       targetPort: 443
   selector:
-    {{- include "karmada.search.labels" . | nindent 4}}
+    {{- include "karmada.search.labels" . | nindent 4 }}
 
 {{- end }}
