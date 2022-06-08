@@ -24,7 +24,7 @@ multi-cloud purpose. The following components have been verified by the Karmada 
 
 - argo-cd: refer to [working with argo-cd](../working-with-argocd.md)
 - Flux: refer to [propagating helm charts with flux](https://github.com/karmada-io/karmada/issues/861#issuecomment-998540302)
-- Istio: refer to [working with Istio](../istio-on-karmada.md)
+- Istio: refer to [working with Istio](../working-with-istio-on-flat-network.md)
 - Filebeat: refer to [working with Filebeat](../working-with-filebeat.md)
 - Submariner: refer to [working with Submariner](../working-with-submariner.md)
 - Velero: refer to [working with Velero](../working-with-velero.md)
