@@ -143,9 +143,9 @@ Create a cluster named `host` by `hack/create-cluster.sh`:
 hack/create-cluster.sh host $HOME/.kube/host.config
 ```
 
-Install Karmada v1.1.0 by command `kubectl karmada init`:
+Install Karmada v1.2.0 by command `kubectl karmada init`:
 ```bash
-kubectl karmada init --crds https://github.com/karmada-io/karmada/releases/download/v1.1.0/crds.tar.gz --kubeconfig=$HOME/.kube/host.config
+kubectl karmada init --crds https://github.com/karmada-io/karmada/releases/download/v1.2.0/crds.tar.gz --kubeconfig=$HOME/.kube/host.config
 ```
 
 Check installed components:
