@@ -11,14 +11,23 @@ const (
 	// It will be used to retrieve all Works objects that derived by a specific ClusterResourceBinding object.
 	ClusterResourceBindingReferenceKey = "clusterresourcebinding.karmada.io/key"
 
-	// ResourceBindingNamespaceLabel is added to objects to specify associated ResourceBinding's namespace.
-	ResourceBindingNamespaceLabel = "resourcebinding.karmada.io/namespace"
+	// ResourceBindingNamespaceAnnotationKey is added to object to describe the associated ResourceBinding's namespace.
+	// It is added to:
+	// - Work object: describes the namespace of ResourceBinding which the Work derived from.
+	// - Manifest in Work object: describes the namespace of ResourceBinding which the manifest derived from.
+	ResourceBindingNamespaceAnnotationKey = "resourcebinding.karmada.io/namespace"
 
-	// ResourceBindingNameLabel is added to objects to specify associated ResourceBinding's name.
-	ResourceBindingNameLabel = "resourcebinding.karmada.io/name"
+	// ResourceBindingNameAnnotationKey is added to object to describe the associated ResourceBinding's name.
+	// It is added to:
+	// - Work object: describes the name of ResourceBinding which the Work derived from.
+	// - Manifest in Work object: describes the name of ResourceBinding which the manifest derived from.
+	ResourceBindingNameAnnotationKey = "resourcebinding.karmada.io/name"
 
-	// ClusterResourceBindingLabel is added to objects to specify associated ClusterResourceBinding.
-	ClusterResourceBindingLabel = "clusterresourcebinding.karmada.io/name"
+	// ClusterResourceBindingAnnotationKey is added to object to describe associated ClusterResourceBinding's name.
+	// It is added to:
+	// - Work object: describes the name of ClusterResourceBinding which the Work derived from.
+	// - Manifest in Work object: describes the name of ClusterResourceBinding which the manifest derived from.
+	ClusterResourceBindingAnnotationKey = "clusterresourcebinding.karmada.io/name"
 
 	// WorkNamespaceLabel is added to objects to specify associated Work's namespace.
 	WorkNamespaceLabel = "work.karmada.io/namespace"

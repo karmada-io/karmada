@@ -208,8 +208,8 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			annotations := a.GetAnnotations()
-			crNamespace, namespaceExist := annotations[workv1alpha2.ResourceBindingNamespaceLabel]
-			crName, nameExist := annotations[workv1alpha2.ResourceBindingNameLabel]
+			crNamespace, namespaceExist := annotations[workv1alpha2.ResourceBindingNamespaceAnnotationKey]
+			crName, nameExist := annotations[workv1alpha2.ResourceBindingNameAnnotationKey]
 			if namespaceExist && nameExist {
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{

@@ -198,13 +198,13 @@ func mergeLabel(workload *unstructured.Unstructured, workNamespace string, bindi
 func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	annotations := make(map[string]string)
 	if scope == apiextensionsv1.NamespaceScoped {
-		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNamespaceLabel, binding.GetNamespace())
-		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNameLabel, binding.GetName())
-		annotations[workv1alpha2.ResourceBindingNamespaceLabel] = binding.GetNamespace()
-		annotations[workv1alpha2.ResourceBindingNameLabel] = binding.GetName()
+		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNamespaceAnnotationKey, binding.GetNamespace())
+		util.MergeAnnotation(workload, workv1alpha2.ResourceBindingNameAnnotationKey, binding.GetName())
+		annotations[workv1alpha2.ResourceBindingNamespaceAnnotationKey] = binding.GetNamespace()
+		annotations[workv1alpha2.ResourceBindingNameAnnotationKey] = binding.GetName()
 	} else {
-		util.MergeAnnotation(workload, workv1alpha2.ClusterResourceBindingLabel, binding.GetName())
-		annotations[workv1alpha2.ClusterResourceBindingLabel] = binding.GetName()
+		util.MergeAnnotation(workload, workv1alpha2.ClusterResourceBindingAnnotationKey, binding.GetName())
+		annotations[workv1alpha2.ClusterResourceBindingAnnotationKey] = binding.GetName()
 	}
 
 	return annotations
