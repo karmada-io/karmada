@@ -39,6 +39,7 @@ spec:
             - --allow-privileged=true
             - --authorization-mode=Node,RBAC
             - --client-ca-file=/etc/kubernetes/pki/server-ca.crt
+            - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
             - --enable-admission-plugins=NodeRestriction
             - --enable-bootstrap-token-auth=true
             {{- if eq .Values.etcd.mode "external" }}
