@@ -86,6 +86,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
+		Logger: klog.Background(),
 		Scheme: gclient.NewSchema(),
 		WebhookServer: &webhook.Server{
 			Host:          opts.BindAddress,

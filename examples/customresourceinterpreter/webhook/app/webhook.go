@@ -69,6 +69,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	}
 
 	hookManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
+		Logger:         klog.Background(),
 		Host:           opts.BindAddress,
 		Port:           opts.SecurePort,
 		CertDir:        opts.CertDir,

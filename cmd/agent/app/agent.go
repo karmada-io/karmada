@@ -136,6 +136,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	}
 
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
+		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
 		SyncPeriod:                 &opts.ResyncPeriod.Duration,
 		Namespace:                  executionSpace,
