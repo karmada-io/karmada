@@ -202,6 +202,11 @@ func (d *ResourceDetector) AggregateJobStatus(objRef workv1alpha2.ObjectReferenc
 		return err
 	}
 
+	// If a job is finished, we should never update status again.
+	if finished, _ := helper.GetJobFinishedStatus(&obj.Status); finished {
+		return nil
+	}
+
 	newStatus, err := helper.ParsingJobStatus(obj, status, clusters)
 	if err != nil {
 		return err
