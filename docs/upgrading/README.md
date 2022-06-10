@@ -58,11 +58,11 @@ sed -i'' -e "s/{{caBundle}}/${ca_string}/g" ./"charts/_crds/patches/webhook_in_c
 
 Generate the final CRD by `kubectl kustomize` command, e.g:
 ```bash
-kubectl kustomize ./charts/_crds 
+kubectl kustomize ./charts/karmada/_crds 
 ```
 Or, you can apply to `karmada-apiserver` by:
 ```bash
-kubectl kustomize ./charts/_crds | kubectl apply -f -
+kubectl kustomize ./charts/karmada/_crds | kubectl apply -f -
 ```
 
 ### Upgrading Components

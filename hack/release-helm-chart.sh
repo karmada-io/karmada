@@ -22,7 +22,7 @@ else
 fi
 
 echo "Starting to package into a Karmada chart archive"
-helm package ./charts --version "${version}" -d "${release_dir}"
+helm package ./charts/karmada --version "${version}" -d "${release_dir}"
 cd "${release_dir}"
 mv "karmada-${version}.tgz" ${tar_file}
 sha256sum "${tar_file}" > "${tar_file}.sha256"

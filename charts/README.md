@@ -8,7 +8,7 @@ Karmada aims to provide turnkey automation for multi-cluster application managem
 
 Switch to the `root` directory of the repo.
 ```console
-helm install karmada -n karmada-system --create-namespace ./charts
+helm install karmada -n karmada-system --create-namespace ./charts/karmada
 ```
 
 ## Prerequisites
@@ -22,7 +22,7 @@ To install the chart with the release name `karmada` in namespace `karmada-syste
 
 Switch to the `root` directory of the repo.
 ```console
-helm install karmada -n karmada-system --create-namespace ./charts
+helm install karmada -n karmada-system --create-namespace ./charts/karmada
 ```
 
 Get kubeconfig from the cluster:
@@ -45,7 +45,7 @@ components: [
 Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
 ```console
 kubectl config use-context host
-helm install karmada-descheduler -n karmada-system ./charts
+helm install karmada-descheduler -n karmada-system ./charts/karmada
 ```
 
 ## Uninstalling the Chart
@@ -91,7 +91,7 @@ agent:
 Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
 ```console
 kubectl config use-context member
-helm install karmada-agent -n karmada-system --create-namespace ./charts
+helm install karmada-agent -n karmada-system --create-namespace ./charts/karmada
 ```
 ### 2. Install component
 Edited values.yaml for karmada-scheduler-estimator
@@ -121,7 +121,7 @@ schedulerEstimator:
 Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
 ```console
 kubectl config use-context host
-helm install karmada-scheduler-estimator -n karmada-system ./charts
+helm install karmada-scheduler-estimator -n karmada-system ./charts/karmada
 ```
 
 ## Configuration
