@@ -40,3 +40,13 @@ const (
 	// ResourceConflictResolutionOverwrite is the value of ResourceConflictResolutionAnnotation, indicating the overwrite strategy.
 	ResourceConflictResolutionOverwrite = "overwrite"
 )
+
+// Define annotations that are added to the resource template.
+const (
+	// ResourceTemplateUIDAnnotation is the annotation that is added to the manifest in the Work object.
+	// The annotation is used to identify the resource template which the manifest is derived from.
+	// The annotation can also be used to fire events when syncing Work to member clusters.
+	// For more details about UID, please refer to:
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+	ResourceTemplateUIDAnnotation = "resourcetemplate.karmada.io/uid"
+)
