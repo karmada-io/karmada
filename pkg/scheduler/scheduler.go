@@ -34,6 +34,7 @@ import (
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	frameworkplugins "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
@@ -96,6 +97,8 @@ type schedulerOptions struct {
 	schedulerEstimatorPort int
 	//enableEmptyWorkloadPropagation represents whether allow workload with replicas 0 propagated to member clusters should be enabled
 	enableEmptyWorkloadPropagation bool
+	// outOfTreeRegistry represents the registry of out-of-tree plugins
+	outOfTreeRegistry runtime.Registry
 }
 
 // Option configures a Scheduler
@@ -129,6 +132,14 @@ func WithEnableEmptyWorkloadPropagation(enableEmptyWorkloadPropagation bool) Opt
 	}
 }
 
+// WithOutOfTreeRegistry sets the registry for out-of-tree plugins. Those plugins
+// will be appended to the default in-tree registry.
+func WithOutOfTreeRegistry(registry runtime.Registry) Option {
+	return func(o *schedulerOptions) {
+		o.outOfTreeRegistry = registry
+	}
+}
+
 // NewScheduler instantiates a scheduler
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts ...Option) (*Scheduler, error) {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
@@ -147,6 +158,9 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 
 	// TODO(kerthcet): make plugins configurable via config file
 	registry := frameworkplugins.NewInTreeRegistry()
+	if err := registry.Merge(options.outOfTreeRegistry); err != nil {
+		return nil, err
+	}
 	algorithm, err := core.NewGenericScheduler(schedulerCache, registry)
 	if err != nil {
 		return nil, err

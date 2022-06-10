@@ -24,7 +24,7 @@ var (
 	defaultElectionRetryPeriod   = metav1.Duration{Duration: 2 * time.Second}
 )
 
-// Options contains everything necessary to create and run controller-manager.
+// Options contains everything necessary to create and run scheduler.
 type Options struct {
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 	KubeConfig     string
