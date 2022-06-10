@@ -331,7 +331,6 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 	ginkgo.Context("JobStatus collection testing", func() {
 		var jobNamespace, jobName string
 		var job *batchv1.Job
-		var patch []map[string]interface{}
 
 		ginkgo.BeforeEach(func() {
 			policyNamespace = testNamespace
@@ -352,13 +351,6 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				},
 			})
 
-			patch = []map[string]interface{}{
-				{
-					"op":    "replace",
-					"path":  "/spec/placement/clusterAffinity/clusterNames",
-					"value": framework.ClusterNames()[0 : len(framework.ClusterNames())-1],
-				},
-			}
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -378,25 +370,6 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					klog.Infof("job(%s/%s) succeedPods: %d, wanted succeedPods: %d", jobNamespace, jobName, currentJob.Status.Succeeded, wantedSucceedPods)
-					if currentJob.Status.Succeeded == wantedSucceedPods {
-						return true, nil
-					}
-
-					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			})
-
-			framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policyName, patch, types.JSONPatchType)
-
-			ginkgo.By("check if job status has been update with new collection", func() {
-				wantedSucceedPods := int32(len(framework.Clusters()) - 1)
-
-				klog.Infof("Waiting for job(%s/%s) collecting correctly status", jobNamespace, jobName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-					currentJob, err := kubeClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 					if currentJob.Status.Succeeded == wantedSucceedPods {
 						return true, nil
 					}

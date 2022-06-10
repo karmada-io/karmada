@@ -160,6 +160,11 @@ func aggregateJobStatus(object *unstructured.Unstructured, aggregatedStatusItems
 		return nil, err
 	}
 
+	// If a job is finished, we should never update status again.
+	if finished, _ := helper.GetJobFinishedStatus(&job.Status); finished {
+		return object, nil
+	}
+
 	newStatus, err := helper.ParsingJobStatus(job, aggregatedStatusItems)
 	if err != nil {
 		return nil, err
