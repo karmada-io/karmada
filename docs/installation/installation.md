@@ -162,7 +162,7 @@ kube-controller-manager-85c789dcfc-k89f8       1/1     Running   0          2m10
 ```
 
 ## Install Karmada by Helm Chart Deployment
-Please refer to [installing by Helm](https://github.com/karmada-io/karmada/tree/master/charts).
+Please refer to [installing by Helm](https://github.com/karmada-io/karmada/tree/master/charts/karmada).
 
 ## Install Karmada from source
 
