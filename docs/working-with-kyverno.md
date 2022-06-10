@@ -205,7 +205,6 @@ In this case, we will use Kyverno v1.6.2. Related deployment files are from [her
              name: kubeconfig
              subPath: kubeconfig
          initContainers:
-           - args:
          - env:
            - name: METRICS_CONFIG
              value: kyverno-metrics
@@ -243,31 +242,31 @@ In this case, we will use Kyverno v1.6.2. Related deployment files are from [her
               secretName: kubeconfig
    ---
    apiVersion: v1
-      stringData:
-         kubeconfig: |-
-            apiVersion: v1
-            clusters:
-            - cluster:
-                certificate-authority-data: {{ca_crt}}
-                server: https://karmada-apiserver.karmada-system.svc.cluster.local:5443
-              name: kind-karmada
-            contexts:
-            - context:
-                cluster: kind-karmada
-                user: kind-karmada
-              name: karmada
-            current-context: karmada
-            kind: Config
-            preferences: {}
-            users:
-            - name: kind-karmada
-              user:
-                client-certificate-data: {{client_cer}}
-                client-key-data: {{client_key}}
-      kind: Secret
-      metadata:
-         name: kubeconfig
-         namespace: kyverno
+   stringData:
+     kubeconfig: |-
+       apiVersion: v1
+       clusters:
+       - cluster:
+           certificate-authority-data: {{ca_crt}}
+           server: https://karmada-apiserver.karmada-system.svc.cluster.local:5443
+         name: kind-karmada
+       contexts:
+       - context:
+           cluster: kind-karmada
+           user: kind-karmada
+         name: karmada
+       current-context: karmada
+       kind: Config
+       preferences: {}
+       users:
+       - name: kind-karmada
+         user:
+           client-certificate-data: {{client_cer}}
+           client-key-data: {{client_key}}
+   kind: Secret
+   metadata:
+     name: kubeconfig
+     namespace: kyverno
    ```
 
    For multi-cluster deployment, We need to add the config of `--serverIP` which is the address of the webhook server. So you need to ensure that the network from node in karmada control plane to those in karmada-host cluster is connected and expose kyverno controller pods to control plane, for example, using `nodePort` above. Then, fill in the secret which represents kubeconfig pointing to karmada-apiserver, such as **ca_crt, client_cer and client_key** above.
