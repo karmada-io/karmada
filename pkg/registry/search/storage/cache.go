@@ -140,8 +140,8 @@ func addAnnotationWithClusterName(resourceObjects []runtime.Object, clusterName 
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
-		// TODO: move this annotation key `cluster.karmada.io/name` to the Cluster API.
-		annotations["cluster.karmada.io/name"] = clusterName
+
+		annotations[clusterv1alpha1.CacheSourceAnnotationKey] = clusterName
 
 		resource.SetAnnotations(annotations)
 		resources = append(resources, resource)
