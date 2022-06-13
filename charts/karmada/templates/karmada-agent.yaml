@@ -110,6 +110,7 @@ spec:
             - --karmada-kubeconfig=/etc/kubeconfig/kubeconfig
             - --cluster-name={{ .Values.agent.clusterName }}
             - --cluster-status-update-frequency=10s
+            - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
             - --v=4
           volumeMounts:
             - name: kubeconfig

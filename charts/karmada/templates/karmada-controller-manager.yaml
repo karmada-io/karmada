@@ -61,6 +61,7 @@ spec:
             - --bind-address=0.0.0.0
             - --cluster-status-update-frequency=10s
             - --secure-port=10357
+            - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
             - --v=2
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
