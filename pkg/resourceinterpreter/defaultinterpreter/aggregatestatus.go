@@ -27,6 +27,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = aggregateJobStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = aggregateDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = aggregateStatefulSetStatus
+	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = aggregatePodStatus
 	return s
 }
 
@@ -268,4 +269,54 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
 
 	return helper.ToUnstructured(statefulSet)
+}
+
+func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	pod, err := helper.ConvertToPod(object)
+	if err != nil {
+		return nil, err
+	}
+
+	newStatus := &corev1.PodStatus{}
+	newStatus.ContainerStatuses = make([]corev1.ContainerStatus, 0)
+	runningFlag := true
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			runningFlag = false
+			continue
+		}
+
+		temp := &corev1.PodStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+
+		if temp.Phase != corev1.PodRunning {
+			runningFlag = false
+		}
+
+		for _, containerStatus := range temp.ContainerStatuses {
+			tempStatus := corev1.ContainerStatus{
+				Ready: containerStatus.Ready,
+				State: containerStatus.State,
+			}
+			newStatus.ContainerStatuses = append(newStatus.ContainerStatuses, tempStatus)
+		}
+		klog.V(3).Infof("Grab pod(%s/%s) status from cluster(%s), phase: %s", pod.Namespace,
+			pod.Name, item.ClusterName, temp.Phase)
+	}
+
+	if runningFlag {
+		newStatus.Phase = corev1.PodRunning
+	} else {
+		newStatus.Phase = corev1.PodPending
+	}
+
+	if reflect.DeepEqual(pod.Status, *newStatus) {
+		klog.V(3).Infof("ignore update pod(%s/%s) status as up to date", pod.Namespace, pod.Name)
+		return object, nil
+	}
+
+	pod.Status = *newStatus
+	return helper.ToUnstructured(pod)
 }
