@@ -12,17 +12,23 @@ description: A Helm chart for karmada
 # pipeline. Library charts do not define any templates and therefore cannot be deployed.
 type: application
 
-# The optional kubeVersion field can define semver constraints on supported Kubernetes versions. 
-# Helm will validate the version constraints when installing the chart and fail if the cluster 
+# The optional kubeVersion field can define semver constraints on supported Kubernetes versions.
+# Helm will validate the version constraints when installing the chart and fail if the cluster
 # runs an unsupported Kubernetes version.
 kubeVersion: ">= 1.16.0-0"
 
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.0.3
+version: 0.0.4
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 appVersion: v1.1.0
+
+maintainers:
+  - name: jrkeen
+    email: jrkeen@hotmail.com
+  - name: pidb
+    email: jackson.cloudnative@gmail.com
