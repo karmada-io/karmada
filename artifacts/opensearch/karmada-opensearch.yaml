@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: karmada-opensearch
+  name: karmada-opensearch
+  namespace: karmada-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: karmada-opensearch
+  template:
+    metadata:
+      labels:
+        app: karmada-opensearch
+    spec:
+      containers:
+      - env:
+        - name: DISABLE_INSTALL_DEMO_CONFIG
+          value: "true"
+        - name: DISABLE_SECURITY_PLUGIN
+          value: "true"
+        - name: OPENSEARCH_JAVA_OPTS
+          value: -Xms512m -Xmx512m
+        - name: bootstrap.memory_lock
+          value: "true"
+        - name: cluster.name
+          value: opensearch-cluster
+        - name: discovery.type
+          value: single-node
+        - name: node.name
+          value: karmada-opensearch
+        image: opensearchproject/opensearch:2.0.0
+        name: karmada-opensearch
+        ports:
+        - containerPort: 9200
+          name: client
+        - containerPort: 9600
+          name: analyzer
+        volumeMounts:
+          - mountPath: /usr/share/opensearch/data
+            name: karmada-opensearch
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+      volumes:
+      - emptyDir: {}
+        name: karmada-opensearch
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: karmada-opensearch
+  name: karmada-opensearch
+  namespace: karmada-system
+spec:
+  ports:
+  - name: client
+    port: 9200
+    targetPort: 9200
+  - name: analyzer
+    port: 9600
+    targetPort: 9600
+  selector:
+     app: karmada-opensearch
