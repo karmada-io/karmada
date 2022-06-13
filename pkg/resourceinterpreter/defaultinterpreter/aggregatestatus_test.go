@@ -2,6 +2,7 @@ package defaultinterpreter
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -345,4 +346,198 @@ func cleanUnstructuredJobConditionTime(object *unstructured.Unstructured) *unstr
 	}
 	ret, _ := helper.ToUnstructured(job)
 	return ret
+}
+
+func TestAggregatePodStatus(t *testing.T) {
+	startedTrue := true
+	timeNow := time.Now()
+
+	containerStatuses1 := []corev1.ContainerStatus{
+		{
+			ContainerID:  "containerd://6cee0afa333472f672341352e0d",
+			Image:        "nginx:latest",
+			ImageID:      "docker.io/library/import-2022-06-05@sha256:dfb593",
+			Name:         "busybox-2",
+			Ready:        true,
+			RestartCount: 0,
+			Started:      &startedTrue,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+		{
+			ContainerID:  "containerd://b373fb05ebf57020573cdf4a4518a3b2a8",
+			Image:        "nginx:latest",
+			ImageID:      "docker.io/library/import-2022-06-05@sha256:a29d07a75",
+			Name:         "busybox-2",
+			Ready:        true,
+			RestartCount: 0,
+			Started:      &startedTrue,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+	}
+
+	newContainerStatuses1 := []corev1.ContainerStatus{
+		{
+			Ready: true,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+		{
+			Ready: true,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+	}
+
+	curObj, _ := helper.ToUnstructured(&corev1.Pod{})
+	newObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+		ContainerStatuses: newContainerStatuses1,
+		Phase:             corev1.PodRunning,
+	}})
+
+	statusMap1 := map[string]interface{}{
+		"containerStatuses": []corev1.ContainerStatus{containerStatuses1[0]},
+		"phase":             corev1.PodRunning,
+	}
+	raw1, _ := helper.BuildStatusRawExtension(statusMap1)
+	statusMap2 := map[string]interface{}{
+		"containerStatuses": []corev1.ContainerStatus{containerStatuses1[1]},
+		"phase":             corev1.PodRunning,
+	}
+	raw2, _ := helper.BuildStatusRawExtension(statusMap2)
+	aggregatedStatusItems1 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: raw1, Applied: true},
+		{ClusterName: "member2", Status: raw2, Applied: true},
+	}
+
+	containerStatuses2 := []corev1.ContainerStatus{
+		{
+			ContainerID:  "containerd://6cee0afa333472f672341352e0d",
+			Image:        "nginx:latest",
+			ImageID:      "docker.io/library/import-2022-06-05@sha256:dfb593",
+			Name:         "busybox-2",
+			Ready:        true,
+			RestartCount: 0,
+			Started:      &startedTrue,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+		{
+			ContainerID:  "containerd://b373fb05ebf57020573cdf4a4518a3b2a8",
+			Image:        "nginx:latest",
+			ImageID:      "docker.io/library/import-2022-06-05@sha256:a29d07a75",
+			Name:         "busybox-2",
+			Ready:        false,
+			RestartCount: 0,
+			Started:      &startedTrue,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+	}
+
+	statusMap3 := map[string]interface{}{
+		"containerStatuses": []corev1.ContainerStatus{containerStatuses2[0]},
+		"phase":             corev1.PodRunning,
+	}
+	raw3, _ := helper.BuildStatusRawExtension(statusMap3)
+	statusMap4 := map[string]interface{}{
+		"containerStatuses": []corev1.ContainerStatus{containerStatuses2[1]},
+		"phase":             corev1.PodPending,
+	}
+	raw4, _ := helper.BuildStatusRawExtension(statusMap4)
+	aggregatedStatusItems2 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: raw3, Applied: true},
+		{ClusterName: "member2", Status: raw4, Applied: true},
+	}
+
+	newContainerStatuses2 := []corev1.ContainerStatus{
+		{
+			Ready: true,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+		{
+			Ready: false,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+	}
+
+	newPodFailed := &corev1.Pod{Status: corev1.PodStatus{
+		ContainerStatuses: newContainerStatuses2,
+		Phase:             corev1.PodPending,
+	}}
+	newObjFailed, _ := helper.ToUnstructured(newPodFailed)
+
+	tests := []struct {
+		name                  string
+		curObj                *unstructured.Unstructured
+		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
+		expectedObj           *unstructured.Unstructured
+	}{
+		{
+			name:                  "update pod status",
+			curObj:                curObj,
+			aggregatedStatusItems: aggregatedStatusItems1,
+			expectedObj:           newObj,
+		},
+		{
+			name:                  "ignore update pod status as up to date",
+			curObj:                newObj,
+			aggregatedStatusItems: aggregatedStatusItems1,
+			expectedObj:           newObj,
+		},
+		{
+			name:                  "update pod status as one Pod failed",
+			curObj:                newObj,
+			aggregatedStatusItems: aggregatedStatusItems2,
+			expectedObj:           newObjFailed,
+		},
+	}
+
+	for _, tt := range tests {
+		actualObj, _ := aggregatePodStatus(tt.curObj, tt.aggregatedStatusItems)
+		assert.Equal(t, tt.expectedObj, actualObj)
+	}
 }

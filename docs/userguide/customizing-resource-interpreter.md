@@ -97,6 +97,7 @@ Supported resources:
 - Job(batch/v1)
 - DaemonSet(apps/v1)
 - StatefulSet(apps/v1)
+- Pod(v1)
 
 ### InterpretStatus
 
