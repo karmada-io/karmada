@@ -73,24 +73,20 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 		})
 	})
 
-	// Now only support push mode cluster for Retain testing
-	// TODO(lonelyCZ): support pull mode cluster
 	ginkgo.Context("InterpreterOperation Retain testing", func() {
 		var waitTime time.Duration
 		var updatedPaused bool
-		var pushModeClusters []string
 
 		ginkgo.BeforeEach(func() {
 			waitTime = 5 * time.Second
 			updatedPaused = true
-			pushModeClusters = []string{"member1", "member2"}
 
-			policy.Spec.Placement.ClusterAffinity.ClusterNames = pushModeClusters
+			policy.Spec.Placement.ClusterAffinity.ClusterNames = framework.ClusterNames()
 		})
 
 		ginkgo.It("Retain testing", func() {
 			ginkgo.By("update workload's spec.paused to true", func() {
-				for _, cluster := range pushModeClusters {
+				for _, cluster := range framework.ClusterNames() {
 					clusterDynamicClient := framework.GetClusterDynamicClient(cluster)
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
@@ -103,7 +99,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 			// Wait executeController to reconcile then check if it is retained
 			time.Sleep(waitTime)
 			ginkgo.By("check if workload's spec.paused is retained", func() {
-				for _, cluster := range pushModeClusters {
+				for _, cluster := range framework.ClusterNames() {
 					clusterDynamicClient := framework.GetClusterDynamicClient(cluster)
 					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
 
