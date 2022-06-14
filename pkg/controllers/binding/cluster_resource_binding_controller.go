@@ -151,7 +151,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 		func(a client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			annotations := a.GetAnnotations()
-			crbName, nameExist := annotations[workv1alpha2.ClusterResourceBindingLabel]
+			crbName, nameExist := annotations[workv1alpha2.ClusterResourceBindingAnnotationKey]
 			if nameExist {
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{
