@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -227,4 +228,21 @@ func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 		return nil, err
 	}
 	return &unstructured.Unstructured{Object: uncastObj}, nil
+}
+
+// HasObjUpdated judges whether the object has updated.
+func HasObjUpdated(oldObj interface{}, newObj interface{}) bool {
+	oldMetaInfo, err := meta.Accessor(oldObj)
+	if err != nil { //should not happen
+		return false
+	}
+	newMetaInfo, err := meta.Accessor(newObj)
+	if err != nil { //should not happen
+		return false
+	}
+
+	if oldMetaInfo.GetResourceVersion() != newMetaInfo.GetResourceVersion() {
+		return true
+	}
+	return false
 }

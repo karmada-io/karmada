@@ -237,7 +237,11 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		ClusterFailureThreshold:           opts.ClusterFailureThreshold,
 		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
+		ClusterSummaryCache:               *status.NewClusterSummaryCache(),
+		WorkerNumber:                      10,
+		RESTMapper:                        ctx.Mgr.GetRESTMapper(),
 	}
+	clusterStatusController.RunWorkQueue()
 	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
 		return false, err
 	}

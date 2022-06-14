@@ -14,11 +14,10 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/component-helpers/apimachinery/lease"
@@ -36,6 +35,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 )
 
 const (
@@ -87,6 +87,17 @@ type ClusterStatusController struct {
 
 	ClusterCacheSyncTimeout metav1.Duration
 	RateLimiterOptions      ratelimiterflag.Options
+
+	WorkerNumber int // WorkerNumber is the number of worker goroutines
+	// eventHandlers holds the handlers which used to handle events reported from member clusters.
+	// Each handler takes the cluster name as key and takes the handler function as the value, e.g.
+	// "member1": instance of ResourceEventHandler
+	eventHandlers sync.Map
+	// worker maintains a rate limited queue which used to store the key of node/pod and
+	// a reconcile function to consume the items in queue.
+	worker              util.AsyncWorker
+	RESTMapper          meta.RESTMapper
+	ClusterSummaryCache ClusterSummaryCache
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -101,6 +112,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 		if apierrors.IsNotFound(err) {
 			c.InformerManager.Stop(req.NamespacedName.Name)
 			c.clusterConditionCache.delete(req.Name)
+			c.ClusterSummaryCache.deleteCluster(req.Name)
 			return controllerruntime.Result{}, nil
 		}
 
@@ -178,20 +190,18 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 			klog.Warningf("Maybe get partial(%d) APIs installed in Cluster %s. Error: %v.", len(apiEnables), cluster.GetName(), err)
 		}
 
-		nodes, err := listNodes(clusterInformerManager)
-		if err != nil {
-			klog.Errorf("Failed to list nodes for Cluster %s. Error: %v.", cluster.GetName(), err)
-		}
+		nodeSummary, clusterAllocatable := c.ClusterSummaryCache.getNodeSummary(cluster.Name)
+		allocatingResource, allocatedResource := c.ClusterSummaryCache.getPodSummary(cluster.Name)
 
-		pods, err := listPods(clusterInformerManager)
-		if err != nil {
-			klog.Errorf("Failed to list pods for Cluster %s. Error: %v.", cluster.GetName(), err)
+		resourceSummary := &clusterv1alpha1.ResourceSummary{
+			Allocatable: clusterAllocatable,
+			Allocated:   allocatedResource,
+			Allocating:  allocatingResource,
 		}
-
 		currentClusterStatus.KubernetesVersion = clusterVersion
 		currentClusterStatus.APIEnablements = apiEnables
-		currentClusterStatus.NodeSummary = getNodeSummary(nodes)
-		currentClusterStatus.ResourceSummary = getResourceSummary(nodes, pods)
+		currentClusterStatus.NodeSummary = nodeSummary
+		currentClusterStatus.ResourceSummary = resourceSummary
 	}
 
 	setTransitionTime(currentClusterStatus.Conditions, readyCondition)
@@ -254,9 +264,9 @@ func (c *ClusterStatusController) buildInformerForCluster(cluster *clusterv1alph
 	// create the informer for pods and nodes
 	allSynced := true
 	for _, gvr := range gvrs {
-		if !singleClusterInformerManager.IsInformerSynced(gvr) {
+		if !singleClusterInformerManager.IsInformerSynced(gvr) || !singleClusterInformerManager.IsHandlerExist(gvr, c.getEventHandler(cluster.Name)) {
 			allSynced = false
-			singleClusterInformerManager.Lister(gvr)
+			singleClusterInformerManager.ForResource(gvr, c.getEventHandler(cluster.Name))
 		}
 	}
 	if allSynced {
@@ -402,132 +412,105 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 	return apiEnablements, err
 }
 
-// listPods returns the Pod list from the informerManager cache.
-func listPods(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Pod, error) {
-	podLister := informerManager.Lister(podGVR)
-
-	podList, err := podLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
+// RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
+func (c *ClusterStatusController) RunWorkQueue() {
+	workerOptions := util.Options{
+		Name:          "cluster-status",
+		KeyFunc:       nil,
+		ReconcileFunc: c.syncNodeOrPod,
 	}
-	pods, err := convertObjectsToPods(podList)
-	if err != nil {
-		return nil, err
-	}
-
-	return pods, nil
+	c.worker = util.NewAsyncWorker(workerOptions)
+	c.worker.Run(c.WorkerNumber, c.StopChan)
 }
 
-// listNodes returns the Node list from the informerManager cache.
-func listNodes(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Node, error) {
-	nodeLister := informerManager.Lister(nodeGVR)
-
-	nodeList, err := nodeLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	nodes, err := convertObjectsToNodes(nodeList)
-	if err != nil {
-		return nil, err
+func (c *ClusterStatusController) syncNodeOrPod(key util.QueueKey) error {
+	fedKey, ok := key.(keys.FederatedKey)
+	if !ok {
+		klog.Errorf("Failed to sync node or pod as invalid key: %v", key)
+		return fmt.Errorf("invalid key")
 	}
 
-	return nodes, nil
+	klog.V(4).Infof("Begin to sync %s %s.", fedKey.Kind, fedKey.NamespaceKey())
+
+	if err := c.handleEvent(fedKey); err != nil {
+		klog.Errorf("Failed to handle %s(%s) event, Error: %v",
+			fedKey.Kind, fedKey.NamespaceKey(), err)
+		return err
+	}
+
+	return nil
 }
 
-func getNodeSummary(nodes []*corev1.Node) *clusterv1alpha1.NodeSummary {
-	totalNum := len(nodes)
-	readyNum := 0
-
-	for _, node := range nodes {
-		if helper.NodeReady(node) {
-			readyNum++
+func (c *ClusterStatusController) handleEvent(fedKey keys.FederatedKey) error {
+	runtimeObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			c.ClusterSummaryCache.delete(fedKey)
+			return nil
 		}
+		return err
 	}
 
-	nodeSummary := &clusterv1alpha1.NodeSummary{}
-	nodeSummary.TotalNum = int32(totalNum)
-	nodeSummary.ReadyNum = int32(readyNum)
-
-	return nodeSummary
+	if err := c.ClusterSummaryCache.set(fedKey, runtimeObj); err != nil {
+		klog.Errorf("Failed to sync %s(%s) into cache, err is: %v", fedKey.Kind, fedKey.NamespaceKey(), err)
+		return err
+	}
+	return nil
 }
 
-func getResourceSummary(nodes []*corev1.Node, pods []*corev1.Pod) *clusterv1alpha1.ResourceSummary {
-	allocatable := getClusterAllocatable(nodes)
-	allocating := getAllocatingResource(pods)
-	allocated := getAllocatedResource(pods)
+// getEventHandler return callback function that knows how to handle events from the member cluster.
+func (c *ClusterStatusController) getEventHandler(clusterName string) cache.ResourceEventHandler {
+	if value, exists := c.eventHandlers.Load(clusterName); exists {
+		return value.(cache.ResourceEventHandler)
+	}
 
-	resourceSummary := &clusterv1alpha1.ResourceSummary{}
-	resourceSummary.Allocatable = allocatable
-	resourceSummary.Allocating = allocating
-	resourceSummary.Allocated = allocated
-
-	return resourceSummary
+	eventHandler := informermanager.NewHandlerOnEvents(c.genHandlerAddFunc(clusterName), c.genHandlerUpdateFunc(clusterName),
+		c.genHandlerDeleteFunc(clusterName))
+	c.eventHandlers.Store(clusterName, eventHandler)
+	return eventHandler
 }
 
-func convertObjectsToNodes(nodeList []runtime.Object) ([]*corev1.Node, error) {
-	nodes := make([]*corev1.Node, 0, len(nodeList))
-	for _, obj := range nodeList {
-		node, err := helper.ConvertToNode(obj.(*unstructured.Unstructured))
+func (c *ClusterStatusController) genHandlerAddFunc(clusterName string) func(obj interface{}) {
+	return func(obj interface{}) {
+		curObj := obj.(runtime.Object)
+		key, err := keys.FederatedKeyFunc(clusterName, curObj)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
+			klog.Warningf("Failed to generate key for obj: %s", curObj.GetObjectKind().GroupVersionKind())
+			return
 		}
-		nodes = append(nodes, node)
+		c.worker.Add(key)
 	}
-	return nodes, nil
 }
 
-func convertObjectsToPods(podList []runtime.Object) ([]*corev1.Pod, error) {
-	pods := make([]*corev1.Pod, 0, len(podList))
-	for _, obj := range podList {
-		pod, err := helper.ConvertToPod(obj.(*unstructured.Unstructured))
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
-		}
-		pods = append(pods, pod)
-	}
-	return pods, nil
-}
-
-func getClusterAllocatable(nodeList []*corev1.Node) (allocatable corev1.ResourceList) {
-	allocatable = make(corev1.ResourceList)
-	for _, node := range nodeList {
-		for key, val := range node.Status.Allocatable {
-			tmpCap, ok := allocatable[key]
-			if ok {
-				tmpCap.Add(val)
-			} else {
-				tmpCap = val
+func (c *ClusterStatusController) genHandlerUpdateFunc(clusterName string) func(oldObj, newObj interface{}) {
+	return func(oldObj, newObj interface{}) {
+		curObj := newObj.(runtime.Object)
+		if helper.HasObjUpdated(oldObj, newObj) {
+			key, err := keys.FederatedKeyFunc(clusterName, curObj)
+			if err != nil {
+				klog.Warningf("Failed to generate key for obj: %s", curObj.GetObjectKind().GroupVersionKind())
+				return
 			}
-			allocatable[key] = tmpCap
+			c.worker.Add(key)
 		}
 	}
-
-	return allocatable
 }
 
-func getAllocatingResource(podList []*corev1.Pod) corev1.ResourceList {
-	allocating := util.EmptyResource()
-	podNum := int64(0)
-	for _, pod := range podList {
-		if len(pod.Spec.NodeName) == 0 {
-			allocating.AddPodRequest(&pod.Spec)
-			podNum++
+func (c *ClusterStatusController) genHandlerDeleteFunc(clusterName string) func(obj interface{}) {
+	return func(obj interface{}) {
+		if deleted, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+			// This object might be stale but ok for our current usage.
+			obj = deleted.Obj
+			if obj == nil {
+				return
+			}
 		}
-	}
-	allocating.AddResourcePods(podNum)
-	return allocating.ResourceList()
-}
-
-func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
-	allocated := util.EmptyResource()
-	podNum := int64(0)
-	for _, pod := range podList {
-		// When the phase of a pod is Succeeded or Failed, kube-scheduler would not consider its resource occupation.
-		if len(pod.Spec.NodeName) != 0 && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
-			allocated.AddPodRequest(&pod.Spec)
-			podNum++
+		oldObj := obj.(runtime.Object)
+		key, err := keys.FederatedKeyFunc(clusterName, oldObj)
+		if err != nil {
+			klog.Warningf("Failed to generate key for obj: %s", oldObj.GetObjectKind().GroupVersionKind())
+			return
 		}
+		c.worker.Add(key)
 	}
-	allocated.AddResourcePods(podNum)
-	return allocated.ResourceList()
 }

@@ -72,6 +72,8 @@ const (
 
 // Define resource kind.
 const (
+	// NodeKind indicates the target resource is a node
+	NodeKind = "Node"
 	// DeploymentKind indicates the target resource is a deployment
 	DeploymentKind = "Deployment"
 	// ServiceKind indicates the target resource is a service
