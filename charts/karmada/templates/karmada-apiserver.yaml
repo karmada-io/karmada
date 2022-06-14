@@ -32,7 +32,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ $name }}-apiserver
-          image: "{{ .Values.apiServer.image.repository }}:{{ .Values.apiServer.image.tag | default "latest" }}"
+          image: {{ template "karmada.apiServer.image" . }}
           imagePullPolicy: {{ .Values.apiServer.image.pullPolicy }}
           command:
             - kube-apiserver

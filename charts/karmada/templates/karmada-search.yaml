@@ -42,7 +42,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: {{ $name }}-search
-          image: {{ .Values.search.image.repository}}:{{ .Values.search.image.tag | default "latest" }}
+          image: {{ template "karmada.search.image" . }}
           imagePullPolicy: {{ .Values.search.image.pullPolicy }}
           volumeMounts:
             - name: k8s-certs

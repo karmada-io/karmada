@@ -72,7 +72,7 @@ spec:
             - --service-cluster-ip-range=10.96.0.0/12
             - --use-service-account-credentials=true
             - --v=5
-          image: {{ .Values.kubeControllerManager.image.repository}}:{{ .Values.kubeControllerManager.image.tag | default "latest" }}
+          image: {{ template "karmada.kubeControllerManager.image" . }}
           livenessProbe:
             failureThreshold: 8
             httpGet:

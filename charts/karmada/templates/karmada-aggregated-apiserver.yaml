@@ -30,7 +30,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: {{ $name }}-aggregated-apiserver
-          image: "{{ .Values.aggregatedApiServer.image.repository }}:{{ .Values.aggregatedApiServer.image.tag | default "latest" }}"
+          image: {{ template "karmada.aggregatedApiServer.image" . }}
           imagePullPolicy: {{ .Values.aggregatedApiServer.image.pullPolicy }}
           volumeMounts:
             {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}

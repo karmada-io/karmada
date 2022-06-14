@@ -103,7 +103,7 @@ spec:
       serviceAccountName: {{ $name }}
       containers:
         - name: {{ $name }}
-          image: {{ .Values.agent.image.repository}}:{{ .Values.agent.image.tag | default "latest" }}
+          image: {{ template "karmada.agent.image" . }}
           imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
           command:
             - /bin/karmada-agent

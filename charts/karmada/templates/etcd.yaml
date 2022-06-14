@@ -42,7 +42,7 @@ spec:
         - operator: Exists
       containers:
         - name: etcd
-          image: "{{ .Values.etcd.internal.image.repository }}:{{ .Values.etcd.internal.image.tag | default "latest" }}"
+          image: {{ template "karmada.internal.etcd.image" . }}
           imagePullPolicy: {{ .Values.etcd.internal.image.pullPolicy }}
           livenessProbe:
             exec:
