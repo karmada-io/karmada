@@ -50,6 +50,7 @@ spec:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
+            - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
             - --v=4
           livenessProbe:
             httpGet:

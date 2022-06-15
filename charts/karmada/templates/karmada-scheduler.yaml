@@ -60,6 +60,7 @@ spec:
             - --bind-address=0.0.0.0
             - --secure-port=10351
             - --feature-gates=Failover=true
+            - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
           livenessProbe:
             httpGet:
               path: /healthz
