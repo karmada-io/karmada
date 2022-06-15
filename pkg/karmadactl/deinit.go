@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ import (
 const (
 	karmadaBootstrappingLabelKey = "karmada.io/bootstrapping"
 	karmadaNodeLabel             = "karmada.io/etcd"
+	etcdDefaultPath              = "/var/lib/karmada-etcd"
 )
 
 // CommandDeInitOption options for deinit.
@@ -27,8 +29,8 @@ type CommandDeInitOption struct {
 	Namespace  string
 
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
-	DryRun bool
-
+	DryRun        bool
+	DeDefaultEtcd bool
 	KubeClientSet *kubernetes.Clientset
 }
 
@@ -57,6 +59,7 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "Path to the host cluster kubeconfig file.")
 	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.BoolVar(&opts.DeDefaultEtcd, "de-etcd", false, "delete etcd data in the default path,default path is : /var/lib/karmada-etcd.")
 	return cmd
 }
 
@@ -277,6 +280,28 @@ func deleteConfirmation() bool {
 		return deleteConfirmation()
 	}
 }
+func cleanDir(filePath string) error {
+	// If the directory doesn't even exist there's nothing to do, and we do
+	// not consider this an error
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil
+	}
+	d, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		if err = os.RemoveAll(filepath.Join(filePath, name)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // Run start delete
 func (o *CommandDeInitOption) Run() error {
@@ -294,7 +319,13 @@ func (o *CommandDeInitOption) Run() error {
 		return err
 	}
 
-	fmt.Println("remove Karmada from Kubernetes successfully.\n" +
-		"\ndeinit will not delete etcd data, if the etcd data is persistent, please delete it yourself.")
+	if o.DeDefaultEtcd {
+		cleanDir(etcdDefaultPath)
+		fmt.Println("remove Karmada from Kubernetes successfully.\n" +
+			"\n delete etcd data  in the default path,default path is : /var/lib/karmada-etcd .")
+	} else {
+		fmt.Println("remove Karmada from Kubernetes successfully.\n" +
+			"\ndeinit will not delete etcd data, if the etcd data is persistent, please delete it yourself.")
+	}
 	return nil
 }
