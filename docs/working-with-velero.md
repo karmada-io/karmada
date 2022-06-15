@@ -116,7 +116,7 @@ Velero consists of two components:
    nginx   2/2     2            2           17s
    ```
 
-### Back up and restore Karmada resources
+### Back up and restore kubernetes resources independent
 Create a backup in `member1`:
 ```shell
 velero backup create nginx-backup --selector app=nginx
@@ -156,6 +156,100 @@ And then you can find deployment nginx will be restored successfully.
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
 nginx   2/2     2            2           21s
 ```
+
+### Backup and restore of kubernetes resources through Velero combined with karmada
+
+In Karmada control plane, we need to install velero crds but do not need controllers to reconcile them. They are treated as resource templates, not specific resource instances.Based on work API here, they will be encapsulated as a work object deliverd to member clusters and reconciled by velero controllers in member clusters finally.
+
+Create velero crds in Karmada control plane: 
+remote velero crd directory: `https://github.com/vmware-tanzu/helm-charts/tree/main/charts/velero/crds/`
+
+Create a backup in `karmada-apiserver` and Distributed to `member1` cluster through PropagationPolicy
+
+```shell
+# create backup policy
+cat <<EOF | kubectl apply -f -
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name:  member1-default-backup
+  namespace: velero
+spec:
+  defaultVolumesToRestic: false
+  includedNamespaces:
+  - default
+  storageLocation: default
+EOF
+
+# create PropagationPolicy
+cat <<EOF | kubectl apply -f -
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: member1-backup
+  namespace: velero
+spec:
+  resourceSelectors:
+    - apiVersion: velero.io/v1
+      kind: Backup
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+EOF
+```
+
+
+Create a restore in `karmada-apiserver` and Distributed to `member2` cluster through PropagationPolicy
+
+```shell
+#create restore policy
+cat <<EOF | kubectl apply -f -
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: member1-default-restore
+  namespace: velero
+spec:
+  backupName: member1-default-backup
+  excludedResources:
+  - nodes
+  - events
+  - events.events.k8s.io
+  - backups.velero.io
+  - restores.velero.io
+  - resticrepositories.velero.io
+  hooks: {}
+  includedNamespaces:
+  - 'default'
+EOF
+
+#create PropagationPolicy
+cat <<EOF | kubectl apply -f -
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: member2-default-restore-policy
+  namespace: velero
+spec:
+  resourceSelectors:
+    - apiVersion: velero.io/v1
+      kind: Restore
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member2
+EOF
+
+```
+
+And then you can find deployment nginx will be restored on member2 successfully. 
+```shell
+# kubectl get deployment.apps/nginx
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   2/2     2            2           10s
+```
+
 
 ## Reference
 The above introductions about `Velero` and `MinIO` are only a summary from the official website and repos, for more details please refer to:
