@@ -271,7 +271,7 @@ func deleteClusterObject(controlPlaneKarmadaClient *karmadaclientset.Clientset, 
 
 	err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Delete(context.TODO(), opts.ClusterName, metav1.DeleteOptions{})
 	if apierrors.IsNotFound(err) {
-		return nil
+		return fmt.Errorf("no cluster object %s found in karmada control Plane", opts.ClusterName)
 	}
 	if err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", opts.ClusterName, err)
