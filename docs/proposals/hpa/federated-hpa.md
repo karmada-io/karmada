@@ -66,7 +66,7 @@ target cpu util 30%
 min replica 3
 max replica 100
 ```
-Suddenly, one of the member clusters which my application running on stops working and can't scale up new pods. Unfortunately, a request burst is comming into the application. The CPU util of pods becomes higher than 30%. It will need 100 Pods totally to take the request burst. I hope the Karmada FederatedHPA can scale up new pods in other healthy clusters.
+Suddenly, one of the member clusters which my application running on stops working and can't scale up new pods. Unfortunately, a request burst is coming into the application. The CPU util of pods becomes higher than 30%. It will need 100 Pods totally to take the request burst. I hope the Karmada FederatedHPA can scale up new pods in other healthy clusters.
 
 #### Story 3
 As an administrator of the Karmada&Kubernetes platform, I receive an alert that the Karmada control plane stops working and any requests to the Karmada control plane are failed. There are many applications running on the platform heavilly depend on the HPA to handle the unpredictable burst of requests. The chance of RCA occurred becomes really high if the system can't tolerate the failure of federation control plane. So I hope the Karmada FederatedHPA can scale in the member clusters even if the Karmada control plane is down.
@@ -123,7 +123,7 @@ It is better to solve the first sub-problem in another proposal. So we will leav
 The workload can be spread into multiple member clusters when the `spec.replicas` in the control plane is greater than `1`. The disaster of one member cluster and control plane can be tolerated because the workload can be scaled in other member clusters. But if the `spec.replicas` is `1`, the workload and HPA resource would only be spread into one member cluster. If the member cluster and control plane are out of service in the same time, the workload can't be scaled.
 
 ### How to integrate with and migrate from existing HPA resources
-For some scenarios, people may want a friendly mechanism to control what HPA resources can be controled by `FederatedHPAController`
+For some scenarios, people may want a friendly mechanism to control what HPA resources can be controlled by `FederatedHPAController`
 1. There are already many HPA resources in the control plane managed by `PropagationPolicy` and `OverridePolicy` before the Karmada support FederatedHPA natively. For some risk concerns, the administrator of the platform wants to migrate these HPA resources to be managed by the FederatedHPAController step by step. 
 1. There are already many HPA resources in the control plane managed by `PropagationPolicy` and `OverridePolicy` before the Karmada support FederatedHPA natively. But in the same Karmada control plane, some users want to use the native FederatedHPA but others want to remain the old ways. The FederatedHPA should not conflict with the HPA resources managed by the old ways.
 
@@ -243,7 +243,7 @@ spec:
 
 The `FederatedHPAController` continuously watchs the events of HPA and Karmada relevant resources(`ClusterPropagationPolicy/PropagationPolicy` or `ClusterResourceBinding/ResourceBinding`) to learn 
 * Which clusters the HPA resources should be propagated to
-* What weight the workload should be spreaded to clusters. The weight will be used to spread the `min/max` of HPA to clusters
+* What weight the workload should be spread to clusters. The weight will be used to spread the `min/max` of HPA to clusters
 
 Then, `FederatedHPAController` create/update `Work` resources for HPA resource. Finally, the HPA resource will be spread to `clustera` and `clusterb`. The `min/max` of HPA resource in `clustera` and `clusterb` will be `1/8` and `1/2`.
 
