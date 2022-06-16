@@ -1,6 +1,6 @@
 # Use Flux to support Helm chart propagation
 
-[Flux](https://fluxcd.io/) is most useful when used as a deployment tool at the end of a Continuous Delivery pipeline. Flux will make sure that your new container images and config changes are propagated to the cluster. With Flux, Karmada can easily realize the ability to distribute applications packaged by Helm across clusters. Not only that, with Karmada's OverridePolicy, users can customize applications for specific clusters and manage cross-cluster applications on the unified Karmada control plane.
+[Flux](https://fluxcd.io/) is most useful when used as a deployment tool at the end of a Continuous Delivery Pipeline. Flux will make sure that your new container images and config changes are propagated to the cluster. With Flux, Karmada can easily realize the ability to distribute applications packaged by Helm across clusters. Not only that, with Karmada's OverridePolicy, users can customize applications for specific clusters and manage cross-cluster applications on the unified Karmada Control Plane.
 
 ## Start up Karmada clusters
 
@@ -13,7 +13,7 @@ cd karmada
 hack/local-up-karmada.sh
 ```
 
-After that, you will start a Kubernetes cluster by kind to run the Karmada control plane and create member clusters managed by Karmada.
+After that, you will start a Kubernetes cluster by kind to run the Karmada Control Plane and create member clusters managed by Karmada.
 
 ```sh
 kubectl get clusters --kubeconfig ~/.kube/karmada.config
@@ -30,8 +30,8 @@ member3   v1.23.4   Pull   True    7m27s
 
 ## Start up Flux 
 
-In Karmada control plane, you need to install Flux crds but do not need controllers to reconcile them. They are treated as resource templates, not specific resource instances.
-Based on work API [here](https://github.com/kubernetes-sigs/work-api), they will be encapsulated as a work object deliverd to member clusters and reconciled by Flux controllers in member clusters finally.
+In the Karmada Control Plane, you need to install Flux CRDs but do not need controllers to reconcile them. They are treated as resource templates, not specific resource instances.
+Based on the work API [here](https://github.com/kubernetes-sigs/work-api), they will be encapsulated as a work object delivered to member clusters and reconciled by Flux controllers in member clusters, finally.
 
 ```sh
 kubectl apply -k github.com/fluxcd/flux2/manifests/crds?ref=main --kubeconfig ~/.kube/karmada.config
@@ -63,7 +63,7 @@ source-controller-6b8d9cb5cc-7dbcb         1/1     Running   0          15d
 
 If you want to propagate Helm releases for your apps to member clusters, you can refer to the guide below.
 
-1. Define a Flux `HelmRepository` and a `HelmRelease` manifest in Karmada Control plane. They will serve as resource templates.
+1. Define a Flux `HelmRepository` and a `HelmRelease` manifest in the Karmada Control Plane. They will serve as resource templates.
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1beta2
@@ -153,12 +153,12 @@ NAME   	NAMESPACE	REVISION	UPDATED                               	STATUS  	CHART
 podinfo	default  	1       	2022-05-27 01:44:35.24229175 +0000 UTC	deployed	podinfo-5.0.3	5.0.3
 ```
 
-Based on Karmada's propagation policy, you can schedule Helm releases to your desired cluster flexibly, just like Kubernetes scheduling Pods to the desired node.
+Based on Karmada's propagation policy, you can schedule Helm releases to your desired cluster flexibly, just like Kubernetes schedules Pods to the desired node.
 
 ## Customize the Helm release for specific clusters
 
-The example above shows how to distribute the same Helm release to multiple clusters in Karmada. Besides, you can use Karmada's OverridePolicy to customize applications for specific clusters.
-For example, If you just want to change replicas in member1, you can refer to the overridePolicy below.
+The example above shows how to propogate the same Helm release to multiple clusters in Karmada. Besides, you can use Karmada's OverridePolicy to customize applications for specific clusters.
+For example, if you just want to change replicas in member1, you can refer to the overridePolicy below.
 
 1. Define a Karmada `OverridePolicy`:
 
@@ -185,7 +185,7 @@ spec:
               replicaCount: 2
 ```
 
-2. Apply the manifests to the Karmada-apiserver:
+2. Apply the manifest to the Karmada-apiserver:
 
 ```sh
 kubectl apply -f example-override.yaml --kubeconfig ~/.kube/karmada.config
@@ -197,7 +197,7 @@ The output is similar to:
 overridepolicy.policy.karmada.io/example-override configured
 ```
 
-3. After applying the above policy in Karmada control plane, you will find that replicas in member1 has changed to 2, but those in member2 keep the same.
+3. After applying the above policy in the Karmada Control Plane, you will find that replicas in member1 have changed to 2, but those in member2 keep the same.
 
 ```sh
 kubectl --kubeconfig ~/.kube/members.config --context member1 get po
@@ -215,7 +215,7 @@ podinfo-68979685bc-dz9f6   1/1     Running   0          7m42s
 
 Kustomize propagation is basically the same as helm chart propagation above. You can refer to the guide below.
 
-1. Define a Flux `GitRepository` and a `Kustomization` manifest in Karmada Control plane:
+1. Define a Flux `GitRepository` and a `Kustomization` manifest in the Karmada Control Plane:
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1beta2
