@@ -22,7 +22,7 @@ const (
 	etcdContainerServerPortName        = "server"
 	etcdContainerServerPort            = 2380
 	etcdContainerDataVolumeMountName   = "etcd-data"
-	etcdContainerDataVolumeMountPath   = "/var/lib/etcd"
+	etcdContainerDataVolumeMountPath   = "/var/lib/karmada-etcd"
 	etcdContainerConfigVolumeMountName = "etcd-config"
 	etcdContainerConfigDataMountPath   = "/etc/etcd"
 	etcdConfigName                     = "etcd.conf"
