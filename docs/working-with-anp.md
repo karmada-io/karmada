@@ -2,15 +2,15 @@
 
 ## Purpose
 
-For a member cluster that joins karmada in pull mode, we need to provide a method to connect the network between the karmada control plane and the member cluster, so that karmada-aggregated-apiserver can access this member cluster.
+For a member cluster that joins Karmada in pull mode, we need to provide a method to connect the network between the Karmada control plane and the member cluster, so that karmada-aggregated-apiserver can access this member cluster.
 
-Deploying ANP to achieve appeal is one of the methods. This article describes how to deploy ANP in karmada.
+Deploying ANP to achieve appeal is one of the methods. This article describes how to deploy ANP in Karmada.
 
 ##  Environment
 
 Karmada deployed using the kind tool.
 
-We can directly `hack/local-up-karmada.sh` to deploy karmada.
+We can directly `hack/local-up-karmada.sh` to deploy Karmada.
 
 ## Actions
 
@@ -18,7 +18,7 @@ We can directly `hack/local-up-karmada.sh` to deploy karmada.
 
 To facilitate demonstration, the code is modified based on ANP v0.0.24 to support access to the front server through HTTP. Here is the code base address: https://github.com/mrlihanbo/apiserver-network-proxy/tree/v0.0.24/dev.
 
-```
+```shell
 git clone -b v0.0.24/dev https://github.com/mrlihanbo/apiserver-network-proxy.git
 cd apiserver-network-proxy/
 ```
@@ -27,7 +27,7 @@ cd apiserver-network-proxy/
 
 Compile the proxy-server and proxy-agent images.
 
-```
+```shell
 docker build . --build-arg ARCH=amd64 -f artifacts/images/agent-build.Dockerfile -t swr.ap-southeast-1.myhuaweicloud.com/karmada/proxy-agent:0.0.24
 
 docker build . --build-arg ARCH=amd64 -f artifacts/images/server-build.Dockerfile -t swr.ap-southeast-1.myhuaweicloud.com/karmada/proxy-server:0.0.24
@@ -37,13 +37,13 @@ docker build . --build-arg ARCH=amd64 -f artifacts/images/server-build.Dockerfil
 
 Run the command to check the IP address of karmada-host-control-plane:
 
-```
+```shell
 docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' karmada-host-control-plane
 ```
 
 Run the make certs command to generate a certificate and specify PROXY_SERVER_IP as the IP address obtained in the preceding command.
 
-```
+```shell
 make certs PROXY_SERVER_IP=x.x.x.x
 ```
 
@@ -167,14 +167,14 @@ sed -i'' -e "s/{{cluster_key}}/${CLUSTER_KEY}/g" ${cert_yaml}
 
 Run the following command to run the script:
 
-```
+```shell
 chmod +x replace-proxy-server.sh
 bash replace-proxy-server.sh
 ```
 
-Deploying the proxy-server on the karmada control plane:
+Deploying the proxy-server on the Karmada control plane:
 
-```
+```shell
 kind load docker-image swr.ap-southeast-1.myhuaweicloud.com/karmada/proxy-server:0.0.24 --name karmada-host
 export KUBECONFIG=/root/.kube/karmada.config
 kubectl --context=karmada-host apply -f proxy-server.yaml
@@ -281,14 +281,14 @@ sed -i'' -e "s/{{proxy_agent_key}}/${PROXY_AGENT_KEY}/g" ${cert_yaml}
 
 Run the following command to run the script:
 
-```
+```shell
 chmod +x replace-proxy-agent.sh
 bash replace-proxy-agent.sh
 ```
 
 Deploying the proxy-agent in the pull mode member cluster (in this example, cluster member3 cluster is in pull mode.):
 
-```
+```shell
 kind load docker-image swr.ap-southeast-1.myhuaweicloud.com/karmada/proxy-agent:0.0.24 --name member3
 kubectl --kubeconfig=/root/.kube/members.config --context=member3 apply -f proxy-agent.yaml
 ```
