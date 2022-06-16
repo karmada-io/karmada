@@ -17,6 +17,8 @@ KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 INTERPRETER_WEBHOOK_EXAMPLE_LABEL="karmada-interpreter-webhook-example"
 KARMADA_SEARCH_LABEL="karmada-search"
+KARMADA_OPENSEARCH_LABEL="karmada-opensearch"
+KARMADA_OPENSEARCH_DASHBOARDS_LABEL="karmada-opensearch-dashboards"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
