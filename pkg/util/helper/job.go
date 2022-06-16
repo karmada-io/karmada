@@ -36,7 +36,7 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		newStatus.Succeeded += temp.Succeeded
 		newStatus.Failed += temp.Failed
 
-		isFinished, finishedStatus := getJobFinishedStatus(temp)
+		isFinished, finishedStatus := GetJobFinishedStatus(temp)
 		if isFinished && finishedStatus == batchv1.JobComplete {
 			successfulJobs++
 		} else if isFinished && finishedStatus == batchv1.JobFailed {
@@ -88,9 +88,9 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 	return newStatus, nil
 }
 
-// getJobFinishedStatus checks whether the given Job has finished execution.
+// GetJobFinishedStatus checks whether the given Job has finished execution.
 // It does not discriminate between successful and failed terminations.
-func getJobFinishedStatus(jobStatus *batchv1.JobStatus) (bool, batchv1.JobConditionType) {
+func GetJobFinishedStatus(jobStatus *batchv1.JobStatus) (bool, batchv1.JobConditionType) {
 	for _, c := range jobStatus.Conditions {
 		if (c.Type == batchv1.JobComplete || c.Type == batchv1.JobFailed) && c.Status == corev1.ConditionTrue {
 			return true, c.Type
