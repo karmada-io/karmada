@@ -1,13 +1,13 @@
 # Working with Gatekeeper(OPA)
 
-[Gatekeeper](https://github.com/open-policy-agent/gatekeeper) , is a customizable admission webhook for Kubernetes that enforces policies executed by the Open Policy Agent (OPA), a policy engine for Cloud Native environments hosted by [Cloud Native Computing Foundation ](https://cncf.io/).
+[Gatekeeper](https://github.com/open-policy-agent/gatekeeper) , is a customizable admission webhook for Kubernetes that enforces policies executed by the Open Policy Agent (OPA), a policy engine for Cloud Native environments hosted by [Cloud Native Computing Foundation](https://cncf.io/).
 
-This document gives an example to demonstrate how to use the `Gatekeeper` to manage OPA policy. 
+This document demonstrates how to use the `Gatekeeper` to manage OPA policies. 
 
 ## Prerequisites
 ### Start up Karmada clusters
 
-You just need to clone Karmada repo, and run the following script in Karmada directory. 
+You just need to clone Karmada repo, and run the following script in the Karmada directory. 
 
 ```
 hack/local-up-karmada.sh
@@ -19,7 +19,7 @@ In this case, you will use Gatekeeper v3.7.2. Related deployment files are from 
 
 ### Install Gatekeeper APIs on Karmada
 
-1. Create resource objects of Gatekeeper in karmada controller plane, the content is as follows. 
+1. Create resource objects for Gatekeeper in karmada controller plane, the content is as follows. 
 
    ```console
    kubectl config use-context karmada-apiserver
@@ -122,18 +122,18 @@ In this case, you will use Gatekeeper v3.7.2. Related deployment files are from 
    ```
    You need to change the clientconfig from service type to url type for multi-cluster deployment.
    
-   Also, you need to deploy a dummy pod in gatekeeper-system namespace in karmada-apiserver context because when Gatekeeper generates a policy template CRD, a status object is generated to monitor the status of the policy template, and the status object is bound by the controller Pod through the OwnerReference. Therefore, when the CRD and the controller are not in the same cluster, a dummy Pod needs to be used instead of the controller. The Pod enables the status object to be successfully generated. 
+   Also, you need to deploy a dummy pod in gatekeeper-system namespace in karmada-apiserver context, because when Gatekeeper generates a policy template CRD, a status object is generated to monitor the status of the policy template, and the status object is bound by the controller Pod through the OwnerReference. Therefore, when the CRD and the controller are not in the same cluster, a dummy Pod needs to be used instead of the controller. The Pod enables the status object to be successfully generated. 
 
    For example: 
    ```yaml
    apiVersion: v1
    kind: Pod
    metadata:
-     name: dummpy-pod
+     name: dummy-pod
      namespace: gatekeeper-system
    spec:
      containers:
-     - name: dummpy-pod
+     - name: dummy-pod
        image: nginx:latest
        imagePullPolicy: Always
    ```
@@ -407,7 +407,7 @@ In this case, you will use Gatekeeper v3.7.2. Related deployment files are from 
    ``` 
    You need to fill in the dummy pod created in step 1 to {{ POD_NAME }} and fill in the secret which represents kubeconfig pointing to karmada-apiserver.
    
-   Deploy resourcequota: https://github.com/open-policy-agent/gatekeeper/blob/0d239574f8e71908325391d49cb8dd8e4ed6f6fa/deploy/gatekeeper.yaml#L10-L26
+   Deploy ResourceQuota: https://github.com/open-policy-agent/gatekeeper/blob/0d239574f8e71908325391d49cb8dd8e4ed6f6fa/deploy/gatekeeper.yaml#L10-L26
 
 ### Extra steps
 
