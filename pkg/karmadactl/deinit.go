@@ -28,6 +28,7 @@ type CommandDeInitOption struct {
 
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
+	Force  bool
 
 	KubeClientSet *kubernetes.Clientset
 }
@@ -57,6 +58,7 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "Path to the host cluster kubeconfig file.")
 	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.BoolVarP(&opts.Force, "force", "f", false, "Reset cluster without prompting for confirmation.")
 	return cmd
 }
 
@@ -282,7 +284,7 @@ func deleteConfirmation() bool {
 func (o *CommandDeInitOption) Run() error {
 	fmt.Println("removes Karmada from Kubernetes")
 	// delete confirmation,exit the delete action when false.
-	if !deleteConfirmation() {
+	if !o.Force && !deleteConfirmation() {
 		return nil
 	}
 
