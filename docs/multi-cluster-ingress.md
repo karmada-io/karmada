@@ -25,10 +25,10 @@ We use [multi-cluster-ingress-nginx](https://github.com/karmada-io/multi-cluster
 
 #### Download code
 
-```
-// for HTTPS
+```shell
+# for HTTPS
 git clone https://github.com/karmada-io/multi-cluster-ingress-nginx.git
-// for SSH
+# for SSH
 git clone git@github.com:karmada-io/multi-cluster-ingress-nginx.git
 ```
 
@@ -36,7 +36,7 @@ git clone git@github.com:karmada-io/multi-cluster-ingress-nginx.git
 
 Using the existing `karmada-host` kind cluster to build and deploy the ingress controller.
 
-```
+```shell
 export KIND_CLUSTER_NAME=karmada-host
 kubectl config use-context karmada-host
 make dev-env
@@ -44,7 +44,7 @@ make dev-env
 
 #### Apply kubeconfig secret
 
-Create a secret that contains the `karmada-apiserver` authentication credential in the following format:
+Create a Secret that contains the `karmada-apiserver` authentication credential in the following format:
 
 ```yaml
 # karmada-kubeconfig-secret.yaml
@@ -60,13 +60,13 @@ type: Opaque
 
 You can get the authentication credential from the `/root/.kube/karmada.config` file, or use command:
 
-```
+```shell
 kubectl -n karmada-system get secret kubeconfig -oyaml | grep kubeconfig | sed -n '1p' | awk '{print $2}'
 ```
 
 Then apply yaml:
 
-```
+```shell
 kubectl apply -f karmada-kubeconfig-secret.yaml
 ```
 
@@ -74,7 +74,7 @@ kubectl apply -f karmada-kubeconfig-secret.yaml
 
 We want `nginx-ingress-controller` to access `karmada-apiserver` to listen to changes in resources(such as multiclusteringress, endpointslices, and service). Therefore, we need to mount the authentication credential of `karmada-apiserver` to the `nginx-ingress-controller`.
 
-```
+```shell
 kubectl -n ingress-nginx edit deployment ingress-nginx-controller
 ```
 
@@ -173,7 +173,7 @@ spec:
 
 </details>
 
-```
+```shell
 kubectl --context karmada-apiserver apply -f deploy.yaml
 ```
 
@@ -208,7 +208,7 @@ spec:
 
 </details>
 
-```
+```shell
 kubectl --context karmada-apiserver apply -f service_export.yaml
 ```
 
@@ -248,7 +248,7 @@ spec:
 
 </details>
 
-```
+```shell
 kubectl --context karmada-apiserver apply -f service_import.yaml
 ```
 
@@ -283,7 +283,7 @@ spec:
 
 </details>
 
-```
+```shell
 kubectl --context karmada-apiserver apply -f 
 ```
 
@@ -291,7 +291,7 @@ kubectl --context karmada-apiserver apply -f
 
 Let's forward a local port to the ingress controller:
 
-```
+```shell
 kubectl port-forward --namespace=ingress-nginx service/ingress-nginx-controller 8080:80
 ```
 
