@@ -38,6 +38,8 @@ type Options struct {
 	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
 	// how long the current holder of a lease has last updated the lease.
 	ClusterLeaseRenewIntervalFraction float64
+	// ClusterSuccessThreshold is the duration of successes for the cluster to be considered healthy after recovery.
+	ClusterSuccessThreshold metav1.Duration
 	// ClusterFailureThreshold is the duration of failure for the cluster to be considered unhealthy.
 	ClusterFailureThreshold metav1.Duration
 	// ClusterAPIQPS is the QPS to use while talking with cluster kube-apiserver.
@@ -105,6 +107,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 		"Specifies the expiration period of a cluster lease.")
 	fs.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
 		"Specifies the cluster lease renew interval fraction.")
+	fs.DurationVar(&o.ClusterSuccessThreshold.Duration, "cluster-success-threshold", 30*time.Second, "The duration of successes for the cluster to be considered healthy after recovery.")
 	fs.DurationVar(&o.ClusterFailureThreshold.Duration, "cluster-failure-threshold", 30*time.Second, "The duration of failure for the cluster to be considered unhealthy.")
 	fs.Float32Var(&o.ClusterAPIQPS, "cluster-api-qps", 40.0, "QPS to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	fs.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", 60, "Burst to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
