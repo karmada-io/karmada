@@ -1,6 +1,6 @@
 # Working with Kyverno
 
-[Kyverno](https://github.com/kyverno/kyverno) , a [Cloud Native Computing Foundation ](https://cncf.io/) project, is a policy engine designed for Kubernetes. It can validate, mutate, and generate configurations using admission controls and background scans. Kyverno policies are Kubernetes resources and do not require learning a new language. Kyverno is designed to work nicely with tools you already use like kubectl, kustomize, and Git.
+[Kyverno](https://github.com/kyverno/kyverno), a [Cloud Native Computing Foundation](https://cncf.io/) project, is a policy engine designed for Kubernetes. It can validate, mutate, and generate configurations using admission controls and background scans. Kyverno policies are Kubernetes resources and do not require learning a new language. Kyverno is designed to work nicely with tools you already use like kubectl, kustomize, and Git.
 
 This document gives an example to demonstrate how to use the `Kyverno` to manage policy.
 
@@ -9,7 +9,7 @@ This document gives an example to demonstrate how to use the `Kyverno` to manage
 
 You just need to clone Karmada repo, and run the following script in Karmada directory. 
 
-```
+```console
 hack/local-up-karmada.sh
 ```
 
@@ -19,9 +19,9 @@ In this case, we will use Kyverno v1.6.2. Related deployment files are from [her
 
 ### Install Kyverno APIs on Karmada
 
-1. Create resource objects of Kyverno in karmada controller plane, the content is as follows.
+1. Create resource objects of Kyverno in Karmada controller plane, the content is as follows.
 
-   ```console
+   ```shell
    kubectl config use-context karmada-apiserver
    ```
 
@@ -35,7 +35,7 @@ In this case, we will use Kyverno v1.6.2. Related deployment files are from [her
 
 1. Create resource objects of Kyverno in karmada-host context, the content is as follows.
 
-   ```console
+   ```shell
    kubectl config use-context karmada-host  
    ```
 
@@ -269,16 +269,17 @@ In this case, we will use Kyverno v1.6.2. Related deployment files are from [her
      namespace: kyverno
    ```
 
-   For multi-cluster deployment, We need to add the config of `--serverIP` which is the address of the webhook server. So you need to ensure that the network from node in karmada control plane to those in karmada-host cluster is connected and expose kyverno controller pods to control plane, for example, using `nodePort` above. Then, fill in the secret which represents kubeconfig pointing to karmada-apiserver, such as **ca_crt, client_cer and client_key** above.
+   For multi-cluster deployment, we need to add the config of `--serverIP` which is the address of the webhook server. So you need to ensure that the network from node in Karmada control plane to those in karmada-host cluster is connected and expose Kyverno controller pods to control plane, for example, using `nodePort` above. Then, fill in the secret which represents kubeconfig pointing to karmada-apiserver, such as **ca_crt, client_cer and client_key** above.
 
 ## Run demo
 ### Create require-labels ClusterPolicy
 
-   ClusterPolicy is a CRD which `kyverno` offers to support different kinds of rules. Here is an example ClusterPolicy which means that you must create pod with `app.kubernetes.io/name` label.
+   ClusterPolicy is a CRD which `Kyverno` offers to support different kinds of rules. Here is an example ClusterPolicy which means that you must create pod with `app.kubernetes.io/name` label.
 
-   ```console
+   ```shell
    kubectl config use-context karmada-apiserver  
    ```
+   
    ```console
    kubectl create -f- << EOF
    apiVersion: kyverno.io/v1
