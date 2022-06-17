@@ -58,6 +58,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	rootCmd.AddCommand(NewCmdLogs(karmadaConfig, parentCommand))
 	rootCmd.AddCommand(NewCmdExec(karmadaConfig, parentCommand))
 	rootCmd.AddCommand(NewCmdDescribe(karmadaConfig, parentCommand))
+	rootCmd.AddCommand(NewCmdDelete(karmadaConfig, parentCommand))
 	rootCmd.AddCommand(cmdinit.NewCmdInit(parentCommand))
 	rootCmd.AddCommand(NewCmdDeInit(parentCommand))
 
