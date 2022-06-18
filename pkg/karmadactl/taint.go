@@ -88,6 +88,9 @@ func taintExample(parentCommand string) string {
 type CommandTaintOption struct {
 	options.GlobalCommandOptions
 
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
+
 	resources      []string
 	taintsToAdd    []corev1.Taint
 	taintsToRemove []corev1.Taint
@@ -175,6 +178,7 @@ func (o *CommandTaintOption) AddFlags(flags *pflag.FlagSet) {
 	o.GlobalCommandOptions.AddFlags(flags)
 
 	flags.BoolVar(&o.overwrite, "overwrite", o.overwrite, "If true, allow taints to be overwritten, otherwise reject taint updates that overwrite existing taints.")
+	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
 // RunTaint set taints for the clusters

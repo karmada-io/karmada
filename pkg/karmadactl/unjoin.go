@@ -85,6 +85,9 @@ type CommandUnjoinOption struct {
 	// ClusterKubeConfig is the cluster's kubeconfig path.
 	ClusterKubeConfig string
 
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
+
 	forceDeletion bool
 
 	// Wait tells maximum command execution time
@@ -126,8 +129,8 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 		"Path of the cluster's kubeconfig.")
 	flags.BoolVar(&j.forceDeletion, "force", false,
 		"Delete cluster and secret resources even if resources in the cluster targeted for unjoin are not removed successfully.")
-
 	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
+	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
 // RunUnjoin is the implementation of the 'unjoin' command.
