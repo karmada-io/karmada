@@ -88,9 +88,7 @@ var _ = ginkgo.Describe("reschedule testing", func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName), func() {
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						DryRun: false,
-					},
+					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
 					ClusterContext:    clusterContext,
