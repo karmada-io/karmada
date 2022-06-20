@@ -63,6 +63,15 @@ spec:
             - --secure-port=10357
             - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
             - --v=2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10357
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
           {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
           resources:
