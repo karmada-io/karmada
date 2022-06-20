@@ -1,19 +1,19 @@
 # Use Prometheus to monitor Karmada member clusters
 
-[Prometheus](https://github.com/prometheus/prometheus) , a [Cloud Native Computing Foundation ](https://cncf.io/) project, is a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts when specified conditions are observed.
+[Prometheus](https://github.com/prometheus/prometheus), a [Cloud Native Computing Foundation](https://cncf.io/) project, is a system and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts when specified conditions are observed.
 
-This document gives an example to demonstrate how to use the `Prometheus` to monitor karmada member clusters. 
+This document gives an example to demonstrate how to use the `Prometheus` to monitor Karmada member clusters.
 
-##Start up Karmada clusters
-You just need to clone Karmada repo, and run the following script in Karmada directory. 
+## Start up Karmada clusters
+You just need to clone Karmada repo, and run the following script in Karmada directory.
 
-```
+```shell
 hack/local-up-karmada.sh
 ```
 
 ## Start Prometheus
 
-1. Create resource objects of prometheus, the content is as follows. 
+1. Create resource objects of Prometheus, the content is as follows.
 
    ```
    apiVersion: v1
@@ -287,7 +287,7 @@ hack/local-up-karmada.sh
              name: prometheus-config
    ```
 
-2. Run the below command to execute karmada PropagationPolicy and ClusterPropagationPolicy. 
+2. Run the below command to execute Karmada PropagationPolicy and ClusterPropagationPolicy.
 
    ```
    cat <<EOF | kubectl apply -f -
