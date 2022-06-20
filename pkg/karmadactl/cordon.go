@@ -53,6 +53,8 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 	flags := cmd.Flags()
 	opts.GlobalCommandOptions.AddFlags(flags)
 
+	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+
 	return cmd
 }
 
@@ -103,6 +105,9 @@ type CommandCordonOption struct {
 
 	// ClusterName is the cluster's name that we are going to join with.
 	ClusterName string
+
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
