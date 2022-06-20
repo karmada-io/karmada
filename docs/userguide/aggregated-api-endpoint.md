@@ -12,9 +12,9 @@ To quickly experience this feature, we experimented with karmada-apiserver certi
 
 ### Step1: Obtain the karmada-apiserver Certificate
 
-For karmada deployed using `hack/local-up-karmada.sh`, you can directly copy it from the `/root/.kube/` directory.
+For Karmada deployed using `hack/local-up-karmada.sh`, you can directly copy it from the `/root/.kube/` directory.
 
-```
+```shell
 cp /root/.kube/karmada.config karmada-apiserver.config
 ```
 
@@ -62,7 +62,7 @@ subjects:
 
 </details>
 
-```
+```shell
 kubectl --kubeconfig /root/.kube/karmada.config --context karmada-apiserver apply -f cluster-proxy-rbac.yaml
 ```
 
@@ -70,21 +70,21 @@ kubectl --kubeconfig /root/.kube/karmada.config --context karmada-apiserver appl
 
 Run the below command (replace `{clustername}` with your actual cluster name):
 
-```
+```shell
 kubectl --kubeconfig karmada-apiserver.config get --raw /apis/cluster.karmada.io/v1alpha1/clusters/{clustername}/proxy/api/v1/nodes
 ```
 
 Or append `/apis/cluster.karmada.io/v1alpha1/clusters/{clustername}/proxy ` to the server address of karmada-apiserver.config, and then you can directly use:
 
-```
+```shell
 kubectl --kubeconfig karmada-apiserver.config get node
 ```
 
-> Note: For a member cluster that joins karmada in pull mode and allows only cluster-to-karmada access, we can [deploy apiserver-network-proxy (ANP)](../working-with-anp.md) to access it.
+> Note: For a member cluster that joins Karmada in pull mode and allows only cluster-to-karmada access, we can [deploy apiserver-network-proxy (ANP)](../working-with-anp.md) to access it.
 
 ## Unified authentication
 
-For one or a group of user subjects (users, groups, or service accounts) in a member cluster, we can import them into karmada control plane and grant them the `clusters/proxy` permission, so that we can access the member cluster with permission of the user subject through karmada.
+For one or a group of user subjects (users, groups, or service accounts) in a member cluster, we can import them into Karmada control plane and grant them the `clusters/proxy` permission, so that we can access the member cluster with permission of the user subject through Karmada.
 
 In this section, we use a serviceaccount named `tom` for the test.
 
@@ -94,13 +94,13 @@ If the serviceaccount has been created in your environment, you can skip this st
 
 Create a serviceaccount that does not have any permission:
 
-```
+```shell
 kubectl --kubeconfig /root/.kube/members.config --context member1 create serviceaccount tom
 ```
 
 ### Step2: Create ServiceAccount in karmada control plane
 
-```
+```shell
 kubectl --kubeconfig /root/.kube/karmada.config --context karmada-apiserver create serviceaccount tom
 ```
 
@@ -148,7 +148,7 @@ subjects:
 
 </details>
 
-```
+```shell
 kubectl --kubeconfig /root/.kube/karmada.config --context karmada-apiserver apply -f cluster-proxy-rbac.yaml
 ```
 
@@ -156,7 +156,7 @@ kubectl --kubeconfig /root/.kube/karmada.config --context karmada-apiserver appl
 
 Obtain token of serviceaccount `tom`:
 
-```
+```shell
 kubectl get secret `kubectl get sa tom -oyaml | grep token | awk '{print $3}'` -oyaml | grep token: | awk '{print $2}' | base64 -d
 ```
 
@@ -184,13 +184,13 @@ users:
 
 Run the command below to access member1 cluster:
 
-```
+```shell
 kubectl --kubeconfig tom.config get --raw /apis/cluster.karmada.io/v1alpha1/clusters/member1/proxy/apis
 ```
 
 We can found that we were able to access, but run the command below:
 
-```
+```shell
 kubectl --kubeconfig tom.config get --raw /apis/cluster.karmada.io/v1alpha1/clusters/member1/proxy/api/v1/nodes
 ```
 
@@ -206,7 +206,7 @@ member1-rbac.yaml
 
 <summary>unfold me to see the yaml</summary>
 
-```
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -235,22 +235,22 @@ subjects:
 
 </details>
 
-```
+```shell
 kubectl --kubeconfig /root/.kube/members.config --context member1 apply -f member1-rbac.yaml
 ```
 
 Run the command that failed in the previous step again:
 
-```
+```shell
 kubectl --kubeconfig tom.config get --raw /apis/cluster.karmada.io/v1alpha1/clusters/member1/proxy/api/v1/nodes
 ```
 
 The access will be successful.
 
-Or we can append `/apis/cluster.karmada.io/v1alpha1/clusters/member1/proxy ` to the server address of tom.config , and then you can directly use:
+Or we can append `/apis/cluster.karmada.io/v1alpha1/clusters/member1/proxy ` to the server address of tom.config, and then you can directly use:
 
-```
+```shell
 kubectl --kubeconfig tom.config get node
 ```
 
-> Note: For a member cluster that joins karmada in pull mode and allows only cluster-to-karmada access, we can [deploy apiserver-network-proxy (ANP)](../working-with-anp.md) to access it.
+> Note: For a member cluster that joins Karmada in pull mode and allows only cluster-to-karmada access, we can [deploy apiserver-network-proxy (ANP)](../working-with-anp.md) to access it.
