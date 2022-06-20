@@ -162,8 +162,10 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 			klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
 		}
 
-		// init the lease controller for every cluster
-		c.initLeaseController(clusterInformerManager.Context(), cluster)
+		if cluster.Spec.SyncMode == clusterv1alpha1.Pull {
+			// init the lease controller for pull mode clusters
+			c.initLeaseController(clusterInformerManager.Context(), cluster)
+		}
 
 		clusterVersion, err := getKubernetesVersion(clusterClient)
 		if err != nil {
