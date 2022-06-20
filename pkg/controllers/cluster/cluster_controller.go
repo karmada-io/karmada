@@ -420,6 +420,10 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 		}
 	}
 
+	if cluster.Spec.SyncMode == clusterv1alpha1.Push {
+		return observedReadyCondition, currentReadyCondition, nil
+	}
+
 	// Always update the probe time if cluster lease is renewed.
 	// Note: If cluster-status-controller never posted the cluster status, but continues renewing the
 	// heartbeat leases, the cluster controller will assume the cluster is healthy and take no action.
