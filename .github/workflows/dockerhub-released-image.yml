@@ -30,7 +30,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.18.3
       - name: install QEMU
         uses: docker/setup-qemu-action@v1
       - name: install Buildx

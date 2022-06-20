@@ -14,7 +14,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.18.3
       - name: vendor
         run: hack/verify-vendor.sh
       - name: lint
@@ -37,7 +37,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.18.3
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
       - name: verify codegen
@@ -64,7 +64,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.18.3
       - name: compile
         run: make all
   test:
@@ -77,7 +77,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.18.3
       - name: make test
         run: make test
   e2e:
@@ -97,7 +97,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.18.3
       - name: setup e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
