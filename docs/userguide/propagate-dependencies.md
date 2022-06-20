@@ -1,5 +1,5 @@
 # Propagate dependencies
-Deployment, Job, Pod, DaemonSet and StatefulSet dependencies (ConfigMaps and Secrets) can be propagated to member
+Deployment, Job, Pod, DaemonSet and StatefulSet dependencies (ConfigMaps, Secrets and ServiceAccounts) can be propagated to member
 clusters automatically. This document demonstrates how to use this feature. For more design details, please refer to
 [dependencies-automatically-propagation](../proposals/dependencies-automatically-propagation/README.md)
 

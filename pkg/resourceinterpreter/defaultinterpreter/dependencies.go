@@ -96,7 +96,7 @@ func getStatefulSetDependencies(object *unstructured.Unstructured) ([]configv1al
 func getDependenciesFromPodTemplate(podObj *corev1.Pod) ([]configv1alpha1.DependentObjectReference, error) {
 	dependentConfigMaps := getConfigMapNames(podObj)
 	dependentSecrets := getSecretNames(podObj)
-
+	dependentSas := getServiceAccountNames(podObj)
 	var dependentObjectRefs []configv1alpha1.DependentObjectReference
 	for cm := range dependentConfigMaps {
 		dependentObjectRefs = append(dependentObjectRefs, configv1alpha1.DependentObjectReference{
@@ -115,7 +115,14 @@ func getDependenciesFromPodTemplate(podObj *corev1.Pod) ([]configv1alpha1.Depend
 			Name:       secret,
 		})
 	}
-
+	for sa := range dependentSas {
+		dependentObjectRefs = append(dependentObjectRefs, configv1alpha1.DependentObjectReference{
+			APIVersion: "v1",
+			Kind:       "ServiceAccount",
+			Namespace:  podObj.Namespace,
+			Name:       sa,
+		})
+	}
 	return dependentObjectRefs, nil
 }
 
@@ -125,6 +132,14 @@ func getSecretNames(pod *corev1.Pod) sets.String {
 		result.Insert(name)
 		return true
 	})
+	return result
+}
+
+func getServiceAccountNames(pod *corev1.Pod) sets.String {
+	result := sets.NewString()
+	if pod.Spec.ServiceAccountName != "" && pod.Spec.ServiceAccountName != "default" {
+		result.Insert(pod.Spec.ServiceAccountName)
+	}
 	return result
 }
 
