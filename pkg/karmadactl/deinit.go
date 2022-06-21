@@ -325,10 +325,10 @@ func (o *CommandDeInitOption) Run() error {
 			return err
 		}
 		fmt.Println("remove Karmada from Kubernetes successfully.\n" +
-			"\n delete etcd data  in the default path,default path is : /var/lib/karmada-etcd .")
+			"\ndelete etcd data in the default path, default path is: /var/lib/karmada-etcd.")
 	} else {
 		fmt.Println("remove Karmada from Kubernetes successfully.\n" +
-			"\ndeinit will not delete etcd data, if the etcd data is persistent, please delete it yourself.")
+			"\ndeinit will not delete etcd data, if the etcd data is persistent, please delete it by yourself.")
 	}
 	return nil
 }
