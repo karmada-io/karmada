@@ -17,6 +17,10 @@ func (o *Options) Validate() field.ErrorList {
 		errs = append(errs, field.Invalid(newPath.Child("ClusterName"), o.ClusterName, strings.Join(errMsgs, ",")))
 	}
 
+	if o.SecurePort < 0 || o.SecurePort > 65535 {
+		errs = append(errs, field.Invalid(newPath.Child("SecurePort"), o.SecurePort, "must be between 0 and 65535 inclusive"))
+	}
+
 	if o.ClusterStatusUpdateFrequency.Duration < 0 {
 		errs = append(errs, field.Invalid(newPath.Child("ClusterStatusUpdateFrequency"), o.ClusterStatusUpdateFrequency, "must be greater than or equal to 0"))
 	}

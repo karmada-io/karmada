@@ -76,7 +76,18 @@ spec:
             - --karmada-context=%s
             - --cluster-name={member_cluster_name}
             - --cluster-status-update-frequency=10s
+            - --bind-address=0.0.0.0
+            - --secure-port=10357
             - --v=4
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10357
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
             - name: kubeconfig
               mountPath: /etc/kubeconfig
