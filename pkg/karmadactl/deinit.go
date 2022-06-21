@@ -320,7 +320,10 @@ func (o *CommandDeInitOption) Run() error {
 	}
 
 	if o.DeDefaultEtcd {
-		cleanDir(etcdDefaultPath)
+		err := cleanDir(etcdDefaultPath)
+		if err != nil {
+			return err
+		}
 		fmt.Println("remove Karmada from Kubernetes successfully.\n" +
 			"\n delete etcd data  in the default path,default path is : /var/lib/karmada-etcd .")
 	} else {
