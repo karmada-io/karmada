@@ -578,6 +578,19 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		},
 	}
 
+	// Probes
+	readinesProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/readyz",
+				Port: intstr.IntOrString{
+					IntVal: webhookTargetPort,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -629,17 +642,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 						MountPath: webhookCertVolumeMountPath,
 					},
 				},
-				ReadinessProbe: &corev1.Probe{
-					ProbeHandler: corev1.ProbeHandler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: "/readyz",
-							Port: intstr.IntOrString{
-								IntVal: webhookTargetPort,
-							},
-							Scheme: corev1.URISchemeHTTPS,
-						},
-					},
-				},
+				ReadinessProbe: readinesProbe,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -702,6 +705,22 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		},
 	}
 
+	// Probes
+	readinesProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/readyz",
+				Port: intstr.IntOrString{
+					IntVal: 443,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+		InitialDelaySeconds: 1,
+		PeriodSeconds:       3,
+		TimeoutSeconds:      15,
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -754,20 +773,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 						MountPath: karmadaCertsVolumeMountPath,
 					},
 				},
-				ReadinessProbe: &corev1.Probe{
-					ProbeHandler: corev1.ProbeHandler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: "/readyz",
-							Port: intstr.IntOrString{
-								IntVal: 443,
-							},
-							Scheme: corev1.URISchemeHTTPS,
-						},
-					},
-					InitialDelaySeconds: 1,
-					PeriodSeconds:       3,
-					TimeoutSeconds:      15,
-				},
+				ReadinessProbe: readinesProbe,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU: resource.MustParse("100m"),
