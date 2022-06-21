@@ -6,7 +6,7 @@ set -o pipefail
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 GOLANGCI_LINT_PKG="github.com/golangci/golangci-lint/cmd/golangci-lint"
-GOLANGCI_LINT_VER="v1.42.1"
+GOLANGCI_LINT_VER="v1.46.2"
 
 cd "${REPO_ROOT}"
 source "hack/util.sh"

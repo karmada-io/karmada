@@ -22,7 +22,7 @@ KARMADA_OPENSEARCH_DASHBOARDS_LABEL="karmada-opensearch-dashboards"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
-MIN_Go_VERSION=go1.17.0
+MIN_Go_VERSION=go1.18.0
 
 KARMADA_TARGET_SOURCE=(
   karmada-aggregated-apiserver=cmd/aggregated-apiserver
