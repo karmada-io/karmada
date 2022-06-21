@@ -14,14 +14,23 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
-// DefaultKarmadaClusterNamespace defines the default namespace where the member cluster secrets are stored.
-const DefaultKarmadaClusterNamespace = "karmada-cluster"
+const (
+	// DefaultKarmadaClusterNamespace defines the default namespace where the member cluster secrets are stored.
+	DefaultKarmadaClusterNamespace = "karmada-cluster"
+	defaultBindAddress             = "0.0.0.0"
+	defaultPort                    = 10357
+)
 
 // Options contains everything necessary to create and run controller-manager.
 type Options struct {
 	// Controllers contains all controller names.
-	Controllers       []string
-	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
+	Controllers    []string
+	LeaderElection componentbaseconfig.LeaderElectionConfiguration
+	// BindAddress is the IP address on which to listen for the --secure-port port.
+	BindAddress string
+	// SecurePort is the port that the the server serves at.
+	// Note: We hope support https in the future once controller-runtime provides the functionality.
+	SecurePort        int
 	KarmadaKubeConfig string
 	// ClusterContext is the name of the cluster context in control plane KUBECONFIG file.
 	// Default value is the current-context.
@@ -96,6 +105,10 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: %s.",
 		strings.Join(allControllers, ", "),
 	))
+	fs.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
+		"The IP address on which to listen for the --secure-port port.")
+	fs.IntVar(&o.SecurePort, "secure-port", defaultPort,
+		"The secure port on which to serve HTTPS.")
 	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
 	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", util.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
 	fs.StringVar(&o.KarmadaKubeConfig, "karmada-kubeconfig", o.KarmadaKubeConfig, "Path to karmada control plane kubeconfig file.")
