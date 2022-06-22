@@ -104,6 +104,12 @@ type CommandJoinOption struct {
 	// ClusterProvider is the cluster's provider.
 	ClusterProvider string
 
+	// ClusterRegion represents the region of the cluster locate in.
+	ClusterRegion string
+
+	// ClusterZone represents the zone of the cluster locate in.
+	ClusterZone string
+
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
 }
@@ -144,6 +150,8 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
 	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster.")
+	flags.StringVar(&j.ClusterRegion, "cluster-region", "", "The region of the joining cluster.")
+	flags.StringVar(&j.ClusterZone, "cluster-zone", "", "The zone of the joining cluster")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
@@ -333,6 +341,14 @@ func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Co
 
 	if opts.ClusterProvider != "" {
 		clusterObj.Spec.Provider = opts.ClusterProvider
+	}
+
+	if opts.ClusterZone != "" {
+		clusterObj.Spec.Zone = opts.ClusterZone
+	}
+
+	if opts.ClusterRegion != "" {
+		clusterObj.Spec.Region = opts.ClusterRegion
 	}
 
 	if clusterConfig.TLSClientConfig.Insecure {
