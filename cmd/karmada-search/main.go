@@ -4,25 +4,15 @@ import (
 	"os"
 
 	apiserver "k8s.io/apiserver/pkg/server"
-	"k8s.io/component-base/logs"
+	"k8s.io/component-base/cli"
+	_ "k8s.io/component-base/logs/json/register" // for JSON log format registration
 
 	"github.com/karmada-io/karmada/cmd/karmada-search/app"
 )
 
 func main() {
-	if err := runKarmadaSearchCmd(); err != nil {
-		os.Exit(1)
-	}
-}
-
-func runKarmadaSearchCmd() error {
-	logs.InitLogs()
-	defer logs.FlushLogs()
-
 	ctx := apiserver.SetupSignalContext()
-	if err := app.NewKarmadaSearchCommand(ctx).Execute(); err != nil {
-		return err
-	}
-
-	return nil
+	cmd := app.NewKarmadaSearchCommand(ctx)
+	code := cli.Run(cmd)
+	os.Exit(code)
 }
