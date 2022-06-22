@@ -294,9 +294,7 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 		ginkgo.It("Test unjoining not ready cluster", func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
 				opts := karmadactl.CommandJoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						DryRun: false,
-					},
+					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
@@ -324,9 +322,7 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
 				opts := karmadactl.CommandUnjoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						DryRun: false,
-					},
+					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,

@@ -103,6 +103,9 @@ type CommandJoinOption struct {
 
 	// ClusterProvider is the cluster's provider.
 	ClusterProvider string
+
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -141,6 +144,7 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
 	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster.")
+	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
 // RunJoin is the implementation of the 'join' command.

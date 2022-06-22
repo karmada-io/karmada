@@ -107,6 +107,9 @@ type CommandPromoteOption struct {
 	// ClusterKubeConfig is the cluster's kubeconfig path.
 	ClusterKubeConfig string
 
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
+
 	resource.FilenameOptions
 
 	JSONYamlPrintFlags *genericclioptions.JSONYamlPrintFlags
@@ -131,6 +134,7 @@ func (o *CommandPromoteOption) AddFlags(flags *pflag.FlagSet) {
 		"Context name of legacy cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&o.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the legacy cluster's kubeconfig.")
+	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
 // Complete ensures that options are valid and marshals them if necessary
