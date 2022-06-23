@@ -8,9 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -40,10 +38,8 @@ const (
 
 // Controller is to sync impersonation config to member clusters for unified authentication.
 type Controller struct {
-	client.Client         // used to operate Cluster resources.
-	ControllerPlaneConfig *rest.Config
-	EventRecorder         record.EventRecorder
-	ClusterClientSetFunc  func(string, client.Client, *util.ClientOption) (*util.ClusterClient, error)
+	client.Client // used to operate Cluster resources.
+	EventRecorder record.EventRecorder
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -73,12 +69,6 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	return controllerruntime.Result{}, nil
-}
-
-// Start starts a goroutine to ensure impersonation secret for upgrade scenario.
-func (c *Controller) Start(ctx context.Context) error {
-	go c.ensureImpersonationSecret()
-	return nil
 }
 
 func (c *Controller) syncImpersonationConfig(cluster *clusterv1alpha1.Cluster) error {
@@ -242,14 +232,11 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		},
 	}
 
-	return utilerrors.NewAggregate([]error{
-		controllerruntime.NewControllerManagedBy(mgr).
-			For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(clusterPredicateFunc)).
-			Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleMapFunc())).
-			Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).
-			Complete(c),
-		mgr.Add(c),
-	})
+	return controllerruntime.NewControllerManagedBy(mgr).
+		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(clusterPredicateFunc)).
+		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleMapFunc())).
+		Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handler.EnqueueRequestsFromMapFunc(c.newClusterRoleBindingMapFunc())).
+		Complete(c)
 }
 
 func (c *Controller) newClusterRoleMapFunc() handler.MapFunc {

@@ -390,10 +390,8 @@ func startServiceImportController(ctx controllerscontext.Context) (enabled bool,
 
 func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, err error) {
 	unifiedAuthController := &unifiedauth.Controller{
-		Client:                ctx.Mgr.GetClient(),
-		ControllerPlaneConfig: ctx.Mgr.GetConfig(),
-		EventRecorder:         ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
-		ClusterClientSetFunc:  util.NewClusterClientSet,
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
 	}
 	if err := unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
