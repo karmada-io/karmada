@@ -8,7 +8,7 @@ Karmada aims to provide turnkey automation for multi-cluster application managem
 
 Switch to the `root` directory of the repo.
 ```console
-helm install karmada -n karmada-system --create-namespace ./charts/karmada
+helm install karmada -n karmada-system --create-namespace --dependency-update ./charts/karmada
 ```
 
 ## Prerequisites
@@ -22,7 +22,7 @@ To install the chart with the release name `karmada` in namespace `karmada-syste
 
 Switch to the `root` directory of the repo.
 ```console
-helm install karmada -n karmada-system --create-namespace ./charts/karmada
+helm install karmada -n karmada-system --create-namespace --dependency-update ./charts/karmada
 ```
 
 Get kubeconfig from the cluster:
@@ -33,7 +33,7 @@ kubectl get secret -n karmada-system karmada-kubeconfig -o jsonpath={.data.kubec
 
 > **Tip**: List all releases using `helm list`
 
-For better scheduling effect, you can choose to install the `karmada-descheduler` component in the karmada controller plane. Link: [here](../docs/descheduler.md). The following is the specific installation guide.
+For better scheduling effect, you can choose to install the `karmada-descheduler` component in the karmada controller plane. Link: [here](../../docs/descheduler.md). The following is the specific installation guide.
 
 Edited values.yaml for karmada-descheduler
 ```YAML
