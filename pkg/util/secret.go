@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -15,6 +16,9 @@ import (
 
 // GetTargetSecret will get secrets(type=targetType, namespace=targetNamespace) from a list of secret references.
 func GetTargetSecret(client kubeclient.Interface, secretReferences []corev1.ObjectReference, targetType corev1.SecretType, targetNamespace string) (*corev1.Secret, error) {
+	if len(secretReferences) == 0 {
+		return nil, apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "secret"}, "")
+	}
 	var errNotFound error
 	for _, objectReference := range secretReferences {
 		klog.V(2).Infof("checking secret: %s/%s", targetNamespace, objectReference.Name)
