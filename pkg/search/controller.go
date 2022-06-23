@@ -264,11 +264,16 @@ func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
 	oldRR := oldObj.(*v1alpha1.ResourceRegistry)
 	newRR := newObj.(*v1alpha1.ResourceRegistry)
 
+	if reflect.DeepEqual(oldRR.Spec, newRR.Spec) {
+		klog.V(4).Infof("Ignore ResourceRegistry(%s) update event as spec not changed", newRR.Name)
+		return
+	}
+
 	// TODO: stop resource informers if it is not in the new resource registry
 	resources := c.getResources(newRR.Spec.ResourceSelectors)
 
 	clusters := c.getClusters(newRR.Spec.TargetCluster)
-	clusterSets := make(map[string]struct{})
+	clusterSets := make(map[string]struct{}, len(clusters))
 
 	for _, cls := range clusters {
 		v, _ := c.clusterRegistry.LoadOrStore(cls, clusterRegistry{
@@ -393,7 +398,7 @@ func (c *Controller) deleteCluster(obj interface{}) {
 		return
 	}
 
-	// remote backend store
+	// remove backend store
 	backendstore.DeleteBackend(cluster.GetName())
 
 	c.queue.Add(cluster.GetName())
