@@ -17,7 +17,7 @@ type BackendStore interface {
 }
 
 var (
-	backendLock sync.Mutex
+	backendLock sync.RWMutex
 	backends    map[string]BackendStore
 	k8sClient   *kubernetes.Clientset
 )
@@ -62,12 +62,19 @@ func DeleteBackend(cluster string) {
 
 // GetBackend get backend store
 func GetBackend(cluster string) BackendStore {
+	if bs, ok := func() (BackendStore, bool) {
+		backendLock.RLock()
+		defer backendLock.RUnlock()
+
+		bs, ok := backends[cluster]
+		return bs, ok
+	}(); ok {
+		return bs
+	}
+
 	backendLock.Lock()
 	defer backendLock.Unlock()
-	bs, ok := backends[cluster]
-	if !ok {
-		klog.Errorf("cannot find backend store %s, use defult backend", cluster)
-		return NewDefaultBackend(cluster)
-	}
-	return bs
+
+	klog.Errorf("cannot find backend store %s, use defult backend", cluster)
+	return NewDefaultBackend(cluster)
 }
