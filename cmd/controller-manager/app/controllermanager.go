@@ -103,6 +103,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	}
 	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
+		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
 		SyncPeriod:                 &opts.ResyncPeriod.Duration,
 		LeaderElection:             opts.LeaderElection.LeaderElect,
