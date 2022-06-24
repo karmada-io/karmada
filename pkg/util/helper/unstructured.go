@@ -145,6 +145,16 @@ func ConvertToJob(obj *unstructured.Unstructured) (*batchv1.Job, error) {
 	return typedObj, nil
 }
 
+// ConvertToCronJob converts a CronJob object from unstructured to typed.
+func ConvertToCronJob(obj *unstructured.Unstructured) (*batchv1.CronJob, error) {
+	typedObj := &batchv1.CronJob{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToJobStatus converts a JobStatus from unstructured to typed.
 func ConvertToJobStatus(obj map[string]interface{}) (*batchv1.JobStatus, error) {
 	typedObj := &batchv1.JobStatus{}
