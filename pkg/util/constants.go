@@ -78,6 +78,8 @@ const (
 	ServiceKind = "Service"
 	// IngressKind indicates the target resource is a ingress
 	IngressKind = "Ingress"
+	// CronJobKind indicates the target resource is a cronjob
+	CronJobKind = "CronJob"
 	// JobKind indicates the target resource is a job
 	JobKind = "Job"
 	// PodKind indicates the target resource is a pod
