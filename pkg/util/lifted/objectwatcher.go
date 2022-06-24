@@ -36,7 +36,7 @@ const (
 	resourceVersionPrefix = "rv:"
 )
 
-// +lifted-source: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L35-L43
+// +lifted:source=https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L35-L43
 
 // ObjectVersion retrieves the field type-prefixed value used for
 // determining currency of the given cluster object.
@@ -48,7 +48,7 @@ func ObjectVersion(clusterObj *unstructured.Unstructured) string {
 	return fmt.Sprintf("%s%s", resourceVersionPrefix, clusterObj.GetResourceVersion())
 }
 
-// +lifted-source: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L45-L59
+// +lifted:source=https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L45-L59
 
 // ObjectNeedsUpdate determines whether the 2 objects provided cluster
 // object needs to be updated according to the desired object and the
@@ -66,8 +66,8 @@ func ObjectNeedsUpdate(desiredObj, clusterObj *unstructured.Unstructured, record
 	return strings.HasPrefix(targetVersion, generationPrefix) && !objectMetaObjEquivalent(desiredObj, clusterObj)
 }
 
-// +lifted-source: https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/meta.go#L63-L80
-// +lifted-changed
+// +lifted:source=https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/meta.go#L63-L80
+// +lifted:changed
 
 // objectMetaObjEquivalent checks if cluster-independent, user provided data in two given ObjectMeta are equal. If in
 // the future the ObjectMeta structure is expanded then any field that is not populated
