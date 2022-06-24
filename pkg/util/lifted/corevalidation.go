@@ -35,23 +35,23 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L59
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L59
 const isNegativeErrorMsg string = apimachineryvalidation.IsNegativeErrorMsg
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L60
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L60
 const isInvalidQuotaResource string = `must be a standard resource for quota`
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L62
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L62
 const isNotIntegerErrorMsg string = `must be an integer`
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L225-L228
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L225-L228
 
 // ValidatePodName can be used to check whether the given pod name is valid.
 // Prefix indicates this name will be used as part of generation, in which case
 // trailing dashes are allowed.
 var ValidatePodName = apimachineryvalidation.NameIsDNSSubdomain
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L311-L318
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L311-L318
 
 // ValidateNonnegativeQuantity Validates that a Quantity is not negative
 func ValidateNonnegativeQuantity(value resource.Quantity, fldPath *field.Path) field.ErrorList {
@@ -62,8 +62,8 @@ func ValidateNonnegativeQuantity(value resource.Quantity, fldPath *field.Path) f
 	return allErrs
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5036-L5054
-// +lifted-changed
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5036-L5054
+// +lifted:changed
 
 // Validate compute resource typename.
 // Refer to docs/design/resources.md for more details.
@@ -85,8 +85,8 @@ func validateResourceName(value string, fldPath *field.Path) field.ErrorList {
 	return allErrs
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5073-L5084
-// +lifted-changed
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5073-L5084
+// +lifted:changed
 
 // ValidateResourceQuotaResourceName Validate resource names that can go in a resource quota
 // Refer to docs/design/resources.md for more details.
@@ -101,8 +101,8 @@ func ValidateResourceQuotaResourceName(value string, fldPath *field.Path) field.
 	return allErrs
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5651-L5661
-// +lifted-changed
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.22/pkg/apis/core/validation/validation.go#L5651-L5661
+// +lifted:changed
 
 // ValidateResourceQuantityValue enforces that specified quantity is valid for specified resource
 func ValidateResourceQuantityValue(resource string, value resource.Quantity, fldPath *field.Path) field.ErrorList {

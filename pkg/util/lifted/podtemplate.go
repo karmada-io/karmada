@@ -31,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L466-L472
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L466-L472
 func getPodsLabelSet(template *corev1.PodTemplateSpec) labels.Set {
 	desiredLabels := make(labels.Set)
 	for k, v := range template.Labels {
@@ -40,14 +40,14 @@ func getPodsLabelSet(template *corev1.PodTemplateSpec) labels.Set {
 	return desiredLabels
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L474-L478
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L474-L478
 func getPodsFinalizers(template *corev1.PodTemplateSpec) []string {
 	desiredFinalizers := make([]string, len(template.Finalizers))
 	copy(desiredFinalizers, template.Finalizers)
 	return desiredFinalizers
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L480-L486
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L480-L486
 func getPodsAnnotationSet(template *corev1.PodTemplateSpec) labels.Set {
 	desiredAnnotations := make(labels.Set)
 	for k, v := range template.Annotations {
@@ -56,7 +56,7 @@ func getPodsAnnotationSet(template *corev1.PodTemplateSpec) labels.Set {
 	return desiredAnnotations
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L488-L495
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L488-L495
 func getPodsPrefix(controllerName string) string {
 	// use the dash (if the name isn't too long) to make the pod name a bit prettier
 	prefix := fmt.Sprintf("%s-", controllerName)
@@ -66,8 +66,8 @@ func getPodsPrefix(controllerName string) string {
 	return prefix
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L539-L562
-// +lifted-changed
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/controller_utils.go#L539-L562
+// +lifted:changed
 
 // GetPodFromTemplate generates pod object from a template.
 func GetPodFromTemplate(template *corev1.PodTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*corev1.Pod, error) {
