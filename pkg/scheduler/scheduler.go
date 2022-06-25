@@ -80,10 +80,11 @@ type Scheduler struct {
 
 	eventRecorder record.EventRecorder
 
-	enableSchedulerEstimator bool
-	schedulerEstimatorCache  *estimatorclient.SchedulerEstimatorCache
-	schedulerEstimatorPort   int
-	schedulerEstimatorWorker util.AsyncWorker
+	enableSchedulerEstimator            bool
+	disableSchedulerEstimatorInPullMode bool
+	schedulerEstimatorCache             *estimatorclient.SchedulerEstimatorCache
+	schedulerEstimatorPort              int
+	schedulerEstimatorWorker            util.AsyncWorker
 
 	enableEmptyWorkloadPropagation bool
 }
@@ -91,6 +92,8 @@ type Scheduler struct {
 type schedulerOptions struct {
 	// enableSchedulerEstimator represents whether the accurate scheduler estimator should be enabled.
 	enableSchedulerEstimator bool
+	// disableSchedulerEstimatorInPullMode represents whether to disable the scheduler estimator in pull mode.
+	disableSchedulerEstimatorInPullMode bool
 	// schedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
 	schedulerEstimatorTimeout metav1.Duration
 	// schedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
@@ -108,6 +111,13 @@ type Option func(*schedulerOptions)
 func WithEnableSchedulerEstimator(enableSchedulerEstimator bool) Option {
 	return func(o *schedulerOptions) {
 		o.enableSchedulerEstimator = enableSchedulerEstimator
+	}
+}
+
+// WithDisableSchedulerEstimatorInPullMode sets the disableSchedulerEstimatorInPullMode for scheduler
+func WithDisableSchedulerEstimatorInPullMode(disableSchedulerEstimatorInPullMode bool) Option {
+	return func(o *schedulerOptions) {
+		o.disableSchedulerEstimatorInPullMode = disableSchedulerEstimatorInPullMode
 	}
 }
 
@@ -183,6 +193,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 
 	if options.enableSchedulerEstimator {
 		sched.enableSchedulerEstimator = options.enableSchedulerEstimator
+		sched.disableSchedulerEstimatorInPullMode = options.disableSchedulerEstimatorInPullMode
 		sched.schedulerEstimatorPort = options.schedulerEstimatorPort
 		sched.schedulerEstimatorCache = estimatorclient.NewSchedulerEstimatorCache()
 		schedulerEstimatorWorkerOptions := util.Options{
@@ -575,7 +586,7 @@ func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		return fmt.Errorf("failed to reconcile estimator connection as invalid key: %v", key)
 	}
 
-	_, err := s.clusterLister.Get(name)
+	cluster, err := s.clusterLister.Get(name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			s.schedulerEstimatorCache.DeleteCluster(name)
@@ -583,6 +594,10 @@ func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		}
 		return err
 	}
+	if cluster.Spec.SyncMode == clusterv1alpha1.Pull && s.disableSchedulerEstimatorInPullMode {
+		return nil
+	}
+
 	return estimatorclient.EstablishConnection(name, s.schedulerEstimatorCache, s.schedulerEstimatorPort)
 }
 
@@ -593,6 +608,9 @@ func (s *Scheduler) establishEstimatorConnections() {
 		return
 	}
 	for i := range clusterList.Items {
+		if clusterList.Items[i].Spec.SyncMode == clusterv1alpha1.Pull && s.disableSchedulerEstimatorInPullMode {
+			continue
+		}
 		if err = estimatorclient.EstablishConnection(clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorPort); err != nil {
 			klog.Error(err)
 		}

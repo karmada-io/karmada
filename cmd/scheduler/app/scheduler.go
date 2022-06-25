@@ -115,6 +115,7 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 	sched, err := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet,
 		scheduler.WithOutOfTreeRegistry(outOfTreeRegistry),
 		scheduler.WithEnableSchedulerEstimator(opts.EnableSchedulerEstimator),
+		scheduler.WithDisableSchedulerEstimatorInPullMode(opts.DisableSchedulerEstimatorInPullMode),
 		scheduler.WithSchedulerEstimatorPort(opts.SchedulerEstimatorPort),
 		scheduler.WithSchedulerEstimatorTimeout(opts.SchedulerEstimatorTimeout),
 		scheduler.WithEnableEmptyWorkloadPropagation(opts.EnableEmptyWorkloadPropagation),
