@@ -352,6 +352,24 @@ function util::wait_apiservice_ready() {
     return ${ret}
 }
 
+# util::wait_cluster_ready waits for cluster state becomes ready until timeout.
+# Parmeters:
+#  - $1: cluster name, such as "member1"
+function util:wait_cluster_ready() {
+  local cluster_name=$1
+
+  echo "wait the cluster $cluster_name onBoard..."
+  set +e
+  util::kubectl_with_retry wait --for=condition=Ready --timeout=60s clusters ${cluster_name}
+  ret=$?
+  set -e
+  if [ $ret -ne 0 ];then
+    echo "kubectl describe info:"
+    kubectl describe clusters ${cluster_name}
+  fi
+  return ${ret}
+}
+
 # util::kubectl_with_retry will retry if execute kubectl command failed
 # tolerate kubectl command failure that may happen before the pod is created by  StatefulSet/Deployment.
 function util::kubectl_with_retry() {
