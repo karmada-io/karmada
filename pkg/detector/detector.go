@@ -265,22 +265,11 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 // EventFilter tells if an object should be take care of.
 //
 // All objects under Kubernetes reserved namespace should be ignored:
-// - kube-system
-// - kube-public
-// - kube-node-lease
+// - kube-*
 // All objects under Karmada reserved namespace should be ignored:
 // - karmada-system
 // - karmada-cluster
 // - karmada-es-*
-// All objects which API group defined by Karmada should be ignored:
-// - cluster.karmada.io
-// - policy.karmada.io
-//
-// The api objects listed above will be ignored by default, as we don't want users to manually input the things
-// they don't care when trying to skip something else.
-//
-// If '--skipped-propagating-apis' which used to specific the APIs should be ignored in addition to the defaults, is set,
-// the specified apis will be ignored as well.
 //
 // If '--skipped-propagating-namespaces' is specified, all APIs in the skipped-propagating-namespaces will be ignored.
 func (d *ResourceDetector) EventFilter(obj interface{}) bool {
@@ -299,20 +288,6 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 		return false
 	}
 
-	if d.SkippedResourceConfig != nil {
-		if d.SkippedResourceConfig.GroupDisabled(clusterWideKey.Group) {
-			klog.V(4).Infof("Skip event for %s", clusterWideKey.Group)
-			return false
-		}
-		if d.SkippedResourceConfig.GroupVersionDisabled(clusterWideKey.GroupVersion()) {
-			klog.V(4).Infof("Skip event for %s", clusterWideKey.GroupVersion())
-			return false
-		}
-		if d.SkippedResourceConfig.GroupVersionKindDisabled(clusterWideKey.GroupVersionKind()) {
-			klog.V(4).Infof("Skip event for %s", clusterWideKey.GroupVersionKind())
-			return false
-		}
-	}
 	// if SkippedPropagatingNamespaces is set, skip object events in these namespaces.
 	if _, ok := d.SkippedPropagatingNamespaces[clusterWideKey.Namespace]; ok {
 		return false
