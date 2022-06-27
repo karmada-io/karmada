@@ -38,6 +38,11 @@ func GetTargetSecret(client kubeclient.Interface, secretReferences []corev1.Obje
 	return nil, errNotFound
 }
 
+// GetSecret just try to get the secret.
+func GetSecret(client kubeclient.Interface, namespace, name string) (*corev1.Secret, error) {
+	return client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
 // CreateSecret just try to create the secret.
 func CreateSecret(client kubeclient.Interface, secret *corev1.Secret) (*corev1.Secret, error) {
 	st, err := client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
