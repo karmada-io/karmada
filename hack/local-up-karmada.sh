@@ -142,6 +142,11 @@ kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${PULL_MOD
 #step7. deploy karmada agent in pull mode member clusters
 "${REPO_ROOT}"/hack/deploy-agent-and-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 
+# wait all of clusters member1, member2 and member3 status is ready
+util:wait_cluster_ready "${MEMBER_CLUSTER_1_NAME}"
+util:wait_cluster_ready "${MEMBER_CLUSTER_2_NAME}"
+util:wait_cluster_ready "${PULL_MODE_CLUSTER_NAME}"
+
 function print_success() {
   echo -e "$KARMADA_GREETING"
   echo "Local Karmada is running."
