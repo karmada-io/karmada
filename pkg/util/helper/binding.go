@@ -62,7 +62,7 @@ func IsBindingScheduled(status *workv1alpha2.ResourceBindingStatus) bool {
 	return meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled)
 }
 
-// HasScheduledReplica checks if the scheduler has assigned replicas for each cluster.
+// HasScheduledReplica checks if the scheduler has assigned replicas for a cluster.
 func HasScheduledReplica(scheduleResult []workv1alpha2.TargetCluster) bool {
 	for _, clusterResult := range scheduleResult {
 		if clusterResult.Replicas > 0 {
