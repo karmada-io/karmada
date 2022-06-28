@@ -55,6 +55,16 @@ func ConvertToPod(obj *unstructured.Unstructured) (*corev1.Pod, error) {
 	return typedObj, nil
 }
 
+// ConvertToPersistentVolumeClaim converts a pvc object from unstructured to typed.
+func ConvertToPersistentVolumeClaim(obj *unstructured.Unstructured) (*corev1.PersistentVolumeClaim, error) {
+	typedObj := &corev1.PersistentVolumeClaim{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToNode converts a Node object from unstructured to typed.
 func ConvertToNode(obj *unstructured.Unstructured) (*corev1.Node, error) {
 	typedObj := &corev1.Node{}
