@@ -28,6 +28,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = aggregateDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = aggregateStatefulSetStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = aggregatePodStatus
+	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = aggregatePersistentVolumeClaimStatus
 	return s
 }
 
@@ -319,4 +320,41 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 
 	pod.Status = *newStatus
 	return helper.ToUnstructured(pod)
+}
+
+func aggregatePersistentVolumeClaimStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	pvc, err := helper.ConvertToPersistentVolumeClaim(object)
+	if err != nil {
+		return nil, err
+	}
+
+	newStatus := &corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+
+		temp := &corev1.PersistentVolumeClaimStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab pvc(%s/%s) status from cluster(%s), phase: %s", pvc.Namespace,
+			pvc.Name, item.ClusterName, temp.Phase)
+		if temp.Phase == corev1.ClaimLost {
+			newStatus.Phase = corev1.ClaimLost
+			break
+		}
+
+		if temp.Phase != corev1.ClaimBound {
+			newStatus.Phase = temp.Phase
+		}
+	}
+
+	if reflect.DeepEqual(pvc.Status, *newStatus) {
+		klog.V(3).Infof("ignore update pvc(%s/%s) status as up to date", pvc.Namespace, pvc.Name)
+		return object, nil
+	}
+
+	pvc.Status = *newStatus
+	return helper.ToUnstructured(pvc)
 }

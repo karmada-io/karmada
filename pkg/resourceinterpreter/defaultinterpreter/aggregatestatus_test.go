@@ -541,3 +541,90 @@ func TestAggregatePodStatus(t *testing.T) {
 		assert.Equal(t, tt.expectedObj, actualObj)
 	}
 }
+
+func TestAggregatePVCStatus(t *testing.T) {
+	statusBoundMap := map[string]interface{}{
+		"phase": corev1.ClaimBound,
+	}
+	// Bound status
+	boundRaw1, _ := helper.BuildStatusRawExtension(statusBoundMap)
+	boundRaw2, _ := helper.BuildStatusRawExtension(statusBoundMap)
+
+	aggregatedStatusItems1 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: boundRaw1, Applied: true},
+		{ClusterName: "member2", Status: boundRaw2, Applied: true},
+	}
+
+	// Lost status
+	statusLostMap := map[string]interface{}{
+		"phase": corev1.ClaimLost,
+	}
+	lostRaw1, _ := helper.BuildStatusRawExtension(statusBoundMap)
+	lostRaw2, _ := helper.BuildStatusRawExtension(statusLostMap)
+
+	aggregatedStatusItems2 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: lostRaw1, Applied: true},
+		{ClusterName: "member2", Status: lostRaw2, Applied: true},
+	}
+
+	// Pending status
+	statusPendingMap := map[string]interface{}{
+		"phase": corev1.ClaimPending,
+	}
+	pendingRaw1, _ := helper.BuildStatusRawExtension(statusBoundMap)
+	pendingRaw2, _ := helper.BuildStatusRawExtension(statusPendingMap)
+
+	aggregatedStatusItems3 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: pendingRaw1, Applied: true},
+		{ClusterName: "member2", Status: pendingRaw2, Applied: true},
+	}
+
+	// test aggregatePersistentVolumeClaimStatus function
+	oldPVC := &corev1.PersistentVolumeClaim{}
+	oldObj, _ := helper.ToUnstructured(oldPVC)
+
+	boundNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound}}
+	newBoundPVCObj, _ := helper.ToUnstructured(boundNewPVC)
+
+	lostNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimLost}}
+	newLostPVCObj, _ := helper.ToUnstructured(lostNewPVC)
+
+	pendingNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimPending}}
+	newPendingPVCObj, _ := helper.ToUnstructured(pendingNewPVC)
+
+	tests := []struct {
+		name                  string
+		curObj                *unstructured.Unstructured
+		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
+		expectedObj           *unstructured.Unstructured
+	}{
+		{
+			name:                  "update pvc status",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems1,
+			expectedObj:           newBoundPVCObj,
+		},
+		{
+			name:                  "update pvc status",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems2,
+			expectedObj:           newLostPVCObj,
+		},
+		{
+			name:                  "update pvc status",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems3,
+			expectedObj:           newPendingPVCObj,
+		},
+		{
+			name:                  "ignore update pvc status as up to date",
+			curObj:                newBoundPVCObj,
+			aggregatedStatusItems: aggregatedStatusItems1,
+			expectedObj:           newBoundPVCObj,
+		},
+	}
+	for _, tt := range tests {
+		actualObj, _ := aggregatePersistentVolumeClaimStatus(tt.curObj, tt.aggregatedStatusItems)
+		assert.Equal(t, tt.expectedObj, actualObj)
+	}
+}
