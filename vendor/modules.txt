@@ -1407,6 +1407,8 @@ k8s.io/kube-openapi/pkg/validation/spec
 # k8s.io/kubectl v0.24.2
 ## explicit; go 1.16
 k8s.io/kubectl/pkg/apps
+k8s.io/kubectl/pkg/cmd/apiresources
+k8s.io/kubectl/pkg/cmd/exec
 k8s.io/kubectl/pkg/cmd/get
 k8s.io/kubectl/pkg/cmd/util
 k8s.io/kubectl/pkg/cmd/util/podcmd
@@ -1415,6 +1417,7 @@ k8s.io/kubectl/pkg/polymorphichelpers
 k8s.io/kubectl/pkg/rawhttp
 k8s.io/kubectl/pkg/scheme
 k8s.io/kubectl/pkg/util/certificate
+k8s.io/kubectl/pkg/util/completion
 k8s.io/kubectl/pkg/util/deployment
 k8s.io/kubectl/pkg/util/event
 k8s.io/kubectl/pkg/util/fieldpath
