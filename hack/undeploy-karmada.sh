@@ -26,9 +26,9 @@ fi
 HOST_CLUSTER_KUBECONFIG=$1
 
 # check context existence
-if ! kubectl config use-context "${2}" --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" > /dev/null 2>&1;
+if ! kubectl config get-contexts "${2}" --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" > /dev/null 2>&1;
 then
-  echo -e "ERROR: failed to use context: '${2}' not in ${HOST_CLUSTER_KUBECONFIG}. \n"
+  echo -e "ERROR: failed to get context: '${2}' not in ${HOST_CLUSTER_KUBECONFIG}. \n"
   usage
   exit 1
 fi
@@ -37,18 +37,16 @@ HOST_CLUSTER_NAME=$2
 # delete all keys and certificates
 rm -fr "${HOME}/.karmada"
 
-kubectl config use-context "${HOST_CLUSTER_NAME}" --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
-
 ETCD_HOST_IP=$(kubectl get pod -l app=etcd -n karmada-system -o jsonpath='{.items[0].status.hostIP}')
 
 # clear all in namespace karmada-system
-kubectl delete ns karmada-system --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
+kubectl --context="${HOST_CLUSTER_NAME}" delete ns karmada-system --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
 # delete clusterroles
-kubectl delete clusterrole karmada-controller-manager --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
+kubectl --context="${HOST_CLUSTER_NAME}" delete clusterrole karmada-controller-manager --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
 # delete clusterrolebindings
-kubectl delete clusterrolebindings karmada-controller-manager --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
+kubectl --context="${HOST_CLUSTER_NAME}" delete clusterrolebindings karmada-controller-manager --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"
 
 # clear configs about karmada-apiserver in kubeconfig
 kubectl config delete-cluster karmada-apiserver --kubeconfig="${HOST_CLUSTER_KUBECONFIG}"

@@ -25,9 +25,9 @@ fi
 KARMADA_APISERVER_KUBECONFIG=$1
 
 # check context existence
-if ! kubectl config use-context "${2}" --kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" > /dev/null 2>&1;
+if ! kubectl config get-contexts "${2}" --kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" > /dev/null 2>&1;
 then
-  echo -e "ERROR: failed to use context: '${2}' not in ${KARMADA_APISERVER_KUBECONFIG}. \n"
+  echo -e "ERROR: failed to get context: '${2}' not in ${KARMADA_APISERVER_KUBECONFIG}. \n"
   usage
   exit 1
 fi
@@ -57,20 +57,19 @@ if [ -n "${KUBECONFIG+x}" ];then
   CURR_KUBECONFIG=$KUBECONFIG # backup current kubeconfig
 fi
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}" # switch to member cluster
-kubectl config use-context "${MEMBER_CLUSTER_NAME}"
 
 AGENT_IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:-IfNotPresent}
 
 # create namespace for karmada agent
-kubectl apply -f "${REPO_ROOT}/artifacts/agent/namespace.yaml"
+kubectl --context="${MEMBER_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/agent/namespace.yaml"
 
 # create service account, cluster role for karmada agent
-kubectl apply -f "${REPO_ROOT}/artifacts/agent/serviceaccount.yaml"
-kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrole.yaml"
-kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
+kubectl --context="${MEMBER_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/agent/serviceaccount.yaml"
+kubectl --context="${MEMBER_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/agent/clusterrole.yaml"
+kubectl --context="${MEMBER_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
 
 # create secret
-kubectl create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" -n "${KARMADA_SYSTEM_NAMESPACE}"
+kubectl --context="${MEMBER_CLUSTER_NAME}" create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" -n "${KARMADA_SYSTEM_NAMESPACE}"
 
 # extract api endpoint of member cluster
 MEMBER_CLUSTER=$(kubectl config view -o jsonpath='{.contexts[?(@.name == "'${MEMBER_CLUSTER_NAME}'")].context.cluster}')
@@ -84,10 +83,10 @@ sed -i'' -e "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" "${TEMP_PATH}"/
 sed -i'' -e "s/{{image_pull_policy}}/${AGENT_IMAGE_PULL_POLICY}/g" "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s|{{member_cluster_api_endpoint}}|${MEMBER_CLUSTER_API_ENDPOINT}|g" "${TEMP_PATH}"/karmada-agent.yaml
 echo -e "Apply dynamic rendered deployment in ${TEMP_PATH}/karmada-agent.yaml.\n"
-kubectl apply -f "${TEMP_PATH}"/karmada-agent.yaml
+kubectl --context="${MEMBER_CLUSTER_NAME}" apply -f "${TEMP_PATH}"/karmada-agent.yaml
 
 # Wait for karmada-etcd to come up before launching the rest of the components.
-util::wait_pod_ready "${AGENT_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${MEMBER_CLUSTER_NAME}" "${AGENT_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # recover the kubeconfig before installing agent if necessary
 if [ -n "${CURR_KUBECONFIG+x}" ];then
