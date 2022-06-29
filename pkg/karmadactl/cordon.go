@@ -26,8 +26,11 @@ var (
 )
 
 const (
-	desiredCordon = iota
-	desiredUnCordon
+	// DesiredCordon a flag indicate karmadactl.RunCordonOrUncordon cordon a cluster,
+	// cordon prevent new resource scheduler to cordoned cluster.
+	DesiredCordon = iota
+	// DesiredUnCordon a flag indicate karmadactl.RunCordonOrUncordon uncordon a cluster.
+	DesiredUnCordon
 )
 
 // NewCmdCordon defines the `cordon` command that mark cluster as unschedulable.
@@ -43,7 +46,7 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(desiredCordon, karmadaConfig, opts); err != nil {
+			if err := RunCordonOrUncordon(DesiredCordon, karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -78,7 +81,7 @@ func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(desiredUnCordon, karmadaConfig, opts); err != nil {
+			if err := RunCordonOrUncordon(DesiredUnCordon, karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -139,11 +142,11 @@ func NewCordonHelper(cluster *clusterv1alpha1.Cluster) *CordonHelper {
 func (c *CordonHelper) UpdateIfRequired(desired int) bool {
 	c.desired = desired
 
-	if desired == desiredCordon && !c.hasUnschedulerTaint() {
+	if desired == DesiredCordon && !c.hasUnschedulerTaint() {
 		return true
 	}
 
-	if desired == desiredUnCordon && c.hasUnschedulerTaint() {
+	if desired == DesiredUnCordon && c.hasUnschedulerTaint() {
 		return true
 	}
 
@@ -180,11 +183,11 @@ func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clien
 		Effect: corev1.TaintEffectNoSchedule,
 	}
 
-	if c.desired == desiredCordon {
+	if c.desired == DesiredCordon {
 		c.cluster.Spec.Taints = append(c.cluster.Spec.Taints, unschedulerTaint)
 	}
 
-	if c.desired == desiredUnCordon {
+	if c.desired == DesiredUnCordon {
 		for i, n := 0, len(c.cluster.Spec.Taints); i < n; i++ {
 			if c.cluster.Spec.Taints[i].MatchTaint(&unschedulerTaint) {
 				c.cluster.Spec.Taints[i] = c.cluster.Spec.Taints[n-1]
@@ -212,7 +215,7 @@ func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clien
 // if true cordon cluster otherwise uncordon cluster.
 func RunCordonOrUncordon(desired int, karmadaConfig KarmadaConfig, opts CommandCordonOption) error {
 	cordonOrUncordon := "cordon"
-	if desired == desiredUnCordon {
+	if desired == DesiredUnCordon {
 		cordonOrUncordon = "un" + cordonOrUncordon
 	}
 
@@ -248,7 +251,7 @@ func RunCordonOrUncordon(desired int, karmadaConfig KarmadaConfig, opts CommandC
 }
 
 func alreadyStr(desired int) string {
-	if desired == desiredCordon {
+	if desired == DesiredCordon {
 		return "already cordoned"
 	}
 	return "already uncordoned"
