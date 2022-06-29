@@ -462,9 +462,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
 			karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 			opts := karmadactl.CommandJoinOption{
-				GlobalCommandOptions: options.GlobalCommandOptions{
-					DryRun: false,
-				},
+				DryRun:            false,
 				ClusterNamespace:  "karmada-cluster",
 				ClusterName:       clusterName,
 				ClusterContext:    clusterContext,
@@ -482,9 +480,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		ginkgo.DeferCleanup(func() {
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
 				opts := karmadactl.CommandUnjoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						DryRun: false,
-					},
+					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
@@ -504,9 +500,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 	ginkgo.Context("cordon cluster", func() {
 		ginkgo.BeforeEach(func() {
 			opts := karmadactl.CommandCordonOption{
-				GlobalCommandOptions: options.GlobalCommandOptions{
-					DryRun: false,
-				},
+				DryRun:      false,
 				ClusterName: clusterName,
 			}
 			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredCordon, karmadaConfig, opts)
@@ -541,9 +535,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 
 		ginkgo.It("uncordon cluster", func() {
 			opts := karmadactl.CommandCordonOption{
-				GlobalCommandOptions: options.GlobalCommandOptions{
-					DryRun: false,
-				},
+				DryRun:      false,
 				ClusterName: clusterName,
 			}
 			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredUnCordon, karmadaConfig, opts)
