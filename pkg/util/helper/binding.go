@@ -89,18 +89,14 @@ func GetBindingClusterNames(targetClusters []workv1alpha2.TargetCluster, binding
 func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clusterNames []string, scope apiextensionsv1.ResourceScope) ([]workv1alpha1.Work, error) {
 	var needJudgeWorks []workv1alpha1.Work
 	if scope == apiextensionsv1.NamespaceScoped {
-		workList, err := GetWorksByLabelsSet(c, labels.Set{
-			workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(bindingNamespace, bindingName),
-		})
+		workList, err := GetWorksByBindingNamespaceName(c, bindingNamespace, bindingName)
 		if err != nil {
 			klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", bindingNamespace, bindingName, err)
 			return nil, err
 		}
 		needJudgeWorks = append(needJudgeWorks, workList.Items...)
 	} else {
-		workList, err := GetWorksByLabelsSet(c, labels.Set{
-			workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", bindingName),
-		})
+		workList, err := GetWorksByBindingNamespaceName(c, "", bindingName)
 		if err != nil {
 			klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", bindingName, err)
 			return nil, err
@@ -201,23 +197,19 @@ func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha2.Resource
 
 // DeleteWorkByRBNamespaceAndName will delete all Work objects by ResourceBinding namespace and name.
 func DeleteWorkByRBNamespaceAndName(c client.Client, namespace, name string) error {
-	return DeleteWorks(c, labels.Set{
-		workv1alpha2.ResourceBindingReferenceKey: names.GenerateBindingReferenceKey(namespace, name),
-	})
+	return DeleteWorks(c, namespace, name)
 }
 
 // DeleteWorkByCRBName will delete all Work objects by ClusterResourceBinding name.
 func DeleteWorkByCRBName(c client.Client, name string) error {
-	return DeleteWorks(c, labels.Set{
-		workv1alpha2.ClusterResourceBindingReferenceKey: names.GenerateBindingReferenceKey("", name),
-	})
+	return DeleteWorks(c, "", name)
 }
 
 // DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(c client.Client, selector labels.Set) error {
-	workList, err := GetWorksByLabelsSet(c, selector)
+func DeleteWorks(c client.Client, namespace, name string) error {
+	workList, err := GetWorksByBindingNamespaceName(c, namespace, name)
 	if err != nil {
-		klog.Errorf("Failed to get works by label %v: %v", selector, err)
+		klog.Errorf("Failed to get works by ResourceBinding(%s/%s) : %v", namespace, name, err)
 		return err
 	}
 
