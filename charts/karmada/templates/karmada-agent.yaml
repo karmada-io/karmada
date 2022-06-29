@@ -84,10 +84,7 @@ spec:
         {{- include "karmada.agent.labels" . | indent 8 }}
         {{- include "karmada.agent.podLabels" . | indent 8 }}
     spec:
-      {{- with .Values.agent.imagePullSecrets }}
-      imagePullSecrets:
-      {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "karmada.agent.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.agent.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}

@@ -32,10 +32,7 @@ spec:
         {{- include "karmada.cm.labels" . | nindent 8 }}
         {{- include "karmada.cm.podLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.controllerManager.imagePullSecrets }}
-      imagePullSecrets:
-      {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "karmada.controllerManager.imagePullSecrets" . | nindent 6 }}
       serviceAccountName: {{ $name }}-controller-manager
       {{- with .Values.controllerManager.nodeSelector }}
       nodeSelector:

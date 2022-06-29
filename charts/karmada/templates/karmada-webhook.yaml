@@ -34,10 +34,7 @@ spec:
         {{- include "karmada.webhook.labels" . | nindent 8 }}
         {{- include "karmada.webhook.podLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.webhook.imagePullSecrets }}
-      imagePullSecrets:
-      {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "karmada.webhook.imagePullSecrets" . | nindent 6 }}
       serviceAccountName: {{ $name }}-webhook
       {{- with .Values.webhook.nodeSelector }}
       nodeSelector:

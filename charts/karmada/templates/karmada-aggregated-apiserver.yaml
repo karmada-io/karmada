@@ -27,6 +27,7 @@ spec:
         {{- include "karmada.aggregatedApiserver.labels" . | nindent 8 }}
         {{- include "karmada.aggregatedApiserver.podLabels" . | nindent 8 }}
     spec:
+      {{- include "karmada.aggregatedApiServer.imagePullSecrets" . | nindent 6 }}
       automountServiceAccountToken: false
       containers:
         - name: {{ $name }}-aggregated-apiserver

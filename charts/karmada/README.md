@@ -158,7 +158,7 @@ helm install karmada-scheduler-estimator -n karmada-system ./charts/karmada
 | Name                      | Description                                     | Value |
 | ------------------------- | ----------------------------------------------- | ----- |
 | `global.imageRegistry`    | Global Docker image registry                    | `""`  |
-
+| `global.imagePullSecrets` | Global Docker registry secret names as an array | `[]`  |
 
 ### Common parameters
 
