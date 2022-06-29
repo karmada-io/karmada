@@ -33,10 +33,7 @@ spec:
         {{- include "karmada.scheduler.labels" . | nindent 8 }}
         {{- include "karmada.scheduler.podLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.scheduler.imagePullSecrets }}
-      imagePullSecrets:
-      {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "karmada.scheduler.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.scheduler.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}

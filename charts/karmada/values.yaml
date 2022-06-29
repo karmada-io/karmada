@@ -6,6 +6,10 @@
 global:
   ## @param global.imageRegistry Global Docker image registry
   imageRegistry: ""
+  ## E.g.
+  ## imagePullSecrets:
+  ##   - myRegistryKeySecretName
+  imagePullSecrets: []
 
 ## @param installMode "host" and "agent" are provided
 ## "host" means install karmada in the control-cluster
@@ -102,12 +106,11 @@ scheduler:
   podAnnotations: {}
   ## @param scheduler.podLabels labels of the scheduler pods
   podLabels: {}
-  ## @param scheduler.imagePullSecrets image pull secret of the scheduler
-  imagePullSecrets: []
   ## @param image.registry karmada scheduler image registry
   ## @param image.repository karmada scheduler image repository
   ## @param image.tag karmada scheduler image tag (immutable tags are recommended)
   ## @param image.pullPolicy karmada scheduler image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: swr.ap-southeast-1.myhuaweicloud.com
@@ -117,6 +120,13 @@ scheduler:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param scheduler.resources resource quota of the scheduler
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -153,12 +163,11 @@ webhook:
   podAnnotations: {}
   ## @param webhook.podLabels labels of the webhook pods
   podLabels: {}
-  ## @param webhook.imagePullSecrets image pull secret of the webhook
-  imagePullSecrets: []
   ## @param image.registry karmada webhook image registry
   ## @param image.repository karmada webhook image repository
   ## @param image.tag karmada webhook image tag (immutable tags are recommended)
   ## @param image.pullPolicy karmada webhook image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: swr.ap-southeast-1.myhuaweicloud.com
@@ -168,6 +177,13 @@ webhook:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param webhook.resources resource quota of the webhook
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -204,12 +220,11 @@ controllerManager:
   podAnnotations: {}
   ## @param controllerManager.podLabels labels of the karmada-controller-manager pods
   podLabels: {}
-  ## @param controllerManager.imagePullSecrets image pull secret of the karmada-controller-manager
-  imagePullSecrets: []
   ## @param image.registry karmada controller manager image registry
   ## @param image.repository karmada controller manager image repository
   ## @param image.tag karmada controller manager image tag (immutable tags are recommended)
   ## @param image.pullPolicy karmada controller manager image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: swr.ap-southeast-1.myhuaweicloud.com
@@ -219,6 +234,13 @@ controllerManager:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param controllerManager.resources resource quota of the karmada-controller-manager
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -255,12 +277,11 @@ apiServer:
   podAnnotations: {}
   ## @param apiServer.podLabels labels of the karmada-apiserver pods
   podLabels: {}
-  ## @param apiServer.imagePullSecrets image pull secret of the karmada-apiserver
-  imagePullSecrets: []
   ## @param image.registry keube-apiserver image registry
   ## @param image.repository keube-apiserver image repository
   ## @param image.tag keube-apiserver image tag (immutable tags are recommended)
   ## @param image.pullPolicy keube-apiserver image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: k8s.gcr.io
@@ -270,6 +291,13 @@ apiServer:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param apiServer.resources resource quota of the karmada-apiserver
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -330,12 +358,11 @@ aggregatedApiServer:
   podAnnotations: {}
   ## @param aggregatedApiServer.podLabels labels of the karmada-aggregated-apiserver pods
   podLabels: {}
-  ## @param aggregatedApiServer.imagePullSecrets image of the karmada-aggregated-apiserver
-  imagePullSecrets: []
   ## @param image.registry karmada aggregatedApiServer image registry
   ## @param image.repository karmada aggregatedApiServer image repository
   ## @param image.tag karmada aggregatedApiServer image tag (immutable tags are recommended)
   ## @param image.pullPolicy karmada aggregatedApiServer image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: swr.ap-southeast-1.myhuaweicloud.com
@@ -345,6 +372,13 @@ aggregatedApiServer:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param aggregatedApiServer.resources resource quota of the karmada-aggregated-apiserver
   resources:
     requests:
@@ -383,12 +417,11 @@ kubeControllerManager:
   podAnnotations: {}
   ## @param kubeControllerManager.podLabels labels of the kube-controller-manager pods
   podLabels: {}
-  ## @param kubeControllerManager.imagePullSecrets image pull secret of the kube-controller-manager
-  imagePullSecrets: []
   ## @param image.registry kubeControllerManager image registry
   ## @param image.repository kubeControllerManager image repository
   ## @param image.tag kubeControllerManager image tag (immutable tags are recommended)
   ## @param image.pullPolicy kubeControllerManager image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: k8s.gcr.io
@@ -398,6 +431,13 @@ kubeControllerManager:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param kubeControllerManager.resources resource quota of the kube-controller-manager
   resources:
     # If you do want to specify resources, uncomment the following
@@ -519,12 +559,11 @@ agent:
   podAnnotations: {}
   ## @param agent.podLabels labels of the agent pods
   podLabels: {}
-  ## @param agent.imagePullSecrets image pull secret of the agent
-  imagePullSecrets: []
   ## @param image.registry karmada agent image registry
   ## @param image.repository karmada agent image repository
   ## @param image.tag karmada agent image tag (immutable tags are recommended)
   ## @param image.pullPolicy karmada agent image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: swr.ap-southeast-1.myhuaweicloud.com
@@ -534,6 +573,13 @@ agent:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param agent.resources
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -590,12 +636,11 @@ schedulerEstimator:
   podAnnotations: {}
   ## @param schedulerEstimator.podLabels labels of the scheduler-estimator pods
   podLabels: {}
-  ## @param schedulerEstimator.imagePullSecrets image pull secret of the scheduler-estimator
-  imagePullSecrets: []
   ## @param image.registry karmada schedulerEstimator image registry
   ## @param image.repository karmada schedulerEstimator image repository
   ## @param image.tag karmada schedulerEstimator image tag (immutable tags are recommended)
   ## @param image.pullPolicy karmada schedulerEstimator image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: swr.ap-southeast-1.myhuaweicloud.com
@@ -605,6 +650,13 @@ schedulerEstimator:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param schedulerEstimator.resources resource quota of the scheduler-estimator
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -641,12 +693,11 @@ descheduler:
   podAnnotations: {}
   ## @param descheduler.podLabels labels of the descheduler pods
   podLabels: {}
-  ## @param descheduler.imagePullSecrets image pull secret of the descheduler
-  imagePullSecrets: []
   ## @param image.registry karmada descheduler image registry
   ## @param image.repository karmada descheduler image repository
   ## @param image.tag karmada descheduler image tag (immutable tags are recommended)
   ## @param image.pullPolicy karmada descheduler image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: swr.ap-southeast-1.myhuaweicloud.com
@@ -656,6 +707,13 @@ descheduler:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param descheduler.resources resource quota of the descheduler
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -693,12 +751,11 @@ search:
   podAnnotations: {}
   ## @param search.podLabels labels of the search pods
   podLabels: {}
-  ## @param search.imagePullSecrets image pull secret of the search
-  imagePullSecrets: []
   ## @param image.registry karmada search image registry
   ## @param image.repository karmada search image repository
   ## @param image.tag karmada search image tag (immutable tags are recommended)
   ## @param image.pullPolicy karmada search image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
     registry: swr.ap-southeast-1.myhuaweicloud.com
@@ -708,6 +765,13 @@ search:
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
   ## @param search.resources resource quota of the search
   resources: {}
     # If you do want to specify resources, uncomment the following

@@ -26,10 +26,7 @@ spec:
         {{- include "karmada.apiserver.labels" . | nindent 8 }}
         {{- include "karmada.apiserver.podLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.apiServer.imagePullSecrets }}
-      imagePullSecrets:
-      {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "karmada.apiServer.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: {{ $name }}-apiserver
           image: {{ template "karmada.apiServer.image" . }}

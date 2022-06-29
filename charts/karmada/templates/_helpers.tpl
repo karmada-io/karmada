@@ -236,10 +236,24 @@ Return the proper karmada internal etcd image name
 {{- end -}}
 
 {{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.internal.etcd.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.etcd.internal.image) "global" .Values.global) }}
+{{- end -}}
+
+{{/*
 Return the proper karmada agent image name
 */}}
 {{- define "karmada.agent.image" -}}
 {{ include "common.images.image" (dict "imageRoot" .Values.agent.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.agent.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.agent.image) "global" .Values.global) }}
 {{- end -}}
 
 {{/*
@@ -250,10 +264,24 @@ Return the proper karmada apiServer image name
 {{- end -}}
 
 {{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.apiServer.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.apiServer.image) "global" .Values.global) }}
+{{- end -}}
+
+{{/*
 Return the proper karmada controllerManager image name
 */}}
 {{- define "karmada.controllerManager.image" -}}
 {{ include "common.images.image" (dict "imageRoot" .Values.controllerManager.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.controllerManager.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.controllerManager.image) "global" .Values.global) }}
 {{- end -}}
 
 {{/*
@@ -264,10 +292,24 @@ Return the proper karmada descheduler image name
 {{- end -}}
 
 {{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.descheduler.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.descheduler.image) "global" .Values.global) }}
+{{- end -}}
+
+{{/*
 Return the proper karmada schedulerEstimator image name
 */}}
 {{- define "karmada.schedulerEstimator.image" -}}
 {{ include "common.images.image" (dict "imageRoot" .Values.schedulerEstimator.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.schedulerEstimator.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.schedulerEstimator.image) "global" .Values.global) }}
 {{- end -}}
 
 {{/*
@@ -278,10 +320,24 @@ Return the proper karmada scheduler image name
 {{- end -}}
 
 {{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.scheduler.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.scheduler.image) "global" .Values.global) }}
+{{- end -}}
+
+{{/*
 Return the proper karmada webhook image name
 */}}
 {{- define "karmada.webhook.image" -}}
 {{ include "common.images.image" (dict "imageRoot" .Values.webhook.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.webhook.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.webhook.image) "global" .Values.global) }}
 {{- end -}}
 
 {{/*
@@ -292,10 +348,24 @@ Return the proper karmada aggregatedApiServer image name
 {{- end -}}
 
 {{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.aggregatedApiServer.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.aggregatedApiServer.image) "global" .Values.global) }}
+{{- end -}}
+
+{{/*
 Return the proper karmada search image name
 */}}
 {{- define "karmada.search.image" -}}
 {{ include "common.images.image" (dict "imageRoot" .Values.search.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.search.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.search.image) "global" .Values.global) }}
 {{- end -}}
 
 {{/*
@@ -305,5 +375,9 @@ Return the proper karmada kubeControllerManager image name
 {{ include "common.images.image" (dict "imageRoot" .Values.kubeControllerManager.image "global" .Values.global) }}
 {{- end -}}
 
-
-
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "karmada.kubeControllerManager.imagePullSecrets" -}}
+{{ include "common.images.pullSecrets" (dict "images" (list .Values.kubeControllerManager.image) "global" .Values.global) }}
+{{- end -}}

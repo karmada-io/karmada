@@ -26,10 +26,7 @@ spec:
         {{- include "karmada.descheduler.labels" . | nindent 8 }}
         {{- include "karmada.descheduler.podLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.descheduler.imagePullSecrets }}
-      imagePullSecrets:
-      {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "karmada.descheduler.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.descheduler.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}
