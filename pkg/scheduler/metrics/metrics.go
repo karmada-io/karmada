@@ -72,6 +72,29 @@ var (
 			Name:      "queue_incoming_bindings_total",
 			Help:      "Number of bindings added to scheduling queues by event type.",
 		}, []string{"event"})
+
+	// FrameworkExtensionPointDuration is the metrics which indicates the latency for running all plugins of a specific extension point.
+	FrameworkExtensionPointDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "framework_extension_point_duration_seconds",
+			Help:      "Latency for running all plugins of a specific extension point.",
+			// Start with 0.1ms with the last bucket being [~200ms, Inf)
+			Buckets: prometheus.ExponentialBuckets(0.0001, 2, 12),
+		},
+		[]string{"extension_point", "result"})
+
+	// PluginExecutionDuration is the metrics which indicates the duration for running a plugin at a specific extension point.
+	PluginExecutionDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "plugin_execution_duration_seconds",
+			Help:      "Duration for running a plugin at a specific extension point.",
+			// Start with 0.01ms with the last bucket being [~22ms, Inf). We use a small factor (1.5)
+			// so that we have better granularity since plugin latency is very sensitive.
+			Buckets: prometheus.ExponentialBuckets(0.00001, 1.5, 20),
+		},
+		[]string{"plugin", "extension_point", "result"})
 )
 
 // BindingSchedule can record a scheduling attempt and the duration
