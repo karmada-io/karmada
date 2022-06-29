@@ -125,7 +125,7 @@ func (o *CommandDescribeOptions) Complete(karmadaConfig KarmadaConfig, args []st
 		return err
 	}
 
-	f := getFactory(o.Cluster, clusterInfo)
+	f := getFactory(o.Cluster, clusterInfo, "")
 
 	o.Namespace, o.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {

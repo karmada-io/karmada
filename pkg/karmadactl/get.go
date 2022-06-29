@@ -264,7 +264,7 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 	wg.Add(len(g.Clusters))
 	for idx := range g.Clusters {
 		g.setClusterProxyInfo(karmadaRestConfig, g.Clusters[idx], clusterInfos)
-		f := getFactory(g.Clusters[idx], clusterInfos)
+		f := getFactory(g.Clusters[idx], clusterInfos, "")
 		go g.getObjInfo(&wg, &mux, f, g.Clusters[idx], &objs, &watchObjs, &allErrs, args)
 	}
 	wg.Wait()
@@ -858,7 +858,7 @@ func clusterInfoInit(g *CommandGetOptions, karmadaConfig KarmadaConfig, clusterI
 	return karmadaRestConfig, nil
 }
 
-func getFactory(clusterName string, clusterInfos map[string]*ClusterInfo) cmdutil.Factory {
+func getFactory(clusterName string, clusterInfos map[string]*ClusterInfo, namespace string) cmdutil.Factory {
 	kubeConfigFlags := NewConfigFlags(true).WithDeprecatedPasswordFlag()
 	// Build member cluster kubeConfigFlags
 	kubeConfigFlags.APIServer = stringptr(clusterInfos[clusterName].APIEndpoint)
@@ -867,6 +867,10 @@ func getFactory(clusterName string, clusterInfos map[string]*ClusterInfo) cmduti
 	kubeConfigFlags.KubeConfig = stringptr(clusterInfos[clusterName].KubeConfig)
 	kubeConfigFlags.Context = stringptr(clusterInfos[clusterName].Context)
 	kubeConfigFlags.usePersistentConfig = true
+
+	if namespace != "" {
+		kubeConfigFlags.Namespace = stringptr(namespace)
+	}
 
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	return cmdutil.NewFactory(matchVersionKubeConfigFlags)
