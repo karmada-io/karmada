@@ -17,28 +17,23 @@ PULL_MODE_CLUSTER_NAME=${PULL_MODE_CLUSTER_NAME:-"member3"}
 
 # delete interpreter webhook example in karmada-host
 export KUBECONFIG="${MAIN_KUBECONFIG}"
-kubectl config use-context "${HOST_CLUSTER_NAME}"
-kubectl delete -f "${REPO_ROOT}"/examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml
+kubectl --context="${HOST_CLUSTER_NAME}" delete -f "${REPO_ROOT}"/examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml
 
 # uninstall metallb
-kubectl delete configmap config -n metallb-system
-kubectl delete -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/metallb.yaml
-kubectl delete -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/namespace.yaml
+kubectl --context="${HOST_CLUSTER_NAME}" delete configmap config -n metallb-system
+kubectl --context="${HOST_CLUSTER_NAME}" delete -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/metallb.yaml
+kubectl --context="${HOST_CLUSTER_NAME}" delete -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/namespace.yaml
 
-kubectl get configmap kube-proxy -n kube-system -o yaml | \
+kubectl --context="${HOST_CLUSTER_NAME}" get configmap kube-proxy -n kube-system -o yaml | \
 sed -e "s/strictARP: true/strictARP: false/" | \
-kubectl apply -f - -n kube-system
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f - -n kube-system
 
 # delete interpreter workload webhook configuration
-kubectl config use-context "${KARMADA_APISERVER}"
-kubectl delete ResourceInterpreterWebhookConfiguration examples
+kubectl --context="${KARMADA_APISERVER}" delete ResourceInterpreterWebhookConfiguration examples
 
 # delete interpreter example workload CRD in karamada-apiserver and member clusters
-kubectl delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+kubectl --context="${KARMADA_APISERVER}" delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}"
-kubectl config use-context "${MEMBER_CLUSTER_1_NAME}"
-kubectl delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
-kubectl config use-context "${MEMBER_CLUSTER_2_NAME}"
-kubectl delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
-kubectl config use-context "${PULL_MODE_CLUSTER_NAME}"
-kubectl delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+kubectl --context="${MEMBER_CLUSTER_1_NAME}" delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+kubectl --context="${MEMBER_CLUSTER_2_NAME}" delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+kubectl --context="${PULL_MODE_CLUSTER_NAME}" delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"

@@ -38,20 +38,16 @@ if [ -n "${KUBECONFIG+x}" ];then
   CURR_KUBECONFIG=$KUBECONFIG # backup current kubeconfig
 fi
 
- # switch to host cluster
-TEMP_PATH=$(mktemp -d)
-cp $HOST_CLUSTER_KUBECONFIG $TEMP_PATH/kubeconfig
-export KUBECONFIG="$TEMP_PATH/kubeconfig"
-kubectl config use-context "${HOST_CLUSTER_NAME}"
+export KUBECONFIG=$HOST_CLUSTER_KUBECONFIG
 echo "using kubeconfig: "$KUBECONFIG
 
 # deploy karmada opensearch
-kubectl apply -f "${REPO_ROOT}/artifacts/opensearch/karmada-opensearch.yaml"
-kubectl apply -f "${REPO_ROOT}/artifacts/opensearch/karmada-opensearch-dashboards.yaml"
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/opensearch/karmada-opensearch.yaml"
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/opensearch/karmada-opensearch-dashboards.yaml"
 
 # make sure all karmada-opensearch components are ready
-util::wait_pod_ready "${KARMADA_OPENSEARCH_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
-util::wait_pod_ready "${KARMADA_OPENSEARCH_DASHBOARDS_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_OPENSEARCH_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_OPENSEARCH_DASHBOARDS_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 
 # recover the kubeconfig before installing opensearch if necessary
 if [ -n "${CURR_KUBECONFIG+x}" ];then

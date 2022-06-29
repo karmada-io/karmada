@@ -48,18 +48,12 @@ then
   exit 1
 fi
 MEMBER_CLUSTER_NAME=$4
-TEMP_PATH=$(mktemp -d)
-MEMBER_CLUSTER_KUBECONFIG_NAME=`basename ${MEMBER_CLUSTER_KUBECONFIG}`
-cp -rf ${MEMBER_CLUSTER_KUBECONFIG} "${TEMP_PATH}"/${MEMBER_CLUSTER_KUBECONFIG_NAME}
-
-kubectl --kubeconfig="${TEMP_PATH}"/${MEMBER_CLUSTER_KUBECONFIG_NAME} config use-context "${MEMBER_CLUSTER_NAME}"
 
 # check whether the kubeconfig secret has been created before
 if ! kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" get secrets -n karmada-system | grep "${MEMBER_CLUSTER_NAME}-kubeconfig"; then
   # create secret
-  kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" create secret generic ${MEMBER_CLUSTER_NAME}-kubeconfig --from-file=${MEMBER_CLUSTER_NAME}-kubeconfig="${TEMP_PATH}"/${MEMBER_CLUSTER_KUBECONFIG_NAME} -n "karmada-system"
+  kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" create secret generic ${MEMBER_CLUSTER_NAME}-kubeconfig --from-file=${MEMBER_CLUSTER_NAME}-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}" -n "karmada-system"
 fi
-rm -rf "${TEMP_PATH}"
 
 # deploy scheduler estimator
 TEMP_PATH=$(mktemp -d)

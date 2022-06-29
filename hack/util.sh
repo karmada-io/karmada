@@ -313,61 +313,67 @@ function util::wait_file_exist() {
 }
 
 # util::wait_pod_ready waits for pod state becomes ready until timeout.
-# Parmeters:
-#  - $1: pod label, such as "app=etcd"
-#  - $2: pod namespace, such as "karmada-system"
-#  - $3: time out, such as "200s"
+# Parameters:
+#  - $1: k8s context name, such as "karmada-apiserver"
+#  - $2: pod label, such as "app=etcd"
+#  - $3: pod namespace, such as "karmada-system"
+#  - $4: time out, such as "200s"
 function util::wait_pod_ready() {
-    local pod_label=$1
-    local pod_namespace=$2
+    local context_name=$1
+    local pod_label=$2
+    local pod_namespace=$3
 
     echo "wait the $pod_label ready..."
     set +e
-    util::kubectl_with_retry wait --for=condition=Ready --timeout=30s pods -l app=${pod_label} -n ${pod_namespace}
+    util::kubectl_with_retry --context="$context_name" wait --for=condition=Ready --timeout=30s pods -l app=${pod_label} -n ${pod_namespace}
     ret=$?
     set -e
     if [ $ret -ne 0 ];then
       echo "kubectl describe info:"
-      kubectl describe pod -l app=${pod_label} -n ${pod_namespace}
+      kubectl --context="$context_name" describe pod -l app=${pod_label} -n ${pod_namespace}
       echo "kubectl logs info:"
-      kubectl logs -l app=${pod_label} -n ${pod_namespace}
+      kubectl --context="$context_name" logs -l app=${pod_label} -n ${pod_namespace}
     fi
     return ${ret}
 }
 
 # util::wait_apiservice_ready waits for apiservice state becomes Available until timeout.
 # Parmeters:
-#  - $1: apiservice label, such as "app=etcd"
+#  - $1: k8s context name, such as "karmada-apiserver"
+#  - $2: apiservice label, such as "app=etcd"
 #  - $3: time out, such as "200s"
 function util::wait_apiservice_ready() {
-    local apiservice_label=$1
+    local context_name=$1
+    local apiservice_label=$2
 
     echo "wait the $apiservice_label Available..."
     set +e
-    util::kubectl_with_retry wait --for=condition=Available --timeout=30s apiservices -l app=${apiservice_label}
+    util::kubectl_with_retry --context="$context_name" wait --for=condition=Available --timeout=30s apiservices -l app=${apiservice_label}
     ret=$?
     set -e
     if [ $ret -ne 0 ];then
       echo "kubectl describe info:"
-      kubectl describe apiservices -l app=${apiservice_label}
+      kubectl --context="$context_name" describe apiservices -l app=${apiservice_label}
     fi
     return ${ret}
 }
 
 # util::wait_cluster_ready waits for cluster state becomes ready until timeout.
 # Parmeters:
-#  - $1: cluster name, such as "member1"
+#  - $1: context name, such as "karmada-apiserver"
+#  - $2: cluster name, such as "member1"
 function util:wait_cluster_ready() {
-  local cluster_name=$1
+  local context_name=$1
+  local cluster_name=$2
 
   echo "wait the cluster $cluster_name onBoard..."
   set +e
-  util::kubectl_with_retry wait --for=condition=Ready --timeout=60s clusters ${cluster_name}
+  util::kubectl_with_retry --context="$context_name" wait --for=condition=Ready --timeout=60s clusters "${cluster_name}"
   ret=$?
   set -e
-  if [ $ret -ne 0 ];then
+  if [ $ret -ne 0 ]; then
     echo "kubectl describe info:"
-    kubectl describe clusters ${cluster_name}
+    kubectl --context="$context_name" describe clusters "${cluster_name}"
   fi
   return ${ret}
 }
@@ -474,20 +480,22 @@ function util::get_apiserver_ip_from_kubeconfig(){
 
 # This function deploys webhook configuration
 # Parameters:
-#  - $1: CA file
-#  - $2: configuration file
+#  - $1: k8s context name
+#  - $2: CA file
+#  - $3: configuration file
 # Note:
 #   Deprecated: should be removed after helm get on board.
 function util::deploy_webhook_configuration() {
-  local ca_file=$1
-  local conf=$2
+  local context_name=$1
+  local ca_file=$2
+  local conf=$3
 
   local ca_string=$(cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
 
   local temp_path=$(mktemp -d)
   cp -rf "${conf}" "${temp_path}/temp.yaml"
   sed -i'' -e "s/{{caBundle}}/${ca_string}/g" "${temp_path}/temp.yaml"
-  kubectl apply -f "${temp_path}/temp.yaml"
+  kubectl --context="$context_name" apply -f "${temp_path}/temp.yaml"
   rm -rf "${temp_path}"
 }
 
@@ -501,18 +509,20 @@ function util::fill_cabundle() {
 
 # util::wait_service_external_ip give a service external ip when it is ready, if not, wait until timeout
 # Parameters:
-#  - $1: service name in k8s
-#  - $2: namespace
+#  - $1: context name in k8s
+#  - $2: service name in k8s
+#  - $3: namespace
 SERVICE_EXTERNAL_IP=''
 function util::wait_service_external_ip() {
-  local service_name=$1
-  local namespace=$2
+  local context_name=$1
+  local service_name=$2
+  local namespace=$3
   local external_ip
   local tmp
   for tmp in {1..30}; do
     set +e
-    external_host=$(kubectl get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.hostname}} {{end}}" | xargs)
-    external_ip=$(kubectl get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.ip}} {{end}}" | xargs)
+    external_host=$(kubectl --context="$context_name" get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.hostname}} {{end}}" | xargs)
+    external_ip=$(kubectl --context="$context_name" get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.ip}} {{end}}" | xargs)
     set -e
     if [[ ! -z "$external_host" ]]; then # Compatibility with hostname, such as AWS
       external_ip=$external_host

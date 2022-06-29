@@ -42,9 +42,9 @@ fi
 KARMADA_APISERVER_KUBECONFIG=$3
 
 # check context existence
-if ! kubectl config use-context "${4}" --kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" > /dev/null 2>&1;
+if ! kubectl config get-contexts "${4}" --kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" > /dev/null 2>&1;
 then
-  echo -e "ERROR: failed to use context: '${4}' not in ${KARMADA_APISERVER_KUBECONFIG}. \n"
+  echo -e "ERROR: failed to get context: '${4}' not in ${KARMADA_APISERVER_KUBECONFIG}. \n"
   usage
   exit 1
 fi
@@ -59,7 +59,7 @@ fi
 MEMBER_CLUSTER_KUBECONFIG=$5
 
 # check context existence
-if ! kubectl config use-context "${6}" --kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}" > /dev/null 2>&1;
+if ! kubectl config get-contexts "${6}" --kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}" > /dev/null 2>&1;
 then
   echo -e "ERROR: failed to get context: '${6}' not in ${MEMBER_CLUSTER_KUBECONFIG}. \n"
   usage
