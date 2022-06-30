@@ -157,7 +157,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 		return
 	}
 
-	klog.Errorf("Error cache memeber cluster %v, %v", key, err)
+	klog.Errorf("Error cache member cluster %v, %v", key, err)
 	c.queue.AddRateLimited(key)
 }
 
