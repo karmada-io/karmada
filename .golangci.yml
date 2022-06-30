@@ -42,6 +42,7 @@ linters:
   - unused
   - varcheck
   # other linters supported by golangci-lint.
+  - gci
   - gocyclo
   - gosec
   - misspell
@@ -54,6 +55,11 @@ linters-settings:
   gocyclo:
     # minimal cyclomatic complexity to report
     min-complexity: 15
+  gci:
+    sections:
+      - Standard
+      - Default
+      - Prefix(github.com/karmada-io/karmada)
 
 issues:
   # The list of ids of default excludes to include or disable. By default it's empty.
@@ -63,3 +69,12 @@ issues:
   - EXC0012
   - EXC0013
   - EXC0014
+  exclude-rules:
+    # Exclude 'cmd/agent/main.go' and 'cmd/controller-manager/controller-manager.go'
+    # because 'sigs.k8s.io/controller-runtime/pkg/metrics' package should be set before 'k8s.io/apiserver/pkg/server' .
+    - path: cmd/agent/main.go
+      linters:
+        - gci
+    - path: cmd/controller-manager/controller-manager.go
+      linters:
+        - gci
