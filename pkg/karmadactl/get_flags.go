@@ -1,7 +1,7 @@
 /*
    Copyright 2018 The Kubernetes Authors.
    Copy From: https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubectl/pkg/cmd/get/get_flags.go
-   Change:  ConfigFlags struct add CaBundle fields, toRawKubeConfigLoader method modify new loadRules and overrides.
+   Change:  ConfigFlags struct add CaBundle fields, toRawKubeConfigLoader method modify new loadRules and overrides, remove AddFlags function.
 */
 
 package karmadactl
@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/discovery"
 	diskcached "k8s.io/client-go/discovery/cached/disk"
@@ -23,22 +22,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/homedir"
-)
-
-const (
-	flagClusterName   = "cluster"
-	flagAuthInfoName  = "user"
-	flagContext       = "context"
-	flagNamespace     = "namespace"
-	flagAPIServer     = "server"
-	flagTLSServerName = "tls-server-name"
-	flagInsecure      = "insecure-skip-tls-verify"
-	flagCertFile      = "client-certificate"
-	flagKeyFile       = "client-key"
-	flagCAFile        = "certificate-authority"
-	flagBearerToken   = "token"
-	flagTimeout       = "request-timeout"
-	flagCacheDir      = "cache-dir"
 )
 
 var (
@@ -110,26 +93,39 @@ var _ RESTClientGetter = &ConfigFlags{}
 type ConfigFlags struct {
 	CaBundle *string
 
-	CacheDir   *string
+	// Default cache director
+	CacheDir *string
+	// Path to the kubeconfig file to use for CLI requests.
 	KubeConfig *string
 
-	// config flags
-	ClusterName      *string
-	AuthInfoName     *string
-	Context          *string
-	Namespace        *string
-	APIServer        *string
-	TLSServerName    *string
-	Insecure         *bool
-	CertFile         *string
-	KeyFile          *string
-	CAFile           *string
+	// The name of the kubeconfig cluster to use
+	ClusterName *string
+	// The name of the kubeconfig user to use
+	AuthInfoName *string
+	// The name of the kubeconfig context to use
+	Context *string
+	// If present, the namespace scope for this CLI request
+	Namespace *string
+	// The address and port of the Kubernetes API server
+	APIServer *string
+	// Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used
+	TLSServerName *string
+	// If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+	Insecure *bool
+	// Path to a client certificate file for TLS
+	CertFile *string
+	// Path to a client key file for TLS
+	KeyFile *string
+	// Path to a cert file for the certificate authority
+	CAFile *string
+	// Bearer token for authentication to the API server
 	BearerToken      *string
 	Impersonate      *string
 	ImpersonateGroup *[]string
 	Username         *string
 	Password         *string
-	Timeout          *string
+	// The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+	Timeout *string
 	// If non-nil, wrap config function can transform the Config
 	// before it is returned in ToRESTConfig function.
 	WrapConfigFn func(*rest.Config) *rest.Config
@@ -290,55 +286,6 @@ func (f *ConfigFlags) ToRESTMapper() (meta.RESTMapper, error) {
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
 	expander := restmapper.NewShortcutExpander(mapper, discoveryClient)
 	return expander, nil
-}
-
-// AddFlags binds client configuration flags to a given flagset
-func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
-	if f.KubeConfig != nil {
-		flags.StringVar(f.KubeConfig, "kubeconfig", *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	}
-	if f.CacheDir != nil {
-		flags.StringVar(f.CacheDir, flagCacheDir, *f.CacheDir, "Default cache directory")
-	}
-
-	// add config options
-	if f.CertFile != nil {
-		flags.StringVar(f.CertFile, flagCertFile, *f.CertFile, "Path to a client certificate file for TLS")
-	}
-	if f.KeyFile != nil {
-		flags.StringVar(f.KeyFile, flagKeyFile, *f.KeyFile, "Path to a client key file for TLS")
-	}
-	if f.BearerToken != nil {
-		flags.StringVar(f.BearerToken, flagBearerToken, *f.BearerToken, "Bearer token for authentication to the API server")
-	}
-	if f.ClusterName != nil {
-		flags.StringVar(f.ClusterName, flagClusterName, *f.ClusterName, "The name of the kubeconfig cluster to use")
-	}
-	if f.AuthInfoName != nil {
-		flags.StringVar(f.AuthInfoName, flagAuthInfoName, *f.AuthInfoName, "The name of the kubeconfig user to use")
-	}
-	if f.Namespace != nil {
-		flags.StringVarP(f.Namespace, flagNamespace, "n", *f.Namespace, "If present, the namespace scope for this CLI request")
-	}
-	if f.Context != nil {
-		flags.StringVar(f.Context, flagContext, *f.Context, "The name of the kubeconfig context to use")
-	}
-
-	if f.APIServer != nil {
-		flags.StringVarP(f.APIServer, flagAPIServer, "s", *f.APIServer, "The address and port of the Kubernetes API server")
-	}
-	if f.TLSServerName != nil {
-		flags.StringVar(f.TLSServerName, flagTLSServerName, *f.TLSServerName, "Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used")
-	}
-	if f.Insecure != nil {
-		flags.BoolVar(f.Insecure, flagInsecure, *f.Insecure, "If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure")
-	}
-	if f.CAFile != nil {
-		flags.StringVar(f.CAFile, flagCAFile, *f.CAFile, "Path to a cert file for the certificate authority")
-	}
-	if f.Timeout != nil {
-		flags.StringVar(f.Timeout, flagTimeout, *f.Timeout, "The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.")
-	}
 }
 
 // WithDeprecatedPasswordFlag enables the username and password config flags
