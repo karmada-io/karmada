@@ -108,7 +108,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 	}
 
 	// Probes
-	livenesProbe := &corev1.Probe{
+	livenessProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/livez",
@@ -123,7 +123,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		PeriodSeconds:       30,
 		TimeoutSeconds:      5,
 	}
-	readinesProbe := &corev1.Probe{
+	readinessProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/readyz",
@@ -176,8 +176,8 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 						MountPath: karmadaCertsVolumeMountPath,
 					},
 				},
-				LivenessProbe:  livenesProbe,
-				ReadinessProbe: readinesProbe,
+				LivenessProbe:  livenessProbe,
+				ReadinessProbe: readinessProbe,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -361,7 +361,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 	}
 
 	// Probes
-	livenesProbe := &corev1.Probe{
+	livenessProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/healthz",
@@ -411,7 +411,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
-				LivenessProbe: livenesProbe,
+				LivenessProbe: livenessProbe,
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      kubeConfigSecretAndMountName,
@@ -476,7 +476,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 		},
 	}
 
-	livenesProbe := &corev1.Probe{
+	livenessProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/healthz",
@@ -524,7 +524,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
-				LivenessProbe: livenesProbe,
+				LivenessProbe: livenessProbe,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          portName,
