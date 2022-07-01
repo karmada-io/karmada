@@ -2,7 +2,7 @@
 ## explicit; go 1.16
 github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
-# github.com/BurntSushi/toml v0.4.1
+# github.com/BurntSushi/toml v1.0.0
 ## explicit; go 1.16
 github.com/BurntSushi/toml
 github.com/BurntSushi/toml/internal
@@ -1508,7 +1508,7 @@ sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
 ## explicit; go 1.17
 sigs.k8s.io/json
 sigs.k8s.io/json/internal/golang/encoding/json
-# sigs.k8s.io/kind v0.12.0
+# sigs.k8s.io/kind v0.14.0
 ## explicit; go 1.14
 sigs.k8s.io/kind/pkg/apis/config/defaults
 sigs.k8s.io/kind/pkg/apis/config/v1alpha4
@@ -1529,7 +1529,6 @@ sigs.k8s.io/kind/pkg/cluster/internal/kubeconfig
 sigs.k8s.io/kind/pkg/cluster/internal/kubeconfig/internal/kubeconfig
 sigs.k8s.io/kind/pkg/cluster/internal/loadbalancer
 sigs.k8s.io/kind/pkg/cluster/internal/logs
-sigs.k8s.io/kind/pkg/cluster/internal/patch
 sigs.k8s.io/kind/pkg/cluster/internal/providers
 sigs.k8s.io/kind/pkg/cluster/internal/providers/common
 sigs.k8s.io/kind/pkg/cluster/internal/providers/docker
@@ -1545,6 +1544,7 @@ sigs.k8s.io/kind/pkg/internal/apis/config
 sigs.k8s.io/kind/pkg/internal/apis/config/encoding
 sigs.k8s.io/kind/pkg/internal/cli
 sigs.k8s.io/kind/pkg/internal/env
+sigs.k8s.io/kind/pkg/internal/patch
 sigs.k8s.io/kind/pkg/internal/sets
 sigs.k8s.io/kind/pkg/internal/version
 sigs.k8s.io/kind/pkg/log
