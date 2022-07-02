@@ -110,9 +110,9 @@ release-chart:
 
 .PHONY: test
 test:
-	for s in $(go list ./pkg/...); do if ! go test -race -failfast -v -p 1 $s; then break; fi; done
-	for s in $(go list ./cmd/...); do if ! go test -race -failfast -v -p 1 $s; then break; fi; done
-	for s in $(go list ./examples/...); do if ! go test -race -failfast -v -p 1 $s; then break; fi; done
+	go test --race --v ./pkg/...
+	go test --race --v ./cmd/...
+	go test --race --v ./examples/...
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
