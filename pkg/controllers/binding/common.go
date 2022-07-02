@@ -93,8 +93,6 @@ func ensureWork(
 			return err
 		}
 
-		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
-
 		if hasScheduledReplica {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
 				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name])
@@ -124,6 +122,7 @@ func ensureWork(
 			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
 			return err
 		}
+		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
 
 		annotations := mergeAnnotations(clonedWorkload, binding, scope)
 		annotations, err = recordAppliedOverrides(cops, ops, annotations)
