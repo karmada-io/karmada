@@ -79,7 +79,7 @@ jobs:
         with:
           go-version: 1.18.3
       - name: make test
-        run: make test
+        run: make test-failfast
   e2e:
     name: e2e test
     needs: build

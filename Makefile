@@ -110,9 +110,10 @@ release-chart:
 
 .PHONY: test
 test:
-	go test --race --v ./pkg/...
-	go test --race --v ./cmd/...
-	go test --race --v ./examples/...
+	hack/test-go.sh
+
+test-failfast:
+	hack/test-go.sh -failfast
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
