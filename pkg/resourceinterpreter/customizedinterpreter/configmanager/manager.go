@@ -97,7 +97,8 @@ func (m *interpreterConfigManager) updateConfiguration() {
 
 		config, err := helper.ConvertToResourceExploringWebhookConfiguration(&unstructured.Unstructured{Object: unstructuredConfig})
 		if err != nil {
-			klog.Errorf("Failed to convert object(%s), err", config.GroupVersionKind().String(), err)
+			gvk := unstructuredConfig.GroupVersionKind().String()
+			klog.Errorf("Failed to convert object(%s), err: %v", gvk, err)
 			return
 		}
 		configs = append(configs, config)
