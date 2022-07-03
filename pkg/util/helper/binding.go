@@ -132,10 +132,7 @@ func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
 		}
 		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
 	}
-	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
-	return nil
+	return errors.NewAggregate(errs)
 }
 
 // FetchWorkload fetches the kubernetes resource to be propagated.
@@ -223,12 +220,7 @@ func DeleteWorks(c client.Client, namespace, name string) error {
 			errs = append(errs, err)
 		}
 	}
-
-	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
-
-	return nil
+	return errors.NewAggregate(errs)
 }
 
 // GenerateNodeClaimByPodSpec will return a NodeClaim from PodSpec.

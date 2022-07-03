@@ -73,9 +73,5 @@ func DeleteEndpointSlice(c client.Client, selector labels.Set) error {
 		}
 	}
 
-	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
-
-	return nil
+	return errors.NewAggregate(errs)
 }

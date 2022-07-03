@@ -173,8 +173,5 @@ func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
 			}
 		}
 	}
-	if len(errs) > 0 {
-		return utilerrors.NewAggregate(errs)
-	}
-	return nil
+	return utilerrors.NewAggregate(errs)
 }
