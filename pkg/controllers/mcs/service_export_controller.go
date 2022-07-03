@@ -354,12 +354,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 			errs = append(errs, err)
 		}
 	}
-
-	if len(errs) > 0 {
-		return utilerrors.NewAggregate(errs)
-	}
-
-	return nil
+	return utilerrors.NewAggregate(errs)
 }
 
 // reportEndpointSliceWithEndpointSliceCreateOrUpdate reports the EndpointSlice when referencing service has been exported.
@@ -436,11 +431,7 @@ func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.F
 			errs = append(errs, err)
 		}
 	}
-	if len(errs) > 0 {
-		return utilerrors.NewAggregate(errs)
-	}
-
-	return nil
+	return utilerrors.NewAggregate(errs)
 }
 
 func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.FederatedKey) error {
