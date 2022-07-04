@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -21,6 +22,13 @@ import (
 const (
 	LabelSelector    = "karmada.io/bootstrapping"
 	karmadaNodeLabel = "karmada.io/etcd"
+)
+
+var (
+	deInitExample = templates.Examples(`
+	# Remove Karmada from the Kubernetes cluster.
+	%[1]s deinit
+	`)
 )
 
 // CommandDeInitOption options for deinit.
@@ -38,7 +46,7 @@ func NewCmdDeInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 		Use:          "deinit",
 		Short:        "removes Karmada from Kubernetes",
 		Long:         "removes Karmada from Kubernetes",
-		Example:      deInitExample(parentCommand),
+		Example:      fmt.Sprintf(deInitExample, parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(); err != nil {
@@ -55,15 +63,6 @@ func NewCmdDeInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "namespace where Karmada components are installed.")
 	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
 	return cmd
-}
-
-func deInitExample(parentCommand string) string {
-	example := fmt.Sprintf(`
-# Remove Karmada from the Kubernetes cluster.
-%s deinit
-`, parentCommand)
-
-	return example
 }
 
 // Complete the conditions required to be able to run deinit.

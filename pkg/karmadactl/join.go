@@ -15,6 +15,7 @@ import (
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
@@ -25,8 +26,12 @@ import (
 )
 
 var (
-	joinShort = `Register a cluster to control plane`
-	joinLong  = `Join registers a cluster to control plane.`
+	joinShort   = `Register a cluster to control plane`
+	joinLong    = `Join registers a cluster to control plane.`
+	joinExample = templates.Examples(`
+	# Join cluster into karamada control plane, if '--cluster-context' not specified, take the cluster name as the context
+	%[1]s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
+	`)
 )
 
 var (
@@ -57,7 +62,7 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand str
 		Use:          "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
 		Short:        joinShort,
 		Long:         joinLong,
-		Example:      joinExample(parentCommand),
+		Example:      fmt.Sprintf(joinExample, parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -77,13 +82,6 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand str
 	opts.AddFlags(flags)
 
 	return cmd
-}
-
-func joinExample(parentCommand string) string {
-	example := `
-# Join cluster into karamada control plane, if '--cluster-context' not specified, take the cluster name as the context` + "\n" +
-		fmt.Sprintf("%s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>", parentCommand)
-	return example
 }
 
 // CommandJoinOption holds all command options.

@@ -14,8 +14,29 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/describe"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+)
+
+var (
+	describeExample = templates.Examples(`
+	# Describe a pod in cluster(member1)
+	%[1]s describe pods/nginx -C=member1
+
+	# Describe all pods in cluster(member1)
+	%[1]s describe pods -C=member1
+
+	# Describe a pod identified by type and name in "pod.json" in cluster(member1)
+	%[1]s describe -f pod.json -C=member1
+
+	# Describe pods by label name=myLabel in cluster(member1)
+	%[1]s describe po -l name=myLabel -C=member1
+
+	# Describe all pods managed by the 'frontend' replication controller  in cluster(member1)
+	# (rc-created pods get the name of the rc as a prefix in the pod name)
+	%[1]s describe pods frontend -C=member
+	`)
 )
 
 // NewCmdDescribe new describe command.
@@ -38,7 +59,7 @@ func NewCmdDescribe(out io.Writer, karmadaConfig KarmadaConfig, parentCommand st
 		DisableFlagsInUseLine: true,
 		Short:                 "Show details of a specific resource or group of resources in a cluster",
 		SilenceUsage:          true,
-		Example:               describeExample(parentCommand),
+		Example:               fmt.Sprintf(describeExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(karmadaConfig, cmd, args); err != nil {
 				return err
@@ -85,26 +106,6 @@ type CommandDescribeOptions struct {
 	FilenameOptions   *resource.FilenameOptions
 
 	genericclioptions.IOStreams
-}
-
-func describeExample(parentCommand string) string {
-	example := `
-# Describe a pod in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s describe pods/nginx -C=member1", parentCommand) + `
-
-# Describe all pods in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s describe pods -C=member1", parentCommand) + `
-
-# # Describe a pod identified by type and name in "pod.json" in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s describe -f pod.json -C=member1", parentCommand) + `
-
-# Describe pods by label name=myLabel in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s describe po -l name=myLabel -C=member1", parentCommand) + `
-
-# Describe all pods managed by the 'frontend' replication controller  in cluster(member1)
-# (rc-created pods get the name of the rc as a prefix in the pod name)` + "\n" +
-		fmt.Sprintf("%s describe pods frontend -C=member1", parentCommand)
-	return example
 }
 
 // Complete ensures that options are valid and marshals them if necessary

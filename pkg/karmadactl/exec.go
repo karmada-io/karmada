@@ -21,6 +21,7 @@ import (
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/interrupt"
+	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -28,6 +29,26 @@ import (
 
 const (
 	defaultPodExecTimeout = 60 * time.Second
+)
+
+var (
+	execExample = templates.Examples(`
+	# Get output from running the 'date' command from pod mypod, using the first container by default in cluster(member1)
+	%[1]s exec mypod -C=member1 -- date
+
+	# Get output from running the 'date' command in ruby-container from pod mypod in cluster(member1)
+	%[1]s exec mypod -c ruby-container -C=member1 -- date
+
+	# Switch to raw terminal mode; sends stdin to 'bash' in ruby-container from pod mypod in cluster(member1)
+	# and sends stdout/stderr from 'bash' back to the client
+	%[1]s exec mypod -c ruby-container -C=member1 -i -t -- bash -il
+
+	# Get output from running 'date' command from the first pod of the deployment mydeployment, using the first container by default in cluster(member1)
+	%[1]s exec deploy/mydeployment -C=member1 -- date
+
+	# Get output from running 'date' command from the first pod of the service myservice, using the first container by default in cluster(member1)
+	%[1]s exec svc/myservice -C=member1 -- date
+	`)
 )
 
 // NewCmdExec new exec command.
@@ -45,7 +66,7 @@ func NewCmdExec(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string
 		DisableFlagsInUseLine: true,
 		Short:                 "Execute a command in a container in a cluster",
 		Long:                  "Execute a command in a container in a cluster",
-		Example:               execExample(parentCommand),
+		Example:               fmt.Sprintf(execExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			argsLenAtDash := cmd.ArgsLenAtDash()
 			if err := o.Complete(karmadaConfig, cmd, args, argsLenAtDash); err != nil {
@@ -71,26 +92,6 @@ func NewCmdExec(out io.Writer, karmadaConfig KarmadaConfig, parentCommand string
 	cmd.Flags().BoolVarP(&o.TTY, "tty", "t", o.TTY, "Stdin is a TTY")
 	cmd.Flags().BoolVarP(&o.Quiet, "quiet", "q", o.Quiet, "Only print output from the remote session")
 	return cmd
-}
-
-func execExample(parentCommand string) string {
-	example := `
-# Get output from running the 'date' command from pod mypod, using the first container by default in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s exec mypod -C=member1 -- date", parentCommand) + `
-
-# Get output from running the 'date' command in ruby-container from pod mypod in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s exec mypod -c ruby-container -C=member1 -- date", parentCommand) + `
-
-# Switch to raw terminal mode; sends stdin to 'bash' in ruby-container from pod mypod in cluster(member1)
-# and sends stdout/stderr from 'bash' back to the client` + "\n" +
-		fmt.Sprintf("%s exec mypod -c ruby-container -C=member1 -i -t -- bash -il", parentCommand) + `
-
-# Get output from running 'date' command from the first pod of the deployment mydeployment, using the first container by default in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s exec deploy/mydeployment -C=member1 -- date", parentCommand) + `
-
-# Get output from running 'date' command from the first pod of the service myservice, using the first container by default in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s exec svc/myservice -C=member1 -- date", parentCommand)
-	return example
 }
 
 // RemoteExecutor defines the interface accepted by the Exec command - provided for test stubbing
