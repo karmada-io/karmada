@@ -61,7 +61,7 @@ if ! kubectl --kubeconfig="${HOST_CLUSTER_KUBECONFIG}" --context="${HOST_CLUSTER
 fi
 rm -rf "${TEMP_PATH}"
 
-# deploy karmada agent
+# deploy scheduler estimator
 TEMP_PATH=$(mktemp -d)
 cp "${REPO_ROOT}"/artifacts/deploy/karmada-scheduler-estimator.yaml "${TEMP_PATH}"/karmada-scheduler-estimator.yaml
 sed -i'' -e "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" "${TEMP_PATH}"/karmada-scheduler-estimator.yaml

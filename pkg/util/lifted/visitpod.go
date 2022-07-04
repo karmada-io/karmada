@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L53-L63
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L53-L63
 
 // ContainerType signifies container type
 type ContainerType int
@@ -38,23 +38,23 @@ const (
 	EphemeralContainers
 )
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L65-L66
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L65-L66
 
 // AllContainers specifies that all containers be visited
 const AllContainers ContainerType = (InitContainers | Containers | EphemeralContainers)
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L78-L80
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L78-L80
 
 // ContainerVisitor is called with each container spec, and returns true
 // if visiting should continue.
 type ContainerVisitor func(container *corev1.Container, containerType ContainerType) (shouldContinue bool)
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L82-L83
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L82-L83
 
 // Visitor is called with each object name, and returns true if visiting should continue
 type Visitor func(name string) (shouldContinue bool)
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L85-L94
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L85-L94
 func skipEmptyNames(visitor Visitor) Visitor {
 	return func(name string) bool {
 		if len(name) == 0 {
@@ -66,7 +66,7 @@ func skipEmptyNames(visitor Visitor) Visitor {
 	}
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L96-L123
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L96-L123
 
 // VisitContainers invokes the visitor function with a pointer to every container
 // spec in the given pod spec with type set in mask. If visitor returns false,
@@ -97,7 +97,7 @@ func VisitContainers(podSpec *corev1.PodSpec, mask ContainerType, visitor Contai
 	return true
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L125-L195
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L125-L195
 
 // VisitPodSecretNames invokes the visitor function with the name of every secret
 // referenced by the pod spec. If visitor returns false, visiting is short-circuited.
@@ -172,7 +172,7 @@ func VisitPodSecretNames(pod *corev1.Pod, visitor Visitor) bool {
 	return true
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L197-L213
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L197-L213
 func visitContainerSecretNames(container *corev1.Container, visitor Visitor) bool {
 	for _, env := range container.EnvFrom {
 		if env.SecretRef != nil {
@@ -191,7 +191,7 @@ func visitContainerSecretNames(container *corev1.Container, visitor Visitor) boo
 	return true
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L215-L243
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L215-L243
 
 // VisitPodConfigmapNames invokes the visitor function with the name of every configmap
 // referenced by the pod spec. If visitor returns false, visiting is short-circuited.
@@ -223,7 +223,7 @@ func VisitPodConfigmapNames(pod *corev1.Pod, visitor Visitor) bool {
 	return true
 }
 
-// +lifted-source: https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L245-L261
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util.go#L245-L261
 func visitContainerConfigmapNames(container *corev1.Container, visitor Visitor) bool {
 	for _, env := range container.EnvFrom {
 		if env.ConfigMapRef != nil {

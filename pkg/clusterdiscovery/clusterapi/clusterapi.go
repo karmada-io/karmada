@@ -187,9 +187,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 		klog.Fatalf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
 	}
 	opts := karmadactl.CommandJoinOption{
-		GlobalCommandOptions: options.GlobalCommandOptions{
-			DryRun: false,
-		},
+		DryRun:           false,
 		ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 		ClusterName:      clusterWideKey.Name,
 	}
@@ -206,9 +204,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 	klog.Infof("Begin to unJoin cluster-api's Cluster(%s) to karmada", clusterName)
 	opts := karmadactl.CommandUnjoinOption{
-		GlobalCommandOptions: options.GlobalCommandOptions{
-			DryRun: false,
-		},
+		DryRun:           false,
 		ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 		ClusterName:      clusterName,
 		Wait:             options.DefaultKarmadactlCommandDuration,

@@ -118,3 +118,18 @@ func resortClusterList(clusterAvailableReplicas []workv1alpha2.TargetCluster, sc
 	klog.V(4).Infof("Resorted target cluster: %v", clusterAvailableReplicas)
 	return clusterAvailableReplicas
 }
+
+// attachZeroReplicasCluster  attach cluster in clusters into targetCluster
+// The purpose is to avoid workload not appeared in rb's spec.clusters field
+func attachZeroReplicasCluster(clusters []*clusterv1alpha1.Cluster, targetClusters []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+	targetClusterSet := sets.NewString()
+	for i := range targetClusters {
+		targetClusterSet.Insert(targetClusters[i].Name)
+	}
+	for i := range clusters {
+		if !targetClusterSet.Has(clusters[i].Name) {
+			targetClusters = append(targetClusters, workv1alpha2.TargetCluster{Name: clusters[i].Name, Replicas: 0})
+		}
+	}
+	return targetClusters
+}

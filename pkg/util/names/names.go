@@ -121,3 +121,11 @@ func IsReservedNamespace(namespace string) bool {
 func GenerateImpersonationSecretName(clusterName string) string {
 	return fmt.Sprintf("%s-impersonator", clusterName)
 }
+
+// GeneratePolicyName generates the propagationPolicy name
+func GeneratePolicyName(namespace, name, gvk string) string {
+	hash := fnv.New32a()
+	hashutil.DeepHashObject(hash, namespace+gvk)
+
+	return strings.ToLower(fmt.Sprintf("%s-%s", name, rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))))
+}

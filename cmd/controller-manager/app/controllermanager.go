@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"net"
-	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -86,7 +85,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-controller-manager"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-controller-manager"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -104,11 +103,15 @@ func Run(ctx context.Context, opts *options.Options) error {
 	}
 	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
+		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
 		SyncPeriod:                 &opts.ResyncPeriod.Duration,
 		LeaderElection:             opts.LeaderElection.LeaderElect,
 		LeaderElectionID:           opts.LeaderElection.ResourceName,
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
+		LeaseDuration:              &opts.LeaderElection.LeaseDuration.Duration,
+		RenewDeadline:              &opts.LeaderElection.RenewDeadline.Duration,
+		RetryPeriod:                &opts.LeaderElection.RetryPeriod.Duration,
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
 		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
 		LivenessEndpointName:       "/healthz",
@@ -234,6 +237,8 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+		ClusterSuccessThreshold:           opts.ClusterSuccessThreshold,
+		ClusterFailureThreshold:           opts.ClusterFailureThreshold,
 		ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
 	}
@@ -389,10 +394,8 @@ func startServiceImportController(ctx controllerscontext.Context) (enabled bool,
 
 func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, err error) {
 	unifiedAuthController := &unifiedauth.Controller{
-		Client:                ctx.Mgr.GetClient(),
-		ControllerPlaneConfig: ctx.Mgr.GetConfig(),
-		EventRecorder:         ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
-		ClusterClientSetFunc:  util.NewClusterClientSet,
+		Client:        ctx.Mgr.GetClient(),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
 	}
 	if err := unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -493,6 +496,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			FailoverEvictionTimeout:           opts.FailoverEvictionTimeout,
 			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+			ClusterSuccessThreshold:           opts.ClusterSuccessThreshold,
+			ClusterFailureThreshold:           opts.ClusterFailureThreshold,
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,

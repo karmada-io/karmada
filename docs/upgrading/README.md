@@ -13,6 +13,7 @@
     - [v0.9 to v0.10](#v09-to-v010)
     - [v0.10 to v1.0](#v010-to-v10)
     - [v1.0 to v1.1](#v10-to-v11)
+    - [v1.1 to v1.2](#v11-to-v12)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -49,19 +50,19 @@ kubectl get mutatingwebhookconfigurations.admissionregistration.k8s.io mutating-
 Copy the `ca_string` from the yaml path `webhooks.name[x].clientConfig.caBundle`, then replace the `{{caBundle}}` from
 the yaml files in `patches`. e.g:
 ```bash
-sed -i'' -e "s/{{caBundle}}/${ca_string}/g" ./"charts/_crds/patches/webhook_in_resourcebindings.yaml"
-sed -i'' -e "s/{{caBundle}}/${ca_string}/g" ./"charts/_crds/patches/webhook_in_clusterresourcebindings.yaml"
+sed -i'' -e "s/{{caBundle}}/${ca_string}/g" ./"charts/karmada/_crds/patches/webhook_in_resourcebindings.yaml"
+sed -i'' -e "s/{{caBundle}}/${ca_string}/g" ./"charts/karmada/_crds/patches/webhook_in_clusterresourcebindings.yaml"
 ```
 
 **Step2: Build final CRD**
 
 Generate the final CRD by `kubectl kustomize` command, e.g:
 ```bash
-kubectl kustomize ./charts/_crds 
+kubectl kustomize ./charts/karmada/_crds 
 ```
 Or, you can apply to `karmada-apiserver` by:
 ```bash
-kubectl kustomize ./charts/_crds | kubectl apply -f -
+kubectl kustomize ./charts/karmada/_crds | kubectl apply -f -
 ```
 
 ### Upgrading Components
@@ -79,3 +80,4 @@ v1.1.x to v1.2.x and the available patch versions are v1.2.0, v1.2.1 and v1.2.2,
 ### [v0.9 to v0.10](./v0.9-v0.10.md)
 ### [v0.10 to v1.0](./v0.10-v1.0.md)
 ### [v1.0 to v1.1](./v1.0-v1.1.md)
+### [v1.1 to v1.2](./v1.1-v1.2.md)

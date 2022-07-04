@@ -10,7 +10,7 @@ We can install Karmada by referring to [quick-start](https://github.com/karmada-
 
 ### Member cluster component is ready
 
-Ensure that all member clusters has been joined and their corresponding karmada-scheduler-estimator is installed into karmada-host.
+Ensure that all member clusters have been joined and their corresponding karmada-scheduler-estimator is installed into karmada-host.
 
 You could check by using the following command:
 
@@ -34,7 +34,7 @@ karmada-scheduler-estimator-member3-5c7d87f4b4-76gv9   1/1     Running   0      
 
 ### Scheduler option '--enable-scheduler-estimator'
 
-After all member clusters has been joined and estimators are all ready, please specify the option `--enable-scheduler-estimator=true` to enable scheduler estimator.
+After all member clusters have been joined and estimators are all ready, please specify the option `--enable-scheduler-estimator=true` to enable scheduler estimator.
 
 ```bash
 # edit the deployment of karmada-scheduler
@@ -139,7 +139,7 @@ spec:
             memory: 200Gi
 ```
 
-As any node of member clusters does not have so many cpu and memory, so we will find workload scheduling failed.
+As any node of member clusters does not have so many cpu and memory resources, we will find workload scheduling failed.
 
 ```bash
 $ kubectl get deployments.apps 

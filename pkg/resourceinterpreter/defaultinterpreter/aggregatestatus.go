@@ -27,6 +27,8 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = aggregateJobStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = aggregateDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = aggregateStatefulSetStatus
+	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = aggregatePodStatus
+	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = aggregatePersistentVolumeClaimStatus
 	return s
 }
 
@@ -160,6 +162,11 @@ func aggregateJobStatus(object *unstructured.Unstructured, aggregatedStatusItems
 		return nil, err
 	}
 
+	// If a job is finished, we should never update status again.
+	if finished, _ := helper.GetJobFinishedStatus(&job.Status); finished {
+		return object, nil
+	}
+
 	newStatus, err := helper.ParsingJobStatus(job, aggregatedStatusItems)
 	if err != nil {
 		return nil, err
@@ -263,4 +270,91 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
 
 	return helper.ToUnstructured(statefulSet)
+}
+
+func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	pod, err := helper.ConvertToPod(object)
+	if err != nil {
+		return nil, err
+	}
+
+	newStatus := &corev1.PodStatus{}
+	newStatus.ContainerStatuses = make([]corev1.ContainerStatus, 0)
+	runningFlag := true
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			runningFlag = false
+			continue
+		}
+
+		temp := &corev1.PodStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+
+		if temp.Phase != corev1.PodRunning {
+			runningFlag = false
+		}
+
+		for _, containerStatus := range temp.ContainerStatuses {
+			tempStatus := corev1.ContainerStatus{
+				Ready: containerStatus.Ready,
+				State: containerStatus.State,
+			}
+			newStatus.ContainerStatuses = append(newStatus.ContainerStatuses, tempStatus)
+		}
+		klog.V(3).Infof("Grab pod(%s/%s) status from cluster(%s), phase: %s", pod.Namespace,
+			pod.Name, item.ClusterName, temp.Phase)
+	}
+
+	if runningFlag {
+		newStatus.Phase = corev1.PodRunning
+	} else {
+		newStatus.Phase = corev1.PodPending
+	}
+
+	if reflect.DeepEqual(pod.Status, *newStatus) {
+		klog.V(3).Infof("ignore update pod(%s/%s) status as up to date", pod.Namespace, pod.Name)
+		return object, nil
+	}
+
+	pod.Status = *newStatus
+	return helper.ToUnstructured(pod)
+}
+
+func aggregatePersistentVolumeClaimStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	pvc, err := helper.ConvertToPersistentVolumeClaim(object)
+	if err != nil {
+		return nil, err
+	}
+
+	newStatus := &corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+
+		temp := &corev1.PersistentVolumeClaimStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab pvc(%s/%s) status from cluster(%s), phase: %s", pvc.Namespace,
+			pvc.Name, item.ClusterName, temp.Phase)
+		if temp.Phase == corev1.ClaimLost {
+			newStatus.Phase = corev1.ClaimLost
+			break
+		}
+
+		if temp.Phase != corev1.ClaimBound {
+			newStatus.Phase = temp.Phase
+		}
+	}
+
+	if reflect.DeepEqual(pvc.Status, *newStatus) {
+		klog.V(3).Infof("ignore update pvc(%s/%s) status as up to date", pvc.Namespace, pvc.Name)
+		return object, nil
+	}
+
+	pvc.Status = *newStatus
+	return helper.ToUnstructured(pvc)
 }

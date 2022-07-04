@@ -31,6 +31,15 @@ spec:
             - --secure-port=10357
             - --feature-gates=PropagateDeps=true
             - --v=4
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10357
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
           - name: kubeconfig
             subPath: kubeconfig

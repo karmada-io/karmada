@@ -3,7 +3,6 @@ package karmadactl
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -28,6 +27,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter/prune"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -56,7 +56,7 @@ var (
 )
 
 // NewCmdPromote defines the `promote` command that promote resources from legacy clusters
-func NewCmdPromote(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdPromote(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandPromoteOption{}
 	opts.JSONYamlPrintFlags = genericclioptions.NewJSONYamlPrintFlags()
 
@@ -73,7 +73,7 @@ func NewCmdPromote(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand 
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunPromote(cmdOut, karmadaConfig, opts, args); err != nil {
+			if err := RunPromote(karmadaConfig, opts, args); err != nil {
 				return err
 			}
 			return nil
@@ -105,6 +105,9 @@ type CommandPromoteOption struct {
 	// ClusterKubeConfig is the cluster's kubeconfig path.
 	ClusterKubeConfig string
 
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
+
 	resource.FilenameOptions
 
 	JSONYamlPrintFlags *genericclioptions.JSONYamlPrintFlags
@@ -129,6 +132,7 @@ func (o *CommandPromoteOption) AddFlags(flags *pflag.FlagSet) {
 		"Context name of legacy cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&o.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the legacy cluster's kubeconfig.")
+	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
 // Complete ensures that options are valid and marshals them if necessary
@@ -178,7 +182,7 @@ func (o *CommandPromoteOption) Validate() error {
 }
 
 // RunPromote promote resources from legacy clusters
-func RunPromote(_ io.Writer, karmadaConfig KarmadaConfig, opts CommandPromoteOption, args []string) error {
+func RunPromote(karmadaConfig KarmadaConfig, opts CommandPromoteOption, args []string) error {
 	// Get control plane karmada-apiserver client
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KubeConfig)
 	if err != nil {
@@ -402,7 +406,7 @@ func addOverwriteAnnotation(obj *unstructured.Unstructured) {
 
 // createOrUpdatePropagationPolicy create PropagationPolicy in karmada control plane
 func createOrUpdatePropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, opts CommandPromoteOption) error {
-	name := opts.name + "-propagation"
+	name := names.GeneratePolicyName(opts.Namespace, opts.name, opts.gvk.String())
 
 	_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(opts.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
@@ -416,12 +420,12 @@ func createOrUpdatePropagationPolicy(karmadaClient *karmadaclientset.Clientset, 
 	}
 
 	// PropagationPolicy already exists, not to create it
-	return fmt.Errorf("the PropagationPolicy(%s/%s) in control plane: %v", opts.Namespace, name, err)
+	return fmt.Errorf("the PropagationPolicy(%s/%s) already exist, please edit it to propagate resource", opts.Namespace, name)
 }
 
 // createOrUpdateClusterPropagationPolicy create ClusterPropagationPolicy in karmada control plane
 func createOrUpdateClusterPropagationPolicy(karmadaClient *karmadaclientset.Clientset, gvr schema.GroupVersionResource, opts CommandPromoteOption) error {
-	name := opts.name + "-propagation"
+	name := names.GeneratePolicyName("", opts.name, opts.gvk.String())
 
 	_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
@@ -440,13 +444,12 @@ func createOrUpdateClusterPropagationPolicy(karmadaClient *karmadaclientset.Clie
 
 // buildPropagationPolicy build PropagationPolicy according to resource and cluster
 func buildPropagationPolicy(gvr schema.GroupVersionResource, opts CommandPromoteOption) *policyv1alpha1.PropagationPolicy {
-	name := opts.name + "-propagation"
-	ns := opts.Namespace
+	name := names.GeneratePolicyName(opts.Namespace, opts.name, opts.gvk.String())
 
 	pp := &policyv1alpha1.PropagationPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: ns,
+			Namespace: opts.Namespace,
 		},
 		Spec: policyv1alpha1.PropagationSpec{
 			ResourceSelectors: []policyv1alpha1.ResourceSelector{
@@ -469,7 +472,7 @@ func buildPropagationPolicy(gvr schema.GroupVersionResource, opts CommandPromote
 
 // buildClusterPropagationPolicy build ClusterPropagationPolicy according to resource and cluster
 func buildClusterPropagationPolicy(gvr schema.GroupVersionResource, opts CommandPromoteOption) *policyv1alpha1.ClusterPropagationPolicy {
-	name := opts.name + "-propagation"
+	name := names.GeneratePolicyName("", opts.name, opts.gvk.String())
 
 	cpp := &policyv1alpha1.ClusterPropagationPolicy{
 		ObjectMeta: metav1.ObjectMeta{

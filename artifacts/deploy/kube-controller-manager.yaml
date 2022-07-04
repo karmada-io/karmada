@@ -42,7 +42,7 @@ spec:
             - --cluster-name=karmada
             - --cluster-signing-cert-file=/etc/karmada/pki/server-ca.crt
             - --cluster-signing-key-file=/etc/karmada/pki/server-ca.key
-            - --controllers=namespace,garbagecollector,serviceaccount-token
+            - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished
             - --kubeconfig=/etc/kubeconfig
             - --leader-elect=true
             - --node-cidr-mask-size=24
@@ -52,8 +52,19 @@ spec:
             - --service-cluster-ip-range=10.96.0.0/12
             - --use-service-account-credentials=true
             - --v=4
-          image: k8s.gcr.io/kube-controller-manager:v1.21.7
+          image: k8s.gcr.io/kube-controller-manager:v1.22.10
           imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              host: 127.0.0.1
+              path: /healthz
+              port: 10257
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
           name: kube-controller-manager
           resources:
             requests:

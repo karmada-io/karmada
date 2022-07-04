@@ -6,11 +6,13 @@
   - [Prerequisites](#prerequisites)
     - [Karmada kubectl plugin](#karmada-kubectl-plugin)
   - [Install Karmada by Karmada command-line tool](#install-karmada-by-karmada-command-line-tool)
-    - [Install Karmada in Kubernetes](#install-karmada-in-kubernetes)
+    - [Install Karmada on your own cluster](#install-karmada-on-your-own-cluster)
       - [Offline installation](#offline-installation)
       - [Deploy HA](#deploy-ha)
+    - [Install Karmada in Kind cluster](#install-karmada-in-kind-cluster)
   - [Install Karmada by Helm Chart Deployment](#install-karmada-by-helm-chart-deployment)
   - [Install Karmada from source](#install-karmada-from-source)
+  - [Install Karmada for development environment](#install-karmada-for-development-environment)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -25,7 +27,7 @@ For installation instructions see [installing kubectl-karmada](./install-kubectl
 
 ## Install Karmada by Karmada command-line tool
 
-### Install Karmada in Kubernetes
+### Install Karmada on your own cluster
 
 Assume you have put your cluster's `kubeconfig` file to `$HOME/.kube/config` or specify the path
 with `KUBECONFIG` environment variable. Otherwise, you should specify the configuration file by
@@ -141,9 +143,9 @@ Create a cluster named `host` by `hack/create-cluster.sh`:
 hack/create-cluster.sh host $HOME/.kube/host.config
 ```
 
-Install Karmada v1.1.0 by command `kubectl karmada init`:
+Install Karmada v1.2.0 by command `kubectl karmada init`:
 ```bash
-kubectl karmada init --crds https://github.com/karmada-io/karmada/releases/download/v1.1.0/crds.tar.gz --kubeconfig=$HOME/.kube/host.config
+kubectl karmada init --crds https://github.com/karmada-io/karmada/releases/download/v1.2.0/crds.tar.gz --kubeconfig=$HOME/.kube/host.config
 ```
 
 Check installed components:
@@ -160,10 +162,75 @@ kube-controller-manager-85c789dcfc-k89f8       1/1     Running   0          2m10
 ```
 
 ## Install Karmada by Helm Chart Deployment
-Please refer to [installing by Helm](https://github.com/karmada-io/karmada/tree/master/charts).
+Please refer to [installing by Helm](https://github.com/karmada-io/karmada/tree/master/charts/karmada).
 
 ## Install Karmada from source
 
 Please refer to [installing from source](./fromsource.md).
 
 [1]: https://kubernetes.io/docs/tasks/extend-kubectl/kubectl-plugins/
+
+## Install Karmada for development environment
+
+If you want to try Karmada, we recommend that build a development environment by 
+`hack/local-up-karmada.sh` which will do following tasks for you:
+- Start a Kubernetes cluster by [kind](https://kind.sigs.k8s.io/) to run the Karmada control plane, aka. the `host cluster`.
+- Build Karmada control plane components based on a current codebase.
+- Deploy Karmada control plane components on the `host cluster`.
+- Create member clusters and join Karmada.
+
+**1. Clone Karmada repo to your machine:**
+```
+git clone https://github.com/karmada-io/karmada
+```
+or use your fork repo by replacing your `GitHub ID`:
+```
+git clone https://github.com/<GitHub ID>/karmada
+```
+
+**2. Change to the karmada directory:**
+```
+cd karmada
+```
+
+**3. Deploy and run Karmada control plane:**
+
+run the following script:
+
+```
+hack/local-up-karmada.sh
+```
+This script will do following tasks for you:
+- Start a Kubernetes cluster to run the Karmada control plane, aka. the `host cluster`.
+- Build Karmada control plane components based on a current codebase.
+- Deploy Karmada control plane components on the `host cluster`.
+- Create member clusters and join Karmada.
+
+If everything goes well, at the end of the script output, you will see similar messages as follows:
+```
+Local Karmada is running.
+
+To start using your Karmada environment, run:
+  export KUBECONFIG="$HOME/.kube/karmada.config"
+Please use 'kubectl config use-context karmada-host/karmada-apiserver' to switch the host and control plane cluster.
+
+To manage your member clusters, run:
+  export KUBECONFIG="$HOME/.kube/members.config"
+Please use 'kubectl config use-context member1/member2/member3' to switch to the different member cluster.
+```
+
+**4. Check registered cluster**
+
+```
+kubectl get clusters --kubeconfig=/$HOME/.kube/karmada.config
+```
+
+You will get similar output as follows:
+```
+NAME      VERSION   MODE   READY   AGE
+member1   v1.23.4   Push   True    7m38s
+member2   v1.23.4   Push   True    7m35s
+member3   v1.23.4   Pull   True    7m27s
+```
+
+There are 3 clusters named `member1`, `member2` and `member3` have registered with `Push` or `Pull` mode.

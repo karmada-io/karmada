@@ -97,9 +97,9 @@ This guide will cover:
 - Propagate an application by using `karmada`.
 
 ### Prerequisites
-- [Go](https://golang.org/) version v1.17+
+- [Go](https://golang.org/) version v1.18+
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
-- [kind](https://kind.sigs.k8s.io/) version v0.9.0+
+- [kind](https://kind.sigs.k8s.io/) version v0.14.0+
 
 ### Install the Karmada control plane
 
@@ -205,6 +205,15 @@ If you have questions, feel free to reach out to us in the following ways:
 - [mailing list](https://groups.google.com/forum/#!forum/karmada)
 - [slack](https://cloud-native.slack.com/archives/C02MUF8QXUN) | [Join](https://slack.cncf.io/)
 - [twitter](https://twitter.com/karmada_io)
+
+## Talks and References
+
+|                  | Link                                                                                                                    |
+|------------------|-------------------------------------------------------------------------------------------------------------------------|
+| KubeCon(EU 2021) | [Beyond federation: automating multi-cloud workloads with K8s native APIs](https://www.youtube.com/watch?v=LJJoaGszBVk) |
+| KubeCon(EU 2022) | TBD                                                                                                                     |
+
+For blogs please refer to [website](https://karmada.io/blog/).
 
 ## Contributing
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -36,12 +35,15 @@ var (
 )
 
 const (
-	desiredCordon = iota
-	desiredUnCordon
+	// DesiredCordon a flag indicate karmadactl.RunCordonOrUncordon cordon a cluster,
+	// cordon prevent new resource scheduler to cordoned cluster.
+	DesiredCordon = iota
+	// DesiredUnCordon a flag indicate karmadactl.RunCordonOrUncordon uncordon a cluster.
+	DesiredUnCordon
 )
 
 // NewCmdCordon defines the `cordon` command that mark cluster as unschedulable.
-func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:          "cordon CLUSTER",
@@ -53,7 +55,7 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand s
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(cmdOut, desiredCordon, karmadaConfig, opts); err != nil {
+			if err := RunCordonOrUncordon(DesiredCordon, karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -63,11 +65,13 @@ func NewCmdCordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand s
 	flags := cmd.Flags()
 	opts.GlobalCommandOptions.AddFlags(flags)
 
+	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+
 	return cmd
 }
 
 // NewCmdUncordon defines the `uncordon` command that mark cluster as schedulable.
-func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:          "uncordon CLUSTER",
@@ -79,7 +83,7 @@ func NewCmdUncordon(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(cmdOut, desiredUnCordon, karmadaConfig, opts); err != nil {
+			if err := RunCordonOrUncordon(DesiredUnCordon, karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -99,6 +103,9 @@ type CommandCordonOption struct {
 
 	// ClusterName is the cluster's name that we are going to join with.
 	ClusterName string
+
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -130,11 +137,11 @@ func NewCordonHelper(cluster *clusterv1alpha1.Cluster) *CordonHelper {
 func (c *CordonHelper) UpdateIfRequired(desired int) bool {
 	c.desired = desired
 
-	if desired == desiredCordon && !c.hasUnschedulerTaint() {
+	if desired == DesiredCordon && !c.hasUnschedulerTaint() {
 		return true
 	}
 
-	if desired == desiredUnCordon && c.hasUnschedulerTaint() {
+	if desired == DesiredUnCordon && c.hasUnschedulerTaint() {
 		return true
 	}
 
@@ -171,11 +178,11 @@ func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clien
 		Effect: corev1.TaintEffectNoSchedule,
 	}
 
-	if c.desired == desiredCordon {
+	if c.desired == DesiredCordon {
 		c.cluster.Spec.Taints = append(c.cluster.Spec.Taints, unschedulerTaint)
 	}
 
-	if c.desired == desiredUnCordon {
+	if c.desired == DesiredUnCordon {
 		for i, n := 0, len(c.cluster.Spec.Taints); i < n; i++ {
 			if c.cluster.Spec.Taints[i].MatchTaint(&unschedulerTaint) {
 				c.cluster.Spec.Taints[i] = c.cluster.Spec.Taints[n-1]
@@ -201,9 +208,9 @@ func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clien
 
 // RunCordonOrUncordon exec marks the cluster unschedulable or schedulable according to desired.
 // if true cordon cluster otherwise uncordon cluster.
-func RunCordonOrUncordon(_ io.Writer, desired int, karmadaConfig KarmadaConfig, opts CommandCordonOption) error {
+func RunCordonOrUncordon(desired int, karmadaConfig KarmadaConfig, opts CommandCordonOption) error {
 	cordonOrUncordon := "cordon"
-	if desired == desiredUnCordon {
+	if desired == DesiredUnCordon {
 		cordonOrUncordon = "un" + cordonOrUncordon
 	}
 
@@ -239,7 +246,7 @@ func RunCordonOrUncordon(_ io.Writer, desired int, karmadaConfig KarmadaConfig, 
 }
 
 func alreadyStr(desired int) string {
-	if desired == desiredCordon {
+	if desired == DesiredCordon {
 		return "already cordoned"
 	}
 	return "already uncordoned"

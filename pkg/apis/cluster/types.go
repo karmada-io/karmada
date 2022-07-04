@@ -61,6 +61,12 @@ type ClusterSpec struct {
 	// +optional
 	ProxyURL string
 
+	// ProxyHeader is the HTTP header required by proxy server.
+	// The key in the key-value pair is HTTP header key and value is the associated header payloads.
+	// For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').
+	// +optional
+	ProxyHeader map[string]string
+
 	// Provider represents the cloud provider name of the member cluster.
 	// +optional
 	Provider string

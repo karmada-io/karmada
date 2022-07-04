@@ -102,10 +102,16 @@ type DerivedConfigData struct {
 	KubeadmFeatureGates map[string]bool
 	// IPv4 values take precedence over IPv6 by default, if true set IPv6 default values
 	IPv6 bool
+	// kubelet cgroup driver, based on kubernetes version
+	CgroupDriver string
 }
 
 // Derive automatically derives DockerStableTag if not specified
 func (c *ConfigData) Derive() {
+	// default cgroup driver
+	// TODO: refactor and move all deriving logic to this method
+	c.CgroupDriver = "systemd"
+
 	// get the first address to use it as the API advertised address
 	c.AdvertiseAddress = strings.Split(c.NodeAddress, ",")[0]
 
@@ -213,7 +219,6 @@ localAPIEndpoint:
 nodeRegistration:
   criSocket: "/run/containerd/containerd.sock"
   kubeletExtraArgs:
-    fail-swap-on: "false"
     node-ip: "{{ .NodeAddress }}"
     provider-id: "kind://{{.NodeProvider}}/{{.ClusterName}}/{{.NodeName}}"
 ---
@@ -231,7 +236,6 @@ controlPlane:
 nodeRegistration:
   criSocket: "/run/containerd/containerd.sock"
   kubeletExtraArgs:
-    fail-swap-on: "false"
     node-ip: "{{ .NodeAddress }}"
     provider-id: "kind://{{.NodeProvider}}/{{.ClusterName}}/{{.NodeName}}"
 discovery:
@@ -244,11 +248,9 @@ apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 metadata:
   name: config
-# explicitly set default cgroup driver
-# unblocks https://github.com/kubernetes/kubernetes/pull/99471
-# TODO: consider switching to systemd instead
-# tracked in: https://github.com/kubernetes-sigs/kind/issues/1726
-cgroupDriver: cgroupfs
+cgroupDriver: {{ .CgroupDriver }}
+cgroupRoot: /kubelet
+failSwapOn: false
 # configure ipv6 addresses in IPv6 mode
 {{ if .IPv6 -}}
 address: "::"
@@ -347,7 +349,6 @@ localAPIEndpoint:
 nodeRegistration:
   criSocket: "unix:///run/containerd/containerd.sock"
   kubeletExtraArgs:
-    fail-swap-on: "false"
     node-ip: "{{ .NodeAddress }}"
     provider-id: "kind://{{.NodeProvider}}/{{.ClusterName}}/{{.NodeName}}"
     node-labels: "{{ .NodeLabels }}"
@@ -366,7 +367,6 @@ controlPlane:
 nodeRegistration:
   criSocket: "unix:///run/containerd/containerd.sock"
   kubeletExtraArgs:
-    fail-swap-on: "false"
     node-ip: "{{ .NodeAddress }}"
     provider-id: "kind://{{.NodeProvider}}/{{.ClusterName}}/{{.NodeName}}"
     node-labels: "{{ .NodeLabels }}"
@@ -380,11 +380,9 @@ apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 metadata:
   name: config
-# explicitly set default cgroup driver
-# unblocks https://github.com/kubernetes/kubernetes/pull/99471
-# TODO: consider switching to systemd instead
-# tracked in: https://github.com/kubernetes-sigs/kind/issues/1726
-cgroupDriver: cgroupfs
+cgroupDriver: {{ .CgroupDriver }}
+cgroupRoot: /kubelet
+failSwapOn: false
 # configure ipv6 addresses in IPv6 mode
 {{ if .IPv6 -}}
 address: "::"
@@ -488,7 +486,6 @@ localAPIEndpoint:
 nodeRegistration:
   criSocket: "unix:///run/containerd/containerd.sock"
   kubeletExtraArgs:
-    fail-swap-on: "false"
     node-ip: "{{ .NodeAddress }}"
     provider-id: "kind://{{.NodeProvider}}/{{.ClusterName}}/{{.NodeName}}"
     node-labels: "{{ .NodeLabels }}"
@@ -507,7 +504,6 @@ controlPlane:
 nodeRegistration:
   criSocket: "unix:///run/containerd/containerd.sock"
   kubeletExtraArgs:
-    fail-swap-on: "false"
     node-ip: "{{ .NodeAddress }}"
     provider-id: "kind://{{.NodeProvider}}/{{.ClusterName}}/{{.NodeName}}"
     node-labels: "{{ .NodeLabels }}"
@@ -521,11 +517,9 @@ apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 metadata:
   name: config
-# explicitly set default cgroup driver
-# unblocks https://github.com/kubernetes/kubernetes/pull/99471
-# TODO: consider switching to systemd instead
-# tracked in: https://github.com/kubernetes-sigs/kind/issues/1726
-cgroupDriver: cgroupfs
+cgroupDriver: {{ .CgroupDriver }}
+cgroupRoot: /kubelet
+failSwapOn: false
 # configure ipv6 addresses in IPv6 mode
 {{ if .IPv6 -}}
 address: "::"
@@ -619,6 +613,13 @@ func Config(data ConfigData) (config string, err error) {
 		ver.AtLeast(version.MustParseSemantic("v1.20.0")) {
 		data.KubeadmFeatureGates = make(map[string]bool)
 		data.KubeadmFeatureGates["IPv6DualStack"] = true
+	}
+
+	// before 1.24 kind uses cgroupfs
+	// after 1.24 kind uses systemd starting in kind v0.13.0
+	// before kind v0.13.0 kubernetes 1.24 wasn't released yet
+	if ver.LessThan(version.MustParseSemantic("v1.24.0")) {
+		data.CgroupDriver = "cgroupfs"
 	}
 
 	// execute the template

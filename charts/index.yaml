@@ -1,0 +1,15 @@
+apiVersion: v1
+entries:
+  karmada:
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2022-05-30T15:00:42.216255031+08:00"
+    description: A Helm chart for karmada
+    digest: 054340c4f2e428f4f51ec30652f40ba827d0bfe397ea10f06db387c88a32aa6d
+    kubeVersion: '>= 1.16.0-0'
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.2.0/karmada-chart-v1.2.0.tgz
+    version: v1.2.0
+generated: "2022-05-30T15:00:42.212835635+08:00"

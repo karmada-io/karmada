@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -26,6 +25,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -48,10 +48,6 @@ const (
 	clusterNotReachableReason = "ClusterNotReachable"
 	clusterNotReachableMsg    = "cluster is not reachable"
 	statusCollectionFailed    = "StatusCollectionFailed"
-	// clusterStatusRetryInterval specifies the interval between two retries.
-	clusterStatusRetryInterval = 500 * time.Millisecond
-	// clusterStatusRetryTimeout specifies the maximum time to wait for cluster status.
-	clusterStatusRetryTimeout = 2 * time.Second
 )
 
 var (
@@ -82,6 +78,12 @@ type ClusterStatusController struct {
 	ClusterLeaseRenewIntervalFraction float64
 	// ClusterLeaseControllers store clusters and their corresponding lease controllers.
 	ClusterLeaseControllers sync.Map
+	// ClusterSuccessThreshold is the duration of successes for the cluster to be considered healthy after recovery.
+	ClusterSuccessThreshold metav1.Duration
+	// ClusterFailureThreshold is the duration of failure for the cluster to be considered unhealthy.
+	ClusterFailureThreshold metav1.Duration
+	// clusterConditionCache stores the condition status of each cluster.
+	clusterConditionCache clusterConditionStore
 
 	ClusterCacheSyncTimeout metav1.Duration
 	RateLimiterOptions      ratelimiterflag.Options
@@ -98,6 +100,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 		// The resource may no longer exist, in which case we stop the informer.
 		if apierrors.IsNotFound(err) {
 			c.InformerManager.Stop(req.NamespacedName.Name)
+			c.clusterConditionCache.delete(req.Name)
 			return controllerruntime.Result{}, nil
 		}
 
@@ -116,13 +119,19 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).WithEventFilter(c.PredicateFunc).WithOptions(controller.Options{
-		RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
-	}).Complete(c)
+	c.clusterConditionCache = clusterConditionStore{
+		successThreshold: c.ClusterSuccessThreshold.Duration,
+		failureThreshold: c.ClusterFailureThreshold.Duration,
+	}
+	return controllerruntime.NewControllerManagedBy(mgr).
+		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(c.PredicateFunc)).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
+		}).Complete(c)
 }
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
-	var currentClusterStatus = clusterv1alpha1.ClusterStatus{}
+	currentClusterStatus := *cluster.Status.DeepCopy()
 
 	// create a ClusterClient for the given member cluster
 	clusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
@@ -131,66 +140,64 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to create a ClusterClient: %v", err))
 	}
 
-	var online, healthy bool
-	// in case of cluster offline, retry a few times to avoid network unstable problems.
-	// Note: retry timeout should not be too long, otherwise will block other cluster reconcile.
-	err = wait.PollImmediate(clusterStatusRetryInterval, clusterStatusRetryTimeout, func() (done bool, err error) {
-		online, healthy = getClusterHealthStatus(clusterClient)
-		if !online {
-			klog.V(2).Infof("Cluster(%s) is offline.", cluster.Name)
-			return false, nil
-		}
-		return true, nil
-	})
-	// error indicates that retry timeout, update cluster status immediately and return.
-	if err != nil {
-		klog.V(2).Infof("Cluster(%s) still offline after retry, ensuring offline is set.", cluster.Name)
+	online, healthy := getClusterHealthStatus(clusterClient)
+	observedReadyCondition := generateReadyCondition(online, healthy)
+	readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
+
+	// cluster is offline after retry timeout, update cluster status immediately and return.
+	if !online && readyCondition.Status != metav1.ConditionTrue {
+		klog.V(2).Infof("Cluster(%s) still offline after %s, ensuring offline is set.",
+			cluster.Name, c.ClusterFailureThreshold.Duration)
 		c.InformerManager.Stop(cluster.Name)
-		readyCondition := generateReadyCondition(false, false)
-		setTransitionTime(cluster.Status.Conditions, &readyCondition)
-		meta.SetStatusCondition(&currentClusterStatus.Conditions, readyCondition)
+		setTransitionTime(cluster.Status.Conditions, readyCondition)
+		meta.SetStatusCondition(&currentClusterStatus.Conditions, *readyCondition)
 		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 	}
 
-	// get or create informer for pods and nodes in member cluster
-	clusterInformerManager, err := c.buildInformerForCluster(cluster)
-	if err != nil {
-		klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
-		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to get or create informer: %v", err))
+	// skip collecting cluster status if not ready
+	if online && healthy && readyCondition.Status == metav1.ConditionTrue {
+		// get or create informer for pods and nodes in member cluster
+		clusterInformerManager, err := c.buildInformerForCluster(cluster)
+		if err != nil {
+			klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
+		}
+
+		if cluster.Spec.SyncMode == clusterv1alpha1.Pull {
+			// init the lease controller for pull mode clusters
+			c.initLeaseController(clusterInformerManager.Context(), cluster)
+		}
+
+		clusterVersion, err := getKubernetesVersion(clusterClient)
+		if err != nil {
+			klog.Errorf("Failed to get Kubernetes version for Cluster %s. Error: %v.", cluster.GetName(), err)
+		}
+
+		// get the list of APIs installed in the member cluster
+		apiEnables, err := getAPIEnablements(clusterClient)
+		if len(apiEnables) == 0 {
+			klog.Errorf("Failed to get any APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
+		} else if err != nil {
+			klog.Warningf("Maybe get partial(%d) APIs installed in Cluster %s. Error: %v.", len(apiEnables), cluster.GetName(), err)
+		}
+
+		nodes, err := listNodes(clusterInformerManager)
+		if err != nil {
+			klog.Errorf("Failed to list nodes for Cluster %s. Error: %v.", cluster.GetName(), err)
+		}
+
+		pods, err := listPods(clusterInformerManager)
+		if err != nil {
+			klog.Errorf("Failed to list pods for Cluster %s. Error: %v.", cluster.GetName(), err)
+		}
+
+		currentClusterStatus.KubernetesVersion = clusterVersion
+		currentClusterStatus.APIEnablements = apiEnables
+		currentClusterStatus.NodeSummary = getNodeSummary(nodes)
+		currentClusterStatus.ResourceSummary = getResourceSummary(nodes, pods)
 	}
 
-	// init the lease controller for every cluster
-	c.initLeaseController(clusterInformerManager.Context(), cluster)
-
-	clusterVersion, err := getKubernetesVersion(clusterClient)
-	if err != nil {
-		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to get kubernetes version: %v", err))
-	}
-
-	// get the list of APIs installed in the member cluster
-	apiEnables, err := getAPIEnablements(clusterClient)
-	if err != nil {
-		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to get the list of APIs installed in the member cluster: %v", err))
-	}
-
-	nodes, err := listNodes(clusterInformerManager)
-	if err != nil {
-		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to list nodes: %v", err))
-	}
-
-	pods, err := listPods(clusterInformerManager)
-	if err != nil {
-		return c.setStatusCollectionFailedCondition(cluster, currentClusterStatus, fmt.Sprintf("failed to list pods: %v", err))
-	}
-
-	currentClusterStatus.KubernetesVersion = clusterVersion
-	currentClusterStatus.APIEnablements = apiEnables
-	currentClusterStatus.NodeSummary = getNodeSummary(nodes)
-	currentClusterStatus.ResourceSummary = getResourceSummary(nodes, pods)
-
-	readyCondition := generateReadyCondition(online, healthy)
-	setTransitionTime(cluster.Status.Conditions, &readyCondition)
-	meta.SetStatusCondition(&currentClusterStatus.Conditions, readyCondition)
+	setTransitionTime(currentClusterStatus.Conditions, readyCondition)
+	meta.SetStatusCondition(&currentClusterStatus.Conditions, *readyCondition)
 
 	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 }
@@ -364,11 +371,14 @@ func getKubernetesVersion(clusterClient *util.ClusterClient) (string, error) {
 	return clusterVersion.GitVersion, nil
 }
 
+// getAPIEnablements returns the list of API enablement(supported groups and resources).
+// The returned lists might be non-nil with partial results even in the case of non-nil error.
 func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.APIEnablement, error) {
 	_, apiResourceList, err := clusterClient.KubeClient.Discovery().ServerGroupsAndResources()
-	if err != nil {
+	if len(apiResourceList) == 0 {
 		return nil, err
 	}
+
 	var apiEnablements []clusterv1alpha1.APIEnablement
 	for _, list := range apiResourceList {
 		var apiResources []clusterv1alpha1.APIResource
@@ -391,7 +401,7 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 	sort.SliceStable(apiEnablements, func(i, j int) bool {
 		return apiEnablements[i].GroupVersion < apiEnablements[j].GroupVersion
 	})
-	return apiEnablements, nil
+	return apiEnablements, err
 }
 
 // listPods returns the Pod list from the informerManager cache.
@@ -436,7 +446,7 @@ func getNodeSummary(nodes []*corev1.Node) *clusterv1alpha1.NodeSummary {
 		}
 	}
 
-	var nodeSummary = &clusterv1alpha1.NodeSummary{}
+	nodeSummary := &clusterv1alpha1.NodeSummary{}
 	nodeSummary.TotalNum = int32(totalNum)
 	nodeSummary.ReadyNum = int32(readyNum)
 
@@ -448,7 +458,7 @@ func getResourceSummary(nodes []*corev1.Node, pods []*corev1.Pod) *clusterv1alph
 	allocating := getAllocatingResource(pods)
 	allocated := getAllocatedResource(pods)
 
-	var resourceSummary = &clusterv1alpha1.ResourceSummary{}
+	resourceSummary := &clusterv1alpha1.ResourceSummary{}
 	resourceSummary.Allocatable = allocatable
 	resourceSummary.Allocating = allocating
 	resourceSummary.Allocated = allocated

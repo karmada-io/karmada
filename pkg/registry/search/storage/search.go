@@ -2,19 +2,24 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	genericrequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	searchapis "github.com/karmada-io/karmada/pkg/apis/search"
+	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/informermanager"
 )
 
 // SearchREST implements a RESTStorage for search resource.
 type SearchREST struct {
-	kubeClient kubernetes.Interface
+	multiClusterInformerManager informermanager.MultiClusterInformerManager
+	clusterLister               clusterlister.ClusterLister
 
 	// add needed parameters here
 }
@@ -24,9 +29,12 @@ var _ rest.Storage = &SearchREST{}
 var _ rest.Connecter = &SearchREST{}
 
 // NewSearchREST returns a RESTStorage object that will work against search.
-func NewSearchREST(client kubernetes.Interface) *SearchREST {
+func NewSearchREST(
+	multiClusterInformerManager informermanager.MultiClusterInformerManager,
+	clusterLister clusterlister.ClusterLister) *SearchREST {
 	return &SearchREST{
-		kubeClient: client,
+		multiClusterInformerManager: multiClusterInformerManager,
+		clusterLister:               clusterLister,
 	}
 }
 
@@ -50,12 +58,37 @@ func (r *SearchREST) NewConnectOptions() (runtime.Object, bool, string) {
 	return nil, true, ""
 }
 
-// Connect returns a handler for the ES search.
+// Connect returns a handler for search.
 func (r *SearchREST) Connect(ctx context.Context, id string, _ runtime.Object, responder rest.Responder) (http.Handler, error) {
-	klog.Infof("Prepare for construct handler to connect ES.")
+	info, ok := genericrequest.RequestInfoFrom(ctx)
+	if !ok {
+		return nil, fmt.Errorf("no RequestInfo found in the context")
+	}
 
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	if len(info.Parts) < 3 {
+		return nil, fmt.Errorf("invalid requestInfo parts: %v", info.Parts)
+	}
 
-		// Construct a handler and send the request to the ES.
-	}), nil
+	// reqParts are slices split by the k8s-native URL that include
+	// APIPrefix, APIGroup, APIVersion, Namespace and Resource.
+	// For example, the whole request URL is /apis/search.karmada.io/v1alpha1/search/cache/api/v1/nodes
+	// info.Parts is [search cache api v1 nodes], so reParts is [api v1 nodes]
+	reqParts := info.Parts[2:]
+	nativeResourceInfo, err := parseK8sNativeResourceInfo(reqParts)
+	if err != nil {
+		klog.Errorf("Failed to parse k8s native RequestInfo, err: %v", err)
+		return nil, err
+	}
+	if !nativeResourceInfo.IsResourceRequest {
+		return nil, fmt.Errorf("k8s native Request URL(%s) is not a resource request", strings.Join(reqParts, "/"))
+	}
+
+	switch id {
+	case "cache":
+		return r.newCacheHandler(nativeResourceInfo, responder)
+	case "opensearch":
+		return r.newOpenSearchHandler(nativeResourceInfo, responder)
+	default:
+		return nil, fmt.Errorf("connect with unrecognized search category %s", id)
+	}
 }

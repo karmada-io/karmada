@@ -6,10 +6,12 @@
   - [Karmada Controllers](#karmada-controllers)
     - [Configure Karmada Controllers](#configure-karmada-controllers)
   - [Kubernetes Controllers](#kubernetes-controllers)
-    - [Recommended Controllers](#recommended-controllers)
+    - [Required Controllers](#required-controllers)
       - [namespace](#namespace)
       - [garbagecollector](#garbagecollector)
       - [serviceaccount-token](#serviceaccount-token)
+    - [Optinal Controllers](#optinal-controllers)
+      - [ttl-after-finished](#ttl-after-finished)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -66,7 +68,7 @@ Kubernetes. These controllers run as part of `kube-controller-manager` and are m
 Users are recommended to deploy the `kube-controller-manager` along with Karmada components. And the installation
 methods list in [installation guide][2] would help you deploy it as well as Karmada components.
 
-### Recommended Controllers
+### Required Controllers
 
 Not all controllers in `kube-controller-manager` are necessary for Karmada, if you are deploying
 Karmada using other tools, you might have to configure the controllers by `--controllers` flag just like what we did in
@@ -113,6 +115,21 @@ administrator as he/she doesn't need to manually prepare the token.
 More details please refer to:
 - [service account token controller](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#token-controller)
 - [service account tokens](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#service-account-tokens)
+
+### Optinal Controllers
+
+#### ttl-after-finished
+
+The `ttl-after-finished` controller runs as part of `kube-controller-manager`.
+It watches `Job` updates and limits the lifetime of finished `Jobs`. 
+The TTL timer starts when the Job finishes, and the finished Job will be cleaned up after the TTL expires.
+
+For the Karmada control plane, we also provide the capability to clean up finished `Jobs` automatically by 
+specifying the `.spec.ttlSecondsAfterFinished` field of a Job, which will be a relief for the control plane.
+
+More details please refer to:
+- [ttl after finished controller](https://kubernetes.io/docs/concepts/workloads/controllers/ttlafterfinished/#ttl-after-finished-controller)
+- [clean up finished jobs automatically](https://kubernetes.io/docs/concepts/workloads/controllers/job/#clean-up-finished-jobs-automatically)
 
 [1]: https://kubernetes.io/docs/concepts/architecture/controller/
 [2]: https://github.com/karmada-io/karmada/blob/master/docs/installation/installation.md

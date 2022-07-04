@@ -1,9 +1,9 @@
 package kubernetes
 
 import (
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
-
 	rbacv1 "k8s.io/api/rbac/v1"
+
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
 // CreateControllerManagerRBAC karmada-controller-manager ClusterRole and ClusterRoleBinding
