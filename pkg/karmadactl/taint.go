@@ -17,6 +17,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -33,8 +34,21 @@ const (
 )
 
 var (
-	taintShort = `Update the taints on one or more clusters`
-	taintLong  = `Update the taints on one or more clusters.`
+	taintShort   = `Update the taints on one or more clusters`
+	taintLong    = `Update the taints on one or more clusters.`
+	taintExample = templates.Examples(`
+		# Update cluster 'foo' with a taint with key 'dedicated' and value 'special-user' and effect 'NoSchedule'
+		# If a taint with that key and effect already exists, its value is replaced as specified
+		%[1]s taint clusters foo dedicated=special-user:NoSchedule
+	
+		# Remove from cluster 'foo' the taint with key 'dedicated' and effect 'NoSchedule' if one exists
+		%[1]s taint clusters foo dedicated:NoSchedule-
+	
+		# Remove from cluster 'foo' all the taints with key 'dedicated'
+		%[1]s taint clusters foo dedicated-
+	
+		# Add to cluster 'foo' a taint with key 'bar' and no value
+		%[1]s taint clusters foo bar:NoSchedule`)
 )
 
 // NewCmdTaint defines the `taint` command that mark cluster with taints
@@ -45,7 +59,7 @@ func NewCmdTaint(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comma
 		Use:          "taint CLUSTER NAME KEY_1=VAL_1:TAINT_EFFECT_1 ... KEY_N=VAL_N:TAINT_EFFECT_N",
 		Short:        taintShort,
 		Long:         taintLong,
-		Example:      taintExample(parentCommand),
+		Example:      fmt.Sprintf(taintExample, parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -65,23 +79,6 @@ func NewCmdTaint(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comma
 	opts.AddFlags(flag)
 
 	return cmd
-}
-
-func taintExample(parentCommand string) string {
-	example := `
-# Update cluster 'foo' with a taint with key 'dedicated' and value 'special-user' and effect 'NoSchedule'
-# If a taint with that key and effect already exists, its value is replaced as specified` + "\n" +
-		fmt.Sprintf("%s taint clusters foo dedicated=special-user:NoSchedule", parentCommand) + `
-
-# Remove from cluster 'foo' the taint with key 'dedicated' and effect 'NoSchedule' if one exists` + "\n" +
-		fmt.Sprintf("%s taint clusters foo dedicated:NoSchedule-", parentCommand) + `
-
-# Remove from cluster 'foo' all the taints with key 'dedicated'` + "\n" +
-		fmt.Sprintf("%s taint clusters foo dedicated-", parentCommand) + `
-
-# Add to cluster 'foo' a taint with key 'bar' and no value` + "\n" +
-		fmt.Sprintf("%s taint clusters foo bar:NoSchedule", parentCommand)
-	return example
 }
 
 // CommandTaintOption holds all command options for taint

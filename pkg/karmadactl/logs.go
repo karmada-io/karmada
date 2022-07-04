@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/rest"
 	kubectllogs "k8s.io/kubectl/pkg/cmd/logs"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -22,6 +23,30 @@ const (
 
 var (
 	logsUsageErrStr = fmt.Sprintf("expected '%s'.\nPOD or TYPE/NAME is a required argument for the logs command", logsUsageStr)
+	logsExample     = templates.Examples(`
+		# Return snapshot logs from pod nginx with only one container in cluster(member1)
+		%[1]s logs nginx -C=member1
+	
+		# Return snapshot logs from pod nginx with multi containers in cluster(member1)
+		%[1]s logs nginx --all-containers=true -C=member1
+	
+		# Return snapshot logs from all containers in pods defined by label app=nginx in cluster(member1)
+		%[1]s logs -l app=nginx --all-containers=true -C=member1
+	
+		# Return snapshot of previous terminated ruby container logs from pod web-1 in cluster(member1)
+		%[1]s logs -p -c ruby web-1 -C=member1
+	
+		# Begin streaming the logs of the ruby container in pod web-1 in cluster(member1)
+		%[1]s logs -f -c ruby web-1 -C=member1
+	
+		# Begin streaming the logs from all containers in pods defined by label app=nginx in cluster(member1)
+		%[1]s logs -f -l app=nginx --all-containers=true -C=member1
+	
+		# Display only the most recent 20 lines of output in pod nginx in cluster(member1)
+		%[1]s logs --tail=20 nginx -C=member1
+	
+		# Show all logs from pod nginx written in the last hour in cluster(member1)
+		%[1]s logs --since=1h nginx -C=member1`)
 )
 
 // NewCmdLogs new logs command.
@@ -35,7 +60,7 @@ func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 		Use:          logsUsageStr,
 		Short:        "Print the logs for a container in a pod in a cluster",
 		SilenceUsage: true,
-		Example:      logsExample(parentCommand),
+		Example:      fmt.Sprintf(logsExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(karmadaConfig, cmd, args); err != nil {
 				return err
@@ -55,34 +80,6 @@ func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "If present, the namespace scope for this CLI request")
 	cmd.Flags().StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
 	return cmd
-}
-
-func logsExample(parentCommand string) string {
-	example := `
-# Return snapshot logs from pod nginx with only one container in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s logs nginx -C=member1", parentCommand) + `
-
-# Return snapshot logs from pod nginx with multi containers in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s logs nginx --all-containers=true -C=member1", parentCommand) + `
-
-# Return snapshot logs from all containers in pods defined by label app=nginx in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s logs -l app=nginx --all-containers=true -C=member1", parentCommand) + `
-
-# Return snapshot of previous terminated ruby container logs from pod web-1 in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s logs -p -c ruby web-1 -C=member1", parentCommand) + `
-
-# Begin streaming the logs of the ruby container in pod web-1 in cluster(member1)` + "\n" +
-		fmt.Sprintf("%s logs -f -c ruby web-1 -C=member1", parentCommand) + `
-
-# Begin streaming the logs from all containers in pods defined by label app=nginx in cluster(member1) ` + "\n" +
-		fmt.Sprintf("%s logs -f -l app=nginx --all-containers=true -C=member1", parentCommand) + `
-
-# Display only the most recent 20 lines of output in pod nginx in cluster(member1) ` + "\n" +
-		fmt.Sprintf("%s logs --tail=20 nginx -C=member1", parentCommand) + `
-
-# Show all logs from pod nginx written in the last hour in cluster(member1) ` + "\n" +
-		fmt.Sprintf("%s logs --since=1h nginx -C=member1", parentCommand)
-	return example
 }
 
 // LogsOptions contains the input to the logs command.
