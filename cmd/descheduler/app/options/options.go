@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
+	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -47,6 +48,7 @@ type Options struct {
 	DeschedulingInterval metav1.Duration
 	// UnschedulableThreshold specifies the period of pod unschedulable condition.
 	UnschedulableThreshold metav1.Duration
+	ProfileOpts            profileflag.Options
 }
 
 // NewOptions builds a default descheduler options.
@@ -81,4 +83,5 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
 	fs.DurationVar(&o.DeschedulingInterval.Duration, "descheduling-interval", defaultDeschedulingInterval, "Time interval between two consecutive descheduler executions. Setting this value instructs the descheduler to run in a continuous loop at the interval specified.")
 	fs.DurationVar(&o.UnschedulableThreshold.Duration, "unschedulable-threshold", defaultUnschedulableThreshold, "The period of pod unschedulable condition. This value is considered as a classification standard of unschedulable replicas.")
+	o.ProfileOpts.AddFlags(fs)
 }
