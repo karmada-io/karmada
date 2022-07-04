@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	initShort = `install karmada in kubernetes.`
-	initLong  = `install karmada in kubernetes.`
+	initShort = `Install karmada in kubernetes.`
+	initLong  = `Install karmada in kubernetes.`
 )
 
 // NewCmdInit install karmada on kubernetes
