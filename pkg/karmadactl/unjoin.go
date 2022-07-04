@@ -34,7 +34,7 @@ var (
 	%[1]s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
 		
 	# Unjoin cluster from karamada control plane with timeout
-    %[1]s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --wait 2m
+	%[1]s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --wait 2m
  	`)
 )
 
