@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/apiserver/pkg/endpoints/openapi"
@@ -21,6 +20,7 @@ import (
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 
 	"github.com/karmada-io/karmada/pkg/aggregatedapiserver"
@@ -28,7 +28,9 @@ import (
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
+	"github.com/karmada-io/karmada/pkg/version"
 )
 
 const defaultEtcdPathPrefix = "/registry"
@@ -42,6 +44,8 @@ type Options struct {
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
 	KubeAPIBurst int
+
+	ProfileOpts profileflag.Options
 }
 
 // NewOptions returns a new Options.
@@ -63,6 +67,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
+	o.ProfileOpts.AddFlags(flags)
 }
 
 // Complete fills in fields required to have valid data.
@@ -70,15 +75,12 @@ func (o *Options) Complete() error {
 	return nil
 }
 
-// Validate validates Options.
-func (o *Options) Validate() error {
-	var errs []error
-	errs = append(errs, o.RecommendedOptions.Validate()...)
-	return utilerrors.NewAggregate(errs)
-}
-
 // Run runs the aggregated-apiserver with options. This should never exit.
 func (o *Options) Run(ctx context.Context) error {
+	klog.Infof("karmada-aggregated-apiserver version: %s", version.Get())
+
+	profileflag.ListenAndServe(o.ProfileOpts)
+
 	config, err := o.Config()
 	if err != nil {
 		return err
@@ -120,6 +122,7 @@ func (o *Options) Config() (*aggregatedapiserver.Config, error) {
 		o.SharedInformerFactory = informerFactory
 		return []admission.PluginInitializer{}, nil
 	}
+	o.RecommendedOptions.Features = &genericoptions.FeatureOptions{EnableProfiling: false}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(aggregatedapiserver.Codecs)
 	serverConfig.LongRunningFunc = customLongRunningRequestCheck(sets.NewString("watch", "proxy"),

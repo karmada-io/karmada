@@ -9,34 +9,39 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 )
 
+// a callback function to modify options
+type ModifyOptions func(option *Options)
+
+// New an Options with default parameters
+func New(modifyOptions ModifyOptions) Options {
+	option := Options{
+		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
+			LeaderElect: false,
+		},
+		BindAddress:               "127.0.0.1",
+		SecurePort:                9000,
+		KubeAPIQPS:                40,
+		KubeAPIBurst:              30,
+		SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
+		SchedulerEstimatorPort:    9001,
+		DeschedulingInterval:      metav1.Duration{Duration: 1 * time.Second},
+		UnschedulableThreshold:    metav1.Duration{Duration: 1 * time.Second},
+	}
+
+	if modifyOptions != nil {
+		modifyOptions(&option)
+	}
+	return option
+}
+
 func TestValidateKarmadaDescheduler(t *testing.T) {
 	successCases := []Options{
-		{
-			LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-				LeaderElect: false,
-			},
-			BindAddress:               "127.0.0.1",
-			SecurePort:                9000,
-			KubeAPIQPS:                40,
-			KubeAPIBurst:              30,
-			SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
-			SchedulerEstimatorPort:    9001,
-			DeschedulingInterval:      metav1.Duration{Duration: 1 * time.Second},
-			UnschedulableThreshold:    metav1.Duration{Duration: 1 * time.Second},
-		},
-		{
-			LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
+		New(nil),
+		New(func(option *Options) {
+			option.LeaderElection = componentbaseconfig.LeaderElectionConfiguration{
 				LeaderElect: true,
-			},
-			BindAddress:               "127.0.0.1",
-			SecurePort:                9000,
-			KubeAPIQPS:                40,
-			KubeAPIBurst:              30,
-			SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
-			SchedulerEstimatorPort:    9001,
-			DeschedulingInterval:      metav1.Duration{Duration: 1 * time.Second},
-			UnschedulableThreshold:    metav1.Duration{Duration: 1 * time.Second},
-		}, {
+			}
+		}), {
 			LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
 				LeaderElect: false,
 			},
@@ -58,99 +63,39 @@ func TestValidateKarmadaDescheduler(t *testing.T) {
 		expectedErrs field.ErrorList
 	}{
 		"invalid BindAddress": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				BindAddress:               "127.0.0.1:8080",
-				SecurePort:                9000,
-				KubeAPIQPS:                40,
-				KubeAPIBurst:              30,
-				SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
-				SchedulerEstimatorPort:    9001,
-				DeschedulingInterval:      metav1.Duration{Duration: 1 * time.Second},
-				UnschedulableThreshold:    metav1.Duration{Duration: 1 * time.Second},
-			},
+			opt: New(func(option *Options) {
+				option.BindAddress = "127.0.0.1:8080"
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("BindAddress"), "127.0.0.1:8080", "not a valid textual representation of an IP address")},
 		},
 		"invalid SecurePort": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				BindAddress:               "127.0.0.1",
-				SecurePort:                90000,
-				KubeAPIQPS:                40,
-				KubeAPIBurst:              30,
-				SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
-				SchedulerEstimatorPort:    9001,
-				DeschedulingInterval:      metav1.Duration{Duration: 1 * time.Second},
-				UnschedulableThreshold:    metav1.Duration{Duration: 1 * time.Second},
-			},
+			opt: New(func(option *Options) {
+				option.SecurePort = 90000
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SecurePort"), 90000, "must be a valid port between 0 and 65535 inclusive")},
 		},
 		"invalid SchedulerEstimatorPort": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				BindAddress:               "127.0.0.1",
-				SecurePort:                9000,
-				KubeAPIQPS:                40,
-				KubeAPIBurst:              30,
-				SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
-				SchedulerEstimatorPort:    90000,
-				DeschedulingInterval:      metav1.Duration{Duration: 1 * time.Second},
-				UnschedulableThreshold:    metav1.Duration{Duration: 1 * time.Second},
-			},
+			opt: New(func(option *Options) {
+				option.SchedulerEstimatorPort = 90000
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SchedulerEstimatorPort"), 90000, "must be a valid port between 0 and 65535 inclusive")},
 		},
 		"invalid SchedulerEstimatorTimeout": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				BindAddress:               "127.0.0.1",
-				SecurePort:                9000,
-				KubeAPIQPS:                40,
-				KubeAPIBurst:              30,
-				SchedulerEstimatorTimeout: metav1.Duration{Duration: -1 * time.Second},
-				SchedulerEstimatorPort:    9000,
-				DeschedulingInterval:      metav1.Duration{Duration: 1 * time.Second},
-				UnschedulableThreshold:    metav1.Duration{Duration: 1 * time.Second},
-			},
+			opt: New(func(option *Options) {
+				option.SchedulerEstimatorTimeout = metav1.Duration{Duration: -1 * time.Second}
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SchedulerEstimatorTimeout"), metav1.Duration{Duration: -1 * time.Second}, "must be greater than or equal to 0")},
 		},
 		"invalid DeschedulingInterval": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				BindAddress:               "127.0.0.1",
-				SecurePort:                9000,
-				KubeAPIQPS:                40,
-				KubeAPIBurst:              30,
-				SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
-				SchedulerEstimatorPort:    9000,
-				DeschedulingInterval:      metav1.Duration{Duration: -1 * time.Second},
-				UnschedulableThreshold:    metav1.Duration{Duration: 1 * time.Second},
-			},
+			opt: New(func(option *Options) {
+				option.DeschedulingInterval = metav1.Duration{Duration: -1 * time.Second}
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("DeschedulingInterval"), metav1.Duration{Duration: -1 * time.Second}, "must be greater than or equal to 0")},
 		},
 		"invalid UnschedulableThreshold": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				BindAddress:               "127.0.0.1",
-				SecurePort:                9000,
-				KubeAPIQPS:                40,
-				KubeAPIBurst:              30,
-				SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
-				SchedulerEstimatorPort:    9000,
-				DeschedulingInterval:      metav1.Duration{Duration: 1 * time.Second},
-				UnschedulableThreshold:    metav1.Duration{Duration: -1 * time.Second},
-			},
+			opt: New(func(option *Options) {
+				option.UnschedulableThreshold = metav1.Duration{Duration: -1 * time.Second}
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("UnschedulableThreshold"), metav1.Duration{Duration: -1 * time.Second}, "must be greater than or equal to 0")},
 		},
 	}

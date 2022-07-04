@@ -44,6 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
+	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -97,6 +98,9 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 // Run runs the controller-manager with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-controller-manager version: %s", version.Get())
+
+	profileflag.ListenAndServe(opts.ProfileOpts)
+
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)

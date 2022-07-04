@@ -11,6 +11,7 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -112,6 +113,7 @@ type Options struct {
 	ConcurrentResourceTemplateSyncs int
 
 	RateLimiterOpts ratelimiterflag.Options
+	ProfileOpts     profileflag.Options
 }
 
 // NewOptions builds an empty options.
@@ -190,5 +192,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
 
 	o.RateLimiterOpts.AddFlags(flags)
+	o.ProfileOpts.AddFlags(flags)
 	features.FeatureGate.AddFlag(flags)
 }
