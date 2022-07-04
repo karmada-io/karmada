@@ -402,7 +402,7 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
-					Wait:              options.DefaultKarmadactlCommandDuration,
+					Wait:              5 * options.DefaultKarmadactlCommandDuration,
 				}
 				err := karmadactl.RunUnjoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -485,7 +485,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
-					Wait:              options.DefaultKarmadactlCommandDuration,
+					Wait:              5 * options.DefaultKarmadactlCommandDuration,
 				}
 				err := karmadactl.RunUnjoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
