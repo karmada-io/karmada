@@ -87,12 +87,13 @@ func run(ctx context.Context, opts *options.Options) error {
 }
 
 func serveHealthzAndMetrics(address string) {
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	http.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.Handler())
 
-	klog.Fatal(http.ListenAndServe(address, nil))
+	klog.Fatal(http.ListenAndServe(address, mux))
 }
