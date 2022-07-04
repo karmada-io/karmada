@@ -4,6 +4,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 
@@ -198,6 +199,81 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 					framework.UpdateDeploymentVolumes(kubeClient, deployment, updateVolumes)
 					framework.WaitSecretDisappearOnClusters(initClusterNames, secret.Namespace, secretName)
+				})
+			})
+		})
+
+		ginkgo.When("persistentVolumeClaim propagate automatically", func() {
+			var pvcName string
+			var pvc *corev1.PersistentVolumeClaim
+
+			ginkgo.BeforeEach(func() {
+				pvcName = pvcNamePrefix + rand.String(RandomStrLength)
+				pvc = testhelper.NewPVC(testNamespace, pvcName, corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("1Gi"),
+					},
+				}, corev1.ReadWriteOnce)
+
+				volumes := []corev1.Volume{{
+					Name: "vol-pvc",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: pvc.GetName(),
+							ReadOnly:  false,
+						}}}}
+				deployment = testhelper.NewDeploymentWithVolumes(testNamespace, deploymentName, volumes)
+
+				policy = testhelper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment.APIVersion,
+						Kind:       deployment.Kind,
+						Name:       deployment.Name,
+					},
+				}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: initClusterNames,
+					},
+				})
+				policy.Spec.PropagateDeps = true
+			})
+
+			ginkgo.BeforeEach(func() {
+				framework.CreatePVC(kubeClient, pvc)
+				ginkgo.DeferCleanup(func() {
+					framework.RemovePVC(kubeClient, pvc.GetNamespace(), pvc.GetName())
+				})
+			})
+
+			ginkgo.It("persistentVolumeClaim automatically propagation testing", func() {
+				ginkgo.By("check if the persistentVolumeClaim is propagated automatically", func() {
+					framework.WaitDeploymentPresentOnClustersFitWith(initClusterNames, deployment.Namespace, deployment.Name,
+						func(deployment *appsv1.Deployment) bool {
+							return true
+						})
+
+					framework.WaitPVCPresentOnClustersFitWith(initClusterNames, pvc.GetNamespace(), pvc.GetName(),
+						func(pvc *corev1.PersistentVolumeClaim) bool {
+							return true
+						})
+				})
+
+				ginkgo.By("make the persistentVolumeClaim is not referenced by the deployment ", func() {
+					updateVolumes := []corev1.Volume{
+						{
+							Name: "vol-configmap",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "configMap-test",
+									},
+								},
+							},
+						},
+					}
+
+					framework.UpdateDeploymentVolumes(kubeClient, deployment, updateVolumes)
+					framework.WaitPVCDisappearOnClusters(initClusterNames, pvc.GetNamespace(), pvc.GetName())
 				})
 			})
 		})

@@ -46,6 +46,7 @@ const (
 	federatedResourceQuotaPrefix = "frq-"
 	configMapNamePrefix          = "configmap-"
 	secretNamePrefix             = "secret-"
+	pvcNamePrefix                = "pvc-"
 	ingressNamePrefix            = "ingress-"
 	daemonSetNamePrefix          = "daemonset-"
 	statefulSetNamePrefix        = "statefulset-"
