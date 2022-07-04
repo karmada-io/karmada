@@ -73,17 +73,22 @@ spec:
             - --use-service-account-credentials=true
             - --v=5
           image: {{ template "karmada.kubeControllerManager.image" . }}
-          livenessProbe:
-            failureThreshold: 8
+          {{- if .Values.kubeControllerManager.livenessProbe.enabled }}
+          livenessProbe: {{- include "common.tplvalues.render" (dict "value" (omit .Values.kubeControllerManager.livenessProbe "enabled") "context" $) | nindent 12 }}
             httpGet:
               host: 127.0.0.1
               path: /healthz
               port: 10257
               scheme: HTTPS
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 15
+          {{- end }}
+          {{- if .Values.kubeControllerManager.startupProbe.enabled }}
+          startupProbe: {{- include "common.tplvalues.render" (dict "value" (omit .Values.kubeControllerManager.startupProbe "enabled") "context" $) | nindent 12 }}
+            httpGet:
+              host: 127.0.0.1
+              path: /healthz
+              port: 10257
+              scheme: HTTPS
+          {{- end }}
           imagePullPolicy: {{ .Values.kubeControllerManager.image.pullPolicy }}
           name: kube-controller-manager
           resources:
