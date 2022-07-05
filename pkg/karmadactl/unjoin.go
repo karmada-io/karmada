@@ -122,7 +122,7 @@ func (j *CommandUnjoinOption) Validate() error {
 func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 	j.GlobalCommandOptions.AddFlags(flags)
 
-	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster are stored.")
+	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.StringVar(&j.ClusterContext, "cluster-context", "",
 		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",

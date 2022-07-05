@@ -129,7 +129,7 @@ func (o *CommandPromoteOption) AddFlags(flags *pflag.FlagSet) {
 
 	flags.StringVarP(&o.Namespace, "namespace", "n", "default", "-n=namespace or -n namespace")
 	flags.StringVarP(&o.Cluster, "cluster", "c", "", "the name of legacy cluster (eg -c=member1)")
-	flags.StringVar(&o.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster are stored.")
+	flags.StringVar(&o.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.StringVar(&o.ClusterContext, "cluster-context", "",
 		"Context name of legacy cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&o.ClusterKubeConfig, "cluster-kubeconfig", "",
