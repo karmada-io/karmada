@@ -102,6 +102,8 @@ type schedulerOptions struct {
 	enableEmptyWorkloadPropagation bool
 	// outOfTreeRegistry represents the registry of out-of-tree plugins
 	outOfTreeRegistry runtime.Registry
+	// plugins is the list of plugins to enable or disable
+	plugins []string
 }
 
 // Option configures a Scheduler
@@ -142,6 +144,13 @@ func WithEnableEmptyWorkloadPropagation(enableEmptyWorkloadPropagation bool) Opt
 	}
 }
 
+// WithEnableSchedulerPlugin sets the scheduler-plugin for scheduler
+func WithEnableSchedulerPlugin(plugins []string) Option {
+	return func(o *schedulerOptions) {
+		o.plugins = plugins
+	}
+}
+
 // WithOutOfTreeRegistry sets the registry for out-of-tree plugins. Those plugins
 // will be appended to the default in-tree registry.
 func WithOutOfTreeRegistry(registry runtime.Registry) Option {
@@ -166,11 +175,11 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		opt(&options)
 	}
 
-	// TODO(kerthcet): make plugins configurable via config file
 	registry := frameworkplugins.NewInTreeRegistry()
 	if err := registry.Merge(options.outOfTreeRegistry); err != nil {
 		return nil, err
 	}
+	registry = registry.Filter(options.plugins)
 	algorithm, err := core.NewGenericScheduler(schedulerCache, registry)
 	if err != nil {
 		return nil, err
