@@ -1,7 +1,6 @@
 package karmadactl
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -42,7 +41,7 @@ func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := opts.Validate(); err != nil {
+			if err := opts.Validate(args); err != nil {
 				return err
 			}
 			if err := RunJoin(karmadaConfig, opts); err != nil {
@@ -90,10 +89,9 @@ type CommandJoinOption struct {
 // Complete ensures that options are valid and marshals them if necessary.
 func (j *CommandJoinOption) Complete(args []string) error {
 	// Get cluster name from the command args.
-	if len(args) == 0 {
-		return errors.New("cluster name is required")
+	if len(args) > 0 {
+		j.ClusterName = args[0]
 	}
-	j.ClusterName = args[0]
 
 	// If '--cluster-context' not specified, take the cluster name as the context.
 	if len(j.ClusterContext) == 0 {
@@ -104,7 +102,13 @@ func (j *CommandJoinOption) Complete(args []string) error {
 }
 
 // Validate checks option and return a slice of found errs.
-func (j *CommandJoinOption) Validate() error {
+func (j *CommandJoinOption) Validate(args []string) error {
+	if len(args) > 1 {
+		return fmt.Errorf("only the cluster name is allowed as an argument")
+	}
+	if len(j.ClusterName) == 0 {
+		return fmt.Errorf("cluster name is required")
+	}
 	if errMsgs := validation.ValidateClusterName(j.ClusterName); len(errMsgs) != 0 {
 		return fmt.Errorf("invalid cluster name(%s): %s", j.ClusterName, strings.Join(errMsgs, ";"))
 	}
