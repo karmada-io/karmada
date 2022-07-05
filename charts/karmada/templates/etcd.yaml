@@ -28,6 +28,7 @@ spec:
       labels:
         app: etcd
     spec:
+      {{- include "karmada.internal.etcd.imagePullSecrets" . | nindent 6 }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
