@@ -277,3 +277,31 @@ git push ${your_remote_name} myrevert
 ```
 
 - [Create a Pull Request](#7-create-a-pull-request) using this branch.
+
+### 8 The Testing and Merge Workflow
+
+Here's the process the pull request goes through on its way from submission to merging:
+
+1. Make the pull request
+1. `@karmada-bot` assigns reviewers
+
+1. The CI workflow will run:
+
+    1. Automatic tests run. See the current list of tests at this [link](https://github.com/karmada-io/karmada/actions/workflows/ci.yml)
+    1. If tests fail, resolve issues by pushing edits to your pull request branch
+    1. If the failure is a flake, use the following command on your local pull request branch to rerun all tests
+        ```shell
+        git commit --allow-empty --signoff --amend --no-edit
+        git push --force
+        ```
+
+1. Reviewer suggests edits
+1. Push edits to your pull request branch
+1. Repeat the prior two steps as needed until the reviewer(s) add `/lgtm` label. The `/lgtm` label, when applied by someone listed as a `reviewer` in the corresponding project `OWNERS` file, is a signal that the code has passed review from one or more trusted reviewers for that project
+1. (Optional) Some reviewers prefer that you squash commits at this step
+1. Follow the bot suggestions to assign an OWNER who will add the `/approve` label to the pull request. The `/approve` label, when applied by someone listed as an `approver` in the corresponding project `OWNERS`, is a signal that the code has passed final review and is ready to be automatically merged
+
+Once the tests pass, and the reviewer adds the `lgtm` and `approved` labels, the pull request enters the final merge pool. 
+The merge pool is needed to make sure no incompatible changes have been introduced by other pull requests since the tests were last run on your pull request.
+
+That's the last step. Your pull request is now merged.
