@@ -39,7 +39,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	if !svcImport.DeletionTimestamp.IsZero() {
+	if !svcImport.DeletionTimestamp.IsZero() || svcImport.Spec.Type != mcsv1alpha1.ClusterSetIP {
 		return controllerruntime.Result{}, nil
 	}
 

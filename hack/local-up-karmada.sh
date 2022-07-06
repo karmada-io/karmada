@@ -28,26 +28,8 @@ KIND_LOG_FILE=${KIND_LOG_FILE:-"/tmp/karmada"}
 
 #step0: prepare
 # proxy setting in China mainland
-
 if [[ -n ${CHINA_MAINLAND:-} ]]; then
-export GOPROXY=https://goproxy.cn,direct # set domestic go proxy
-# set mirror registry of k8s.gcr.io
-registry_files=( # Yaml files that contain image host 'k8s.gcr.io' need to be replaced
-  "artifacts/deploy/karmada-etcd.yaml"
-  "artifacts/deploy/karmada-apiserver.yaml"
-  "artifacts/deploy/kube-controller-manager.yaml"
-)
-for registry_file in "${registry_files[@]}"; do
-  sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${REPO_ROOT}/${registry_file}
-done
-# set mirror registry in the dockerfile of components of karmada
-dockerfile_list=( # Dockerfile files need to be replaced
-  "cluster/images/Dockerfile"
-  "cluster/images/buildx.Dockerfile"
-)
-for dockerfile in "${dockerfile_list[@]}"; do
-  grep 'mirrors.ustc.edu.cn' ${REPO_ROOT}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.15.1#FROM alpine:3.15.1\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.15/main/ > /etc/apk/repositories#" ${REPO_ROOT}/${dockerfile}
-done
+  util::set_mirror_registry_for_china_mainland ${REPO_ROOT}
 fi
 
 # Make sure go exists and the go version is a viable version.
@@ -58,7 +40,7 @@ util::verify_go_version
 util::cmd_must_exist "docker"
 
 # install kind and kubectl
-kind_version=v0.12.0
+kind_version=v0.14.0
 echo -n "Preparing: 'kind' existence check - "
 if util::cmd_exist kind; then
   echo "passed"
@@ -159,6 +141,11 @@ kind load docker-image "${REGISTRY}/karmada-agent:${VERSION}" --name="${PULL_MOD
 
 #step7. deploy karmada agent in pull mode member clusters
 "${REPO_ROOT}"/hack/deploy-agent-and-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
+
+# wait all of clusters member1, member2 and member3 status is ready
+util:wait_cluster_ready "${MEMBER_CLUSTER_1_NAME}"
+util:wait_cluster_ready "${MEMBER_CLUSTER_2_NAME}"
+util:wait_cluster_ready "${PULL_MODE_CLUSTER_NAME}"
 
 function print_success() {
   echo -e "$KARMADA_GREETING"

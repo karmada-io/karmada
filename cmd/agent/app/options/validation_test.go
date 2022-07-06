@@ -9,26 +9,34 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 )
 
+// a callback function to modify options
+type ModifyOptions func(option *Options)
+
+// New an Options with default parameters
+func New(modifyOptions ModifyOptions) Options {
+	option := Options{
+		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
+			LeaderElect: false,
+		},
+		ClusterName:                       "demo",
+		SecurePort:                        8090,
+		ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
+		ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
+		ClusterLeaseRenewIntervalFraction: 0.25,
+	}
+
+	if modifyOptions != nil {
+		modifyOptions(&option)
+	}
+	return option
+}
+
 func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 	successCases := []Options{
-		{
-			LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-				LeaderElect: false,
-			},
-			ClusterName:                       "demo",
-			ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
-			ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
-			ClusterLeaseRenewIntervalFraction: 0.25,
-		},
-		{
-			LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-				LeaderElect: true,
-			},
-			ClusterName:                       "demo",
-			ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
-			ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
-			ClusterLeaseRenewIntervalFraction: 0.25,
-		},
+		New(nil),
+		New(func(options *Options) {
+			options.LeaderElection.LeaderElect = true
+		}),
 	}
 
 	for _, successCase := range successCases {
@@ -43,51 +51,33 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 		expectedErrs field.ErrorList
 	}{
 		"invalid ClusterName": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				ClusterName:                       "",
-				ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
-				ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
-				ClusterLeaseRenewIntervalFraction: 0.25,
-			},
+			opt: New(func(options *Options) {
+				options.ClusterName = ""
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterName"), "", "must be not empty")},
 		},
+		"invalid SecurePort": {
+			opt: New(func(options *Options) {
+				options.SecurePort = -10
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SecurePort"), -10, "must be between 0 and 65535 inclusive")},
+		},
 		"invalid ClusterStatusUpdateFrequency": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				ClusterName:                       "demo",
-				ClusterStatusUpdateFrequency:      metav1.Duration{Duration: -10 * time.Second},
-				ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
-				ClusterLeaseRenewIntervalFraction: 0.25,
-			},
+			opt: New(func(options *Options) {
+				options.ClusterStatusUpdateFrequency = metav1.Duration{Duration: -10 * time.Second}
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterStatusUpdateFrequency"), metav1.Duration{Duration: -10 * time.Second}, "must be greater than or equal to 0")},
 		},
 		"invalid ClusterLeaseDuration": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				ClusterName:                       "demo",
-				ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
-				ClusterLeaseDuration:              metav1.Duration{Duration: -40 * time.Second},
-				ClusterLeaseRenewIntervalFraction: 0.25,
-			},
+			opt: New(func(options *Options) {
+				options.ClusterLeaseDuration = metav1.Duration{Duration: -40 * time.Second}
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseDuration"), metav1.Duration{Duration: -40 * time.Second}, "must be greater than or equal to 0")},
 		},
 		"invalid ClusterLeaseRenewIntervalFraction": {
-			opt: Options{
-				LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
-					LeaderElect: false,
-				},
-				ClusterName:                       "demo",
-				ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
-				ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
-				ClusterLeaseRenewIntervalFraction: 0,
-			},
+			opt: New(func(options *Options) {
+				options.ClusterLeaseRenewIntervalFraction = 0
+			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseRenewIntervalFraction"), 0, "must be greater than 0")},
 		},
 	}

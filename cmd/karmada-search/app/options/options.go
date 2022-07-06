@@ -8,18 +8,19 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 
+	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
 	"github.com/karmada-io/karmada/pkg/search"
+	"github.com/karmada-io/karmada/pkg/version"
 )
 
 const defaultEtcdPathPrefix = "/registry"
@@ -39,7 +40,7 @@ func NewOptions() *Options {
 	o := &Options{
 		RecommendedOptions: genericoptions.NewRecommendedOptions(
 			defaultEtcdPathPrefix,
-			search.Codecs.LegacyCodec(searchv1alpha1.SchemeGroupVersion)),
+			searchscheme.Codecs.LegacyCodec(searchv1alpha1.SchemeGroupVersion)),
 	}
 	o.RecommendedOptions.Etcd.StorageConfig.EncodeVersioner = runtime.NewMultiGroupVersioner(searchv1alpha1.SchemeGroupVersion,
 		schema.GroupKind{Group: searchv1alpha1.GroupName})
@@ -54,6 +55,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
 }
 
@@ -62,31 +64,28 @@ func (o *Options) Complete() error {
 	return nil
 }
 
-// Validate validates Options.
-func (o *Options) Validate() error {
-	var errs []error
-	errs = append(errs, o.RecommendedOptions.Validate()...)
-	return utilerrors.NewAggregate(errs)
-}
-
 // Run runs the aggregated-apiserver with options. This should never exit.
 func (o *Options) Run(ctx context.Context) error {
+	klog.Infof("karmada-search version: %s", version.Get())
+
 	config, err := o.Config()
 	if err != nil {
 		return err
 	}
 
-	restConfig := config.GenericConfig.ClientConfig
-	restConfig.QPS, restConfig.Burst = o.KubeAPIQPS, o.KubeAPIBurst
-	kubeClientSet := kubernetes.NewForConfigOrDie(restConfig)
-
-	server, err := config.Complete().New(kubeClientSet)
+	server, err := config.Complete().New()
 	if err != nil {
 		return err
 	}
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-informers", func(context genericapiserver.PostStartHookContext) error {
 		config.GenericConfig.SharedInformerFactory.Start(context.StopCh)
+		return nil
+	})
+
+	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
+		// start ResourceRegistry controller
+		config.Controller.Start(context.StopCh)
 		return nil
 	})
 
@@ -100,16 +99,23 @@ func (o *Options) Config() (*search.Config, error) {
 		return nil, fmt.Errorf("error creating self-signed certificates: %v", err)
 	}
 
-	serverConfig := genericapiserver.NewRecommendedConfig(search.Codecs)
-	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(search.Scheme))
+	serverConfig := genericapiserver.NewRecommendedConfig(searchscheme.Codecs)
+	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
 	serverConfig.OpenAPIConfig.Info.Title = "karmada-search"
 	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}
 
+	serverConfig.ClientConfig.QPS = o.KubeAPIQPS
+	serverConfig.ClientConfig.Burst = o.KubeAPIBurst
+	ctl, err := search.NewController(serverConfig.ClientConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	config := &search.Config{
 		GenericConfig: serverConfig,
-		ExtraConfig:   search.ExtraConfig{},
+		Controller:    ctl,
 	}
 	return config, nil
 }

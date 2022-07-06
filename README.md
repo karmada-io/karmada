@@ -97,9 +97,9 @@ This guide will cover:
 - Propagate an application by using `karmada`.
 
 ### Prerequisites
-- [Go](https://golang.org/) version v1.17+
+- [Go](https://golang.org/) version v1.18+
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
-- [kind](https://kind.sigs.k8s.io/) version v0.9.0+
+- [kind](https://kind.sigs.k8s.io/) version v0.14.0+
 
 ### Install the Karmada control plane
 
@@ -175,12 +175,14 @@ nginx   2/2     2            2           20s
 
 ## Kubernetes compatibility
 
-|                        | Kubernetes 1.15 | Kubernetes 1.16 | Kubernetes 1.17 | Kubernetes 1.18 | Kubernetes 1.19 | Kubernetes 1.20 | Kubernetes 1.21 | Kubernetes 1.22 | Kubernetes 1.23 |
-|------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
-| Karmada v0.9           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               |
-| Karmada v0.10          | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.0           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               |
-| Karmada HEAD (master)  | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               |
+|                        | Kubernetes 1.15 | Kubernetes 1.16 | Kubernetes 1.17 | Kubernetes 1.18 | Kubernetes 1.19 | Kubernetes 1.20 | Kubernetes 1.21 | Kubernetes 1.22 | Kubernetes 1.23 | Kubernetes 1.24 |
+|------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| Karmada v0.9           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada v0.10          | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada v1.0           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada v1.1           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada v1.2           | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada HEAD (master)  | ✓               | ✓               | ✓               | ✓               | ✓             | ✓               | ✓               | ✓               | ✓               | ✓               |
 
 Key:
 * `✓` Karmada and the Kubernetes version are exactly compatible.

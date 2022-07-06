@@ -1,0 +1,20 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: guestbook-sample
+spec: 
+  resourceSelectors: 
+  - apiVersion: webapp.my.domain/v1 
+    kind: Guestbook
+  overrideRules: 
+  - targetCluster: 
+      clusterNames:
+      - member1
+    overriders:
+      plaintext:
+      - path: /spec/size
+        operator: replace
+        value: 4
+      - path: /metadata/annotations
+        operator: add
+        value: {"OverridePolicy":"test"}

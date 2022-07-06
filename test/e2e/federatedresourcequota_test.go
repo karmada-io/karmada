@@ -83,16 +83,14 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandUnjoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						DryRun: false,
-					},
+					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
-					Wait:              options.DefaultKarmadactlCommandDuration,
+					Wait:              5 * options.DefaultKarmadactlCommandDuration,
 				}
-				err := karmadactl.RunUnjoin(os.Stdout, karmadaConfig, opts)
+				err := karmadactl.RunUnjoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
@@ -113,15 +111,13 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						DryRun: false,
-					},
+					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(os.Stdout, karmadaConfig, opts)
+				err := karmadactl.RunJoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 

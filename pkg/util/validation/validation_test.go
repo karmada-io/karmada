@@ -218,3 +218,60 @@ func TestValidatePolicyFieldSelector(t *testing.T) {
 		})
 	}
 }
+
+func TestEmptyOverrides(t *testing.T) {
+	tests := []struct {
+		name       string
+		overriders policyv1alpha1.Overriders
+		want       bool
+	}{
+		{
+			name:       "empty overrides",
+			overriders: policyv1alpha1.Overriders{},
+			want:       true,
+		},
+		{
+			name: "non-empty overrides",
+			overriders: policyv1alpha1.Overriders{
+				Plaintext: []policyv1alpha1.PlaintextOverrider{
+					{
+						Path: "spec/image",
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "non-empty overrides",
+			overriders: policyv1alpha1.Overriders{
+				Plaintext: []policyv1alpha1.PlaintextOverrider{
+					{
+						Path: "spec/image",
+					},
+				},
+				ImageOverrider: []policyv1alpha1.ImageOverrider{
+					{
+						Component: "Registry",
+						Operator:  "remove",
+						Value:     "fictional.registry.us",
+					},
+				},
+				CommandOverrider: []policyv1alpha1.CommandArgsOverrider{
+					{
+						ContainerName: "nginx",
+						Operator:      "add",
+						Value:         []string{"echo 'hello karmada'"},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := EmptyOverrides(tt.overriders); got != tt.want {
+				t.Errorf("EmptyOverrides() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

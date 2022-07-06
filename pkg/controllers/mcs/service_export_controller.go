@@ -15,13 +15,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/kind/pkg/errors"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -124,7 +125,7 @@ func isWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}).WithEventFilter(c.PredicateFunc).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).Complete(c)
 }
 
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
@@ -355,7 +356,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 	}
 
 	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
+		return utilerrors.NewAggregate(errs)
 	}
 
 	return nil
@@ -436,7 +437,7 @@ func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.F
 		}
 	}
 	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
+		return utilerrors.NewAggregate(errs)
 	}
 
 	return nil

@@ -2,7 +2,7 @@ package cmdinit
 
 import (
 	"fmt"
-	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -17,7 +17,7 @@ const (
 )
 
 // NewCmdInit install karmada on kubernetes
-func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
+func NewCmdInit(parentCommand string) *cobra.Command {
 	opts := kubernetes.CommandInitOption{}
 	cmd := &cobra.Command{
 		Use:          "init",
@@ -32,7 +32,7 @@ func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 			if err := opts.Complete(); err != nil {
 				return err
 			}
-			if err := opts.RunInit(cmdOut, parentCommand); err != nil {
+			if err := opts.RunInit(parentCommand); err != nil {
 				return err
 			}
 			return nil
@@ -58,7 +58,7 @@ func NewCmdInit(cmdOut io.Writer, parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
 	// etcd
 	flags.StringVarP(&opts.EtcdStorageMode, "etcd-storage-mode", "", "emptyDir",
-		"etcd data storage mode(emptyDir,hostPath,PVC). value is PVC, specify --storage-classes-name")
+		fmt.Sprintf("etcd data storage mode(%s). value is PVC, specify --storage-classes-name", strings.Join(kubernetes.SupportedStorageMode(), ",")))
 	flags.StringVarP(&opts.EtcdImage, "etcd-image", "", "", "etcd image")
 	flags.StringVarP(&opts.EtcdInitImage, "etcd-init-image", "", "docker.io/alpine:3.15.1", "etcd init container image")
 	flags.Int32VarP(&opts.EtcdReplicas, "etcd-replicas", "", 1, "etcd replica set, cluster 3,5...singular")
@@ -114,7 +114,7 @@ func initExample(parentCommand string) string {
 		fmt.Sprintf("%s init --etcd-storage-mode hostPath --etcd-node-selector-labels karmada.io/etcd=true", parentCommand) + `
 
 # Private registry can be specified for all images` + "\n" +
-		fmt.Sprintf("%s init --etcd-image local.registry.com/library/etcd:3.5.1-0", parentCommand) + `
+		fmt.Sprintf("%s init --etcd-image local.registry.com/library/etcd:3.5.3-0", parentCommand) + `
 
 # Deploy highly available(HA) karmada` + "\n" +
 		fmt.Sprintf("%s init --karmada-apiserver-replicas 3 --etcd-replicas 3 --etcd-storage-mode PVC --storage-classes-name {StorageClassesName}", parentCommand) + `

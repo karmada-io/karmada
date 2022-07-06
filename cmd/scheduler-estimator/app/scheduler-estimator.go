@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -54,7 +53,7 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-scheduler-estimator"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler-estimator"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -88,12 +87,13 @@ func run(ctx context.Context, opts *options.Options) error {
 }
 
 func serveHealthzAndMetrics(address string) {
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	http.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.Handler())
 
-	klog.Fatal(http.ListenAndServe(address, nil))
+	klog.Fatal(http.ListenAndServe(address, mux))
 }

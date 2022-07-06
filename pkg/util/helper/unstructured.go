@@ -55,6 +55,16 @@ func ConvertToPod(obj *unstructured.Unstructured) (*corev1.Pod, error) {
 	return typedObj, nil
 }
 
+// ConvertToPersistentVolumeClaim converts a pvc object from unstructured to typed.
+func ConvertToPersistentVolumeClaim(obj *unstructured.Unstructured) (*corev1.PersistentVolumeClaim, error) {
+	typedObj := &corev1.PersistentVolumeClaim{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
 // ConvertToNode converts a Node object from unstructured to typed.
 func ConvertToNode(obj *unstructured.Unstructured) (*corev1.Node, error) {
 	typedObj := &corev1.Node{}
@@ -138,6 +148,16 @@ func ConvertToStatefulSetStatus(obj map[string]interface{}) (*appsv1.StatefulSet
 // ConvertToJob converts a Job object from unstructured to typed.
 func ConvertToJob(obj *unstructured.Unstructured) (*batchv1.Job, error) {
 	typedObj := &batchv1.Job{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
+		return nil, err
+	}
+
+	return typedObj, nil
+}
+
+// ConvertToCronJob converts a CronJob object from unstructured to typed.
+func ConvertToCronJob(obj *unstructured.Unstructured) (*batchv1.CronJob, error) {
+	typedObj := &batchv1.CronJob{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), typedObj); err != nil {
 		return nil, err
 	}

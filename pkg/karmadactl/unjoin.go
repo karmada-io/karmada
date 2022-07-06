@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -28,7 +27,7 @@ var (
 )
 
 // NewCmdUnjoin defines the `unjoin` command that removes registration of a cluster from control plane.
-func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdUnjoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandUnjoinOption{}
 
 	cmd := &cobra.Command{
@@ -44,7 +43,7 @@ func NewCmdUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand s
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunUnjoin(cmdOut, karmadaConfig, opts); err != nil {
+			if err := RunUnjoin(karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -86,6 +85,9 @@ type CommandUnjoinOption struct {
 	// ClusterKubeConfig is the cluster's kubeconfig path.
 	ClusterKubeConfig string
 
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
+
 	forceDeletion bool
 
 	// Wait tells maximum command execution time
@@ -120,19 +122,19 @@ func (j *CommandUnjoinOption) Validate() error {
 func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 	j.GlobalCommandOptions.AddFlags(flags)
 
-	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster are stored.")
+	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.StringVar(&j.ClusterContext, "cluster-context", "",
 		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
 	flags.BoolVar(&j.forceDeletion, "force", false,
 		"Delete cluster and secret resources even if resources in the cluster targeted for unjoin are not removed successfully.")
-
 	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
+	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
 // RunUnjoin is the implementation of the 'unjoin' command.
-func RunUnjoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandUnjoinOption) error {
+func RunUnjoin(karmadaConfig KarmadaConfig, opts CommandUnjoinOption) error {
 	klog.V(1).Infof("unjoining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("unjoining cluster. cluster namespace: %s", opts.ClusterNamespace)
 
@@ -272,7 +274,7 @@ func deleteClusterObject(controlPlaneKarmadaClient *karmadaclientset.Clientset, 
 
 	err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Delete(context.TODO(), opts.ClusterName, metav1.DeleteOptions{})
 	if apierrors.IsNotFound(err) {
-		return nil
+		return fmt.Errorf("no cluster object %s found in karmada control Plane", opts.ClusterName)
 	}
 	if err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", opts.ClusterName, err)

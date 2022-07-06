@@ -17,10 +17,12 @@ KARMADA_WEBHOOK_LABEL="karmada-webhook"
 AGENT_POD_LABEL="karmada-agent"
 INTERPRETER_WEBHOOK_EXAMPLE_LABEL="karmada-interpreter-webhook-example"
 KARMADA_SEARCH_LABEL="karmada-search"
+KARMADA_OPENSEARCH_LABEL="karmada-opensearch"
+KARMADA_OPENSEARCH_DASHBOARDS_LABEL="karmada-opensearch-dashboards"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
-MIN_Go_VERSION=go1.17.0
+MIN_Go_VERSION=go1.18.0
 
 KARMADA_TARGET_SOURCE=(
   karmada-aggregated-apiserver=cmd/aggregated-apiserver
@@ -159,6 +161,11 @@ function util::install_kubectl {
         echo "Failed to install kubectl, can not download the binary file at https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$OS/$ARCH/kubectl"
         exit 1
     fi
+}
+
+# util::install_helm will install the helm command
+function util::install_helm {
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 }
 
 # util::create_signing_certkey creates a CA, args are sudo, dest-dir, ca-id, purpose
@@ -343,6 +350,24 @@ function util::wait_apiservice_ready() {
       kubectl describe apiservices -l app=${apiservice_label}
     fi
     return ${ret}
+}
+
+# util::wait_cluster_ready waits for cluster state becomes ready until timeout.
+# Parmeters:
+#  - $1: cluster name, such as "member1"
+function util:wait_cluster_ready() {
+  local cluster_name=$1
+
+  echo "wait the cluster $cluster_name onBoard..."
+  set +e
+  util::kubectl_with_retry wait --for=condition=Ready --timeout=60s clusters ${cluster_name}
+  ret=$?
+  set -e
+  if [ $ret -ne 0 ];then
+    echo "kubectl describe info:"
+    kubectl describe clusters ${cluster_name}
+  fi
+  return ${ret}
 }
 
 # util::kubectl_with_retry will retry if execute kubectl command failed
@@ -621,3 +646,30 @@ function util:create_gopath_tree() {
 function util:host_platform() {
   echo "$(go env GOHOSTOS)/$(go env GOHOSTARCH)"
 }
+
+# util::set_mirror_registry_for_china_mainland will do proxy setting in China mainland
+# Parameters:
+#  - $1: the root path of repo
+function util::set_mirror_registry_for_china_mainland() {
+  local repo_root=${1}
+  export GOPROXY=https://goproxy.cn,direct # set domestic go proxy
+  # set mirror registry of k8s.gcr.io
+  registry_files=( # Yaml files that contain image host 'k8s.gcr.io' need to be replaced
+    "artifacts/deploy/karmada-etcd.yaml"
+    "artifacts/deploy/karmada-apiserver.yaml"
+    "artifacts/deploy/kube-controller-manager.yaml"
+  )
+  for registry_file in "${registry_files[@]}"; do
+    sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${repo_root}/${registry_file}
+  done
+
+  # set mirror registry in the dockerfile of components of karmada
+  dockerfile_list=( # Dockerfile files need to be replaced
+    "cluster/images/Dockerfile"
+    "cluster/images/buildx.Dockerfile"
+  )
+  for dockerfile in "${dockerfile_list[@]}"; do
+    grep 'mirrors.ustc.edu.cn' ${repo_root}/${dockerfile} > /dev/null || sed -i'' -e "s#FROM alpine:3.15.1#FROM alpine:3.15.1\nRUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.15/main/ > /etc/apk/repositories#" ${repo_root}/${dockerfile}
+  done
+}
+

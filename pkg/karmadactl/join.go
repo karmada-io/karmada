@@ -3,7 +3,6 @@ package karmadactl
 import (
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -50,7 +49,7 @@ var (
 var clusterResourceKind = clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")
 
 // NewCmdJoin defines the `join` command that registers a cluster.
-func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandJoinOption{}
 
 	cmd := &cobra.Command{
@@ -66,7 +65,7 @@ func NewCmdJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, parentCommand str
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunJoin(cmdOut, karmadaConfig, opts); err != nil {
+			if err := RunJoin(karmadaConfig, opts); err != nil {
 				return err
 			}
 			return nil
@@ -104,6 +103,15 @@ type CommandJoinOption struct {
 
 	// ClusterProvider is the cluster's provider.
 	ClusterProvider string
+
+	// ClusterRegion represents the region of the cluster locate in.
+	ClusterRegion string
+
+	// ClusterZone represents the zone of the cluster locate in.
+	ClusterZone string
+
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun bool
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -135,17 +143,20 @@ func (j *CommandJoinOption) Validate() error {
 func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	j.GlobalCommandOptions.AddFlags(flags)
 
-	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member secrets cluster are stored.")
+	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 
 	flags.StringVar(&j.ClusterContext, "cluster-context", "",
 		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
 	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster.")
+	flags.StringVar(&j.ClusterRegion, "cluster-region", "", "The region of the joining cluster.")
+	flags.StringVar(&j.ClusterZone, "cluster-zone", "", "The zone of the joining cluster")
+	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
 // RunJoin is the implementation of the 'join' command.
-func RunJoin(cmdOut io.Writer, karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
+func RunJoin(karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
 	klog.V(1).Infof("joining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("joining cluster. cluster namespace: %s", opts.ClusterNamespace)
 
@@ -330,6 +341,14 @@ func generateClusterInControllerPlane(controlPlaneConfig, clusterConfig *rest.Co
 
 	if opts.ClusterProvider != "" {
 		clusterObj.Spec.Provider = opts.ClusterProvider
+	}
+
+	if opts.ClusterZone != "" {
+		clusterObj.Spec.Zone = opts.ClusterZone
+	}
+
+	if opts.ClusterRegion != "" {
+		clusterObj.Spec.Region = opts.ClusterRegion
 	}
 
 	if clusterConfig.TLSClientConfig.Insecure {

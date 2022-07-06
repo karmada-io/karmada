@@ -60,10 +60,18 @@ func WaitPodDisappearOnCluster(cluster, namespace, name string) {
 	clusterClient := GetClusterClient(cluster)
 	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-	klog.Infof("Waiting for pod disappear on cluster(%s)", cluster)
+	klog.Infof("Waiting for pod(%s/%s) disappear on cluster(%s)", namespace, name, cluster)
 	gomega.Eventually(func() bool {
 		_, err := clusterClient.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		return apierrors.IsNotFound(err)
+		if err == nil {
+			return false
+		}
+		if apierrors.IsNotFound(err) {
+			return true
+		}
+
+		klog.Errorf("Failed to get pod(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
+		return false
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 }
 

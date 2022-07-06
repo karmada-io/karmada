@@ -108,7 +108,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 	}
 
 	// Probes
-	livenesProbe := &corev1.Probe{
+	livenessProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/livez",
@@ -123,7 +123,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		PeriodSeconds:       30,
 		TimeoutSeconds:      5,
 	}
-	readinesProbe := &corev1.Probe{
+	readinessProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/readyz",
@@ -176,8 +176,8 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 						MountPath: karmadaCertsVolumeMountPath,
 					},
 				},
-				LivenessProbe:  livenesProbe,
-				ReadinessProbe: readinesProbe,
+				LivenessProbe:  livenessProbe,
+				ReadinessProbe: readinessProbe,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -360,6 +360,23 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 		},
 	}
 
+	// Probes
+	livenessProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/healthz",
+				Port: intstr.IntOrString{
+					IntVal: 10351,
+				},
+				Scheme: corev1.URISchemeHTTP,
+			},
+		},
+		InitialDelaySeconds: 15,
+		FailureThreshold:    3,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      5,
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -394,6 +411,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
+				LivenessProbe: livenessProbe,
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      kubeConfigSecretAndMountName,
@@ -458,6 +476,22 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 		},
 	}
 
+	livenessProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/healthz",
+				Port: intstr.IntOrString{
+					IntVal: 10357,
+				},
+				Scheme: corev1.URISchemeHTTP,
+			},
+		},
+		InitialDelaySeconds: 15,
+		FailureThreshold:    3,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      5,
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -490,6 +524,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 					"--v=4",
 				},
+				LivenessProbe: livenessProbe,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          portName,
@@ -560,6 +595,19 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		},
 	}
 
+	// Probes
+	readinesProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/readyz",
+				Port: intstr.IntOrString{
+					IntVal: webhookTargetPort,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -611,17 +659,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 						MountPath: webhookCertVolumeMountPath,
 					},
 				},
-				ReadinessProbe: &corev1.Probe{
-					ProbeHandler: corev1.ProbeHandler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: "/readyz",
-							Port: intstr.IntOrString{
-								IntVal: webhookTargetPort,
-							},
-							Scheme: corev1.URISchemeHTTPS,
-						},
-					},
-				},
+				ReadinessProbe: readinesProbe,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -684,6 +722,22 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		},
 	}
 
+	// Probes
+	readinesProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/readyz",
+				Port: intstr.IntOrString{
+					IntVal: 443,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+		InitialDelaySeconds: 1,
+		PeriodSeconds:       3,
+		TimeoutSeconds:      15,
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -712,7 +766,6 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 					"--kubeconfig=/etc/kubeconfig",
 					"--authentication-kubeconfig=/etc/kubeconfig",
 					"--authorization-kubeconfig=/etc/kubeconfig",
-					"--karmada-config=/etc/kubeconfig",
 					fmt.Sprintf("--etcd-servers=%s", strings.TrimRight(i.etcdServers(), ",")),
 					fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
 					fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
@@ -737,6 +790,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 						MountPath: karmadaCertsVolumeMountPath,
 					},
 				},
+				ReadinessProbe: readinesProbe,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU: resource.MustParse("100m"),

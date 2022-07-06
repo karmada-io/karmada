@@ -34,6 +34,7 @@ import (
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	frameworkplugins "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
@@ -79,19 +80,28 @@ type Scheduler struct {
 
 	eventRecorder record.EventRecorder
 
-	enableSchedulerEstimator bool
-	schedulerEstimatorCache  *estimatorclient.SchedulerEstimatorCache
-	schedulerEstimatorPort   int
-	schedulerEstimatorWorker util.AsyncWorker
+	enableSchedulerEstimator            bool
+	disableSchedulerEstimatorInPullMode bool
+	schedulerEstimatorCache             *estimatorclient.SchedulerEstimatorCache
+	schedulerEstimatorPort              int
+	schedulerEstimatorWorker            util.AsyncWorker
+
+	enableEmptyWorkloadPropagation bool
 }
 
 type schedulerOptions struct {
 	// enableSchedulerEstimator represents whether the accurate scheduler estimator should be enabled.
 	enableSchedulerEstimator bool
+	// disableSchedulerEstimatorInPullMode represents whether to disable the scheduler estimator in pull mode.
+	disableSchedulerEstimatorInPullMode bool
 	// schedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
 	schedulerEstimatorTimeout metav1.Duration
 	// schedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
 	schedulerEstimatorPort int
+	//enableEmptyWorkloadPropagation represents whether allow workload with replicas 0 propagated to member clusters should be enabled
+	enableEmptyWorkloadPropagation bool
+	// outOfTreeRegistry represents the registry of out-of-tree plugins
+	outOfTreeRegistry runtime.Registry
 }
 
 // Option configures a Scheduler
@@ -101,6 +111,13 @@ type Option func(*schedulerOptions)
 func WithEnableSchedulerEstimator(enableSchedulerEstimator bool) Option {
 	return func(o *schedulerOptions) {
 		o.enableSchedulerEstimator = enableSchedulerEstimator
+	}
+}
+
+// WithDisableSchedulerEstimatorInPullMode sets the disableSchedulerEstimatorInPullMode for scheduler
+func WithDisableSchedulerEstimatorInPullMode(disableSchedulerEstimatorInPullMode bool) Option {
+	return func(o *schedulerOptions) {
+		o.disableSchedulerEstimatorInPullMode = disableSchedulerEstimatorInPullMode
 	}
 }
 
@@ -115,6 +132,21 @@ func WithSchedulerEstimatorTimeout(schedulerEstimatorTimeout metav1.Duration) Op
 func WithSchedulerEstimatorPort(schedulerEstimatorPort int) Option {
 	return func(o *schedulerOptions) {
 		o.schedulerEstimatorPort = schedulerEstimatorPort
+	}
+}
+
+// WithEnableEmptyWorkloadPropagation sets the enablePropagateEmptyWorkLoad for scheduler
+func WithEnableEmptyWorkloadPropagation(enableEmptyWorkloadPropagation bool) Option {
+	return func(o *schedulerOptions) {
+		o.enableEmptyWorkloadPropagation = enableEmptyWorkloadPropagation
+	}
+}
+
+// WithOutOfTreeRegistry sets the registry for out-of-tree plugins. Those plugins
+// will be appended to the default in-tree registry.
+func WithOutOfTreeRegistry(registry runtime.Registry) Option {
+	return func(o *schedulerOptions) {
+		o.outOfTreeRegistry = registry
 	}
 }
 
@@ -136,6 +168,9 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 
 	// TODO(kerthcet): make plugins configurable via config file
 	registry := frameworkplugins.NewInTreeRegistry()
+	if err := registry.Merge(options.outOfTreeRegistry); err != nil {
+		return nil, err
+	}
 	algorithm, err := core.NewGenericScheduler(schedulerCache, registry)
 	if err != nil {
 		return nil, err
@@ -158,6 +193,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 
 	if options.enableSchedulerEstimator {
 		sched.enableSchedulerEstimator = options.enableSchedulerEstimator
+		sched.disableSchedulerEstimatorInPullMode = options.disableSchedulerEstimatorInPullMode
 		sched.schedulerEstimatorPort = options.schedulerEstimatorPort
 		sched.schedulerEstimatorCache = estimatorclient.NewSchedulerEstimatorCache()
 		schedulerEstimatorWorkerOptions := util.Options{
@@ -169,6 +205,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		schedulerEstimator := estimatorclient.NewSchedulerEstimator(sched.schedulerEstimatorCache, options.schedulerEstimatorTimeout.Duration)
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
+	sched.enableEmptyWorkloadPropagation = options.enableEmptyWorkloadPropagation
 
 	sched.addAllEventHandlers()
 	return sched, nil
@@ -421,7 +458,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.Resour
 		return err
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec)
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
 	if err != nil {
 		klog.Errorf("Failed scheduling ResourceBinding %s/%s: %v", resourceBinding.Namespace, resourceBinding.Name, err)
 		return err
@@ -472,7 +509,7 @@ func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv
 		return err
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
 	if err != nil {
 		klog.V(2).Infof("Failed scheduling ClusterResourceBinding %s: %v", clusterResourceBinding.Name, err)
 		return err
@@ -549,7 +586,7 @@ func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		return fmt.Errorf("failed to reconcile estimator connection as invalid key: %v", key)
 	}
 
-	_, err := s.clusterLister.Get(name)
+	cluster, err := s.clusterLister.Get(name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			s.schedulerEstimatorCache.DeleteCluster(name)
@@ -557,6 +594,10 @@ func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		}
 		return err
 	}
+	if cluster.Spec.SyncMode == clusterv1alpha1.Pull && s.disableSchedulerEstimatorInPullMode {
+		return nil
+	}
+
 	return estimatorclient.EstablishConnection(name, s.schedulerEstimatorCache, s.schedulerEstimatorPort)
 }
 
@@ -567,6 +608,9 @@ func (s *Scheduler) establishEstimatorConnections() {
 		return
 	}
 	for i := range clusterList.Items {
+		if clusterList.Items[i].Spec.SyncMode == clusterv1alpha1.Pull && s.disableSchedulerEstimatorInPullMode {
+			continue
+		}
 		if err = estimatorclient.EstablishConnection(clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorPort); err != nil {
 			klog.Error(err)
 		}

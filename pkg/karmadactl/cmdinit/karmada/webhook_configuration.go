@@ -29,8 +29,8 @@ webhooks:
         resources: ["propagationpolicies"]
         scope: "Namespaced"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/mutate-propagationpolicy
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/mutate-propagationpolicy
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
@@ -43,8 +43,8 @@ webhooks:
         resources: ["clusterpropagationpolicies"]
         scope: "Cluster"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/mutate-clusterpropagationpolicy
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/mutate-clusterpropagationpolicy
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
@@ -57,8 +57,8 @@ webhooks:
         resources: ["overridepolicies"]
         scope: "Namespaced"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/mutate-overridepolicy
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/mutate-overridepolicy
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
@@ -71,12 +71,12 @@ webhooks:
         resources: ["works"]
         scope: "Namespaced"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/mutate-work
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/mutate-work
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3`, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle)
+    timeoutSeconds: 3`, systemNamespace, caBundle)
 }
 
 func validatingConfig(caBundle string, systemNamespace string) string {
@@ -95,8 +95,8 @@ webhooks:
         resources: ["propagationpolicies"]
         scope: "Namespaced"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/validate-propagationpolicy
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/validate-propagationpolicy
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
@@ -109,8 +109,8 @@ webhooks:
         resources: ["clusterpropagationpolicies"]
         scope: "Cluster"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/validate-clusterpropagationpolicy
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/validate-clusterpropagationpolicy
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
@@ -123,8 +123,8 @@ webhooks:
         resources: ["overridepolicies"]
         scope: "Namespaced"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/validate-overridepolicy
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/validate-overridepolicy
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
@@ -137,8 +137,8 @@ webhooks:
         resources: ["clusteroverridepolicies"]
         scope: "Cluster"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/validate-clusteroverridepolicy
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/validate-clusteroverridepolicy
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
@@ -151,12 +151,12 @@ webhooks:
         resources: ["resourceexploringwebhookconfigurations"]
         scope: "Cluster"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/validate-resourceexploringwebhookconfiguration
-      caBundle: %s
+      url: https://karmada-webhook.%[1]s.svc:443/validate-resourceexploringwebhookconfiguration
+      caBundle: %[2]s
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3`, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle, systemNamespace, caBundle)
+    timeoutSeconds: 3`, systemNamespace, caBundle)
 }
 
 func createValidatingWebhookConfiguration(c *kubernetes.Clientset, staticYaml string) error {

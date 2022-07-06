@@ -67,7 +67,7 @@ karmada-scheduler-estimator to get replica status.`,
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-descheduler"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-descheduler"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -142,12 +142,13 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 }
 
 func serveHealthzAndMetrics(address string) {
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	http.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.Handler())
 
-	klog.Fatal(http.ListenAndServe(address, nil))
+	klog.Fatal(http.ListenAndServe(address, mux))
 }

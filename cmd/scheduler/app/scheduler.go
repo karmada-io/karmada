@@ -24,14 +24,25 @@ import (
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/scheduler"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
+// Option configures a framework.Registry.
+type Option func(runtime.Registry) error
+
+// WithPlugin used to register a PluginFactory.
+func WithPlugin(name string, factory runtime.PluginFactory) Option {
+	return func(r runtime.Registry) error {
+		return r.Register(name, factory)
+	}
+}
+
 // NewSchedulerCommand creates a *cobra.Command object with default parameters
-func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
+func NewSchedulerCommand(stopChan <-chan struct{}, registryOptions ...Option) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
@@ -42,7 +53,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := run(opts, stopChan); err != nil {
+			if err := run(opts, stopChan, registryOptions...); err != nil {
 				return err
 			}
 			return nil
@@ -65,7 +76,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-scheduler"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler"))
 
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
@@ -75,7 +86,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}) *cobra.Command {
 	return cmd
 }
 
-func run(opts *options.Options, stopChan <-chan struct{}) error {
+func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Option) error {
 	klog.Infof("karmada-scheduler version: %s", version.Get())
 	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
 
@@ -94,11 +105,20 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 		<-stopChan
 		cancel()
 	}()
+	outOfTreeRegistry := make(runtime.Registry)
+	for _, option := range registryOptions {
+		if err := option(outOfTreeRegistry); err != nil {
+			return fmt.Errorf("register out of tree plugins error: %s", err)
+		}
+	}
 
 	sched, err := scheduler.NewScheduler(dynamicClientSet, karmadaClient, kubeClientSet,
+		scheduler.WithOutOfTreeRegistry(outOfTreeRegistry),
 		scheduler.WithEnableSchedulerEstimator(opts.EnableSchedulerEstimator),
+		scheduler.WithDisableSchedulerEstimatorInPullMode(opts.DisableSchedulerEstimatorInPullMode),
 		scheduler.WithSchedulerEstimatorPort(opts.SchedulerEstimatorPort),
 		scheduler.WithSchedulerEstimatorTimeout(opts.SchedulerEstimatorTimeout),
+		scheduler.WithEnableEmptyWorkloadPropagation(opts.EnableEmptyWorkloadPropagation),
 	)
 	if err != nil {
 		return fmt.Errorf("couldn't create scheduler: %w", err)
@@ -149,12 +169,13 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 }
 
 func serveHealthzAndMetrics(address string) {
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	http.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.Handler())
 
-	klog.Fatal(http.ListenAndServe(address, nil))
+	klog.Fatal(http.ListenAndServe(address, mux))
 }

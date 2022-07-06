@@ -22,6 +22,7 @@ func getAllDefaultDependenciesInterpreter() map[schema.GroupVersionKind]dependen
 	s := make(map[schema.GroupVersionKind]dependenciesInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = getDeploymentDependencies
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = getJobDependencies
+	s[batchv1.SchemeGroupVersion.WithKind(util.CronJobKind)] = getCronJobDependencies
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = getPodDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = getDaemonSetDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = getStatefulSetDependencies
@@ -49,6 +50,20 @@ func getJobDependencies(object *unstructured.Unstructured) ([]configv1alpha1.Dep
 	}
 
 	podObj, err := lifted.GetPodFromTemplate(&jobObj.Spec.Template, jobObj, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return getDependenciesFromPodTemplate(podObj)
+}
+
+func getCronJobDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
+	cronjobObj, err := helper.ConvertToCronJob(object)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert CronJob from unstructured object: %v", err)
+	}
+
+	podObj, err := lifted.GetPodFromTemplate(&cronjobObj.Spec.JobTemplate.Spec.Template, cronjobObj, nil)
 	if err != nil {
 		return nil, err
 	}

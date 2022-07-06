@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path"
@@ -43,9 +42,15 @@ var (
 
 	defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
 
-	defaultEtcdImage                  = "etcd:3.5.1-0"
-	defaultKubeAPIServerImage         = "kube-apiserver:v1.21.7"
-	defaultKubeControllerManagerImage = "kube-controller-manager:v1.21.7"
+	defaultEtcdImage                  = "etcd:3.5.3-0"
+	defaultKubeAPIServerImage         = "kube-apiserver:v1.23.8"
+	defaultKubeControllerManagerImage = "kube-controller-manager:v1.23.8"
+)
+
+const (
+	etcdStorageModePVC      = "PVC"
+	etcdStorageModeEmptyDir = "emptyDir"
+	etcdStorageModeHostPath = "hostPath"
 )
 
 // CommandInitOption holds all flags options for init.
@@ -88,22 +93,31 @@ type CommandInitOption struct {
 
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
-	if i.EtcdStorageMode == "hostPath" && i.EtcdHostDataPath == "" {
+	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdHostDataPath == "" {
 		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
 
-	if i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" && utils.StringToMap(i.EtcdNodeSelectorLabels) == nil {
+	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdNodeSelectorLabels != "" && utils.StringToMap(i.EtcdNodeSelectorLabels) == nil {
 		return fmt.Errorf("the label does not seem to be 'key=value'")
 	}
 
-	if i.EtcdStorageMode == "hostPath" && i.EtcdReplicas != 1 {
+	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdReplicas != 1 {
 		return fmt.Errorf("for data security,when etcd storage mode is hostPath,etcd-replicas can only be 1")
 	}
 
-	if i.EtcdStorageMode == "PVC" && i.StorageClassesName == "" {
+	if i.EtcdStorageMode == etcdStorageModePVC && i.StorageClassesName == "" {
 		return fmt.Errorf("when etcd storage mode is PVC, storageClassesName is not empty. See '%s init --help'", parentCommand)
 	}
 
+	supportedStorageMode := SupportedStorageMode()
+	if i.EtcdStorageMode != "" {
+		for _, mode := range supportedStorageMode {
+			if i.EtcdStorageMode == mode {
+				return nil
+			}
+		}
+		return fmt.Errorf("unsupported etcd-storage-mode %s. See '%s init --help'", i.EtcdStorageMode, parentCommand)
+	}
 	return nil
 }
 
@@ -385,7 +399,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 }
 
 // RunInit Deploy karmada in kubernetes
-func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
+func (i *CommandInitOption) RunInit(parentCommand string) error {
 	// generate certificate
 	if err := i.genCerts(); err != nil {
 		return fmt.Errorf("certificate generation failed.%v", err)
@@ -509,4 +523,9 @@ func homeDir() string {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // windows
+}
+
+// SupportedStorageMode Return install etcd supported storage mode
+func SupportedStorageMode() []string {
+	return []string{etcdStorageModeEmptyDir, etcdStorageModeHostPath, etcdStorageModePVC}
 }

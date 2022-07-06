@@ -1,0 +1,798 @@
+## Default values for charts.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
+
+## @param global karmada global config
+global:
+  ## @param global.imageRegistry Global Docker image registry
+  imageRegistry: ""
+  ## E.g.
+  ## imagePullSecrets:
+  ##   - myRegistryKeySecretName
+  imagePullSecrets: []
+
+## @param installMode "host" and "agent" are provided
+## "host" means install karmada in the control-cluster
+## "agent" means install agent client in the member cluster
+## "component" means install selected components in the control-cluster
+installMode: "host"
+
+## @param clusterDomain default domain for karmada
+clusterDomain: "cluster.local"
+
+## @param components component list
+components: []
+  # components: [
+  #   "schedulerEstimator"
+  #   "descheduler"
+  #   "search"
+  # ]
+
+## pre-install job config
+preInstallJob:
+  ## @param preInstallJob.initContainerImage image of the pre-install job's initContainer
+  initContainerImage: cfssl/cfssl
+  ## @param preInstallJob.preInstallContainerImage image of the pre-install job
+  preInstallContainerImage: bitnami/kubectl:latest
+
+## post-install job config
+postInstallJob:
+  ## @param postInstallJob.postInstallContainerImage image of the post-install job
+  postInstallContainerImage: bitnami/kubectl:latest
+
+## post-delete job config
+postDeleteJob:
+  ## @param postDeleteJob.postDeleteContainerImage image of the post-delete job
+  postDeleteContainerImage: bitnami/kubectl:latest
+
+## karmada certificate config
+certs:
+  ## @param certs.mode "auto" and "custom" are provided
+  ## "auto" means auto generate certificate
+  ## "custom" means use user certificate
+  mode: auto
+  auto:
+    ## @param certs.auto.expiry expiry of the certificate
+    expiry: 43800h
+    ## @param certs.auto.hosts hosts of the certificate
+    hosts: [
+      "kubernetes.default.svc",
+      "*.etcd.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}",
+      "*.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}",
+      "*.{{ .Release.Namespace }}.svc",
+      "localhost",
+      "127.0.0.1"
+    ]
+  custom:
+    ## @param certs.custom.caCrt ca of the certificate
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.crt crt of the certificate
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.key key of the certificate
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param certs.custom.frontProxyCaCrt ca of the front proxy certificate
+    frontProxyCaCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.frontProxyCrt crt of the front proxy certificate
+    frontProxyCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.frontProxyKey key of the front proxy certificate
+    frontProxyKey: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+
+## scheduler config
+scheduler:
+  ## @param scheduler.labels labels of the schedeler deployment
+  labels:
+    app: karmada-scheduler
+  ## @param scheduler.replicaCount target replicas of the scheduler
+  replicaCount: 1
+  ## @param scheduler.podAnnotations annotaions of the scheduler pods
+  podAnnotations: {}
+  ## @param scheduler.podLabels labels of the scheduler pods
+  podLabels: {}
+  ## @param image.registry karmada scheduler image registry
+  ## @param image.repository karmada scheduler image repository
+  ## @param image.tag karmada scheduler image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada scheduler image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-scheduler
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param scheduler.resources resource quota of the scheduler
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param scheduler.nodeSelector node selector of the scheduler
+  nodeSelector: {}
+  ## @param scheduler.affinity affinity of the scheduler
+  affinity: {}
+  ## @param scheduler.tolerations tolerations of the scheduler
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param scheduler.strategy strategy of the scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## webhook config
+webhook:
+  ## @param webhook.labels labels of the webhook deployment
+  labels:
+    app: karmada-webhook
+  ## @param webhook.replicaCount target replicas
+  replicaCount: 1
+  ## @param webhook.podAnnotations annotaions of the webhook pods
+  podAnnotations: {}
+  ## @param webhook.podLabels labels of the webhook pods
+  podLabels: {}
+  ## @param image.registry karmada webhook image registry
+  ## @param image.repository karmada webhook image repository
+  ## @param image.tag karmada webhook image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada webhook image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-webhook
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param webhook.resources resource quota of the webhook
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param webhook.nodeSelector node selector of the webhook
+  nodeSelector: {}
+  ## @param webhook.affinity affinity of the webhook
+  affinity: {}
+  ## @param webhook.tolerations tolerations of the webhook
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param webhook.strategy strategy of the webhook
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## controller manager config
+controllerManager:
+  ## @param controllerManager.labels labels of the karmada-controller-manager deployment
+  labels:
+    app: karmada-controller-manager
+  ## @param controllerManager.replicaCount target replicas of the karmada-controller-manager
+  replicaCount: 1
+  ## @param controllerManager.podAnnotations annotaions of the karmada-controller-manager pods
+  podAnnotations: {}
+  ## @param controllerManager.podLabels labels of the karmada-controller-manager pods
+  podLabels: {}
+  ## @param image.registry karmada controller manager image registry
+  ## @param image.repository karmada controller manager image repository
+  ## @param image.tag karmada controller manager image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada controller manager image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-controller-manager
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param controllerManager.resources resource quota of the karmada-controller-manager
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param controllerManager.nodeSelector node selector of the karmada-controller-manager
+  nodeSelector: {}
+  ## @param controllerManager.affinity affinity of the karmada-controller-manager
+  affinity: {}
+  ## @param controllerManager.tolerations tolerations of the karmada-controller-manager
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param controllerManager.strategy strategy of the controller manager
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## karmada apiserver config
+apiServer:
+  ## @param apiServer.labels labels of the karmada-apiserver deployment
+  labels:
+    app: karmada-apiserver
+  ## @param apiServer.replicaCount target replicas of the karmada-apiserver
+  replicaCount: 1
+  ## @param apiServer.podAnnotations annotaions of the karmada-apiserver pods
+  podAnnotations: {}
+  ## @param apiServer.podLabels labels of the karmada-apiserver pods
+  podLabels: {}
+  ## @param image.registry keube-apiserver image registry
+  ## @param image.repository keube-apiserver image repository
+  ## @param image.tag keube-apiserver image tag (immutable tags are recommended)
+  ## @param image.pullPolicy keube-apiserver image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: k8s.gcr.io
+    repository: kube-apiserver
+    tag: "v1.23.8"
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param apiServer.resources resource quota of the karmada-apiserver
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param apiServer.hostNetwork
+  ## "true" means using hostNetwork
+  ## "false" means normal network
+  hostNetwork: true
+  ## @param apiServer.nodeSelector node selector of the karmada-apiserver
+  nodeSelector: {}
+  ## @param apiServer.affinity affinity of the karmada-apiserver
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - karmada-apiserver
+          topologyKey: kubernetes.io/hostname
+  ## @param apiServer.tolerations tolerations of the karmada-apiserver
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param apiServer.serviceType default service type for apiserver
+  ## "LoadBalancer" means using LoadBalancer
+  ## "ClusterIP" means using ClusterIP
+  ## "NodePort" means using NodePort
+  serviceType: ClusterIP
+  ## @param apiServer.nodePort node port for apiserver service,
+  ## will take effect when 'apiServer.serviceType' is 'NodePort'.
+  ## If no port is specified, the nodePort will be automatically assigned.
+  nodePort: 0
+  maxRequestsInflight: 1500
+  maxMutatingRequestsInflight: 500
+  ## @param apiserver.strategy strategy of the apiserver
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+
+## karmada aggregated apiserver config
+aggregatedApiServer:
+  ## @param aggregatedApiServer.labels labels of the karmada-aggregated-apiserver pods
+  labels:
+    app: karmada-aggregated-apiserver
+  ## @param aggregatedApiServer.replicaCount target replicas of the karmada-aggregated-apiserver
+  replicaCount: 1
+  ## @param aggregatedApiServer.podAnnotations annotaions of the karmada-aggregated-apiserver pods
+  podAnnotations: {}
+  ## @param aggregatedApiServer.podLabels labels of the karmada-aggregated-apiserver pods
+  podLabels: {}
+  ## @param image.registry karmada aggregatedApiServer image registry
+  ## @param image.repository karmada aggregatedApiServer image repository
+  ## @param image.tag karmada aggregatedApiServer image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada aggregatedApiServer image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-aggregated-apiserver
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param aggregatedApiServer.resources resource quota of the karmada-aggregated-apiserver
+  resources:
+    requests:
+      cpu: 100m
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param aggregatedApiServer.nodeSelector node selector of the karmada-aggregated-apiserver
+  nodeSelector: {}
+  ## @param aggregatedApiServer.affinity affinity of the karmada-aggregated-apiserver
+  affinity: {}
+  ## @param aggregatedApiServer.tolerations tolerations of the karmada-aggregated-apiserver
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param aggregatedApiServer.strategy strategy of the karmada-aggregated-apiserver
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## kubernetes controller manager config
+kubeControllerManager:
+  ## @param kubeControllerManager.labels labels of the kube-controller-manager deployment
+  labels:
+    app: kube-controller-manager
+  ## @param kubeControllerManager.replicaCount target replicas of the kube-controller-manager
+  replicaCount: 1
+  ## @param kubeControllerManager.podAnnotations annotaions of the kube-controller-manager pods
+  podAnnotations: {}
+  ## @param kubeControllerManager.podLabels labels of the kube-controller-manager pods
+  podLabels: {}
+  ## @param image.registry kubeControllerManager image registry
+  ## @param image.repository kubeControllerManager image repository
+  ## @param image.tag kubeControllerManager image tag (immutable tags are recommended)
+  ## @param image.pullPolicy kubeControllerManager image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: k8s.gcr.io
+    repository: kube-controller-manager
+    tag: "v1.23.8"
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param kubeControllerManager.resources resource quota of the kube-controller-manager
+  resources:
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param kubeControllerManager.nodeSelector node selector of the kube-controller-manager
+  nodeSelector: {}
+  ## @param kubeControllerManager.affinity affinity of the kube-controller-manager
+  affinity: {}
+  ## @param kubeControllerManager.tolerations tolerations of the kube-controller-manager
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param kubeControllerManager.strategy strategy of the kube controller manager
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## etcd config
+etcd:
+  ## @param etcd.mode "external" and "internal" are provided
+  ## "external" means use external ectd
+  ## "internal" means install a etcd in the cluster
+  mode: "internal"
+  external:
+    ## @param etcd.external.servers servers of etcd
+    ## such as "https://192.168.1.1:2379,https://192.168.1.2:2379,https://192.168.1.3:2379"
+    servers: ""
+    ## @param etcd.external.registryPrefix use to registry prefix of etcd
+    registryPrefix: "/registry/karmada"
+    certs:
+      ## @param etcd.external.certs.caCrt ca of the certificate
+      caCrt: |
+        -----BEGIN CERTIFICATE-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END CERTIFICATE-----
+      ## @param etcd.external.certs.crt crt of the certificate
+      crt: |
+        -----BEGIN CERTIFICATE-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END CERTIFICATE-----
+      ## @param etcd.external.certs.key key of the certificate
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END RSA PRIVATE KEY-----
+  internal:
+    ## @param etcd.internal.replicaCount target replicas
+    replicaCount: 1
+    ## @param image.registry etcd image registry
+    ## @param image.repository etcd image repository
+    ## @param image.tag etcd image tag (immutable tags are recommended)
+    ## @param image.pullPolicy etcd image pull policy
+    ##
+    image:
+      registry: k8s.gcr.io
+      repository: etcd
+      tag: "3.5.3-0"
+      ## Specify a imagePullPolicy
+      ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+      ##
+      pullPolicy: IfNotPresent
+    ## @param etcd.internal.storageType storage type for etcd data
+    ## "pvc" means using volumeClaimTemplates
+    ## "hostPath" means using hostPath
+    storageType: "hostPath"
+    pvc:
+      ## @param etcd.internal.pvc.storageClass storageClass name of PVC
+      storageClass: ""
+      ## @param etcd.internal.pvc.size size of PVC
+      size: ""
+    ## @param etcd.internal.resources
+    resources: {}
+      # If you do want to specify resources, uncomment the following
+      # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      # limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      # requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+## agent client config
+agent:
+  ## @param agent.clusterName name of the member cluster
+  clusterName: ""
+  ## kubeconfig of the karmada
+  kubeconfig:
+    ## @param agent.kubeconfig.caCrt ca of the certificate
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param agent.kubeconfig.crt crt of the certificate
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param agent.kubeconfig.key key of the certificate
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param agent.kubeconfig.server apiserver of the karmada
+    server: ""
+  ## @param agent.labels labels of the agent deployment
+  labels:
+    app: karmada-agent
+  ## @param agent.replicaCount target replicas
+  replicaCount: 1
+  ## @param agent.podAnnotations annotaions of the agent pods
+  podAnnotations: {}
+  ## @param agent.podLabels labels of the agent pods
+  podLabels: {}
+  ## @param image.registry karmada agent image registry
+  ## @param image.repository karmada agent image repository
+  ## @param image.tag karmada agent image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada agent image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-agent
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param agent.resources
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param agent.nodeSelector node selector of the agent
+  nodeSelector: {}
+  ## @param agent.affinity affinity of the agent
+  affinity: {}
+  ## @param agent.tolerations tolerations of the agent
+  tolerations: {}
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param agent.strategy strategy of the agent
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## karmada scheduler estimator
+schedulerEstimator:
+  ## schedulerEstimator.clusterName the name of the member cluster
+  clusterName: ""
+  ## kubeconfig of the member cluster
+  kubeconfig:
+    ## @param schedulerEstimator.kubeconfig.caCrt ca of the certificate
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param schedulerEstimator.kubeconfig.crt crt of the certificate
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param schedulerEstimator.kubeconfig.key key of the certificate
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param schedulerEstimator.kubeconfig.server apiserver of the member cluster
+    server: ""
+  ## @param schedulerEstimator.labels labels of the scheduler-estimator deployment
+  labels: {}
+  ## @param schedulerEstimator.replicaCount target replicas
+  replicaCount: 1
+  ## @param schedulerEstimator.podAnnotations annotaions of the scheduler-estimator pods
+  podAnnotations: {}
+  ## @param schedulerEstimator.podLabels labels of the scheduler-estimator pods
+  podLabels: {}
+  ## @param image.registry karmada schedulerEstimator image registry
+  ## @param image.repository karmada schedulerEstimator image repository
+  ## @param image.tag karmada schedulerEstimator image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada schedulerEstimator image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-scheduler-estimator
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param schedulerEstimator.resources resource quota of the scheduler-estimator
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param schedulerEstimator.nodeSelector node selector of the scheduler-estimator
+  nodeSelector: {}
+  ## @param schedulerEstimator.affinity affinity of the scheduler-estimator
+  affinity: {}
+  ## @param schedulerEstimator.tolerations tolerations of the scheduler-estimator
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param schedulerEstimator.strategy strategy of the scheduler-estimator
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## descheduler config
+descheduler:
+  ## @param descheduler.labels labels of the descheduler deployment
+  labels:
+    app: karmada-descheduler
+  ## @param descheduler.replicaCount target replicas of the descheduler
+  replicaCount: 2
+  ## @param descheduler.podAnnotations annotaions of the descheduler pods
+  podAnnotations: {}
+  ## @param descheduler.podLabels labels of the descheduler pods
+  podLabels: {}
+  ## @param image.registry karmada descheduler image registry
+  ## @param image.repository karmada descheduler image repository
+  ## @param image.tag karmada descheduler image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada descheduler image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-descheduler
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param descheduler.resources resource quota of the descheduler
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param descheduler.nodeSelector node selector of the descheduler
+  nodeSelector: {}
+  ## @param descheduler.affinity affinity of the descheduler
+  affinity: {}
+  ## @param descheduler.tolerations tolerations of the descheduler
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param descheduler.strategy strategy of the descheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+## karmada-search config
+search:
+  ## @param search.labels labels of the search deployment
+  labels:
+    app: karmada-search
+    apiserver: "true"
+  ## @param search.replicaCount target replicas
+  replicaCount: 2
+  ## @param search.podAnnotations annotaions of the search pods
+  podAnnotations: {}
+  ## @param search.podLabels labels of the search pods
+  podLabels: {}
+  ## @param image.registry karmada search image registry
+  ## @param image.repository karmada search image repository
+  ## @param image.tag karmada search image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada search image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: swr.ap-southeast-1.myhuaweicloud.com
+    repository: karmada/karmada-search
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param search.resources resource quota of the search
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+  #   memory: 128Mi
+  ## @param search.nodeSelector node selector of the search
+  nodeSelector: {}
+  ## @param search.affinity affinity of the search
+  affinity: {}
+  ## @param search.tolerations tolerations of the search
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+  #   operator: Exists
+  ## @param search.strategy strategy of the search
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%

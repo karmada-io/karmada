@@ -1,22 +1,22 @@
 # Use Filebeat to collect logs of Karmada member clusters
 
-[Filebeat](https://github.com/elastic/beats/tree/master/filebeat)  is a lightweight shipper for forwarding and centralizing log data. Installed as an agent on your servers, Filebeat monitors the log files or locations that you specify, collects log events, and forwards them either to [Elasticsearch](https://www.elastic.co/products/elasticsearch) or [kafka](https://github.com/apache/kafka) for indexing. 
+[Filebeat](https://github.com/elastic/beats/tree/master/filebeat) is a lightweight shipper for forwarding and centralizing log data. Installed as an agent on your servers, Filebeat monitors the log files or locations that you specify, collects log events, and forwards them either to [Elasticsearch](https://www.elastic.co/products/elasticsearch) or [kafka](https://github.com/apache/kafka) for indexing. 
 
-This document gives an example to demonstrate how to use the `Filebeat` to collect logs of karmada member clusters. 
+This document demonstrates how to use the `Filebeat` to collect logs of Karmada member clusters. 
 
 ## Start up Karmada clusters
 
 You just need to clone Karmada repo, and run the following script in Karmada directory. 
 
-```
+```bash
 hack/local-up-karmada.sh
 ```
 
 ## Start Filebeat
 
-1. Create resource objects of Filebeat, the content is as follows. You can specify a list of inputs in the `filebeat.inputs` section of the `filebeat.yml`. Inputs specify how Filebeat locates and processes input data. also you can configure Filebeat to write to a specific output by setting options in the `Outputs` section of the `filebeat.yml` config file. The example will collect the log information of each container and write the collected logs to a file. More detailed information about the input and output configuration, please refer to: https://github.com/elastic/beats/tree/master/filebeat/docs
+1. Create resource objects of Filebeat, the content is as follows. You can specify a list of inputs in the `filebeat.inputs` section of the `filebeat.yml`. Inputs specify how Filebeat locates and processes input data, also you can configure Filebeat to write to a specific output by setting options in the `Outputs` section of the `filebeat.yml` config file. The example will collect the log information of each container and write the collected logs to a file. More detailed information about the input and output configuration, please refer to: https://github.com/elastic/beats/tree/master/filebeat/docs
 
-   ```
+   ```yaml
    apiVersion: v1
    kind: Namespace
    metadata:
@@ -177,7 +177,7 @@ hack/local-up-karmada.sh
              type: DirectoryOrCreate
    ```
 
-2. Run the below command to execute karmada PropagationPolicy and ClusterPropagationPolicy. 
+2. Run the below command to execute Karmada PropagationPolicy and ClusterPropagationPolicy. 
 
    ```
    cat <<EOF | kubectl apply -f -

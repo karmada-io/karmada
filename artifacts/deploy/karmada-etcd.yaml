@@ -32,7 +32,7 @@ spec:
         - operator: Exists
       containers:
         - name: etcd
-          image: k8s.gcr.io/etcd:3.4.13-0
+          image: k8s.gcr.io/etcd:3.5.3-0
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
@@ -46,10 +46,10 @@ spec:
             successThreshold: 1
             timeoutSeconds: 10
           ports:
-            - containerPort: 2369
+            - containerPort: 2379
               name: client
               protocol: TCP
-            - containerPort: 2370
+            - containerPort: 2380
               name: server
               protocol: TCP
           volumeMounts:

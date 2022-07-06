@@ -4,7 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
+	"net"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -80,7 +82,7 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
 
-	cmd.AddCommand(sharedcommand.NewCmdVersion(os.Stdout, "karmada-agent"))
+	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-agent"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
@@ -137,6 +139,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	}
 
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{
+		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
 		SyncPeriod:                 &opts.ResyncPeriod.Duration,
 		Namespace:                  executionSpace,
@@ -144,6 +147,12 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		LeaderElectionID:           fmt.Sprintf("karmada-agent-%s", opts.ClusterName),
 		LeaderElectionNamespace:    opts.LeaderElection.ResourceNamespace,
 		LeaderElectionResourceLock: opts.LeaderElection.ResourceLock,
+		LeaseDuration:              &opts.LeaderElection.LeaseDuration.Duration,
+		RenewDeadline:              &opts.LeaderElection.RenewDeadline.Duration,
+		RetryPeriod:                &opts.LeaderElection.RetryPeriod.Duration,
+		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
+		LivenessEndpointName:       "/healthz",
+		MetricsBindAddress:         opts.MetricsBindAddress,
 		Controller: v1alpha1.ControllerConfigurationSpec{
 			GroupKindConcurrency: map[string]int{
 				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():       opts.ConcurrentWorkSyncs,
@@ -153,6 +162,11 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %w", err)
+	}
+
+	if err := controllerManager.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		klog.Errorf("failed to add health check endpoint: %v", err)
+		return err
 	}
 
 	if err = setupControllers(controllerManager, opts, ctx.Done()); err != nil {
@@ -186,6 +200,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+			ClusterSuccessThreshold:           opts.ClusterSuccessThreshold,
+			ClusterFailureThreshold:           opts.ClusterFailureThreshold,
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
@@ -223,6 +239,8 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		ClusterStatusUpdateFrequency:      ctx.Opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              ctx.Opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: ctx.Opts.ClusterLeaseRenewIntervalFraction,
+		ClusterSuccessThreshold:           ctx.Opts.ClusterSuccessThreshold,
+		ClusterFailureThreshold:           ctx.Opts.ClusterFailureThreshold,
 		ClusterCacheSyncTimeout:           ctx.Opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
 	}

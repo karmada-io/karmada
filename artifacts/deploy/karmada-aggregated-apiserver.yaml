@@ -36,7 +36,6 @@ spec:
             - --kubeconfig=/etc/kubeconfig
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
-            - --karmada-config=/etc/kubeconfig
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
             - --etcd-cafile=/etc/kubernetes/pki/server-ca.crt
             - --etcd-certfile=/etc/kubernetes/pki/karmada.crt
@@ -50,6 +49,14 @@ spec:
           resources:
             requests:
               cpu: 100m
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            timeoutSeconds: 15
       volumes:
         - name: k8s-certs
           secret:

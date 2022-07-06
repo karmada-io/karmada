@@ -46,6 +46,15 @@ spec:
             - --feature-gates=APIPriorityAndFairness=false
             - --audit-log-maxage=0
             - --audit-log-maxbackup=0
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: 443
+              scheme: HTTPS
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: 100m

@@ -14,6 +14,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
@@ -69,6 +70,10 @@ func main() {
 		workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding),
 		workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourceSingularClusterResourceBinding), meta.RESTScopeRoot)
 
+	mapper.AddSpecific(searchv1alpha1.SchemeGroupVersion.WithKind(searchv1alpha1.ResourceKindResourceRegistry),
+		searchv1alpha1.SchemeGroupVersion.WithResource(searchv1alpha1.ResourcePluralResourceRegistry),
+		searchv1alpha1.SchemeGroupVersion.WithResource(searchv1alpha1.ResourceSingularResourceRegistry), meta.RESTScopeRoot)
+
 	spec, err := lib.RenderOpenAPISpec(lib.Config{
 		Info: spec.InfoProps{
 			Title:       "Karmada OpenAPI",
@@ -96,6 +101,7 @@ func main() {
 			{GVR: workv1alpha1.SchemeGroupVersion.WithResource(workv1alpha1.ResourcePluralWork), NamespaceScoped: workv1alpha1.ResourceNamespaceScopedWork},
 			{GVR: workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralResourceBinding), NamespaceScoped: workv1alpha2.ResourceNamespaceScopedResourceBinding},
 			{GVR: workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding), NamespaceScoped: workv1alpha2.ResourceNamespaceScopedClusterResourceBinding},
+			{GVR: searchv1alpha1.SchemeGroupVersion.WithResource(searchv1alpha1.ResourcePluralResourceRegistry), NamespaceScoped: searchv1alpha1.ResourceNamespaceScopedResourceRegistry},
 		},
 		Mapper: mapper,
 	})

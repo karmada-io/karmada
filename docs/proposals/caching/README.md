@@ -47,82 +47,58 @@ Goals:
 
 ### Define the scope of the cached resource
 
-#### New ClusterCache API
+#### New Search APIGroup
 
-We propose a new CR in `cluster.karmada.io` group.
+We propose a new commponent named `karmada-search`, it provides a new api group called `search.karmada.io`, the reason why select the `search` word is because it's more to [OpenSearch](https://opensearch.org) which is a community-driven, Apache 2.0-licensed open source search and analytics suite.
+
+The `karmada-search` component currently supports two types of backend stores, namely `cache` and `opensearch`. It uses the `cache` type as the default backend store of the caching layer for Karamda.
+
+We introduce a new resource type called `ResourceRegistry` in `search.karmada.io` group, it requires end users to manually specify the clusters and resources that need to be cached
+
 
 ```golang
-
 package v1alpha1
 
-import (
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-
-// ClusterCache is the Schema for the cluster cache API
-type ClusterCache struct {
+// ResourceRegistry represents the configuration of the cache scope, mainly describes which resources in
+// which clusters should be cached.
+type ResourceRegistry struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ClusterCacheSpec   `json:"spec,omitempty"`
-	Status ClusterCacheStatus `json:"status,omitempty"`
+	// Spec represents the desired behavior of ResourceRegistry.
+	Spec ResourceRegistrySpec `json:"spec,omitempty"`
+
+	// Status represents the status of ResourceRegistry.
+	// +optional
+	Status ResourceRegistryStatus `json:"status,omitempty"`
 }
 
-// ClusterCacheSpec defines the desired state of ClusterCache
-type ClusterCacheSpec struct {
-	// ClusterSelectors represents the filter to select clusters.
+// ResourceRegistrySpec defines the desired state of ResourceRegistry.
+type ResourceRegistrySpec struct {
+	// TargetCluster specifies the clusters where the cache system collect resource from.
 	// +required
-	ClusterSelectors []ClusterSelector `json:"clusterSelectors"`
+	TargetCluster policyv1alpha1.ClusterAffinity `json:"targetCluster"`
 
-	// ResourceSelectors used to select resources.
+	// ResourceSelectors specifies the resources type that should be cached by cache system.
 	// +required
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
 
-	// StatusUpdatePeriodSeconds is the period to update the status of the resource.
-	// default is 10s.
+	// BackendStore specifies the location where to store the cached items.
 	// +optional
-	StatusUpdatePeriodSeconds uint32 `json:"statusUpdatePeriodSeconds,omitempty"`
+	BackendStore *BackendStoreConfig `json:"backendStore,omitempty"`
 }
 
-// ClusterSelector represents the filter to select clusters.
-type ClusterSelector struct {
-	// LabelSelector is a filter to select member clusters by labels.
-	// If non-nil and non-empty, only the clusters match this filter will be selected.
-	// +optional
-	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
-
-	// FieldSelector is a filter to select member clusters by fields.
-	// If non-nil and non-empty, only the clusters match this filter will be selected.
-	// +optional
-	FieldSelector *FieldSelector `json:"fieldSelector,omitempty"`
-
-	// ClusterNames is the list of clusters to be selected.
-	// +optional
-	ClusterNames []string `json:"clusterNames,omitempty"`
-
-	// ExcludedClusters is the list of clusters to be ignored.
-	// +optional
-	ExcludeClusters []string `json:"exclude,omitempty"`
-}
-
-// FieldSelector is a field filter.
-type FieldSelector struct {
-	// A list of field selector requirements.
-	MatchExpressions []corev1.NodeSelectorRequirement `json:"matchExpressions,omitempty"`
-}
-
-// ResourceSelector the resources will be selected.
+// ResourceSelector specifies the resources type and its scope.
 type ResourceSelector struct {
 	// APIVersion represents the API version of the target resources.
 	// +required
 	APIVersion string `json:"apiVersion"`
 
-	// Kind represents the Kind of the target resources.
+	// Kind represents the kind of the target resources.
 	// +required
 	Kind string `json:"kind"`
 
@@ -132,101 +108,84 @@ type ResourceSelector struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// ClusterCacheStatus defines the observed state of ClusterCache
-type ClusterCacheStatus struct {
+// BackendStoreConfig specifies backend store.
+type BackendStoreConfig struct {
+	// OpenSearch is a community-driven, open source search and analytics suite.
+	// Refer to website(https://opensearch.org/) for more details about OpenSearch.
 	// +optional
-	Resources []ResourceStatusRef `json:"resources,omitempty"`
-	// +optional
-	StartTime *metav1.Time `json:"startTime,omitempty"`
+	OpenSearch *OpenSearchConfig `json:"openSearch,omitempty"`
 }
 
-type ResourceStatusRef struct {
+// OpenSearchConfig holds the necessary configuration for client to access and config an OpenSearch server.
+type OpenSearchConfig struct {
+	// Addresses is a list of node endpoint(e.g. 'https://localhost:9200') to use.
+	// For the 'node' concept, please refer to:
+	// https://opensearch.org/docs/latest/opensearch/index/#clusters-and-nodes
 	// +required
-	Cluster string `json:"cluster"`
-	// +optional
-	APIVersion string `json:"apiVersion,omitempty"`
+	Addresses []string `json:"addresses"`
+
+	// SecretRef represents the secret contains mandatory credentials to access the server.
+	// The secret should hold credentials as follows:
+	// - secret.data.userName
+	// - secret.data.password
 	// +required
-	Kind string `json:"kind"`
-	// +optional
-	Namespace string `json:"namespace,omitempty"`
-	// +required
-	State CachePhase `json:"state"`
-	// +required
-	TotalNum int32 `json:"totalNum"`
-	// +required
-	UpdateTime *metav1.Time `json:"updateTime"`
+	SecretRef clusterv1alpha1.LocalSecretReference `json:"secretRef,omitempty"`
+
+	// More configurations such as transport, index should be added from here.
 }
 
-// CachePhase is the current state of the cache
-// +enum
-type CachePhase string
-
-// These are the valid statuses of cache.
-const (
-	CacheRunning CachePhase = "Running"
-	CacheFailed  CachePhase = "Failed"
-	CacheUnknown CachePhase = "Unknown"
-)
-
-type ResourceStateRef struct {
-	// +required
-	Phase CachePhase `json:"phase"`
+// ResourceRegistryStatus defines the observed state of ResourceRegistry
+type ResourceRegistryStatus struct {
+	// Conditions contain the different condition statuses.
 	// +optional
-	Reason string `json:"reason"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:resource:scope="Cluster"
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ClusterCacheList contains a list of ClusterCache
-type ClusterCacheList struct {
+// ResourceRegistryList if a collection of ResourceRegistry.
+type ResourceRegistryList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ClusterCache `json:"items"`
+
+	// Items holds a list of ResourceRegistry.
+	Items []ResourceRegistry `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&ClusterCache{}, &ClusterCacheList{})
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// Search define a flag for resource search that do not have actual resources.
+type Search struct {
+	metav1.TypeMeta `json:",inline"`
 }
 ```
 
 #### Example
 
-The following example shows how to create a ClusterCache CRD.
+The following example shows how to create a ResourceRegistry CR.
 
 ```yaml
-apiVersion: clustercaches.karmada.io/v1alpha1
-kind: ClusterCache
+apiVersion: search.karmada.io/v1alpha1
+kind:  ResourceRegistry
 metadata:
   name: clustercache-sample
 spec:
-  clusterSelectors:
-    - clusterNames:
-        - member1
-        - member2
-        - member3
+  targetCluster:
+    clusterNames:
+    - member1
+    - member2
+    - member3
   resourceSelectors:
     - kind: Pod
+      apiVersion: v1
     - kind: Ingress
       apiVersion: networking.k8s.io/v1
     - kind: DaemonSet
+      apiVersion: apps/v1
       namespace: kube-system
     - kind: Deployment
-status:
-  startTime: "2020-05-01T00:00:00Z"
-  resources:
-    - cluster: member1
-      kind: Pod
-      totalNum: 700
-      state:
-        phase: Running
-      updateTime: "2022-01-01T00:00:00Z"
-    - cluster: member1
-      kind: Ingress
-      totalNum: 0
-      state:
-        phase: Failed
-        reason: the server doesn't have a resource type ingresses
-      updateTime: "2022-01-01T00:00:00Z"
+      apiVersion: apps/v1
 ```
 
 ### Test Plan
