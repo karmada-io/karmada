@@ -148,3 +148,12 @@ func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, fiel
 	}
 	return nil
 }
+
+// ToUnstructured converts a typed object to an unstructured object.
+func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: uncastObj}, nil
+}
