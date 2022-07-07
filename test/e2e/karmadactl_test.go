@@ -337,7 +337,7 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 				},
 			}, policyv1alpha1.Placement{
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-					ClusterNames: []string{deploymentName},
+					ClusterNames: []string{clusterName},
 				},
 			})
 			karmadaConfig = karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
@@ -380,8 +380,13 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 			})
 			ginkgo.By("Waiting for deployment have been propagated to the member cluster.", func() {
 				klog.Infof("Waiting for deployment(%s/%s) synced on cluster(%s)", deploymentNamespace, deploymentName, clusterName)
+
+				clusterConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				clusterClient := kubernetes.NewForConfigOrDie(clusterConfig)
+
 				gomega.Eventually(func() bool {
-					_, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+					_, err := clusterClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 					return err == nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
