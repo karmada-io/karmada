@@ -1,8 +1,8 @@
-# propagationpolicy.yaml
+# clusterpropagationpolicy.yaml
 apiVersion: policy.karmada.io/v1alpha1
 kind: ClusterPropagationPolicy
 metadata:
-  name: example-policy # The default namespace is `default`.
+  name: example-policy
 spec:
   resourceSelectors:
     - apiVersion: apiextensions.k8s.io/v1
