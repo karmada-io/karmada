@@ -43,7 +43,6 @@ spec:
             - --etcd-keyfile=/etc/kubernetes/pki/karmada.key
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
             - --bind-address=0.0.0.0
-            - --insecure-port=0
             - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
             - --kubelet-client-key=/etc/kubernetes/pki/karmada.key
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
@@ -64,7 +63,7 @@ spec:
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
           name: karmada-apiserver
-          image: k8s.gcr.io/kube-apiserver:v1.23.8
+          image: k8s.gcr.io/kube-apiserver:v1.24.2
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 8
