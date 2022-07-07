@@ -34,6 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
+	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -104,6 +105,9 @@ func init() {
 
 func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *options.Options) error {
 	klog.Infof("karmada-agent version: %s", version.Get())
+
+	profileflag.ListenAndServe(opts.ProfileOpts)
+
 	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KarmadaKubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of karmada control plane: %w", err)

@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
+	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -88,6 +89,7 @@ type Options struct {
 	MetricsBindAddress string
 
 	RateLimiterOpts ratelimiterflag.Options
+	ProfileOpts     profileflag.Options
 }
 
 // NewOptions builds an default scheduler options.
@@ -153,4 +155,5 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8088, :8088)")
 	o.RateLimiterOpts.AddFlags(fs)
+	o.ProfileOpts.AddFlags(fs)
 }

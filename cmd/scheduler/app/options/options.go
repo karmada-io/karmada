@@ -9,6 +9,7 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -50,6 +51,7 @@ type Options struct {
 
 	// EnableEmptyWorkloadPropagation represents whether workload with 0 replicas could be propagated to member clusters.
 	EnableEmptyWorkloadPropagation bool
+	ProfileOpts                    profileflag.Options
 }
 
 // NewOptions builds an default scheduler options.
@@ -87,4 +89,5 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
 	fs.BoolVar(&o.EnableEmptyWorkloadPropagation, "enable-empty-workload-propagation", false, "Enable workload with replicas 0 to be propagated to member clusters.")
 	features.FeatureGate.AddFlag(fs)
+	o.ProfileOpts.AddFlags(fs)
 }
