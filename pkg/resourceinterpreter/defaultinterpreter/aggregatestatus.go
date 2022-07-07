@@ -10,6 +10,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -280,10 +281,12 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 
 	newStatus := &corev1.PodStatus{}
 	newStatus.ContainerStatuses = make([]corev1.ContainerStatus, 0)
-	runningFlag := true
+	podPhases := sets.NewString()
 	for _, item := range aggregatedStatusItems {
 		if item.Status == nil {
-			runningFlag = false
+			// maybe pod's status hasn't been collected yet, assume it's in pending state.
+			// Otherwise, it may affect the final aggregated state.
+			podPhases.Insert(string(corev1.PodPending))
 			continue
 		}
 
@@ -292,9 +295,7 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 			return nil, err
 		}
 
-		if temp.Phase != corev1.PodRunning {
-			runningFlag = false
-		}
+		podPhases.Insert(string(temp.Phase))
 
 		for _, containerStatus := range temp.ContainerStatuses {
 			tempStatus := corev1.ContainerStatus{
@@ -307,10 +308,20 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 			pod.Name, item.ClusterName, temp.Phase)
 	}
 
-	if runningFlag {
-		newStatus.Phase = corev1.PodRunning
-	} else {
+	// Check final phase in order: PodFailed-->PodPending-->PodRunning-->PodSucceeded
+	// Ignore to check PodUnknown as it has been deprecated since year 2015.
+	// More details please refer to: https://github.com/karmada-io/karmada/issues/2137
+	switch {
+	case podPhases.Has(string(corev1.PodFailed)):
+		newStatus.Phase = corev1.PodFailed
+	case podPhases.Has(string(corev1.PodPending)):
 		newStatus.Phase = corev1.PodPending
+	case podPhases.Has(string(corev1.PodRunning)):
+		newStatus.Phase = corev1.PodRunning
+	case podPhases.Has(string(corev1.PodSucceeded)):
+		newStatus.Phase = corev1.PodSucceeded
+	default:
+		klog.Errorf("SHOULD-NEVER-HAPPEN, maybe Pod added a new state that Karmada don't know about.")
 	}
 
 	if reflect.DeepEqual(pod.Status, *newStatus) {

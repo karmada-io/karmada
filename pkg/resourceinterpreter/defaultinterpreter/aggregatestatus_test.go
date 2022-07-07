@@ -510,6 +510,72 @@ func TestAggregatePodStatus(t *testing.T) {
 	}}
 	newObjFailed, _ := helper.ToUnstructured(newPodFailed)
 
+	containerStatusesRunning := []corev1.ContainerStatus{
+		{
+			Ready: true,
+			State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: metav1.Time{Time: time.Now()}}},
+		},
+	}
+	newContainerStatusesFail := []corev1.ContainerStatus{
+		{
+			Ready: false,
+			State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 125}},
+		},
+	}
+	newContainerStatusesSucceeded := []corev1.ContainerStatus{
+		{
+			Ready: false,
+			State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 0}},
+		},
+	}
+	statusMapRunning := map[string]interface{}{
+		"containerStatuses": []corev1.ContainerStatus{containerStatusesRunning[0]},
+		"phase":             corev1.PodRunning,
+	}
+	statusMapFailed := map[string]interface{}{
+		"containerStatuses": []corev1.ContainerStatus{newContainerStatusesFail[0]},
+		"phase":             corev1.PodFailed,
+	}
+	statusMapSucceeded := map[string]interface{}{
+		"containerStatuses": []corev1.ContainerStatus{newContainerStatusesSucceeded[0]},
+		"phase":             corev1.PodSucceeded,
+	}
+
+	rawRunning, _ := helper.BuildStatusRawExtension(statusMapRunning)
+
+	// test failed
+	rawFail, _ := helper.BuildStatusRawExtension(statusMapFailed)
+	aggregatedStatusItemsFail := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: rawRunning, Applied: true},
+		{ClusterName: "member2", Status: rawFail, Applied: true},
+	}
+	aggregatedStatusItemsPending := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: rawRunning, Applied: true},
+		{ClusterName: "member2", Status: nil, Applied: true},
+	}
+
+	failObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0], newContainerStatusesFail[0]},
+		Phase:             corev1.PodFailed,
+	}})
+
+	// test succeeded
+	rawSucceeded, _ := helper.BuildStatusRawExtension(statusMapSucceeded)
+	aggregatedStatusItemsSucceeded := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: rawRunning, Applied: true},
+		{ClusterName: "member2", Status: rawSucceeded, Applied: true},
+	}
+
+	succeededObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0], newContainerStatusesSucceeded[0]},
+		Phase:             corev1.PodRunning,
+	}})
+
+	pendingObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0]},
+		Phase:             corev1.PodPending,
+	}})
+
 	tests := []struct {
 		name                  string
 		curObj                *unstructured.Unstructured
@@ -533,6 +599,25 @@ func TestAggregatePodStatus(t *testing.T) {
 			curObj:                newObj,
 			aggregatedStatusItems: aggregatedStatusItems2,
 			expectedObj:           newObjFailed,
+		},
+		// More details please refer to: https://github.com/karmada-io/karmada/issues/2137
+		{
+			name:                  "failed pod status",
+			curObj:                curObj,
+			aggregatedStatusItems: aggregatedStatusItemsFail, //  Running + Failed => Failed
+			expectedObj:           failObj,
+		},
+		{
+			name:                  "succeeded pod status",
+			curObj:                curObj,
+			aggregatedStatusItems: aggregatedStatusItemsSucceeded, //  Running + Succeeded => Running
+			expectedObj:           succeededObj,
+		},
+		{
+			name:                  "pending pod status",
+			curObj:                curObj,
+			aggregatedStatusItems: aggregatedStatusItemsPending, //  Running + nil => Pending
+			expectedObj:           pendingObj,
 		},
 	}
 
