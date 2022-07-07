@@ -46,13 +46,12 @@ spec:
             - --kubeconfig=/etc/kubeconfig
             - --leader-elect=true
             - --node-cidr-mask-size=24
-            - --port=0
             - --root-ca-file=/etc/karmada/pki/server-ca.crt
             - --service-account-private-key-file=/etc/karmada/pki/karmada.key
             - --service-cluster-ip-range=10.96.0.0/12
             - --use-service-account-credentials=true
             - --v=4
-          image: k8s.gcr.io/kube-controller-manager:v1.23.8
+          image: k8s.gcr.io/kube-controller-manager:v1.24.2
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 8

@@ -8,6 +8,7 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -24,6 +25,7 @@ var _ = ginkgo.Describe("Aggregated Kubernetes API Endpoint testing", func() {
 	var member1, member2 string
 	var saName, saNamespace string
 	var tomServiceAccount *corev1.ServiceAccount
+	var tomSecret *corev1.Secret
 	var tomClusterRole *rbacv1.ClusterRole
 	var tomClusterRoleBinding *rbacv1.ClusterRoleBinding
 	var tomClusterRoleOnMember *rbacv1.ClusterRole
@@ -35,6 +37,16 @@ var _ = ginkgo.Describe("Aggregated Kubernetes API Endpoint testing", func() {
 		saName = fmt.Sprintf("tom-%s", rand.String(RandomStrLength))
 		saNamespace = testNamespace
 		tomServiceAccount = helper.NewServiceaccount(saNamespace, saName)
+		tomSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: saNamespace,
+				Name:      saName,
+				Annotations: map[string]string{
+					corev1.ServiceAccountNameKey: saName,
+				},
+			},
+			Type: corev1.SecretTypeServiceAccountToken,
+		}
 		tomClusterRole = helper.NewClusterRole(tomServiceAccount.Name, []rbacv1.PolicyRule{
 			{
 				APIGroups:     []string{"cluster.karmada.io"},
@@ -66,6 +78,7 @@ var _ = ginkgo.Describe("Aggregated Kubernetes API Endpoint testing", func() {
 
 		ginkgo.BeforeEach(func() {
 			framework.CreateServiceAccount(kubeClient, tomServiceAccount)
+			framework.CreateSecret(kubeClient, tomSecret)
 			framework.CreateClusterRole(kubeClient, tomClusterRole)
 			framework.CreateClusterRoleBinding(kubeClient, tomClusterRoleBinding)
 			ginkgo.DeferCleanup(func() {
