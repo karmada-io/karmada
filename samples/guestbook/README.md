@@ -14,9 +14,10 @@ export KUBECONFIG=${HOME}/.kube/karmada.config
 kubectl apply -f guestbooks-crd.yaml 
 ``` 
 The CRD should be applied to `karmada-apiserver`.
+
 2. Create ClusterPropagationPolicy that will propagate Guestbook CRD to member cluster
 ```bash
-kubectl apply -f guestbooks-clusterpropagationolicy.yaml
+kubectl apply -f guestbooks-clusterpropagationpolicy.yaml
 ```
 The CRD will be propagated to member clusters according to the rules defined in ClusterPropagationPolicy
 >Note: We can only use ClusterPropagationPolicy not PropagationPolicy here.
