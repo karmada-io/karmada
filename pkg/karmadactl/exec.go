@@ -66,6 +66,7 @@ func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 	cmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodExecTimeout)
 	cmdutil.AddJsonFilenameFlag(cmd.Flags(), &o.FilenameOptions.Filenames, "to use to exec into the resource")
 	cmd.Flags().StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "-n=namespace or -n namespace")
 	cmdutil.AddContainerVarFlags(cmd, &o.ContainerName, o.ContainerName)
 	cmd.Flags().BoolVarP(&o.Stdin, "stdin", "i", o.Stdin, "Pass stdin to the container")
 	cmd.Flags().BoolVarP(&o.TTY, "tty", "t", o.TTY, "Stdin is a TTY")
@@ -197,10 +198,15 @@ func (p *ExecOptions) Complete(karmadaConfig KarmadaConfig, argsIn []string, arg
 
 	f := getFactory(p.Cluster, clusterInfo)
 
-	p.Namespace, p.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
+	namespace, enforceNamespace, err := f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
 	}
+
+	if p.Namespace == "" {
+		p.Namespace = namespace
+	}
+	p.EnforceNamespace = enforceNamespace
 
 	p.ExecutablePodFn = polymorphichelpers.AttachablePodForObjectFn
 
