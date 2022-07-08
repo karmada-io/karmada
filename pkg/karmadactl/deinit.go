@@ -38,8 +38,8 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 	opts := CommandDeInitOption{}
 	cmd := &cobra.Command{
 		Use:          "deinit",
-		Short:        "removes Karmada from Kubernetes",
-		Long:         "removes Karmada from Kubernetes",
+		Short:        "Removes Karmada from Kubernetes",
+		Long:         "Removes Karmada from Kubernetes",
 		Example:      deInitExample(parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
