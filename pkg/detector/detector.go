@@ -973,12 +973,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 			}
 		}
 	}
-
-	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
-
-	return nil
+	return errors.NewAggregate(errs)
 }
 
 // HandlePropagationPolicyCreation handles PropagationPolicy add event.

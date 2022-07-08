@@ -6,7 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
@@ -120,12 +119,9 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 func (c *SyncController) cleanUpWorks(namespace, name string) error {
 	var errs []error
 	workList := &workv1alpha1.WorkList{}
-	if err := c.List(context.TODO(), workList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(
-			labels.Set{
-				util.FederatedResourceQuotaNamespaceLabel: namespace,
-				util.FederatedResourceQuotaNameLabel:      name,
-			}),
+	if err := c.List(context.TODO(), workList, client.MatchingLabels{
+		util.FederatedResourceQuotaNamespaceLabel: namespace,
+		util.FederatedResourceQuotaNameLabel:      name,
 	}); err != nil {
 		klog.Errorf("Failed to list works, err: %v", err)
 		return err
@@ -139,10 +135,7 @@ func (c *SyncController) cleanUpWorks(namespace, name string) error {
 		}
 	}
 
-	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
-	return nil
+	return errors.NewAggregate(errs)
 }
 
 func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota, clusters []clusterv1alpha1.Cluster) error {
@@ -190,10 +183,7 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 		}
 	}
 
-	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
-	return nil
+	return errors.NewAggregate(errs)
 }
 
 func extractClusterHardResourceList(spec policyv1alpha1.FederatedResourceQuotaSpec, cluster string) corev1.ResourceList {

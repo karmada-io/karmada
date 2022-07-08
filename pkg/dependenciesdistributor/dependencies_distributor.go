@@ -546,11 +546,7 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 		}
 	}
 
-	if len(errs) > 0 {
-		return utilerrors.NewAggregate(errs)
-	}
-
-	return nil
+	return utilerrors.NewAggregate(errs)
 }
 
 func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) *workv1alpha2.ResourceBinding {
