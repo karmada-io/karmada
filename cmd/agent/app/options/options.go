@@ -89,7 +89,18 @@ type Options struct {
 	MetricsBindAddress string
 
 	RateLimiterOpts ratelimiterflag.Options
-	ProfileOpts     profileflag.Options
+
+	ProfileOpts profileflag.Options
+
+	// ReportSecrets specifies the secrets that are allowed to be reported to the Karmada control plane
+	// during registering.
+	// Valid values are:
+	// - "None": Don't report any secrets.
+	// - "KubeCredentials": Report the secret that contains mandatory credentials to access the member cluster.
+	// - "KubeImpersonator": Report the secret that contains the token of impersonator.
+	// - "KubeCredentials,KubeImpersonator": Report both KubeCredentials and KubeImpersonator.
+	// Defaults to "KubeCredentials,KubeImpersonator".
+	ReportSecrets []string
 }
 
 // NewOptions builds an default scheduler options.
@@ -153,6 +164,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
 	fs.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of Clusters that are allowed to sync concurrently.")
 	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
+	fs.StringSliceVar(&o.ReportSecrets, "report-secrets", []string{"KubeCredentials", "KubeImpersonator"}, "The secrets that are allowed to be reported to the Karmada control plane during registering. Valid values are 'KubeCredentials', 'KubeImpersonator' and 'None'. e.g 'KubeCredentials,KubeImpersonator' or 'None'.")
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8088, :8088)")
 	o.RateLimiterOpts.AddFlags(fs)
 	o.ProfileOpts.AddFlags(fs)
