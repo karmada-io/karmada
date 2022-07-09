@@ -105,7 +105,7 @@ type CommandGetOptions struct {
 	// global flags
 	options.GlobalCommandOptions
 
-	// ClusterNamespace holds the namespace name where the member cluster objects are stored.
+	// ClusterNamespace holds the namespace name where the member cluster secrets are stored.
 	ClusterNamespace string
 
 	Clusters []string
@@ -608,7 +608,7 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 	return nil
 }
 
-//watchMultiClusterObj watch objects in multi clusters by goroutines
+// watchMultiClusterObj watch objects in multi clusters by goroutines
 func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *meta.RESTMapping, outputObjects *bool, printer printers.ResourcePrinterFunc) {
 	var wg sync.WaitGroup
 

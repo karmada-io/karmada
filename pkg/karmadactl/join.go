@@ -64,7 +64,7 @@ func joinExample(parentCommand string) string {
 type CommandJoinOption struct {
 	options.GlobalCommandOptions
 
-	// ClusterNamespace holds the namespace name where the member cluster objects are stored.
+	// ClusterNamespace holds the namespace name where the member cluster secrets are stored.
 	ClusterNamespace string
 
 	// ClusterName is the cluster's name that we are going to join with.
