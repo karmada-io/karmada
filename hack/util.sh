@@ -613,7 +613,7 @@ function util::get_GO_LDFLAGS() {
   GIT_VERSION=$(git describe --tags --dirty)
   GIT_COMMIT_HASH=$(git rev-parse HEAD)
   GIT_TREESTATE="clean"
-  GIT_DIFF=$(git diff --quiet >/dev/null 2>&1; if [[ $$ = 1 ]]; then echo "1"; fi)
+  GIT_DIFF=$(git diff --quiet >/dev/null 2>&1; if [[ $? = 1 ]]; then echo "1"; fi)
   if [[ "${GIT_DIFF}" == "1" ]];then
       GIT_TREESTATE="dirty"
   fi
