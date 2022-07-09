@@ -124,8 +124,8 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
-	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster.")
-	flags.StringVar(&j.ClusterRegion, "cluster-region", "", "The region of the joining cluster.")
+	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
+	flags.StringVar(&j.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
 	flags.StringVar(&j.ClusterZone, "cluster-zone", "", "The zone of the joining cluster")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
