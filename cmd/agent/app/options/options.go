@@ -101,6 +101,12 @@ type Options struct {
 	// - "KubeCredentials,KubeImpersonator": Report both KubeCredentials and KubeImpersonator.
 	// Defaults to "KubeCredentials,KubeImpersonator".
 	ReportSecrets []string
+
+	// ClusterProvider is the cluster's provider.
+	ClusterProvider string
+
+	// ClusterRegion represents the region of the cluster locate in.
+	ClusterRegion string
 }
 
 // NewOptions builds an default scheduler options.
@@ -166,6 +172,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
 	fs.StringSliceVar(&o.ReportSecrets, "report-secrets", []string{"KubeCredentials", "KubeImpersonator"}, "The secrets that are allowed to be reported to the Karmada control plane during registering. Valid values are 'KubeCredentials', 'KubeImpersonator' and 'None'. e.g 'KubeCredentials,KubeImpersonator' or 'None'.")
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8088, :8088)")
+	fs.StringVar(&o.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
+	fs.StringVar(&o.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
 	o.RateLimiterOpts.AddFlags(fs)
 	o.ProfileOpts.AddFlags(fs)
 }

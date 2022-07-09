@@ -125,6 +125,8 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		ReportSecrets:      opts.ReportSecrets,
 		ClusterAPIEndpoint: opts.ClusterAPIEndpoint,
 		ProxyServerAddress: opts.ProxyServerAddress,
+		ClusterProvider:    opts.ClusterProvider,
+		ClusterRegion:      opts.ClusterRegion,
 		DryRun:             false,
 		ControlPlaneConfig: controlPlaneRestConfig,
 		ClusterConfig:      clusterConfig,
