@@ -309,3 +309,17 @@ func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *w
 
 	return &response.RawStatus, matched, nil
 }
+
+// GetPauseEnsureWorkStatus returns the status of pause ensure work object.
+// return matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) GetPauseEnsureWorkStatus(ctx context.Context, attributes *webhook.RequestAttributes) (pauseStatus bool, matched bool, err error) {
+	var response *webhook.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+	return response.PauseEnsureWork, matched, nil
+}

@@ -42,6 +42,9 @@ type ResourceInterpreter interface {
 	// ReflectStatus returns the status of the object.
 	ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error)
 
+	// GetPauseEnsureWorkStatus returns the status of pause ensure work object.
+	GetPauseEnsureWorkStatus(object *unstructured.Unstructured) (pauseStatus bool, err error)
+
 	// other common method
 }
 
@@ -202,4 +205,25 @@ func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstr
 
 	status, err = i.defaultInterpreter.ReflectStatus(object)
 	return
+}
+
+// GetPauseEnsureWorkStatus returns the status of pause ensure work object.
+func (i *customResourceInterpreterImpl) GetPauseEnsureWorkStatus(object *unstructured.Unstructured) (pauseStatus bool, err error) {
+	klog.V(4).Infof("Begin to grab pause ensure work status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	pauseStatus, hookEnabled, err := i.customizedInterpreter.GetPauseEnsureWorkStatus(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationPauseEnsureWork,
+		Object:    object,
+	})
+	defer func() {
+		klog.V(4).Infof("pauseStatus: %v, gvk: %s, name: %s", pauseStatus, object.GroupVersionKind().String(), object.GetName())
+	}()
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+
+	return i.defaultInterpreter.GetPauseEnsureWorkStatus(object), nil
 }

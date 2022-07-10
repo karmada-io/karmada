@@ -155,6 +155,11 @@ func (in *ResourceInterpreterResponse) DeepCopyInto(out *ResourceInterpreterResp
 		*out = new(bool)
 		**out = **in
 	}
+	if in.PauseEnsureWork != nil {
+		in, out := &in.PauseEnsureWork, &out.PauseEnsureWork
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

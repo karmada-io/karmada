@@ -126,6 +126,21 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	var errs []error
+	if c.ResourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationPauseEnsureWork) {
+		pauseStatus, err := c.ResourceInterpreter.GetPauseEnsureWorkStatus(workload)
+		if err != nil {
+			klog.Errorf("Failed grab pause ensure work status for %s(%s), %v", workload.GroupVersionKind(), workload.GetName(), err)
+			c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, err.Error())
+			c.EventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, err.Error())
+			errs = append(errs, err)
+		} else {
+			if pauseStatus {
+				c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, "pause ensure work object")
+				c.EventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, "pause ensure work object")
+				return controllerruntime.Result{}, nil
+			}
+		}
+	}
 	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
