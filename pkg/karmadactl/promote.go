@@ -95,7 +95,7 @@ type CommandPromoteOption struct {
 	// Cluster is the name of legacy cluster
 	Cluster string
 
-	// ClusterNamespace holds the namespace name where the member cluster objects are stored.
+	// ClusterNamespace holds the namespace name where the member cluster secrets are stored.
 	ClusterNamespace string
 
 	// Namespace is the namespace of legacy resource
