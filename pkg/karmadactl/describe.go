@@ -18,8 +18,7 @@ import (
 )
 
 // NewCmdDescribe new describe command.
-func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
-	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
+func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CommandDescribeOptions{
 		FilenameOptions: &resource.FilenameOptions{},
 		DescriberSettings: &describe.DescriberSettings{
@@ -29,7 +28,7 @@ func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 
 		CmdParent: parentCommand,
 
-		IOStreams: ioStreams,
+		IOStreams: streams,
 	}
 
 	cmd := &cobra.Command{
