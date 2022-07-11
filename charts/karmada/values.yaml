@@ -286,7 +286,7 @@ apiServer:
   image:
     registry: k8s.gcr.io
     repository: kube-apiserver
-    tag: "v1.23.8"
+    tag: "v1.24.2"
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -426,7 +426,7 @@ kubeControllerManager:
   image:
     registry: k8s.gcr.io
     repository: kube-controller-manager
-    tag: "v1.23.8"
+    tag: "v1.24.2"
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##

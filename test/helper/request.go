@@ -24,37 +24,19 @@ const (
 
 // GetTokenFromServiceAccount get token from serviceAccount's related secret.
 func GetTokenFromServiceAccount(client kubernetes.Interface, saNamespace, saName string) (string, error) {
-	var saRefSecret string
+	klog.Infof("Get serviceAccount(%s/%s)'s refer secret", saNamespace, saName)
+	var token string
 	err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-		sa, err := client.CoreV1().ServiceAccounts(saNamespace).Get(context.TODO(), saName, metav1.GetOptions{})
+		saRefSecret, err := client.CoreV1().Secrets(saNamespace).Get(context.TODO(), saName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return false, nil
 			}
-			return false, err
-		}
-
-		if sa.Secrets == nil || len(sa.Secrets) == 0 {
+			klog.Errorf("Failed to get serviceAccount(%s/%s)'s refer secret, error: %v", saNamespace, saName, err)
 			return false, nil
 		}
-		saRefSecret = sa.Secrets[0].Name
-		return true, nil
-	})
-	if err != nil {
-		return "", err
-	}
 
-	klog.Infof("Get serviceAccount(%s/%s)'s refer secret(%s)", saNamespace, saName, saRefSecret)
-	var token string
-	err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
-		secret, err := client.CoreV1().Secrets(saNamespace).Get(context.TODO(), saRefSecret, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return false, nil
-			}
-			return false, err
-		}
-		tokenByte, ok := secret.Data["token"]
+		tokenByte, ok := saRefSecret.Data["token"]
 		if !ok {
 			return false, nil
 		}
@@ -64,7 +46,6 @@ func GetTokenFromServiceAccount(client kubernetes.Interface, saNamespace, saName
 	if err != nil {
 		return "", err
 	}
-
 	return token, nil
 }
 
