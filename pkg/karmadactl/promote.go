@@ -212,7 +212,7 @@ func RunPromote(karmadaConfig KarmadaConfig, opts CommandPromoteOption, args []s
 		f = cmdutil.NewFactory(kubeConfigFlags)
 	} else {
 		opts.setClusterProxyInfo(controlPlaneRestConfig, opts.Cluster, clusterInfos)
-		f = getFactory(opts.Cluster, clusterInfos)
+		f = getFactory(opts.Cluster, clusterInfos, "")
 	}
 
 	objInfo, err := opts.getObjInfo(f, opts.Cluster, args)
