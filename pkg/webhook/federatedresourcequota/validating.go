@@ -18,6 +18,7 @@ package federatedresourcequota
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -30,6 +31,10 @@ import (
 	clustervalidation "github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
+)
+
+const (
+	LabelValueMaxLength = 63
 )
 
 // ValidatingAdmission validates FederatedResourceQuota object when creating/updating.
@@ -61,6 +66,10 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 
 func validateFederatedResourceQuota(quota *policyv1alpha1.FederatedResourceQuota) field.ErrorList {
 	errs := field.ErrorList{}
+	// TODO: Remove validateFederatedResourceQuotaName after the name of FederatedResourceQuota is no longer used in label.
+	// Using resource names as labels is not a recommended practice. This is a cheaper solution to prevent people from doing wrong and fix it later.
+	// https://github.com/karmada-io/karmada/pull/2168#issuecomment-2868574495
+	errs = append(errs, validateFederatedResourceQuotaName(quota.Name, field.NewPath("metadata").Child("name"))...)
 	errs = append(errs, validateFederatedResourceQuotaSpec(&quota.Spec, field.NewPath("spec"))...)
 	errs = append(errs, validateFederatedResourceQuotaStatus(&quota.Status, field.NewPath("status"))...)
 	return errs
@@ -160,6 +169,16 @@ func validateResourceList(resourceList corev1.ResourceList, fld *field.Path) fie
 		resPath := fld.Key(string(k))
 		errs = append(errs, lifted.ValidateResourceQuotaResourceName(string(k), resPath)...)
 		errs = append(errs, lifted.ValidateResourceQuantityValue(string(k), v, resPath)...)
+	}
+
+	return errs
+}
+
+func validateFederatedResourceQuotaName(name string, fld *field.Path) field.ErrorList {
+	errs := field.ErrorList{}
+
+	if len(name) > LabelValueMaxLength {
+		errs = append(errs, field.Invalid(fld, name, fmt.Sprintf("must be no more than %d characters", LabelValueMaxLength)))
 	}
 
 	return errs
