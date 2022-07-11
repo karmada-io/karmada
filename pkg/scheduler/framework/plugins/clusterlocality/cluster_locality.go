@@ -15,12 +15,12 @@ const (
 	Name = "ClusterLocality"
 )
 
-// ClusterLocality is a score plugin that favors cluster that already have requested.
+// ClusterLocality is a score plugin that favors cluster that already have the resource.
 type ClusterLocality struct{}
 
 var _ framework.ScorePlugin = &ClusterLocality{}
 
-// New instantiates the clusteraffinity plugin.
+// New instantiates the ClusterLocality plugin.
 func New() (framework.Plugin, error) {
 	return &ClusterLocality{}, nil
 }
@@ -31,7 +31,8 @@ func (p *ClusterLocality) Name() string {
 }
 
 // Score calculates the score on the candidate cluster.
-// if cluster object is exist in resourceBinding.Spec.Clusters, Score is 100, otherwise it is 0.
+// If the cluster already have the resource(exists in .spec.Clusters of ResourceBinding or ClusterResourceBinding),
+// then score is 100, otherwise 0.
 func (p *ClusterLocality) Score(ctx context.Context, placement *policyv1alpha1.Placement,
 	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	if len(spec.Clusters) == 0 {
