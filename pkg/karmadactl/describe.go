@@ -19,6 +19,8 @@ import (
 )
 
 var (
+	describeLong = templates.LongDesc(`
+		Show details of a specific resource or group of resources in a cluster.`)
 	describeExample = templates.Examples(`
 		# Describe a pod in cluster(member1)
 		%[1]s describe pods/nginx -C=member1
@@ -55,6 +57,7 @@ func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 	cmd := &cobra.Command{
 		Use:          "describe (-f FILENAME | TYPE [NAME_PREFIX | -l label] | TYPE/NAME) (-C CLUSTER)",
 		Short:        "Show details of a specific resource or group of resources in a cluster",
+		Long:         describeLong,
 		SilenceUsage: true,
 		Example:      fmt.Sprintf(describeExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {

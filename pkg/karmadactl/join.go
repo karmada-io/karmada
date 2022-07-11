@@ -20,9 +20,8 @@ import (
 )
 
 var (
-	joinShort = `Register a cluster to control plane`
-	joinLong  = `Join registers a cluster to control plane.`
-
+	joinLong = templates.LongDesc(`
+		Join registers a cluster to control plane.`)
 	joinExample = templates.Examples(`
 		# Join cluster into karamada control plane, if '--cluster-context' not specified, take the cluster name as the context
 		%[1]s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>`)
@@ -34,7 +33,7 @@ func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 
 	cmd := &cobra.Command{
 		Use:          "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:        joinShort,
+		Short:        "Register a cluster to control plane",
 		Long:         joinLong,
 		Example:      fmt.Sprintf(joinExample, parentCommand),
 		SilenceUsage: true,
@@ -124,7 +123,7 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 		"Path of the cluster's kubeconfig.")
 	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	flags.StringVar(&j.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
-	flags.StringVar(&j.ClusterZone, "cluster-zone", "", "The zone of the joining cluster")
+	flags.StringVar(&j.ClusterZone, "cluster-zone", "", "The zone of the joining cluster.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 

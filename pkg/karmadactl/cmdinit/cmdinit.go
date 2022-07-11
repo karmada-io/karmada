@@ -12,12 +12,9 @@ import (
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
-const (
-	initShort = `Install karmada in kubernetes`
-	initLong  = `Install karmada in kubernetes.`
-)
-
 var (
+	initLong = templates.LongDesc(`
+		Install karmada in kubernetes.`)
 	initExamples = templates.Examples(`
 		# Install Karmada in Kubernetes cluster
 		# The karmada-apiserver binds the master node's IP by default
@@ -59,7 +56,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	opts := kubernetes.CommandInitOption{}
 	cmd := &cobra.Command{
 		Use:          "init",
-		Short:        initShort,
+		Short:        "Install karmada in kubernetes",
 		Long:         initLong,
 		Example:      initExample(parentCommand),
 		SilenceUsage: true,

@@ -59,8 +59,8 @@ var (
 	}
 	eventColumn = metav1.TableColumnDefinition{Name: "EVENT", Type: "string", Format: "", Priority: 0}
 
-	getShort = `Display one or many resources`
-
+	getLong = templates.LongDesc(`
+		Display one or many resources.`)
 	getExample = templates.Examples(`
 		# List all pods in ps output format
 		%[1]s get pods
@@ -93,7 +93,8 @@ func NewCmdGet(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command
 	o := NewCommandGetOptions(ioStreams)
 	cmd := &cobra.Command{
 		Use:          "get [NAME | -l label | -n namespace]  [flags]",
-		Short:        getShort,
+		Short:        `Display one or many resources`,
+		Long:         getLong,
 		SilenceUsage: true,
 		Example:      fmt.Sprintf(getExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {

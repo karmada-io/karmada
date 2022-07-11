@@ -23,7 +23,9 @@ const (
 
 var (
 	logsUsageErrStr = fmt.Sprintf("expected '%s'.\nPOD or TYPE/NAME is a required argument for the logs command", logsUsageStr)
-	logsExample     = templates.Examples(`
+	logsLong        = templates.LongDesc(`
+		Print the logs for a container in a pod in a cluster.`)
+	logsExample = templates.Examples(`
 		# Return snapshot logs from pod nginx with only one container in cluster(member1)
 		%[1]s logs nginx -C=member1
 	
@@ -59,6 +61,7 @@ func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 	cmd := &cobra.Command{
 		Use:          logsUsageStr,
 		Short:        "Print the logs for a container in a pod in a cluster",
+		Long:         logsLong,
 		SilenceUsage: true,
 		Example:      fmt.Sprintf(logsExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {

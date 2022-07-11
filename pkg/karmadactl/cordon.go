@@ -19,12 +19,10 @@ import (
 )
 
 var (
-	cordonShort = `Mark cluster as unschedulable`
-	cordonLong  = `Mark cluster as unschedulable.`
-
-	uncordonShort = `Mark cluster as schedulable`
-	uncordonLong  = `Mark cluster as schedulable.`
-
+	cordonLong = templates.LongDesc(`
+		Mark cluster as unschedulable.`)
+	uncordonLong = templates.LongDesc(`
+		Mark cluster as schedulable.`)
 	cordonExample = templates.Examples(`
 		# Mark cluster "foo" as unschedulable.
 		%[1]s cordon foo`)
@@ -46,7 +44,7 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:          "cordon CLUSTER",
-		Short:        cordonShort,
+		Short:        "Mark cluster as unschedulable",
 		Long:         cordonLong,
 		Example:      fmt.Sprintf(cordonExample, parentCommand),
 		SilenceUsage: true,
@@ -74,7 +72,7 @@ func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:          "uncordon CLUSTER",
-		Short:        uncordonShort,
+		Short:        "Mark cluster as schedulable",
 		Long:         uncordonLong,
 		Example:      fmt.Sprintf(uncordonExample, parentCommand),
 		SilenceUsage: true,

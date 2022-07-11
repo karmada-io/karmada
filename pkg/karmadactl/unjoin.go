@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	unjoinShort   = `Remove the registration of a cluster from control plane`
-	unjoinLong    = `Unjoin removes the registration of a cluster from control plane.`
+	unjoinLong = templates.LongDesc(`
+		Unjoin removes the registration of a cluster from control plane.`)
 	unjoinExample = templates.Examples(`
 		# Unjoin cluster from karamada control plane, but not to remove resources created by karmada in the unjoining cluster
 		%[1]s unjoin CLUSTER_NAME
@@ -42,7 +42,7 @@ func NewCmdUnjoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 
 	cmd := &cobra.Command{
 		Use:          "unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:        unjoinShort,
+		Short:        "Remove the registration of a cluster from control plane",
 		Long:         unjoinLong,
 		Example:      fmt.Sprintf(unjoinExample, parentCommand),
 		SilenceUsage: true,

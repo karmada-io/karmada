@@ -18,6 +18,8 @@ const (
 )
 
 var (
+	execLong = templates.LongDesc(`
+		Execute a command in a container in a cluster.`)
 	execExample = templates.Examples(`
 		# Get output from running the 'date' command from pod mypod, using the first container by default in cluster(member1)
 		%[1]s exec mypod -C=member1 -- date
@@ -54,7 +56,7 @@ func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 	cmd := &cobra.Command{
 		Use:     "exec (POD | TYPE/NAME) [-c CONTAINER] [flags] (-C CLUSTER) -- COMMAND [args...]",
 		Short:   "Execute a command in a container in a cluster",
-		Long:    "Execute a command in a container in a cluster",
+		Long:    execLong,
 		Example: fmt.Sprintf(execExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			argsLenAtDash := cmd.ArgsLenAtDash()
