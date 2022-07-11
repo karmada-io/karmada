@@ -224,7 +224,7 @@ func (o *CommandLogsOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Co
 		return err
 	}
 
-	o.f = getFactory(o.Cluster, clusterInfo)
+	o.f = getFactory(o.Cluster, clusterInfo, "")
 
 	o.RESTClientGetter = o.f
 	o.LogsForObject = polymorphichelpers.LogsForObjectFn
