@@ -251,6 +251,10 @@ func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager
 
 // applyPatch uses patchType mode to patch object.
 func applyPatch(object *unstructured.Unstructured, patch []byte, patchType configv1alpha1.PatchType) (*unstructured.Unstructured, error) {
+	if len(patch) == 0 && len(patchType) == 0 {
+		klog.Infof("Skip apply patch for object(%s: %s) as patch and patchType is nil", object.GroupVersionKind().String(), object.GetName())
+		return object, nil
+	}
 	switch patchType {
 	case configv1alpha1.PatchTypeJSONPatch:
 		if len(patch) == 0 {
