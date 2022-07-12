@@ -98,15 +98,21 @@ type ExecOptions struct {
 
 // Complete verifies command line arguments and loads data from the command environment
 func (o *ExecOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Command, argsIn []string, argsLenAtDash int) error {
+	if len(o.Cluster) == 0 {
+		return fmt.Errorf("must specify a cluster")
+	}
+
 	karmadaRestConfig, err := karmadaConfig.GetRestConfig(o.KarmadaContext, o.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
 			o.KarmadaContext, o.KubeConfig, err)
 	}
+
 	clusterInfo, err := getClusterInfo(karmadaRestConfig, o.Cluster, o.KubeConfig, o.KarmadaContext)
 	if err != nil {
 		return err
 	}
+
 	f := getFactory(o.Cluster, clusterInfo, o.Namespace)
 	return o.KubectlExecOptions.Complete(f, cmd, argsIn, argsLenAtDash)
 }
