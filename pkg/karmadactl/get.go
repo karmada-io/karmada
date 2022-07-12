@@ -35,6 +35,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -271,7 +272,10 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 
 	wg.Add(len(g.Clusters))
 	for idx := range g.Clusters {
-		g.setClusterProxyInfo(karmadaRestConfig, g.Clusters[idx], clusterInfos)
+		err = g.setClusterProxyInfo(karmadaRestConfig, g.Clusters[idx], clusterInfos)
+		if err != nil {
+			return err
+		}
 		f := getFactory(g.Clusters[idx], clusterInfos, "")
 		go g.getObjInfo(&wg, &mux, f, g.Clusters[idx], &objs, &watchObjs, &allErrs, args)
 	}
@@ -948,7 +952,15 @@ func (g *CommandGetOptions) getRBInKarmada(namespace string, config *rest.Config
 }
 
 // setClusterProxyInfo set proxy information of cluster
-func (g *CommandGetOptions) setClusterProxyInfo(karmadaRestConfig *rest.Config, name string, clusterInfos map[string]*ClusterInfo) {
+func (g *CommandGetOptions) setClusterProxyInfo(karmadaRestConfig *rest.Config, name string, clusterInfos map[string]*ClusterInfo) error {
+	clusterClient := karmadaclientset.NewForConfigOrDie(karmadaRestConfig).ClusterV1alpha1().Clusters()
+
+	// check if the cluster exists in the Karmada control plane
+	_, err := clusterClient.Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
 	clusterInfos[name].APIEndpoint = karmadaRestConfig.Host + fmt.Sprintf(proxyURL, name)
 	clusterInfos[name].KubeConfig = g.KubeConfig
 	clusterInfos[name].Context = g.KarmadaContext
@@ -960,6 +972,7 @@ func (g *CommandGetOptions) setClusterProxyInfo(karmadaRestConfig *rest.Config, 
 			clusterInfos[name].KubeConfig = defaultKubeConfig
 		}
 	}
+	return nil
 }
 
 // getClusterInKarmada get cluster info in karmada cluster
