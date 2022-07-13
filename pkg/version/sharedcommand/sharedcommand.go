@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	versionShort   = `Print the version information.`
+	versionShort   = `Print the version information`
 	versionLong    = `Print the version information.`
 	versionExample = `  # Print %s command version
   %s version`

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	initShort = `Install karmada in kubernetes.`
+	initShort = `Install karmada in kubernetes`
 	initLong  = `Install karmada in kubernetes.`
 )
 

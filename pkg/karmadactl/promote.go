@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	promoteShort = `Promote resources from legacy clusters to karmada control plane.`
+	promoteShort = `Promote resources from legacy clusters to karmada control plane`
 	promoteLong  = `Promote resources from legacy clusters to karmada control plane. Requires the cluster be joined or registered.`
 )
 

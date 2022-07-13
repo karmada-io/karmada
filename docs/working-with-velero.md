@@ -1,8 +1,8 @@
 # Integrate Velero to back up and restore Karmada resources
 
-- [Velero](https://github.com/vmware-tanzu/velero) gives you tools to back up and restore.
-- Your Kubernetes cluster resources and persistent volumes. You can run Velero with a public.
-- Cloud platform or on-premises.
+[Velero](https://github.com/vmware-tanzu/velero) gives you tools to back up and restore 
+your Kubernetes cluster resources and persistent volumes. You can run Velero with a public
+cloud platform or on-premises.
 
 Velero lets you:
 

@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	taintShort = `Update the taints on one or more clusters.`
+	taintShort = `Update the taints on one or more clusters`
 	taintLong  = `Update the taints on one or more clusters.`
 )
 
