@@ -642,6 +642,13 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 				Description: "ClusterSpec defines the desired state of a member cluster.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and typically collected automatically from member cluster during the progress of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"syncMode": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SyncMode describes how a cluster sync resources from karmada control plane.",

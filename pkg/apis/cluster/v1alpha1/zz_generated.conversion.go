@@ -268,6 +268,7 @@ func Convert_url_Values_To_v1alpha1_ClusterProxyOptions(in *url.Values, out *Clu
 }
 
 func autoConvert_v1alpha1_ClusterSpec_To_cluster_ClusterSpec(in *ClusterSpec, out *cluster.ClusterSpec, s conversion.Scope) error {
+	out.ID = in.ID
 	out.SyncMode = cluster.ClusterSyncMode(in.SyncMode)
 	out.APIEndpoint = in.APIEndpoint
 	out.SecretRef = (*cluster.LocalSecretReference)(unsafe.Pointer(in.SecretRef))
@@ -288,6 +289,7 @@ func Convert_v1alpha1_ClusterSpec_To_cluster_ClusterSpec(in *ClusterSpec, out *c
 }
 
 func autoConvert_cluster_ClusterSpec_To_v1alpha1_ClusterSpec(in *cluster.ClusterSpec, out *ClusterSpec, s conversion.Scope) error {
+	out.ID = in.ID
 	out.SyncMode = ClusterSyncMode(in.SyncMode)
 	out.APIEndpoint = in.APIEndpoint
 	out.SecretRef = (*LocalSecretReference)(unsafe.Pointer(in.SecretRef))

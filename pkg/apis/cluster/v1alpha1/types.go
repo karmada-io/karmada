@@ -37,6 +37,26 @@ type Cluster struct {
 
 // ClusterSpec defines the desired state of a member cluster.
 type ClusterSpec struct {
+	// ID is the unique identifier for the cluster.
+	// It is different from the object uid(.metadata.uid) and typically collected automatically
+	// from member cluster during the progress of registration.
+	//
+	// The value is collected in order:
+	// 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by
+	//   creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would
+	//   take the defined value in the ClusterProperty object.
+	//   See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.
+	// 2. Take the uid of 'kube-system' namespace on the registering cluster.
+	//
+	// Please don't update this value unless you know what you are doing, because
+	// it will/may be used to :
+	// - uniquely identify the clusters within the Karmada system.
+	// - compose the DNS name of multi-cluster services.
+	//
+	// +optional
+	// +kubebuilder:validation:Maxlength=128000
+	ID string `json:"id,omitempty"`
+
 	// SyncMode describes how a cluster sync resources from karmada control plane.
 	// +kubebuilder:validation:Enum=Push;Pull
 	// +required
