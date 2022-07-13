@@ -29,11 +29,10 @@ func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 	}
 
 	cmd := &cobra.Command{
-		Use:                   "exec (POD | TYPE/NAME) [-c CONTAINER] [flags] (-C CLUSTER) -- COMMAND [args...]",
-		DisableFlagsInUseLine: true,
-		Short:                 "Execute a command in a container in a cluster",
-		Long:                  "Execute a command in a container in a cluster",
-		Example:               execExample(parentCommand),
+		Use:     "exec (POD | TYPE/NAME) [-c CONTAINER] [flags] (-C CLUSTER) -- COMMAND [args...]",
+		Short:   "Execute a command in a container in a cluster",
+		Long:    "Execute a command in a container in a cluster",
+		Example: execExample(parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			argsLenAtDash := cmd.ArgsLenAtDash()
 			if err := o.Complete(karmadaConfig, cmd, args, argsLenAtDash); err != nil {

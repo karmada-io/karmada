@@ -66,11 +66,10 @@ func NewCmdGet(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command
 	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
 	o := NewCommandGetOptions("karmadactl", ioStreams)
 	cmd := &cobra.Command{
-		Use:                   "get [NAME | -l label | -n namespace]  [flags]",
-		DisableFlagsInUseLine: true,
-		Short:                 getShort,
-		SilenceUsage:          true,
-		Example:               getExample(parentCommand),
+		Use:          "get [NAME | -l label | -n namespace]  [flags]",
+		Short:        getShort,
+		SilenceUsage: true,
+		Example:      getExample(parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(karmadaConfig); err != nil {
 				return err
