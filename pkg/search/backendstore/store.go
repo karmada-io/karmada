@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	klog "k8s.io/klog/v2"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 )
