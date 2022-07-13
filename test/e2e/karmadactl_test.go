@@ -344,15 +344,6 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 		})
 
 		ginkgo.BeforeEach(func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateDeployment(kubeClient, deployment)
-			ginkgo.DeferCleanup(func() {
-				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
-			})
-		})
-
-		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Create cluster: %s", clusterName), func() {
 				err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -366,7 +357,7 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 			})
 		})
 
-		ginkgo.It("Test unjoining not ready cluster", func() {
+		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
 				opts := karmadactl.CommandJoinOption{
 					DryRun:            false,
@@ -378,6 +369,18 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 				err := karmadactl.RunJoin(karmadaConfig, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
+
+		ginkgo.It("Test unjoining not ready cluster", func() {
 			ginkgo.By("Waiting for deployment have been propagated to the member cluster.", func() {
 				klog.Infof("Waiting for deployment(%s/%s) synced on cluster(%s)", deploymentNamespace, deploymentName, clusterName)
 
@@ -397,7 +400,6 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 				framework.WaitClusterFitWith(controlPlaneClient, clusterName, func(cluster *clusterv1alpha1.Cluster) bool {
 					return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
 				})
-
 			})
 
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
