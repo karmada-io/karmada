@@ -22,7 +22,7 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/yaml"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/constants"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
@@ -33,7 +33,7 @@ const (
 
 // InitKarmadaResources Initialize karmada resource
 func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
-	restConfig, err := utils.RestConfig("", filepath.Join(dir, options.KarmadaKubeConfigName))
+	restConfig, err := utils.RestConfig("", filepath.Join(dir, constants.KarmadaKubeConfigName))
 	if err != nil {
 		return err
 	}

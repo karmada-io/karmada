@@ -1,4 +1,4 @@
-package options
+package constants
 
 const (
 	// CaCertAndKeyName ca certificate key name

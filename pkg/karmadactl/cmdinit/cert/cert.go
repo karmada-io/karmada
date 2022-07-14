@@ -22,7 +22,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kube-openapi/pkg/util/sets"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/constants"
 )
 
 const (
@@ -251,7 +251,7 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return err
 	}
 
-	if err = WriteCertAndKey(pkiPath, options.CaCertAndKeyName, caCert, caKey); err != nil {
+	if err = WriteCertAndKey(pkiPath, constants.CaCertAndKeyName, caCert, caKey); err != nil {
 		return err
 	}
 
@@ -260,7 +260,7 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return err
 	}
 
-	if err = WriteCertAndKey(pkiPath, options.EtcdServerCertAndKeyName, etcdServerCert, &etcdServerKey); err != nil {
+	if err = WriteCertAndKey(pkiPath, constants.EtcdServerCertAndKeyName, etcdServerCert, &etcdServerKey); err != nil {
 		return err
 	}
 
@@ -268,7 +268,7 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 	if err != nil {
 		return err
 	}
-	if err = WriteCertAndKey(pkiPath, options.EtcdClientCertAndKeyName, etcdClientCert, &etcdClientKey); err != nil {
+	if err = WriteCertAndKey(pkiPath, constants.EtcdClientCertAndKeyName, etcdClientCert, &etcdClientKey); err != nil {
 		return err
 	}
 
@@ -277,7 +277,7 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return err
 	}
 
-	if err = WriteCertAndKey(pkiPath, options.KarmadaCertAndKeyName, karmadaCert, &karmadaKey); err != nil {
+	if err = WriteCertAndKey(pkiPath, constants.KarmadaCertAndKeyName, karmadaCert, &karmadaKey); err != nil {
 		return err
 	}
 
@@ -286,7 +286,7 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return err
 	}
 
-	if err = WriteCertAndKey(pkiPath, options.FrontProxyCaCertAndKeyName, frontProxyCaCert, frontProxyCaKey); err != nil {
+	if err = WriteCertAndKey(pkiPath, constants.FrontProxyCaCertAndKeyName, frontProxyCaCert, frontProxyCaKey); err != nil {
 		return err
 	}
 
@@ -294,7 +294,7 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 	if err != nil {
 		return err
 	}
-	if err := WriteCertAndKey(pkiPath, options.FrontProxyClientCertAndKeyName, frontProxyClientCert, &frontProxyClientKey); err != nil {
+	if err := WriteCertAndKey(pkiPath, constants.FrontProxyClientCertAndKeyName, frontProxyClientCert, &frontProxyClientKey); err != nil {
 		return err
 	}
 	return nil

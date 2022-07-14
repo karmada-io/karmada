@@ -13,15 +13,13 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/constants"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
@@ -32,12 +30,12 @@ var (
 	}
 
 	certList = []string{
-		options.CaCertAndKeyName,
-		options.EtcdServerCertAndKeyName,
-		options.EtcdClientCertAndKeyName,
-		options.KarmadaCertAndKeyName,
-		options.FrontProxyCaCertAndKeyName,
-		options.FrontProxyClientCertAndKeyName,
+		constants.CaCertAndKeyName,
+		constants.EtcdServerCertAndKeyName,
+		constants.EtcdClientCertAndKeyName,
+		constants.KarmadaCertAndKeyName,
+		constants.FrontProxyCaCertAndKeyName,
+		constants.FrontProxyClientCertAndKeyName,
 	}
 
 	defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
@@ -52,44 +50,6 @@ const (
 	etcdStorageModeEmptyDir = "emptyDir"
 	etcdStorageModeHostPath = "hostPath"
 )
-
-// CommandInitOption holds all flags options for init.
-type CommandInitOption struct {
-	KubeImageRegistry                  string
-	KubeImageMirrorCountry             string
-	EtcdImage                          string
-	EtcdReplicas                       int32
-	EtcdInitImage                      string
-	EtcdStorageMode                    string
-	EtcdHostDataPath                   string
-	EtcdNodeSelectorLabels             string
-	EtcdPersistentVolumeSize           string
-	KarmadaAPIServerImage              string
-	KarmadaAPIServerReplicas           int32
-	KarmadaAPIServerNodePort           int32
-	KarmadaSchedulerImage              string
-	KarmadaSchedulerReplicas           int32
-	KubeControllerManagerImage         string
-	KubeControllerManagerReplicas      int32
-	KarmadaControllerManagerImage      string
-	KarmadaControllerManagerReplicas   int32
-	KarmadaWebhookImage                string
-	KarmadaWebhookReplicas             int32
-	KarmadaAggregatedAPIServerImage    string
-	KarmadaAggregatedAPIServerReplicas int32
-	Namespace                          string
-	KubeConfig                         string
-	Context                            string
-	StorageClassesName                 string
-	KarmadaDataPath                    string
-	CRDs                               string
-	ExternalIP                         string
-	ExternalDNS                        string
-	KubeClientSet                      *kubernetes.Clientset
-	CertAndKeyFileData                 map[string][]byte
-	RestConfig                         *rest.Config
-	KarmadaAPIServerIP                 []net.IP
-}
 
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
@@ -239,7 +199,7 @@ func (i *CommandInitOption) genCerts() error {
 	return nil
 }
 
-// prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
+// prepareCRD download or unzip `crds.tar.gz` to `constants.DataPath`
 func (i *CommandInitOption) prepareCRD() error {
 	if strings.HasPrefix(i.CRDs, "http") {
 		filename := i.KarmadaDataPath + "/" + path.Base(i.CRDs)
@@ -259,8 +219,8 @@ func (i *CommandInitOption) prepareCRD() error {
 func (i *CommandInitOption) createCertsSecrets() error {
 	// Create kubeconfig Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.cluster.local:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, karmadaAPIServerContainerPort)
-	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)],
-		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
+	config := utils.CreateWithCerts(karmadaServerURL, constants.UserName, constants.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", constants.CaCertAndKeyName)],
+		i.CertAndKeyFileData[fmt.Sprintf("%s.key", constants.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", constants.KarmadaCertAndKeyName)])
 	configBytes, err := clientcmd.Write(*config)
 	if err != nil {
 		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
@@ -272,10 +232,10 @@ func (i *CommandInitOption) createCertsSecrets() error {
 	}
 	// Create certs Secret
 	etcdCert := map[string]string{
-		fmt.Sprintf("%s.crt", options.CaCertAndKeyName):         string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)]),
-		fmt.Sprintf("%s.key", options.CaCertAndKeyName):         string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.CaCertAndKeyName)]),
-		fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName)]),
-		fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName)]),
+		fmt.Sprintf("%s.crt", constants.CaCertAndKeyName):         string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", constants.CaCertAndKeyName)]),
+		fmt.Sprintf("%s.key", constants.CaCertAndKeyName):         string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", constants.CaCertAndKeyName)]),
+		fmt.Sprintf("%s.crt", constants.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", constants.EtcdServerCertAndKeyName)]),
+		fmt.Sprintf("%s.key", constants.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", constants.EtcdServerCertAndKeyName)]),
 	}
 	etcdSecret := i.SecretFromSpec(etcdCertName, corev1.SecretTypeOpaque, etcdCert)
 	if err := i.CreateSecret(etcdSecret); err != nil {
@@ -293,8 +253,8 @@ func (i *CommandInitOption) createCertsSecrets() error {
 	}
 
 	karmadaWebhookCert := map[string]string{
-		"tls.crt": string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]),
-		"tls.key": string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)]),
+		"tls.crt": string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", constants.KarmadaCertAndKeyName)]),
+		"tls.key": string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", constants.KarmadaCertAndKeyName)]),
 	}
 	karmadaWebhookSecret := i.SecretFromSpec(webhookCertsName, corev1.SecretTypeOpaque, karmadaWebhookCert)
 	if err := i.CreateSecret(karmadaWebhookSecret); err != nil {
@@ -428,9 +388,9 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 
 	// Create karmada kubeconfig
 	serverURL := fmt.Sprintf("https://%s:%v", i.KarmadaAPIServerIP[0].String(), i.KarmadaAPIServerNodePort)
-	if err := utils.WriteKubeConfigFromSpec(serverURL, options.UserName, options.ClusterName, i.KarmadaDataPath, options.KarmadaKubeConfigName,
-		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)],
-		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]); err != nil {
+	if err := utils.WriteKubeConfigFromSpec(serverURL, constants.UserName, constants.ClusterName, i.KarmadaDataPath, constants.KarmadaKubeConfigName,
+		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", constants.CaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.key", constants.KarmadaCertAndKeyName)],
+		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", constants.KarmadaCertAndKeyName)]); err != nil {
 		return fmt.Errorf("failed to create karmada kubeconfig file. %v", err)
 	}
 	klog.Info("Create karmada kubeconfig success.")
@@ -461,7 +421,7 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 	}
 
 	// Create CRDs in karmada
-	caBase64 := base64.StdEncoding.EncodeToString(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)])
+	caBase64 := base64.StdEncoding.EncodeToString(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", constants.CaCertAndKeyName)])
 	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64, i.Namespace); err != nil {
 		return err
 	}

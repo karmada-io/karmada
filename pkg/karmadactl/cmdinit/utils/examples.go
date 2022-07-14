@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/constants"
 )
 
 const (
@@ -151,7 +151,7 @@ spec:
 
 // GenExamples Generate sample files
 func GenExamples(path, parentCommand string) {
-	karmadaAgentStr := fmt.Sprintf(karmadaAgent, options.ClusterName)
+	karmadaAgentStr := fmt.Sprintf(karmadaAgent, constants.ClusterName)
 	if err := BytesToFile(path, "karmada-agent.yaml", []byte(karmadaAgentStr)); err != nil {
 		klog.Warning(err)
 	}

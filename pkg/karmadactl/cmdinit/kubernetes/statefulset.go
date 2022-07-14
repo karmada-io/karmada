@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/constants"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
@@ -144,12 +144,12 @@ data-dir: %s
 `,
 			etcdContainerConfigDataMountPath, etcdConfigName,
 			etcdEnvPodName,
-			karmadaCertsVolumeMountPath, options.CaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.CaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+			karmadaCertsVolumeMountPath, constants.CaCertAndKeyName,
+			karmadaCertsVolumeMountPath, constants.EtcdServerCertAndKeyName,
+			karmadaCertsVolumeMountPath, constants.EtcdServerCertAndKeyName,
+			karmadaCertsVolumeMountPath, constants.CaCertAndKeyName,
+			karmadaCertsVolumeMountPath, constants.EtcdServerCertAndKeyName,
+			karmadaCertsVolumeMountPath, constants.EtcdServerCertAndKeyName,
 			strings.TrimRight(etcdClusterConfig, ","),
 			etcdEnvPodIP, etcdContainerServerPort,
 			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
