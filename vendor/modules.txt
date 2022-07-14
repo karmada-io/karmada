@@ -202,6 +202,9 @@ github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 ## explicit
 github.com/inconshreveable/mousetrap
+# github.com/jonboulle/clockwork v0.2.2
+## explicit; go 1.13
+github.com/jonboulle/clockwork
 # github.com/josharian/intern v1.0.0
 ## explicit; go 1.5
 github.com/josharian/intern
@@ -837,6 +840,7 @@ k8s.io/apimachinery/pkg/util/httpstream
 k8s.io/apimachinery/pkg/util/httpstream/spdy
 k8s.io/apimachinery/pkg/util/intstr
 k8s.io/apimachinery/pkg/util/json
+k8s.io/apimachinery/pkg/util/jsonmergepatch
 k8s.io/apimachinery/pkg/util/managedfields
 k8s.io/apimachinery/pkg/util/mergepatch
 k8s.io/apimachinery/pkg/util/naming
@@ -1408,11 +1412,16 @@ k8s.io/kube-openapi/pkg/validation/spec
 ## explicit; go 1.16
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd/apiresources
+k8s.io/kubectl/pkg/cmd/apply
+k8s.io/kubectl/pkg/cmd/delete
 k8s.io/kubectl/pkg/cmd/exec
 k8s.io/kubectl/pkg/cmd/get
 k8s.io/kubectl/pkg/cmd/logs
 k8s.io/kubectl/pkg/cmd/util
+k8s.io/kubectl/pkg/cmd/util/editor
+k8s.io/kubectl/pkg/cmd/util/editor/crlf
 k8s.io/kubectl/pkg/cmd/util/podcmd
+k8s.io/kubectl/pkg/cmd/wait
 k8s.io/kubectl/pkg/describe
 k8s.io/kubectl/pkg/polymorphichelpers
 k8s.io/kubectl/pkg/rawhttp
@@ -1428,6 +1437,7 @@ k8s.io/kubectl/pkg/util/interrupt
 k8s.io/kubectl/pkg/util/openapi
 k8s.io/kubectl/pkg/util/openapi/validation
 k8s.io/kubectl/pkg/util/podutils
+k8s.io/kubectl/pkg/util/prune
 k8s.io/kubectl/pkg/util/qos
 k8s.io/kubectl/pkg/util/rbac
 k8s.io/kubectl/pkg/util/resource
