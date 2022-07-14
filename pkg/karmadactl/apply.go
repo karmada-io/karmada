@@ -1,12 +1,15 @@
 package karmadactl
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	restclient "k8s.io/client-go/rest"
@@ -15,6 +18,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -29,8 +33,10 @@ type CommandApplyOptions struct {
 	KubectlApplyFlags *kubectlapply.ApplyFlags
 	Namespace         string
 	AllClusters       bool
+	Clusters          []string
 
 	kubectlApplyOptions *kubectlapply.ApplyOptions
+	karmadaClient       karmadaclientset.Interface
 }
 
 var (
@@ -49,6 +55,9 @@ var (
 	applyExample = templates.Examples(`
 		# Apply the configuration without propagation into member clusters. It acts as 'kubectl apply'.
 		%[1]s apply -f manifest.yaml
+
+		# Apply the configuration with propagation into specific member clusters.
+		%[1]s apply -f manifest.yaml --cluster member1,member2
 
 		# Apply resources from a directory and propagate them into all member clusters.
 		%[1]s apply -f dir/ --all-clusters`)
@@ -86,6 +95,7 @@ func NewCmdApply(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comma
 	o.KubectlApplyFlags.AddFlags(cmd)
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "If present, the namespace scope for this CLI request")
 	cmd.Flags().BoolVarP(&o.AllClusters, "all-clusters", "", o.AllClusters, "If present, propagates a group of resources to all member clusters.")
+	cmd.Flags().StringSliceVarP(&o.Clusters, "cluster", "C", o.Clusters, "If present, propagates a group of resources to specified clusters.")
 	return cmd
 }
 
@@ -95,6 +105,12 @@ func (o *CommandApplyOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.C
 	if err != nil {
 		return err
 	}
+	karmadaClient, err := karmadaclientset.NewForConfig(restConfig)
+	if err != nil {
+		return err
+	}
+	o.karmadaClient = karmadaClient
+
 	kubeConfigFlags := NewConfigFlags(true).WithDeprecatedPasswordFlag()
 	kubeConfigFlags.Namespace = &o.Namespace
 	kubeConfigFlags.WrapConfigFn = func(config *restclient.Config) *restclient.Config { return restConfig }
@@ -109,12 +125,32 @@ func (o *CommandApplyOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.C
 
 // Validate verifies if CommandApplyOptions are valid and without conflicts.
 func (o *CommandApplyOptions) Validate(cmd *cobra.Command, args []string) error {
+	if o.AllClusters && len(o.Clusters) > 0 {
+		return fmt.Errorf("--all-clusters and --cluster cannot be used together")
+	}
+	if len(o.Clusters) > 0 {
+		clusters, err := o.karmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		clusterSet := sets.NewString()
+		for _, cluster := range clusters.Items {
+			clusterSet.Insert(cluster.Name)
+		}
+		errs := []error{}
+		for _, cluster := range o.Clusters {
+			if !clusterSet.Has(cluster) {
+				errs = append(errs, fmt.Errorf("cluster %s does not exist", cluster))
+			}
+		}
+		return utilerrors.NewAggregate(errs)
+	}
 	return o.kubectlApplyOptions.Validate(cmd, args)
 }
 
 // Run executes the `apply` command.
 func (o *CommandApplyOptions) Run() error {
-	if !o.AllClusters {
+	if !o.AllClusters && len(o.Clusters) == 0 {
 		return o.kubectlApplyOptions.Run()
 	}
 
@@ -166,7 +202,6 @@ func (o *CommandApplyOptions) generateAndInjectPolices() error {
 
 // generatePropagationObject generates a propagation object for the given resource info.
 // It takes the resource namespace, name and GVK as input to generate policy name.
-// TODO(carlory): allow users to select one or many member clusters to propagate resources.
 func (o *CommandApplyOptions) generatePropagationObject(info *resource.Info) runtime.Object {
 	gvk := info.Mapping.GroupVersionKind
 	spec := policyv1alpha1.PropagationSpec{
@@ -178,6 +213,12 @@ func (o *CommandApplyOptions) generatePropagationObject(info *resource.Info) run
 				Namespace:  info.Namespace,
 			},
 		},
+	}
+
+	if len(o.Clusters) > 0 {
+		spec.Placement.ClusterAffinity = &policyv1alpha1.ClusterAffinity{
+			ClusterNames: o.Clusters,
+		}
 	}
 
 	if o.AllClusters {
