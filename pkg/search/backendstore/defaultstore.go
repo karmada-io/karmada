@@ -3,7 +3,7 @@ package backendstore
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
-	klog "k8s.io/klog/v2"
+	"k8s.io/klog/v2"
 )
 
 // Default is the default BackendStore
