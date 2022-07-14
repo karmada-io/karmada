@@ -6,20 +6,20 @@ cloud platform or on-premises.
 
 Velero lets you:
 
-- Take backups of your cluster and restore in case of loss.
+- Take backups of your cluster and restore it in case of loss.
 - Migrate cluster resources to other clusters.
 - Replicate your production cluster to development and testing clusters.
 
-This document gives an example to demonstrate how to use the `Velero` to back up and restore Kubernetes cluster resources
-and persistent volumes. Following example backups resources in cluster `member1`, and then restores those to cluster `member2`.
+This document provides an example to demonstrate how to use `Velero` to back up and restore Kubernetes cluster resources and persistent volumes.
+For example, backups resources in cluster `member1`, and then restore those to cluster `member2`.
 
-## Start up Karamda clusters
-You just need to clone Karamda repo, and run the following script in Karamda directory.
+## Start up Karmada clusters
+You just need to clone Karmada repo, and run the following script in the Karmada directory.
 ```shell
 hack/local-up-karmada.sh
 ```
 
-And then run the below command to switch to the member cluster `member1`.
+Then run the following command to switch to the member cluster `member1`.
 ```shell
 export KUBECONFIG=/root/.kube/members.config
 kubectl config use-context member1
@@ -35,7 +35,7 @@ wget https://dl.min.io/server/minio/release/linux-amd64/minio
 chmod +x minio
 ```
 
-Run the below command to set `MinIO` username and password:
+Run the following command to set `MinIO` username and password:
 ```shell
 export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio123
@@ -46,19 +46,16 @@ Run this command to start `MinIO`:
 ./minio server /data --console-address="0.0.0.0:20001" --address="0.0.0.0:9000"
 ```
 
-Replace `/data` with the path to the drive or directory in which you want `MinIO` to store data. And now we can visit 
-`http://{SERVER_EXTERNAL_IP}/20001` in the browser to visit `MinIO` console UI. And `Velero` can use
-`http://{SERVER_EXTERNAL_IP}/9000` to connect `MinIO`. The two configuration will make our follow-up work easier and more convenient.
+Replace `/data` with the path to the drive or directory in which you want `MinIO` to store data. And now we can visit `http://{SERVER_EXTERNAL_IP}/20001` in the browser to visit `MinIO` console UI. And `Velero` can use `http://{SERVER_EXTERNAL_IP}/9000` to connect to `MinIO`. The two configurations will make our follow-up work easier and more convenient.
 
-Please visit `MinIO` console to create region `minio` and bucket `velero`, these will be used by `Velero`.
+Please visit `MinIO` console to create region `MinIO` and bucket `Velero`, these will be used by `Velero`.
 
-For more details about how to install `MinIO`, please run `minio server --help` for help, or you can visit
-[MinIO Github Repo](https://github.com/minio/minio).
+For more details about how to install `MinIO`, please run `minio server --help` for help, or you can visit [MinIO Github Repo](https://github.com/minio/minio).
 
 ## Install Velero
 Velero consists of two components:
 - ### A command-line client that runs locally.
-  1. Download the [release](https://github.com/vmware-tanzu/velero/releases) tarball for your client platform
+  1. Download the [release](https://github.com/vmware-tanzu/velero/releases) tarball for your client platform.
   ```shell
   wget https://github.com/vmware-tanzu/velero/releases/download/v1.7.0/velero-v1.7.0-linux-amd64.tar.gz
   ```
@@ -68,7 +65,7 @@ Velero consists of two components:
   tar -zxvf velero-v1.7.0-linux-amd64.tar.gz
   ```
   
-  3. Move the extracted velero binary to somewhere in your $PATH (/usr/local/bin for most users).
+  3. Move the extracted Velero binary to somewhere in your $PATH (/usr/local/bin for most users).
   ```shell
   cp velero-v1.7.0-linux-amd64/velero /usr/local/bin/
   ```
@@ -84,13 +81,11 @@ Velero consists of two components:
    aws_access_key_id = minio
    aws_secret_access_key = minio123
    ```
-   The two values should keep the same with `MinIO` username and password that we set when we install `MinIO`
+   The two values should keep the same with `MinIO` username and password that we set when we install `MinIO`.
   
    2. Start the server.
    
-   We need to install `Velero` in both `member1` and `member2`, so we should run the below command in shell for both two clusters,
-   this will start Velero server. Please run `kubectl config use-context member1` and `kubectl config use-context member2`
-   to switch to the different member clusters: `member1` or `member2`.
+   We need to install `Velero` in both `member1` and `member2`, so we should run the following command in the shell for both two clusters, this will start the Velero server. Please run `kubectl config use-context member1` and `kubectl config use-context member2` to switch to different member clusters: `member1` or `member2`.
    ```shell
    velero install \
    --provider aws \
@@ -104,27 +99,27 @@ Velero consists of two components:
 
    3. Deploy the nginx application to cluster `member1`: 
   
-   Run the below command in the Karmada directory.
+   Run the following command in the Karmada directory.
    ```shell
    kubectl apply -f samples/nginx/deployment.yaml
    ```
   
-   And then you will find nginx is deployed successfully.
+   Then, you will find nginx is deployed successfully.
    ```shell
    # kubectl get deployment.apps
    NAME    READY   UP-TO-DATE   AVAILABLE   AGE
    nginx   2/2     2            2           17s
    ```
 
-### Back up and restore kubernetes resources independent
+### Back up and restore Kubernetes resources independent
 Create a backup in `member1`:
 ```shell
 velero backup create nginx-backup --selector app=nginx
 ```
 
-Restore the backup in `member2`
+Restore the backup in `member2`.
 
-Run this command to switch to `member2`
+Run this command to switch to `member2`.
 ```shell
 export KUBECONFIG=/root/.kube/members.config
 kubectl config use-context member2
@@ -143,30 +138,30 @@ Restore `member1` resources to `member2`:
 Restore request "nginx-backup-20211210151807" submitted successfully.
 ```
 
-Watch restore result, you'll find that the status is Completed.
+Watch restore result, you'll find that the status is completed.
 ```shell
 # velero restore get
 NAME                          BACKUP         STATUS      STARTED                         COMPLETED                       ERRORS   WARNINGS   CREATED                         SELECTOR
 nginx-backup-20211210151807   nginx-backup   Completed   2021-12-10 15:18:07 +0800 CST   2021-12-10 15:18:07 +0800 CST   0        0          2021-12-10 15:18:07 +0800 CST   <none>
 ```
 
-And then you can find deployment nginx will be restored successfully. 
+Then, you can find deployment nginx will be restored successfully. 
 ```shell
 # kubectl get deployment.apps/nginx
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
 nginx   2/2     2            2           21s
 ```
 
-### Backup and restore of kubernetes resources through Velero combined with karmada
+### Backup and restore of Kubernetes resources through Velero combined with Karmada
 
-In Karmada control plane, we need to install velero crds but do not need controllers to reconcile them. They are treated as resource templates, not specific resource instances.Based on work API here, they will be encapsulated as a work object deliverd to member clusters and reconciled by velero controllers in member clusters finally.
+In the Karmada control plane, we need to install Velero CRDs but do not need controllers to reconcile them. They are treated as resource templates, not specific resource instances. Based on the work API here, they will be encapsulated as a work object delivered to member clusters and reconciled by Velero controllers in member clusters, finally.
 
-Create velero crds in Karmada control plane: 
-remote velero crd directory: `https://github.com/vmware-tanzu/helm-charts/tree/main/charts/velero/crds/`
+Create Velero CRDs in Karmada Control Plane:
+Remote Velero CRD directory: `https://github.com/vmware-tanzu/helm-charts/tree/main/charts/velero/crds/`
 
-Create a backup in `karmada-apiserver` and Distributed to `member1` cluster through PropagationPolicy
+Create a backup in `karmada-apiserver` and Distributed to `member1` cluster through PropagationPolicy.
 
-```shell
+```yaml
 # create backup policy
 cat <<EOF | kubectl apply -f -
 apiVersion: velero.io/v1
@@ -202,7 +197,7 @@ EOF
 
 Create a restore in `karmada-apiserver` and Distributed to `member2` cluster through PropagationPolicy
 
-```shell
+```yaml
 #create restore policy
 cat <<EOF | kubectl apply -f -
 apiVersion: velero.io/v1
@@ -243,7 +238,7 @@ EOF
 
 ```
 
-And then you can find deployment nginx will be restored on member2 successfully. 
+Then, you can find deployment nginx will be restored on member2 successfully. 
 ```shell
 # kubectl get deployment.apps/nginx
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
@@ -252,6 +247,6 @@ nginx   2/2     2            2           10s
 
 
 ## Reference
-The above introductions about `Velero` and `MinIO` are only a summary from the official website and repos, for more details please refer to:
+The above introductions about `Velero` and `MinIO` are only a summary from the official website and repos, for more details, please refer to:
 - Velero: https://velero.io/
 - MinIO: https://min.io/
