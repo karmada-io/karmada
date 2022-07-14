@@ -58,6 +58,9 @@ type Options struct {
 	ConcurrentWorkSyncs int
 	// RateLimiterOptions contains the options for rate limiter.
 	RateLimiterOptions ratelimiterflag.Options
+	// If set to true enables NoExecute Taints and will evict all not-tolerating
+	// objects propagating on Clusters tainted with this kind of Taints.
+	EnableTaintManager bool
 }
 
 // Context defines the context object for controller.

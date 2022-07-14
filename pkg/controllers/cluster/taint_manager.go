@@ -152,15 +152,13 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	// Case 2: Need eviction after toleration time. If time is up, do eviction right now.
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
-		if result := util.RemoveTargetCluster(binding.Spec.Clusters, cluster); len(result) < len(binding.Spec.Clusters) {
-			// update final result to evict the target cluster
-			binding.Spec.Clusters = result
-			if err = tc.Update(context.TODO(), binding); err != nil {
-				klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
-				return err
-			}
-			tc.emitClusterEvictionEventForResourceBinding(binding, cluster)
+		// update final result to evict the target cluster
+		binding.Spec.Clusters = util.RemoveTargetCluster(binding.Spec.Clusters, cluster)
+		if err = tc.Update(context.TODO(), binding); err != nil {
+			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
+			return err
 		}
+		tc.emitClusterEvictionEventForResourceBinding(binding, cluster)
 	} else if tolerationTime > 0 {
 		tc.bindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 	}
@@ -199,15 +197,13 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	// Case 2: Need eviction after toleration time. If time is up, do eviction right now.
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
-		if result := util.RemoveTargetCluster(binding.Spec.Clusters, cluster); len(result) < len(binding.Spec.Clusters) {
-			// update final result to evict the target cluster
-			binding.Spec.Clusters = result
-			if err = tc.Update(context.TODO(), binding); err != nil {
-				klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
-				return err
-			}
-			tc.emitClusterEvictionEventForClusterResourceBinding(binding, cluster)
+		// update final result to evict the target cluster
+		binding.Spec.Clusters = util.RemoveTargetCluster(binding.Spec.Clusters, cluster)
+		if err = tc.Update(context.TODO(), binding); err != nil {
+			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
+			return err
 		}
+		tc.emitClusterEvictionEventForClusterResourceBinding(binding, cluster)
 	} else if tolerationTime > 0 {
 		tc.clusterBindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 		return nil

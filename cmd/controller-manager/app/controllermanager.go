@@ -180,10 +180,6 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 	mgr := ctx.Mgr
 	opts := ctx.Opts
 
-	if err := cluster.IndexField(mgr); err != nil {
-		return false, err
-	}
-
 	clusterController := &cluster.Controller{
 		Client:                    mgr.GetClient(),
 		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
@@ -196,14 +192,20 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		return false, err
 	}
 
-	taintManager := &cluster.NoExecuteTaintManager{
-		Client:                             mgr.GetClient(),
-		EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName),
-		ClusterTaintEvictionRetryFrequency: 10 * time.Second,
-		ConcurrentReconciles:               3,
-	}
-	if err := taintManager.SetupWithManager(mgr); err != nil {
-		return false, err
+	if ctx.Opts.EnableTaintManager {
+		if err := cluster.IndexField(mgr); err != nil {
+			return false, err
+		}
+
+		taintManager := &cluster.NoExecuteTaintManager{
+			Client:                             mgr.GetClient(),
+			EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName),
+			ClusterTaintEvictionRetryFrequency: 10 * time.Second,
+			ConcurrentReconciles:               3,
+		}
+		if err := taintManager.SetupWithManager(mgr); err != nil {
+			return false, err
+		}
 	}
 
 	return true, nil
@@ -524,6 +526,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
+			EnableTaintManager:                opts.EnableTaintManager,
 			RateLimiterOptions:                opts.RateLimiterOpts,
 		},
 		StopChan:                    stopChan,
