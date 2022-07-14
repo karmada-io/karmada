@@ -62,13 +62,11 @@ fi
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}" # switch to member cluster
 kubectl config use-context "${MEMBER_CLUSTER_NAME}"
 
-# remove namespace of karmada agent
-kubectl delete -f "${REPO_ROOT}/artifacts/agent/namespace.yaml"
-kubectl delete namespace karmada-cluster
+helm uninstall karmada-agent -n "${KARMADA_SYSTEM_NAMESPACE}"
 
-# remove clusterrole and clusterrolebinding of karmada agent
-kubectl delete -f "${REPO_ROOT}/artifacts/agent/clusterrole.yaml"
-kubectl delete -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
+# remove namespace of karmada agent
+kubectl delete namespace "${KARMADA_SYSTEM_NAMESPACE}"
+kubectl delete namespace karmada-cluster
 
 # recover the kubeconfig after removing agent if necessary
 if [ -n "${CURR_KUBECONFIG+x}" ];then

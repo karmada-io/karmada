@@ -4,6 +4,8 @@ set -o errexit
 set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
+source "${REPO_ROOT}"/hack/util.sh
 
 function usage() {
   echo "This script will deploy karmada agent to a cluster."
@@ -50,8 +52,6 @@ then
 fi
 MEMBER_CLUSTER_NAME=$4
 
-source "${REPO_ROOT}"/hack/util.sh
-
 # install agent to member cluster
 if [ -n "${KUBECONFIG+x}" ];then
   CURR_KUBECONFIG=$KUBECONFIG # backup current kubeconfig
@@ -61,30 +61,16 @@ kubectl config use-context "${MEMBER_CLUSTER_NAME}"
 
 AGENT_IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:-IfNotPresent}
 
-# create namespace for karmada agent
-kubectl apply -f "${REPO_ROOT}/artifacts/agent/namespace.yaml"
-
-# create service account, cluster role for karmada agent
-kubectl apply -f "${REPO_ROOT}/artifacts/agent/serviceaccount.yaml"
-kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrole.yaml"
-kubectl apply -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
-
-# create secret
-kubectl create secret generic karmada-kubeconfig --from-file=karmada-kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" -n "${KARMADA_SYSTEM_NAMESPACE}"
+INSECURE_SKIP_TLS_VERIFY="true"
+KARMADA_CRT=$(cat "${CERT_DIR}/karmada.crt")
+KARMADA_KEY=$(cat "${CERT_DIR}/karmada.key")
+KARMADA_APISERVER_ADDRESS=$(cat "${KARMADA_APISERVER_KUBECONFIG}" | grep server | awk '{print $2}' | head -n 1)
 
 # extract api endpoint of member cluster
 MEMBER_CLUSTER=$(kubectl config view -o jsonpath='{.contexts[?(@.name == "'${MEMBER_CLUSTER_NAME}'")].context.cluster}')
 MEMBER_CLUSTER_API_ENDPOINT=$(kubectl config view -o jsonpath='{.clusters[?(@.name == "'${MEMBER_CLUSTER}'")].cluster.server}')
 
-# deploy karmada agent
-TEMP_PATH=$(mktemp -d)
-cp "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml "${TEMP_PATH}"/karmada-agent.yaml
-sed -i'' -e "s/{{karmada_context}}/${KARMADA_APISERVER_CONTEXT_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
-sed -i'' -e "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
-sed -i'' -e "s/{{image_pull_policy}}/${AGENT_IMAGE_PULL_POLICY}/g" "${TEMP_PATH}"/karmada-agent.yaml
-sed -i'' -e "s|{{member_cluster_api_endpoint}}|${MEMBER_CLUSTER_API_ENDPOINT}|g" "${TEMP_PATH}"/karmada-agent.yaml
-echo -e "Apply dynamic rendered deployment in ${TEMP_PATH}/karmada-agent.yaml.\n"
-kubectl apply -f "${TEMP_PATH}"/karmada-agent.yaml
+helm install karmada-agent -n "${KARMADA_SYSTEM_NAMESPACE}" --create-namespace --dependency-update "${REPO_ROOT}"/charts/karmada/ --set installMode=agent,agent.clusterName=${MEMBER_CLUSTER_NAME},agent.karmadaContext=${KARMADA_APISERVER_CONTEXT_NAME},agent.image.pullPolicy=${AGENT_IMAGE_PULL_POLICY},agent.clusterAPIEndpoint=${MEMBER_CLUSTER_API_ENDPOINT},agent.kubeconfig.insecureSkipTlsVerify=${INSECURE_SKIP_TLS_VERIFY},agent.kubeconfig.server=${KARMADA_APISERVER_ADDRESS},agent.kubeconfig.crt="${KARMADA_CRT}",agent.kubeconfig.key="${KARMADA_KEY}"
 
 # Wait for karmada-etcd to come up before launching the rest of the components.
 util::wait_pod_ready "${AGENT_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"

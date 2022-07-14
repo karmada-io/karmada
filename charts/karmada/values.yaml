@@ -550,9 +550,15 @@ agent:
       -----END RSA PRIVATE KEY-----
     ## @param agent.kubeconfig.server apiserver of the karmada
     server: ""
+    ## @param agent.kubeconfig.insecureSkipTlsVerify whether to skip tls verify
+    insecureSkipTlsVerify: false
   ## @param agent.labels labels of the agent deployment
   labels:
     app: karmada-agent
+  ## @param agent.karmadaContext context of the kubeconfig
+  karmadaContext: ""
+  ## @param agent.clusterAPIEndpoint API endpoint of kube-apiserver in the member cluster
+  clusterAPIEndpoint: ""
   ## @param agent.replicaCount target replicas
   replicaCount: 1
   ## @param agent.podAnnotations annotaions of the agent pods

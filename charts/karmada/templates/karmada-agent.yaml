@@ -41,23 +41,24 @@ stringData:
     kind: Config
     clusters:
       - cluster:
+          insecure-skip-tls-verify: {{ .Values.agent.kubeconfig.insecureSkipTlsVerify }}
+          {{- if eq .Values.agent.kubeconfig.insecureSkipTlsVerify false }}
           certificate-authority-data: {{ b64enc .Values.agent.kubeconfig.caCrt }}
-          insecure-skip-tls-verify: false
+          {{- end }}
           server: {{ .Values.agent.kubeconfig.server }}
-        name: {{ $name }}-apiserver
+        name: karmada-apiserver
     users:
       - user:
           client-certificate-data: {{ b64enc .Values.agent.kubeconfig.crt }}
           client-key-data: {{ b64enc .Values.agent.kubeconfig.key }}
-        name: {{ $name }}-apiserver
+        name: karmada-apiserver
     contexts:
       - context:
-          cluster: {{ $name }}-apiserver
-          user: {{ $name }}-apiserver
-        name: {{ $name }}-apiserver
-    current-context: {{ $name }}-apiserver
+          cluster: karmada-apiserver
+          user: karmada-apiserver
+        name: karmada-apiserver
+    current-context: karmada-apiserver
 ---
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -105,6 +106,12 @@ spec:
           command:
             - /bin/karmada-agent
             - --karmada-kubeconfig=/etc/kubeconfig/kubeconfig
+            {{- if .Values.agent.karmadaContext }}
+            - --karmada-context={{ .Values.agent.karmadaContext }}
+            {{- end }}
+            {{- if .Values.agent.clusterAPIEndpoint }}
+            - --cluster-api-endpoint={{ .Values.agent.clusterAPIEndpoint }}
+            {{- end }}
             - --cluster-name={{ .Values.agent.clusterName }}
             - --cluster-status-update-frequency=10s
             - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}

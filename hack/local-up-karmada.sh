@@ -48,6 +48,16 @@ else
   echo "not pass"
   util::install_tools "sigs.k8s.io/kind" $kind_version
 fi
+
+# install helm
+echo -n "Preparing: 'helm' existence check - "
+if util::cmd_exist helm; then
+  echo "passed"
+else
+  echo "installing helm"
+  util::install_helm
+fi
+
 # get arch name and os name in bootstrap
 BS_ARCH=$(go env GOARCH)
 BS_OS=$(go env GOOS)
