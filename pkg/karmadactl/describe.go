@@ -33,11 +33,10 @@ func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 	}
 
 	cmd := &cobra.Command{
-		Use:                   "describe (-f FILENAME | TYPE [NAME_PREFIX | -l label] | TYPE/NAME) (-C CLUSTER)",
-		DisableFlagsInUseLine: true,
-		Short:                 "Show details of a specific resource or group of resources in a cluster",
-		SilenceUsage:          true,
-		Example:               describeExample(parentCommand),
+		Use:          "describe (-f FILENAME | TYPE [NAME_PREFIX | -l label] | TYPE/NAME) (-C CLUSTER)",
+		Short:        "Show details of a specific resource or group of resources in a cluster",
+		SilenceUsage: true,
+		Example:      describeExample(parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(karmadaConfig, args); err != nil {
 				return err
