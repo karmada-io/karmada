@@ -71,7 +71,7 @@ func promoteExample(parentCommand string) string {
 # Promote deployment(default/nginx) from cluster1 to Karmada` + "\n" +
 		fmt.Sprintf("%s promote deployment nginx -n default -C cluster1", parentCommand) + `
 
-# Promote deployment((default/nginx) with gvk from cluster1 to Karmada` + "\n" +
+# Promote deployment(default/nginx) with gvk from cluster1 to Karmada` + "\n" +
 		fmt.Sprintf("%s promote deployment.v1.apps nginx -n default -C cluster1", parentCommand) + `
 
 # Dumps the artifacts but does not deploy them to Karmada, same as 'dry run'` + "\n" +
