@@ -35,8 +35,6 @@ package lifted
 | discovery.go             | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector.go#L696-L732      | func GetDeletableResources              | N       |
 | discovery_test.go        | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector_test.go#L943-L990 | type fakeServerResources                | N       |
 | discovery_test.go        | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector_test.go#L707-L797 | func TestGetDeletableResources          | N       |
-| logs.go                  | https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/logs/logs.go#L411-L440          | func DefaultConsumeRequest              | N       |
-| logs.go                  | https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/util/util.go#L32-L42                | func ParseRFC3339                       | N       |
 | nodeselector.go          | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L365-L397                          | func NodeSelectorRequirementsAsSelector | N       |
 | objectwatcher.go         | https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L35-L43                       | func ObjectVersion                      | N       |
 | objectwatcher.go         | https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L45-L59                       | func ObjectNeedsUpdate                  | N       |
