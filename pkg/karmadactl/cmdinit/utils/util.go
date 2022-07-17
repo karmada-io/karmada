@@ -126,6 +126,15 @@ func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 	return nil
 }
 
+// PathExists check if the file path exists
+func PathExist(path string) error {
+	_, err := os.Stat(path)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}
+
 // ListFiles traverse directory files
 func ListFiles(path string) []string {
 	var files []string

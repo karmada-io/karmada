@@ -64,26 +64,8 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	}
 
 	// Initialize crd
-	basesCRDsFiles := utils.ListFiles(dir + "/crds/bases")
-	klog.Infof("Initialize karmada bases crd resource `%s/crds/bases`", dir)
-	for _, v := range basesCRDsFiles {
-		if path.Ext(v) != ".yaml" {
-			continue
-		}
-		if err := createCRDs(crdClient, v); err != nil {
-			return err
-		}
-	}
-
-	patchesCRDsFiles := utils.ListFiles(dir + "/crds/patches")
-	klog.Infof("Initialize karmada patches crd resource `%s/crds/patches`", dir)
-	for _, v := range patchesCRDsFiles {
-		if path.Ext(v) != ".yaml" {
-			continue
-		}
-		if err := patchCRDs(crdClient, caBase64, v); err != nil {
-			return err
-		}
+	if err = crdInitialize(crdClient, dir, caBase64); err != nil {
+		klog.Exitln(err)
 	}
 
 	// create webhook configuration
@@ -175,6 +157,38 @@ func createExtralResources(clientSet *kubernetes.Clientset, dir string) error {
 		return err
 	}
 
+	return nil
+}
+
+// crdInitialize initialize crd
+func crdInitialize(crdClient *clientset.Clientset, dir, caBase64 string) error {
+	if err := utils.PathExist(dir + "/crds/bases"); err != nil {
+		return err
+	}
+	basesCRDsFiles := utils.ListFiles(dir + "/crds/bases")
+	klog.Infof("Initialize karmada bases crd resource `%s/crds/bases`", dir)
+	for _, v := range basesCRDsFiles {
+		if path.Ext(v) != ".yaml" {
+			continue
+		}
+		if err := createCRDs(crdClient, v); err != nil {
+			return err
+		}
+	}
+
+	if err := utils.PathExist(dir + "/crds/patches"); err != nil {
+		return err
+	}
+	patchesCRDsFiles := utils.ListFiles(dir + "/crds/patches")
+	klog.Infof("Initialize karmada patches crd resource `%s/crds/patches`", dir)
+	for _, v := range patchesCRDsFiles {
+		if path.Ext(v) != ".yaml" {
+			continue
+		}
+		if err := patchCRDs(crdClient, caBase64, v); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
