@@ -34,7 +34,7 @@ const (
 
 var (
 	// appLabels remove via Labels karmada StatefulSet Deployment
-	appLabels  = map[string]string{"karmada.io/bootstrapping": "app-defaults"}
+	appLabels  = map[string]string{karmadaBootstrappingLabelKey: "app-defaults"}
 	etcdLabels = map[string]string{"app": etcdStatefulSetAndServiceName}
 )
 
@@ -68,7 +68,7 @@ func (i CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVol
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: i.Namespace,
 				Name:      etcdContainerDataVolumeMountName,
-				Labels:    map[string]string{"karmada.io/bootstrapping": "pvc-defaults"},
+				Labels:    map[string]string{karmadaBootstrappingLabelKey: "pvc-defaults"},
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

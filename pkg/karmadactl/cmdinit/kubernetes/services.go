@@ -13,7 +13,7 @@ import (
 )
 
 // serviceLabels remove via Labels karmada service
-var serviceLabels = map[string]string{"karmada.io/bootstrapping": "service-defaults"}
+var serviceLabels = map[string]string{karmadaBootstrappingLabelKey: "service-defaults"}
 
 // CreateService create service
 func (i *CommandInitOption) CreateService(service *corev1.Service) error {

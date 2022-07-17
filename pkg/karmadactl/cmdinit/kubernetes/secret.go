@@ -21,7 +21,7 @@ func (i *CommandInitOption) SecretFromSpec(name string, secretType corev1.Secret
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: i.Namespace,
-			Labels:    map[string]string{"karmada.io/bootstrapping": "secret-defaults"},
+			Labels:    map[string]string{karmadaBootstrappingLabelKey: "secret-defaults"},
 		},
 		//Immutable:  immutable,
 		Type:       secretType,
