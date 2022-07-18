@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -493,7 +494,7 @@ func (c *Controller) processTaintBaseEviction(ctx context.Context, cluster *clus
 	// Check eviction timeout against decisionTimestamp
 	switch observedReadyCondition.Status {
 	case metav1.ConditionFalse:
-		if decisionTimestamp.After(clusterHealth.readyTransitionTimestamp.Add(c.FailoverEvictionTimeout)) {
+		if features.FeatureGate.Enabled(features.Failover) && decisionTimestamp.After(clusterHealth.readyTransitionTimestamp.Add(c.FailoverEvictionTimeout)) {
 			// We want to update the taint straight away if Cluster is already tainted with the UnreachableTaint
 			taintToAdd := *NotReadyTaintTemplate
 			if err := utilhelper.UpdateClusterControllerTaint(ctx, c.Client, []*corev1.Taint{&taintToAdd}, []*corev1.Taint{UnreachableTaintTemplate}, cluster); err != nil {
@@ -501,7 +502,7 @@ func (c *Controller) processTaintBaseEviction(ctx context.Context, cluster *clus
 			}
 		}
 	case metav1.ConditionUnknown:
-		if decisionTimestamp.After(clusterHealth.probeTimestamp.Add(c.FailoverEvictionTimeout)) {
+		if features.FeatureGate.Enabled(features.Failover) && decisionTimestamp.After(clusterHealth.probeTimestamp.Add(c.FailoverEvictionTimeout)) {
 			// We want to update the taint straight away if Cluster is already tainted with the UnreachableTaint
 			taintToAdd := *UnreachableTaintTemplate
 			if err := utilhelper.UpdateClusterControllerTaint(ctx, c.Client, []*corev1.Taint{&taintToAdd}, []*corev1.Taint{NotReadyTaintTemplate}, cluster); err != nil {

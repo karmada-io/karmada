@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,4 +60,99 @@ func UpdateClusterControllerTaint(ctx context.Context, client client.Client, tai
 	cluster.Spec.Taints = taints
 
 	return client.Update(ctx, cluster)
+}
+
+// HasNoExecuteTaints check if NoExecute taints exist.
+func HasNoExecuteTaints(taints []corev1.Taint) bool {
+	for i := range taints {
+		if taints[i].Effect == corev1.TaintEffectNoExecute {
+			return true
+		}
+	}
+	return false
+}
+
+// GetNoExecuteTaints will get all NoExecute taints.
+func GetNoExecuteTaints(taints []corev1.Taint) []corev1.Taint {
+	var result []corev1.Taint
+	for i := range taints {
+		if taints[i].Effect == corev1.TaintEffectNoExecute {
+			result = append(result, taints[i])
+		}
+	}
+	return result
+}
+
+// GetMinTolerationTime returns minimal toleration time from the given slice, or -1 if it's infinite.
+func GetMinTolerationTime(noExecuteTaints []corev1.Taint, usedTolerations []corev1.Toleration) time.Duration {
+	if len(noExecuteTaints) == 0 {
+		return -1
+	}
+	if len(usedTolerations) == 0 {
+		return 0
+	}
+
+	// Get all trigger time.
+	var triggerTimes []time.Time
+	for i := range usedTolerations {
+		if usedTolerations[i].TolerationSeconds == nil {
+			continue
+		}
+		tolerationSeconds := *(usedTolerations[i].TolerationSeconds)
+		for j := range noExecuteTaints {
+			// should not happen
+			if noExecuteTaints[j].TimeAdded == nil {
+				continue
+			}
+			timeAdded := *noExecuteTaints[j].TimeAdded
+			if usedTolerations[i].ToleratesTaint(&noExecuteTaints[j]) {
+				triggerTimes = append(triggerTimes, timeAdded.Add(time.Duration(tolerationSeconds)*time.Second))
+			}
+		}
+	}
+
+	// If triggerTimes is empty, it means all taints would be tolerated forever.
+	if len(triggerTimes) == 0 {
+		return -1
+	}
+
+	// Find the latest trigger time.
+	t := triggerTimes[0]
+	for i := 1; i < len(triggerTimes); i++ {
+		if triggerTimes[i].Before(t) {
+			t = triggerTimes[i]
+		}
+	}
+
+	// If trigger time is up, don't tolerate.
+	if t.Before(time.Now()) {
+		return 0
+	}
+
+	return time.Until(t)
+}
+
+// GetMatchingTolerations returns true and list of Tolerations matching all Taints if all are tolerated, or false otherwise.
+func GetMatchingTolerations(taints []corev1.Taint, tolerations []corev1.Toleration) (bool, []corev1.Toleration) {
+	if len(taints) == 0 {
+		return true, []corev1.Toleration{}
+	}
+	if len(tolerations) == 0 && len(taints) > 0 {
+		return false, []corev1.Toleration{}
+	}
+	var result []corev1.Toleration
+	for i := range taints {
+		tolerated := false
+		for j := range tolerations {
+			if tolerations[j].ToleratesTaint(&taints[i]) {
+				result = append(result, tolerations[j])
+				tolerated = true
+				break
+			}
+		}
+		if !tolerated {
+			return false, []corev1.Toleration{}
+		}
+	}
+	return true, result
 }

@@ -36,9 +36,7 @@ func (p *TaintToleration) Name() string {
 // Filter checks if the given tolerations in placement tolerate cluster's taints.
 func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	filterPredicate := func(t *corev1.Taint) bool {
-		// now only interested in NoSchedule taint which means do not allow new resource to schedule onto the cluster unless they tolerate the taint
-		// todo: supprot NoExecute taint
-		return t.Effect == corev1.TaintEffectNoSchedule
+		return t.Effect == corev1.TaintEffectNoSchedule || t.Effect == corev1.TaintEffectNoExecute
 	}
 
 	taint, isUntolerated := v1helper.FindMatchingUntoleratedTaint(cluster.Spec.Taints, placement.ClusterTolerations, filterPredicate)

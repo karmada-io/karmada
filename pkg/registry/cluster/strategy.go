@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
+	"github.com/karmada-io/karmada/pkg/apis/cluster/mutation"
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 )
 
@@ -98,6 +99,8 @@ func (Strategy) AllowUnconditionalUpdate() bool {
 
 // Canonicalize allows an object to be mutated into a canonical form.
 func (Strategy) Canonicalize(obj runtime.Object) {
+	cluster := obj.(*clusterapis.Cluster)
+	mutation.MutateCluster(cluster)
 }
 
 // ValidateUpdate is invoked after default fields in the object have been
