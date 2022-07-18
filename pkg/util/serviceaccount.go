@@ -83,14 +83,26 @@ func WaitForServiceAccountSecretCreation(client kubeclient.Interface, asObj *cor
 			}
 			return false, fmt.Errorf("failed to retrieve service account(%s/%s) from cluster, err: %v", asObj.Namespace, asObj.Name, err)
 		}
-		clusterSecret, err = GetTargetSecret(client, serviceAccount.Secrets, corev1.SecretTypeServiceAccountToken, asObj.Namespace)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return false, nil
+		clusterSecret, err = GetSecret(client, serviceAccount.Namespace, serviceAccount.Name)
+		if apierrors.IsNotFound(err) {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: serviceAccount.Namespace,
+					Name:      serviceAccount.Name,
+					Annotations: map[string]string{
+						corev1.ServiceAccountNameKey: serviceAccount.Name,
+					},
+				},
+				Type: corev1.SecretTypeServiceAccountToken,
 			}
+			clusterSecret, err = CreateSecret(client, secret)
+		}
+		if err != nil {
 			return false, err
 		}
-
+		if _, ok := clusterSecret.Data["token"]; !ok {
+			return false, nil // wait for the token controller to populate the Data["token"] field
+		}
 		return true, nil
 	})
 	if err != nil {
