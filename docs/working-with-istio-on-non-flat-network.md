@@ -11,9 +11,9 @@ not direct connectivity between the pods in all clusters.
 
 ***
 The reason for deploying `istiod` on the `member1` is that `kiali` needs to be deployed on the same cluster as `istiod`
-. If `istiod` and `kiali` are deployed on the `karmada-host`,`kiali` will not find the namespace created by `karmada`. It
-cannot implement the function of service topology for application deployed by `karmada`. I will continue to provide a new
-solution later that deploys `istiod` on the `karmada-host`.
+. If `istiod` and `kiali` are deployed on the `karmada-host`,`kiali` will not find the namespace created by `karmada`.
+It cannot implement the function of service topology for application deployed by `karmada`. I will continue to provide a
+new solution later that deploys `istiod` on the `karmada-host`.
 ***
 
 ## Install Karmada
@@ -110,8 +110,9 @@ when `Processing resources for Istiod`.
 
 ### Install Istiod on member1
 
-1. Disable Karmada's auto-sync feature when labeling a namespace, because I need to label the same namespace `istio-system`
-in the different clusters differently.
+1. Disable Karmada's auto-sync feature when labeling a namespace, because I need to label the same
+   namespace `istio-system`
+   in the different clusters differently.
 
 Export `KUBECONFIG` and switch to `karmada host`:
 
@@ -235,6 +236,18 @@ Save the address of `member1`’s east-west gateway
 export DISCOVERY_ADDRESS=$(kubectl -n istio-system get svc istio-eastwestgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 ```
 
+***
+If you don't have loadBalancer in your cluster, you can access the gateway using the service’s node port.
+
+```bash
+export DISCOVERY_ADDRESS=$(kubectl get po -l istio=eastwestgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+export DISCOVERY_NODEPORT=$(kubectl -n istio-system get service istio-eastwestgateway -o jsonpath='{.spec.ports[?(@.name=="tls-istiod")].nodePort}')
+export TLS_NODEPORT_MEMBER1=$(kubectl -n istio-system get service istio-eastwestgateway -o jsonpath='{.spec.ports[?(@.name=="tls")].nodePort}')
+
+```
+
+***
+
 Create a remote configuration on `member2`.
 
 Switch to `member2`:
@@ -258,6 +271,27 @@ spec:
 EOF
 ```
 
+***
+If you don't have loadBalancer in your cluster, you should press `ctrl+c` to exit installation
+when `Processing resources for istio-ingressgateway`.
+
+Edit `istio` configmaps
+
+```bash
+kubectl edit configmaps istio -n istio-system
+```
+
+Modify 'istiod-remote.istio-system.svc:30154' to 'istiod-remote.istio-system.svc:${DISCOVERY_NODEPORT}'. You should
+replace `${}` with the corresponding value.
+
+delete `istio-ingresss-xxxx-xxx` pod
+
+```bash
+kubectl delete pod "$(kubectl get pod -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}' -n istio-system)" -n istio-system 
+```
+
+***
+
 3. Install the east-west gateway in `member2`
 
 ```bash
@@ -269,6 +303,50 @@ samples/multicluster/gen-eastwest-gateway.sh --mesh mesh1 --cluster member2 --ne
 ```bash
 kubectl apply -f samples/multicluster/expose-services.yaml -n istio-system
 ```
+
+***
+If you don't have loadbalancer in cluster,set the network in `istio` configmaps
+
+Save the address of `member2`’s east-west gateway
+
+```bash
+export DISCOVERY_ADDRESS_MEMBER2=$(kubectl get po -l istio=eastwestgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+export TLS_NODEPORT_MEMBER2=$(kubectl -n istio-system get service istio-eastwestgateway -o jsonpath='{.spec.ports[?(@.name=="tls")].nodePort}')
+```
+
+Switch to `member1`:
+
+```bash
+kubectl config use-context member1
+```
+
+Edit `istio` configmaps
+
+```bash
+kubectl edit configmaps istio -n istio-system
+```
+
+add `networks` in `meshNetworks` like the following:
+
+```bash
+meshNetworks: |-
+    networks:
+      network1:
+        endpoints:
+          - fromRegistry: member1
+        gateways:
+          - address: ${DISCOVERY_ADDRESS}
+            port: ${TLS_NODEPORT_MEMBER1}
+      network2:
+        endpoints:
+          - fromRegistry: member2
+        gateways:
+          - address: ${DISCOVERY_ADDRESS_MEMBER2}
+            port: ${TLS_NODEPORT_MEMBER2}
+```
+
+Note: You should replace `${}` with the corresponding value.
+ ***
 
 ### Deploy bookinfo application
 
