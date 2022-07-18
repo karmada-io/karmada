@@ -16,11 +16,11 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/i18n"
 )
 
 var (
-	joinShort = `Register a cluster to control plane`
-	joinLong  = `Join registers a cluster to control plane.`
+	joinLong = `Join registers a cluster to control plane.`
 )
 
 // NewCmdJoin defines the `join` command that registers a cluster.
@@ -29,7 +29,7 @@ func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 
 	cmd := &cobra.Command{
 		Use:          "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:        joinShort,
+		Short:        i18n.T("Register a cluster to control plane"),
 		Long:         joinLong,
 		Example:      joinExample(parentCommand),
 		SilenceUsage: true,

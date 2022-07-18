@@ -11,6 +11,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
+	"github.com/karmada-io/karmada/pkg/util/i18n"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
@@ -44,6 +45,10 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 
 	// Prevent klog errors about logging before parsing.
 	_ = flag.CommandLine.Parse(nil)
+
+	// Sending in 'nil' for the getLanguageFn() results in using
+	// the LANG environment variable.
+	_ = i18n.LoadTranslations("karmadactl", nil)
 
 	karmadaConfig := NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 	rootCmd.AddCommand(NewCmdJoin(karmadaConfig, parentCommand))

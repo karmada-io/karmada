@@ -18,12 +18,12 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/i18n"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 var (
-	unjoinShort = `Remove the registration of a cluster from control plane`
-	unjoinLong  = `Unjoin removes the registration of a cluster from control plane.`
+	unjoinLong = `Unjoin removes the registration of a cluster from control plane.`
 )
 
 // NewCmdUnjoin defines the `unjoin` command that removes registration of a cluster from control plane.
@@ -32,7 +32,7 @@ func NewCmdUnjoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 
 	cmd := &cobra.Command{
 		Use:          "unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:        unjoinShort,
+		Short:        i18n.T("Remove the registration of a cluster from control plane"),
 		Long:         unjoinLong,
 		Example:      unjoinExample(parentCommand),
 		SilenceUsage: true,
