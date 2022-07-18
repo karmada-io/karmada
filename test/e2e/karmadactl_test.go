@@ -84,8 +84,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			// Step 2, promote namespace used by the deployment from member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", deploymentNamespace, member1), func() {
 				namespaceOpts = karmadactl.CommandPromoteOption{
-					Cluster:          member1,
-					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+					Cluster: member1,
 				}
 				args := []string{"namespace", deploymentNamespace}
 				// init args: place namespace name to CommandPromoteOption.name
@@ -102,9 +101,8 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			// Step 3,  promote deployment from cluster member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting deployment %s from member: %s to karmada", deploymentName, member1), func() {
 				deploymentOpts = karmadactl.CommandPromoteOption{
-					Namespace:        deploymentNamespace,
-					Cluster:          member1,
-					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+					Namespace: deploymentNamespace,
+					Cluster:   member1,
 				}
 				args := []string{"deployment", deploymentName}
 				// init args: place deployment name to CommandPromoteOption.name
@@ -192,8 +190,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			// Step2, promote clusterrole and clusterrolebinding from member1
 			ginkgo.By(fmt.Sprintf("Promoting clusterrole %s and clusterrolebindings %s from member to karmada", clusterRoleName, clusterRoleBindingName), func() {
 				clusterRoleOpts = karmadactl.CommandPromoteOption{
-					Cluster:          member1,
-					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+					Cluster: member1,
 				}
 
 				args := []string{"clusterrole", clusterRoleName}
@@ -206,8 +203,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				clusterRoleBindingOpts = karmadactl.CommandPromoteOption{
-					Cluster:          member1,
-					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+					Cluster: member1,
 				}
 
 				args = []string{"clusterrolebinding", clusterRoleBindingName}
@@ -259,8 +255,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", serviceNamespace, member1), func() {
 				opts := karmadactl.CommandPromoteOption{
-					Cluster:          member1,
-					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+					Cluster: member1,
 				}
 				args := []string{"namespace", serviceNamespace}
 				err := opts.Complete(args)
@@ -274,9 +269,8 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			ginkgo.By(fmt.Sprintf("Promoting service %s from member: %s to karmada control plane", serviceName, member1), func() {
 				opts := karmadactl.CommandPromoteOption{
-					Namespace:        serviceNamespace,
-					Cluster:          member1,
-					ClusterNamespace: options.DefaultKarmadaClusterNamespace,
+					Namespace: serviceNamespace,
+					Cluster:   member1,
 				}
 				args := []string{"service", serviceName}
 				err := opts.Complete(args)
