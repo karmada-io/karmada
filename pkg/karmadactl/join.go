@@ -87,6 +87,9 @@ type CommandJoinOption struct {
 
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
+
+	//Overwrite if the cluster does not exist, create the cluster. If it exists, update the cluster
+	Overwrite bool
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -128,6 +131,7 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
 	flags.StringVar(&j.ClusterZone, "cluster-zone", "", "The zone of the joining cluster")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.BoolVar(&j.Overwrite, "overwrite", false, "If the cluster does not exist, create the cluster. If it exists, update the cluster. This parameter is not recommended unless you know what you are doing")
 }
 
 // RunJoin is the implementation of the 'join' command.
@@ -173,6 +177,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		DryRun:             opts.DryRun,
 		ControlPlaneConfig: controlPlaneRestConfig,
 		ClusterConfig:      clusterConfig,
+		Overwrite:          opts.Overwrite,
 	}
 
 	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)
@@ -198,42 +203,55 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 	clusterObj := &clusterv1alpha1.Cluster{}
 	clusterObj.Name = opts.ClusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Push
-	clusterObj.Spec.APIEndpoint = opts.ClusterConfig.Host
-	clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
-		Namespace: opts.Secret.Namespace,
-		Name:      opts.Secret.Name,
-	}
-	clusterObj.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
-		Namespace: opts.ImpersonatorSecret.Namespace,
-		Name:      opts.ImpersonatorSecret.Name,
-	}
-
-	if opts.ClusterProvider != "" {
-		clusterObj.Spec.Provider = opts.ClusterProvider
-	}
-
-	if opts.ClusterZone != "" {
-		clusterObj.Spec.Zone = opts.ClusterZone
-	}
-
-	if opts.ClusterRegion != "" {
-		clusterObj.Spec.Region = opts.ClusterRegion
-	}
-
-	if opts.ClusterConfig.TLSClientConfig.Insecure {
-		clusterObj.Spec.InsecureSkipTLSVerification = true
-	}
-
-	if opts.ClusterConfig.Proxy != nil {
-		url, err := opts.ClusterConfig.Proxy(nil)
-		if err != nil {
-			return nil, fmt.Errorf("clusterConfig.Proxy error, %v", err)
+	mutateFunc := func(cluster *clusterv1alpha1.Cluster) {
+		cluster.Spec.APIEndpoint = opts.ClusterAPIEndpoint
+		cluster.Spec.ProxyURL = opts.ProxyServerAddress
+		if opts.ClusterProvider != "" {
+			cluster.Spec.Provider = opts.ClusterProvider
 		}
-		clusterObj.Spec.ProxyURL = url.String()
+
+		if opts.ClusterZone != "" {
+			cluster.Spec.Zone = opts.ClusterZone
+		}
+
+		if opts.ClusterRegion != "" {
+			cluster.Spec.Region = opts.ClusterRegion
+		}
+
+		if opts.ClusterConfig.TLSClientConfig.Insecure {
+			cluster.Spec.InsecureSkipTLSVerification = true
+		}
+		if opts.ClusterConfig.Proxy != nil {
+			url, err := opts.ClusterConfig.Proxy(nil)
+			if err != nil {
+				klog.Errorf("clusterConfig.Proxy error, %v", err)
+			} else {
+				cluster.Spec.ProxyURL = url.String()
+			}
+		}
+		if opts.IsKubeCredentialsEnabled() {
+			cluster.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
+				Namespace: opts.Secret.Namespace,
+				Name:      opts.Secret.Name,
+			}
+		}
+		if opts.IsKubeImpersonatorEnabled() {
+			cluster.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+				Namespace: opts.ImpersonatorSecret.Namespace,
+				Name:      opts.ImpersonatorSecret.Name,
+			}
+		}
 	}
 
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(opts.ControlPlaneConfig)
-	cluster, err := util.CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
+	var cluster *clusterv1alpha1.Cluster
+	var err error
+	if opts.Overwrite {
+		cluster, err = util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, clusterObj, mutateFunc)
+	} else {
+		mutateFunc(clusterObj)
+		cluster, err = util.CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cluster(%s) object. error: %v", opts.ClusterName, err)
 	}

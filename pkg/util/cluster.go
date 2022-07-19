@@ -40,6 +40,7 @@ type ClusterRegisterOption struct {
 	ClusterRegion      string
 	ClusterZone        string
 	DryRun             bool
+	Overwrite          bool
 
 	ControlPlaneConfig *rest.Config
 	ClusterConfig      *rest.Config
