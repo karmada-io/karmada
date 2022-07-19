@@ -64,7 +64,7 @@ var (
 // NewCmdGet New get command
 func NewCmdGet(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
-	o := NewCommandGetOptions("karmadactl", ioStreams)
+	o := NewCommandGetOptions(ioStreams)
 	cmd := &cobra.Command{
 		Use:          "get [NAME | -l label | -n namespace]  [flags]",
 		Short:        getShort,
@@ -137,10 +137,9 @@ type CommandGetOptions struct {
 }
 
 // NewCommandGetOptions returns a GetOptions with default chunk size 500.
-func NewCommandGetOptions(parent string, streams genericclioptions.IOStreams) *CommandGetOptions {
+func NewCommandGetOptions(streams genericclioptions.IOStreams) *CommandGetOptions {
 	return &CommandGetOptions{
 		PrintFlags:  get.NewGetPrintFlags(),
-		CmdParent:   parent,
 		IOStreams:   streams,
 		ChunkSize:   500,
 		ServerPrint: true,
