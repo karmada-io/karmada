@@ -1,4 +1,4 @@
-package apiinstalled
+package apienablement
 
 import (
 	"context"
@@ -14,26 +14,26 @@ import (
 
 const (
 	// Name is the name of the plugin used in the plugin registry and configurations.
-	Name = "APIInstalled"
+	Name = "APIEnablement"
 )
 
-// APIInstalled is a plugin that checks if the API(CRD) of the resource is installed in the target cluster.
-type APIInstalled struct{}
+// APIEnablement is a plugin that checks if the API(CRD) of the resource is installed in the target cluster.
+type APIEnablement struct{}
 
-var _ framework.FilterPlugin = &APIInstalled{}
+var _ framework.FilterPlugin = &APIEnablement{}
 
-// New instantiates the APIInstalled plugin.
+// New instantiates the APIEnablement plugin.
 func New() (framework.Plugin, error) {
-	return &APIInstalled{}, nil
+	return &APIEnablement{}, nil
 }
 
 // Name returns the plugin name.
-func (p *APIInstalled) Name() string {
+func (p *APIEnablement) Name() string {
 	return Name
 }
 
-// Filter checks if the API(CRD) of the resource is installed in the target cluster.
-func (p *APIInstalled) Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
+// Filter checks if the API(CRD) of the resource is enabled or installed in the target cluster.
+func (p *APIEnablement) Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	if !helper.IsAPIEnabled(cluster.Status.APIEnablements, resource.APIVersion, resource.Kind) {
 		klog.V(2).Infof("Cluster(%s) not fit as missing API(%s, kind=%s)", cluster.Name, resource.APIVersion, resource.Kind)
 		return framework.NewResult(framework.Unschedulable, "no such API resource")
