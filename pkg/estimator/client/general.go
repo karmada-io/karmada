@@ -100,7 +100,7 @@ func getAllowedPodNumber(resourceSummary *clusterv1alpha1.ResourceSummary) int64
 	}
 	allowedPodNumber := allocatable - allocated - allocating
 	// When too many pods have been created, scheduling will fail so that the allocating pods number may be huge.
-	// If allowedPodNumber is less than 0, we don't allow more pods to be created.
+	// If allowedPodNumber is less than or equal to 0, we don't allow more pods to be created.
 	if allowedPodNumber <= 0 {
 		return 0
 	}
