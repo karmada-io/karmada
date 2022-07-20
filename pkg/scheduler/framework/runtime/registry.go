@@ -2,6 +2,10 @@ package runtime
 
 import (
 	"fmt"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
@@ -42,4 +46,42 @@ func (r Registry) Merge(in Registry) error {
 		}
 	}
 	return nil
+}
+
+// FactoryNames returns all known plugin names
+func (r Registry) FactoryNames() []string {
+	return sets.StringKeySet(r).List()
+}
+
+// Filter out the disabled plugin
+func (r Registry) Filter(names []string) Registry {
+	var retRegistry = make(Registry)
+	for _, name := range names {
+		// --plugins=*
+		if name == "*" {
+			for factoryName, factory := range r {
+				klog.Infof("Enable Scheduler plugin %q", factoryName)
+				retRegistry[factoryName] = factory
+			}
+			break
+		}
+	}
+
+	for _, name := range names {
+		// --plugins=foo
+		if factory, ok := r[name]; ok {
+			retRegistry[name] = factory
+			klog.Infof("Enable Scheduler plugin %q", name)
+			continue
+		}
+		// --plugins=*,-foo
+		// --plugins=-foo,*
+		if strings.HasPrefix(name, "-") && len(retRegistry) > 0 {
+			factoryName := strings.TrimLeft(name, "-")
+			delete(retRegistry, factoryName)
+			klog.Warningf("%q is disabled", factoryName)
+		}
+	}
+
+	return retRegistry
 }

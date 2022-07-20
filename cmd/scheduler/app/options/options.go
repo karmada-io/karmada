@@ -1,6 +1,8 @@
 package options
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -9,6 +11,7 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 
 	"github.com/karmada-io/karmada/pkg/features"
+	frameworkplugins "github.com/karmada-io/karmada/pkg/scheduler/framework/plugins"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -52,6 +55,12 @@ type Options struct {
 	// EnableEmptyWorkloadPropagation represents whether workload with 0 replicas could be propagated to member clusters.
 	EnableEmptyWorkloadPropagation bool
 	ProfileOpts                    profileflag.Options
+
+	// Plugins is the list of plugins to enable or disable
+	// '*' means "all enabled by default plugins"
+	// 'foo' means "enable 'foo'"
+	// '*,-foo' means "disable 'foo'"
+	Plugins []string
 }
 
 // NewOptions builds an default scheduler options.
@@ -88,6 +97,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&o.SchedulerEstimatorTimeout.Duration, "scheduler-estimator-timeout", 3*time.Second, "Specifies the timeout period of calling the scheduler estimator service.")
 	fs.IntVar(&o.SchedulerEstimatorPort, "scheduler-estimator-port", defaultEstimatorPort, "The secure port on which to connect the accurate scheduler estimator.")
 	fs.BoolVar(&o.EnableEmptyWorkloadPropagation, "enable-empty-workload-propagation", false, "Enable workload with replicas 0 to be propagated to member clusters.")
+	fs.StringSliceVar(&o.Plugins, "plugins", []string{"*"},
+		fmt.Sprintf("A list of plugins to enable. '*' enables all build-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.\nAll build-in plugins: %s.", strings.Join(frameworkplugins.NewInTreeRegistry().FactoryNames(), ",")))
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
 }
