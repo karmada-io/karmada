@@ -25,7 +25,7 @@ Ensure that all member clusters have joined Karmada and their corresponding karm
 Check member clusters using the following command:
 
 ```bash
-# Check whether member clusters have joined
+# check whether member clusters have joined
 $ kubectl get cluster
 NAME       VERSION   MODE   READY   AGE
 member1    v1.19.1   Push   True    11m
@@ -33,7 +33,7 @@ member2    v1.19.1   Push   True    11m
 member3    v1.19.1   Pull   True    5m12s
 
 # check whether the karmada-scheduler-estimator of a member cluster has been working well
-$ kubectl --context karmada-host get pod -n karmada-system | grep estimator
+$ kubectl --context karmada-host -n karmada-system get pod | grep estimator
 karmada-scheduler-estimator-member1-696b54fd56-xt789   1/1     Running   0          77s
 karmada-scheduler-estimator-member2-774fb84c5d-md4wt   1/1     Running   0          75s
 karmada-scheduler-estimator-member3-5c7d87f4b4-76gv9   1/1     Running   0          72s
@@ -48,7 +48,7 @@ After all member clusters have joined and estimators are all ready, specify the 
 
 ```bash
 # edit the deployment of karmada-scheduler
-$ kubectl --context karmada-host edit -n karmada-system deployments.apps karmada-scheduler
+$ kubectl --context karmada-host -n karmada-system edit deployments.apps karmada-scheduler
 ```
 
 Add the option `--enable-scheduler-estimator=true` into the command of container `karmada-scheduler`.
@@ -58,7 +58,7 @@ Add the option `--enable-scheduler-estimator=true` into the command of container
 Ensure that the karmada-descheduler has been installed onto karmada-host.
 
 ```bash
-$ kubectl --context karmada-host get pod -n karmada-system | grep karmada-descheduler
+$ kubectl --context karmada-host -n karmada-system get pod | grep karmada-descheduler
 karmada-descheduler-658648d5b-c22qf                    1/1     Running   0          80s
 ```
 
@@ -118,13 +118,16 @@ It is possible for these 3 replicas to be evenly divided into 3 member clusters,
 Now we taint all nodes in member1 and evict the replica.
 
 ```bash
+# mark node "member1-control-plane" as unschedulable in cluster member1
 $ kubectl --context member1 cordon member1-control-plane
-$ kubectl --context member1 delete pod nginx-68b895fcbd-jgwz6
+# delete the pod in cluster member1
+$ kubectl --context member1 delete pod -l app=nginx
 ```
 
 A new pod will be created and cannot be scheduled by `kube-scheduler` due to lack of resources.
 
 ```bash
+# the state of pod in cluster member1 is pending
 $ kubectl --context member1 get pod
 NAME                     READY   STATUS    RESTARTS   AGE
 nginx-68b895fcbd-fccg4   1/1     Pending   0          80s
@@ -133,9 +136,11 @@ nginx-68b895fcbd-fccg4   1/1     Pending   0          80s
 After about 5 to 7 minutes, the pod in member1 will be evicted and scheduled to other available clusters.
 
 ```bash
+# get the pod in cluster member1
 $ kubectl --context member1 get pod
 No resources found in default namespace.
-# kubectl --context member2 get pod
+# get a list of pods in cluster member2
+$ kubectl --context member2 get pod
 NAME                     READY   STATUS    RESTARTS   AGE
 nginx-68b895fcbd-dgd4x   1/1     Running   0          6m3s
 nginx-68b895fcbd-nwgjn   1/1     Running   0          4s
