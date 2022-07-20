@@ -21,7 +21,7 @@ import (
 func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 	type args struct {
 		clusterKubeClient kubernetes.Interface
-		opts              ClusterRegisterOption
+		opts              *ClusterRegisterOption
 		aop               func(t *testing.T, clusterKubeClient kubernetes.Interface) func()
 	}
 	tests := []struct {
@@ -34,7 +34,7 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 		{
 			name: "disable report secret",
 			args: args{
-				opts: ClusterRegisterOption{
+				opts: &ClusterRegisterOption{
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      "member1",
 					ReportSecrets:    []string{KubeImpersonator},
@@ -78,7 +78,7 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 		{
 			name: "report secret enabled",
 			args: args{
-				opts: ClusterRegisterOption{
+				opts: &ClusterRegisterOption{
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      "member1",
 					ReportSecrets:    []string{KubeImpersonator, KubeCredentials},
@@ -170,7 +170,7 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 func TestRegisterClusterInControllerPlane(t *testing.T) {
 	fakeClient := fake.NewSimpleClientset()
 	type args struct {
-		opts                             ClusterRegisterOption
+		opts                             *ClusterRegisterOption
 		controlPlaneKubeClient           kubernetes.Interface
 		generateClusterInControllerPlane generateClusterInControllerPlaneFunc
 	}
@@ -182,7 +182,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 		{
 			name: "report secret not enabled",
 			args: args{
-				opts: ClusterRegisterOption{
+				opts: &ClusterRegisterOption{
 					ClusterNamespace:   "karmada-cluster",
 					ClusterName:        "member1",
 					ReportSecrets:      []string{"KubeImpersonator"},
@@ -195,7 +195,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 					},
 				},
 				controlPlaneKubeClient: fakeClient,
-				generateClusterInControllerPlane: func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
+				generateClusterInControllerPlane: func(opts *ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
 					clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
 					clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
 					clusterObj.Spec.APIEndpoint = opts.ClusterAPIEndpoint
@@ -211,7 +211,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 		{
 			name: "enable report secret",
 			args: args{
-				opts: ClusterRegisterOption{
+				opts: &ClusterRegisterOption{
 					ClusterNamespace:   "karmada-cluster",
 					ClusterName:        "member1",
 					ReportSecrets:      []string{"KubeImpersonator", "KubeCredentials"},
@@ -228,7 +228,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 					},
 				},
 				controlPlaneKubeClient: fakeClient,
-				generateClusterInControllerPlane: func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
+				generateClusterInControllerPlane: func(opts *ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
 					clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
 					clusterObj.Spec.SyncMode = clusterv1alpha1.Push
 					clusterObj.Spec.APIEndpoint = opts.ClusterAPIEndpoint

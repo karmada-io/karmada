@@ -34,10 +34,10 @@ var (
 	}
 )
 
-type generateClusterInControllerPlaneFunc func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error)
+type generateClusterInControllerPlaneFunc func(opts *ClusterRegisterOption) (*clusterv1alpha1.Cluster, error)
 
 // ObtainCredentialsFromMemberCluster obtain credentials for member cluster
-func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, opts ClusterRegisterOption) (*corev1.Secret, *corev1.Secret, error) {
+func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, opts *ClusterRegisterOption) (*corev1.Secret, *corev1.Secret, error) {
 	var impersonatorSecret *corev1.Secret
 	var clusterSecret *corev1.Secret
 	var err error
@@ -97,7 +97,7 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 }
 
 // RegisterClusterInControllerPlane represents register cluster in controller plane
-func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, generateClusterInControllerPlane generateClusterInControllerPlaneFunc) error {
+func RegisterClusterInControllerPlane(opts *ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, generateClusterInControllerPlane generateClusterInControllerPlaneFunc) error {
 	impersonatorSecret := &corev1.Secret{}
 	secret := &corev1.Secret{}
 	var err error

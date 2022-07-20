@@ -119,7 +119,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
 	controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
-	registerOption := util.ClusterRegisterOption{
+	registerOption := &util.ClusterRegisterOption{
 		ClusterNamespace:   opts.ClusterNamespace,
 		ClusterName:        opts.ClusterName,
 		ReportSecrets:      opts.ReportSecrets,
@@ -316,7 +316,7 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 	return true, nil
 }
 
-func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
+func generateClusterInControllerPlane(opts *util.ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
 	clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
 	mutateFunc := func(cluster *clusterv1alpha1.Cluster) {
 		cluster.Spec.SyncMode = clusterv1alpha1.Pull

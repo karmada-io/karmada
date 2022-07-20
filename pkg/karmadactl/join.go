@@ -163,7 +163,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return err
 	}
 
-	registerOption := util.ClusterRegisterOption{
+	registerOption := &util.ClusterRegisterOption{
 		ClusterNamespace:   opts.ClusterNamespace,
 		ClusterName:        opts.ClusterName,
 		ReportSecrets:      []string{util.KubeCredentials, util.KubeImpersonator},
@@ -194,7 +194,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 	return nil
 }
 
-func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
+func generateClusterInControllerPlane(opts *util.ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
 	clusterObj := &clusterv1alpha1.Cluster{}
 	clusterObj.Name = opts.ClusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Push
