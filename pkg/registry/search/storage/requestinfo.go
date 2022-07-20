@@ -69,7 +69,7 @@ func parseK8sNativeResourceInfo(reqParts []string) (*genericrequest.RequestInfo,
 		requestInfo.Resource = currentParts[0]
 	}
 
-	if requestInfo.Resource == "namespace" {
+	if requestInfo.Resource == "namespaces" {
 		requestInfo.Namespace = ""
 	}
 	return requestInfo, nil
