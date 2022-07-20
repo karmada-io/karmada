@@ -50,7 +50,7 @@ spec:
             secretName: kubeconfig
         - name: cert
           secret:
-            secretName: webhook-cert
+            secretName: karmada-webhook-cert
 ---
 apiVersion: v1
 kind: Service
