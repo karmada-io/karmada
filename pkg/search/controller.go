@@ -17,7 +17,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -61,7 +60,7 @@ func NewController(restConfig *rest.Config) (*Controller, error) {
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
-	restMapper, err := apiutil.NewDynamicRESTMapper(restConfig)
+	restMapper, err := restmapper.MapperProvider(restConfig)
 	if err != nil {
 		klog.Errorf("Failed to create REST mapper: %v", err)
 		return nil, err
