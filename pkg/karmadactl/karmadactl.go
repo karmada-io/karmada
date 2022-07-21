@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	apiserverflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
@@ -46,20 +47,54 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	_ = flag.CommandLine.Parse(nil)
 
 	karmadaConfig := NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-	rootCmd.AddCommand(NewCmdJoin(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdUnjoin(karmadaConfig, parentCommand))
+
+	groups := templates.CommandGroups{
+		{
+			Message: "Basic Commands:",
+			Commands: []*cobra.Command{
+				NewCmdGet(karmadaConfig, parentCommand),
+			},
+		},
+		{
+			Message: "Cluster Registeration Commands:",
+			Commands: []*cobra.Command{
+				cmdinit.NewCmdInit(parentCommand),
+				NewCmdDeInit(parentCommand),
+				NewCmdJoin(karmadaConfig, parentCommand),
+				NewCmdUnjoin(karmadaConfig, parentCommand),
+			},
+		},
+		{
+			Message: "Cluster Management Commands:",
+			Commands: []*cobra.Command{
+				NewCmdCordon(karmadaConfig, parentCommand),
+				NewCmdUncordon(karmadaConfig, parentCommand),
+				NewCmdTaint(karmadaConfig, parentCommand),
+			},
+		},
+		{
+			Message: "Troubleshooting and Debugging Commands:",
+			Commands: []*cobra.Command{
+				NewCmdLogs(karmadaConfig, parentCommand),
+				NewCmdExec(karmadaConfig, parentCommand),
+				NewCmdDescribe(karmadaConfig, parentCommand),
+			},
+		},
+		{
+			Message: "Advanced Commands:",
+			Commands: []*cobra.Command{
+				NewCmdApply(karmadaConfig, parentCommand),
+				NewCmdPromote(karmadaConfig, parentCommand),
+			},
+		},
+	}
+	groups.Add(rootCmd)
+
+	filters := []string{"options"}
+
 	rootCmd.AddCommand(sharedcommand.NewCmdVersion(parentCommand))
-	rootCmd.AddCommand(NewCmdCordon(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdUncordon(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdGet(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdApply(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdTaint(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdPromote(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdLogs(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdExec(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(NewCmdDescribe(karmadaConfig, parentCommand))
-	rootCmd.AddCommand(cmdinit.NewCmdInit(parentCommand))
-	rootCmd.AddCommand(NewCmdDeInit(parentCommand))
+
+	templates.ActsAsRootCommand(rootCmd, filters, groups...)
 
 	return rootCmd
 }
