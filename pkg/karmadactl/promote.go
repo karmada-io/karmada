@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -220,7 +219,7 @@ func RunPromote(karmadaConfig KarmadaConfig, opts CommandPromoteOption, args []s
 
 	opts.gvk = obj.GetObjectKind().GroupVersionKind()
 
-	mapper, err := apiutil.NewDynamicRESTMapper(controlPlaneRestConfig)
+	mapper, err := restmapper.MapperProvider(controlPlaneRestConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create restmapper: %v", err)
 	}
