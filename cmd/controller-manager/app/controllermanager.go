@@ -52,6 +52,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -121,6 +122,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		HealthProbeBindAddress:     net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)),
 		LivenessEndpointName:       "/healthz",
 		MetricsBindAddress:         opts.MetricsBindAddress,
+		MapperProvider:             restmapper.MapperProvider,
 		Controller: v1alpha1.ControllerConfigurationSpec{
 			GroupKindConcurrency: map[string]int{
 				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,
