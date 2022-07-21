@@ -57,6 +57,10 @@ spec:
               name: etcd-data
             - mountPath: /etc/kubernetes/pki/etcd
               name: etcd-certs
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
           command:
             - /usr/local/bin/etcd
             - --name
@@ -76,6 +80,7 @@ spec:
             - --key-file=/etc/kubernetes/pki/etcd/karmada.key
             - --trusted-ca-file=/etc/kubernetes/pki/etcd/server-ca.crt
             - --data-dir=/var/lib/etcd
+            - --snapshot-count=10000
       volumes:
         - hostPath:
             path: /var/lib/karmada-etcd
