@@ -39,6 +39,10 @@ spec:
                     values:
                       - etcd
               topologyKey: kubernetes.io/hostname
+      {{- with .Values.etcd.internal.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       tolerations:
         - operator: Exists
       containers:

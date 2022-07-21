@@ -516,6 +516,8 @@ etcd:
       storageClass: ""
       ## @param etcd.internal.pvc.size size of PVC
       size: ""
+    ## @param etcd.internal.nodeSelector node selector of the etcd
+    nodeSelector: {}
     ## @param etcd.internal.resources
     resources: {}
       # If you do want to specify resources, uncomment the following
