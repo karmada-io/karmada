@@ -37,14 +37,13 @@ const (
 
 // Controller is to sync Work.
 type Controller struct {
-	client.Client        // used to operate Work resources.
-	EventRecorder        record.EventRecorder
-	RESTMapper           meta.RESTMapper
-	ObjectWatcher        objectwatcher.ObjectWatcher
-	PredicateFunc        predicate.Predicate
-	InformerManager      informermanager.MultiClusterInformerManager
-	ClusterClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
-	RatelimiterOptions   ratelimiterflag.Options
+	client.Client      // used to operate Work resources.
+	EventRecorder      record.EventRecorder
+	RESTMapper         meta.RESTMapper
+	ObjectWatcher      objectwatcher.ObjectWatcher
+	PredicateFunc      predicate.Predicate
+	InformerManager    informermanager.MultiClusterInformerManager
+	RatelimiterOptions ratelimiterflag.Options
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
