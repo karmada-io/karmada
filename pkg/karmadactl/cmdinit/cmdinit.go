@@ -87,6 +87,11 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 }
 
 func initExample(parentCommand string) string {
+	releaseVer, err := version.ParseGitVersion(version.Get().GitVersion)
+	if err != nil {
+		klog.Infof("No default release version found. build version: %s", version.Get().String())
+		releaseVer = &version.ReleaseVersion{}
+	}
 	example := `
 # Install Karmada in Kubernetes cluster
 # The karmada-apiserver binds the master node's IP by default` + "\n" +
@@ -99,7 +104,7 @@ func initExample(parentCommand string) string {
 		fmt.Sprintf("%s init --kube-image-registry=registry.cn-hangzhou.aliyuncs.com/google_containers", parentCommand) + `
 
 # Specify the URL to download CRD tarball` + "\n" +
-		fmt.Sprintf("%s init --crds https://github.com/karmada-io/karmada/releases/download/v1.1.0/crds.tar.gz", parentCommand) + `
+		fmt.Sprintf("%s init --crds https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", parentCommand, releaseVer.FirstMinorRelease()) + `
 
 # Specify the local CRD tarball` + "\n" +
 		fmt.Sprintf("%s init --crds /root/crds.tar.gz", parentCommand) + `
