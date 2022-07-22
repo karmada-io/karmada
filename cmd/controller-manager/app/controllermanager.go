@@ -320,14 +320,13 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 
 func startExecutionController(ctx controllerscontext.Context) (enabled bool, err error) {
 	executionController := &execution.Controller{
-		Client:               ctx.Mgr.GetClient(),
-		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:           ctx.Mgr.GetRESTMapper(),
-		ObjectWatcher:        ctx.ObjectWatcher,
-		PredicateFunc:        helper.NewExecutionPredicate(ctx.Mgr),
-		InformerManager:      informermanager.GetInstance(),
-		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
-		RatelimiterOptions:   ctx.Opts.RateLimiterOptions,
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:         ctx.Mgr.GetRESTMapper(),
+		ObjectWatcher:      ctx.ObjectWatcher,
+		PredicateFunc:      helper.NewExecutionPredicate(ctx.Mgr),
+		InformerManager:    informermanager.GetInstance(),
+		RatelimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err

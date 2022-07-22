@@ -262,14 +262,13 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 
 func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 	executionController := &execution.Controller{
-		Client:               ctx.Mgr.GetClient(),
-		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:           ctx.Mgr.GetRESTMapper(),
-		ObjectWatcher:        ctx.ObjectWatcher,
-		PredicateFunc:        helper.NewExecutionPredicateOnAgent(),
-		InformerManager:      informermanager.GetInstance(),
-		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		RatelimiterOptions:   ctx.Opts.RateLimiterOptions,
+		Client:             ctx.Mgr.GetClient(),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
+		RESTMapper:         ctx.Mgr.GetRESTMapper(),
+		ObjectWatcher:      ctx.ObjectWatcher,
+		PredicateFunc:      helper.NewExecutionPredicateOnAgent(),
+		InformerManager:    informermanager.GetInstance(),
+		RatelimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
