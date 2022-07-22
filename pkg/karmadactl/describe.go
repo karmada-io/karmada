@@ -53,6 +53,7 @@ func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 	usage := "containing the resource to describe"
 	cmdutil.AddFilenameOptionFlags(cmd, o.FilenameOptions, usage)
 	cmd.Flags().StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "If present, the namespace scope for this CLI request")
 	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2)")
 	cmd.Flags().BoolVarP(&o.AllNamespaces, "all-namespaces", "A", o.AllNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().BoolVar(&o.DescriberSettings.ShowEvents, "show-events", o.DescriberSettings.ShowEvents, "If true, display events related to the described object.")
@@ -126,10 +127,15 @@ func (o *CommandDescribeOptions) Complete(karmadaConfig KarmadaConfig, args []st
 
 	f := getFactory(o.Cluster, clusterInfo, "")
 
-	o.Namespace, o.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
+	namespace, enforceNamespace, err := f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
 	}
+
+	if o.Namespace == "" {
+		o.Namespace = namespace
+	}
+	o.EnforceNamespace = enforceNamespace
 
 	if o.AllNamespaces {
 		o.EnforceNamespace = false
