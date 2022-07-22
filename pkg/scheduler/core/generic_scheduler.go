@@ -101,7 +101,8 @@ func (g *genericScheduler) findClustersThatFit(
 	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, time.Now())
 
 	var out []*clusterv1alpha1.Cluster
-	clusters := clusterInfo.GetReadyClusters()
+	// DO NOT filter unhealthy cluster, let users make decisions by using ClusterTolerations of Placement.
+	clusters := clusterInfo.GetClusters()
 	for _, c := range clusters {
 		if result := fwk.RunFilterPlugins(ctx, placement, resource, c.Cluster()); !result.IsSuccess() {
 			klog.V(4).Infof("cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
