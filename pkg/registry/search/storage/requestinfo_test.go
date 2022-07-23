@@ -81,16 +81,30 @@ func Test_parseK8sNativeResourceInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "resource is namespace",
+			name: "resource is namespaces",
 			args: args{
-				reqParts: []string{"api", "v1", "namespace"},
+				reqParts: []string{"api", "v1", "namespaces"},
 			},
 			want: &genericrequest.RequestInfo{
 				IsResourceRequest: true,
-				Path:              strings.Join([]string{"api", "v1", "namespace"}, "/"),
+				Path:              strings.Join([]string{"api", "v1", "namespaces"}, "/"),
 				APIPrefix:         "api",
 				APIVersion:        "v1",
-				Resource:          "namespace",
+				Resource:          "namespaces",
+			},
+		},
+		{
+			name: "resource is a specified namespaces",
+			args: args{
+				reqParts: []string{"api", "v1", "namespaces", "default"},
+			},
+			want: &genericrequest.RequestInfo{
+				IsResourceRequest: true,
+				Path:              strings.Join([]string{"api", "v1", "namespaces", "default"}, "/"),
+				APIPrefix:         "api",
+				APIVersion:        "v1",
+				Resource:          "namespaces",
+				Name:              "default",
 			},
 		},
 	}
