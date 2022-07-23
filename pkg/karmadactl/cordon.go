@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -23,6 +24,13 @@ var (
 
 	uncordonShort = `Mark cluster as schedulable`
 	uncordonLong  = `Mark cluster as schedulable.`
+
+	cordonExample = templates.Examples(`
+		# Mark cluster "foo" as unschedulable.
+		%[1]s cordon foo`)
+	uncordonExample = templates.Examples(`
+		# Mark cluster "foo" as schedulable.
+		%[1]s uncordon foo`)
 )
 
 const (
@@ -40,7 +48,7 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 		Use:          "cordon CLUSTER",
 		Short:        cordonShort,
 		Long:         cordonLong,
-		Example:      cordonExample(parentCommand),
+		Example:      fmt.Sprintf(cordonExample, parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -61,13 +69,6 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 	return cmd
 }
 
-func cordonExample(parentCommand string) string {
-	example := `
-# Mark cluster "foo" as unschedulable` + "\n" +
-		fmt.Sprintf("%s cordon foo", parentCommand)
-	return example
-}
-
 // NewCmdUncordon defines the `uncordon` command that mark cluster as schedulable.
 func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
@@ -75,7 +76,7 @@ func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 		Use:          "uncordon CLUSTER",
 		Short:        uncordonShort,
 		Long:         uncordonLong,
-		Example:      uncordonExample(parentCommand),
+		Example:      fmt.Sprintf(uncordonExample, parentCommand),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
@@ -92,13 +93,6 @@ func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 	opts.AddFlags(flags)
 
 	return cmd
-}
-
-func uncordonExample(parentCommand string) string {
-	example := `
-# Mark cluster "foo" as schedulable.` + "\n" +
-		fmt.Sprintf("%s uncordon foo", parentCommand)
-	return example
 }
 
 // CommandCordonOption holds all command options for cordon and uncordon

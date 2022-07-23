@@ -30,6 +30,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/interrupt"
+	"k8s.io/kubectl/pkg/util/templates"
 	utilpointer "k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -59,6 +60,31 @@ var (
 	eventColumn = metav1.TableColumnDefinition{Name: "EVENT", Type: "string", Format: "", Priority: 0}
 
 	getShort = `Display one or many resources`
+
+	getExample = templates.Examples(`
+		# List all pods in ps output format
+		%[1]s get pods
+	
+		# List all pods in ps output format with more information (such as node name)
+		%[1]s get pods -o wide
+	
+		# List all pods of member1 cluster in ps output format
+		%[1]s get pods -C member1
+	
+		# List a single replicasets controller with specified NAME in ps output format
+		%[1]s get replicasets nginx
+	
+		# List deployments in JSON output format, in the "v1" version of the "apps" API group
+		%[1]s get deployments.v1.apps -o json
+	
+		# Return only the phase value of the specified resource
+		%[1]s get -o template deployment/nginx -C member1 --template={{.spec.replicas}}
+	
+		# List all replication controllers and services together in ps output format
+		%[1]s get rs,services
+	
+		# List one or more resources by their type and names
+		%[1]s get rs/nginx-cb87b6d88 service/kubernetes`)
 )
 
 // NewCmdGet New get command
@@ -69,7 +95,7 @@ func NewCmdGet(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command
 		Use:          "get [NAME | -l label | -n namespace]  [flags]",
 		Short:        getShort,
 		SilenceUsage: true,
-		Example:      getExample(parentCommand),
+		Example:      fmt.Sprintf(getExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(karmadaConfig); err != nil {
 				return err
@@ -1036,34 +1062,6 @@ func Exists(path string) bool {
 		return os.IsExist(err)
 	}
 	return true
-}
-
-func getExample(parentCommand string) string {
-	example := `
-# List all pods in ps output format` + "\n" +
-		fmt.Sprintf("%s get pods", parentCommand) + `
-
-# List all pods in ps output format with more information (such as node name)` + "\n" +
-		fmt.Sprintf("%s get pods -o wide", parentCommand) + `
-
-# List all pods of member1 cluster in ps output format` + "\n" +
-		fmt.Sprintf("%s get pods -C member1", parentCommand) + `
-
-# List a single replicasets controller with specified NAME in ps output format ` + "\n" +
-		fmt.Sprintf("%s get replicasets nginx", parentCommand) + `
-
-# List deployments in JSON output format, in the "v1" version of the "apps" API group ` + "\n" +
-		fmt.Sprintf("%s get deployments.v1.apps -o json", parentCommand) + `
-
-# Return only the phase value of the specified resource ` + "\n" +
-		fmt.Sprintf("%s get -o template deployment/nginx -C member1 --template={{.spec.replicas}}", parentCommand) + `
-
-# List all replication controllers and services together in ps output format ` + "\n" +
-		fmt.Sprintf("%s get rs,services", parentCommand) + `
-
-# List one or more resources by their type and names ` + "\n" +
-		fmt.Sprintf("%s get rs/nginx-cb87b6d88 service/kubernetes", parentCommand)
-	return example
 }
 
 // skipPrinter allows conditionally suppressing object output via the output field.
