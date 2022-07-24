@@ -12,7 +12,8 @@ import (
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 )
 
-func waitAPIServiceReady(c *aggregator.Clientset, name string, timeout time.Duration) error {
+// WaitAPIServiceReady wait the api service condition true
+func WaitAPIServiceReady(c *aggregator.Clientset, name string, timeout time.Duration) error {
 	if err := wait.PollImmediate(time.Second, timeout, func() (done bool, err error) {
 		apiService, e := c.ApiregistrationV1().APIServices().Get(context.TODO(), name, metav1.GetOptions{})
 		if e != nil {

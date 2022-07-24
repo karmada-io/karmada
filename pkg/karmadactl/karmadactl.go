@@ -11,6 +11,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/addons"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -60,6 +61,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 			Commands: []*cobra.Command{
 				cmdinit.NewCmdInit(parentCommand),
 				NewCmdDeInit(parentCommand),
+				addons.NewCommandAddons(parentCommand),
 				NewCmdJoin(karmadaConfig, parentCommand),
 				NewCmdUnjoin(karmadaConfig, parentCommand),
 			},

@@ -240,7 +240,7 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), aaAPIService, metav1.CreateOptions{}); err != nil {
 		return err
 	}
-	if err := waitAPIServiceReady(apiRegistrationClient, aaAPIServiceObjName, 120*time.Second); err != nil {
+	if err := WaitAPIServiceReady(apiRegistrationClient, aaAPIServiceObjName, 120*time.Second); err != nil {
 		return err
 	}
 	return nil
