@@ -109,7 +109,7 @@ function installCRDs() {
 
     kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
-    kubectl kustomize "${crd_path}"/_crds | kubectl apply -f -
+    kubectl apply -k "${crd_path}"/_crds
 }
 
 # Use x.x.x.6 IP address, which is the same CIDR with the node address of the Kind cluster,

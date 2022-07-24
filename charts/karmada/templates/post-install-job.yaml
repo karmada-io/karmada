@@ -89,7 +89,7 @@ spec:
         - |
           bash <<'EOF'
           set -ex
-          kubectl kustomize /crds | kubectl apply --kubeconfig /etc/kubeconfig -f -
+          kubectl apply -k /crds --kubeconfig /etc/kubeconfig
           kubectl apply -f /static-resources --kubeconfig /etc/kubeconfig
           EOF
         volumeMounts:
