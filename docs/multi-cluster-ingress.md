@@ -1,18 +1,18 @@
 # Multi-cluster Ingress
 
-Users can use [MultiClusterIngress API](https://github.com/karmada-io/karmada/blob/master/pkg/apis/networking/v1alpha1/ingress_types.go) provided in Karmada to import external traffic to services in the member clusters.
+Users can use [Multi-cluster Ingress APIs](https://github.com/karmada-io/karmada/blob/master/pkg/apis/networking/v1alpha1/ingress_types.go) provided in Karmada to import external traffic to services in the member clusters.
 
 ## Prerequisites
 
 ### Karmada has been installed
 
-We can install Karmada by referring to [quick-start](https://github.com/karmada-io/karmada#quick-start), or directly run `hack/local-up-karmada.sh` script which is also used to run our E2E cases.
+We can install Karmada by referring to [Quick Start](https://github.com/karmada-io/karmada#quick-start), or directly run `hack/local-up-karmada.sh` script which is also used to run our E2E cases.
 
 ### Cluster Network
 
-Currently, we need to use the [MCS](https://github.com/karmada-io/karmada/blob/master/docs/multi-cluster-service.md#the-serviceexport-and-serviceimport-crds-have-been-installed) feature to import external traffic.
+Currently, we need to use the [Multi-cluster Service](https://github.com/karmada-io/karmada/blob/master/docs/multi-cluster-service.md#the-serviceexport-and-serviceimport-crds-have-been-installed) feature to import external traffic.
 
-So we need to ensure that the container networks between the **host cluster** and member clusters are connected. The **host cluster** indicates the cluster where the Karmada control plane is deployed.
+So we need to ensure that the container networks between the **host cluster** and member clusters are connected. The **host cluster** indicates the cluster where the **Karmada Control Plane** is deployed.
 
 - If you use the `hack/local-up-karmada.sh` script to deploy Karmada, Karmada will have three member clusters, and the container networks between the **host cluster**, `member1` and `member2` are connected.
 - You can use `Submariner` or other related open source projects to connected networks between clusters.
@@ -27,9 +27,9 @@ We use [multi-cluster-ingress-nginx](https://github.com/karmada-io/multi-cluster
 
 ```shell
 # for HTTPS
-git clone https://github.com/karmada-io/multi-cluster-ingress-nginx.git
+$ git clone https://github.com/karmada-io/multi-cluster-ingress-nginx.git
 # for SSH
-git clone git@github.com:karmada-io/multi-cluster-ingress-nginx.git
+$ git clone git@github.com:karmada-io/multi-cluster-ingress-nginx.git
 ```
 
 #### Build and deploy ingress-nginx
@@ -37,37 +37,27 @@ git clone git@github.com:karmada-io/multi-cluster-ingress-nginx.git
 Using the existing `karmada-host` kind cluster to build and deploy the ingress controller.
 
 ```shell
-export KIND_CLUSTER_NAME=karmada-host
-kubectl config use-context karmada-host
-make dev-env
+# set the default cluster profile
+$ export KUBECONFIG=~/.kube/karmada.config
+# set the kind cluster name for ingress deploy
+$ export KIND_CLUSTER_NAME=karmada-host
+# the default context is switched to karmda-host
+$ kubectl config use-context karmada-host
+Switched to context "karmada-host".
+$ cd multi-cluster-ingress-nginx
+$ make dev-env
 ```
 
 #### Apply kubeconfig secret
 
-Create a Secret that contains the `karmada-apiserver` authentication credential in the following format:
-
-```yaml
-# karmada-kubeconfig-secret.yaml
-apiVersion: v1
-data:
-  kubeconfig: {data} # Base64-encoded
-kind: Secret
-metadata:
-  name: kubeconfig
-  namespace: ingress-nginx
-type: Opaque
-```
-
-You can get the authentication credential from the `/root/.kube/karmada.config` file, or use command:
+Create a secret that contains the `karmada-apiserver` authentication credential:
 
 ```shell
-kubectl -n karmada-system get secret kubeconfig -oyaml | grep kubeconfig | sed -n '1p' | awk '{print $2}'
-```
-
-Then apply yaml:
-
-```shell
-kubectl apply -f karmada-kubeconfig-secret.yaml
+# get the 'karmada-apiserver' kubeconfig information and direct it to file /tmp/kubeconfig
+$ kubectl -n karmada-system get secret kubeconfig --template={{.data.kubeconfig}} | base64 -d > /tmp/kubeconfig.yaml
+# create secret with name 'kubeconfig' from file /tmp/kubeconfig
+$ kubectl -n ingress-nginx create secret generic kubeconfig --from-file=kubeconfig=/tmp/kubeconfig
+secret/kubeconfig created
 ```
 
 #### Edit ingress-nginx-controller deployment
@@ -75,7 +65,7 @@ kubectl apply -f karmada-kubeconfig-secret.yaml
 We want `nginx-ingress-controller` to access `karmada-apiserver` to listen to changes in resources(such as multiclusteringress, endpointslices, and service). Therefore, we need to mount the authentication credential of `karmada-apiserver` to the `nginx-ingress-controller`.
 
 ```shell
-kubectl -n ingress-nginx edit deployment ingress-nginx-controller
+$ kubectl -n ingress-nginx edit deployment ingress-nginx-controller
 ```
 
 Edit as follows:
@@ -174,7 +164,7 @@ spec:
 </details>
 
 ```shell
-kubectl --context karmada-apiserver apply -f deploy.yaml
+$ kubectl --context karmada-apiserver apply -f deploy.yaml
 ```
 
 #### Export web service from member1 cluster
@@ -209,7 +199,7 @@ spec:
 </details>
 
 ```shell
-kubectl --context karmada-apiserver apply -f service_export.yaml
+$ kubectl --context karmada-apiserver apply -f service_export.yaml
 ```
 
 #### Import web service to member2 cluster
@@ -249,7 +239,7 @@ spec:
 </details>
 
 ```shell
-kubectl --context karmada-apiserver apply -f service_import.yaml
+$ kubectl --context karmada-apiserver apply -f service_import.yaml
 ```
 
 ### Step 3: Deploy multiclusteringress on karmada-controlplane
@@ -284,7 +274,7 @@ spec:
 </details>
 
 ```shell
-kubectl --context karmada-apiserver apply -f 
+$ kubectl --context karmada-apiserver apply -f mci-web.yaml
 ```
 
 ### Step 4: Local testing
@@ -292,7 +282,7 @@ kubectl --context karmada-apiserver apply -f
 Let's forward a local port to the ingress controller:
 
 ```shell
-kubectl port-forward --namespace=ingress-nginx service/ingress-nginx-controller 8080:80
+$ kubectl port-forward --namespace=ingress-nginx service/ingress-nginx-controller 8080:80
 ```
 
 At this point, if you access http://demo.localdev.me:8080/web/, you should see an HTML page telling you:
