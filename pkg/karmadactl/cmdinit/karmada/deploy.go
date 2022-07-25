@@ -99,11 +99,7 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	}
 
 	// grant proxy permission to "system:admin".
-	if err := grantProxyPermissionToAdmin(clientSet); err != nil {
-		return err
-	}
-
-	return nil
+	return grantProxyPermissionToAdmin(clientSet)
 }
 
 func crdPatchesResources(filename, caBundle string) ([]byte, error) {
@@ -240,8 +236,5 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), aaAPIService, metav1.CreateOptions{}); err != nil {
 		return err
 	}
-	if err := waitAPIServiceReady(apiRegistrationClient, aaAPIServiceObjName, 120*time.Second); err != nil {
-		return err
-	}
-	return nil
+	return waitAPIServiceReady(apiRegistrationClient, aaAPIServiceObjName, 120*time.Second)
 }

@@ -44,10 +44,7 @@ karmada-scheduler-estimator to get replica status.`,
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := run(opts, stopChan); err != nil {
-				return err
-			}
-			return nil
+			return run(opts, stopChan)
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {

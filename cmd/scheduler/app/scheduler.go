@@ -54,10 +54,7 @@ func NewSchedulerCommand(stopChan <-chan struct{}, registryOptions ...Option) *c
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := run(opts, stopChan, registryOptions...); err != nil {
-				return err
-			}
-			return nil
+			return run(opts, stopChan, registryOptions...)
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {

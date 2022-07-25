@@ -398,11 +398,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		},
 	}
 
-	if err = helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
-		return err
-	}
-
-	return nil
+	return helper.CreateOrUpdateWork(c, workMeta, endpointSlice)
 }
 
 func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.FederatedKey) error {

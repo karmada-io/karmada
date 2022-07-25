@@ -42,10 +42,7 @@ func (ni *NodeInfo) AssignedPodRequest(pods []*corev1.Pod) error {
 	}
 
 	// subtract
-	if err := ni.IdleResource.Sub(occupiedResource.ResourceList()); err != nil {
-		return err
-	}
-	return nil
+	return ni.IdleResource.Sub(occupiedResource.ResourceList())
 }
 
 // MaxReplicaDivided returns how many replicas that the node can produce.

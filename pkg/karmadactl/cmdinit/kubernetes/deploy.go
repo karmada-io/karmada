@@ -233,10 +233,7 @@ func (i *CommandInitOption) genCerts() error {
 	karmadaCertCfg := cert.NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
 
 	frontProxyClientCertCfg := cert.NewCertConfig("front-proxy-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
-	if err = cert.GenCerts(i.KarmadaDataPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
-		return err
-	}
-	return nil
+	return cert.GenCerts(i.KarmadaDataPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg)
 }
 
 // prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
@@ -247,10 +244,7 @@ func (i *CommandInitOption) prepareCRD() error {
 		if err := utils.DownloadFile(i.CRDs, filename); err != nil {
 			return err
 		}
-		if err := utils.DeCompress(filename, i.KarmadaDataPath); err != nil {
-			return err
-		}
-		return nil
+		return utils.DeCompress(filename, i.KarmadaDataPath)
 	}
 	klog.Infoln("local crds file name:", i.CRDs)
 	return utils.DeCompress(i.CRDs, i.KarmadaDataPath)
@@ -297,11 +291,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		"tls.key": string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)]),
 	}
 	karmadaWebhookSecret := i.SecretFromSpec(webhookCertsName, corev1.SecretTypeOpaque, karmadaWebhookCert)
-	if err := i.CreateSecret(karmadaWebhookSecret); err != nil {
-		return err
-	}
-
-	return nil
+	return i.CreateSecret(karmadaWebhookSecret)
 }
 
 func (i *CommandInitOption) initKarmadaAPIServer() error {

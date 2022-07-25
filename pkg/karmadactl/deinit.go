@@ -53,10 +53,7 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 			if err := opts.Complete(); err != nil {
 				return err
 			}
-			if err := opts.Run(); err != nil {
-				return err
-			}
-			return nil
+			return opts.Run()
 		},
 	}
 

@@ -27,10 +27,7 @@ func NewAggregatedApiserverCommand(ctx context.Context) *cobra.Command {
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := opts.Run(ctx); err != nil {
-				return err
-			}
-			return nil
+			return opts.Run(ctx)
 		},
 	}
 

@@ -89,7 +89,7 @@ func WaitPodReady(c *kubernetes.Clientset, namespace, selector string, timeout i
 
 // WaitEtcdReplicasetInDesired Wait Etcd Ready
 func WaitEtcdReplicasetInDesired(replicas int32, c *kubernetes.Clientset, namespace, selector string, timeout int) error {
-	if err := wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, func() (done bool, err error) {
+	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, func() (done bool, err error) {
 		pods, e := c.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
 		if e != nil {
 			return false, nil
@@ -100,8 +100,5 @@ func WaitEtcdReplicasetInDesired(replicas int32, c *kubernetes.Clientset, namesp
 		}
 		klog.Warningf("etcd desired replicaset is %v, currently: %v", replicas, len(pods.Items))
 		return false, nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }

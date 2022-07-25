@@ -198,11 +198,7 @@ func (c *Controller) buildWorks(cluster *clusterv1alpha1.Cluster, obj *unstructu
 	util.MergeLabel(obj, workv1alpha1.WorkNamespaceLabel, workNamespace)
 	util.MergeLabel(obj, workv1alpha1.WorkNameLabel, clusterRoleBindingWorkName)
 
-	if err = helper.CreateOrUpdateWork(c.Client, objectMeta, obj); err != nil {
-		return err
-	}
-
-	return nil
+	return helper.CreateOrUpdateWork(c.Client, objectMeta, obj)
 }
 
 // SetupWithManager creates a controller and register to controller manager.

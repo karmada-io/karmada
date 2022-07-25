@@ -13,7 +13,7 @@ import (
 )
 
 func waitAPIServiceReady(c *aggregator.Clientset, name string, timeout time.Duration) error {
-	if err := wait.PollImmediate(time.Second, timeout, func() (done bool, err error) {
+	return wait.PollImmediate(time.Second, timeout, func() (done bool, err error) {
 		apiService, e := c.ApiregistrationV1().APIServices().Get(context.TODO(), name, metav1.GetOptions{})
 		if e != nil {
 			return false, nil
@@ -24,8 +24,5 @@ func waitAPIServiceReady(c *aggregator.Clientset, name string, timeout time.Dura
 
 		klog.Infof("Waiting for APIService(%s) condition(%s), will try", name, apiregistrationv1.Available)
 		return false, nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }

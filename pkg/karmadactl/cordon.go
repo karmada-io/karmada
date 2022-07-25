@@ -54,10 +54,7 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(DesiredCordon, karmadaConfig, opts); err != nil {
-				return err
-			}
-			return nil
+			return RunCordonOrUncordon(DesiredCordon, karmadaConfig, opts)
 		},
 	}
 
@@ -82,10 +79,7 @@ func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(DesiredUnCordon, karmadaConfig, opts); err != nil {
-				return err
-			}
-			return nil
+			return RunCordonOrUncordon(DesiredUnCordon, karmadaConfig, opts)
 		},
 	}
 

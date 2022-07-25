@@ -70,10 +70,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 			if err := opts.Complete(); err != nil {
 				return err
 			}
-			if err := opts.RunInit(parentCommand); err != nil {
-				return err
-			}
-			return nil
+			return opts.RunInit(parentCommand)
 		},
 	}
 	flags := cmd.PersistentFlags()
