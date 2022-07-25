@@ -53,7 +53,7 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 		Use:  "karmada-agent",
 		Long: `The karmada agent runs the cluster registration agent`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// validate options
+			// Validate options
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
@@ -183,7 +183,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		return err
 	}
 
-	// blocks until the context is done.
+	// Blocks until the context is done.
 	if err := controllerManager.Start(ctx); err != nil {
 		return fmt.Errorf("controller manager exits unexpectedly: %w", err)
 	}

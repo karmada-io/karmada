@@ -76,7 +76,7 @@ type Options struct {
 	ClusterAPIEndpoint string
 	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
 	ProxyServerAddress string
-	// concurrentClusterSyncs is the number of cluster objects that are
+	// ConcurrentClusterSyncs is the number of cluster objects that are
 	// allowed to sync concurrently.
 	ConcurrentClusterSyncs int
 	// ConcurrentWorkSyncs is the number of work objects that are
