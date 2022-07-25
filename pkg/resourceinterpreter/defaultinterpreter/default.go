@@ -72,7 +72,7 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 func (e *DefaultInterpreter) GetReplicas(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
 	handler, exist := e.replicaHandlers[object.GroupVersionKind()]
 	if !exist {
-		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("defalut %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretReplica, object.GroupVersionKind())
+		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretReplica, object.GroupVersionKind())
 	}
 	return handler(object)
 }
@@ -81,7 +81,7 @@ func (e *DefaultInterpreter) GetReplicas(object *unstructured.Unstructured) (int
 func (e *DefaultInterpreter) ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
 	handler, exist := e.reviseReplicaHandlers[object.GroupVersionKind()]
 	if !exist {
-		return nil, fmt.Errorf("defalut %s interpreter for %q not found", configv1alpha1.InterpreterOperationReviseReplica, object.GroupVersionKind())
+		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationReviseReplica, object.GroupVersionKind())
 	}
 	return handler(object, replica)
 }
@@ -99,7 +99,7 @@ func (e *DefaultInterpreter) Retain(desired *unstructured.Unstructured, observed
 func (e *DefaultInterpreter) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	handler, exist := e.aggregateStatusHandlers[object.GroupVersionKind()]
 	if !exist {
-		return nil, fmt.Errorf("defalut %s interpreter for %q not found", configv1alpha1.InterpreterOperationAggregateStatus, object.GroupVersionKind())
+		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationAggregateStatus, object.GroupVersionKind())
 	}
 	return handler(object, aggregatedStatusItems)
 }
@@ -108,7 +108,7 @@ func (e *DefaultInterpreter) AggregateStatus(object *unstructured.Unstructured, 
 func (e *DefaultInterpreter) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error) {
 	handler, exist := e.dependenciesHandlers[object.GroupVersionKind()]
 	if !exist {
-		return dependencies, fmt.Errorf("defalut interpreter for operation %s not found", configv1alpha1.InterpreterOperationInterpretDependency)
+		return dependencies, fmt.Errorf("default interpreter for operation %s not found", configv1alpha1.InterpreterOperationInterpretDependency)
 	}
 	return handler(object)
 }

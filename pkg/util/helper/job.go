@@ -67,7 +67,9 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		})
 	}
 
-	if successfulJobs == len(status) {
+	// aggregated status can be empty when the binding is just created
+	// in which case we should not set the job status to complete
+	if successfulJobs == len(status) && successfulJobs > 0 {
 		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
 			Type:               batchv1.JobComplete,
 			Status:             corev1.ConditionTrue,
