@@ -94,7 +94,7 @@ type Options struct {
 	// It can be set to "0" to disable the metrics serving.
 	// Defaults to ":8080".
 	MetricsBindAddress string
-	// concurrentClusterSyncs is the number of cluster objects that are
+	// ConcurrentClusterSyncs is the number of cluster objects that are
 	// allowed to sync concurrently.
 	ConcurrentClusterSyncs int
 	// ConcurrentClusterResourceBindingSyncs is the number of clusterresourcebinding objects that are

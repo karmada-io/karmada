@@ -6,7 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// A callback function to modify options
+// a callback function to modify options
 type ModifyOptions func(option *Options)
 
 // New an Options with default parameters

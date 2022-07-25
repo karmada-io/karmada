@@ -9,7 +9,7 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 )
 
-// A callback function to modify options
+// a callback function to modify options
 type ModifyOptions func(option *Options)
 
 // New an Options with default parameters
