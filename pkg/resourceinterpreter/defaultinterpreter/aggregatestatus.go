@@ -51,6 +51,7 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 		}
 		klog.V(3).Infof("Grab deployment(%s/%s) status from cluster(%s), replicas: %d, ready: %d, updated: %d, available: %d, unavailable: %d",
 			deploy.Namespace, deploy.Name, item.ClusterName, temp.Replicas, temp.ReadyReplicas, temp.UpdatedReplicas, temp.AvailableReplicas, temp.UnavailableReplicas)
+		newStatus.ObservedGeneration = deploy.Generation
 		newStatus.Replicas += temp.Replicas
 		newStatus.ReadyReplicas += temp.ReadyReplicas
 		newStatus.UpdatedReplicas += temp.UpdatedReplicas
@@ -58,7 +59,8 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 		newStatus.UnavailableReplicas += temp.UnavailableReplicas
 	}
 
-	if oldStatus.Replicas == newStatus.Replicas &&
+	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
+		oldStatus.Replicas == newStatus.Replicas &&
 		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
 		oldStatus.UpdatedReplicas == newStatus.UpdatedReplicas &&
 		oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
@@ -67,6 +69,7 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 		return object, nil
 	}
 
+	oldStatus.ObservedGeneration = newStatus.ObservedGeneration
 	oldStatus.Replicas = newStatus.Replicas
 	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
 	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
