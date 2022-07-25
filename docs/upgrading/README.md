@@ -62,7 +62,7 @@ kubectl kustomize ./charts/karmada/_crds
 ```
 Or, you can apply to `karmada-apiserver` by:
 ```bash
-kubectl kustomize ./charts/karmada/_crds | kubectl apply -f -
+kubectl apply -k ./charts/karmada/_crds
 ```
 
 ### Upgrading Components
