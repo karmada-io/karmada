@@ -1,16 +1,15 @@
 package main
 
 import (
-	"os"
-
 	"k8s.io/component-base/cli"
-	_ "k8s.io/component-base/logs/json/register" // for JSON log format registration
+	"k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 )
 
 func main() {
-	cmd := karmadactl.NewKarmadaCtlCommand("karmadactl", "karmadactl")
-	code := cli.Run(cmd)
-	os.Exit(code)
+	cmd := karmadactl.NewKarmadaCtlCommand("karmada", "kubectl karmada")
+	if err := cli.RunNoErrOutput(cmd); err != nil {
+		util.CheckErr(err)
+	}
 }
