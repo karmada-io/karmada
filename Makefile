@@ -156,3 +156,11 @@ release:
 	@make release-kubectl-karmada GOOS=linux GOARCH=arm64
 	@make release-kubectl-karmada GOOS=darwin GOARCH=amd64
 	@make release-kubectl-karmada GOOS=darwin GOARCH=arm64
+
+# Automatically generate command line documents
+#
+# Example
+#   make ctldocsgen
+.PHONY: ctldocsgen
+ctldocsgen:
+	go run tools/cmd-docs/main.go
