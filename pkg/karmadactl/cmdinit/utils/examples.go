@@ -149,7 +149,7 @@ spec:
       targetPort: 10352`
 )
 
-//GenExamples Generate sample files
+// GenExamples Generate sample files
 func GenExamples(path, parentCommand string) {
 	karmadaAgentStr := fmt.Sprintf(karmadaAgent, options.ClusterName)
 	if err := BytesToFile(path, "karmada-agent.yaml", []byte(karmadaAgentStr)); err != nil {
