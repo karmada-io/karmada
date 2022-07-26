@@ -367,6 +367,7 @@ func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err
 		Client:                       ctx.Mgr.GetClient(),
 		EventRecorder:                ctx.Mgr.GetEventRecorderFor(namespace.ControllerName),
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		OverrideManager:              ctx.OverrideManager,
 	}
 	if err := namespaceSyncController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
