@@ -146,11 +146,6 @@ func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructure
 func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	klog.V(4).Infof("Begin to aggregate status for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	// If status has not been collected, there is no need to aggregate.
-	if len(aggregatedStatusItems) == 0 {
-		return object, nil
-	}
-
 	obj, hookEnabled, err := i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
 		Operation:        configv1alpha1.InterpreterOperationAggregateStatus,
 		Object:           object.DeepCopy(),
