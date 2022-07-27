@@ -320,6 +320,23 @@ func (d *ResourceDetector) OnAdd(obj interface{}) {
 
 // OnUpdate handles object update event and push the object to queue.
 func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
+	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
+	if err != nil {
+		klog.Errorf("Failed to transform oldObj, error: %v", err)
+		return
+	}
+
+	unstructuredNewObj, err := helper.ToUnstructured(newObj)
+	if err != nil {
+		klog.Errorf("Failed to transform newObj, error: %v", err)
+		return
+	}
+
+	if !SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
+		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
+		return
+	}
+
 	d.OnAdd(newObj)
 }
 
