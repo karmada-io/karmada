@@ -44,8 +44,8 @@ func (a *karmadaConfig) GetRestConfig(context, kubeconfigPath string) (*rest.Con
 // context and kubeconfig passed as arguments.
 func (a *karmadaConfig) GetClientConfig(context, kubeconfigPath string) clientcmd.ClientConfig {
 	loadingRules := *a.pathOptions.LoadingRules
-	loadingRules.Precedence = a.pathOptions.GetLoadingPrecedence()
 	loadingRules.ExplicitPath = kubeconfigPath
+	loadingRules.Precedence = a.pathOptions.GetLoadingPrecedence()
 	overrides := &clientcmd.ConfigOverrides{
 		CurrentContext: context,
 	}
