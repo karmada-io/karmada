@@ -51,6 +51,11 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 		}
 		klog.V(3).Infof("Grab deployment(%s/%s) status from cluster(%s), replicas: %d, ready: %d, updated: %d, available: %d, unavailable: %d",
 			deploy.Namespace, deploy.Name, item.ClusterName, temp.Replicas, temp.ReadyReplicas, temp.UpdatedReplicas, temp.AvailableReplicas, temp.UnavailableReplicas)
+
+		// always set 'observedGeneration' with current generation(.metadata.generation)
+		// which is the generation Karmada 'observed'.
+		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
 		newStatus.ObservedGeneration = deploy.Generation
 		newStatus.Replicas += temp.Replicas
 		newStatus.ReadyReplicas += temp.ReadyReplicas
@@ -203,6 +208,12 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 		}
 		klog.V(3).Infof("Grab daemonSet(%s/%s) status from cluster(%s), currentNumberScheduled: %d, desiredNumberScheduled: %d, numberAvailable: %d, numberMisscheduled: %d, numberReady: %d, updatedNumberScheduled: %d, numberUnavailable: %d",
 			daemonSet.Namespace, daemonSet.Name, item.ClusterName, temp.CurrentNumberScheduled, temp.DesiredNumberScheduled, temp.NumberAvailable, temp.NumberMisscheduled, temp.NumberReady, temp.UpdatedNumberScheduled, temp.NumberUnavailable)
+
+		// always set 'observedGeneration' with current generation(.metadata.generation)
+		// which is the generation Karmada 'observed'.
+		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+		newStatus.ObservedGeneration = daemonSet.Generation
 		newStatus.CurrentNumberScheduled += temp.CurrentNumberScheduled
 		newStatus.DesiredNumberScheduled += temp.DesiredNumberScheduled
 		newStatus.NumberAvailable += temp.NumberAvailable
@@ -212,7 +223,8 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 		newStatus.NumberUnavailable += temp.NumberUnavailable
 	}
 
-	if oldStatus.CurrentNumberScheduled == newStatus.CurrentNumberScheduled &&
+	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
+		oldStatus.CurrentNumberScheduled == newStatus.CurrentNumberScheduled &&
 		oldStatus.DesiredNumberScheduled == newStatus.DesiredNumberScheduled &&
 		oldStatus.NumberAvailable == newStatus.NumberAvailable &&
 		oldStatus.NumberMisscheduled == newStatus.NumberMisscheduled &&
@@ -223,6 +235,7 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 		return object, nil
 	}
 
+	oldStatus.ObservedGeneration = newStatus.ObservedGeneration
 	oldStatus.CurrentNumberScheduled = newStatus.CurrentNumberScheduled
 	oldStatus.DesiredNumberScheduled = newStatus.DesiredNumberScheduled
 	oldStatus.NumberAvailable = newStatus.NumberAvailable
@@ -251,6 +264,12 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 		}
 		klog.V(3).Infof("Grab statefulSet(%s/%s) status from cluster(%s), availableReplicas: %d, currentReplicas: %d, readyReplicas: %d, replicas: %d, updatedReplicas: %d",
 			statefulSet.Namespace, statefulSet.Name, item.ClusterName, temp.AvailableReplicas, temp.CurrentReplicas, temp.ReadyReplicas, temp.Replicas, temp.UpdatedReplicas)
+
+		// always set 'observedGeneration' with current generation(.metadata.generation)
+		// which is the generation Karmada 'observed'.
+		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+		newStatus.ObservedGeneration = statefulSet.Generation
 		newStatus.AvailableReplicas += temp.AvailableReplicas
 		newStatus.CurrentReplicas += temp.CurrentReplicas
 		newStatus.ReadyReplicas += temp.ReadyReplicas
@@ -258,7 +277,8 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 		newStatus.UpdatedReplicas += temp.UpdatedReplicas
 	}
 
-	if oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
+	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
+		oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
 		oldStatus.CurrentReplicas == newStatus.CurrentReplicas &&
 		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
 		oldStatus.Replicas == newStatus.Replicas &&
@@ -267,6 +287,7 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 		return object, nil
 	}
 
+	oldStatus.ObservedGeneration = newStatus.ObservedGeneration
 	oldStatus.AvailableReplicas = newStatus.AvailableReplicas
 	oldStatus.CurrentReplicas = newStatus.CurrentReplicas
 	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
