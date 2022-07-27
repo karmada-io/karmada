@@ -373,9 +373,16 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 		policyList = append(policyList, policy)
 	}
 
-	var matchedPolicy *policyv1alpha1.PropagationPolicy
+	var (
+		matchedPolicy         *policyv1alpha1.PropagationPolicy
+		matchedPolicyPriority = util.PriorityMisMatch
+	)
+
 	for _, policy := range policyList {
-		if util.ResourceMatchSelectors(object, policy.Spec.ResourceSelectors...) {
+		if p := util.ResourceMatchSelectorsPriority(object, policy.Spec.ResourceSelectors...); p > matchedPolicyPriority {
+			matchedPolicy = policy
+			matchedPolicyPriority = p
+		} else if p > util.PriorityMisMatch && p == matchedPolicyPriority {
 			matchedPolicy = GetHigherPriorityPropagationPolicy(matchedPolicy, policy)
 		}
 	}
@@ -411,9 +418,16 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 		policyList = append(policyList, policy)
 	}
 
-	var matchedClusterPolicy *policyv1alpha1.ClusterPropagationPolicy
+	var (
+		matchedClusterPolicy         *policyv1alpha1.ClusterPropagationPolicy
+		matchedClusterPolicyPriority = util.PriorityMisMatch
+	)
+
 	for _, policy := range policyList {
-		if util.ResourceMatchSelectors(object, policy.Spec.ResourceSelectors...) {
+		if p := util.ResourceMatchSelectorsPriority(object, policy.Spec.ResourceSelectors...); p > matchedClusterPolicyPriority {
+			matchedClusterPolicy = policy
+			matchedClusterPolicyPriority = p
+		} else if p > util.PriorityMisMatch && p == matchedClusterPolicyPriority {
 			matchedClusterPolicy = GetHigherPriorityClusterPropagationPolicy(matchedClusterPolicy, policy)
 		}
 	}
