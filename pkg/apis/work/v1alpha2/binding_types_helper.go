@@ -21,3 +21,22 @@ func (s *ResourceBindingSpec) AssignedReplicasForCluster(targetCluster string) i
 
 	return 0
 }
+
+// RemoveCluster removes specific cluster from the target list.
+// This function no-opts if cluster not exist.
+func (s *ResourceBindingSpec) RemoveCluster(name string) {
+	var i int
+
+	for i = 0; i < len(s.Clusters); i++ {
+		if s.Clusters[i].Name == name {
+			break
+		}
+	}
+
+	// not found, do nothing
+	if i >= len(s.Clusters) {
+		return
+	}
+
+	s.Clusters = append(s.Clusters[:i], s.Clusters[i+1:]...)
+}
