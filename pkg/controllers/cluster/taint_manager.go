@@ -153,7 +153,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
-		binding.Spec.Clusters = util.RemoveTargetCluster(binding.Spec.Clusters, cluster)
+		binding.Spec.RemoveCluster(cluster)
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
 			return err
@@ -198,7 +198,7 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
-		binding.Spec.Clusters = util.RemoveTargetCluster(binding.Spec.Clusters, cluster)
+		binding.Spec.RemoveCluster(cluster)
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
 			return err
