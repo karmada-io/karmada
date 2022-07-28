@@ -40,8 +40,7 @@ var (
 )
 
 // NewCmdExec new exec command.
-func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
-	streams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
+func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &ExecOptions{
 		KubectlExecOptions: &kubectlexec.ExecOptions{
 			StreamOptions: kubectlexec.StreamOptions{

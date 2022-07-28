@@ -3,9 +3,11 @@ package karmadactl
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/clientcmd"
 	apiserverflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
@@ -47,12 +49,12 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	_ = flag.CommandLine.Parse(nil)
 
 	karmadaConfig := NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-
+	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 	groups := templates.CommandGroups{
 		{
 			Message: "Basic Commands:",
 			Commands: []*cobra.Command{
-				NewCmdGet(karmadaConfig, parentCommand),
+				NewCmdGet(karmadaConfig, parentCommand, ioStreams),
 			},
 		},
 		{
@@ -75,15 +77,15 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 		{
 			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
-				NewCmdLogs(karmadaConfig, parentCommand),
-				NewCmdExec(karmadaConfig, parentCommand),
-				NewCmdDescribe(karmadaConfig, parentCommand),
+				NewCmdLogs(karmadaConfig, parentCommand, ioStreams),
+				NewCmdExec(karmadaConfig, parentCommand, ioStreams),
+				NewCmdDescribe(karmadaConfig, parentCommand, ioStreams),
 			},
 		},
 		{
 			Message: "Advanced Commands:",
 			Commands: []*cobra.Command{
-				NewCmdApply(karmadaConfig, parentCommand),
+				NewCmdApply(karmadaConfig, parentCommand, ioStreams),
 				NewCmdPromote(karmadaConfig, parentCommand),
 			},
 		},

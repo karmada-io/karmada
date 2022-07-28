@@ -50,8 +50,7 @@ var (
 )
 
 // NewCmdLogs new logs command.
-func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
-	streams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
+func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &LogsOptions{
 		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams, false),
 	}

@@ -63,18 +63,11 @@ var (
 		%[1]s apply -f dir/ --all-clusters`)
 )
 
-// NewCommandApplyOptions returns an initialized CommandApplyOptions instance
-func NewCommandApplyOptions() *CommandApplyOptions {
-	streams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
-	flags := kubectlapply.NewApplyFlags(nil, streams)
-	return &CommandApplyOptions{
-		KubectlApplyFlags: flags,
-	}
-}
-
 // NewCmdApply creates the `apply` command
-func NewCmdApply(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
-	o := NewCommandApplyOptions()
+func NewCmdApply(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+	o := &CommandApplyOptions{
+		KubectlApplyFlags: kubectlapply.NewApplyFlags(nil, streams),
+	}
 	cmd := &cobra.Command{
 		Use:     "apply (-f FILENAME | -k DIRECTORY)",
 		Short:   "Apply a configuration to a resource by file name or stdin and propagate them into member clusters",

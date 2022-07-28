@@ -49,10 +49,6 @@ const (
 )
 
 var (
-	getIn  = os.Stdin
-	getOut = os.Stdout
-	getErr = os.Stderr
-
 	podColumns = []metav1.TableColumnDefinition{
 		{Name: "CLUSTER", Type: "string", Format: "", Priority: 0},
 		{Name: "ADOPTION", Type: "string", Format: "", Priority: 0},
@@ -88,9 +84,8 @@ var (
 )
 
 // NewCmdGet New get command
-func NewCmdGet(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
-	ioStreams := genericclioptions.IOStreams{In: getIn, Out: getOut, ErrOut: getErr}
-	o := NewCommandGetOptions(ioStreams)
+func NewCmdGet(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewCommandGetOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "get [NAME | -l label | -n namespace]  [flags]",
 		Short:        getShort,
