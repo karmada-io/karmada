@@ -59,3 +59,16 @@ const (
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
 	ResourceTemplateUIDAnnotation = "resourcetemplate.karmada.io/uid"
 )
+
+// Define eviction reasons.
+const (
+	// EvictionReasonTaintUntolerated describes the eviction is triggered
+	// because can not tolerate taint or exceed toleration period of time.
+	EvictionReasonTaintUntolerated = "TaintUntolerated"
+)
+
+// Define eviction producers.
+const (
+	// EvictionProducerTaintManager represents the name of taint manager.
+	EvictionProducerTaintManager = "TaintManager"
+)

@@ -72,6 +72,22 @@ type ResourceBindingSpec struct {
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
 
+	// GracefulEvictionTasks holds the eviction tasks that are expected to perform
+	// the eviction in a graceful way.
+	// The intended workflow is:
+	// 1. Once the controller(such as 'taint-manager') decided to evict the resource that
+	//    is referenced by current ResourceBinding or ClusterResourceBinding from a target
+	//    cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)
+	//    and builds a graceful eviction task.
+	// 2. The scheduler may perform a re-scheduler and probably select a substitute cluster
+	//    to take over the evicting workload(resource).
+	// 3. The graceful eviction controller takes care of the graceful eviction tasks and
+	//    performs the final removal after the workload(resource) is available on the substitute
+	//    cluster or exceed the grace termination period(defaults to 10 minutes).
+	//
+	// +optional
+	GracefulEvictionTasks []GracefulEvictionTask `json:"gracefulEvictionTasks,omitempty"`
+
 	// RequiredBy represents the list of Bindings that depend on the referencing resource.
 	// +optional
 	RequiredBy []BindingSnapshot `json:"requiredBy,omitempty"`
@@ -142,6 +158,48 @@ type TargetCluster struct {
 	Replicas int32 `json:"replicas,omitempty"`
 }
 
+// GracefulEvictionTask represents a graceful eviction task.
+type GracefulEvictionTask struct {
+	// FromCluster which cluster the eviction perform from.
+	// +required
+	FromCluster string `json:"fromCluster"`
+
+	// Replicas indicates the number of replicas should be evicted.
+	// Should be ignored for resource type that doesn't have replica.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Reason contains a programmatic identifier indicating the reason for the eviction.
+	// Producers may define expected values and meanings for this field,
+	// and whether the values are considered a guaranteed API.
+	// The value should be a CamelCase string.
+	// This field may not be empty.
+	// +required
+	// +kubebuilder:validation:MaxLength=32
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$`
+	Reason string `json:"reason"`
+
+	// Message is a human-readable message indicating details about the eviction.
+	// This may be an empty string.
+	// +optional
+	// +kubebuilder:validation:MaxLength=1024
+	Message string `json:"message,omitempty"`
+
+	// Producer indicates the controller who triggered the eviction.
+	// +required
+	Producer string `json:"producer"`
+
+	// CreationTimestamp is a timestamp representing the server time when this object was
+	// created.
+	// Clients should not set this value to avoid the time inconsistency issue.
+	// It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.
+	//
+	// Populated by the system. Read-only.
+	// +optional
+	CreationTimestamp metav1.Time `json:"creationTimestamp,omitempty"`
+}
+
 // BindingSnapshot is a snapshot of a ResourceBinding or ClusterResourceBinding.
 type BindingSnapshot struct {
 	// Namespace represents the namespace of the Binding.
@@ -161,6 +219,11 @@ type BindingSnapshot struct {
 
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
 type ResourceBindingStatus struct {
+	// SchedulerObservedGeneration is the generation(.metadata.generation) observed by the scheduler.
+	// If SchedulerObservedGeneration is less than the generation in metadata means the scheduler hasn't confirmed
+	// the scheduling result or hasn't done the schedule yet.
+	// +optional
+	SchedulerObservedGeneration int64 `json:"schedulerObservedGeneration,omitempty"`
 	// Conditions contain the different condition statuses.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

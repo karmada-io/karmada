@@ -264,6 +264,66 @@ spec:
                   - name
                   type: object
                 type: array
+              gracefulEvictionTasks:
+                description: 'GracefulEvictionTasks holds the eviction tasks that
+                  are expected to perform the eviction in a graceful way. The intended
+                  workflow is: 1. Once the controller(such as ''taint-manager'') decided
+                  to evict the resource that is referenced by current ResourceBinding
+                  or ClusterResourceBinding from a target cluster, it removes(or scale
+                  down the replicas) the target from Clusters(.spec.Clusters) and
+                  builds a graceful eviction task. 2. The scheduler may perform a
+                  re-scheduler and probably select a substitute cluster to take over
+                  the evicting workload(resource). 3. The graceful eviction controller
+                  takes care of the graceful eviction tasks and performs the final
+                  removal after the workload(resource) is available on the substitute
+                  cluster or exceed the grace termination period(defaults to 10 minutes).'
+                items:
+                  description: GracefulEvictionTask represents a graceful eviction
+                    task.
+                  properties:
+                    creationTimestamp:
+                      description: "CreationTimestamp is a timestamp representing
+                        the server time when this object was created. Clients should
+                        not set this value to avoid the time inconsistency issue.
+                        It is represented in RFC3339 form(like '2021-04-25T10:02:10Z')
+                        and is in UTC. \n Populated by the system. Read-only."
+                      format: date-time
+                      type: string
+                    fromCluster:
+                      description: FromCluster which cluster the eviction perform
+                        from.
+                      type: string
+                    message:
+                      description: Message is a human-readable message indicating
+                        details about the eviction. This may be an empty string.
+                      maxLength: 1024
+                      type: string
+                    producer:
+                      description: Producer indicates the controller who triggered
+                        the eviction.
+                      type: string
+                    reason:
+                      description: Reason contains a programmatic identifier indicating
+                        the reason for the eviction. Producers may define expected
+                        values and meanings for this field, and whether the values
+                        are considered a guaranteed API. The value should be a CamelCase
+                        string. This field may not be empty.
+                      maxLength: 32
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    replicas:
+                      description: Replicas indicates the number of replicas should
+                        be evicted. Should be ignored for resource type that doesn't
+                        have replica.
+                      format: int32
+                      type: integer
+                  required:
+                  - fromCluster
+                  - producer
+                  - reason
+                  type: object
+                type: array
               propagateDeps:
                 description: PropagateDeps tells if relevant resources should be propagated
                   automatically. It is inherited from PropagationPolicy or ClusterPropagationPolicy.
@@ -609,6 +669,13 @@ spec:
                   - type
                   type: object
                 type: array
+              schedulerObservedGeneration:
+                description: SchedulerObservedGeneration is the generation(.metadata.generation)
+                  observed by the scheduler. If SchedulerObservedGeneration is less
+                  than the generation in metadata means the scheduler hasn't confirmed
+                  the scheduling result or hasn't done the schedule yet.
+                format: int64
+                type: integer
             type: object
         required:
         - spec
