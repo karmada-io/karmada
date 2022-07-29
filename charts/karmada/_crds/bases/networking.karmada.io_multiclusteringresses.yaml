@@ -9,6 +9,8 @@ metadata:
 spec:
   group: networking.karmada.io
   names:
+    categories:
+    - karmada-io
     kind: MultiClusterIngress
     listKind: MultiClusterIngressList
     plural: multiclusteringresses

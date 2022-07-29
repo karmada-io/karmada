@@ -9,6 +9,8 @@ metadata:
 spec:
   group: policy.karmada.io
   names:
+    categories:
+    - karmada-io
     kind: FederatedResourceQuota
     listKind: FederatedResourceQuotaList
     plural: federatedresourcequotas

@@ -9,6 +9,8 @@ metadata:
 spec:
   group: policy.karmada.io
   names:
+    categories:
+    - karmada-io
     kind: OverridePolicy
     listKind: OverridePolicyList
     plural: overridepolicies

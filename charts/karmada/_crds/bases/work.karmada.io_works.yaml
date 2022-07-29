@@ -9,6 +9,8 @@ metadata:
 spec:
   group: work.karmada.io
   names:
+    categories:
+    - karmada-io
     kind: Work
     listKind: WorkList
     plural: works
