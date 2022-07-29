@@ -76,7 +76,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 			return nil
 		},
 	}
-	flags := cmd.PersistentFlags()
+	flags := cmd.Flags()
 
 	releaseVer, err := version.ParseGitVersion(version.Get().GitVersion)
 	if err != nil {
