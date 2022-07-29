@@ -125,7 +125,7 @@ func ensureWork(
 		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
 
 		annotations := mergeAnnotations(clonedWorkload, binding, scope)
-		annotations, err = recordAppliedOverrides(cops, ops, annotations)
+		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
 			klog.Errorf("failed to record appliedOverrides, Error: %v", err)
 			return err
@@ -209,7 +209,8 @@ func mergeAnnotations(workload *unstructured.Unstructured, binding metav1.Object
 	return annotations
 }
 
-func recordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overridemanager.AppliedOverrides,
+// RecordAppliedOverrides record applied (cluster) overrides to annotations
+func RecordAppliedOverrides(cops *overridemanager.AppliedOverrides, ops *overridemanager.AppliedOverrides,
 	annotations map[string]string) (map[string]string, error) {
 	if annotations == nil {
 		annotations = make(map[string]string)
