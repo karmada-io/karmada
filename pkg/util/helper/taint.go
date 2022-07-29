@@ -9,12 +9,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // TaintExists checks if the given taint exists in list of taints. Returns true if exists false otherwise.
 func TaintExists(taints []corev1.Taint, taintToFind *corev1.Taint) bool {
 	for _, taint := range taints {
 		if taint.MatchTaint(taintToFind) {
+			return true
+		}
+	}
+	return false
+}
+
+// TolerationExists checks if the given toleration exists in list of tolerations. Returns true if exists false otherwise.
+func TolerationExists(tolerations []corev1.Toleration, tolerationToFind *corev1.Toleration) bool {
+	for _, toleration := range tolerations {
+		if toleration.MatchToleration(tolerationToFind) {
 			return true
 		}
 	}
@@ -60,6 +71,15 @@ func UpdateClusterControllerTaint(ctx context.Context, client client.Client, tai
 	cluster.Spec.Taints = taints
 
 	return client.Update(ctx, cluster)
+}
+
+// AddTolerations add some tolerations if not existed.
+func AddTolerations(placement *policyv1alpha1.Placement, tolerationsToAdd ...*corev1.Toleration) {
+	for _, tolerationToAdd := range tolerationsToAdd {
+		if !TolerationExists(placement.ClusterTolerations, tolerationToAdd) {
+			placement.ClusterTolerations = append(placement.ClusterTolerations, *tolerationToAdd)
+		}
+	}
 }
 
 // HasNoExecuteTaints check if NoExecute taints exist.
@@ -155,4 +175,24 @@ func GetMatchingTolerations(taints []corev1.Taint, tolerations []corev1.Tolerati
 		}
 	}
 	return true, result
+}
+
+// NewNotReadyToleration returns a default not ready toleration.
+func NewNotReadyToleration(tolerationSeconds int64) *corev1.Toleration {
+	return &corev1.Toleration{
+		Key:               clusterv1alpha1.TaintClusterNotReady,
+		Operator:          corev1.TolerationOpExists,
+		Effect:            corev1.TaintEffectNoExecute,
+		TolerationSeconds: &tolerationSeconds,
+	}
+}
+
+// NewUnreachableToleration returns a default unreachable toleration.
+func NewUnreachableToleration(tolerationSeconds int64) *corev1.Toleration {
+	return &corev1.Toleration{
+		Key:               clusterv1alpha1.TaintClusterUnreachable,
+		Operator:          corev1.TolerationOpExists,
+		Effect:            corev1.TaintEffectNoExecute,
+		TolerationSeconds: &tolerationSeconds,
+	}
 }

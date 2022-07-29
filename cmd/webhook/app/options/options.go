@@ -47,6 +47,9 @@ type Options struct {
 	// Defaults to ":8000".
 	HealthProbeBindAddress string
 
+	DefaultNotReadyTolerationSeconds    int64
+	DefaultUnreachableTolerationSeconds int64
+
 	ProfileOpts profileflag.Options
 }
 
@@ -72,6 +75,10 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8088, :8088)")
 	flags.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":8000", "The TCP address that the controller should bind to for serving health probes(e.g. 127.0.0.1:8000, :8000)")
+
+	// webhook flags
+	flags.Int64Var(&o.DefaultNotReadyTolerationSeconds, "default-not-ready-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for notReady:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
+	flags.Int64Var(&o.DefaultUnreachableTolerationSeconds, "default-unreachable-toleration-seconds", 300, "Indicates the tolerationSeconds of the propagation policy toleration for unreachable:NoExecute that is added by default to every propagation policy that does not already have such a toleration.")
 
 	o.ProfileOpts.AddFlags(flags)
 }
