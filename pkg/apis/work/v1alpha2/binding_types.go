@@ -30,7 +30,7 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=rb
+// +kubebuilder:resource:shortName=rb,categories={karmada-io}
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FullyApplied",type=string
@@ -214,7 +214,7 @@ type ResourceBindingList struct {
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:scope="Cluster",shortName=crb
+// +kubebuilder:resource:scope="Cluster",shortName=crb,categories={karmada-io}
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="Scheduled",type=string

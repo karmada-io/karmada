@@ -19,7 +19,7 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=mci
+// +kubebuilder:resource:shortName=mci,categories={karmada-io}
 
 // MultiClusterIngress is a collection of rules that allow inbound connections to reach the
 // endpoints defined by a backend. The structure of MultiClusterIngress is same as Ingress,

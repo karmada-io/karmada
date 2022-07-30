@@ -18,6 +18,7 @@ const (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:categories={karmada-io}
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 
