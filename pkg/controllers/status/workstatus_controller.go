@@ -194,6 +194,11 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
+	// stop update status if Work object in terminating state.
+	if !workObject.DeletionTimestamp.IsZero() {
+		return nil
+	}
+
 	desiredObj, err := c.getRawManifest(workObject.Spec.Workload.Manifests, observedObj)
 	if err != nil {
 		return err
