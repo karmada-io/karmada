@@ -79,8 +79,10 @@ type RuleWithCluster struct {
 
 // Overriders offers various alternatives to represent the override rules.
 //
-// If more than one alternatives exist, they will be applied with following order:
+// If more than one alternative exists, they will be applied with following order:
 // - ImageOverrider
+// - CommandOverrider
+// - ArgsOverrider
 // - Plaintext
 type Overriders struct {
 	// Plaintext represents override rules defined with plaintext overriders.

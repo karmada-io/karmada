@@ -2443,7 +2443,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternatives exist, they will be applied with following order: - ImageOverrider - Plaintext",
+				Description: "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - Plaintext",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"plaintext": {

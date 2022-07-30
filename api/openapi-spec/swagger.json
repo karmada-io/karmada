@@ -15047,7 +15047,7 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Overriders": {
-      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternatives exist, they will be applied with following order: - ImageOverrider - Plaintext",
+      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - Plaintext",
       "type": "object",
       "properties": {
         "argsOverrider": {
