@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -118,6 +119,21 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	var errs []error
+	if c.ResourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationPauseEnsureWork) {
+		pauseStatus, err := c.ResourceInterpreter.GetPauseEnsureWorkStatus(workload)
+		if err != nil {
+			klog.Errorf("Failed grab pause ensure work status for %s(%s), %v", workload.GroupVersionKind(), workload.GetName(), err)
+			c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, err.Error())
+			c.EventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, err.Error())
+			errs = append(errs, err)
+		} else {
+			if pauseStatus {
+				c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, "pause ensure work object")
+				c.EventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, "pause ensure work object")
+				return controllerruntime.Result{}, nil
+			}
+		}
+	}
 	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)

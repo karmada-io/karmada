@@ -28,4 +28,5 @@ type ResponseAttributes struct {
 	PatchType           configv1alpha1.PatchType
 	RawStatus           runtime.RawExtension
 	Healthy             bool
+	PauseEnsureWork     bool
 }

@@ -1206,6 +1206,13 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 							Format:      "",
 						},
 					},
+					"pauseEnsureWork": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PauseEnsureWork represents whether pause ensure work object.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"uid", "successful"},
 			},

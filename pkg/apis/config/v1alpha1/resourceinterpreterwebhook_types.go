@@ -116,6 +116,9 @@ const (
 	// Only necessary for those resource types that have dependencies resources and expect the dependencies be propagated
 	// together, like Deployment depends on ConfigMap/Secret.
 	InterpreterOperationInterpretDependency InterpreterOperation = "InterpretDependency"
+
+	// InterpreterOperationPauseEnsureWork indicates that karmada want to judge whether pause ensure work object or not.
+	InterpreterOperationPauseEnsureWork InterpreterOperation = "PauseEnsureWork"
 )
 
 // Rule is a tuple of APIGroups, APIVersion, and Kinds.

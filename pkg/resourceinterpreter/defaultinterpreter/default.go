@@ -12,6 +12,13 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
+const (
+	// PauseEnsureWorkLabels is used as label for default pause ensure work label
+	PauseEnsureWorkLabels = "work.karmada.io/paused"
+	// True bool type to string type
+	True = "true"
+)
+
 // DefaultInterpreter contains all default operation interpreter factory
 // for interpreting common resource.
 type DefaultInterpreter struct {
@@ -59,6 +66,8 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 			return true
 		}
 	case configv1alpha1.InterpreterOperationInterpretStatus:
+		return true
+	case configv1alpha1.InterpreterOperationPauseEnsureWork:
 		return true
 
 		// TODO(RainbowMango): more cases should be added here
@@ -122,4 +131,10 @@ func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (s
 
 	// for resource types that don't have a build-in handler, try to collect the whole status from '.status' filed.
 	return reflectWholeStatus(object)
+}
+
+// GetPauseEnsureWorkStatus returns the status of pause ensure work object.
+func (e *DefaultInterpreter) GetPauseEnsureWorkStatus(object *unstructured.Unstructured) (pauseStatus bool) {
+	labels := object.GetLabels()
+	return labels != nil && labels[PauseEnsureWorkLabels] == True
 }

@@ -113,6 +113,10 @@ type ResourceInterpreterResponse struct {
 	// Healthy represents the referencing object's healthy status.
 	// +optional
 	Healthy *bool `json:"healthy,omitempty"`
+
+	// PauseEnsureWork represents whether pause ensure work object.
+	// +optional
+	PauseEnsureWork *bool `json:"pauseEnsureWork,omitempty"`
 }
 
 // RequestStatus holds the status of a request.
