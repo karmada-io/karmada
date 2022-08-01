@@ -14139,6 +14139,10 @@
           "description": "The API endpoint of the member cluster. This can be a hostname, hostname:port, IP or IP:port.",
           "type": "string"
         },
+        "id": {
+          "description": "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and typically collected automatically from member cluster during the progress of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
+          "type": "string"
+        },
         "impersonatorSecretRef": {
           "description": "ImpersonatorSecretRef represents the secret contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference"
