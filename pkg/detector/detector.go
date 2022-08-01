@@ -430,7 +430,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	klog.Infof("Applying policy(%s%s) for object: %s", policy.Namespace, policy.Name, objectKey)
 	defer func() {
 		if err != nil {
-			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply policy(%s/%s) failed", policy.Namespace, policy.Name)
+			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply policy(%s/%s) failed: %v", policy.Namespace, policy.Name, err)
 		} else {
 			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Namespace, policy.Name)
 		}
@@ -491,7 +491,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
 	defer func() {
 		if err != nil {
-			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply cluster policy(%s) failed", policy.Name)
+			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply cluster policy(%s) failed: %v", policy.Name, err)
 		} else {
 			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Name)
 		}
