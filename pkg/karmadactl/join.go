@@ -32,11 +32,12 @@ func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 	opts := CommandJoinOption{}
 
 	cmd := &cobra.Command{
-		Use:          "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:        joinShort,
-		Long:         joinLong,
-		Example:      fmt.Sprintf(joinExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
+		Short:                 joinShort,
+		Long:                  joinLong,
+		Example:               fmt.Sprintf(joinExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err

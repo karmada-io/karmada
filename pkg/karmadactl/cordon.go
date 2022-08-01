@@ -45,11 +45,12 @@ const (
 func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
-		Use:          "cordon CLUSTER",
-		Short:        cordonShort,
-		Long:         cordonLong,
-		Example:      fmt.Sprintf(cordonExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "cordon CLUSTER",
+		Short:                 cordonShort,
+		Long:                  cordonLong,
+		Example:               fmt.Sprintf(cordonExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err
@@ -73,11 +74,12 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
-		Use:          "uncordon CLUSTER",
-		Short:        uncordonShort,
-		Long:         uncordonLong,
-		Example:      fmt.Sprintf(uncordonExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "uncordon CLUSTER",
+		Short:                 uncordonShort,
+		Long:                  uncordonLong,
+		Example:               fmt.Sprintf(uncordonExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err

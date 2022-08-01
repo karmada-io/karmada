@@ -56,10 +56,11 @@ func NewCmdLogs(f util.Factory, parentCommand string, streams genericclioptions.
 	}
 
 	cmd := &cobra.Command{
-		Use:          logsUsageStr,
-		Short:        "Print the logs for a container in a pod in a cluster",
-		SilenceUsage: true,
-		Example:      fmt.Sprintf(logsExample, parentCommand),
+		Use:                   logsUsageStr,
+		Short:                 "Print the logs for a container in a pod in a cluster",
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
+		Example:               fmt.Sprintf(logsExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(cmd, args, f); err != nil {
 				return err

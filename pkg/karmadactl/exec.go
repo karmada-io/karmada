@@ -51,10 +51,12 @@ func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string, streams gener
 	}
 
 	cmd := &cobra.Command{
-		Use:     "exec (POD | TYPE/NAME) [-c CONTAINER] [flags] (-C CLUSTER) -- COMMAND [args...]",
-		Short:   "Execute a command in a container in a cluster",
-		Long:    "Execute a command in a container in a cluster",
-		Example: fmt.Sprintf(execExample, parentCommand),
+		Use:                   "exec (POD | TYPE/NAME) [-c CONTAINER] (-C CLUSTER) -- COMMAND [args...]",
+		Short:                 "Execute a command in a container in a cluster",
+		Long:                  "Execute a command in a container in a cluster",
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
+		Example:               fmt.Sprintf(execExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			argsLenAtDash := cmd.ArgsLenAtDash()
 			if err := o.Complete(karmadaConfig, cmd, args, argsLenAtDash); err != nil {

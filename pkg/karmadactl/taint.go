@@ -56,11 +56,12 @@ func NewCmdTaint(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comma
 	opts := CommandTaintOption{}
 
 	cmd := &cobra.Command{
-		Use:          "taint CLUSTER NAME KEY_1=VAL_1:TAINT_EFFECT_1 ... KEY_N=VAL_N:TAINT_EFFECT_N",
-		Short:        taintShort,
-		Long:         taintLong,
-		Example:      fmt.Sprintf(taintExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "taint CLUSTER NAME KEY_1=VAL_1:TAINT_EFFECT_1 ... KEY_N=VAL_N:TAINT_EFFECT_N",
+		Short:                 taintShort,
+		Long:                  taintLong,
+		Example:               fmt.Sprintf(taintExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err
