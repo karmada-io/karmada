@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
@@ -95,6 +96,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	filters := []string{"options"}
 
 	rootCmd.AddCommand(sharedcommand.NewCmdVersion(parentCommand))
+	rootCmd.AddCommand(options.NewCmdOptions(parentCommand, ioStreams.Out))
 
 	templates.ActsAsRootCommand(rootCmd, filters, groups...)
 
