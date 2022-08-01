@@ -43,7 +43,7 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
-		err = prune.RemoveIrrelevantField(workloadObj)
+		err = prune.RemoveIrrelevantField(workloadObj, prune.RemoveJobTTLSeconds)
 		if err != nil {
 			klog.Errorf("Failed to remove irrelevant field for work(%s): %v", work.Name, err)
 			return admission.Errored(http.StatusInternalServerError, err)
