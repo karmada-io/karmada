@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,6 +46,7 @@ type ClusterRegisterOption struct {
 	ClusterConfig      *rest.Config
 	Secret             corev1.Secret
 	ImpersonatorSecret corev1.Secret
+	ClusterID          string
 }
 
 // IsKubeCredentialsEnabled represents whether report secret
@@ -168,4 +170,13 @@ func updateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clust
 	}
 
 	return newCluster, nil
+}
+
+// ObtainClusterID returns the cluster ID property with clusterKubeClient
+func ObtainClusterID(clusterKubeClient *kubernetes.Clientset) (string, error) {
+	ns, err := clusterKubeClient.CoreV1().Namespaces().Get(context.TODO(), metav1.NamespaceSystem, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return string(ns.UID), nil
 }
