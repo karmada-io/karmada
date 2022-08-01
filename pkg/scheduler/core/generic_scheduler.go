@@ -58,12 +58,16 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, spec, clusterInfoSnapshot)
+	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, spec, clusterInfoSnapshot)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
+
 	if len(feasibleClusters) == 0 {
-		return result, fmt.Errorf("no clusters fit")
+		return result, &framework.FitError{
+			NumAllClusters: clusterInfoSnapshot.NumOfClusters(),
+			Diagnosis:      diagnosis,
+		}
 	}
 	klog.V(4).Infof("feasible clusters found: %v", feasibleClusters)
 
@@ -97,8 +101,13 @@ func (g *genericScheduler) findClustersThatFit(
 	fwk framework.Framework,
 	placement *policyv1alpha1.Placement,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
-	clusterInfo *cache.Snapshot) ([]*clusterv1alpha1.Cluster, error) {
+	clusterInfo *cache.Snapshot,
+) ([]*clusterv1alpha1.Cluster, framework.Diagnosis, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, time.Now())
+
+	diagnosis := framework.Diagnosis{
+		ClusterToResultMap: make(framework.ClusterToResultMap),
+	}
 
 	var out []*clusterv1alpha1.Cluster
 	// DO NOT filter unhealthy cluster, let users make decisions by using ClusterTolerations of Placement.
@@ -106,12 +115,13 @@ func (g *genericScheduler) findClustersThatFit(
 	for _, c := range clusters {
 		if result := fwk.RunFilterPlugins(ctx, placement, bindingSpec, c.Cluster()); !result.IsSuccess() {
 			klog.V(4).Infof("cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
+			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
 		} else {
 			out = append(out, c.Cluster())
 		}
 	}
 
-	return out, nil
+	return out, diagnosis, nil
 }
 
 // prioritizeClusters prioritize the clusters by running the score plugins.
