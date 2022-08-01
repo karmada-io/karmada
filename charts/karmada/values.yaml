@@ -533,6 +533,8 @@ etcd:
 agent:
   ## @param agent.clusterName name of the member cluster
   clusterName: ""
+  ## @param agent.clusterEndpoint server endpoint of the member cluster
+  clusterEndpoint: ""
   ## kubeconfig of the karmada
   kubeconfig:
     ## @param agent.kubeconfig.caCrt ca of the certificate
