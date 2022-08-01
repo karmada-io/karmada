@@ -25,6 +25,10 @@ in Quick Start, you can get a Karmada.
 
 ## Deploy Istio
 
+***
+If you are testing multicluster setup on `kind` you can use [MetalLB](https://metallb.universe.tf/installation/) to make use of `EXTERNAL-IP` for `LoadBalancer` services.
+***
+
 ### Install istioctl
 
 Please refer to the [istioctl](https://istio.io/latest/docs/setup/getting-started/#download) Installation.
@@ -94,74 +98,71 @@ spec:
 EOF
 ```
 
+Override namespace `istio-system` label on `member1`:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterOverridePolicy
+metadata:
+  name: istio-system-member1
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: Namespace
+      name: istio-system
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member1
+      overriders:
+        plaintext:
+          - path: "/metadata/labels"
+            operator: add
+            value:
+              topology.istio.io/network: network1
+EOF
+```
+
+Override namespace `istio-system` label on `member2`:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterOverridePolicy
+metadata:
+  name: istio-system-member2
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: Namespace
+      name: istio-system
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member2
+      overriders:
+        plaintext:
+          - path: "/metadata/labels"
+            operator: add
+            value:
+              topology.istio.io/network: network2
+EOF
+```
+
 Run the following command to install istio CRDs on karmada apiserver:
 
 ```bash
-istioctl install
-```
-
-Karmada apiserver will not deploy a real istiod pod, you should press `ctrl+c` to exit installation
-when `Processing resources for Istiod`.
-
-```bash
-✔ Istio core installed                                                           
-- Processing resources for Istiod.  
+istioctl manifest generate --set profile=external \
+  --set values.global.configCluster=true \
+  --set values.global.externalIstiod=false \
+  --set values.global.defaultPodDisruptionBudget.enabled=false \
+  --set values.telemetry.enabled=false | kubectl apply -f -
 ```
 
 ### Install Istiod on member1
 
-1. Disable Karmada's auto-sync feature when labeling a namespace, because I need to label the same namespace `istio-system`
-in the different clusters differently.
-
-Export `KUBECONFIG` and switch to `karmada host`:
-
-```bash
-export KUBECONFIG=$HOME/.kube/karmada.config
-kubectl config use-context karmada-host
-```
-
-Edit `karmada-controller-manager`deployment
-
-```bash
-kubectl edit deployment karmada-controller-manager -n karmada-system
-```
-
-add `--controllers=-namespace,*` in start command
-
-2. Set the network of member1 and member2
-
-switch to `karmada api-server` and list work about namespace `istio-system`:
-
-```bash
-kubectl config use-context karmada-apiserver
-kubectl get work -A | grep istio-system-
-```
-
-the output will looks like as following:
-
-```bash
-[root@vm1-su-001 istio-1.12.6]# kubectl get work -A | grep istio-system-
-karmada-es-member1   istio-system-f854dc5d9            true     21m
-karmada-es-member2   istio-system-f854dc5d9            true     21m
-```
-
-label namespace `istio-system` on `member1` by using the output above
-
-```bash
-kubectl edit work istio-system-f854dc5d9 -n karmada-es-member1
-```
-
-add `topology.istio.io/network: network1` in `.spec.workload.manifests.metadata.labels`
-
-label namespace `istio-system` on `member2` by using the output above
-
-```bash
-kubectl edit work istio-system-f854dc5d9 -n karmada-es-member2
-```
-
-add `topology.istio.io/network: network2` in `.spec.workload.manifests.metadata.labels`
-
-3. Install istio control plane
+1. Install istio control plane
 
 Export `KUBECONFIG` and switch to `member1`:
 
@@ -186,13 +187,13 @@ spec:
 EOF
 ```
 
-4. Install the east-west gateway in `member1`
+2. Install the east-west gateway in `member1`
 
 ```bash
 samples/multicluster/gen-eastwest-gateway.sh --mesh mesh1 --cluster member1 --network network1 | istioctl install -y -f -
 ```
 
-5. Expose the control plane and service in `member1`
+3. Expose the control plane and service in `member1`
 
 ```bash
 kubectl apply -f samples/multicluster/expose-istiod.yaml -n istio-system
@@ -264,31 +265,6 @@ EOF
 samples/multicluster/gen-eastwest-gateway.sh --mesh mesh1 --cluster member2 --network network2 | istioctl install -y -f -
 ```
 
-4. Expose service in `member2`
-
-```bash
-kubectl apply -f samples/multicluster/expose-services.yaml -n istio-system
-```
-
 ### Deploy bookinfo application
 
-1. Enable Karmada's auto-sync feature
-
-Export `KUBECONFIG` and switch to `karmada host`:
-
-```bash
-export KUBECONFIG=$HOME/.kube/karmada.config
-kubectl config use-context karmada-host
-```
-
-Edit `karmada-controller-manager`deployment
-
-```bash
-kubectl edit deployment karmada-controller-manager -n karmada-system
-```
-
-delete `--controllers=-namespace,*` in start command
-
-2. Deploy bookinfo application
-
-See module `Deploy bookinfo application` in https://github.com/karmada-io/karmada/blob/master/docs/istio-on-karmada.md
+See module [Deploy bookinfo application](./working-with-istio-on-flat-network.md#deploy-bookinfo-application.md)
