@@ -7,6 +7,7 @@ Karmada aims to provide turnkey automation for multi-cluster application managem
 ## TL;DR
 
 Switch to the `root` directory of the repo.
+
 ```console
 helm install karmada -n karmada-system --create-namespace --dependency-update ./charts/karmada
 ```
@@ -23,6 +24,7 @@ To install the chart with the release name `karmada` in namespace `karmada-syste
 - local installation
 
 Switch to the `root` directory of the repo.
+
 ```console
 helm install karmada -n karmada-system --create-namespace --dependency-update ./charts/karmada
 ```
@@ -30,17 +32,22 @@ helm install karmada -n karmada-system --create-namespace --dependency-update ./
 - remote installation
 
 First, add the Karmada chart repo to your local repository.
+
 ```console
 $ helm repo add karmada-charts https://raw.githubusercontent.com/karmada-io/karmada/master/charts
 $ helm repo list
 NAME            URL
 karmada-charts   https://raw.githubusercontent.com/karmada-io/karmada/master/charts
 ```
+
 With the repo added, available charts and versions can be viewed.
+
 ```console
 helm search repo karmada
 ```
+
 Install the chart and specify the version to install with the --version argument. Replace <x.x.x> with your desired version.
+
 ```console
 helm --namespace karmada-system upgrade -i karmada karmada-charts/karmada --version=<x.x.x> --create-namespace
 Release "karmada" does not exist. Installing it now.
@@ -60,19 +67,30 @@ kubectl get secret -n karmada-system karmada-kubeconfig -o jsonpath={.data.kubec
 
 > **Tip**: List all releases using `helm list`
 
-For better scheduling effect, you can choose to install the `karmada-descheduler` component in the karmada controller plane. Link: [here](../../docs/descheduler.md). The following is the specific installation guide.
+### Install descheduler component
 
-Edited values.yaml for karmada-descheduler
-```YAML
-installMode: "component"
-components: [
-  "descheduler"
-]
-```
-Execute command (switch to the `root` directory of the repo, and sets the `current-context` in a kubeconfig file)
+For better scheduling effect, you can choose to install the `karmada-descheduler` component in the karmada controller plane. We can install it together in `host` mode:
+
 ```console
-kubectl config use-context host
-helm install karmada-descheduler -n karmada-system ./charts/karmada
+helm upgrade --install karmada -n karmada-system --create-namespace --dependency-update \
+     --cleanup-on-fail ./charts/karmada \
+     --set components={"descheduler"}
+```
+
+And then, check the pod status of karmada:
+
+```console
+kubectl get po -n karmada-system
+NAME                                              READY   STATUS    RESTARTS      AGE
+etcd-0                                            1/1     Running   0             2m12s
+karmada-aggregated-apiserver-7769446f86-hc2jk     1/1     Running   2 (65s ago)   2m12s
+karmada-apiserver-55bdd6b9c5-8s999                1/1     Running   0             2m12s
+karmada-controller-manager-764cfd8d6c-lm67w       1/1     Running   2 (67s ago)   2m12s
+karmada-descheduler-59749dc655-d4wsv              1/1     Running   0             2m12s
+karmada-descheduler-59749dc655-sf9b7              1/1     Running   0             2m12s
+karmada-kube-controller-manager-7b5cc7897-64lrp   1/1     Running   2 (42s ago)   2m12s
+karmada-scheduler-66566879d5-xqqlc                1/1     Running   0             2m12s
+karmada-webhook-749f5f75df-4l5h4                  1/1     Running   2 (67s ago)   2m12s
 ```
 
 ## Uninstalling the Chart

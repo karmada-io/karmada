@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $name }}
+  name: {{ $name }}-descheduler
   namespace: {{ include "karmada.namespace" . }}
   labels:
   {{- include "karmada.descheduler.labels" . | nindent 4 }}
