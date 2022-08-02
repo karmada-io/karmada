@@ -25,8 +25,8 @@ spec:
           image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-search:latest
           imagePullPolicy: IfNotPresent
           volumeMounts:
-            - name: k8s-certs
-              mountPath: /etc/kubernetes/pki
+            - name: karmada-certs
+              mountPath: /etc/karmada/pki
               readOnly: true
             - name: kubeconfig
               subPath: kubeconfig
@@ -37,11 +37,11 @@ spec:
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
-            - --etcd-cafile=/etc/kubernetes/pki/server-ca.crt
-            - --etcd-certfile=/etc/kubernetes/pki/karmada.crt
-            - --etcd-keyfile=/etc/kubernetes/pki/karmada.key
-            - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
-            - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
+            - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
+            - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
+            - --tls-cert-file=/etc/karmada/pki/karmada.crt
+            - --tls-private-key-file=/etc/karmada/pki/karmada.key
             - --audit-log-path=-
             - --feature-gates=APIPriorityAndFairness=false
             - --audit-log-maxage=0
@@ -59,7 +59,7 @@ spec:
             requests:
               cpu: 100m
       volumes:
-        - name: k8s-certs
+        - name: karmada-certs
           secret:
             secretName: karmada-cert-secret
         - name: kubeconfig

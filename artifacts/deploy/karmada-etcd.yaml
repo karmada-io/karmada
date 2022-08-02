@@ -55,7 +55,7 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/etcd
               name: etcd-data
-            - mountPath: /etc/kubernetes/pki/etcd
+            - mountPath: /etc/karmada/pki
               name: etcd-certs
           resources:
             requests:
@@ -75,10 +75,10 @@ spec:
             - etcd0=http://etcd-0.etcd.karmada-system.svc.cluster.local:2380
             - --initial-cluster-state
             - new
-            - --cert-file=/etc/kubernetes/pki/etcd/karmada.crt
+            - --cert-file=/etc/karmada/pki/etcd-server.crt
             - --client-cert-auth=true
-            - --key-file=/etc/kubernetes/pki/etcd/karmada.key
-            - --trusted-ca-file=/etc/kubernetes/pki/etcd/server-ca.crt
+            - --key-file=/etc/karmada/pki/etcd-server.key
+            - --trusted-ca-file=/etc/karmada/pki/etcd-ca.crt
             - --data-dir=/var/lib/etcd
             - --snapshot-count=10000
       volumes:

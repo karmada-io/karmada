@@ -173,13 +173,14 @@ function util::create_signing_certkey {
     local sudo=$1
     local dest_dir=$2
     local id=$3
-    local purpose=$4
+    local cn=$4
+    local purpose=$5
     OPENSSL_BIN=$(command -v openssl)
     # Create ca
     ${sudo} /usr/bin/env bash -e <<EOF
-    rm -f "${dest_dir}/${id}-ca.crt" "${dest_dir}/${id}-ca.key"
-    ${OPENSSL_BIN} req -x509 -sha256 -new -nodes -days 365 -newkey rsa:2048 -keyout "${dest_dir}/${id}-ca.key" -out "${dest_dir}/${id}-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
-    echo '{"signing":{"default":{"expiry":"43800h","usages":["signing","key encipherment",${purpose}]}}}' > "${dest_dir}/${id}-ca-config.json"
+    rm -f "${dest_dir}/${id}.crt" "${dest_dir}/${id}.key"
+    ${OPENSSL_BIN} req -x509 -sha256 -new -nodes -days 3650 -newkey rsa:2048 -keyout "${dest_dir}/${id}.key" -out "${dest_dir}/${id}.crt" -subj "/CN=${cn}/"
+    echo '{"signing":{"default":{"expiry":"43800h","usages":["signing","key encipherment",${purpose}]}}}' > "${dest_dir}/${id}-config.json"
 EOF
 }
 
@@ -190,9 +191,10 @@ function util::create_certkey {
     local ca=$3
     local id=$4
     local cn=${5:-$4}
+    local og=$6
     local hosts=""
     local SEP=""
-    shift 5
+    shift 6
     while [[ -n "${1:-}" ]]; do
         hosts+="${SEP}\"$1\""
         SEP=","
@@ -200,7 +202,7 @@ function util::create_certkey {
     done
     ${sudo} /usr/bin/env bash -e <<EOF
     cd ${dest_dir}
-    echo '{"CN":"${cn}","hosts":[${hosts}],"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":2048}}' | ${CFSSL_BIN} gencert -ca=${ca}.crt -ca-key=${ca}.key -config=${ca}-config.json - | ${CFSSLJSON_BIN} -bare ${id}
+    echo '{"CN":"${cn}","hosts":[${hosts}],"names":[{"O":"${og}"}],"key":{"algo":"rsa","size":2048}}' | ${CFSSL_BIN} gencert -ca=${ca}.crt -ca-key=${ca}.key -config=${ca}-config.json - | ${CFSSLJSON_BIN} -bare ${id}
     mv "${id}-key.pem" "${id}.key"
     mv "${id}.pem" "${id}.crt"
     rm -f "${id}.csr"

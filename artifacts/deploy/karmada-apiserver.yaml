@@ -35,33 +35,33 @@ spec:
             - kube-apiserver
             - --allow-privileged=true
             - --authorization-mode=Node,RBAC
-            - --client-ca-file=/etc/kubernetes/pki/server-ca.crt
+            - --client-ca-file=/etc/karmada/pki/ca.crt
             - --enable-admission-plugins=NodeRestriction
             - --enable-bootstrap-token-auth=true
-            - --etcd-cafile=/etc/kubernetes/pki/server-ca.crt
-            - --etcd-certfile=/etc/kubernetes/pki/karmada.crt
-            - --etcd-keyfile=/etc/kubernetes/pki/karmada.key
+            - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
+            - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
+            - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
             - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
             - --bind-address=0.0.0.0
-            - --kubelet-client-certificate=/etc/kubernetes/pki/karmada.crt
-            - --kubelet-client-key=/etc/kubernetes/pki/karmada.key
+            - --kubelet-client-certificate=/etc/karmada/pki/karmada.crt
+            - --kubelet-client-key=/etc/karmada/pki/karmada.key
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
             - --runtime-config=
             - --secure-port=5443
             - --service-account-issuer=https://kubernetes.default.svc.cluster.local
-            - --service-account-key-file=/etc/kubernetes/pki/karmada.key
-            - --service-account-signing-key-file=/etc/kubernetes/pki/karmada.key
+            - --service-account-key-file=/etc/karmada/pki/karmada.key
+            - --service-account-signing-key-file=/etc/karmada/pki/karmada.key
             - --service-cluster-ip-range=10.96.0.0/12
-            - --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt
-            - --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key
+            - --proxy-client-cert-file=/etc/karmada/pki/front-proxy-client.crt
+            - --proxy-client-key-file=/etc/karmada/pki/front-proxy-client.key
             - --requestheader-allowed-names=front-proxy-client
-            - --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt
+            - --requestheader-client-ca-file=/etc/karmada/pki/front-proxy-ca.crt
             - --requestheader-extra-headers-prefix=X-Remote-Extra-
             - --requestheader-group-headers=X-Remote-Group
             - --requestheader-username-headers=X-Remote-User
-            - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
-            - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --tls-cert-file=/etc/karmada/pki/apiserver.crt
+            - --tls-private-key-file=/etc/karmada/pki/apiserver.key
           name: karmada-apiserver
           image: k8s.gcr.io/kube-apiserver:v1.24.2
           imagePullPolicy: IfNotPresent
@@ -90,8 +90,8 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-            - mountPath: /etc/kubernetes/pki
-              name: k8s-certs
+            - mountPath: /etc/karmada/pki
+              name: karmada-certs
               readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
       enableServiceLinks: true
@@ -107,7 +107,7 @@ spec:
         - effect: NoExecute
           operator: Exists
       volumes:
-        - name: k8s-certs
+        - name: karmada-certs
           secret:
             secretName: karmada-cert-secret
 ---

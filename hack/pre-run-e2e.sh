@@ -20,7 +20,7 @@ export VERSION="latest"
 export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 
 CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
-ROOT_CA_FILE=${CERT_DIR}/server-ca.crt
+ROOT_CA_FILE=${CERT_DIR}/ca.crt
 
 # load interpreter webhook example image
 kind load docker-image "${REGISTRY}/karmada-interpreter-webhook-example:${VERSION}" --name="${HOST_CLUSTER_NAME}"

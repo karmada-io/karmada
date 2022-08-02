@@ -37,16 +37,16 @@ spec:
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
-            - --client-ca-file=/etc/karmada/pki/server-ca.crt
+            - --client-ca-file=/etc/karmada/pki/ca.crt
             - --cluster-cidr=10.244.0.0/16
             - --cluster-name=karmada
-            - --cluster-signing-cert-file=/etc/karmada/pki/server-ca.crt
-            - --cluster-signing-key-file=/etc/karmada/pki/server-ca.key
+            - --cluster-signing-cert-file=/etc/karmada/pki/ca.crt
+            - --cluster-signing-key-file=/etc/karmada/pki/ca.key
             - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished
             - --kubeconfig=/etc/kubeconfig
             - --leader-elect=true
             - --node-cidr-mask-size=24
-            - --root-ca-file=/etc/karmada/pki/server-ca.crt
+            - --root-ca-file=/etc/karmada/pki/ca.crt
             - --service-account-private-key-file=/etc/karmada/pki/karmada.key
             - --service-cluster-ip-range=10.96.0.0/12
             - --use-service-account-credentials=true
@@ -70,14 +70,14 @@ spec:
               cpu: 200m
           volumeMounts:
             - mountPath: /etc/karmada/pki
-              name: k8s-certs
+              name: karmada-certs
               readOnly: true
             - mountPath: /etc/kubeconfig
               subPath: kubeconfig
               name: kubeconfig
       priorityClassName: system-node-critical
       volumes:
-        - name: k8s-certs
+        - name: karmada-certs
           secret:
             secretName: karmada-cert-secret
         - name: kubeconfig
