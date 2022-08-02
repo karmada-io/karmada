@@ -50,7 +50,7 @@ var (
 		Alpha Disclaimer: the --prune functionality is not yet complete. Do not use unless you are aware of what the current state is. See https://issues.k8s.io/34274.
 		
 		Note: It implements the function of 'kubectl apply' by default. 
-		If you want to propagate them into member clusters, please use 'kubectl apply --all-clusters'.`)
+		If you want to propagate them into member clusters, please use %[1]s apply --all-clusters'.`)
 
 	applyExample = templates.Examples(`
 		# Apply the configuration without propagation into member clusters. It acts as 'kubectl apply'.
@@ -60,7 +60,11 @@ var (
 		%[1]s apply -f manifest.yaml --cluster member1,member2
 
 		# Apply resources from a directory and propagate them into all member clusters.
-		%[1]s apply -f dir/ --all-clusters`)
+		%[1]s apply -f dir/ --all-clusters
+
+		# Apply resources from a directory containing kustomization.yaml - e.g.
+		# dir/kustomization.yaml, and propagate them into all member clusters
+		%[1]s apply -k dir/ --all-clusters`)
 )
 
 // NewCmdApply creates the `apply` command
