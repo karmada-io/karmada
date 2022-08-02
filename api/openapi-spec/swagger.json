@@ -15873,6 +15873,46 @@
         }
       ]
     },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask": {
+      "description": "GracefulEvictionTask represents a graceful eviction task.",
+      "type": "object",
+      "required": [
+        "fromCluster",
+        "reason",
+        "producer"
+      ],
+      "properties": {
+        "creationTimestamp": {
+          "description": "CreationTimestamp is a timestamp representing the server time when this object was created. Clients should not set this value to avoid the time inconsistency issue. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.\n\nPopulated by the system. Read-only.",
+          "default": {},
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+        },
+        "fromCluster": {
+          "description": "FromCluster which cluster the eviction perform from.",
+          "type": "string",
+          "default": ""
+        },
+        "message": {
+          "description": "Message is a human-readable message indicating details about the eviction. This may be an empty string.",
+          "type": "string"
+        },
+        "producer": {
+          "description": "Producer indicates the controller who triggered the eviction.",
+          "type": "string",
+          "default": ""
+        },
+        "reason": {
+          "description": "Reason contains a programmatic identifier indicating the reason for the eviction. Producers may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.",
+          "type": "string",
+          "default": ""
+        },
+        "replicas": {
+          "description": "Replicas indicates the number of replicas should be evicted. Should be ignored for resource type that doesn't have replica.",
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.NodeClaim": {
       "description": "NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.",
       "type": "object",
@@ -16044,6 +16084,14 @@
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
           }
         },
+        "gracefulEvictionTasks": {
+          "description": "GracefulEvictionTasks holds the eviction tasks that are expected to perform the eviction in a graceful way. The intended workflow is: 1. Once the controller(such as 'taint-manager') decided to evict the resource that\n   is referenced by current ResourceBinding or ClusterResourceBinding from a target\n   cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)\n   and builds a graceful eviction task.\n2. The scheduler may perform a re-scheduler and probably select a substitute cluster\n   to take over the evicting workload(resource).\n3. The graceful eviction controller takes care of the graceful eviction tasks and\n   performs the final removal after the workload(resource) is available on the substitute\n   cluster or exceed the grace termination period(defaults to 10 minutes).",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask"
+          }
+        },
         "propagateDeps": {
           "description": "PropagateDeps tells if relevant resources should be propagated automatically. It is inherited from PropagationPolicy or ClusterPropagationPolicy. default false.",
           "type": "boolean"
@@ -16091,6 +16139,11 @@
             "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
           }
+        },
+        "schedulerObservedGeneration": {
+          "description": "SchedulerObservedGeneration is the generation(.metadata.generation) observed by the scheduler. If SchedulerObservedGeneration is less than the generation in metadata means the scheduler hasn't confirmed the scheduling result or hasn't done the schedule yet.",
+          "type": "integer",
+          "format": "int64"
         }
       }
     },
