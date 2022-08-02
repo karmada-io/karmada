@@ -158,3 +158,32 @@ func TestGetDependenciesFromPodTemplate(t *testing.T) {
 		})
 	}
 }
+
+func Test_getServiceAccountNames(t *testing.T) {
+	type args struct {
+		pod *corev1.Pod
+	}
+	tests := []struct {
+		name string
+		args args
+		want sets.String
+	}{
+		{
+			name: "get ServiceAccountName from pod ",
+			args: args{pod: &corev1.Pod{Spec: corev1.PodSpec{ServiceAccountName: "test"}}},
+			want: sets.NewString("test"),
+		},
+		{
+			name: "get default ServiceAccountName from pod ",
+			args: args{pod: &corev1.Pod{Spec: corev1.PodSpec{ServiceAccountName: "default"}}},
+			want: sets.NewString(),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getServiceAccountNames(tt.args.pod); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getServiceAccountNames() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
