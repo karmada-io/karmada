@@ -29,22 +29,7 @@ func EmptyResource() *Resource {
 // NewResource creates a new resource object from resource list.
 func NewResource(rl corev1.ResourceList) *Resource {
 	r := &Resource{}
-	for rName, rQuant := range rl {
-		switch rName {
-		case corev1.ResourceCPU:
-			r.MilliCPU += rQuant.MilliValue()
-		case corev1.ResourceMemory:
-			r.Memory += rQuant.Value()
-		case corev1.ResourcePods:
-			r.AllowedPodNumber += rQuant.Value()
-		case corev1.ResourceEphemeralStorage:
-			r.EphemeralStorage += rQuant.Value()
-		default:
-			if lifted.IsScalarResourceName(rName) {
-				r.AddScalar(rName, rQuant.Value())
-			}
-		}
-	}
+	r.Add(rl)
 	return r
 }
 
