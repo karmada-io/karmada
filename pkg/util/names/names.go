@@ -109,6 +109,11 @@ func GenerateEstimatorServiceName(clusterName string) string {
 	return fmt.Sprintf("%s-%s", estimatorServicePrefix, clusterName)
 }
 
+// GenerateEstimatorDeploymentName generates the gRPC scheduler estimator deployment name which belongs to a cluster.
+func GenerateEstimatorDeploymentName(clusterName string) string {
+	return fmt.Sprintf("%s-%s", estimatorServicePrefix, clusterName)
+}
+
 // IsReservedNamespace return whether it is a reserved namespace
 func IsReservedNamespace(namespace string) bool {
 	return namespace == NamespaceKarmadaSystem ||

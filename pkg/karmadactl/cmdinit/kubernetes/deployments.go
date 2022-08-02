@@ -14,10 +14,12 @@ import (
 )
 
 const (
-	deploymentAPIVersion                                        = "apps/v1"
-	deploymentKind                                              = "Deployment"
-	portName                                                    = "server"
-	kubeConfigSecretAndMountName                                = "kubeconfig"
+	deploymentAPIVersion = "apps/v1"
+	deploymentKind       = "Deployment"
+	portName             = "server"
+
+	// KubeConfigSecretAndMountName is the secret and volume mount name of karmada kubeconfig
+	KubeConfigSecretAndMountName                                = "kubeconfig"
 	karmadaCertsName                                            = "karmada-cert"
 	karmadaCertsVolumeMountPath                                 = "/etc/kubernetes/pki"
 	kubeConfigContainerMountPath                                = "/etc/kubeconfig"
@@ -286,10 +288,10 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      kubeConfigSecretAndMountName,
+						Name:      KubeConfigSecretAndMountName,
 						ReadOnly:  true,
 						MountPath: kubeConfigContainerMountPath,
-						SubPath:   kubeConfigSecretAndMountName,
+						SubPath:   KubeConfigSecretAndMountName,
 					},
 					{
 						Name:      karmadaCertsName,
@@ -301,10 +303,10 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: kubeConfigSecretAndMountName,
+				Name: KubeConfigSecretAndMountName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: kubeConfigSecretAndMountName,
+						SecretName: KubeConfigSecretAndMountName,
 					},
 				},
 			},
@@ -412,20 +414,20 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				LivenessProbe: livenessProbe,
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      kubeConfigSecretAndMountName,
+						Name:      KubeConfigSecretAndMountName,
 						ReadOnly:  true,
 						MountPath: kubeConfigContainerMountPath,
-						SubPath:   kubeConfigSecretAndMountName,
+						SubPath:   KubeConfigSecretAndMountName,
 					},
 				},
 			},
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: kubeConfigSecretAndMountName,
+				Name: KubeConfigSecretAndMountName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: kubeConfigSecretAndMountName,
+						SecretName: KubeConfigSecretAndMountName,
 					},
 				},
 			},
@@ -532,20 +534,20 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      kubeConfigSecretAndMountName,
+						Name:      KubeConfigSecretAndMountName,
 						ReadOnly:  true,
 						MountPath: kubeConfigContainerMountPath,
-						SubPath:   kubeConfigSecretAndMountName,
+						SubPath:   KubeConfigSecretAndMountName,
 					},
 				},
 			},
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: kubeConfigSecretAndMountName,
+				Name: KubeConfigSecretAndMountName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: kubeConfigSecretAndMountName,
+						SecretName: KubeConfigSecretAndMountName,
 					},
 				},
 			},
@@ -646,10 +648,10 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      kubeConfigSecretAndMountName,
+						Name:      KubeConfigSecretAndMountName,
 						ReadOnly:  true,
 						MountPath: kubeConfigContainerMountPath,
-						SubPath:   kubeConfigSecretAndMountName,
+						SubPath:   KubeConfigSecretAndMountName,
 					},
 					{
 						Name:      webhookCertsName,
@@ -662,10 +664,10 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: kubeConfigSecretAndMountName,
+				Name: KubeConfigSecretAndMountName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: kubeConfigSecretAndMountName,
+						SecretName: KubeConfigSecretAndMountName,
 					},
 				},
 			},
@@ -777,10 +779,10 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      kubeConfigSecretAndMountName,
+						Name:      KubeConfigSecretAndMountName,
 						ReadOnly:  true,
 						MountPath: kubeConfigContainerMountPath,
-						SubPath:   kubeConfigSecretAndMountName,
+						SubPath:   KubeConfigSecretAndMountName,
 					},
 					{
 						Name:      karmadaCertsName,
@@ -798,10 +800,10 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		},
 		Volumes: []corev1.Volume{
 			{
-				Name: kubeConfigSecretAndMountName,
+				Name: KubeConfigSecretAndMountName,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: kubeConfigSecretAndMountName,
+						SecretName: KubeConfigSecretAndMountName,
 					},
 				},
 			},
