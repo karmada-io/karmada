@@ -195,7 +195,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			err = c.tryUpdateWorkload(clusterName, workload)
 			if err != nil {
 				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
-				c.eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+				c.eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
@@ -203,7 +203,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			err = c.tryCreateWorkload(clusterName, workload)
 			if err != nil {
 				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
-				c.eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+				c.eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to create resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
@@ -292,11 +292,11 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 	})
 }
 
-func (c *Controller) eventf(object *unstructured.Unstructured, eventtype, reason, messageFmt string, args ...interface{}) {
+func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
 	ref, err := helper.GenEventRef(object)
 	if err != nil {
-		klog.Errorf("ignore event(%s) as failed to build event reference for: kind=%s, %s/%s due to %v", reason, object.GetKind(), object.GetNamespace(), object.GetName(), err)
+		klog.Errorf("ignore event(%s) as failed to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
 		return
 	}
-	c.EventRecorder.Eventf(ref, eventtype, reason, messageFmt, args...)
+	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
 }
