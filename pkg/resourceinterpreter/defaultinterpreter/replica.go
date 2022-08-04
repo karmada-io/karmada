@@ -23,8 +23,8 @@ func getAllDefaultReplicaInterpreter() map[schema.GroupVersionKind]replicaInterp
 }
 
 func deployReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
-	deploy, err := helper.ConvertToDeployment(object)
-	if err != nil {
+	deploy := &appsv1.Deployment{}
+	if err := helper.ConvertToTypedObject(object, deploy); err != nil {
 		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
 		return 0, nil, err
 	}
@@ -39,7 +39,8 @@ func deployReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.Repl
 }
 
 func jobReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
-	job, err := helper.ConvertToJob(object)
+	job := &batchv1.Job{}
+	err := helper.ConvertToTypedObject(object, job)
 	if err != nil {
 		klog.Errorf("Failed to convert object(%s), err", object.GroupVersionKind().String(), err)
 		return 0, nil, err

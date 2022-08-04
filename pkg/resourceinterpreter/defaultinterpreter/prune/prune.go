@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -57,7 +58,8 @@ func RemoveIrrelevantField(workload *unstructured.Unstructured) error {
 	}
 
 	if workload.GetKind() == util.JobKind {
-		job, err := helper.ConvertToJob(workload)
+		job := &batchv1.Job{}
+		err := helper.ConvertToTypedObject(workload, job)
 		if err != nil {
 			return err
 		}

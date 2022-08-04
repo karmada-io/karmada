@@ -338,7 +338,8 @@ func TestAggregateStatefulSetStatus(t *testing.T) {
 }
 
 func cleanUnstructuredJobConditionTime(object *unstructured.Unstructured) *unstructured.Unstructured {
-	job, _ := helper.ConvertToJob(object)
+	job := &batchv1.Job{}
+	_ = helper.ConvertToTypedObject(object, job)
 	for i := range job.Status.Conditions {
 		cond := &job.Status.Conditions[i]
 		cond.LastProbeTime = metav1.Time{}
