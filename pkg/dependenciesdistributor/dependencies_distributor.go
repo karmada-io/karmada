@@ -236,23 +236,15 @@ func dependentObjectReferenceMatches(objectKey keys.ClusterWideKey, referenceBin
 
 // OnResourceBindingUpdate handles object update event and push the object to queue.
 func (d *DependenciesDistributor) OnResourceBindingUpdate(oldObj, newObj interface{}) {
-	unstructuredOldObj, ok := oldObj.(*unstructured.Unstructured)
-	if !ok {
+	oldBindingObject := &workv1alpha2.ResourceBinding{}
+	if err := helper.ConvertToTypedObject(oldObj, oldBindingObject); err != nil {
+		klog.Warningf("convert to resource binding failed: %v", err)
 		return
 	}
 
-	oldBindingObject, err := helper.ConvertToResourceBinding(unstructuredOldObj)
-	if err != nil {
-		return
-	}
-
-	unstructuredNewObj, ok := newObj.(*unstructured.Unstructured)
-	if !ok {
-		return
-	}
-
-	newBindingObject, err := helper.ConvertToResourceBinding(unstructuredNewObj)
-	if err != nil {
+	newBindingObject := &workv1alpha2.ResourceBinding{}
+	if err := helper.ConvertToTypedObject(newObj, newBindingObject); err != nil {
+		klog.Warningf("convert to resource binding failed: %v", err)
 		return
 	}
 
@@ -281,13 +273,9 @@ func (d *DependenciesDistributor) OnResourceBindingUpdate(oldObj, newObj interfa
 
 // OnResourceBindingDelete handles object delete event and push the object to queue.
 func (d *DependenciesDistributor) OnResourceBindingDelete(obj interface{}) {
-	unstructuredObj, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		return
-	}
-
-	bindingObject, err := helper.ConvertToResourceBinding(unstructuredObj)
-	if err != nil {
+	bindingObject := &workv1alpha2.ResourceBinding{}
+	if err := helper.ConvertToTypedObject(obj, bindingObject); err != nil {
+		klog.Warningf("convert to resource binding failed: %v", err)
 		return
 	}
 
@@ -322,8 +310,8 @@ func (d *DependenciesDistributor) ReconcileResourceBinding(key util.QueueKey) er
 		return err
 	}
 
-	bindingObject, err := helper.ConvertToResourceBinding(unstructuredObj.(*unstructured.Unstructured))
-	if err != nil {
+	bindingObject := &workv1alpha2.ResourceBinding{}
+	if err = helper.ConvertToTypedObject(unstructuredObj, bindingObject); err != nil {
 		klog.Errorf("Failed to convert ResourceBinding(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
@@ -519,8 +507,8 @@ func generateDependencyKey(kind, apiVersion, name, namespace string) string {
 func convertObjectsToResourceBindings(bindingList []runtime.Object) ([]*workv1alpha2.ResourceBinding, error) {
 	bindings := make([]*workv1alpha2.ResourceBinding, 0, len(bindingList))
 	for _, obj := range bindingList {
-		binding, err := helper.ConvertToResourceBinding(obj.(*unstructured.Unstructured))
-		if err != nil {
+		binding := &workv1alpha2.ResourceBinding{}
+		if err := helper.ConvertToTypedObject(obj, binding); err != nil {
 			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
 		}
 		bindings = append(bindings, binding)

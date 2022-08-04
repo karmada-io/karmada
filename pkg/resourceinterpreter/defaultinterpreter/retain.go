@@ -27,12 +27,14 @@ func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionIn
 }
 
 func retainPodFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	desiredPod, err := helper.ConvertToPod(desired)
+	desiredPod := &corev1.Pod{}
+	err := helper.ConvertToTypedObject(desired, desiredPod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert desiredPod from unstructured object: %v", err)
 	}
 
-	clusterPod, err := helper.ConvertToPod(observed)
+	clusterPod := &corev1.Pod{}
+	err = helper.ConvertToTypedObject(observed, clusterPod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert clusterPod from unstructured object: %v", err)
 	}
