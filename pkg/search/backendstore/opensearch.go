@@ -275,7 +275,7 @@ func (os *OpenSearch) initClient(bsc *v1alpha1.BackendStoreConfig) error {
 
 		secret, err := k8sClient.CoreV1().Secrets(secretRef.Namespace).Get(context.TODO(), secretRef.Name, metav1.GetOptions{})
 		if err != nil {
-			klog.Warningf("cannot get secret %s/%s: %v, try to without auth", secret.Namespace, secret.Name, err)
+			klog.Warningf("can not get secret %s/%s: %v, try to without auth", secretRef.Namespace, secretRef.Name, err)
 			return
 		}
 
