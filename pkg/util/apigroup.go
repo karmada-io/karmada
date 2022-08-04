@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	coordinationv1 "k8s.io/api/coordination/v1"
 	eventsv1 "k8s.io/api/events/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -46,6 +47,9 @@ func NewSkippedResourceConfig() *SkippedResourceConfig {
 	// disable event by default
 	r.DisableGroup(eventsv1.GroupName)
 	r.DisableGroupVersionKind(corev1EventGVK)
+
+	// disable Lease by default
+	r.DisableGroupVersion(coordinationv1.SchemeGroupVersion)
 	return r
 }
 
@@ -160,6 +164,11 @@ func (r *SkippedResourceConfig) GroupDisabled(g string) bool {
 // DisableGroup to disable group.
 func (r *SkippedResourceConfig) DisableGroup(g string) {
 	r.Groups[g] = struct{}{}
+}
+
+// DisableGroupVersion to disable GroupVersion.
+func (r *SkippedResourceConfig) DisableGroupVersion(gv schema.GroupVersion) {
+	r.GroupVersions[gv] = struct{}{}
 }
 
 // DisableGroupVersionKind to disable GroupVersionKind.
