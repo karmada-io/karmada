@@ -149,12 +149,12 @@ func (os *OpenSearch) delete(obj interface{}) {
 		return
 	}
 
-	delete := opensearchapi.DeleteRequest{
+	deleteRequest := opensearchapi.DeleteRequest{
 		Index:      indexName,
 		DocumentID: string(us.GetUID()),
 	}
 
-	resp, err := delete.Do(context.Background(), os.client)
+	resp, err := deleteRequest.Do(context.Background(), os.client)
 	if err != nil {
 		klog.Errorf("cannot delete: %v", err)
 		return
