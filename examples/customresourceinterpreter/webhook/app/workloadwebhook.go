@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -41,6 +42,8 @@ func (e *workloadInterpreter) Handle(ctx context.Context, req interpreter.Reques
 		return e.responseWithExploreRetaining(workload, req)
 	case configv1alpha1.InterpreterOperationAggregateStatus:
 		return e.responseWithExploreAggregateStatus(workload, req)
+	case configv1alpha1.InterpreterOperationInterpretHealth:
+		return e.responseWithExploreInterpretHealth(workload)
 	default:
 		return interpreter.Errored(http.StatusBadRequest, fmt.Errorf("wrong request operation type: %s", req.Operation))
 	}
@@ -108,4 +111,15 @@ func (e *workloadInterpreter) responseWithExploreAggregateStatus(workload *workl
 		return interpreter.Errored(http.StatusInternalServerError, err)
 	}
 	return interpreter.PatchResponseFromRaw(req.Object.Raw, marshaledBytes)
+}
+
+func (e *workloadInterpreter) responseWithExploreInterpretHealth(workload *workloadv1alpha1.Workload) interpreter.Response {
+	healthy := pointer.Bool(false)
+	if workload.Status.ReadyReplicas == *workload.Spec.Replicas {
+		healthy = pointer.Bool(true)
+	}
+
+	res := interpreter.Succeeded("")
+	res.Healthy = healthy
+	return res
 }

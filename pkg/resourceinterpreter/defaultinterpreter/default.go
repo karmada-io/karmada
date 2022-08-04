@@ -21,6 +21,7 @@ type DefaultInterpreter struct {
 	aggregateStatusHandlers map[schema.GroupVersionKind]aggregateStatusInterpreter
 	dependenciesHandlers    map[schema.GroupVersionKind]dependenciesInterpreter
 	reflectStatusHandlers   map[schema.GroupVersionKind]reflectStatusInterpreter
+	healthHandlers          map[schema.GroupVersionKind]healthInterpreter
 }
 
 // NewDefaultInterpreter return a new DefaultInterpreter.
@@ -32,6 +33,7 @@ func NewDefaultInterpreter() *DefaultInterpreter {
 		aggregateStatusHandlers: getAllDefaultAggregateStatusInterpreter(),
 		dependenciesHandlers:    getAllDefaultDependenciesInterpreter(),
 		reflectStatusHandlers:   getAllDefaultReflectStatusInterpreter(),
+		healthHandlers:          getAllDefaultHealthInterpreter(),
 	}
 }
 
@@ -60,7 +62,8 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 		}
 	case configv1alpha1.InterpreterOperationInterpretStatus:
 		return true
-
+	case configv1alpha1.InterpreterOperationInterpretHealth:
+		return true
 		// TODO(RainbowMango): more cases should be added here
 	}
 
@@ -122,4 +125,14 @@ func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (s
 
 	// for resource types that don't have a build-in handler, try to collect the whole status from '.status' filed.
 	return reflectWholeStatus(object)
+}
+
+// InterpretHealth returns the health state of the object.
+func (e *DefaultInterpreter) InterpretHealth(object *unstructured.Unstructured) (bool, error) {
+	handler, exist := e.healthHandlers[object.GroupVersionKind()]
+	if exist {
+		return handler(object)
+	}
+
+	return false, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretHealth, object.GroupVersionKind())
 }
