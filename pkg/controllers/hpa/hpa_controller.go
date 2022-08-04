@@ -3,7 +3,7 @@ package hpa
 import (
 	"context"
 
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +43,7 @@ type HorizontalPodAutoscalerController struct {
 func (c *HorizontalPodAutoscalerController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling HorizontalPodAutoscaler %s.", req.NamespacedName.String())
 
-	hpa := &autoscalingv1.HorizontalPodAutoscaler{}
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{}
 	if err := c.Client.Get(ctx, req.NamespacedName, hpa); err != nil {
 		// The resource may no longer exist, in which case we delete related works.
 		if apierrors.IsNotFound(err) {
@@ -65,7 +65,7 @@ func (c *HorizontalPodAutoscalerController) Reconcile(ctx context.Context, req c
 }
 
 // syncHPA gets placement from propagationBinding according to targetRef in hpa, then builds works in target execution namespaces.
-func (c *HorizontalPodAutoscalerController) syncHPA(hpa *autoscalingv1.HorizontalPodAutoscaler) (controllerruntime.Result, error) {
+func (c *HorizontalPodAutoscalerController) syncHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) (controllerruntime.Result, error) {
 	clusters, err := c.getTargetPlacement(hpa.Spec.ScaleTargetRef, hpa.GetNamespace())
 	if err != nil {
 		klog.Errorf("Failed to get target placement by hpa %s/%s. Error: %v.", hpa.GetNamespace(), hpa.GetName(), err)
@@ -80,7 +80,7 @@ func (c *HorizontalPodAutoscalerController) syncHPA(hpa *autoscalingv1.Horizonta
 }
 
 // buildWorks transforms hpa obj to unstructured, creates or updates Works in the target execution namespaces.
-func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.HorizontalPodAutoscaler, clusters []string) error {
+func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv2.HorizontalPodAutoscaler, clusters []string) error {
 	hpaObj, err := helper.ToUnstructured(hpa)
 	if err != nil {
 		klog.Errorf("Failed to transform hpa %s/%s. Error: %v", hpa.GetNamespace(), hpa.GetName(), err)
@@ -111,7 +111,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 
 // getTargetPlacement gets target clusters by CrossVersionObjectReference in hpa object. We can find
 // the propagationBinding by resource with special naming rule, then get target clusters from propagationBinding.
-func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalingv1.CrossVersionObjectReference, namespace string) ([]string, error) {
+func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalingv2.CrossVersionObjectReference, namespace string) ([]string, error) {
 	// according to targetRef, find the resource.
 	dynamicResource, err := restmapper.GetGroupVersionResource(c.RESTMapper,
 		schema.FromAPIVersionAndKind(objRef.APIVersion, objRef.Kind))
@@ -153,7 +153,7 @@ func (c *HorizontalPodAutoscalerController) getTargetPlacement(objRef autoscalin
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *HorizontalPodAutoscalerController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).For(&autoscalingv1.HorizontalPodAutoscaler{}).Complete(c)
+	return controllerruntime.NewControllerManagedBy(mgr).For(&autoscalingv2.HorizontalPodAutoscaler{}).Complete(c)
 }
 
 func (c *HorizontalPodAutoscalerController) deleteWorks(workName string) error {
