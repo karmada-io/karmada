@@ -12,10 +12,10 @@ To quickly experience this feature, we experimented with karmada-apiserver certi
 
 ### Step1: Obtain the karmada-apiserver Certificate
 
-For Karmada deployed using `hack/local-up-karmada.sh`, you can directly copy it from the `/root/.kube/` directory.
+For Karmada deployed using `hack/local-up-karmada.sh`, you can directly copy it from the `$HOME/.kube/` directory.
 
 ```shell
-cp /root/.kube/karmada.config karmada-apiserver.config
+cp $HOME/.kube/karmada.config karmada-apiserver.config
 ```
 
 ### Step2: Grant permission to user `system:admin`
@@ -63,7 +63,7 @@ subjects:
 </details>
 
 ```shell
-kubectl --kubeconfig /root/.kube/karmada.config --context karmada-apiserver apply -f cluster-proxy-rbac.yaml
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f cluster-proxy-rbac.yaml
 ```
 
 ### Step3: Access member clusters
@@ -95,13 +95,13 @@ If the serviceaccount has been created in your environment, you can skip this st
 Create a serviceaccount that does not have any permission:
 
 ```shell
-kubectl --kubeconfig /root/.kube/members.config --context member1 create serviceaccount tom
+kubectl --kubeconfig $HOME/.kube/members.config --context member1 create serviceaccount tom
 ```
 
 ### Step2: Create ServiceAccount in Karmada control plane
 
 ```shell
-kubectl --kubeconfig /root/.kube/karmada.config --context karmada-apiserver create serviceaccount tom
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver create serviceaccount tom
 ```
 
 In order to grant serviceaccount the `clusters/proxy` permission, apply the following rbac yaml file:
@@ -149,7 +149,7 @@ subjects:
 </details>
 
 ```shell
-kubectl --kubeconfig /root/.kube/karmada.config --context karmada-apiserver apply -f cluster-proxy-rbac.yaml
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f cluster-proxy-rbac.yaml
 ```
 
 ### Step3: Access member1 cluster
@@ -167,7 +167,7 @@ apiVersion: v1
 clusters:
 - cluster:
     insecure-skip-tls-verify: true
-    server: {karmada-apiserver-address} # Replace {karmada-apiserver-address} with karmada-apiserver-address. You can find it in /root/.kube/karmada.config file.
+    server: {karmada-apiserver-address} # Replace {karmada-apiserver-address} with karmada-apiserver-address. You can find it in $HOME/.kube/karmada.config file.
   name: tom
 contexts:
 - context:
@@ -236,7 +236,7 @@ subjects:
 </details>
 
 ```shell
-kubectl --kubeconfig /root/.kube/members.config --context member1 apply -f member1-rbac.yaml
+kubectl --kubeconfig $HOME/.kube/members.config --context member1 apply -f member1-rbac.yaml
 ```
 
 Run the command that failed in the previous step again:
