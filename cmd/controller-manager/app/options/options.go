@@ -114,6 +114,9 @@ type Options struct {
 	// If set to true enables NoExecute Taints and will evict all not-tolerating
 	// objects propagating on Clusters tainted with this kind of Taints.
 	EnableTaintManager bool
+	// GracefulEvictionTimeout is the timeout period waiting for the grace-eviction-controller performs the final
+	// removal since the workload(resource) has been moved to the graceful eviction tasks.
+	GracefulEvictionTimeout metav1.Duration
 
 	RateLimiterOpts ratelimiterflag.Options
 	ProfileOpts     profileflag.Options
@@ -194,6 +197,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.IntVar(&o.ConcurrentNamespaceSyncs, "concurrent-namespace-syncs", 1, "The number of Namespaces that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
 	flags.BoolVar(&o.EnableTaintManager, "enable-taint-manager", true, "If set to true enables NoExecute Taints and will evict all not-tolerating objects propagating on Clusters tainted with this kind of Taints.")
+	flags.DurationVar(&o.GracefulEvictionTimeout.Duration, "graceful-eviction-timeout", 10*time.Minute, "Specifies the timeout period waiting for the graceful-eviction-controller performs the final removal since the workload(resource) has been moved to the graceful eviction tasks.")
 
 	o.RateLimiterOpts.AddFlags(flags)
 	o.ProfileOpts.AddFlags(flags)

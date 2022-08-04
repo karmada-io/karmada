@@ -33,6 +33,7 @@ import (
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
+	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/namespace"
@@ -177,6 +178,9 @@ func init() {
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
+	if features.FeatureGate.Enabled(features.Failover) && features.FeatureGate.Enabled(features.GracefulEviction) {
+		controllers["gracefulEviction"] = startGracefulEvictionController
+	}
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -452,6 +456,30 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 	return true, nil
 }
 
+func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bool, err error) {
+	rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
+		Client:                  ctx.Mgr.GetClient(),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
+		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
+		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
+	}
+	if err := rbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+
+	crbGracefulEvictionController := &gracefuleviction.CRBGracefulEvictionController{
+		Client:                  ctx.Mgr.GetClient(),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.CRBGracefulEvictionControllerName),
+		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
+		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
+	}
+	if err := crbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 // setupControllers initialize controllers and setup one by one.
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	restConfig := mgr.GetConfig()
@@ -532,6 +560,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 			EnableTaintManager:                opts.EnableTaintManager,
 			RateLimiterOptions:                opts.RateLimiterOpts,
+			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
