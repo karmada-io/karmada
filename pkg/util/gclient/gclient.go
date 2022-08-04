@@ -11,7 +11,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	networkv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -25,7 +25,7 @@ func init() {
 	var _ = scheme.AddToScheme(aggregatedScheme)             // add Kubernetes schemes
 	var _ = clusterv1alpha1.AddToScheme(aggregatedScheme)    // add cluster schemes
 	var _ = configv1alpha1.AddToScheme(aggregatedScheme)     // add config v1alpha1 schemes
-	var _ = networkv1alpha1.AddToScheme(aggregatedScheme)    // add network v1alpha1 schemes
+	var _ = networkingv1alpha1.AddToScheme(aggregatedScheme) // add network v1alpha1 schemes
 	var _ = policyv1alpha1.AddToScheme(aggregatedScheme)     // add propagation schemes
 	var _ = workv1alpha1.AddToScheme(aggregatedScheme)       // add work v1alpha1 schemes
 	var _ = workv1alpha2.AddToScheme(aggregatedScheme)       // add work v1alpha2 schemes

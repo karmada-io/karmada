@@ -11,6 +11,7 @@
     "k8s.io/api/authorization/v1": "authorizationv1",
     "k8s.io/api/authorization/v1beta1": "authorizationv1beta1",
     "k8s.io/api/autoscaling/v1": "autoscalingv1",
+    "k8s.io/api/autoscaling/v2": "autoscalingv2",
     "k8s.io/api/batch/v1": "batchv1",
     "k8s.io/api/batch/v1beta1": "batchv1beta1",
     "k8s.io/api/certificates/v1beta1": "certificatesv1beta1",
@@ -52,6 +53,9 @@
 
     "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1": "clusterv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1": "configv1alpha1",
+    "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1": "networkingv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1": "policyv1alpha1",
-    "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1": "workv1alpha1"
+    "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1": "searchv1alpha1",
+    "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1": "workv1alpha1",
+    "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2": "workv1alpha2"
 }
