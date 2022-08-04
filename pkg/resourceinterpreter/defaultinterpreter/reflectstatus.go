@@ -42,8 +42,8 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 		return nil, nil
 	}
 
-	deploymentStatus, err := helper.ConvertToDeploymentStatus(statusMap)
-	if err != nil {
+	deploymentStatus := &appsv1.DeploymentStatus{}
+	if err = helper.ConvertToTypedObject(statusMap, deploymentStatus); err != nil {
 		return nil, fmt.Errorf("failed to convert DeploymentStatus from map[string]interface{}: %v", err)
 	}
 
@@ -83,7 +83,8 @@ func reflectServiceStatus(object *unstructured.Unstructured) (*runtime.RawExtens
 		return nil, nil
 	}
 
-	serviceStatus, err := helper.ConvertToServiceStatus(statusMap)
+	serviceStatus := &corev1.ServiceStatus{}
+	err = helper.ConvertToTypedObject(statusMap, serviceStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert ServiceStatus from map[string]interface{}: %v", err)
 	}
@@ -111,7 +112,8 @@ func reflectJobStatus(object *unstructured.Unstructured) (*runtime.RawExtension,
 		return nil, nil
 	}
 
-	jobStatus, err := helper.ConvertToJobStatus(statusMap)
+	jobStatus := &batchv1.JobStatus{}
+	err = helper.ConvertToTypedObject(statusMap, jobStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert JobStatus from map[string]interface{}: %v", err)
 	}
@@ -140,7 +142,8 @@ func reflectDaemonSetStatus(object *unstructured.Unstructured) (*runtime.RawExte
 		return nil, nil
 	}
 
-	daemonSetStatus, err := helper.ConvertToDaemonSetStatus(statusMap)
+	daemonSetStatus := &appsv1.DaemonSetStatus{}
+	err = helper.ConvertToTypedObject(statusMap, daemonSetStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert DaemonSetStatus from map[string]interface{}: %v", err)
 	}
@@ -170,7 +173,8 @@ func reflectStatefulSetStatus(object *unstructured.Unstructured) (*runtime.RawEx
 		return nil, nil
 	}
 
-	statefulSetStatus, err := helper.ConvertToStatefulSetStatus(statusMap)
+	statefulSetStatus := &appsv1.StatefulSetStatus{}
+	err = helper.ConvertToTypedObject(statusMap, statefulSetStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert StatefulSetStatus from map[string]interface{}: %v", err)
 	}

@@ -14,7 +14,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -469,8 +468,8 @@ func getResourceSummary(nodes []*corev1.Node, pods []*corev1.Pod) *clusterv1alph
 func convertObjectsToNodes(nodeList []runtime.Object) ([]*corev1.Node, error) {
 	nodes := make([]*corev1.Node, 0, len(nodeList))
 	for _, obj := range nodeList {
-		node, err := helper.ConvertToNode(obj.(*unstructured.Unstructured))
-		if err != nil {
+		node := &corev1.Node{}
+		if err := helper.ConvertToTypedObject(obj, node); err != nil {
 			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
 		}
 		nodes = append(nodes, node)
@@ -481,8 +480,8 @@ func convertObjectsToNodes(nodeList []runtime.Object) ([]*corev1.Node, error) {
 func convertObjectsToPods(podList []runtime.Object) ([]*corev1.Pod, error) {
 	pods := make([]*corev1.Pod, 0, len(podList))
 	for _, obj := range podList {
-		pod, err := helper.ConvertToPod(obj.(*unstructured.Unstructured))
-		if err != nil {
+		pod := &corev1.Pod{}
+		if err := helper.ConvertToTypedObject(obj, pod); err != nil {
 			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
 		}
 		pods = append(pods, pod)
