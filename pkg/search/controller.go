@@ -20,7 +20,7 @@ import (
 
 	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
@@ -231,7 +231,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 
 // addResourceRegistry parse the resourceRegistry object and add Cluster to the queue
 func (c *Controller) addResourceRegistry(obj interface{}) {
-	rr := obj.(*v1alpha1.ResourceRegistry)
+	rr := obj.(*searchv1alpha1.ResourceRegistry)
 	resources := c.getResources(rr.Spec.ResourceSelectors)
 
 	for _, cluster := range c.getClusters(rr.Spec.TargetCluster) {
@@ -260,8 +260,8 @@ func (c *Controller) addResourceRegistry(obj interface{}) {
 
 // updateResourceRegistry parse the resourceRegistry object and add (added/deleted) Cluster to the queue
 func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
-	oldRR := oldObj.(*v1alpha1.ResourceRegistry)
-	newRR := newObj.(*v1alpha1.ResourceRegistry)
+	oldRR := oldObj.(*searchv1alpha1.ResourceRegistry)
+	newRR := newObj.(*searchv1alpha1.ResourceRegistry)
 
 	if reflect.DeepEqual(oldRR.Spec, newRR.Spec) {
 		klog.V(4).Infof("Ignore ResourceRegistry(%s) update event as spec not changed", newRR.Name)
@@ -324,7 +324,7 @@ func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
 
 // deleteResourceRegistry parse the resourceRegistry object and add deleted Cluster to the queue
 func (c *Controller) deleteResourceRegistry(obj interface{}) {
-	rr := obj.(*v1alpha1.ResourceRegistry)
+	rr := obj.(*searchv1alpha1.ResourceRegistry)
 	for _, cluster := range c.getClusters(rr.Spec.TargetCluster) {
 		v, ok := c.clusterRegistry.Load(cluster)
 		if !ok {
@@ -420,7 +420,7 @@ func (c *Controller) getClusters(affinity policyv1alpha1.ClusterAffinity) []stri
 }
 
 // getClusterAndResource returns the cluster and resources from the resourceRegistry object
-func (c *Controller) getResources(selectors []v1alpha1.ResourceSelector) []schema.GroupVersionResource {
+func (c *Controller) getResources(selectors []searchv1alpha1.ResourceSelector) []schema.GroupVersionResource {
 	resources := make([]schema.GroupVersionResource, 0)
 	for _, rs := range selectors {
 		gvr, err := restmapper.GetGroupVersionResource(

@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 )
 
 // BackendStore define BackendStore interface
@@ -31,7 +31,7 @@ func Init(cs *kubernetes.Clientset) {
 }
 
 // AddBackend add backend store
-func AddBackend(cluster string, cfg *v1alpha1.BackendStoreConfig) {
+func AddBackend(cluster string, cfg *searchv1alpha1.BackendStoreConfig) {
 	backendLock.Lock()
 	defer backendLock.Unlock()
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	options2 "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	options2 "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 const (
@@ -47,6 +49,15 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	if _, err := clientSet.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: systemNamespace,
+		},
+	}, metav1.CreateOptions{}); err != nil {
+		klog.Exitln(err)
+	}
+
+	// create karmada-cluster namespace
+	if _, err := clientSet.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: options2.DefaultKarmadaClusterNamespace,
 		},
 	}, metav1.CreateOptions{}); err != nil {
 		klog.Exitln(err)

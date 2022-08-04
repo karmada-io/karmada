@@ -17,7 +17,7 @@ import (
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 )
 
 var defaultPrefix = "kubernetes"
@@ -104,7 +104,7 @@ type OpenSearch struct {
 }
 
 // NewOpenSearch returns a new OpenSearch
-func NewOpenSearch(cluster string, cfg *v1alpha1.BackendStoreConfig) (*OpenSearch, error) {
+func NewOpenSearch(cluster string, cfg *searchv1alpha1.BackendStoreConfig) (*OpenSearch, error) {
 	klog.Infof("create openserch backend store: %s", cluster)
 	os := &OpenSearch{
 		cluster: cluster,
@@ -258,7 +258,7 @@ func (os *OpenSearch) indexName(us *unstructured.Unstructured) (string, error) {
 	return name, nil
 }
 
-func (os *OpenSearch) initClient(bsc *v1alpha1.BackendStoreConfig) error {
+func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 	if bsc == nil || bsc.OpenSearch == nil {
 		return errors.New("opensearch config is nil")
 	}
