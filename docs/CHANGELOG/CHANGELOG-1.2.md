@@ -20,7 +20,7 @@ A new component `karmada-descheduler` was introduced, for rebalancing the schedu
 One example use case is: it helps evict pending replicas (Pods) from resource-starved clusters so that `karmada-scheduler`
 can "reschedule" these replicas (Pods) to a cluster with sufficient resources.
 
-For more details please refer to [Descheduler user guide.](../../docs/descheduler.md)
+For more details please refer to [Descheduler user guide.](https://github.com/karmada-io/website/blob/main/docs/userguide/scheduling/descheduler.md)
 
 
 ##### 2. Multi region HA support
@@ -101,15 +101,15 @@ Introduced `InterpretStatus` for the `Resource Interpreter Webhook` framework, w
 Karmada can thereby learn how to collect status for your resources, especially custom resources. For example, a custom resource 
 may have many status fields and only Karmada can collect only those you want.
 
-Refer to [Customizing Resource Interpreter](../../docs/userguide/customizing-resource-interpreter.md) for more details.
+Refer to [Customizing Resource Interpreter](https://github.com/karmada-io/website/blob/main/docs/userguide/globalview/customizing-resource-interpreter.md) for more details.
 
 
 #### Integrating verification with the ecosystem
 Benefiting from the Kubernetes native APIs, Karmada can easily integrate the Kubernetes ecosystem. The following components are verified by the Karmada community:
 
-- `Kyverno`: policy engine. Refer to [working with kyverno](../../docs/working-with-kyverno.md) for more details.
-- `Gatekeeper`: another policy engine. Refer to [working with gatekeeper](../../docs/working-with-gatekeeper.md) for more details.
-- `fluxcd`: GitOps tooling for helm chart. Refer to [working with fluxcd](../../docs/working-with-flux.md) for more details.
+- `Kyverno`: policy engine. Refer to [working with kyverno](https://github.com/karmada-io/website/blob/main/docs/userguide/security-governance/working-with-kyverno.md) for more details.
+- `Gatekeeper`: another policy engine. Refer to [working with gatekeeper](https://github.com/karmada-io/website/blob/main/docs/userguide/security-governance/working-with-gatekeeper.md) for more details.
+- `fluxcd`: GitOps tooling for helm chart. Refer to [working with fluxcd](https://github.com/karmada-io/website/blob/main/docs/userguide/cicd/working-with-flux.md) for more details.
 
 
 ### Other Notable Changes
