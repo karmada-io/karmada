@@ -160,11 +160,6 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 
 	klog.V(1).Infof("joining cluster config. endpoint: %s", clusterConfig.Host)
 
-	// ensure namespace where the cluster object be stored exists in control plane.
-	if _, err = util.EnsureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
-		return err
-	}
-
 	registerOption := util.ClusterRegisterOption{
 		ClusterNamespace:   opts.ClusterNamespace,
 		ClusterName:        opts.ClusterName,
