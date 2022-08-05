@@ -96,20 +96,7 @@ func (c *ResourceBindingController) removeFinalizer(rb *workv1alpha2.ResourceBin
 
 // syncBinding will sync resourceBinding to Works.
 func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
-	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters, binding.Spec.RequiredBy)
-	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name, clusterNames, apiextensionsv1.NamespaceScoped)
-	if err != nil {
-		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonCleanupWorkFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
-	}
-
-	err = helper.RemoveOrphanWorks(c.Client, works)
-	if err != nil {
-		klog.Errorf("Failed to remove orphan works by resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonCleanupWorkFailed, err.Error())
+	if err := c.removeOrphanWorks(binding); err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -162,6 +149,26 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 	}
 
 	return controllerruntime.Result{}, nil
+}
+
+func (c *ResourceBindingController) removeOrphanWorks(binding *workv1alpha2.ResourceBinding) error {
+	works, err := helper.FindOrphanWorks(c.Client, binding.Namespace, binding.Name, helper.ObtainBindingSpecExistingClusters(binding.Spec))
+	if err != nil {
+		klog.Errorf("Failed to find orphan works by resourceBinding(%s/%s). Error: %v.",
+			binding.GetNamespace(), binding.GetName(), err)
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonCleanupWorkFailed, err.Error())
+		return err
+	}
+
+	err = helper.RemoveOrphanWorks(c.Client, works)
+	if err != nil {
+		klog.Errorf("Failed to remove orphan works by resourceBinding(%s/%s). Error: %v.",
+			binding.GetNamespace(), binding.GetName(), err)
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonCleanupWorkFailed, err.Error())
+		return err
+	}
+
+	return nil
 }
 
 // updateResourceStatus will try to calculate the summary status and update to original object

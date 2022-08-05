@@ -120,7 +120,7 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 }
 
 func generateFullyAppliedCondition(spec workv1alpha2.ResourceBindingSpec, aggregatedStatuses []workv1alpha2.AggregatedStatusItem) metav1.Condition {
-	clusterNames := GetBindingClusterNames(spec.Clusters, spec.RequiredBy)
+	clusterNames := ObtainBindingSpecExistingClusters(spec)
 	if worksFullyApplied(aggregatedStatuses, clusterNames) {
 		return util.NewCondition(workv1alpha2.FullyApplied, FullyAppliedSuccessReason, FullyAppliedSuccessMessage, metav1.ConditionTrue)
 	}
@@ -235,7 +235,7 @@ func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal 
 }
 
 // worksFullyApplied checks if all works are applied according the scheduled result and collected status.
-func worksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem, targetClusters []string) bool {
+func worksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem, targetClusters sets.String) bool {
 	// short path: not scheduled
 	if len(targetClusters) == 0 {
 		return false
@@ -246,17 +246,12 @@ func worksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem, t
 		return false
 	}
 
-	targetClusterSet := sets.String{}
-	for i := range targetClusters {
-		targetClusterSet.Insert(targetClusters[i])
-	}
-
-	for _, aggregatedSatusItem := range aggregatedStatuses {
-		if !aggregatedSatusItem.Applied {
+	for _, aggregatedStatusItem := range aggregatedStatuses {
+		if !aggregatedStatusItem.Applied {
 			return false
 		}
 
-		if !targetClusterSet.Has(aggregatedSatusItem.ClusterName) {
+		if !targetClusters.Has(aggregatedStatusItem.ClusterName) {
 			return false
 		}
 	}

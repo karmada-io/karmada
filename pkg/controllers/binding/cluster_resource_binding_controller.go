@@ -91,18 +91,7 @@ func (c *ClusterResourceBindingController) removeFinalizer(crb *workv1alpha2.Clu
 
 // syncBinding will sync clusterResourceBinding to Works.
 func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
-	clusterNames := helper.GetBindingClusterNames(binding.Spec.Clusters, binding.Spec.RequiredBy)
-	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, clusterNames, apiextensionsv1.ClusterScoped)
-	if err != nil {
-		klog.Errorf("Failed to find orphan works by ClusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonCleanupWorkFailed, err.Error())
-		return controllerruntime.Result{Requeue: true}, err
-	}
-
-	err = helper.RemoveOrphanWorks(c.Client, works)
-	if err != nil {
-		klog.Errorf("Failed to remove orphan works by clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonCleanupWorkFailed, err.Error())
+	if err := c.removeOrphanWorks(binding); err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -143,6 +132,24 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 	}
 
 	return controllerruntime.Result{}, nil
+}
+
+func (c *ClusterResourceBindingController) removeOrphanWorks(binding *workv1alpha2.ClusterResourceBinding) error {
+	works, err := helper.FindOrphanWorks(c.Client, "", binding.Name, helper.ObtainBindingSpecExistingClusters(binding.Spec))
+	if err != nil {
+		klog.Errorf("Failed to find orphan works by ClusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonCleanupWorkFailed, err.Error())
+		return err
+	}
+
+	err = helper.RemoveOrphanWorks(c.Client, works)
+	if err != nil {
+		klog.Errorf("Failed to remove orphan works by clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonCleanupWorkFailed, err.Error())
+		return err
+	}
+
+	return nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
