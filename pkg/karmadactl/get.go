@@ -285,14 +285,16 @@ func (g *CommandGetOptions) Run(karmadaConfig KarmadaConfig, cmd *cobra.Command,
 		return err
 	}
 
-	wg.Add(len(g.Clusters))
 	for idx := range g.Clusters {
-		err = g.setClusterProxyInfo(karmadaRestConfig, g.Clusters[idx], clusterInfos)
-		if err != nil {
-			return err
+		if _, existed := clusterInfos[g.Clusters[idx]]; existed {
+			wg.Add(1)
+			err = g.setClusterProxyInfo(karmadaRestConfig, g.Clusters[idx], clusterInfos)
+			if err != nil {
+				return err
+			}
+			f := getFactory(g.Clusters[idx], clusterInfos, "")
+			go g.getObjInfo(&wg, &mux, f, g.Clusters[idx], &objs, &watchObjs, &allErrs, args)
 		}
-		f := getFactory(g.Clusters[idx], clusterInfos, "")
-		go g.getObjInfo(&wg, &mux, f, g.Clusters[idx], &objs, &watchObjs, &allErrs, args)
 	}
 	wg.Wait()
 
