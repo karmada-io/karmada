@@ -15,8 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -47,11 +45,6 @@ const (
 	clusterNotReachableReason = "ClusterNotReachable"
 	clusterNotReachableMsg    = "cluster is not reachable"
 	statusCollectionFailed    = "StatusCollectionFailed"
-)
-
-var (
-	nodeGVR = corev1.SchemeGroupVersion.WithResource("nodes")
-	podGVR  = corev1.SchemeGroupVersion.WithResource("pods")
 )
 
 // ClusterStatusController is to sync status of Cluster.
@@ -156,9 +149,12 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	// skip collecting cluster status if not ready
 	if online && healthy && readyCondition.Status == metav1.ConditionTrue {
 		// get or create informer for pods and nodes in member cluster
-		clusterInformerManager, err := c.buildInformerForCluster(cluster)
+		clusterInformerManager, err := c.buildInformerForCluster(clusterClient)
 		if err != nil {
 			klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
+			// in large-scale clusters, timeout may occur
+			// if clusterInformerManager is failed to build, should be return, otherwise it may cause nil pointer
+			return controllerruntime.Result{Requeue: true}, err
 		}
 
 		if cluster.Spec.SyncMode == clusterv1alpha1.Pull {
@@ -239,47 +235,18 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 
 // buildInformerForCluster builds informer manager for cluster if it doesn't exist, then constructs informers for node
 // and pod and start it. If the informer manager exist, return it.
-func (c *ClusterStatusController) buildInformerForCluster(cluster *clusterv1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
-	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
+func (c *ClusterStatusController) buildInformerForCluster(clusterClient *util.ClusterClient) (informermanager.SingleClusterInformerManager, error) {
+	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(clusterClient.ClusterName)
 	if singleClusterInformerManager == nil {
-		clusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client)
+		dynamicClient, err := c.ClusterDynamicClientSetFunc(clusterClient.ClusterName, c.Client)
 		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
+			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", dynamicClient.ClusterName)
 			return nil, err
 		}
-		singleClusterInformerManager = c.InformerManager.ForCluster(clusterClient.ClusterName, clusterClient.DynamicClientSet, 0)
+		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClient.ClusterName, dynamicClient.DynamicClientSet, 0)
 	}
 
-	gvrs := []schema.GroupVersionResource{nodeGVR, podGVR}
-
-	// create the informer for pods and nodes
-	allSynced := true
-	for _, gvr := range gvrs {
-		if !singleClusterInformerManager.IsInformerSynced(gvr) {
-			allSynced = false
-			singleClusterInformerManager.Lister(gvr)
-		}
-	}
-	if allSynced {
-		return singleClusterInformerManager, nil
-	}
-
-	c.InformerManager.Start(cluster.Name)
-
-	if err := func() error {
-		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, c.ClusterCacheSyncTimeout.Duration)
-		if synced == nil {
-			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
-		}
-		for _, gvr := range gvrs {
-			if !synced[gvr] {
-				return fmt.Errorf("informer for %s hasn't synced", gvr)
-			}
-		}
-		return nil
-	}(); err != nil {
-		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", cluster.Name, err)
-		c.InformerManager.Stop(cluster.Name)
+	if _, err := singleClusterInformerManager.WaitForSync(clusterClient.KubeClient, c.ClusterCacheSyncTimeout.Duration); err != nil {
 		return nil, err
 	}
 
@@ -405,34 +372,16 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 
 // listPods returns the Pod list from the informerManager cache.
 func listPods(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Pod, error) {
-	podLister := informerManager.Lister(podGVR)
+	podLister := informerManager.ListerWithPod()
 
-	podList, err := podLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	pods, err := convertObjectsToPods(podList)
-	if err != nil {
-		return nil, err
-	}
-
-	return pods, nil
+	return podLister.List(labels.Everything())
 }
 
 // listNodes returns the Node list from the informerManager cache.
 func listNodes(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Node, error) {
-	nodeLister := informerManager.Lister(nodeGVR)
+	nodeLister := informerManager.ListerWithNode()
 
-	nodeList, err := nodeLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	nodes, err := convertObjectsToNodes(nodeList)
-	if err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
+	return nodeLister.List(labels.Everything())
 }
 
 func getNodeSummary(nodes []*corev1.Node) *clusterv1alpha1.NodeSummary {
@@ -463,30 +412,6 @@ func getResourceSummary(nodes []*corev1.Node, pods []*corev1.Pod) *clusterv1alph
 	resourceSummary.Allocated = allocated
 
 	return resourceSummary
-}
-
-func convertObjectsToNodes(nodeList []runtime.Object) ([]*corev1.Node, error) {
-	nodes := make([]*corev1.Node, 0, len(nodeList))
-	for _, obj := range nodeList {
-		node := &corev1.Node{}
-		if err := helper.ConvertToTypedObject(obj, node); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
-		}
-		nodes = append(nodes, node)
-	}
-	return nodes, nil
-}
-
-func convertObjectsToPods(podList []runtime.Object) ([]*corev1.Pod, error) {
-	pods := make([]*corev1.Pod, 0, len(podList))
-	for _, obj := range podList {
-		pod := &corev1.Pod{}
-		if err := helper.ConvertToTypedObject(obj, pod); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
-		}
-		pods = append(pods, pod)
-	}
-	return pods, nil
 }
 
 func getClusterAllocatable(nodeList []*corev1.Node) (allocatable corev1.ResourceList) {

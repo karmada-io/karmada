@@ -2,12 +2,16 @@ package informermanager
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/karmada-io/karmada/pkg/util"
@@ -54,6 +58,12 @@ type SingleClusterInformerManager interface {
 
 	// GetClient returns the dynamic client.
 	GetClient() dynamic.Interface
+
+	ListerWithNode() v1.NodeLister
+
+	ListerWithPod() v1.PodLister
+
+	WaitForSync(client kubernetes.Interface, duration time.Duration) (bool, error)
 }
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
@@ -76,6 +86,8 @@ type singleClusterInformerManagerImpl struct {
 
 	informerFactory dynamicinformer.DynamicSharedInformerFactory
 
+	sharedInformerFactory informers.SharedInformerFactory
+
 	syncedInformers map[schema.GroupVersionResource]struct{}
 
 	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
@@ -83,6 +95,33 @@ type singleClusterInformerManagerImpl struct {
 	client dynamic.Interface
 
 	lock sync.RWMutex
+}
+
+func (s *singleClusterInformerManagerImpl) WaitForSync(client kubernetes.Interface, t time.Duration) (bool, error) {
+	if s.sharedInformerFactory == nil {
+		s.sharedInformerFactory = informers.NewSharedInformerFactory(client, 0)
+		go s.sharedInformerFactory.Start(s.ctx.Done())
+	}
+
+	ctx, cancel := context.WithTimeout(s.ctx, t)
+	defer cancel()
+
+	if !cache.WaitForCacheSync(ctx.Done(),
+		s.sharedInformerFactory.Core().V1().Pods().Informer().HasSynced,
+		s.sharedInformerFactory.Core().V1().Nodes().Informer().HasSynced,
+	) {
+		return false, fmt.Errorf("failed to sync node and pod cache")
+	}
+
+	return true, nil
+}
+
+func (s *singleClusterInformerManagerImpl) ListerWithPod() v1.PodLister {
+	return s.sharedInformerFactory.Core().V1().Pods().Lister()
+}
+
+func (s *singleClusterInformerManagerImpl) ListerWithNode() v1.NodeLister {
+	return s.sharedInformerFactory.Core().V1().Nodes().Lister()
 }
 
 func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
