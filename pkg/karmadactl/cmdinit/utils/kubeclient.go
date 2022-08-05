@@ -13,8 +13,8 @@ func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
 	pathOptions := clientcmd.NewDefaultPathOptions()
 
 	loadingRules := *pathOptions.LoadingRules
-	loadingRules.Precedence = pathOptions.GetLoadingPrecedence()
 	loadingRules.ExplicitPath = kubeconfigPath
+	loadingRules.Precedence = pathOptions.GetLoadingPrecedence()
 	overrides := &clientcmd.ConfigOverrides{
 		CurrentContext: context,
 	}
