@@ -98,6 +98,11 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 
 // RegisterClusterInControllerPlane represents register cluster in controller plane
 func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, generateClusterInControllerPlane generateClusterInControllerPlaneFunc) error {
+	// ensure namespace where the cluster object be stored exists in control plane.
+	if _, err := EnsureNamespaceExist(controlPlaneKubeClient, opts.ClusterNamespace, opts.DryRun); err != nil {
+		return err
+	}
+
 	impersonatorSecret := &corev1.Secret{}
 	secret := &corev1.Secret{}
 	var err error
