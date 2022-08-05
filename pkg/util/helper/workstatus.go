@@ -7,12 +7,14 @@ import (
 	"reflect"
 	"sort"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,10 +38,9 @@ const (
 
 // AggregateResourceBindingWorkStatus will collect all work statuses with current ResourceBinding objects,
 // then aggregate status info to current ResourceBinding status.
-func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ResourceBinding, workload *unstructured.Unstructured) error {
+func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ResourceBinding, workload *unstructured.Unstructured, eventRecorder record.EventRecorder) error {
 	workList, err := GetWorksByBindingNamespaceName(c, binding.Namespace, binding.Name)
 	if err != nil {
-		klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
 		return err
 	}
 
@@ -58,7 +59,7 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 		return nil
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		binding.Status = *currentBindingStatus
 		updateErr := c.Status().Update(context.TODO(), binding)
 		if updateErr == nil {
@@ -75,14 +76,23 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 
 		return updateErr
 	})
+	if err != nil {
+		eventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
+		eventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
+		return err
+	}
+
+	msg := fmt.Sprintf("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
+	eventRecorder.Event(binding, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
+	eventRecorder.Event(workload, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
+	return nil
 }
 
 // AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
 // then aggregate status info to current ClusterResourceBinding status.
-func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ClusterResourceBinding, workload *unstructured.Unstructured) error {
+func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ClusterResourceBinding, workload *unstructured.Unstructured, eventRecorder record.EventRecorder) error {
 	workList, err := GetWorksByBindingNamespaceName(c, "", binding.Name)
 	if err != nil {
-		klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", binding.Name, err)
 		return err
 	}
 
@@ -100,7 +110,7 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 		return nil
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		binding.Status = *currentBindingStatus
 		updateErr := c.Status().Update(context.TODO(), binding)
 		if updateErr == nil {
@@ -117,6 +127,16 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 
 		return updateErr
 	})
+	if err != nil {
+		eventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
+		eventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
+		return err
+	}
+
+	msg := fmt.Sprintf("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
+	eventRecorder.Event(binding, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
+	eventRecorder.Event(workload, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
+	return nil
 }
 
 func generateFullyAppliedCondition(spec workv1alpha2.ResourceBindingSpec, aggregatedStatuses []workv1alpha2.AggregatedStatusItem) metav1.Condition {

@@ -116,21 +116,19 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 	if err != nil {
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, err.Error())
+		c.EventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonSyncWorkFailed, err.Error())
 		errs = append(errs, err)
 	} else {
 		msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
 		klog.V(4).Infof(msg)
 		c.EventRecorder.Event(binding, corev1.EventTypeNormal, workv1alpha2.EventReasonSyncWorkSucceed, msg)
+		c.EventRecorder.Event(workload, corev1.EventTypeNormal, workv1alpha2.EventReasonSyncWorkSucceed, msg)
 	}
 
-	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, workload)
+	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, workload, c.EventRecorder)
 	if err != nil {
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
+		klog.Errorf("Failed to aggregate workStatuses to clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		errs = append(errs, err)
-	} else {
-		msg := fmt.Sprintf("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
-		klog.V(4).Infof(msg)
-		c.EventRecorder.Event(binding, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
 	}
 	if len(errs) > 0 {
 		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
