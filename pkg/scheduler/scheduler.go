@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
@@ -37,6 +38,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
 )
 
@@ -352,10 +354,10 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		} else {
 			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
 		}
-		if updateErr := s.updateBindingScheduledConditionIfNeeded(rb, condition); updateErr != nil {
-			klog.Errorf("Failed update condition(%s) for ResourceBinding(%s/%s)", workv1alpha2.Scheduled, rb.Namespace, rb.Name)
+		if updateErr := s.patchBindingScheduleStatus(rb, condition); updateErr != nil {
+			klog.Errorf("Failed to patch schedule status to ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
 			if err == nil {
-				// schedule succeed but update condition failed, return err in order to retry in next loop.
+				// schedule succeed but update status failed, return err in order to retry in next loop.
 				err = updateErr
 			}
 		}
@@ -626,36 +628,38 @@ func (s *Scheduler) establishEstimatorConnections() {
 	}
 }
 
-// updateBindingScheduledConditionIfNeeded sets the scheduled condition of ResourceBinding if needed
-func (s *Scheduler) updateBindingScheduledConditionIfNeeded(rb *workv1alpha2.ResourceBinding, newScheduledCondition metav1.Condition) error {
+// patchBindingScheduleStatus patches schedule status of ResourceBinding when necessary.
+func (s *Scheduler) patchBindingScheduleStatus(rb *workv1alpha2.ResourceBinding, newScheduledCondition metav1.Condition) error {
 	if rb == nil {
 		return nil
 	}
 
-	oldScheduledCondition := meta.FindStatusCondition(rb.Status.Conditions, workv1alpha2.Scheduled)
-	if oldScheduledCondition != nil {
-		if util.IsConditionsEqual(newScheduledCondition, *oldScheduledCondition) {
-			klog.V(4).Infof("No need to update scheduled condition")
-			return nil
-		}
+	modifiedObj := rb.DeepCopy()
+	meta.SetStatusCondition(&modifiedObj.Status.Conditions, newScheduledCondition)
+	// Postpone setting observed generation until schedule succeed, assume scheduler will retry and
+	// will succeed eventually.
+	if newScheduledCondition.Status == metav1.ConditionTrue {
+		modifiedObj.Status.SchedulerObservedGeneration = modifiedObj.Generation
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		meta.SetStatusCondition(&rb.Status.Conditions, newScheduledCondition)
-		_, updateErr := s.KarmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).UpdateStatus(context.TODO(), rb, metav1.UpdateOptions{})
-		if updateErr == nil {
-			return nil
-		}
+	// Short path, ignore patch if no change.
+	if reflect.DeepEqual(rb.Status, modifiedObj.Status) {
+		return nil
+	}
 
-		if updated, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Get(context.TODO(), rb.Name, metav1.GetOptions{}); err == nil {
-			// make a copy so we don't mutate the shared cache
-			rb = updated.DeepCopy()
-		} else {
-			klog.Errorf("failed to get updated resource binding %s/%s: %v", rb.Namespace, rb.Name, err)
-		}
+	patchBytes, err := helper.GenMergePatch(rb, modifiedObj)
+	if err != nil {
+		return fmt.Errorf("failed to create a merge patch: %v", err)
+	}
 
-		return updateErr
-	})
+	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	if err != nil {
+		klog.Errorf("Failed to patch schedule status to ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+		return err
+	}
+
+	klog.V(4).Infof("Patch schedule status to ResourceBinding(%s/%s) succeed", rb.Namespace, rb.Name)
+	return nil
 }
 
 // updateClusterBindingScheduledConditionIfNeeded sets the scheduled condition of ClusterResourceBinding if needed
