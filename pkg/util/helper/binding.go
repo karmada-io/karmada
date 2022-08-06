@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,40 +71,34 @@ func HasScheduledReplica(scheduleResult []workv1alpha2.TargetCluster) bool {
 	return false
 }
 
-// GetBindingClusterNames will get clusterName list from bind clusters field and requiredBy field.
-func GetBindingClusterNames(targetClusters []workv1alpha2.TargetCluster, bindingSnapshot []workv1alpha2.BindingSnapshot) []string {
-	clusterNames := util.ConvertToClusterNames(targetClusters)
-	for _, binding := range bindingSnapshot {
+// ObtainBindingSpecExistingClusters will obtain the cluster slice existing in the binding's spec field.
+func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingSpec) sets.String {
+	clusterNames := util.ConvertToClusterNames(bindingSpec.Clusters)
+	for _, binding := range bindingSpec.RequiredBy {
 		for _, targetCluster := range binding.Clusters {
 			clusterNames.Insert(targetCluster.Name)
 		}
 	}
 
-	return clusterNames.List()
+	for _, task := range bindingSpec.GracefulEvictionTasks {
+		clusterNames.Insert(task.FromCluster)
+	}
+
+	return clusterNames
 }
 
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
-func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, clusterNames []string, scope apiextensionsv1.ResourceScope) ([]workv1alpha1.Work, error) {
+func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, expectClusters sets.String) ([]workv1alpha1.Work, error) {
 	var needJudgeWorks []workv1alpha1.Work
-	if scope == apiextensionsv1.NamespaceScoped {
-		workList, err := GetWorksByBindingNamespaceName(c, bindingNamespace, bindingName)
-		if err != nil {
-			klog.Errorf("Failed to get works by ResourceBinding(%s/%s): %v", bindingNamespace, bindingName, err)
-			return nil, err
-		}
-		needJudgeWorks = append(needJudgeWorks, workList.Items...)
-	} else {
-		workList, err := GetWorksByBindingNamespaceName(c, "", bindingName)
-		if err != nil {
-			klog.Errorf("Failed to get works by ClusterResourceBinding(%s): %v", bindingName, err)
-			return nil, err
-		}
-		needJudgeWorks = append(needJudgeWorks, workList.Items...)
+	workList, err := GetWorksByBindingNamespaceName(c, bindingNamespace, bindingName)
+	if err != nil {
+		klog.Errorf("Failed to get works by binding object (%s/%s): %v", bindingNamespace, bindingName, err)
+		return nil, err
 	}
+	needJudgeWorks = append(needJudgeWorks, workList.Items...)
 
 	var orphanWorks []workv1alpha1.Work
-	expectClusters := sets.NewString(clusterNames...)
 	for _, work := range needJudgeWorks {
 		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
 		if err != nil {

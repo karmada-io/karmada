@@ -3,13 +3,15 @@ package helper
 import (
 	"testing"
 
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 func TestWorksFullyApplied(t *testing.T) {
 	type args struct {
 		aggregatedStatuses []workv1alpha2.AggregatedStatusItem
-		targetClusters     []string
+		targetClusters     sets.String
 	}
 	tests := []struct {
 		name string
@@ -33,7 +35,7 @@ func TestWorksFullyApplied(t *testing.T) {
 			name: "no aggregatedStatuses",
 			args: args{
 				aggregatedStatuses: nil,
-				targetClusters:     []string{"member1"},
+				targetClusters:     sets.NewString("member1"),
 			},
 			want: false,
 		},
@@ -46,7 +48,7 @@ func TestWorksFullyApplied(t *testing.T) {
 						Applied:     true,
 					},
 				},
-				targetClusters: []string{"member1", "member2"},
+				targetClusters: sets.NewString("member1", "member2"),
 			},
 			want: false,
 		},
@@ -63,7 +65,7 @@ func TestWorksFullyApplied(t *testing.T) {
 						Applied:     true,
 					},
 				},
-				targetClusters: []string{"member1", "member2"},
+				targetClusters: sets.NewString("member1", "member2"),
 			},
 			want: true,
 		},
@@ -80,7 +82,7 @@ func TestWorksFullyApplied(t *testing.T) {
 						Applied:     false,
 					},
 				},
-				targetClusters: []string{"member1", "member2"},
+				targetClusters: sets.NewString("member1", "member2"),
 			},
 			want: false,
 		},
@@ -93,7 +95,7 @@ func TestWorksFullyApplied(t *testing.T) {
 						Applied:     true,
 					},
 				},
-				targetClusters: []string{"member2"},
+				targetClusters: sets.NewString("member2"),
 			},
 			want: false,
 		},
