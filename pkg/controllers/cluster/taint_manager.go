@@ -18,6 +18,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
@@ -153,7 +154,11 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
-		binding.Spec.RemoveCluster(cluster)
+		if features.FeatureGate.Enabled(features.GracefulEviction) {
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.EvictionProducerTaintManager, workv1alpha2.EvictionReasonTaintUntolerated, "")
+		} else {
+			binding.Spec.RemoveCluster(cluster)
+		}
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
 			return err
@@ -198,7 +203,11 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	// Case 3: Tolerate forever, we do nothing.
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
-		binding.Spec.RemoveCluster(cluster)
+		if features.FeatureGate.Enabled(features.GracefulEviction) {
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.EvictionProducerTaintManager, workv1alpha2.EvictionReasonTaintUntolerated, "")
+		} else {
+			binding.Spec.RemoveCluster(cluster)
+		}
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
 			return err
