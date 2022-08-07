@@ -2,6 +2,7 @@ package utils
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -22,5 +23,26 @@ func TestDownloadFile(t *testing.T) {
 
 	if err := DeCompress(filePath, "./"); err != nil {
 		panic(err)
+	}
+}
+
+func TestListFiles(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want []string
+	}{
+		{
+			name: "files",
+			path: "../options",
+			want: []string{"../options/global.go"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ListFiles(tt.path); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ListFiles() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
