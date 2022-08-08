@@ -27,8 +27,8 @@ spec:
       restartPolicy: Never
       containers:
         - name: post-delete
-          image: {{ .Values.postDeleteJob.postDeleteContainerImage }}
-          imagePullPolicy: IfNotPresent
+          image: {{ template "karmada.kubectl.image" . }}
+          imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
           command:
             - /bin/sh
             - -c
