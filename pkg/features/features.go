@@ -8,6 +8,11 @@ import (
 const (
 	// Failover indicates if scheduler should reschedule on cluster failure.
 	Failover featuregate.Feature = "Failover"
+
+	// GracefulEviction indicates if enable grace eviction.
+	// Takes effect only when the Failover feature is enabled.
+	GracefulEviction featuregate.Feature = "GracefulEviction"
+
 	// PropagateDeps indicates if relevant resources should be propagated automatically
 	PropagateDeps featuregate.Feature = "PropagateDeps"
 )
@@ -17,8 +22,9 @@ var (
 	FeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()
 
 	defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
-		Failover:      {Default: false, PreRelease: featuregate.Alpha},
-		PropagateDeps: {Default: false, PreRelease: featuregate.Alpha},
+		Failover:         {Default: false, PreRelease: featuregate.Alpha},
+		GracefulEviction: {Default: false, PreRelease: featuregate.Alpha},
+		PropagateDeps:    {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
