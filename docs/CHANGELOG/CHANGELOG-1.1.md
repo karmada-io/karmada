@@ -42,7 +42,7 @@ Introduced `AggregateStatus` support for the `Resource Interpreter Webhook` fram
 Introduced `InterpreterOperationInterpretDependency` support for the `Resource Interpreter Webhook` framework, 
 which enables propagating workload's dependencies automatically.
 
-Refer to [Customizing Resource Interpreter](../userguide/customizing-resource-interpreter.md) for more details.
+Refer to [Customizing Resource Interpreter](https://github.com/karmada-io/website/blob/main/docs/userguide/globalview/customizing-resource-interpreter.md) for more details.
 
 
 # Other Notable Changes

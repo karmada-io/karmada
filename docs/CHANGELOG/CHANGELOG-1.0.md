@@ -22,13 +22,13 @@ kubectl karmada promote deployment nginx -n default -c cluster1
 Benefiting from the Kubernetes native API support, Karmada can easily integrate the single cluster ecosystem for multi-cluster, 
 multi-cloud purpose. The following components have been verified by the Karmada community:
 
-- argo-cd: refer to [working with argo-cd](../working-with-argocd.md)
+- argo-cd: refer to [working with argo-cd](https://github.com/karmada-io/website/blob/main/docs/userguide/cicd/working-with-argocd.md)
 - Flux: refer to [propagating helm charts with flux](https://github.com/karmada-io/karmada/issues/861#issuecomment-998540302)
-- Istio: refer to [working with Istio](../working-with-istio-on-flat-network.md)
-- Filebeat: refer to [working with Filebeat](../working-with-filebeat.md)
-- Submariner: refer to [working with Submariner](../working-with-submariner.md)
-- Velero: refer to [working with Velero](../working-with-velero.md)
-- Prometheus: refer to [working with Prometheus](../working-with-prometheus.md)
+- Istio: refer to [working with Istio](https://github.com/karmada-io/website/blob/main/docs/userguide/service/working-with-istio-on-flat-network.md)
+- Filebeat: refer to [working with Filebeat](https://github.com/karmada-io/website/blob/main/docs/administrator/monitoring/working-with-filebeat.md)
+- Submariner: refer to [working with Submariner](https://github.com/karmada-io/website/blob/main/docs/userguide/network/working-with-submariner.md)
+- Velero: refer to [working with Velero](https://github.com/karmada-io/website/blob/main/docs/administrator/backup/working-with-velero.md)
+- Prometheus: refer to [working with Prometheus](https://github.com/karmada-io/website/blob/main/docs/administrator/monitoring/working-with-prometheus.md)
 
 
 ## OverridePolicy Improvements
@@ -38,7 +38,7 @@ able to define override policies with a single policy for specified workloads.
 ## Karmada Installation Improvements
 Introduced `init` command to `Karmada CLI`. Users are now able to install Karmada by a single command.
 
-Please refer to [Installing Karmada](../installation/installation.md) for more details.
+Please refer to [Installing Karmada](https://github.com/karmada-io/website/blob/main/docs/installation/installation.md) for more details.
 
 
 ## Configuring Karmada Controllers
