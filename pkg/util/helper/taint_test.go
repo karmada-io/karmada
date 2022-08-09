@@ -132,3 +132,135 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 		})
 	}
 }
+
+func TestTaintExists(t *testing.T) {
+	type args struct {
+		taints      []corev1.Taint
+		taintToFind *corev1.Taint
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "exist",
+			args: args{
+				taints: []corev1.Taint{
+					{
+						Key:    clusterv1alpha1.TaintClusterUnreachable,
+						Effect: corev1.TaintEffectNoExecute,
+					},
+					{
+						Key:    clusterv1alpha1.TaintClusterNotReady,
+						Effect: corev1.TaintEffectNoExecute,
+					},
+				},
+				taintToFind: &corev1.Taint{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffectNoExecute,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "not exist",
+			args: args{
+				taints: []corev1.Taint{
+					{
+						Key:    clusterv1alpha1.TaintClusterUnreachable,
+						Effect: corev1.TaintEffectNoExecute,
+					},
+					{
+						Key:    clusterv1alpha1.TaintClusterNotReady,
+						Effect: corev1.TaintEffectNoExecute,
+					},
+				},
+				taintToFind: &corev1.Taint{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := TaintExists(tt.args.taints, tt.args.taintToFind); got != tt.want {
+				t.Errorf("TaintExists() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTolerationExists(t *testing.T) {
+	type args struct {
+		tolerations      []corev1.Toleration
+		tolerationToFind *corev1.Toleration
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "not exist",
+			args: args{
+				tolerations: []corev1.Toleration{
+					{
+						Key:      clusterv1alpha1.TaintClusterUnreachable,
+						Effect:   corev1.TaintEffectNoExecute,
+						Operator: corev1.TolerationOpEqual,
+						Value:    "foo",
+					},
+					{
+						Key:      clusterv1alpha1.TaintClusterNotReady,
+						Effect:   corev1.TaintEffectNoExecute,
+						Operator: corev1.TolerationOpEqual,
+						Value:    "foo",
+					},
+				},
+				tolerationToFind: &corev1.Toleration{
+					Key:      clusterv1alpha1.TaintClusterNotReady,
+					Effect:   corev1.TaintEffectNoSchedule,
+					Operator: corev1.TolerationOpEqual,
+					Value:    "foo",
+				},
+			},
+			want: false,
+		},
+		{
+			name: "exist",
+			args: args{
+				tolerations: []corev1.Toleration{
+					{
+						Key:      clusterv1alpha1.TaintClusterUnreachable,
+						Effect:   corev1.TaintEffectNoExecute,
+						Operator: corev1.TolerationOpEqual,
+						Value:    "foo",
+					},
+					{
+						Key:      clusterv1alpha1.TaintClusterNotReady,
+						Effect:   corev1.TaintEffectNoExecute,
+						Operator: corev1.TolerationOpEqual,
+						Value:    "foo",
+					},
+				},
+				tolerationToFind: &corev1.Toleration{
+					Key:      clusterv1alpha1.TaintClusterNotReady,
+					Effect:   corev1.TaintEffectNoExecute,
+					Operator: corev1.TolerationOpEqual,
+					Value:    "foo",
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := TolerationExists(tt.args.tolerations, tt.args.tolerationToFind); got != tt.want {
+				t.Errorf("TolerationExists() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
