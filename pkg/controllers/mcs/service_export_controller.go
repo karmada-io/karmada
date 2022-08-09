@@ -28,9 +28,10 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -43,7 +44,7 @@ type ServiceExportController struct {
 	EventRecorder               record.EventRecorder
 	RESTMapper                  meta.RESTMapper
 	StopChan                    <-chan struct{}
-	InformerManager             informermanager.MultiClusterInformerManager
+	InformerManager             genericmanager.MultiClusterInformerManager
 	WorkerNumber                int                 // WorkerNumber is the number of worker goroutines
 	PredicateFunc               predicate.Predicate // PredicateFunc is the function that filters events before enqueuing the keys.
 	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
@@ -232,7 +233,7 @@ func (c *ServiceExportController) getEventHandler(clusterName string) cache.Reso
 		return value.(cache.ResourceEventHandler)
 	}
 
-	eventHandler := informermanager.NewHandlerOnEvents(c.genHandlerAddFunc(clusterName), c.genHandlerUpdateFunc(clusterName),
+	eventHandler := fedinformer.NewHandlerOnEvents(c.genHandlerAddFunc(clusterName), c.genHandlerUpdateFunc(clusterName),
 		c.genHandlerDeleteFunc(clusterName))
 	c.eventHandlers.Store(clusterName, eventHandler)
 	return eventHandler

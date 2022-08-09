@@ -10,12 +10,12 @@ import (
 	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	searchstorage "github.com/karmada-io/karmada/pkg/registry/search/storage"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
 // ExtraConfig holds custom apiserver config
 type ExtraConfig struct {
-	MultiClusterInformerManager informermanager.MultiClusterInformerManager
+	MultiClusterInformerManager genericmanager.MultiClusterInformerManager
 	ClusterLister               clusterlister.ClusterLister
 
 	// Add custom config if necessary.

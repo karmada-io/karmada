@@ -34,9 +34,9 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -194,7 +194,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) error {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
-	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter("", controlPlaneInformerManager)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
@@ -229,7 +229,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	// Ensure the InformerManager stops when the stop channel closes
 	go func() {
 		<-stopChan
-		informermanager.StopInstance()
+		genericmanager.StopInstance()
 	}()
 
 	return nil
@@ -241,7 +241,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		KubeClient:                        kubeclientset.NewForConfigOrDie(ctx.Mgr.GetConfig()),
 		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(status.ControllerName),
 		PredicateFunc:                     helper.NewClusterPredicateOnAgent(ctx.Opts.ClusterName),
-		InformerManager:                   informermanager.GetInstance(),
+		InformerManager:                   genericmanager.GetInstance(),
 		StopChan:                          ctx.StopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
@@ -267,7 +267,7 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 		RESTMapper:         ctx.Mgr.GetRESTMapper(),
 		ObjectWatcher:      ctx.ObjectWatcher,
 		PredicateFunc:      helper.NewExecutionPredicateOnAgent(),
-		InformerManager:    informermanager.GetInstance(),
+		InformerManager:    genericmanager.GetInstance(),
 		RatelimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
@@ -281,7 +281,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		Client:                    ctx.Mgr.GetClient(),
 		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
 		RESTMapper:                ctx.Mgr.GetRESTMapper(),
-		InformerManager:           informermanager.GetInstance(),
+		InformerManager:           genericmanager.GetInstance(),
 		StopChan:                  ctx.StopChan,
 		ObjectWatcher:             ctx.ObjectWatcher,
 		PredicateFunc:             helper.NewExecutionPredicateOnAgent(),
@@ -303,7 +303,7 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 		Client:                      ctx.Mgr.GetClient(),
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
-		InformerManager:             informermanager.GetInstance(),
+		InformerManager:             genericmanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
 		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(ctx.Opts.ClusterName),

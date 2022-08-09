@@ -20,7 +20,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/configmanager"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	interpreterutil "github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
@@ -31,7 +31,7 @@ type CustomizedInterpreter struct {
 }
 
 // NewCustomizedInterpreter return a new CustomizedInterpreter.
-func NewCustomizedInterpreter(kubeconfig string, informer informermanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
+func NewCustomizedInterpreter(kubeconfig string, informer genericmanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
 	cm, err := webhookutil.NewClientManager(
 		[]schema.GroupVersion{configv1alpha1.SchemeGroupVersion},
 		configv1alpha1.AddToScheme,

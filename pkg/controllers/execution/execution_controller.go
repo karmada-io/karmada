@@ -23,9 +23,9 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 )
@@ -42,7 +42,7 @@ type Controller struct {
 	RESTMapper         meta.RESTMapper
 	ObjectWatcher      objectwatcher.ObjectWatcher
 	PredicateFunc      predicate.Predicate
-	InformerManager    informermanager.MultiClusterInformerManager
+	InformerManager    genericmanager.MultiClusterInformerManager
 	RatelimiterOptions ratelimiterflag.Options
 }
 

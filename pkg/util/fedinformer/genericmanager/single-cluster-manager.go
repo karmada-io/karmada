@@ -1,4 +1,4 @@
-package informermanager
+package genericmanager
 
 import (
 	"context"
