@@ -26,7 +26,8 @@ metadata:
 spec:
   type: ExternalName
   externalName: {{ $name }}-aggregated-apiserver.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}
----
+
+{{- if and (eq .Values.installMode "component") (has "search" .Values.components) }}
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService
 metadata:
@@ -52,4 +53,5 @@ metadata:
 spec:
   type: ExternalName
   externalName: {{ $name }}-search.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}
+{{- end }}
 {{- end -}}
