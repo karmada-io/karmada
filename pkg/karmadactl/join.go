@@ -113,6 +113,9 @@ func (j *CommandJoinOption) Validate(args []string) error {
 		return fmt.Errorf("invalid cluster name(%s): %s", j.ClusterName, strings.Join(errMsgs, ";"))
 	}
 
+	if j.ClusterNamespace == util.NamespaceKarmadaSystem {
+		klog.Warningf("karmada-system is always reserved for Karmada control plane. We do not recommend using karmada-system to store secrets of member clusters. It may cause mistaken cleanup of resources.")
+	}
 	return nil
 }
 
