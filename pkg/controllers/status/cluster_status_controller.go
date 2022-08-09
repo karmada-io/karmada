@@ -33,8 +33,8 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
 )
 
 const (
@@ -60,7 +60,7 @@ type ClusterStatusController struct {
 	KubeClient                  clientset.Interface
 	EventRecorder               record.EventRecorder
 	PredicateFunc               predicate.Predicate
-	InformerManager             informermanager.MultiClusterInformerManager
+	InformerManager             genericmanager.MultiClusterInformerManager
 	StopChan                    <-chan struct{}
 	ClusterClientSetFunc        func(string, client.Client, *util.ClientOption) (*util.ClusterClient, error)
 	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
@@ -239,7 +239,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 
 // buildInformerForCluster builds informer manager for cluster if it doesn't exist, then constructs informers for node
 // and pod and start it. If the informer manager exist, return it.
-func (c *ClusterStatusController) buildInformerForCluster(cluster *clusterv1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
+func (c *ClusterStatusController) buildInformerForCluster(cluster *clusterv1alpha1.Cluster) (genericmanager.SingleClusterInformerManager, error) {
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
 		clusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client)
@@ -404,7 +404,7 @@ func getAPIEnablements(clusterClient *util.ClusterClient) ([]clusterv1alpha1.API
 }
 
 // listPods returns the Pod list from the informerManager cache.
-func listPods(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Pod, error) {
+func listPods(informerManager genericmanager.SingleClusterInformerManager) ([]*corev1.Pod, error) {
 	podLister := informerManager.Lister(podGVR)
 
 	podList, err := podLister.List(labels.Everything())
@@ -420,7 +420,7 @@ func listPods(informerManager informermanager.SingleClusterInformerManager) ([]*
 }
 
 // listNodes returns the Node list from the informerManager cache.
-func listNodes(informerManager informermanager.SingleClusterInformerManager) ([]*corev1.Node, error) {
+func listNodes(informerManager genericmanager.SingleClusterInformerManager) ([]*corev1.Node, error) {
 	nodeLister := informerManager.Lister(nodeGVR)
 
 	nodeList, err := nodeLister.List(labels.Everything())

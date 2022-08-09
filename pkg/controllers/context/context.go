@@ -9,7 +9,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
@@ -71,7 +71,7 @@ type Context struct {
 	StopChan                    <-chan struct{}
 	DynamicClientSet            dynamic.Interface
 	OverrideManager             overridemanager.OverrideManager
-	ControlPlaneInformerManager informermanager.SingleClusterInformerManager
+	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
 }
 

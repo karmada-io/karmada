@@ -13,12 +13,12 @@ import (
 
 	searchapis "github.com/karmada-io/karmada/pkg/apis/search"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
 // SearchREST implements a RESTStorage for search resource.
 type SearchREST struct {
-	multiClusterInformerManager informermanager.MultiClusterInformerManager
+	multiClusterInformerManager genericmanager.MultiClusterInformerManager
 	clusterLister               clusterlister.ClusterLister
 
 	// add needed parameters here
@@ -30,7 +30,7 @@ var _ rest.Connecter = &SearchREST{}
 
 // NewSearchREST returns a RESTStorage object that will work against search.
 func NewSearchREST(
-	multiClusterInformerManager informermanager.MultiClusterInformerManager,
+	multiClusterInformerManager genericmanager.MultiClusterInformerManager,
 	clusterLister clusterlister.ClusterLister) *SearchREST {
 	return &SearchREST{
 		multiClusterInformerManager: multiClusterInformerManager,

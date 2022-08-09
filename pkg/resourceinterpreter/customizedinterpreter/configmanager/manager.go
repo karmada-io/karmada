@@ -12,8 +12,9 @@ import (
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
 )
 
 var resourceExploringWebhookConfigurationsGVR = schema.GroupVersionResource{
@@ -59,7 +60,7 @@ func (m *interpreterConfigManager) HasSynced() bool {
 }
 
 // NewExploreConfigManager return a new interpreterConfigManager with resourceinterpreterwebhookconfigurations handlers.
-func NewExploreConfigManager(inform informermanager.SingleClusterInformerManager) ConfigManager {
+func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager) ConfigManager {
 	manager := &interpreterConfigManager{
 		configuration: &atomic.Value{},
 		lister:        inform.Lister(resourceExploringWebhookConfigurationsGVR),
@@ -69,7 +70,7 @@ func NewExploreConfigManager(inform informermanager.SingleClusterInformerManager
 	manager.configuration.Store([]WebhookAccessor{})
 	manager.initialSynced.Store(false)
 
-	configHandlers := informermanager.NewHandlerOnEvents(
+	configHandlers := fedinformer.NewHandlerOnEvents(
 		func(_ interface{}) { manager.updateConfiguration() },
 		func(_, _ interface{}) { manager.updateConfiguration() },
 		func(_ interface{}) { manager.updateConfiguration() })

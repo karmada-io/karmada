@@ -31,8 +31,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -42,9 +42,9 @@ const ControllerName = "binding-controller"
 
 // ResourceBindingController is to sync ResourceBinding.
 type ResourceBindingController struct {
-	client.Client                                                    // used to operate ClusterResourceBinding resources.
-	DynamicClient       dynamic.Interface                            // used to fetch arbitrary resources from api server.
-	InformerManager     informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	client.Client                                                   // used to operate ClusterResourceBinding resources.
+	DynamicClient       dynamic.Interface                           // used to fetch arbitrary resources from api server.
+	InformerManager     genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
 	EventRecorder       record.EventRecorder
 	RESTMapper          meta.RESTMapper
 	OverrideManager     overridemanager.OverrideManager

@@ -47,9 +47,9 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -254,7 +254,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
 		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
 		PredicateFunc:                     clusterPredicateFunc,
-		InformerManager:                   informermanager.GetInstance(),
+		InformerManager:                   genericmanager.GetInstance(),
 		StopChan:                          stopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSet,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
@@ -325,7 +325,7 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 		RESTMapper:         ctx.Mgr.GetRESTMapper(),
 		ObjectWatcher:      ctx.ObjectWatcher,
 		PredicateFunc:      helper.NewExecutionPredicate(ctx.Mgr),
-		InformerManager:    informermanager.GetInstance(),
+		InformerManager:    genericmanager.GetInstance(),
 		RatelimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
@@ -340,7 +340,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		Client:                    ctx.Mgr.GetClient(),
 		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
 		RESTMapper:                ctx.Mgr.GetRESTMapper(),
-		InformerManager:           informermanager.GetInstance(),
+		InformerManager:           genericmanager.GetInstance(),
 		StopChan:                  ctx.StopChan,
 		ObjectWatcher:             ctx.ObjectWatcher,
 		PredicateFunc:             helper.NewExecutionPredicate(ctx.Mgr),
@@ -381,7 +381,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		Client:                      ctx.Mgr.GetClient(),
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
-		InformerManager:             informermanager.GetInstance(),
+		InformerManager:             genericmanager.GetInstance(),
 		StopChan:                    ctx.StopChan,
 		WorkerNumber:                3,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
@@ -468,7 +468,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		skippedPropagatingNamespaces[ns] = struct{}{}
 	}
 
-	controlPlaneInformerManager := informermanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter("", controlPlaneInformerManager)
 	if err := mgr.Add(resourceInterpreter); err != nil {
@@ -545,7 +545,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	// Ensure the InformerManager stops when the stop channel closes
 	go func() {
 		<-stopChan
-		informermanager.StopInstance()
+		genericmanager.StopInstance()
 	}()
 }
 
@@ -573,7 +573,7 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 		ControllerPlaneConfig: mgr.GetConfig(),
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,
-		InformerManager:       informermanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, stopChan),
+		InformerManager:       genericmanager.NewSingleClusterInformerManager(dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, stopChan),
 		ConcurrentReconciles:  3,
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {

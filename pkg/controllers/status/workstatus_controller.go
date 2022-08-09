@@ -25,9 +25,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -41,7 +42,7 @@ type WorkStatusController struct {
 	client.Client   // used to operate Work resources.
 	EventRecorder   record.EventRecorder
 	RESTMapper      meta.RESTMapper
-	InformerManager informermanager.MultiClusterInformerManager
+	InformerManager genericmanager.MultiClusterInformerManager
 	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
 	StopChan        <-chan struct{}
 	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
@@ -113,7 +114,7 @@ func (c *WorkStatusController) buildResourceInformers(cluster *clusterv1alpha1.C
 // getEventHandler return callback function that knows how to handle events from the member cluster.
 func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 	if c.eventHandler == nil {
-		c.eventHandler = informermanager.NewHandlerOnAllEvents(c.worker.Enqueue)
+		c.eventHandler = fedinformer.NewHandlerOnAllEvents(c.worker.Enqueue)
 	}
 	return c.eventHandler
 }
@@ -442,7 +443,7 @@ func (c *WorkStatusController) getGVRsFromWork(work *workv1alpha1.Work) (map[sch
 
 // getSingleClusterManager gets singleClusterInformerManager with clusterName.
 // If manager is not exist, create it, otherwise gets it from map.
-func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.Cluster) (informermanager.SingleClusterInformerManager, error) {
+func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.Cluster) (genericmanager.SingleClusterInformerManager, error) {
 	// TODO(chenxianpao): If cluster A is removed, then a new cluster that name also is A joins karmada,
 	//  the cache in informer manager should be updated.
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)

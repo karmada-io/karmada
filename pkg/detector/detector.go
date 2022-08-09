@@ -32,9 +32,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -48,7 +49,7 @@ type ResourceDetector struct {
 	Client client.Client
 	// DynamicClient used to fetch arbitrary resources.
 	DynamicClient                dynamic.Interface
-	InformerManager              informermanager.SingleClusterInformerManager
+	InformerManager              genericmanager.SingleClusterInformerManager
 	EventHandler                 cache.ResourceEventHandler
 	Processor                    util.AsyncWorker
 	SkippedResourceConfig        *util.SkippedResourceConfig
@@ -114,7 +115,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  policyv1alpha1.GroupVersion.Version,
 		Resource: "propagationpolicies",
 	}
-	policyHandler := informermanager.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, d.OnPropagationPolicyDelete)
+	policyHandler := fedinformer.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, d.OnPropagationPolicyDelete)
 	d.InformerManager.ForResource(propagationPolicyGVR, policyHandler)
 	d.propagationPolicyLister = d.InformerManager.Lister(propagationPolicyGVR)
 
@@ -124,7 +125,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		Version:  policyv1alpha1.GroupVersion.Version,
 		Resource: "clusterpropagationpolicies",
 	}
-	clusterPolicyHandler := informermanager.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, d.OnClusterPropagationPolicyDelete)
+	clusterPolicyHandler := fedinformer.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, d.OnClusterPropagationPolicyDelete)
 	d.InformerManager.ForResource(clusterPropagationPolicyGVR, clusterPolicyHandler)
 	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
 
@@ -135,7 +136,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		RateLimiterOptions: d.RateLimiterOptions,
 	}
 
-	d.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
+	d.EventHandler = fedinformer.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.Processor = util.NewAsyncWorker(detectorWorkerOptions)
 	d.Processor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
 	go d.discoverResources(30 * time.Second)

@@ -22,9 +22,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 )
 
 const (
@@ -44,7 +45,7 @@ type ClusterDetector struct {
 	ControllerPlaneConfig *rest.Config
 	ClusterAPIConfig      *rest.Config
 	ClusterAPIClient      client.Client
-	InformerManager       informermanager.SingleClusterInformerManager
+	InformerManager       genericmanager.SingleClusterInformerManager
 	EventHandler          cache.ResourceEventHandler
 	Processor             util.AsyncWorker
 	ConcurrentReconciles  int
@@ -57,7 +58,7 @@ func (d *ClusterDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting cluster-api cluster detector.")
 	d.stopCh = ctx.Done()
 
-	d.EventHandler = informermanager.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
+	d.EventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	workerOptions := util.Options{
 		Name:          "cluster-api cluster detector",
 		KeyFunc:       ClusterWideKeyFunc,

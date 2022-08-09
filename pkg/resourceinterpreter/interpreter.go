@@ -13,7 +13,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
 // ResourceInterpreter manages both default and customized webhooks to interpret custom resource structure.
@@ -46,7 +46,7 @@ type ResourceInterpreter interface {
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
-func NewResourceInterpreter(kubeconfig string, informer informermanager.SingleClusterInformerManager) ResourceInterpreter {
+func NewResourceInterpreter(kubeconfig string, informer genericmanager.SingleClusterInformerManager) ResourceInterpreter {
 	return &customResourceInterpreterImpl{
 		kubeconfig: kubeconfig,
 		informer:   informer,
@@ -55,7 +55,7 @@ func NewResourceInterpreter(kubeconfig string, informer informermanager.SingleCl
 
 type customResourceInterpreterImpl struct {
 	kubeconfig string
-	informer   informermanager.SingleClusterInformerManager
+	informer   genericmanager.SingleClusterInformerManager
 
 	customizedInterpreter *customizedinterpreter.CustomizedInterpreter
 	defaultInterpreter    *defaultinterpreter.DefaultInterpreter
