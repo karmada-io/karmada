@@ -106,6 +106,9 @@ spec:
             - /bin/karmada-agent
             - --karmada-kubeconfig=/etc/kubeconfig/kubeconfig
             - --cluster-name={{ .Values.agent.clusterName }}
+            {{- if .Values.agent.clusterEndpoint }}
+            - --cluster-api-endpoint={{ .Values.agent.clusterEndpoint }}
+            {{- end }}
             - --cluster-status-update-frequency=10s
             - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
             - --bind-address=0.0.0.0
