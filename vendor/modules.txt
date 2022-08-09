@@ -1414,6 +1414,7 @@ k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd/apiresources
 k8s.io/kubectl/pkg/cmd/apply
 k8s.io/kubectl/pkg/cmd/delete
+k8s.io/kubectl/pkg/cmd/describe
 k8s.io/kubectl/pkg/cmd/exec
 k8s.io/kubectl/pkg/cmd/get
 k8s.io/kubectl/pkg/cmd/logs
