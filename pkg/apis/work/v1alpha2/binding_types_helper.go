@@ -40,3 +40,35 @@ func (s *ResourceBindingSpec) RemoveCluster(name string) {
 
 	s.Clusters = append(s.Clusters[:i], s.Clusters[i+1:]...)
 }
+
+// GracefulEvictCluster removes specific cluster from the target list in a graceful way by
+// building a graceful eviction task.
+// This function no-opts if the cluster does not exist.
+func (s *ResourceBindingSpec) GracefulEvictCluster(name, producer, reason, message string) {
+	// find the cluster index
+	var i int
+	for i = 0; i < len(s.Clusters); i++ {
+		if s.Clusters[i].Name == name {
+			break
+		}
+	}
+	// not found, do nothing
+	if i >= len(s.Clusters) {
+		return
+	}
+
+	// build eviction task
+	evictingCluster := s.Clusters[i].DeepCopy()
+	evictionTask := GracefulEvictionTask{
+		FromCluster: evictingCluster.Name,
+		Reason:      reason,
+		Message:     message,
+		Producer:    producer,
+	}
+	if evictingCluster.Replicas > 0 {
+		evictionTask.Replicas = &evictingCluster.Replicas
+	}
+
+	s.GracefulEvictionTasks = append(s.GracefulEvictionTasks, evictionTask)
+	s.Clusters = append(s.Clusters[:i], s.Clusters[i+1:]...)
+}
