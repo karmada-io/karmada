@@ -592,6 +592,15 @@ spec:
                       description: ClusterName represents the member cluster name
                         which the resource deployed on.
                       type: string
+                    health:
+                      description: Health represents the healthy state of the current
+                        resource. There maybe different rules for different resources
+                        to achieve health status.
+                      enum:
+                      - Healthy
+                      - Unhealthy
+                      - Unknown
+                      type: string
                     status:
                       description: Status reflects running status of current manifest.
                       type: object

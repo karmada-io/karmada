@@ -251,6 +251,12 @@ type AggregatedStatusItem struct {
 	// This is usually holds the error message in case of apply failed.
 	// +optional
 	AppliedMessage string `json:"appliedMessage,omitempty"`
+
+	// Health represents the healthy state of the current resource.
+	// There maybe different rules for different resources to achieve health status.
+	// +kubebuilder:validation:Enum=Healthy;Unhealthy;Unknown
+	// +optional
+	Health ResourceHealth `json:"health,omitempty"`
 }
 
 // Conditions definition
@@ -273,6 +279,21 @@ type ResourceBindingList struct {
 	// Items is the list of ResourceBinding.
 	Items []ResourceBinding `json:"items"`
 }
+
+// ResourceHealth represents that the health status of the reference resource.
+type ResourceHealth string
+
+const (
+	// ResourceHealthy represents that the health status of the current resource
+	// that applied on the managed cluster is healthy.
+	ResourceHealthy ResourceHealth = "Healthy"
+	// ResourceUnhealthy represents that the health status of the current resource
+	// that applied on the managed cluster is unhealthy.
+	ResourceUnhealthy ResourceHealth = "Unhealthy"
+	// ResourceUnknown represents that the health status of the current resource
+	// that applied on the managed cluster is unknown.
+	ResourceUnknown ResourceHealth = "Unknown"
+)
 
 // +genclient
 // +genclient:nonNamespaced
