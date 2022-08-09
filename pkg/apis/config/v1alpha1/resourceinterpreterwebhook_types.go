@@ -108,9 +108,9 @@ const (
 	// Only necessary for those resource types that want to aggregate status to resource template.
 	InterpreterOperationAggregateStatus InterpreterOperation = "AggregateStatus"
 
-	// InterpreterOperationInterpretHealthy indicates that karmada want to figure out the healthy status of a specific object.
-	// Only necessary for those resource types that have and want to reflect their healthy status.
-	InterpreterOperationInterpretHealthy InterpreterOperation = "InterpretHealthy"
+	// InterpreterOperationInterpretHealth indicates that karmada want to figure out the health status of a specific object.
+	// Only necessary for those resource types that have and want to reflect their health status.
+	InterpreterOperationInterpretHealth InterpreterOperation = "InterpretHealth"
 
 	// InterpreterOperationInterpretDependency indicates that karmada want to figure out the dependencies of a specific object.
 	// Only necessary for those resource types that have dependencies resources and expect the dependencies be propagated

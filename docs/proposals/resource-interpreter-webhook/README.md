@@ -163,9 +163,9 @@ const (
 	// Only necessary for those resource types that want to aggregate status to resource template.
 	InterpreterOperationAggregateStatus InterpreterOperation = "AggregateStatus"
 
-	// InterpreterOperationInterpretHealthy indicates that karmada want to figure out the healthy status of a specific object.
-	// Only necessary for those resource types that have and want to reflect their healthy status.
-	InterpreterOperationInterpretHealthy InterpreterOperation = "InterpretHealthy"
+	// InterpreterOperationInterpretHealth indicates that karmada want to figure out the health status of a specific object.
+	// Only necessary for those resource types that have and want to reflect their health status.
+	InterpreterOperationInterpretHealth InterpreterOperation = "InterpretHealth"
 
 	// InterpreterOperationInterpretDependency indicates that karmada want to figure out the dependencies of a specific object.
 	// Only necessary for those resource types that have dependencies resources and expect the dependencies be propagated
@@ -357,9 +357,9 @@ type DependentObjectReference struct {
 #### Configuration
 The example below show two webhooks configuration.
 The `foo.example.com` webhook serves for `foos` under `foo.example.com` group and implemented `Retain` and 
-`InterpretHealthy` operations.
+`InterpretHealth` operations.
 The `bar.example.com` webhook serves for `bars` under `bar.example.com` group and implemented `InterpretDependency` and 
-`InterpretHealthy` operations.
+`InterpretHealth` operations.
 
 ```yaml
 apiVersion: config.karmada.io/v1alpha1
@@ -369,7 +369,7 @@ metadata:
 webhooks:
   - name: foo.example.com
     rules:
-      - operations: ["Retain", "InterpretHealthy"]
+      - operations: ["Retain", "InterpretHealth"]
         apiGroups: ["foo.example.com"]
         apiVersions: ["*"]
         kinds: ["Foo"]
@@ -381,7 +381,7 @@ webhooks:
     timeoutSeconds: 3
   - name: bar.example.com
     rules:
-      - operations: ["InterpretDependency", "InterpretHealthy"]
+      - operations: ["InterpretDependency", "InterpretHealth"]
         apiGroups: ["bar.example.com"]
         apiVersions: ["*"]
         kinds: ["Bar"]
@@ -393,7 +393,7 @@ webhooks:
     timeoutSeconds: 3
 ```
 #### Request and Response
-Take `InterpretHealthy` for example, Karmada will send the request like:
+Take `InterpretHealth` for example, Karmada will send the request like:
 ```yaml
 apiVersion: config.karmada.io/v1alpha1
 kind: ResourceInterpreterContext
@@ -405,7 +405,7 @@ request:
       Kind: Foo
   - name: foo
   - namespace: default
-  - operation: InterpretHealthy
+  - operation: InterpretHealth
   - object: <raw data of the object>
 ```
 

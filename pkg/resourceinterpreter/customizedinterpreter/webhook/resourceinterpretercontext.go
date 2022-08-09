@@ -117,7 +117,7 @@ func verifyResourceInterpreterContext(operation configv1alpha1.InterpreterOperat
 		}
 		res.RawStatus = *response.RawStatus
 		return res, nil
-	case configv1alpha1.InterpreterOperationInterpretHealthy:
+	case configv1alpha1.InterpreterOperationInterpretHealth:
 		if response.Healthy == nil {
 			return nil, fmt.Errorf("webhook returned nil response.healthy")
 		}
