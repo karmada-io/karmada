@@ -22,7 +22,7 @@ type Factory interface {
 	// KarmadaClientSet returns a karmada clientset
 	KarmadaClientSet() (karmadaclientset.Interface, error)
 
-	// FacotryForMemberCluster returns a cmdutil.Factory for the member cluster
+	// FactoryForMemberCluster returns a cmdutil.Factory for the member cluster
 	FactoryForMemberCluster(clusterName string) (cmdutil.Factory, error)
 }
 
@@ -56,7 +56,7 @@ func (f *factoryImpl) KarmadaClientSet() (karmadaclientset.Interface, error) {
 	return karmadaclientset.NewForConfig(clientConfig)
 }
 
-// FacotryForMemberCluster returns a cmdutil.Factory for the member cluster
+// FactoryForMemberCluster returns a cmdutil.Factory for the member cluster
 func (f *factoryImpl) FactoryForMemberCluster(clusterName string) (cmdutil.Factory, error) {
 	// Get client config of the karmada, and use it to create a cmdutil.Factory for the member cluster later.
 	clientConfig, err := f.ToRESTConfig()

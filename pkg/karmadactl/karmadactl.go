@@ -16,12 +16,16 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
 
 var (
 	rootCmdShort = "%s controls a Kubernetes Cluster Federation."
 	rootCmdLong  = "%s controls a Kubernetes Cluster Federation."
+
+	// It composes the set of values necessary for obtaining a REST client config with default values set.
+	defaultConfigFlags = genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 )
 
 // NewKarmadaCtlCommand creates the `karmadactl` command.
@@ -51,6 +55,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 	_ = flag.CommandLine.Parse(nil)
 
 	karmadaConfig := NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
+	f := util.NewFactory(defaultConfigFlags)
 	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 	groups := templates.CommandGroups{
 		{
@@ -82,7 +87,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 		{
 			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
-				NewCmdLogs(karmadaConfig, parentCommand, ioStreams),
+				NewCmdLogs(f, parentCommand, ioStreams),
 				NewCmdExec(karmadaConfig, parentCommand, ioStreams),
 				NewCmdDescribe(karmadaConfig, parentCommand, ioStreams),
 			},
