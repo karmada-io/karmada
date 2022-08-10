@@ -28,7 +28,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 type registrySet map[string]struct{}
@@ -45,7 +44,6 @@ func (c *clusterRegistry) unregistry() bool {
 // Controller ResourceRegistry controller
 type Controller struct {
 	restConfig      *rest.Config
-	restMapper      meta.RESTMapper
 	informerFactory informerfactory.SharedInformerFactory
 	clusterLister   clusterlister.ClusterLister
 	queue           workqueue.RateLimitingInterface
@@ -60,11 +58,6 @@ func NewController(restConfig *rest.Config) (*Controller, error) {
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
-	restMapper, err := restmapper.MapperProvider(restConfig)
-	if err != nil {
-		klog.Errorf("Failed to create REST mapper: %v", err)
-		return nil, err
-	}
 
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
@@ -73,7 +66,6 @@ func NewController(restConfig *rest.Config) (*Controller, error) {
 		informerFactory: factory,
 		clusterLister:   clusterLister,
 		queue:           queue,
-		restMapper:      restMapper,
 
 		InformerManager: genericmanager.GetInstance(),
 	}
@@ -423,13 +415,8 @@ func (c *Controller) getClusters(affinity policyv1alpha1.ClusterAffinity) []stri
 func (c *Controller) getResources(selectors []searchv1alpha1.ResourceSelector) []schema.GroupVersionResource {
 	resources := make([]schema.GroupVersionResource, 0)
 	for _, rs := range selectors {
-		gvr, err := restmapper.GetGroupVersionResource(
-			c.restMapper, schema.FromAPIVersionAndKind(rs.APIVersion, rs.Kind),
-		)
-		if err != nil {
-			klog.Errorf("failed to get gvr: %v", err)
-			continue
-		}
+		gvk := schema.FromAPIVersionAndKind(rs.APIVersion, rs.Kind)
+		gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 		resources = append(resources, gvr)
 	}
 	return resources
