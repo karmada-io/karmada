@@ -117,6 +117,7 @@ func getDependenciesFromPodTemplate(podObj *corev1.Pod) ([]configv1alpha1.Depend
 	dependentConfigMaps := getConfigMapNames(podObj)
 	dependentSecrets := getSecretNames(podObj)
 	dependentSas := getServiceAccountNames(podObj)
+	dependentPVCs := getPVCNames(podObj)
 	var dependentObjectRefs []configv1alpha1.DependentObjectReference
 	for cm := range dependentConfigMaps {
 		dependentObjectRefs = append(dependentObjectRefs, configv1alpha1.DependentObjectReference{
@@ -143,6 +144,16 @@ func getDependenciesFromPodTemplate(podObj *corev1.Pod) ([]configv1alpha1.Depend
 			Name:       sa,
 		})
 	}
+
+	for pvc := range dependentPVCs {
+		dependentObjectRefs = append(dependentObjectRefs, configv1alpha1.DependentObjectReference{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+			Namespace:  podObj.Namespace,
+			Name:       pvc,
+		})
+	}
+
 	return dependentObjectRefs, nil
 }
 
@@ -169,5 +180,19 @@ func getConfigMapNames(pod *corev1.Pod) sets.String {
 		result.Insert(name)
 		return true
 	})
+	return result
+}
+
+func getPVCNames(pod *corev1.Pod) sets.String {
+	result := sets.NewString()
+	for i := range pod.Spec.Volumes {
+		volume := pod.Spec.Volumes[i]
+		if volume.PersistentVolumeClaim != nil {
+			claimName := volume.PersistentVolumeClaim.ClaimName
+			if len(claimName) != 0 {
+				result.Insert(claimName)
+			}
+		}
+	}
 	return result
 }

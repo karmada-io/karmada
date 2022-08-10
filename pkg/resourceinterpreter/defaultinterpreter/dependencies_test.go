@@ -101,6 +101,51 @@ func TestGetConfigMapNames(t *testing.T) {
 	}
 }
 
+func TestGetPVCNames(t *testing.T) {
+	fakePod := helper.NewPod("foo", "bar")
+	fakePod.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "foo-name",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "fake-foo",
+					ReadOnly:  true,
+				},
+			},
+		},
+		{
+			Name: "bar-name",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "fake-bar",
+					ReadOnly:  true,
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		pod      *corev1.Pod
+		expected sets.String
+	}{
+		{
+			name:     "get pvc names from pod",
+			pod:      fakePod,
+			expected: sets.NewString("fake-foo", "fake-bar"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := getPVCNames(tt.pod)
+			if !reflect.DeepEqual(res, tt.expected) {
+				t.Errorf("getPVCNames() = %v, want %v", res, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGetDependenciesFromPodTemplate(t *testing.T) {
 	fakePod := helper.NewPod("foo", "bar")
 	fakePod.Spec.Volumes = []corev1.Volume{
