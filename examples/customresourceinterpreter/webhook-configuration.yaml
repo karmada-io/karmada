@@ -6,7 +6,7 @@ metadata:
 webhooks:
   - name: workloads.example.com
     rules:
-      - operations: [ "InterpretReplica","ReviseReplica","Retain","AggregateStatus" ]
+      - operations: [ "InterpretReplica","ReviseReplica","Retain","AggregateStatus", "InterpretHealth" ]
         apiGroups: [ "workload.example.io" ]
         apiVersions: [ "v1alpha1" ]
         kinds: [ "Workload" ]

@@ -313,3 +313,18 @@ func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *w
 
 	return &response.RawStatus, matched, nil
 }
+
+// InterpretHealth returns the health state of the object.
+// return matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) InterpretHealth(ctx context.Context, attributes *webhook.RequestAttributes) (healthy bool, matched bool, err error) {
+	var response *webhook.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+
+	return response.Healthy, matched, nil
+}

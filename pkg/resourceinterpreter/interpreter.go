@@ -42,6 +42,9 @@ type ResourceInterpreter interface {
 	// ReflectStatus returns the status of the object.
 	ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error)
 
+	// InterpretHealth returns the health state of the object.
+	InterpretHealth(object *unstructured.Unstructured) (healthy bool, err error)
+
 	// other common method
 }
 
@@ -196,5 +199,24 @@ func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstr
 	}
 
 	status, err = i.defaultInterpreter.ReflectStatus(object)
+	return
+}
+
+// InterpretHealth returns the health state of the object.
+func (i *customResourceInterpreterImpl) InterpretHealth(object *unstructured.Unstructured) (healthy bool, err error) {
+	klog.V(4).Infof("Begin to check health for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	healthy, hookEnabled, err := i.customizedInterpreter.InterpretHealth(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+
+	healthy, err = i.defaultInterpreter.InterpretHealth(object)
 	return
 }
