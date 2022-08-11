@@ -24,74 +24,78 @@ var defaultPrefix = "kubernetes"
 
 var mapping = `
 {
-	"settings": {
-		"index": {
-			"number_of_shards": 1,
-			"number_of_replicas": 0
-		}
-	},
-	"mappings": {
-		"properties": {
-			"apiVersion": {
-				"type": "text"
-			},
-			"kind": {
-				"type": "text"
-			},
-			"metadata": {
-				"properties": {
-					"annotations": {
-						"type": "flattened"
-					},
-					"creationTimestamp": {
-						"type": "text"
-					},
-					"deletionTimestamp": {
-						"type": "text"
-					},
-					"labels": {
-						"type": "flattened"
-					},
-					"name": {
-						"type": "text",
-						"fields": {
-							"keyword": {
-								"type": "keyword",
-								"ignore_above": 256
-							}
-						}
-					},
-					"namespace": {
-						"type": "text",
-						"fields": {
-							"keyword": {
-								"type": "keyword",
-								"ignore_above": 256
-							}
-						}
-					},
-					"ownerReferences": {
-						"type": "flattened"
-					},
-					"resourceVersion": {
-						"type": "text",
-						"fields": {
-							"keyword": {
-								"type": "keyword",
-								"ignore_above": 256
-							}
-						}
-					}
-				},
-				"spec": {
-					"type": "flattened"
-				},
-				"status": {
-					"type": "flattened"
-				}
-			}
-		}
-	}
+    "settings":{
+        "index":{
+            "number_of_shards":1,
+            "number_of_replicas":0
+        }
+    },
+    "mappings":{
+        "properties":{
+            "apiVersion":{
+                "type":"text"
+            },
+            "kind":{
+                "type":"text"
+            },
+            "metadata":{
+                "properties":{
+                    "annotations":{
+                        "type":"object",
+                        "enabled":false
+                    },
+                    "creationTimestamp":{
+                        "type":"text"
+                    },
+                    "deletionTimestamp":{
+                        "type":"text"
+                    },
+                    "labels":{
+                        "type":"object",
+                        "enabled":false
+                    },
+                    "name":{
+                        "type":"text",
+                        "fields":{
+                            "keyword":{
+                                "type":"keyword",
+                                "ignore_above":256
+                            }
+                        }
+                    },
+                    "namespace":{
+                        "type":"text",
+                        "fields":{
+                            "keyword":{
+                                "type":"keyword",
+                                "ignore_above":256
+                            }
+                        }
+                    },
+                    "ownerReferences":{
+                        "type":"text"
+                    },
+                    "resourceVersion":{
+                        "type":"text",
+                        "fields":{
+                            "keyword":{
+                                "type":"keyword",
+                                "ignore_above":256
+                            }
+                        }
+                    }
+                }
+            },
+            "spec":{
+                "type":"object",
+                "enabled":false
+            },
+            "status":{
+                "type":"object",
+                "enabled":false
+            }
+        }
+    }
 }
 `
 
@@ -232,7 +236,7 @@ func (os *OpenSearch) indexName(us *unstructured.Unstructured) (string, error) {
 	os.l.Lock()
 	defer os.l.Unlock()
 
-	if _, ok := os.indices[name]; !ok {
+	if _, ok := os.indices[name]; ok {
 		return name, nil
 	}
 
@@ -240,19 +244,23 @@ func (os *OpenSearch) indexName(us *unstructured.Unstructured) (string, error) {
 	res := opensearchapi.IndicesCreateRequest{Index: name, Body: strings.NewReader(mapping)}
 	resp, err := res.Do(context.Background(), os.client)
 	if err != nil {
-		if strings.Contains(err.Error(), "already exists") {
-			klog.V(4).Info("index already exists")
+		if strings.Contains(err.Error(), "resource_already_exists_exception") {
+			klog.Info("index already exists")
 			os.indices[name] = struct{}{}
 			return name, nil
 		}
 		return name, fmt.Errorf("cannot create index: %v", err)
 	}
 	if resp.IsError() {
-		return name, fmt.Errorf("cannot create index: %v", resp.String())
+		if strings.Contains(resp.String(), "resource_already_exists_exception") {
+			klog.Info("index already exists")
+			os.indices[name] = struct{}{}
+			return name, nil
+		}
+		return name, fmt.Errorf("cannot create index (resp): %v", resp.String())
 	}
 
-	klog.V(4).Infof("create index response: %s", resp.String())
-
+	klog.Infof("create index response: %s", resp.String())
 	os.indices[name] = struct{}{}
 
 	return name, nil
