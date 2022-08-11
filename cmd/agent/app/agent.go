@@ -35,6 +35,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedManager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -241,7 +242,8 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		KubeClient:                        kubeclientset.NewForConfigOrDie(ctx.Mgr.GetConfig()),
 		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(status.ControllerName),
 		PredicateFunc:                     helper.NewClusterPredicateOnAgent(ctx.Opts.ClusterName),
-		InformerManager:                   genericmanager.GetInstance(),
+		TypedInformerManager:              typedManager.GetInstance(),
+		GenericInformerManager:            genericmanager.GetInstance(),
 		StopChan:                          ctx.StopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
