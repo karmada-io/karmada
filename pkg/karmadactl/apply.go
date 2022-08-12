@@ -91,8 +91,8 @@ func NewCmdApply(karmadaConfig KarmadaConfig, parentCommand string, streams gene
 	o.GlobalCommandOptions.AddFlags(cmd.Flags())
 	o.KubectlApplyFlags.AddFlags(cmd)
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "If present, the namespace scope for this CLI request")
-	cmd.Flags().BoolVarP(&o.AllClusters, "all-clusters", "", o.AllClusters, "If present, propagates a group of resources to all member clusters.")
-	cmd.Flags().StringSliceVarP(&o.Clusters, "cluster", "C", o.Clusters, "If present, propagates a group of resources to specified clusters.")
+	cmd.Flags().BoolVarP(&o.AllClusters, "all-clusters", "", o.AllClusters, "If present, propagate a group of resources to all member clusters.")
+	cmd.Flags().StringSliceVarP(&o.Clusters, "cluster", "C", o.Clusters, "If present, propagate a group of resources to specified clusters.")
 	return cmd
 }
 

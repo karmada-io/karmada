@@ -73,7 +73,7 @@ func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string, streams gener
 	o.GlobalCommandOptions.AddFlags(cmd.Flags())
 
 	cmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodExecTimeout)
-	cmdutil.AddJsonFilenameFlag(cmd.Flags(), &o.KubectlExecOptions.FilenameOptions.Filenames, "to use to exec into the resource")
+	cmdutil.AddJsonFilenameFlag(cmd.Flags(), &o.KubectlExecOptions.FilenameOptions.Filenames, "use to exec into the resource")
 	cmdutil.AddContainerVarFlags(cmd, &o.KubectlExecOptions.ContainerName, o.KubectlExecOptions.ContainerName)
 
 	cmd.Flags().BoolVarP(&o.KubectlExecOptions.Stdin, "stdin", "i", o.KubectlExecOptions.Stdin, "Pass stdin to the container")

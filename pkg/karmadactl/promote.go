@@ -40,7 +40,7 @@ var (
 		# Promote deployment(default/nginx) with gvk from cluster1 to Karmada
 		%[1]s promote deployment.v1.apps nginx -n default -C cluster1
 	
-		# Dumps the artifacts but does not deploy them to Karmada, same as 'dry run'
+		# Dump the artifacts but not deploy them to Karmada, same as 'dry run'
 		%[1]s promote deployment nginx -n default -C cluster1 -o yaml|json
 	
 		# Promote secret(default/default-token) from cluster1 to Karmada
