@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,6 +21,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
@@ -29,7 +31,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/search"
 	"github.com/karmada-io/karmada/pkg/search/proxy"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
-	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/version"
 )
@@ -111,8 +112,12 @@ func (o *Options) Run(ctx context.Context) error {
 	})
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-proxy-controller", func(context genericapiserver.PostStartHookContext) error {
-		// start ResourceRegistry controller
 		config.ProxyController.Start(context.StopCh)
+		return nil
+	})
+
+	server.GenericAPIServer.AddPreShutdownHookOrDie("stop-karmada-proxy-controller", func() error {
+		config.ProxyController.Stop()
 		return nil
 	})
 
@@ -140,6 +145,13 @@ func (o *Options) Config() (*search.Config, error) {
 
 	serverConfig.ClientConfig.QPS = o.KubeAPIQPS
 	serverConfig.ClientConfig.Burst = o.KubeAPIBurst
+
+	restMapper, err := apiutil.NewDynamicRESTMapper(serverConfig.ClientConfig)
+	if err != nil {
+		klog.Errorf("Failed to create REST mapper: %v", err)
+		return nil, err
+	}
+
 	ctl, err := search.NewController(serverConfig.ClientConfig)
 	if err != nil {
 		return nil, err
@@ -148,7 +160,8 @@ func (o *Options) Config() (*search.Config, error) {
 	karmadaClient := karmadaclientset.NewForConfigOrDie(serverConfig.ClientConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 
-	proxyCtl, err := proxy.NewController(serverConfig.ClientConfig, genericmanager.GetInstance(), serverConfig.SharedInformerFactory, factory)
+	proxyCtl, err := proxy.NewController(serverConfig.ClientConfig, restMapper, serverConfig.SharedInformerFactory, factory,
+		time.Second*time.Duration(serverConfig.Config.MinRequestTimeout))
 	if err != nil {
 		return nil, err
 	}
