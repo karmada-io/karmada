@@ -165,6 +165,18 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 // Start starts an asynchronous loop that monitors the status of cluster.
 func (c *Controller) Start(ctx context.Context) error {
+	// starts a goroutine to collect existed clusters' ID for upgrade scenario
+	// And can be removed in next version
+	klog.Infof("Starting collect ID of already existed clusters")
+	go func() {
+		err := c.collectIDForClusterObjectIfNeeded(ctx)
+		if err != nil {
+			klog.Errorf("Error collecting clusters' ID: %v", err)
+		}
+
+		klog.Infof("Finishing collect ID of already existed clusters")
+	}()
+
 	klog.Infof("Starting cluster health monitor")
 	defer klog.Infof("Shutting cluster health monitor")
 
@@ -562,4 +574,45 @@ func (c *Controller) taintClusterByCondition(ctx context.Context, cluster *clust
 	}
 
 	return nil
+}
+
+func (c *Controller) collectIDForClusterObjectIfNeeded(ctx context.Context) (err error) {
+	clusterList := &clusterv1alpha1.ClusterList{}
+	if err := c.Client.List(ctx, clusterList); err != nil {
+		return err
+	}
+
+	clusters := clusterList.Items
+	var errs []error
+
+	for i := range clusters {
+		cluster := &clusters[i]
+		if cluster.Spec.ID != "" {
+			continue
+		}
+
+		if cluster.Spec.SyncMode == clusterv1alpha1.Pull {
+			continue
+		}
+
+		clusterClient, err := util.NewClusterClientSet(cluster.Name, c.Client, nil)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		id, err := util.ObtainClusterID(clusterClient.KubeClient)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		cluster.Spec.ID = id
+
+		err = c.Client.Update(ctx, cluster)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+	}
+	return utilerrors.NewAggregate(errs)
 }

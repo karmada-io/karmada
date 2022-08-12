@@ -133,6 +133,13 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		ControlPlaneConfig: controlPlaneRestConfig,
 		ClusterConfig:      clusterConfig,
 	}
+
+	id, err := util.ObtainClusterID(clusterKubeClient)
+	if err != nil {
+		return err
+	}
+	registerOption.ClusterID = id
+
 	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)
 	if err != nil {
 		return err
@@ -325,6 +332,7 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 		cluster.Spec.SyncMode = clusterv1alpha1.Pull
 		cluster.Spec.APIEndpoint = opts.ClusterAPIEndpoint
 		cluster.Spec.ProxyURL = opts.ProxyServerAddress
+		cluster.Spec.ID = opts.ClusterID
 		if opts.ClusterProvider != "" {
 			cluster.Spec.Provider = opts.ClusterProvider
 		}

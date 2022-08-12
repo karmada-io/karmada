@@ -175,6 +175,12 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		ClusterConfig:      clusterConfig,
 	}
 
+	id, err := util.ObtainClusterID(clusterKubeClient)
+	if err != nil {
+		return err
+	}
+	registerOption.ClusterID = id
+
 	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)
 	if err != nil {
 		return err
@@ -199,6 +205,7 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 	clusterObj.Name = opts.ClusterName
 	clusterObj.Spec.SyncMode = clusterv1alpha1.Push
 	clusterObj.Spec.APIEndpoint = opts.ClusterConfig.Host
+	clusterObj.Spec.ID = opts.ClusterID
 	clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
 		Namespace: opts.Secret.Namespace,
 		Name:      opts.Secret.Name,
