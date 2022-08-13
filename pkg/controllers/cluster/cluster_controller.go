@@ -12,6 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -22,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
@@ -66,12 +68,20 @@ var (
 		Key:    clusterv1alpha1.TaintClusterNotReady,
 		Effect: corev1.TaintEffectNoSchedule,
 	}
+
+	// TerminatingTaintTemplate is the taint for when a cluster is terminating executing resources.
+	// Used for taint based eviction.
+	TerminatingTaintTemplate = &corev1.Taint{
+		Key:    clusterv1alpha1.TaintClusterTerminating,
+		Effect: corev1.TaintEffectNoExecute,
+	}
 )
 
 // Controller is to sync Cluster.
 type Controller struct {
-	client.Client // used to operate Cluster resources.
-	EventRecorder record.EventRecorder
+	client.Client      // used to operate Cluster resources.
+	EventRecorder      record.EventRecorder
+	EnableTaintManager bool
 
 	// ClusterMonitorPeriod represents cluster-controller monitoring period, i.e. how often does
 	// cluster-controller check cluster health signal posted from cluster-status-controller.
@@ -84,7 +94,8 @@ type Controller struct {
 	// When cluster is just created, e.g. agent bootstrap or cluster join, we give a longer grace period.
 	ClusterStartupGracePeriod time.Duration
 	// FailoverEvictionTimeout represents the grace period for deleting scheduling result on failed clusters.
-	FailoverEvictionTimeout time.Duration
+	FailoverEvictionTimeout            time.Duration
+	ClusterTaintEvictionRetryFrequency time.Duration
 
 	// Per Cluster map stores last observed health together with a local time when it was observed.
 	clusterHealthMap *clusterHealthMap
@@ -157,7 +168,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !cluster.DeletionTimestamp.IsZero() {
-		return c.removeCluster(cluster)
+		return c.removeCluster(ctx, cluster)
 	}
 
 	return c.syncCluster(ctx, cluster)
@@ -219,16 +230,21 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 	return c.ensureFinalizer(cluster)
 }
 
-func (c *Controller) removeCluster(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
-	err := c.removeExecutionSpace(cluster)
-	if err != nil {
-		klog.Errorf("Failed to remove execution space %v, err is %v", cluster.Name, err)
-		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", clusterv1alpha1.EventReasonCreateExecutionSpaceFailed), err.Error())
+func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+	// add terminating taint before cluster is deleted
+	if err := utilhelper.UpdateClusterControllerTaint(ctx, c.Client, []*corev1.Taint{TerminatingTaintTemplate}, nil, cluster); err != nil {
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonRemoveTargetClusterFailed, err.Error())
+		klog.ErrorS(err, "Failed to update terminating taint", "cluster", cluster.Name)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	exist, err := c.ExecutionSpaceExistForCluster(cluster.Name)
-	if err != nil {
+	if err := c.removeExecutionSpace(cluster); err != nil {
+		klog.Errorf("Failed to remove execution space %s: %v", cluster.Name, err)
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonRemoveExecutionSpaceFailed, err.Error())
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	if exist, err := c.ExecutionSpaceExistForCluster(cluster.Name); err != nil {
 		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
 		return controllerruntime.Result{Requeue: true}, err
 	} else if exist {
@@ -238,7 +254,44 @@ func (c *Controller) removeCluster(cluster *clusterv1alpha1.Cluster) (controller
 	// delete the health data from the map explicitly after we removing the cluster.
 	c.clusterHealthMap.delete(cluster.Name)
 
+	// check if target cluster is removed from all bindings.
+	if c.EnableTaintManager {
+		if done, err := c.isTargetClusterRemoved(ctx, cluster); err != nil {
+			klog.ErrorS(err, "Failed to check whether target cluster is removed from bindings", "cluster", cluster.Name)
+			return controllerruntime.Result{Requeue: true}, err
+		} else if !done {
+			klog.InfoS("Terminating taint eviction process has not finished yet, will try again later", "cluster", cluster.Name)
+			return controllerruntime.Result{RequeueAfter: c.ClusterTaintEvictionRetryFrequency}, nil
+		}
+	}
+
 	return c.removeFinalizer(cluster)
+}
+
+func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *clusterv1alpha1.Cluster) (bool, error) {
+	// List all ResourceBindings which are assigned to this cluster.
+	rbList := &workv1alpha2.ResourceBindingList{}
+	if err := c.List(ctx, rbList, client.MatchingFieldsSelector{
+		Selector: fields.OneTermEqualSelector(rbClusterKeyIndex, cluster.Name),
+	}); err != nil {
+		klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
+		return false, err
+	}
+	if len(rbList.Items) != 0 {
+		return false, nil
+	}
+	// List all ClusterResourceBindings which are assigned to this cluster.
+	crbList := &workv1alpha2.ClusterResourceBindingList{}
+	if err := c.List(ctx, crbList, client.MatchingFieldsSelector{
+		Selector: fields.OneTermEqualSelector(crbClusterKeyIndex, cluster.Name),
+	}); err != nil {
+		klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
+		return false, err
+	}
+	if len(crbList.Items) != 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 // removeExecutionSpace deletes the given execution space

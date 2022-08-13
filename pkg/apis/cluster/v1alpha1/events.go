@@ -8,4 +8,6 @@ const (
 	EventReasonRemoveExecutionSpaceFailed = "RemoveExecutionSpaceFailed"
 	// EventReasonTaintClusterByConditionFailed indicates that taint cluster by condition
 	EventReasonTaintClusterByConditionFailed = "TaintClusterByCondition"
+	// EventReasonRemoveTargetClusterFailed indicates that failed to remove target cluster from binding.
+	EventReasonRemoveTargetClusterFailed = "RemoveTargetClusterFailed"
 )
