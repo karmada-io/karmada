@@ -32,9 +32,9 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
 	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -62,7 +62,7 @@ type AccurateSchedulerEstimatorServer struct {
 	nodeLister      listv1.NodeLister
 	replicaLister   *replica.ListerWrapper
 	getPodFunc      func(nodeName string) ([]*corev1.Pod, error)
-	informerManager informermanager.SingleClusterInformerManager
+	informerManager genericmanager.SingleClusterInformerManager
 	parallelizer    lifted.Parallelizer
 }
 
@@ -128,7 +128,7 @@ func NewEstimatorServer(
 		}
 		return pods, nil
 	}
-	es.informerManager = informermanager.NewSingleClusterInformerManager(dynamicClient, 0, stopChan)
+	es.informerManager = genericmanager.NewSingleClusterInformerManager(dynamicClient, 0, stopChan)
 	for _, gvr := range supportedGVRs {
 		es.informerManager.Lister(gvr)
 	}

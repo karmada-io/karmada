@@ -2,7 +2,7 @@ package detector
 
 import (
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.

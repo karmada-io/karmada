@@ -13,15 +13,15 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 // GetObjectFromCache gets full object information from cache by key in worker queue.
 func GetObjectFromCache(
 	restMapper meta.RESTMapper,
-	manager informermanager.MultiClusterInformerManager,
+	manager genericmanager.MultiClusterInformerManager,
 	fedKey keys.FederatedKey,
 ) (*unstructured.Unstructured, error) {
 	gvr, err := restmapper.GetGroupVersionResource(restMapper, fedKey.GroupVersionKind())
@@ -60,7 +60,7 @@ func GetObjectFromCache(
 }
 
 // GetObjectFromSingleClusterCache gets full object information from single cluster cache by key in worker queue.
-func GetObjectFromSingleClusterCache(restMapper meta.RESTMapper, manager informermanager.SingleClusterInformerManager,
+func GetObjectFromSingleClusterCache(restMapper meta.RESTMapper, manager genericmanager.SingleClusterInformerManager,
 	cwk *keys.ClusterWideKey) (*unstructured.Unstructured, error) {
 	gvr, err := restmapper.GetGroupVersionResource(restMapper, cwk.GroupVersionKind())
 	if err != nil {

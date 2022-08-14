@@ -21,7 +21,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -129,7 +129,7 @@ func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
 }
 
 // FetchWorkload fetches the kubernetes resource to be propagated.
-func FetchWorkload(dynamicClient dynamic.Interface, informerManager informermanager.SingleClusterInformerManager,
+func FetchWorkload(dynamicClient dynamic.Interface, informerManager genericmanager.SingleClusterInformerManager,
 	restMapper meta.RESTMapper, resource workv1alpha2.ObjectReference) (*unstructured.Unstructured, error) {
 	dynamicResource, err := restmapper.GetGroupVersionResource(restMapper,
 		schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind))

@@ -26,8 +26,8 @@ import (
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -52,7 +52,7 @@ type Controller struct {
 
 	clusterRegistry sync.Map
 
-	InformerManager informermanager.MultiClusterInformerManager
+	InformerManager genericmanager.MultiClusterInformerManager
 }
 
 // NewController returns a new ResourceRegistry controller
@@ -75,7 +75,7 @@ func NewController(restConfig *rest.Config) (*Controller, error) {
 		queue:           queue,
 		restMapper:      restMapper,
 
-		InformerManager: informermanager.GetInstance(),
+		InformerManager: genericmanager.GetInstance(),
 	}
 	c.addAllEventHandlers()
 
@@ -118,7 +118,7 @@ func (c *Controller) Start(stopCh <-chan struct{}) {
 
 	go func() {
 		<-stopCh
-		informermanager.StopInstance()
+		genericmanager.StopInstance()
 		klog.Infof("Shutting down karmada search controller")
 	}()
 }

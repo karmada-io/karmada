@@ -13,7 +13,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
 // ResourceInterpreter manages both default and customized webhooks to interpret custom resource structure.
@@ -42,11 +42,14 @@ type ResourceInterpreter interface {
 	// ReflectStatus returns the status of the object.
 	ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error)
 
+	// InterpretHealth returns the health state of the object.
+	InterpretHealth(object *unstructured.Unstructured) (healthy bool, err error)
+
 	// other common method
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
-func NewResourceInterpreter(kubeconfig string, informer informermanager.SingleClusterInformerManager) ResourceInterpreter {
+func NewResourceInterpreter(kubeconfig string, informer genericmanager.SingleClusterInformerManager) ResourceInterpreter {
 	return &customResourceInterpreterImpl{
 		kubeconfig: kubeconfig,
 		informer:   informer,
@@ -55,7 +58,7 @@ func NewResourceInterpreter(kubeconfig string, informer informermanager.SingleCl
 
 type customResourceInterpreterImpl struct {
 	kubeconfig string
-	informer   informermanager.SingleClusterInformerManager
+	informer   genericmanager.SingleClusterInformerManager
 
 	customizedInterpreter *customizedinterpreter.CustomizedInterpreter
 	defaultInterpreter    *defaultinterpreter.DefaultInterpreter
@@ -196,5 +199,24 @@ func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstr
 	}
 
 	status, err = i.defaultInterpreter.ReflectStatus(object)
+	return
+}
+
+// InterpretHealth returns the health state of the object.
+func (i *customResourceInterpreterImpl) InterpretHealth(object *unstructured.Unstructured) (healthy bool, err error) {
+	klog.V(4).Infof("Begin to check health for object: %v %s/%s.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	healthy, hookEnabled, err := i.customizedInterpreter.InterpretHealth(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+
+	healthy, err = i.defaultInterpreter.InterpretHealth(object)
 	return
 }

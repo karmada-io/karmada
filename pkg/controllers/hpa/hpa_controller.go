@@ -19,8 +19,8 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -30,9 +30,9 @@ const ControllerName = "hpa-controller"
 
 // HorizontalPodAutoscalerController is to sync HorizontalPodAutoscaler.
 type HorizontalPodAutoscalerController struct {
-	client.Client                                                // used to operate HorizontalPodAutoscaler resources.
-	DynamicClient   dynamic.Interface                            // used to fetch arbitrary resources from api server.
-	InformerManager informermanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
+	client.Client                                               // used to operate HorizontalPodAutoscaler resources.
+	DynamicClient   dynamic.Interface                           // used to fetch arbitrary resources from api server.
+	InformerManager genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
 	EventRecorder   record.EventRecorder
 	RESTMapper      meta.RESTMapper
 }

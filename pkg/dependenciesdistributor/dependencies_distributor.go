@@ -30,9 +30,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -48,6 +49,7 @@ const (
 var supportedTypes = []schema.GroupVersionResource{
 	corev1.SchemeGroupVersion.WithResource("configmaps"),
 	corev1.SchemeGroupVersion.WithResource("secrets"),
+	corev1.SchemeGroupVersion.WithResource("persistentvolumeclaims"),
 }
 
 // DependenciesDistributor is to automatically propagate relevant resources.
@@ -59,7 +61,7 @@ type DependenciesDistributor struct {
 	// DynamicClient used to fetch arbitrary resources.
 	DynamicClient dynamic.Interface
 
-	InformerManager     informermanager.SingleClusterInformerManager
+	InformerManager     genericmanager.SingleClusterInformerManager
 	EventHandler        cache.ResourceEventHandler
 	Processor           util.AsyncWorker
 	RESTMapper          meta.RESTMapper
@@ -94,7 +96,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 		Resource: "resourcebindings",
 	}
 
-	bindingHandler := informermanager.NewHandlerOnEvents(nil, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
+	bindingHandler := fedinformer.NewHandlerOnEvents(nil, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
 	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
 	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
 	resourceWorkerOptions := util.Options{
@@ -102,7 +104,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 		KeyFunc:       detector.ClusterWideKeyFunc,
 		ReconcileFunc: d.Reconcile,
 	}
-	d.EventHandler = informermanager.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
+	d.EventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.Processor = util.NewAsyncWorker(resourceWorkerOptions)
 	d.Processor.Run(2, d.stopCh)
 	go d.discoverResources(30 * time.Second)

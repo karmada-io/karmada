@@ -20,7 +20,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/configmanager"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	interpreterutil "github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
@@ -31,7 +31,7 @@ type CustomizedInterpreter struct {
 }
 
 // NewCustomizedInterpreter return a new CustomizedInterpreter.
-func NewCustomizedInterpreter(kubeconfig string, informer informermanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
+func NewCustomizedInterpreter(kubeconfig string, informer genericmanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
 	cm, err := webhookutil.NewClientManager(
 		[]schema.GroupVersion{configv1alpha1.SchemeGroupVersion},
 		configv1alpha1.AddToScheme,
@@ -312,4 +312,19 @@ func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *w
 	}
 
 	return &response.RawStatus, matched, nil
+}
+
+// InterpretHealth returns the health state of the object.
+// return matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) InterpretHealth(ctx context.Context, attributes *webhook.RequestAttributes) (healthy bool, matched bool, err error) {
+	var response *webhook.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+
+	return response.Healthy, matched, nil
 }

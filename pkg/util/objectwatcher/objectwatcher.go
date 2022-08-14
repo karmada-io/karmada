@@ -17,9 +17,9 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/informermanager"
-	"github.com/karmada-io/karmada/pkg/util/informermanager/keys"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -42,7 +42,7 @@ type objectWatcherImpl struct {
 	VersionRecord        map[string]map[string]string
 	ClusterClientSetFunc ClientSetFunc
 	resourceInterpreter  resourceinterpreter.ResourceInterpreter
-	InformerManager      informermanager.MultiClusterInformerManager
+	InformerManager      genericmanager.MultiClusterInformerManager
 }
 
 // NewObjectWatcher returns an instance of ObjectWatcher
@@ -53,7 +53,7 @@ func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, c
 		RESTMapper:           restMapper,
 		ClusterClientSetFunc: clusterClientSetFunc,
 		resourceInterpreter:  interpreter,
-		InformerManager:      informermanager.GetInstance(),
+		InformerManager:      genericmanager.GetInstance(),
 	}
 }
 

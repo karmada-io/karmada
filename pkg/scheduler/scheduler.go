@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
@@ -417,10 +416,10 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		} else {
 			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
 		}
-		if updateErr := s.updateClusterBindingScheduledConditionIfNeeded(crb, condition); updateErr != nil {
-			klog.Errorf("Failed update condition(%s) for ClusterResourceBinding(%s)", workv1alpha2.Scheduled, crb.Name)
+		if updateErr := s.patchClusterBindingScheduleStatus(crb, condition); updateErr != nil {
+			klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
 			if err == nil {
-				// schedule succeed but update condition failed, return err in order to retry in next loop.
+				// schedule succeed but update status failed, return err in order to retry in next loop.
 				err = updateErr
 			}
 		}
@@ -662,36 +661,38 @@ func (s *Scheduler) patchBindingScheduleStatus(rb *workv1alpha2.ResourceBinding,
 	return nil
 }
 
-// updateClusterBindingScheduledConditionIfNeeded sets the scheduled condition of ClusterResourceBinding if needed
-func (s *Scheduler) updateClusterBindingScheduledConditionIfNeeded(crb *workv1alpha2.ClusterResourceBinding, newScheduledCondition metav1.Condition) error {
+// patchClusterBindingScheduleStatus patches schedule status of ClusterResourceBinding when necessary
+func (s *Scheduler) patchClusterBindingScheduleStatus(crb *workv1alpha2.ClusterResourceBinding, newScheduledCondition metav1.Condition) error {
 	if crb == nil {
 		return nil
 	}
 
-	oldScheduledCondition := meta.FindStatusCondition(crb.Status.Conditions, workv1alpha2.Scheduled)
-	if oldScheduledCondition != nil {
-		if util.IsConditionsEqual(newScheduledCondition, *oldScheduledCondition) {
-			klog.V(4).Infof("No need to update scheduled condition")
-			return nil
-		}
+	modifiedObj := crb.DeepCopy()
+	meta.SetStatusCondition(&modifiedObj.Status.Conditions, newScheduledCondition)
+	// Postpone setting observed generation until schedule succeed, assume scheduler will retry and
+	// will succeed eventually
+	if newScheduledCondition.Status == metav1.ConditionTrue {
+		modifiedObj.Status.SchedulerObservedGeneration = modifiedObj.Generation
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		meta.SetStatusCondition(&crb.Status.Conditions, newScheduledCondition)
-		_, updateErr := s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().UpdateStatus(context.TODO(), crb, metav1.UpdateOptions{})
-		if updateErr == nil {
-			return nil
-		}
+	// Short path, ignore patch if no change.
+	if reflect.DeepEqual(crb.Status, modifiedObj.Status) {
+		return nil
+	}
 
-		if updated, err := s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), crb.Name, metav1.GetOptions{}); err == nil {
-			// make a copy so we don't mutate the shared cache
-			crb = updated.DeepCopy()
-		} else {
-			klog.Errorf("failed to get updated cluster resource binding %s: %v", crb.Name, err)
-		}
+	patchBytes, err := helper.GenMergePatch(crb, modifiedObj)
+	if err != nil {
+		return fmt.Errorf("failed to create a merge patch: %v", err)
+	}
 
-		return updateErr
-	})
+	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	if err != nil {
+		klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
+		return err
+	}
+
+	klog.V(4).Infof("Patch schedule status to ClusterResourceBinding(%s) succeed", crb.Name)
+	return nil
 }
 
 func (s *Scheduler) recordScheduleResultEventForResourceBinding(rb *workv1alpha2.ResourceBinding, schedulerErr error) {
