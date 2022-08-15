@@ -15,6 +15,9 @@ const (
 
 	// PropagateDeps indicates if relevant resources should be propagated automatically
 	PropagateDeps featuregate.Feature = "PropagateDeps"
+
+	// CustomizedClusterResourceModeling indicates if enable cluster resource custom modeling.
+	CustomizedClusterResourceModeling featuregate.Feature = "CustomizedClusterResourceModeling"
 )
 
 var (
@@ -22,9 +25,10 @@ var (
 	FeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()
 
 	defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
-		Failover:         {Default: false, PreRelease: featuregate.Alpha},
-		GracefulEviction: {Default: false, PreRelease: featuregate.Alpha},
-		PropagateDeps:    {Default: false, PreRelease: featuregate.Alpha},
+		Failover:                          {Default: false, PreRelease: featuregate.Alpha},
+		GracefulEviction:                  {Default: false, PreRelease: featuregate.Alpha},
+		PropagateDeps:                     {Default: false, PreRelease: featuregate.Alpha},
+		CustomizedClusterResourceModeling: {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
