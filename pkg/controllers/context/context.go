@@ -61,6 +61,9 @@ type Options struct {
 	// If set to true enables NoExecute Taints and will evict all not-tolerating
 	// objects propagating on Clusters tainted with this kind of Taints.
 	EnableTaintManager bool
+	// GracefulEvictionTimeout is the timeout period waiting for the grace-eviction-controller performs the final
+	// removal since the workload(resource) has been moved to the graceful eviction tasks.
+	GracefulEvictionTimeout metav1.Duration
 }
 
 // Context defines the context object for controller.
