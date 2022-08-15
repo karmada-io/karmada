@@ -69,15 +69,18 @@ type SingleClusterInformerManager interface {
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
 // defaultResync with value '0' means no re-sync.
-func NewSingleClusterInformerManager(client kubernetes.Interface, defaultResync time.Duration, parentCh <-chan struct{}) SingleClusterInformerManager {
+func NewSingleClusterInformerManager(client kubernetes.Interface, defaultResync time.Duration, parentCh <-chan struct{}, transformFuncs map[schema.GroupVersionResource]cache.TransformFunc) SingleClusterInformerManager {
 	ctx, cancel := util.ContextForChannel(parentCh)
 	return &singleClusterInformerManagerImpl{
-		informerFactory: informers.NewSharedInformerFactory(client, defaultResync),
-		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
-		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
-		ctx:             ctx,
-		cancel:          cancel,
-		client:          client,
+		informerFactory:  informers.NewSharedInformerFactory(client, defaultResync),
+		handlers:         make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
+		syncedInformers:  make(map[schema.GroupVersionResource]struct{}),
+		informers:        make(map[schema.GroupVersionResource]struct{}),
+		startedInformers: make(map[schema.GroupVersionResource]struct{}),
+		transformFuncs:   transformFuncs,
+		ctx:              ctx,
+		cancel:           cancel,
+		client:           client,
 	}
 }
 
@@ -89,7 +92,13 @@ type singleClusterInformerManagerImpl struct {
 
 	syncedInformers map[schema.GroupVersionResource]struct{}
 
+	informers map[schema.GroupVersionResource]struct{}
+
+	startedInformers map[schema.GroupVersionResource]struct{}
+
 	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
+
+	transformFuncs map[schema.GroupVersionResource]cache.TransformFunc
 
 	client kubernetes.Interface
 
@@ -107,6 +116,21 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 		return err
 	}
 
+	s.lock.Lock()
+	if _, exist := s.informers[resource]; !exist {
+		s.informers[resource] = struct{}{}
+	}
+	s.lock.Unlock()
+
+	s.lock.RLock()
+	if resourceTransformFunc, ok := s.transformFuncs[resource]; ok && !s.isInformerStarted(resource) {
+		err = resourceInformer.Informer().SetTransform(resourceTransformFunc)
+		if err != nil {
+			return err
+		}
+	}
+	s.lock.RUnlock()
+
 	resourceInformer.Informer().AddEventHandler(handler)
 	s.appendHandler(resource, handler)
 	return nil
@@ -117,6 +141,11 @@ func (s *singleClusterInformerManagerImpl) IsInformerSynced(resource schema.Grou
 	defer s.lock.RUnlock()
 
 	_, exist := s.syncedInformers[resource]
+	return exist
+}
+
+func (s *singleClusterInformerManagerImpl) isInformerStarted(resource schema.GroupVersionResource) bool {
+	_, exist := s.startedInformers[resource]
 	return exist
 }
 
@@ -139,6 +168,26 @@ func (s *singleClusterInformerManagerImpl) IsHandlerExist(resource schema.GroupV
 }
 
 func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) (interface{}, error) {
+	resourceInformer, err := s.informerFactory.ForResource(resource)
+	if err != nil {
+		return nil, err
+	}
+
+	s.lock.Lock()
+	if _, exist := s.informers[resource]; !exist {
+		s.informers[resource] = struct{}{}
+	}
+	s.lock.Unlock()
+
+	s.lock.RLock()
+	if resourceTransformFunc, ok := s.transformFuncs[resource]; ok && !s.isInformerStarted(resource) {
+		err = resourceInformer.Informer().SetTransform(resourceTransformFunc)
+		if err != nil {
+			return nil, err
+		}
+	}
+	s.lock.RUnlock()
+
 	if resource == nodeGVR {
 		return s.informerFactory.Core().V1().Nodes().Lister(), nil
 	}
@@ -146,10 +195,6 @@ func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionRe
 		return s.informerFactory.Core().V1().Pods().Lister(), nil
 	}
 
-	resourceInformer, err := s.informerFactory.ForResource(resource)
-	if err != nil {
-		return nil, err
-	}
 	return resourceInformer.Lister(), nil
 }
 
@@ -165,7 +210,14 @@ func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVe
 }
 
 func (s *singleClusterInformerManagerImpl) Start() {
+	s.lock.Lock()
 	s.informerFactory.Start(s.ctx.Done())
+	for resource := range s.informers {
+		if _, exist := s.startedInformers[resource]; !exist {
+			s.startedInformers[resource] = struct{}{}
+		}
+	}
+	s.lock.Unlock()
 }
 
 func (s *singleClusterInformerManagerImpl) Stop() {

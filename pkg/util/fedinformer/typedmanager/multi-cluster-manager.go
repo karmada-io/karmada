@@ -6,6 +6,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 )
 
 var (
@@ -22,7 +25,11 @@ func init() {
 // GetInstance returns a shared MultiClusterInformerManager instance.
 func GetInstance() MultiClusterInformerManager {
 	once.Do(func() {
-		instance = NewMultiClusterInformerManager(stopCh)
+		transforms := map[schema.GroupVersionResource]cache.TransformFunc{
+			nodeGVR: fedinformer.NodeTransformFunc,
+			podGVR:  fedinformer.PodTransformFunc,
+		}
+		instance = NewMultiClusterInformerManager(stopCh, transforms)
 	})
 	return instance
 }
@@ -64,17 +71,19 @@ type MultiClusterInformerManager interface {
 }
 
 // NewMultiClusterInformerManager constructs a new instance of multiClusterInformerManagerImpl.
-func NewMultiClusterInformerManager(stopCh <-chan struct{}) MultiClusterInformerManager {
+func NewMultiClusterInformerManager(stopCh <-chan struct{}, transformFuncs map[schema.GroupVersionResource]cache.TransformFunc) MultiClusterInformerManager {
 	return &multiClusterInformerManagerImpl{
-		managers: make(map[string]SingleClusterInformerManager),
-		stopCh:   stopCh,
+		managers:       make(map[string]SingleClusterInformerManager),
+		transformFuncs: transformFuncs,
+		stopCh:         stopCh,
 	}
 }
 
 type multiClusterInformerManagerImpl struct {
-	managers map[string]SingleClusterInformerManager
-	stopCh   <-chan struct{}
-	lock     sync.RWMutex
+	managers       map[string]SingleClusterInformerManager
+	transformFuncs map[schema.GroupVersionResource]cache.TransformFunc
+	stopCh         <-chan struct{}
+	lock           sync.RWMutex
 }
 
 func (m *multiClusterInformerManagerImpl) getManager(cluster string) (SingleClusterInformerManager, bool) {
@@ -92,7 +101,7 @@ func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client kube
 
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh)
+	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh, m.transformFuncs)
 	m.managers[cluster] = manager
 	return manager
 }
