@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -260,6 +261,98 @@ func TestTolerationExists(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := TolerationExists(tt.args.tolerations, tt.args.tolerationToFind); got != tt.want {
 				t.Errorf("TolerationExists() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHasNoExecuteTaints(t *testing.T) {
+	tests := []struct {
+		name   string
+		taints []corev1.Taint
+		want   bool
+	}{
+		{
+			name: "has NoExecute taints",
+			taints: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffectNoExecute,
+				},
+				{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "no NoExecute taints",
+			taints: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffectPreferNoSchedule,
+				},
+				{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HasNoExecuteTaints(tt.taints); got != tt.want {
+				t.Errorf("HasNoExecuteTaints() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetNoExecuteTaints(t *testing.T) {
+	tests := []struct {
+		name   string
+		taints []corev1.Taint
+		want   []corev1.Taint
+	}{
+		{
+			name: "has NoExecute taints",
+			taints: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffectNoExecute,
+				},
+				{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+			want: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffectNoExecute,
+				},
+			},
+		},
+		{
+			name: "no NoExecute taints",
+			taints: []corev1.Taint{
+				{
+					Key:    clusterv1alpha1.TaintClusterUnreachable,
+					Effect: corev1.TaintEffectPreferNoSchedule,
+				},
+				{
+					Key:    clusterv1alpha1.TaintClusterNotReady,
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetNoExecuteTaints(tt.taints); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetNoExecuteTaints() = %v, want %v", got, tt.want)
 			}
 		})
 	}
