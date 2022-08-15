@@ -1,4 +1,4 @@
-package typedManager
+package typedmanager
 
 import (
 	"context"
