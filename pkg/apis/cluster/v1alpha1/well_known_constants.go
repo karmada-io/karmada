@@ -11,6 +11,8 @@ const (
 	// (corresponding to ClusterConditionReady status ConditionUnknown)
 	// and removed when cluster becomes reachable (ClusterConditionReady status ConditionTrue).
 	TaintClusterUnreachable = "cluster.karmada.io/unreachable"
+	// TaintClusterTerminating will be added when cluster is terminating.
+	TaintClusterTerminating = "cluster.karmada.io/terminating"
 
 	// CacheSourceAnnotationKey is the annotation that added to a resource to
 	// represent which cluster it cached from.

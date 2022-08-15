@@ -188,12 +188,14 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 	opts := ctx.Opts
 
 	clusterController := &cluster.Controller{
-		Client:                    mgr.GetClient(),
-		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
-		ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
-		ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
-		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
-		FailoverEvictionTimeout:   opts.FailoverEvictionTimeout.Duration,
+		Client:                             mgr.GetClient(),
+		EventRecorder:                      mgr.GetEventRecorderFor(cluster.ControllerName),
+		ClusterMonitorPeriod:               opts.ClusterMonitorPeriod.Duration,
+		ClusterMonitorGracePeriod:          opts.ClusterMonitorGracePeriod.Duration,
+		ClusterStartupGracePeriod:          opts.ClusterStartupGracePeriod.Duration,
+		FailoverEvictionTimeout:            opts.FailoverEvictionTimeout.Duration,
+		EnableTaintManager:                 ctx.Opts.EnableTaintManager,
+		ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 	}
 	if err := clusterController.SetupWithManager(mgr); err != nil {
 		return false, err
@@ -203,7 +205,6 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		if err := cluster.IndexField(mgr); err != nil {
 			return false, err
 		}
-
 		taintManager := &cluster.NoExecuteTaintManager{
 			Client:                             mgr.GetClient(),
 			EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName),
