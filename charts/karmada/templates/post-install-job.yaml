@@ -83,8 +83,8 @@ spec:
       restartPolicy: Never
       containers:
       - name: post-install
-        image: {{ .Values.postInstallJob.postInstallContainerImage }}
-        imagePullPolicy: IfNotPresent
+        image: {{ template "karmada.kubectl.image" . }}
+        imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
         command:
         - /bin/sh
         - -c

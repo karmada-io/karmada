@@ -147,8 +147,8 @@ spec:
       restartPolicy: Never
       initContainers:
       - name: init
-        image: {{ .Values.preInstallJob.initContainerImage }}
-        imagePullPolicy: IfNotPresent
+        image: {{ template "karmada.cfssl.image" . }}
+        imagePullPolicy: {{ .Values.cfssl.image.pullPolicy }}
         workingDir: /opt/mount
         command:
         - /bin/sh
@@ -192,8 +192,8 @@ spec:
           mountPath: /opt/configs
       containers:
       - name: pre-install
-        image: {{ .Values.preInstallJob.preInstallContainerImage }}
-        imagePullPolicy: IfNotPresent
+        image: {{ template "karmada.kubectl.image" . }}
+        imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
         workingDir: /opt/mount
         command:
         - /bin/sh

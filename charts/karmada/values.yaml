@@ -28,22 +28,42 @@ components: []
   #   "search"
   # ]
 
+cfssl:
+  ## @param image.registry karmada cfssl image registry
+  ## @param image.repository karmada cfssl image repository
+  ## @param image.tag karmada cfssl image tag (immutable tags are recommended)
+  ##
+  image:
+    registry: docker.io
+    repository: cfssl/cfssl
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+
+kubectl:
+  ## @param image.registry karmada kubectl image registry
+  ## @param image.repository karmada kubectl image repository
+  ## @param image.tag karmada kubectl image tag (immutable tags are recommended)
+  ##
+  image:
+    registry: docker.io
+    repository: bitnami/kubectl
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+
 ## pre-install job config
 preInstallJob:
-  ## @param preInstallJob.initContainerImage image of the pre-install job's initContainer
-  initContainerImage: cfssl/cfssl
-  ## @param preInstallJob.preInstallContainerImage image of the pre-install job
-  preInstallContainerImage: bitnami/kubectl:latest
 
 ## post-install job config
 postInstallJob:
-  ## @param postInstallJob.postInstallContainerImage image of the post-install job
-  postInstallContainerImage: bitnami/kubectl:latest
 
 ## post-delete job config
 postDeleteJob:
-  ## @param postDeleteJob.postDeleteContainerImage image of the post-delete job
-  postDeleteContainerImage: bitnami/kubectl:latest
 
 ## karmada certificate config
 certs:

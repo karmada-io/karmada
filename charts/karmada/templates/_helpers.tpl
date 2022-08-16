@@ -381,3 +381,19 @@ Return the proper Docker Image Registry Secret Names
 {{- define "karmada.kubeControllerManager.imagePullSecrets" -}}
 {{ include "common.images.pullSecrets" (dict "images" (list .Values.kubeControllerManager.image) "global" .Values.global) }}
 {{- end -}}
+
+{{/*
+Return the proper karmada cfssl image name
+*/}}
+{{- define "karmada.cfssl.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.cfssl.image "global" .Values.global) }}
+{{- end -}}
+
+{{/*
+Return the proper karmada kubectl image name
+*/}}
+{{- define "karmada.kubectl.image" -}}
+{{ include "common.images.image" (dict "imageRoot" .Values.kubectl.image "global" .Values.global) }}
+{{- end -}}
+
+
