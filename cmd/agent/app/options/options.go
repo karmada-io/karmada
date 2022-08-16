@@ -108,6 +108,10 @@ type Options struct {
 	// ClusterRegion represents the region of the cluster locate in.
 	ClusterRegion string
 
+	// EnableClusterResourceModeling indicates if enable cluster resource modeling.
+	// The resource modeling might be used by the scheduler to make scheduling decisions
+	// in scenario of dynamic replica assignment based on cluster free resources.
+	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
 }
 

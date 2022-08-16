@@ -225,6 +225,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 			RateLimiterOptions:                opts.RateLimiterOpts,
+			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 		},
 		StopChan:            stopChan,
 		ResourceInterpreter: resourceInterpreter,
