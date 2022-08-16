@@ -33,9 +33,11 @@ var (
 
 	certList = []string{
 		options.CaCertAndKeyName,
+		options.EtcdCaCertAndKeyName,
 		options.EtcdServerCertAndKeyName,
 		options.EtcdClientCertAndKeyName,
 		options.KarmadaCertAndKeyName,
+		options.ApiserverCertAndKeyName,
 		options.FrontProxyCaCertAndKeyName,
 		options.FrontProxyClientCertAndKeyName,
 	}
@@ -82,6 +84,7 @@ type CommandInitOption struct {
 	Context                            string
 	StorageClassesName                 string
 	KarmadaDataPath                    string
+	KarmadaPkiPath                     string
 	CRDs                               string
 	ExternalIP                         string
 	ExternalDNS                        string
@@ -179,7 +182,7 @@ func (i *CommandInitOption) Complete() error {
 
 //  genCerts create ca etcd karmada cert
 func (i *CommandInitOption) genCerts() error {
-	notAfter := time.Now().Add(cert.Duration365d * 10).UTC()
+	notAfter := time.Now().Add(cert.Duration365d).UTC()
 
 	var etcdServerCertDNS = []string{
 		"localhost",
@@ -191,8 +194,8 @@ func (i *CommandInitOption) genCerts() error {
 		DNSNames: etcdServerCertDNS,
 		IPs:      []net.IP{utils.StringToNetIP("127.0.0.1")},
 	}
-	etcdServerCertConfig := cert.NewCertConfig("karmada-etcd-server", []string{"karmada"}, etcdServerAltNames, &notAfter)
-	etcdClientCertCfg := cert.NewCertConfig("karmada-etcd-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
+	etcdServerCertConfig := cert.NewCertConfig("karmada-etcd-server", []string{}, etcdServerAltNames, &notAfter)
+	etcdClientCertCfg := cert.NewCertConfig("karmada-etcd-client", []string{}, certutil.AltNames{}, &notAfter)
 
 	var karmadaDNS = []string{
 		"localhost",
@@ -232,8 +235,10 @@ func (i *CommandInitOption) genCerts() error {
 	}
 	karmadaCertCfg := cert.NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
 
-	frontProxyClientCertCfg := cert.NewCertConfig("front-proxy-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
-	if err = cert.GenCerts(i.KarmadaDataPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
+	apiserverCertCfg := cert.NewCertConfig("karmada-apiserver", []string{""}, karmadaAltNames, &notAfter)
+
+	frontProxyClientCertCfg := cert.NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &notAfter)
+	if err = cert.GenCerts(i.KarmadaPkiPath, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
 		return err
 	}
 	return nil
@@ -272,8 +277,8 @@ func (i *CommandInitOption) createCertsSecrets() error {
 	}
 	// Create certs Secret
 	etcdCert := map[string]string{
-		fmt.Sprintf("%s.crt", options.CaCertAndKeyName):         string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)]),
-		fmt.Sprintf("%s.key", options.CaCertAndKeyName):         string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.CaCertAndKeyName)]),
+		fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName):     string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName)]),
+		fmt.Sprintf("%s.key", options.EtcdCaCertAndKeyName):     string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdCaCertAndKeyName)]),
 		fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName)]),
 		fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName)]),
 	}
@@ -408,13 +413,13 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 	i.CertAndKeyFileData = map[string][]byte{}
 
 	for _, v := range certList {
-		certs, err := utils.FileToBytes(i.KarmadaDataPath, fmt.Sprintf("%s.crt", v))
+		certs, err := utils.FileToBytes(i.KarmadaPkiPath, fmt.Sprintf("%s.crt", v))
 		if err != nil {
 			return fmt.Errorf("'%s.crt' conversion failed. %v", v, err)
 		}
 		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)] = certs
 
-		key, err := utils.FileToBytes(i.KarmadaDataPath, fmt.Sprintf("%s.key", v))
+		key, err := utils.FileToBytes(i.KarmadaPkiPath, fmt.Sprintf("%s.key", v))
 		if err != nil {
 			return fmt.Errorf("'%s.key' conversion failed. %v", v, err)
 		}

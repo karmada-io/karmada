@@ -29,7 +29,7 @@ spec:
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: k8s-certs
-              mountPath: /etc/kubernetes/pki
+              mountPath: /etc/karmada/pki
               readOnly: true
             - name: kubeconfig
               subPath: kubeconfig
@@ -40,11 +40,11 @@ spec:
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
             - --etcd-servers={{ .ETCDSevers }}
-            - --etcd-cafile=/etc/kubernetes/pki/ca.crt
-            - --etcd-certfile=/etc/kubernetes/pki/etcd-client.crt
-            - --etcd-keyfile=/etc/kubernetes/pki/etcd-client.key
-            - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
-            - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
+            - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
+            - --etcd-keyfile=/etc/karmada/pki/etcd-client.key
+            - --tls-cert-file=/etc/karmada/pki/karmada.crt
+            - --tls-private-key-file=/etc/karmada/pki/karmada.key
             - --audit-log-path=-
             - --feature-gates=APIPriorityAndFairness=false
             - --audit-log-maxage=0

@@ -36,9 +36,9 @@ func TestGenCerts(t *testing.T) {
 		DNSNames: etcdServerCertDNS,
 		IPs:      []net.IP{utils.StringToNetIP("127.0.0.1")},
 	}
-	etcdServerCertConfig := NewCertConfig("karmada-etcd-server", []string{"karmada"}, etcdServerAltNames, &notAfter)
+	etcdServerCertConfig := NewCertConfig("karmada-etcd-server", []string{}, etcdServerAltNames, &notAfter)
 
-	etcdClientCertCfg := NewCertConfig("karmada-etcd-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
+	etcdClientCertCfg := NewCertConfig("karmada-etcd-client", []string{}, certutil.AltNames{}, &notAfter)
 
 	var karmadaDNS = []string{
 		"localhost",
@@ -82,9 +82,10 @@ func TestGenCerts(t *testing.T) {
 	}
 
 	karmadaCertCfg := NewCertConfig("system:admin", []string{"system:masters"}, karmadaAltNames, &notAfter)
-	frontProxyClientCertCfg := NewCertConfig("front-proxy-client", []string{"karmada"}, certutil.AltNames{}, &notAfter)
+	apiserverCertCfg := NewCertConfig("karmada-apiserver", []string{""}, karmadaAltNames, &notAfter)
+	frontProxyClientCertCfg := NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &notAfter)
 
-	if err := GenCerts(TestCertsTmp, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg); err != nil {
+	if err := GenCerts(TestCertsTmp, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
 		fmt.Println(err)
 	}
 }
