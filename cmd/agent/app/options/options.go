@@ -107,6 +107,12 @@ type Options struct {
 
 	// ClusterRegion represents the region of the cluster locate in.
 	ClusterRegion string
+
+	// EnableClusterResourceModeling indicates if enable cluster resource modeling.
+	// The resource modeling might be used by the scheduler to make scheduling decisions
+	// in scenario of dynamic replica assignment based on cluster free resources.
+	// Disable if it does not fit your cases for better performance.
+	EnableClusterResourceModeling bool
 }
 
 // NewOptions builds an default scheduler options.
@@ -174,6 +180,9 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8088, :8088)")
 	fs.StringVar(&o.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	fs.StringVar(&o.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
+	fs.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
+		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
+		"Disable if it does not fit your cases for better performance.")
 	o.RateLimiterOpts.AddFlags(fs)
 	o.ProfileOpts.AddFlags(fs)
 }

@@ -120,6 +120,11 @@ type Options struct {
 
 	RateLimiterOpts ratelimiterflag.Options
 	ProfileOpts     profileflag.Options
+	// EnableClusterResourceModeling indicates if enable cluster resource modeling.
+	// The resource modeling might be used by the scheduler to make scheduling decisions
+	// in scenario of dynamic replica assignment based on cluster free resources.
+	// Disable if it does not fit your cases for better performance.
+	EnableClusterResourceModeling bool
 }
 
 // NewOptions builds an empty options.
@@ -198,6 +203,9 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
 	flags.BoolVar(&o.EnableTaintManager, "enable-taint-manager", true, "If set to true enables NoExecute Taints and will evict all not-tolerating objects propagating on Clusters tainted with this kind of Taints.")
 	flags.DurationVar(&o.GracefulEvictionTimeout.Duration, "graceful-eviction-timeout", 10*time.Minute, "Specifies the timeout period waiting for the graceful-eviction-controller performs the final removal since the workload(resource) has been moved to the graceful eviction tasks.")
+	flags.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
+		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
+		"Disable if it does not fit your cases for better performance.")
 
 	o.RateLimiterOpts.AddFlags(flags)
 	o.ProfileOpts.AddFlags(flags)

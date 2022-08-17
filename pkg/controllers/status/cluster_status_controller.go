@@ -91,6 +91,12 @@ type ClusterStatusController struct {
 
 	ClusterCacheSyncTimeout metav1.Duration
 	RateLimiterOptions      ratelimiterflag.Options
+
+	// EnableClusterResourceModeling indicates if enable cluster resource modeling.
+	// The resource modeling might be used by the scheduler to make scheduling decisions
+	// in scenario of dynamic replica assignment based on cluster free resources.
+	// Disable if it does not fit your cases for better performance.
+	EnableClusterResourceModeling bool
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -171,15 +177,6 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 
 	// skip collecting cluster status if not ready
 	if online && healthy && readyCondition.Status == metav1.ConditionTrue {
-		// get or create informer for pods and nodes in member cluster
-		clusterInformerManager, err := c.buildInformerForCluster(clusterClient)
-		if err != nil {
-			klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
-			// in large-scale clusters, the timeout may occur.
-			// if clusterInformerManager fails to be built, should be returned, otherwise, it may cause a nil pointer
-			return controllerruntime.Result{Requeue: true}, err
-		}
-
 		if cluster.Spec.SyncMode == clusterv1alpha1.Pull {
 			// init the lease controller for pull mode clusters
 			c.initLeaseController(cluster)
@@ -189,6 +186,7 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 		if err != nil {
 			klog.Errorf("Failed to get Kubernetes version for Cluster %s. Error: %v.", cluster.GetName(), err)
 		}
+		currentClusterStatus.KubernetesVersion = clusterVersion
 
 		// get the list of APIs installed in the member cluster
 		apiEnables, err := getAPIEnablements(clusterClient)
@@ -197,21 +195,36 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 		} else if err != nil {
 			klog.Warningf("Maybe get partial(%d) APIs installed in Cluster %s. Error: %v.", len(apiEnables), cluster.GetName(), err)
 		}
-
-		nodes, err := listNodes(clusterInformerManager)
-		if err != nil {
-			klog.Errorf("Failed to list nodes for Cluster %s. Error: %v.", cluster.GetName(), err)
-		}
-
-		pods, err := listPods(clusterInformerManager)
-		if err != nil {
-			klog.Errorf("Failed to list pods for Cluster %s. Error: %v.", cluster.GetName(), err)
-		}
-
-		currentClusterStatus.KubernetesVersion = clusterVersion
 		currentClusterStatus.APIEnablements = apiEnables
-		currentClusterStatus.NodeSummary = getNodeSummary(nodes)
-		currentClusterStatus.ResourceSummary = getResourceSummary(nodes, pods)
+
+		// The generic informer manager actually used by 'execution-controller' and 'work-status-controller'.
+		// TODO(@RainbowMango): We should follow who-use who takes the responsibility to initialize it.
+		// 	We should move this logic to both `execution-controller` and `work-status-controller`.
+		//  After that the 'initializeGenericInformerManagerForCluster' function as well as 'c.GenericInformerManager'
+		//  can be safely removed from current controller.
+		c.initializeGenericInformerManagerForCluster(clusterClient)
+
+		if c.EnableClusterResourceModeling {
+			// get or create informer for pods and nodes in member cluster
+			clusterInformerManager, err := c.buildInformerForCluster(clusterClient)
+			if err != nil {
+				klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
+				// in large-scale clusters, the timeout may occur.
+				// if clusterInformerManager fails to be built, should be returned, otherwise, it may cause a nil pointer
+				return controllerruntime.Result{Requeue: true}, err
+			}
+			nodes, err := listNodes(clusterInformerManager)
+			if err != nil {
+				klog.Errorf("Failed to list nodes for Cluster %s. Error: %v.", cluster.GetName(), err)
+			}
+
+			pods, err := listPods(clusterInformerManager)
+			if err != nil {
+				klog.Errorf("Failed to list pods for Cluster %s. Error: %v.", cluster.GetName(), err)
+			}
+			currentClusterStatus.NodeSummary = getNodeSummary(nodes)
+			currentClusterStatus.ResourceSummary = getResourceSummary(nodes, pods)
+		}
 	}
 
 	setTransitionTime(currentClusterStatus.Conditions, readyCondition)
@@ -256,22 +269,22 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 	return controllerruntime.Result{RequeueAfter: c.ClusterStatusUpdateFrequency.Duration}, nil
 }
 
+func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clusterClient *util.ClusterClient) {
+	if c.GenericInformerManager.IsManagerExist(clusterClient.ClusterName) {
+		return
+	}
+
+	dynamicClient, err := c.ClusterDynamicClientSetFunc(clusterClient.ClusterName, c.Client)
+	if err != nil {
+		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterClient.ClusterName)
+		return
+	}
+	c.GenericInformerManager.ForCluster(clusterClient.ClusterName, dynamicClient.DynamicClientSet, 0)
+}
+
 // buildInformerForCluster builds informer manager for cluster if it doesn't exist, then constructs informers for node
 // and pod and start it. If the informer manager exist, return it.
 func (c *ClusterStatusController) buildInformerForCluster(clusterClient *util.ClusterClient) (typedmanager.SingleClusterInformerManager, error) {
-	// cluster-status-controller will initialize the generic informer manager
-	// mainly because when the member cluster is joined, the dynamic informer required by the member cluster
-	// to distribute resources is prepared in advance
-	// in that case execution-controller can distribute resources without waiting.
-	if c.GenericInformerManager.GetSingleClusterManager(clusterClient.ClusterName) == nil {
-		dynamicClient, err := c.ClusterDynamicClientSetFunc(clusterClient.ClusterName, c.Client)
-		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterClient.ClusterName)
-			return nil, err
-		}
-		c.GenericInformerManager.ForCluster(clusterClient.ClusterName, dynamicClient.DynamicClientSet, 0)
-	}
-
 	singleClusterInformerManager := c.TypedInformerManager.GetSingleClusterManager(clusterClient.ClusterName)
 	if singleClusterInformerManager == nil {
 		singleClusterInformerManager = c.TypedInformerManager.ForCluster(clusterClient.ClusterName, clusterClient.KubeClient, 0)

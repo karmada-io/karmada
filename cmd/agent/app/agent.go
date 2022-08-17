@@ -225,6 +225,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 			RateLimiterOptions:                opts.RateLimiterOpts,
+			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 		},
 		StopChan:            stopChan,
 		ResourceInterpreter: resourceInterpreter,
@@ -262,6 +263,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		ClusterFailureThreshold:           ctx.Opts.ClusterFailureThreshold,
 		ClusterCacheSyncTimeout:           ctx.Opts.ClusterCacheSyncTimeout,
 		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
+		EnableClusterResourceModeling:     ctx.Opts.EnableClusterResourceModeling,
 	}
 	if err := clusterStatusController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err

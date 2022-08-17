@@ -64,6 +64,11 @@ type Options struct {
 	// GracefulEvictionTimeout is the timeout period waiting for the grace-eviction-controller performs the final
 	// removal since the workload(resource) has been moved to the graceful eviction tasks.
 	GracefulEvictionTimeout metav1.Duration
+	// EnableClusterResourceModeling indicates if enable cluster resource modeling.
+	// The resource modeling might be used by the scheduler to make scheduling decisions
+	// in scenario of dynamic replica assignment based on cluster free resources.
+	// Disable if it does not fit your cases for better performance.
+	EnableClusterResourceModeling bool
 }
 
 // Context defines the context object for controller.
