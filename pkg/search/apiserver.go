@@ -8,23 +8,28 @@ import (
 
 	searchapis "github.com/karmada-io/karmada/pkg/apis/search"
 	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
+	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	searchstorage "github.com/karmada-io/karmada/pkg/registry/search/storage"
+	"github.com/karmada-io/karmada/pkg/search/proxy"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
 // ExtraConfig holds custom apiserver config
 type ExtraConfig struct {
-	MultiClusterInformerManager genericmanager.MultiClusterInformerManager
-	ClusterLister               clusterlister.ClusterLister
-
+	MultiClusterInformerManager  genericmanager.MultiClusterInformerManager
+	ClusterLister                clusterlister.ClusterLister
+	KarmadaSharedInformerFactory informerfactory.SharedInformerFactory
+	ProxyController              *proxy.Controller
 	// Add custom config if necessary.
 }
 
 // Config defines the config for the APIServer.
 type Config struct {
-	GenericConfig *genericapiserver.RecommendedConfig
-	Controller    *Controller
+	GenericConfig                *genericapiserver.RecommendedConfig
+	Controller                   *Controller
+	ProxyController              *proxy.Controller
+	KarmadaSharedInformerFactory informerfactory.SharedInformerFactory
 }
 
 // APIServer contains state for karmada-search.
@@ -47,8 +52,10 @@ func (cfg *Config) Complete() CompletedConfig {
 	c := completedConfig{
 		cfg.GenericConfig.Complete(),
 		&ExtraConfig{
-			MultiClusterInformerManager: cfg.Controller.InformerManager,
-			ClusterLister:               cfg.Controller.clusterLister,
+			MultiClusterInformerManager:  cfg.Controller.InformerManager,
+			ClusterLister:                cfg.Controller.clusterLister,
+			KarmadaSharedInformerFactory: cfg.KarmadaSharedInformerFactory,
+			ProxyController:              cfg.ProxyController,
 		},
 	}
 
@@ -78,11 +85,13 @@ func (c completedConfig) New() (*APIServer, error) {
 		return nil, err
 	}
 	searchREST := searchstorage.NewSearchREST(c.ExtraConfig.MultiClusterInformerManager, c.ExtraConfig.ClusterLister)
+	proxyingREST := searchstorage.NewProxyingREST(c.ExtraConfig.ProxyController)
 
 	v1alpha1search := map[string]rest.Storage{}
 	v1alpha1search["resourceregistries"] = resourceRegistryStorage.ResourceRegistry
 	v1alpha1search["resourceregistries/status"] = resourceRegistryStorage.Status
 	v1alpha1search["search"] = searchREST
+	v1alpha1search["proxying"] = proxyingREST
 	apiGroupInfo.VersionedResourcesStorageMap["v1alpha1"] = v1alpha1search
 
 	if err = server.GenericAPIServer.InstallAPIGroup(&apiGroupInfo); err != nil {

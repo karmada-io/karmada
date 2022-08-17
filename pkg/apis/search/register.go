@@ -34,6 +34,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ResourceRegistry{},
 		&ResourceRegistryList{},
 		&Search{},
+		&Proxying{},
 	)
 	return nil
 }

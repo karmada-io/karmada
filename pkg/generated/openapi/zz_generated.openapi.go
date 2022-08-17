@@ -71,6 +71,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight":                         schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.BackendStoreConfig":                          schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.OpenSearchConfig":                            schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref),
+		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.Proxying":                                    schema_pkg_apis_search_v1alpha1_Proxying(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistry":                            schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryList":                        schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec":                        schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref),
@@ -3060,6 +3061,33 @@ func schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"},
+	}
+}
+
+func schema_pkg_apis_search_v1alpha1_Proxying(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Proxying define a flag for resource proxying that do not have actual resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
