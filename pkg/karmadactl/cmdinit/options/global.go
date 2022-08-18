@@ -3,12 +3,16 @@ package options
 const (
 	// CaCertAndKeyName ca certificate key name
 	CaCertAndKeyName = "ca"
+	// EtcdCaCertAndKeyName etcd ca certificate key name
+	EtcdCaCertAndKeyName = "etcd-ca"
 	// EtcdServerCertAndKeyName etcd server certificate key name
 	EtcdServerCertAndKeyName = "etcd-server"
 	// EtcdClientCertAndKeyName etcd client certificate key name
 	EtcdClientCertAndKeyName = "etcd-client"
 	// KarmadaCertAndKeyName karmada certificate key name
 	KarmadaCertAndKeyName = "karmada"
+	// ApiserverCertAndKeyName karmada apiserver certificate key name
+	ApiserverCertAndKeyName = "apiserver"
 	// FrontProxyCaCertAndKeyName front-proxy-client  certificate key name
 	FrontProxyCaCertAndKeyName = "front-proxy-ca"
 	// FrontProxyClientCertAndKeyName front-proxy-client  certificate key name

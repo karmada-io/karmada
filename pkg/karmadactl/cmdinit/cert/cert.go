@@ -77,10 +77,9 @@ func NewCertificateAuthority(config *CertsConfig) (*x509.Certificate, crypto.Sig
 }
 
 // NewCACertAndKey The public and private keys of the root certificate are returned
-func NewCACertAndKey() (*x509.Certificate, *crypto.Signer, error) {
+func NewCACertAndKey(cn string) (*x509.Certificate, *crypto.Signer, error) {
 	certCfg := &CertsConfig{Config: certutil.Config{
-		CommonName:   "ca",
-		Organization: []string{"karmada"},
+		CommonName: cn,
 	},
 	}
 	caCert, caKey, err := NewCertificateAuthority(certCfg)
@@ -244,31 +243,13 @@ func NewCertConfig(cn string, org []string, altNames certutil.AltNames, notAfter
 	}
 }
 
-// GenCerts Create CA certificate and sign etcd karma certificate.
-func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg, frontProxyClientCertCfg *CertsConfig) error {
-	caCert, caKey, err := NewCACertAndKey()
+// GenCerts Create CA certificate and sign etcd karmada certificate.
+func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg *CertsConfig) error {
+	caCert, caKey, err := NewCACertAndKey("karmada")
 	if err != nil {
 		return err
 	}
-
 	if err = WriteCertAndKey(pkiPath, options.CaCertAndKeyName, caCert, caKey); err != nil {
-		return err
-	}
-
-	etcdServerCert, etcdServerKey, err := NewCertAndKey(caCert, *caKey, etcdServerCertCfg)
-	if err != nil {
-		return err
-	}
-
-	if err = WriteCertAndKey(pkiPath, options.EtcdServerCertAndKeyName, etcdServerCert, &etcdServerKey); err != nil {
-		return err
-	}
-
-	etcdClientCert, etcdClientKey, err := NewCertAndKey(caCert, *caKey, etcdClientCertCfg)
-	if err != nil {
-		return err
-	}
-	if err = WriteCertAndKey(pkiPath, options.EtcdClientCertAndKeyName, etcdClientCert, &etcdClientKey); err != nil {
 		return err
 	}
 
@@ -276,16 +257,22 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 	if err != nil {
 		return err
 	}
-
 	if err = WriteCertAndKey(pkiPath, options.KarmadaCertAndKeyName, karmadaCert, &karmadaKey); err != nil {
 		return err
 	}
 
-	frontProxyCaCert, frontProxyCaKey, err := NewCACertAndKey()
+	apiserverCert, apiserverKey, err := NewCertAndKey(caCert, *caKey, apiserverCertCfg)
 	if err != nil {
 		return err
 	}
+	if err = WriteCertAndKey(pkiPath, options.ApiserverCertAndKeyName, apiserverCert, &apiserverKey); err != nil {
+		return err
+	}
 
+	frontProxyCaCert, frontProxyCaKey, err := NewCACertAndKey("front-proxy-ca")
+	if err != nil {
+		return err
+	}
 	if err = WriteCertAndKey(pkiPath, options.FrontProxyCaCertAndKeyName, frontProxyCaCert, frontProxyCaKey); err != nil {
 		return err
 	}
@@ -295,6 +282,34 @@ func GenCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg, karmadaCertC
 		return err
 	}
 	if err := WriteCertAndKey(pkiPath, options.FrontProxyClientCertAndKeyName, frontProxyClientCert, &frontProxyClientKey); err != nil {
+		return err
+	}
+
+	return genEtcdCerts(pkiPath, etcdServerCertCfg, etcdClientCertCfg)
+}
+
+func genEtcdCerts(pkiPath string, etcdServerCertCfg, etcdClientCertCfg *CertsConfig) error {
+	etcdCaCert, etcdCaKey, err := NewCACertAndKey("etcd-ca")
+	if err != nil {
+		return err
+	}
+	if err = WriteCertAndKey(pkiPath, options.EtcdCaCertAndKeyName, etcdCaCert, etcdCaKey); err != nil {
+		return err
+	}
+
+	etcdServerCert, etcdServerKey, err := NewCertAndKey(etcdCaCert, *etcdCaKey, etcdServerCertCfg)
+	if err != nil {
+		return err
+	}
+	if err = WriteCertAndKey(pkiPath, options.EtcdServerCertAndKeyName, etcdServerCert, &etcdServerKey); err != nil {
+		return err
+	}
+
+	etcdClientCert, etcdClientKey, err := NewCertAndKey(etcdCaCert, *etcdCaKey, etcdClientCertCfg)
+	if err != nil {
+		return err
+	}
+	if err = WriteCertAndKey(pkiPath, options.EtcdClientCertAndKeyName, etcdClientCert, &etcdClientKey); err != nil {
 		return err
 	}
 	return nil

@@ -108,6 +108,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.CRDs, "crds", crdURL, "Karmada crds resource.(local file e.g. --crds /root/crds.tar.gz)")
 	flags.Int32VarP(&opts.KarmadaAPIServerNodePort, "port", "p", 32443, "Karmada apiserver service node port")
 	flags.StringVarP(&opts.KarmadaDataPath, "karmada-data", "d", "/etc/karmada", "karmada data path. kubeconfig cert and crds files")
+	flags.StringVarP(&opts.KarmadaPkiPath, "karmada-pki", "", "/etc/karmada/pki", "karmada pki path. karmada cert files")
 	flags.StringVarP(&opts.KarmadaAPIServerImage, "karmada-apiserver-image", "", "", "Kubernetes apiserver image")
 	flags.Int32VarP(&opts.KarmadaAPIServerReplicas, "karmada-apiserver-replicas", "", 1, "karmada apiserver replica set")
 	flags.StringVarP(&opts.KarmadaSchedulerImage, "karmada-scheduler-image", "", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler:%s", releaseVer.PatchRelease()), "karmada scheduler image")
