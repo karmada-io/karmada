@@ -4,13 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"path"
 
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/endpoints/openapi"
+	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog/v2"
@@ -18,9 +23,14 @@ import (
 
 	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
 	"github.com/karmada-io/karmada/pkg/search"
+	"github.com/karmada-io/karmada/pkg/search/proxy"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -89,9 +99,20 @@ func (o *Options) Run(ctx context.Context) error {
 		return nil
 	})
 
+	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-informers", func(context genericapiserver.PostStartHookContext) error {
+		config.KarmadaSharedInformerFactory.Start(context.StopCh)
+		return nil
+	})
+
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
 		// start ResourceRegistry controller
 		config.Controller.Start(context.StopCh)
+		return nil
+	})
+
+	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-proxy-controller", func(context genericapiserver.PostStartHookContext) error {
+		// start ResourceRegistry controller
+		config.ProxyController.Start(context.StopCh)
 		return nil
 	})
 
@@ -108,6 +129,9 @@ func (o *Options) Config() (*search.Config, error) {
 	o.RecommendedOptions.Features = &genericoptions.FeatureOptions{EnableProfiling: false}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(searchscheme.Codecs)
+	serverConfig.LongRunningFunc = customLongRunningRequestCheck(
+		sets.NewString("watch", "proxy"),
+		sets.NewString("attach", "exec", "proxy", "log", "portforward"))
 	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(searchscheme.Scheme))
 	serverConfig.OpenAPIConfig.Info.Title = "karmada-search"
 	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
@@ -121,9 +145,31 @@ func (o *Options) Config() (*search.Config, error) {
 		return nil, err
 	}
 
+	karmadaClient := karmadaclientset.NewForConfigOrDie(serverConfig.ClientConfig)
+	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
+
+	proxyCtl, err := proxy.NewController(serverConfig.ClientConfig, genericmanager.GetInstance(), serverConfig.SharedInformerFactory, factory)
+	if err != nil {
+		return nil, err
+	}
+
 	config := &search.Config{
-		GenericConfig: serverConfig,
-		Controller:    ctl,
+		GenericConfig:                serverConfig,
+		Controller:                   ctl,
+		ProxyController:              proxyCtl,
+		KarmadaSharedInformerFactory: factory,
 	}
 	return config, nil
+}
+
+func customLongRunningRequestCheck(longRunningVerbs, longRunningSubresources sets.String) request.LongRunningRequestCheck {
+	return func(r *http.Request, requestInfo *request.RequestInfo) bool {
+		if requestInfo.APIGroup == "search.karmada.io" && requestInfo.Resource == "proxying" {
+			reqClone := r.Clone(context.TODO())
+			// requestInfo.Parts is like [proxying foo proxy api v1 nodes]
+			reqClone.URL.Path = "/" + path.Join(requestInfo.Parts[3:]...)
+			requestInfo = lifted.NewRequestInfo(reqClone)
+		}
+		return genericfilters.BasicLongRunningRequestCheck(longRunningVerbs, longRunningSubresources)(r, requestInfo)
+	}
 }

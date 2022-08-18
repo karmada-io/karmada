@@ -105,3 +105,10 @@ type ResourceRegistryList struct {
 type Search struct {
 	metav1.TypeMeta
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// Proxying define a flag for resource proxying that do not have actual resources.
+type Proxying struct {
+	metav1.TypeMeta
+}

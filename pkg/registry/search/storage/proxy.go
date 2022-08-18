@@ -1,0 +1,72 @@
+package storage
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"path"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	genericrequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/apiserver/pkg/registry/rest"
+	"k8s.io/klog/v2"
+
+	searchapis "github.com/karmada-io/karmada/pkg/apis/search"
+	"github.com/karmada-io/karmada/pkg/search/proxy"
+)
+
+var proxyMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+
+// ProxyingREST implements a RESTStorage for proxying resource.
+type ProxyingREST struct {
+	ctl *proxy.Controller
+}
+
+var _ rest.Scoper = &ProxyingREST{}
+var _ rest.Storage = &ProxyingREST{}
+var _ rest.Connecter = &ProxyingREST{}
+
+// NewProxyingREST returns a RESTStorage object that will work against search.
+func NewProxyingREST(ctl *proxy.Controller) *ProxyingREST {
+	return &ProxyingREST{
+		ctl: ctl,
+	}
+}
+
+// New return empty Proxy object.
+func (r *ProxyingREST) New() runtime.Object {
+	return &searchapis.Proxying{}
+}
+
+// NamespaceScoped returns false because Proxy is not namespaced.
+func (r *ProxyingREST) NamespaceScoped() bool {
+	return false
+}
+
+// ConnectMethods returns the list of HTTP methods handled by Connect.
+func (r *ProxyingREST) ConnectMethods() []string {
+	return proxyMethods
+}
+
+// NewConnectOptions returns an empty options object that will be used to pass options to the Connect method.
+func (r *ProxyingREST) NewConnectOptions() (runtime.Object, bool, string) {
+	return nil, true, ""
+}
+
+// Connect returns a handler for proxy.
+func (r *ProxyingREST) Connect(ctx context.Context, _ string, _ runtime.Object, responder rest.Responder) (http.Handler, error) {
+	info, ok := genericrequest.RequestInfoFrom(ctx)
+	if !ok {
+		return nil, fmt.Errorf("no RequestInfo found in the context")
+	}
+
+	if len(info.Parts) < 2 {
+		return nil, fmt.Errorf("invalid requestInfo parts: %v", info.Parts)
+	}
+
+	// For example, the whole request URL is /apis/search.karmada.io/v1alpha1/proxying/foo/proxy/api/v1/nodes
+	// info.Parts is [proxying foo proxy api v1 nodes], so proxyPath is /api/v1/nodes
+	proxyPath := "/" + path.Join(info.Parts[3:]...)
+	klog.V(4).Infof("ProxyingREST connect %v", proxyPath)
+	return r.ctl.Connect(ctx, proxyPath, responder)
+}
