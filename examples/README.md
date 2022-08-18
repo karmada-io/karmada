@@ -60,7 +60,7 @@ webhook-configuration.sh
 ```bash
 #!/usr/bin/env bash
 
-export ca_string=$(cat ${HOME}/.karmada/server-ca.crt | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+export ca_string=$(cat ${HOME}/.karmada/ca.crt | base64 | tr "\n" " "|sed s/[[:space:]]//g)
 export temp_path=$(mktemp -d)
 
 cp -rf "examples/customresourceinterpreter/webhook-configuration.yaml" "${temp_path}/temp.yaml"
