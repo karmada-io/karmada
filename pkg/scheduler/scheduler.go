@@ -25,7 +25,6 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
-	"github.com/karmada-io/karmada/pkg/features"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
@@ -50,9 +49,6 @@ const (
 
 	// ScaleSchedule means the replicas of binding object has been changed.
 	ScaleSchedule ScheduleType = "ScaleSchedule"
-
-	// FailoverSchedule means one of the cluster a binding object associated with becomes failure.
-	FailoverSchedule ScheduleType = "FailoverSchedule"
 )
 
 const (
@@ -367,8 +363,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	if err != nil {
 		return err
 	}
-	appliedPlacement := util.GetLabelValue(rb.Annotations, util.PolicyPlacementAnnotation)
-	if policyPlacementStr != appliedPlacement {
+	if appliedPlacement := util.GetLabelValue(rb.Annotations, util.PolicyPlacementAnnotation); policyPlacementStr != appliedPlacement {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ResourceBinding(%s/%s) as placement changed", namespace, name)
 		err = s.scheduleResourceBinding(rb)
@@ -382,18 +377,18 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	// TODO(dddddai): reschedule bindings on cluster change
-	if s.allClustersInReadyState(rb.Spec.Clusters) {
-		klog.Infof("Don't need to schedule ResourceBinding(%s/%s)", namespace, name)
-		return nil
-	}
-
-	if features.FeatureGate.Enabled(features.Failover) {
-		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster failure or deletion", namespace, name)
+	if rb.Spec.Replicas == 0 ||
+		policyPlacement.ReplicaScheduling == nil ||
+		policyPlacement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
+		// even if scheduling type is divided.
+		klog.V(3).Infof("Start to schedule ResourceBinding(%s/%s) as scheduling type is duplicated", namespace, name)
 		err = s.scheduleResourceBinding(rb)
-		metrics.BindingSchedule(string(FailoverSchedule), utilmetrics.DurationInSeconds(start), err)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
+	// TODO(dddddai): reschedule bindings on cluster change
+	klog.V(3).Infof("Don't need to schedule ResourceBinding(%s/%s)", namespace, name)
 	return nil
 }
 
@@ -430,8 +425,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	if err != nil {
 		return err
 	}
-	appliedPlacement := util.GetLabelValue(crb.Annotations, util.PolicyPlacementAnnotation)
-	if policyPlacementStr != appliedPlacement {
+	if appliedPlacement := util.GetLabelValue(crb.Annotations, util.PolicyPlacementAnnotation); policyPlacementStr != appliedPlacement {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ClusterResourceBinding(%s) as placement changed", name)
 		err = s.scheduleClusterResourceBinding(crb)
@@ -445,17 +439,18 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	// TODO(dddddai): reschedule bindings on cluster change
-	if s.allClustersInReadyState(crb.Spec.Clusters) {
-		klog.Infof("Don't need to schedule ClusterResourceBinding(%s)", name)
-		return nil
-	}
-	if features.FeatureGate.Enabled(features.Failover) {
-		klog.Infof("Reschedule ClusterResourceBinding(%s) as cluster failure or deletion", name)
+	if crb.Spec.Replicas == 0 ||
+		policyPlacement.ReplicaScheduling == nil ||
+		policyPlacement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
+		// even if scheduling type is divided.
+		klog.V(3).Infof("Start to schedule ClusterResourceBinding(%s) as scheduling type is duplicated", name)
 		err = s.scheduleClusterResourceBinding(crb)
-		metrics.BindingSchedule(string(FailoverSchedule), utilmetrics.DurationInSeconds(start), err)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
+	// TODO(dddddai): reschedule bindings on cluster change
+	klog.Infof("Don't need to schedule ClusterResourceBinding(%s)", name)
 	return nil
 }
 
@@ -562,32 +557,6 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 
 	s.queue.AddRateLimited(key)
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
-}
-
-func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha2.TargetCluster) bool {
-	clusters := s.schedulerCache.Snapshot().GetClusters()
-	for i := range tcs {
-		isNoExisted := true
-		for _, c := range clusters {
-			if c.Cluster().Name != tcs[i].Name {
-				continue
-			}
-
-			isNoExisted = false
-			if meta.IsStatusConditionFalse(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady) ||
-				!c.Cluster().DeletionTimestamp.IsZero() {
-				return false
-			}
-
-			break
-		}
-
-		if isNoExisted {
-			// don't find the target cluster in snapshot because it might have been deleted
-			return false
-		}
-	}
-	return true
 }
 
 func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {

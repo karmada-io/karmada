@@ -4,7 +4,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -13,7 +12,6 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -195,48 +193,6 @@ func (s *Scheduler) addCluster(obj interface{}) {
 	}
 }
 
-// enqueueAffectedBinding will find all ResourceBindings which are related to the current NotReady cluster and add them in queue.
-func (s *Scheduler) enqueueAffectedBinding(notReadyClusterName string) {
-	bindings, _ := s.bindingLister.List(labels.Everything())
-	klog.Infof("Start traveling all ResourceBindings")
-	for _, binding := range bindings {
-		clusters := binding.Spec.Clusters
-		for _, bindingCluster := range clusters {
-			if bindingCluster.Name == notReadyClusterName {
-				rescheduleKey, err := cache.MetaNamespaceKeyFunc(binding)
-				if err != nil {
-					klog.Errorf("couldn't get rescheduleKey for ResourceBinding %#v: %v", bindingCluster.Name, err)
-					return
-				}
-				s.queue.Add(rescheduleKey)
-				metrics.CountSchedulerBindings(metrics.ClusterNotReady)
-				klog.Infof("Add expired ResourceBinding in queue successfully")
-			}
-		}
-	}
-}
-
-// enqueueAffectedClusterBinding will find all cluster resource bindings which are related to the current NotReady cluster and add them in queue.
-func (s *Scheduler) enqueueAffectedClusterBinding(notReadyClusterName string) {
-	bindings, _ := s.clusterBindingLister.List(labels.Everything())
-	klog.Infof("Start traveling all ClusterResourceBindings")
-	for _, binding := range bindings {
-		clusters := binding.Spec.Clusters
-		for _, bindingCluster := range clusters {
-			if bindingCluster.Name == notReadyClusterName {
-				rescheduleKey, err := cache.MetaNamespaceKeyFunc(binding)
-				if err != nil {
-					klog.Errorf("couldn't get rescheduleKey for ClusterResourceBinding %s: %v", bindingCluster.Name, err)
-					return
-				}
-				s.queue.Add(rescheduleKey)
-				metrics.CountSchedulerBindings(metrics.ClusterNotReady)
-				klog.Infof("Add expired ClusterResourceBinding in queue successfully")
-			}
-		}
-	}
-}
-
 func (s *Scheduler) updateCluster(_, newObj interface{}) {
 	newCluster, ok := newObj.(*clusterv1alpha1.Cluster)
 	if !ok {
@@ -247,17 +203,6 @@ func (s *Scheduler) updateCluster(_, newObj interface{}) {
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.Add(newCluster.Name)
-	}
-
-	// Check if cluster becomes failure
-	if meta.IsStatusConditionPresentAndEqual(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
-		klog.Infof("Found cluster(%s) failure and failover flag is %v", newCluster.Name, features.FeatureGate.Enabled(features.Failover))
-
-		if features.FeatureGate.Enabled(features.Failover) { // Trigger reschedule on cluster failure only when flag is true.
-			s.enqueueAffectedBinding(newCluster.Name)
-			s.enqueueAffectedClusterBinding(newCluster.Name)
-			return
-		}
 	}
 }
 
@@ -279,9 +224,6 @@ func (s *Scheduler) deleteCluster(obj interface{}) {
 	}
 
 	klog.V(3).Infof("Delete event for cluster %s", cluster.Name)
-
-	s.enqueueAffectedBinding(cluster.Name)
-	s.enqueueAffectedClusterBinding(cluster.Name)
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.Add(cluster.Name)

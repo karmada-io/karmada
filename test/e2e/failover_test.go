@@ -7,8 +7,8 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -17,7 +17,9 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	controllercluster "github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
@@ -56,6 +58,10 @@ var _ = framework.SerialDescribe("failover testing", func() {
 						MatchLabels: pushModeClusterLabels,
 					},
 				},
+				ClusterTolerations: []corev1.Toleration{
+					*helper.NewNotReadyToleration(2),
+					*helper.NewUnreachableToleration(2),
+				},
 				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 					{
 						SpreadByField: policyv1alpha1.SpreadByFieldCluster,
@@ -89,7 +95,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 
 						// wait for the current cluster status changing to false
 						framework.WaitClusterFitWith(controlPlaneClient, targetClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
-							return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
+							return helper.TaintExists(cluster.Spec.Taints, controllercluster.NotReadyTaintTemplate)
 						})
 						disabledClusters = append(disabledClusters, targetClusterName)
 						temp--
@@ -127,7 +133,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 						if err != nil {
 							return false, err
 						}
-						if meta.IsStatusConditionPresentAndEqual(currentCluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue) {
+						if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.NotReadyTaintTemplate) {
 							fmt.Printf("cluster %s recovered\n", disabledCluster)
 							return true, nil
 						}
