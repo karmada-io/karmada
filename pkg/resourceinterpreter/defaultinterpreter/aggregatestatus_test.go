@@ -714,3 +714,132 @@ func TestAggregatePVCStatus(t *testing.T) {
 		assert.Equal(t, tt.expectedObj, actualObj)
 	}
 }
+
+func TestAggregatePVStatus(t *testing.T) {
+	statusAvailableMap := map[string]interface{}{
+		"phase": corev1.VolumeAvailable,
+	}
+	// Available status
+	availableRaw1, _ := helper.BuildStatusRawExtension(statusAvailableMap)
+	availableRaw2, _ := helper.BuildStatusRawExtension(statusAvailableMap)
+
+	aggregatedStatusItems1 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: availableRaw1, Applied: true},
+		{ClusterName: "member2", Status: availableRaw2, Applied: true},
+	}
+
+	statusReleasedMap := map[string]interface{}{
+		"phase": corev1.VolumeReleased,
+	}
+	// Release status
+	releasedRaw1, _ := helper.BuildStatusRawExtension(statusReleasedMap)
+	releasedRaw2, _ := helper.BuildStatusRawExtension(statusReleasedMap)
+
+	aggregatedStatusItems2 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: releasedRaw1, Applied: true},
+		{ClusterName: "member2", Status: releasedRaw2, Applied: true},
+	}
+
+	statusBoundMap := map[string]interface{}{
+		"phase": corev1.VolumeBound,
+	}
+	// Bound status
+	boundRaw1, _ := helper.BuildStatusRawExtension(statusBoundMap)
+	boundRaw2, _ := helper.BuildStatusRawExtension(statusReleasedMap)
+
+	aggregatedStatusItems3 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: boundRaw1, Applied: true},
+		{ClusterName: "member2", Status: boundRaw2, Applied: true},
+	}
+
+	// Failed status
+	statusFailedMap := map[string]interface{}{
+		"phase": corev1.VolumeFailed,
+	}
+	failedRaw1, _ := helper.BuildStatusRawExtension(releasedRaw1)
+	failedRaw2, _ := helper.BuildStatusRawExtension(statusFailedMap)
+
+	aggregatedStatusItems4 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: failedRaw1, Applied: true},
+		{ClusterName: "member2", Status: failedRaw2, Applied: true},
+	}
+
+	// Pending status
+	statusPendingMap := map[string]interface{}{
+		"phase": corev1.VolumePending,
+	}
+	pendingRaw1, _ := helper.BuildStatusRawExtension(statusAvailableMap)
+	pendingRaw2, _ := helper.BuildStatusRawExtension(statusPendingMap)
+
+	aggregatedStatusItems5 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: pendingRaw1, Applied: true},
+		{ClusterName: "member2", Status: pendingRaw2, Applied: true},
+	}
+
+	// test aggregatePersistentVolumeStatus function
+	oldPVC := &corev1.PersistentVolume{}
+	oldObj, _ := helper.ToUnstructured(oldPVC)
+
+	availableNewPv := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeAvailable}}
+	newAvailablePvObj, _ := helper.ToUnstructured(availableNewPv)
+
+	boundNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeBound}}
+	newBoundPVObj, _ := helper.ToUnstructured(boundNewPV)
+
+	releaseNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeReleased}}
+	newReleasePVObj, _ := helper.ToUnstructured(releaseNewPV)
+
+	failedNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeFailed}}
+	newFailedPVObj, _ := helper.ToUnstructured(failedNewPV)
+
+	pendingNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumePending}}
+	newPendingPVObj, _ := helper.ToUnstructured(pendingNewPV)
+
+	tests := []struct {
+		name                  string
+		curObj                *unstructured.Unstructured
+		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
+		expectedObj           *unstructured.Unstructured
+	}{
+		{
+			name:                  "update pvc status1",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems1,
+			expectedObj:           newAvailablePvObj,
+		},
+		{
+			name:                  "update pvc status2",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems2,
+			expectedObj:           newReleasePVObj,
+		},
+		{
+			name:                  "update pvc status3",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems3,
+			expectedObj:           newBoundPVObj,
+		},
+		{
+			name:                  "update pvc status4",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems4,
+			expectedObj:           newFailedPVObj,
+		},
+		{
+			name:                  "update pvc status5",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems5,
+			expectedObj:           newPendingPVObj,
+		},
+		{
+			name:                  "ignore update pvc status as up to date",
+			curObj:                newAvailablePvObj,
+			aggregatedStatusItems: aggregatedStatusItems1,
+			expectedObj:           newAvailablePvObj,
+		},
+	}
+	for _, tt := range tests {
+		actualObj, _ := aggregatePersistentVolumeStatus(tt.curObj, tt.aggregatedStatusItems)
+		assert.Equal(t, tt.expectedObj, actualObj, tt.name)
+	}
+}
