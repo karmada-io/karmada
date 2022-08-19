@@ -22,6 +22,7 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/yaml"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/bootstraptoken/clusterinfo"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
@@ -98,9 +99,26 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 		klog.Exitln(err)
 	}
 
+	if err = createExtralResources(clientSet, dir); err != nil {
+		klog.Exitln(err)
+	}
+
+	return nil
+}
+
+func createExtralResources(clientSet *kubernetes.Clientset, dir string) error {
 	// grant proxy permission to "system:admin".
 	if err := grantProxyPermissionToAdmin(clientSet); err != nil {
 		return err
+	}
+
+	// Create the cluster-info ConfigMap with the associated RBAC rules
+	if err := clusterinfo.CreateBootstrapConfigMapIfNotExists(clientSet, filepath.Join(dir, options.KarmadaKubeConfigName)); err != nil {
+		return fmt.Errorf("error creating bootstrap ConfigMap: %v", err)
+	}
+
+	if err := clusterinfo.CreateClusterInfoRBACRules(clientSet); err != nil {
+		return fmt.Errorf("error creating clusterinfo RBAC rules: %v", err)
 	}
 
 	return nil
