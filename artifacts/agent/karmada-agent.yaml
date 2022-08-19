@@ -32,6 +32,7 @@ spec:
             - --cluster-status-update-frequency=10s
             - --bind-address=0.0.0.0
             - --secure-port=10357
+            - --feature-gates=CustomizedClusterResourceModeling=true
             - --v=4
           livenessProbe:
             httpGet:
