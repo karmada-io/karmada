@@ -159,6 +159,7 @@ func RunJoin(karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
 // JoinCluster join the cluster into karmada.
 func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts CommandJoinOption) (err error) {
 	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
+	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 	clusterKubeClient := kubeclient.NewForConfigOrDie(clusterConfig)
 
 	klog.V(1).Infof("joining cluster config. endpoint: %s", clusterConfig.Host)
@@ -179,6 +180,16 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 	if err != nil {
 		return err
 	}
+
+	ok, name, err := util.IsClusterIdentifyUnique(karmadaClient, id)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("the same cluster has been registered with name %s", name)
+	}
+
 	registerOption.ClusterID = id
 
 	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)

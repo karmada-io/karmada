@@ -130,6 +130,7 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 	}
 
 	mutate(clusterObj)
+
 	if cluster, err = createCluster(controlPlaneClient, clusterObj); err != nil {
 		klog.Warningf("failed to create cluster(%s). error: %v", clusterObj.Name, err)
 		return nil, err
@@ -179,4 +180,19 @@ func ObtainClusterID(clusterKubeClient *kubernetes.Clientset) (string, error) {
 		return "", err
 	}
 	return string(ns.UID), nil
+}
+
+// IsClusterIdentifyUnique checks whether the ClusterID exists in the karmada control plane.
+func IsClusterIdentifyUnique(controlPlaneClient karmadaclientset.Interface, id string) (bool, string, error) {
+	clusterList, err := controlPlaneClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return false, "", err
+	}
+
+	for _, cluster := range clusterList.Items {
+		if cluster.Spec.ID == id {
+			return false, cluster.Name, nil
+		}
+	}
+	return true, "", nil
 }

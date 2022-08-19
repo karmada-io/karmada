@@ -32,6 +32,11 @@ func withSyncMode(cluster *clusterv1alpha1.Cluster, syncMode clusterv1alpha1.Clu
 	return cluster
 }
 
+func withID(cluster *clusterv1alpha1.Cluster, id string) *clusterv1alpha1.Cluster {
+	cluster.Spec.ID = id
+	return cluster
+}
+
 func TestCreateOrUpdateClusterObject(t *testing.T) {
 	fakeClient := karmadaclientsetfake.NewSimpleClientset()
 	type args struct {
@@ -95,6 +100,55 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CreateOrUpdateClusterObject() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsClusterIDUnique(t *testing.T) {
+	tests := []struct {
+		name           string
+		existedCluster []*clusterv1alpha1.Cluster
+		id             string
+		want           bool
+		clustername    string
+	}{
+		{
+			name: "no cluster", id: "1", want: true,
+			existedCluster: []*clusterv1alpha1.Cluster{},
+		},
+		{
+			name: "existed id", id: "1", want: false, clustername: "cluster-1",
+			existedCluster: []*clusterv1alpha1.Cluster{withID(newCluster("cluster-1"), "1")},
+		},
+		{
+			name: "unique id", id: "2", want: true,
+			existedCluster: []*clusterv1alpha1.Cluster{withID(newCluster("cluster-1"), "1")},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeClient := karmadaclientsetfake.NewSimpleClientset()
+
+			for _, cluster := range tc.existedCluster {
+				_, err := fakeClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			ok, name, err := IsClusterIdentifyUnique(fakeClient, tc.id)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if ok != tc.want {
+				t.Errorf("expected value: %v, but got: %v", tc.want, ok)
+			}
+
+			if !ok && name != tc.clustername {
+				t.Errorf("expected clustername: %v, but got: %v", tc.clustername, name)
 			}
 		})
 	}

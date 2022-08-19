@@ -120,6 +120,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	}
 	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
 	controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
+	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	registerOption := util.ClusterRegisterOption{
 		ClusterNamespace:   opts.ClusterNamespace,
@@ -138,6 +139,16 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 	if err != nil {
 		return err
 	}
+
+	ok, name, err := util.IsClusterIdentifyUnique(karmadaClient, id)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("the same cluster has been registered with name %s", name)
+	}
+
 	registerOption.ClusterID = id
 
 	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)
