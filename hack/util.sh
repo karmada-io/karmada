@@ -209,6 +209,71 @@ function util::create_certkey {
 EOF
 }
 
+# util::generate_cert_secret: generate and render secrets storing the certificates and keys
+function util::generate_cert_secret {
+    local repo_root=${1:-}
+    local cert_dir=${2:-}
+    local root_ca_path=${3:-}
+    local debug=${4:-false}
+
+    local root_ca_key_path="${cert_dir}/ca.key"
+
+    local karmada_ca=$(base64 "${root_ca_path}" | tr -d '\r\n')
+    local karmada_ca_key=$(base64 "${root_ca_key_path}" | tr -d '\r\n')
+    local temp_path=$(mktemp -d)
+
+    local karmada_crt=$(base64 "${cert_dir}/karmada.crt" | tr -d '\r\n')
+    local karmada_key=$(base64 "${cert_dir}/karmada.key" | tr -d '\r\n')
+    local karmada_apiserver_crt=$(base64 "${cert_dir}/apiserver.crt" | tr -d '\r\n')
+    local karmada_apiserver_key=$(base64 "${cert_dir}/apiserver.key" | tr -d '\r\n')
+    local front_proxy_ca_crt=$(base64 "${cert_dir}/front-proxy-ca.crt" | tr -d '\r\n')
+    local front_proxy_client_crt=$(base64 "${cert_dir}/front-proxy-client.crt" | tr -d '\r\n')
+    local front_proxy_client_key=$(base64 "${cert_dir}/front-proxy-client.key" | tr -d '\r\n')
+    local etcd_ca_crt=$(base64 "${cert_dir}/etcd-ca.crt" | tr -d '\r\n')
+    local etcd_server_crt=$(base64 "${cert_dir}/etcd-server.crt" | tr -d '\r\n')
+    local etcd_server_key=$(base64 "${cert_dir}/etcd-server.key" | tr -d '\r\n')
+    local etcd_client_crt=$(base64 "${cert_dir}/etcd-client.crt" | tr -d '\r\n')
+    local etcd_client_key=$(base64 "${cert_dir}/etcd-client.key" | tr -d '\r\n')
+
+    cp -rf "${repo_root}"/artifacts/deploy/karmada-cert-secret.yaml "${temp_path}"/karmada-cert-secret-tmp.yaml
+    cp -rf "${repo_root}"/artifacts/deploy/secret.yaml "${temp_path}"/secret-tmp.yaml
+    cp -rf "${repo_root}"/artifacts/deploy/karmada-webhook-cert-secret.yaml "${temp_path}"/karmada-webhook-cert-secret-tmp.yaml
+
+    sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{ca_key}}/${karmada_ca_key}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{client_crt}}/${karmada_crt}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{client_key}}/${karmada_key}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{apiserver_crt}}/${karmada_apiserver_crt}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{apiserver_key}}/${karmada_apiserver_key}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+
+    sed -i'' -e "s/{{front_proxy_ca_crt}}/${front_proxy_ca_crt}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{front_proxy_client_crt}}/${front_proxy_client_crt}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{front_proxy_client_key}}/${front_proxy_client_key}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+
+    sed -i'' -e "s/{{etcd_ca_crt}}/${etcd_ca_crt}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{etcd_server_crt}}/${etcd_server_crt}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{etcd_server_key}}/${etcd_server_key}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{etcd_client_crt}}/${etcd_client_crt}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{etcd_client_key}}/${etcd_client_key}/g" "${temp_path}"/karmada-cert-secret-tmp.yaml
+
+    sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${temp_path}"/secret-tmp.yaml
+    sed -i'' -e "s/{{client_crt}}/${karmada_crt}/g" "${temp_path}"/secret-tmp.yaml
+    sed -i'' -e "s/{{client_key}}/${karmada_key}/g" "${temp_path}"/secret-tmp.yaml
+
+    sed -i'' -e "s/{{server_key}}/${karmada_key}/g" "${temp_path}"/karmada-webhook-cert-secret-tmp.yaml
+    sed -i'' -e "s/{{server_certificate}}/${karmada_crt}/g" "${temp_path}"/karmada-webhook-cert-secret-tmp.yaml
+
+    kubectl apply -f "${temp_path}"/karmada-cert-secret-tmp.yaml
+    kubectl apply -f "${temp_path}"/secret-tmp.yaml
+    kubectl apply -f "${temp_path}"/karmada-webhook-cert-secret-tmp.yaml
+
+    if [ "${debug}" = false ]; then
+      rm -rf "${temp_path}"
+    else
+      echo "[DEBUG] New rendered YAMLs in: ${temp_path}"
+    fi
+}
+
 # util::append_client_kubeconfig creates a new context including a cluster and a user to the existed kubeconfig file
 function util::append_client_kubeconfig {
     local kubeconfig_path=$1
