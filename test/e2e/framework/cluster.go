@@ -45,6 +45,17 @@ func ClusterNames() []string {
 	return clusterNames
 }
 
+// ClusterNamesWithSyncMode will return member clusters' names which matches the sync mode.
+func ClusterNamesWithSyncMode(mode clusterv1alpha1.ClusterSyncMode) []string {
+	res := make([]string, 0, len(clusterNames))
+	for _, cluster := range clusters {
+		if cluster.Spec.SyncMode == mode {
+			res = append(res, cluster.Name)
+		}
+	}
+	return res
+}
+
 // InitClusterInformation init the E2E test's cluster information.
 func InitClusterInformation(karmadaClient karmada.Interface, controlPlaneClient client.Client) {
 	var err error
