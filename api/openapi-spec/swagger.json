@@ -14057,16 +14057,22 @@
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.AllocatableModeling": {
       "description": "AllocatableModeling represents the number of nodes in which allocatable resources in a specific resource model grade. E.g. AllocatableModeling{Grade: 2, Count: 10} means 10 nodes belong to resource model in grade 2.",
       "type": "object",
+      "required": [
+        "grade",
+        "count"
+      ],
       "properties": {
         "count": {
           "description": "Count is the number of nodes that own the resources delineated by this modeling.",
           "type": "integer",
-          "format": "int32"
+          "format": "int32",
+          "default": 0
         },
         "grade": {
           "description": "Grade is the index of ResourceModel.",
           "type": "integer",
-          "format": "int32"
+          "format": "int32",
+          "default": 0
         }
       }
     },
@@ -14291,11 +14297,16 @@
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModel": {
       "description": "ResourceModel describes the modeling that you want to statistics.",
       "type": "object",
+      "required": [
+        "grade",
+        "ranges"
+      ],
       "properties": {
         "grade": {
           "description": "Grade is the index for the resource modeling.",
           "type": "integer",
-          "format": "int32"
+          "format": "int32",
+          "default": 0
         },
         "ranges": {
           "description": "Ranges describes the resource quota ranges.",
@@ -14310,6 +14321,11 @@
     "com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModelRange": {
       "description": "ResourceModelRange describes the detail of each modeling quota that ranges from min to max. Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive. E.g. in an interval, min = 2, max =10 is set, which means the interval [2,10). This rule ensure that all intervals have the same meaning. If the last interval is +∞, it is definitely unreachable. Therefore, we define the right interval as the open interval. For a valid interval, the value on the right is greater than the value on the left, in other words, max must be greater than min. It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.",
       "type": "object",
+      "required": [
+        "name",
+        "min",
+        "max"
+      ],
       "properties": {
         "max": {
           "description": "Max is the maximum amount of this resource represented by resource name. Special Instructions, for the last ResourceModelRange, which no matter what Max value you pass, the meaning is infinite. Because for the last item, any ResourceModelRange's quota larger than Min will be classified to the last one. Of course, the value of the Max field is always greater than the value of the Min field. It should be true in any case.",
@@ -14323,7 +14339,8 @@
         },
         "name": {
           "description": "Name is the name for the resource that you want to categorize.",
-          "type": "string"
+          "type": "string",
+          "default": ""
         }
       }
     },

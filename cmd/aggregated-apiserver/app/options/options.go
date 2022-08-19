@@ -25,6 +25,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/aggregatedapiserver"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	pkgfeatures "github.com/karmada-io/karmada/pkg/features"
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
@@ -66,6 +67,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	_ = utilfeature.DefaultMutableFeatureGate.Add(pkgfeatures.DefaultFeatureGates)
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
 	o.ProfileOpts.AddFlags(flags)
 }

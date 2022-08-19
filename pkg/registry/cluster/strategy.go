@@ -11,11 +11,13 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/names"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 	"github.com/karmada-io/karmada/pkg/apis/cluster/mutation"
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
+	"github.com/karmada-io/karmada/pkg/features"
 )
 
 // NewStrategy creates and returns a ClusterStrategy instance.
@@ -70,6 +72,10 @@ func (Strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 
 // PrepareForCreate is invoked on create before validation to normalize the object.
 func (Strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+	cluster := obj.(*clusterapis.Cluster)
+	if utilfeature.DefaultMutableFeatureGate.Enabled(features.CustomizedClusterResourceModeling) {
+		mutation.SetDefaultClusterResourceModels(cluster)
+	}
 }
 
 // PrepareForUpdate is invoked on update before validation to normalize the object.

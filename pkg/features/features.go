@@ -24,7 +24,8 @@ var (
 	// FeatureGate is a shared global FeatureGate.
 	FeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()
 
-	defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
+	// DefaultFeatureGates is the default feature gates of Karmada.
+	DefaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 		Failover:                          {Default: false, PreRelease: featuregate.Alpha},
 		GracefulEviction:                  {Default: false, PreRelease: featuregate.Alpha},
 		PropagateDeps:                     {Default: false, PreRelease: featuregate.Alpha},
@@ -33,5 +34,5 @@ var (
 )
 
 func init() {
-	runtime.Must(FeatureGate.Add(defaultFeatureGates))
+	runtime.Must(FeatureGate.Add(DefaultFeatureGates))
 }
