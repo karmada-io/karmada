@@ -188,11 +188,11 @@ type ClusterSpec struct {
 // ResourceModel describes the modeling that you want to statistics.
 type ResourceModel struct {
 	// Grade is the index for the resource modeling.
-	// +optional
-	Grade int
+	// +required
+	Grade uint
 
 	// Ranges describes the resource quota ranges.
-	// +optional
+	// +required
 	Ranges []ResourceModelRange
 }
 
@@ -206,13 +206,13 @@ type ResourceModel struct {
 // It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.
 type ResourceModelRange struct {
 	// Name is the name for the resource that you want to categorize.
-	// +optional
+	// +required
 	Name ResourceName
 
 	// Min is the minimum amount of this resource represented by resource name.
 	// Note: The Min value of first grade(usually 0) always acts as zero.
 	// E.g. [1,2) equal to [0,2).
-	// +optional
+	// +required
 	Min resource.Quantity
 
 	// Max is the maximum amount of this resource represented by resource name.
@@ -221,7 +221,7 @@ type ResourceModelRange struct {
 	// any ResourceModelRange's quota larger than Min will be classified to the last one.
 	// Of course, the value of the Max field is always greater than the value of the Min field.
 	// It should be true in any case.
-	// +optional
+	// +required
 	Max resource.Quantity
 }
 
@@ -345,11 +345,11 @@ type ResourceSummary struct {
 // E.g. AllocatableModeling{Grade: 2, Count: 10} means 10 nodes belong to resource model in grade 2.
 type AllocatableModeling struct {
 	// Grade is the index of ResourceModel.
-	// +optional
-	Grade int
+	// +required
+	Grade uint
 
 	// Count is the number of nodes that own the resources delineated by this modeling.
-	// +optional
+	// +required
 	Count int
 }
 

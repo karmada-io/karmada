@@ -200,12 +200,12 @@ type ClusterSpec struct {
 // ResourceModel describes the modeling that you want to statistics.
 type ResourceModel struct {
 	// Grade is the index for the resource modeling.
-	// +optional
-	Grade int `json:"grade,omitempty"`
+	// +required
+	Grade uint `json:"grade"`
 
 	// Ranges describes the resource quota ranges.
-	// +optional
-	Ranges []ResourceModelRange `json:"ranges,omitempty"`
+	// +required
+	Ranges []ResourceModelRange `json:"ranges"`
 }
 
 // ResourceModelRange describes the detail of each modeling quota that ranges from min to max.
@@ -218,14 +218,14 @@ type ResourceModel struct {
 // It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.
 type ResourceModelRange struct {
 	// Name is the name for the resource that you want to categorize.
-	// +optional
-	Name ResourceName `json:"name,omitempty"`
+	// +required
+	Name ResourceName `json:"name"`
 
 	// Min is the minimum amount of this resource represented by resource name.
 	// Note: The Min value of first grade(usually 0) always acts as zero.
 	// E.g. [1,2) equal to [0,2).
-	// +optional
-	Min resource.Quantity `json:"min,omitempty"`
+	// +required
+	Min resource.Quantity `json:"min"`
 
 	// Max is the maximum amount of this resource represented by resource name.
 	// Special Instructions, for the last ResourceModelRange, which no matter what Max value you pass,
@@ -233,8 +233,8 @@ type ResourceModelRange struct {
 	// any ResourceModelRange's quota larger than Min will be classified to the last one.
 	// Of course, the value of the Max field is always greater than the value of the Min field.
 	// It should be true in any case.
-	// +optional
-	Max resource.Quantity `json:"max,omitempty"`
+	// +required
+	Max resource.Quantity `json:"max"`
 }
 
 const (
@@ -354,12 +354,12 @@ type ResourceSummary struct {
 // E.g. AllocatableModeling{Grade: 2, Count: 10} means 10 nodes belong to resource model in grade 2.
 type AllocatableModeling struct {
 	// Grade is the index of ResourceModel.
-	// +optional
-	Grade int `json:"grade,omitempty"`
+	// +required
+	Grade uint `json:"grade"`
 
 	// Count is the number of nodes that own the resources delineated by this modeling.
-	// +optional
-	Count int `json:"count,omitempty"`
+	// +required
+	Count int `json:"count"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
