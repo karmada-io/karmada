@@ -83,7 +83,12 @@ func ConvertBindingSpecToHub(src *ResourceBindingSpec, dst *workv1alpha2.Resourc
 func ConvertBindingStatusToHub(src *ResourceBindingStatus, dst *workv1alpha2.ResourceBindingStatus) {
 	dst.Conditions = src.Conditions
 	for i := range src.AggregatedStatus {
-		dst.AggregatedStatus = append(dst.AggregatedStatus, workv1alpha2.AggregatedStatusItem(src.AggregatedStatus[i]))
+		dst.AggregatedStatus = append(dst.AggregatedStatus, workv1alpha2.AggregatedStatusItem{
+			ClusterName:    src.AggregatedStatus[i].ClusterName,
+			Status:         src.AggregatedStatus[i].Status,
+			Applied:        src.AggregatedStatus[i].Applied,
+			AppliedMessage: src.AggregatedStatus[i].AppliedMessage,
+		})
 	}
 }
 
@@ -110,6 +115,11 @@ func ConvertBindingSpecFromHub(src *workv1alpha2.ResourceBindingSpec, dst *Resou
 func ConvertBindingStatusFromHub(src *workv1alpha2.ResourceBindingStatus, dst *ResourceBindingStatus) {
 	dst.Conditions = src.Conditions
 	for i := range src.AggregatedStatus {
-		dst.AggregatedStatus = append(dst.AggregatedStatus, AggregatedStatusItem(src.AggregatedStatus[i]))
+		dst.AggregatedStatus = append(dst.AggregatedStatus, AggregatedStatusItem{
+			ClusterName:    src.AggregatedStatus[i].ClusterName,
+			Status:         src.AggregatedStatus[i].Status,
+			Applied:        src.AggregatedStatus[i].Applied,
+			AppliedMessage: src.AggregatedStatus[i].AppliedMessage,
+		})
 	}
 }

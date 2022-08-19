@@ -145,6 +145,15 @@ spec:
                   description: ManifestStatus contains running status of a specific
                     manifest in spec.
                   properties:
+                    health:
+                      description: Health represents the healthy state of the current
+                        resource. There maybe different rules for different resources
+                        to achieve health status.
+                      enum:
+                      - Healthy
+                      - Unhealthy
+                      - Unknown
+                      type: string
                     identifier:
                       description: Identifier represents the identity of a resource
                         linking to manifests in spec.

@@ -3638,6 +3638,13 @@ func schema_pkg_apis_work_v1alpha1_ManifestStatus(ref common.ReferenceCallback) 
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 						},
 					},
+					"health": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Health represents the healthy state of the current resource. There maybe different rules for different resources to achieve health status.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"identifier"},
 			},
@@ -4225,6 +4232,13 @@ func schema_pkg_apis_work_v1alpha2_AggregatedStatusItem(ref common.ReferenceCall
 					"appliedMessage": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AppliedMessage is a human readable message indicating details about the applied status. This is usually holds the error message in case of apply failed.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"health": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Health represents the healthy state of the current resource. There maybe different rules for different resources to achieve health status.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
