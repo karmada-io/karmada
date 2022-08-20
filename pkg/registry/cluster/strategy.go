@@ -74,12 +74,22 @@ func (Strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 func (Strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 	cluster := obj.(*clusterapis.Cluster)
 	if utilfeature.DefaultMutableFeatureGate.Enabled(features.CustomizedClusterResourceModeling) {
-		mutation.SetDefaultClusterResourceModels(cluster)
+		if len(cluster.Spec.ResourceModels) == 0 {
+			mutation.SetDefaultClusterResourceModels(cluster)
+		} else {
+			mutation.StandardizeClusterResourceModels(cluster.Spec.ResourceModels)
+		}
 	}
 }
 
 // PrepareForUpdate is invoked on update before validation to normalize the object.
 func (Strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+	cluster := obj.(*clusterapis.Cluster)
+	if utilfeature.DefaultMutableFeatureGate.Enabled(features.CustomizedClusterResourceModeling) {
+		if len(cluster.Spec.ResourceModels) != 0 {
+			mutation.StandardizeClusterResourceModels(cluster.Spec.ResourceModels)
+		}
+	}
 }
 
 // Validate returns an ErrorList with validation errors or nil.
