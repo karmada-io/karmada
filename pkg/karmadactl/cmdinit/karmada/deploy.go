@@ -22,6 +22,7 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/yaml"
 
+	bootstrapagent "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/bootstraptoken/agent"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/bootstraptoken/clusterinfo"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
@@ -119,6 +120,23 @@ func createExtralResources(clientSet *kubernetes.Clientset, dir string) error {
 
 	if err := clusterinfo.CreateClusterInfoRBACRules(clientSet); err != nil {
 		return fmt.Errorf("error creating clusterinfo RBAC rules: %v", err)
+	}
+
+	// grant limited access permission to 'karmada-agent'
+	if err := grantAccessPermissionToAgent(clientSet); err != nil {
+		return err
+	}
+
+	if err := bootstrapagent.AllowBootstrapTokensToPostCSRs(clientSet); err != nil {
+		return err
+	}
+
+	if err := bootstrapagent.AutoApproveKarmadaAgentBootstrapTokens(clientSet); err != nil {
+		return err
+	}
+
+	if err := bootstrapagent.AutoApproveAgentCertificateRotation(clientSet); err != nil {
+		return err
 	}
 
 	return nil
