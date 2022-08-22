@@ -206,6 +206,7 @@ type ResourceModel struct {
 // It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.
 type ResourceModelRange struct {
 	// Name is the name for the resource that you want to categorize.
+	// +kubebuilder:validation:Enum=ResourceCPU;ResourceMemory;ResourceStorage;ResourceEphemeralStorage
 	// +required
 	Name ResourceName
 
