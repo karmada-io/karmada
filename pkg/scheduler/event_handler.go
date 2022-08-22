@@ -187,22 +187,83 @@ func (s *Scheduler) addCluster(obj interface{}) {
 		return
 	}
 	klog.V(3).Infof("Add event for cluster %s", cluster.Name)
-
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.Add(cluster.Name)
 	}
 }
 
-func (s *Scheduler) updateCluster(_, newObj interface{}) {
+func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 	newCluster, ok := newObj.(*clusterv1alpha1.Cluster)
 	if !ok {
 		klog.Errorf("cannot convert newObj to Cluster: %v", newObj)
+		return
+	}
+	oldCluster, ok := oldObj.(*clusterv1alpha1.Cluster)
+	if !ok {
+		klog.Errorf("cannot convert oldObj to Cluster: %v", newObj)
 		return
 	}
 	klog.V(3).Infof("Update event for cluster %s", newCluster.Name)
 
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.Add(newCluster.Name)
+	}
+
+	switch {
+	case !equality.Semantic.DeepEqual(oldCluster.Labels, newCluster.Labels):
+		fallthrough
+	case !equality.Semantic.DeepEqual(oldCluster.Spec, newCluster.Spec):
+		s.enqueueAffectedPolicy(newCluster)
+		s.enqueueAffectedClusterPolicy(newCluster)
+	}
+}
+
+// enqueueAffectedPolicy find all propagation policies related to the cluster and reschedule the RBs
+func (s *Scheduler) enqueueAffectedPolicy(newCluster *clusterv1alpha1.Cluster) {
+	policies, _ := s.policyLister.List(labels.Everything())
+	for _, policy := range policies {
+		selector := labels.SelectorFromSet(labels.Set{
+			policyv1alpha1.PropagationPolicyNamespaceLabel: policy.Namespace,
+			policyv1alpha1.PropagationPolicyNameLabel:      policy.Name,
+		})
+		affinity := policy.Spec.Placement.ClusterAffinity
+		switch {
+		case affinity == nil:
+			// If no clusters specified, add it in queue
+			fallthrough
+		case util.ClusterMatches(newCluster, *affinity):
+			// If specific cluster matches the affinity. add it in queue
+			err := s.requeueResourceBindings(selector)
+			if err != nil {
+				klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
+			}
+		}
+	}
+}
+
+// enqueueAffectedClusterPolicy find all cluster propagation policies related to the cluster and reschedule the RBs/CRBs
+func (s *Scheduler) enqueueAffectedClusterPolicy(newCluster *clusterv1alpha1.Cluster) {
+	clusterPolicies, _ := s.clusterPolicyLister.List(labels.Everything())
+	for _, policy := range clusterPolicies {
+		selector := labels.SelectorFromSet(labels.Set{
+			policyv1alpha1.ClusterPropagationPolicyLabel: policy.Name,
+		})
+		affinity := policy.Spec.Placement.ClusterAffinity
+		switch {
+		case affinity == nil:
+			// If no clusters specified, add it in queue
+			fallthrough
+		case util.ClusterMatches(newCluster, *affinity):
+			// If specific cluster matches the affinity. add it in queue
+			err := s.requeueClusterResourceBindings(selector)
+			if err != nil {
+				klog.Errorf("Failed to requeue ClusterResourceBinding, error: %v", err)
+			}
+			err = s.requeueResourceBindings(selector)
+			if err != nil {
+				klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
+			}
+		}
 	}
 }
 
