@@ -29,6 +29,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = aggregateDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = aggregateStatefulSetStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = aggregatePodStatus
+	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeKind)] = aggregatePersistentVolumeStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = aggregatePersistentVolumeClaimStatus
 	return s
 }
@@ -362,6 +363,59 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 
 	pod.Status = *newStatus
 	return helper.ToUnstructured(pod)
+}
+
+func aggregatePersistentVolumeStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	pv := &corev1.PersistentVolume{}
+	err := helper.ConvertToTypedObject(object, pv)
+	if err != nil {
+		return nil, err
+	}
+
+	newStatus := &corev1.PersistentVolumeStatus{}
+	volumePhases := sets.NewString()
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			// maybe volume's status hasn't been collected yet, assume it's in pending state.
+			// Otherwise, it may affect the final aggregated state.
+			volumePhases.Insert(string(corev1.VolumePending))
+			continue
+		}
+
+		temp := &corev1.PersistentVolumeStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab persistentVolume(%s/%s) status from cluster(%s), phase: %s",
+			pv.Namespace, pv.Name, item.ClusterName, temp.Phase)
+
+		volumePhases.Insert(string(temp.Phase))
+	}
+
+	// Check final phase in order: VolumeFailed-->VolumePending-->VolumeAvailable-->VolumeBound-->VolumeReleased
+	// More details please refer to: https://github.com/karmada-io/karmada/issues/2394
+	switch {
+	case volumePhases.Has(string(corev1.VolumeFailed)):
+		newStatus.Phase = corev1.VolumeFailed
+	case volumePhases.Has(string(corev1.VolumePending)):
+		newStatus.Phase = corev1.VolumePending
+	case volumePhases.Has(string(corev1.VolumeAvailable)):
+		newStatus.Phase = corev1.VolumeAvailable
+	case volumePhases.Has(string(corev1.VolumeBound)):
+		newStatus.Phase = corev1.VolumeBound
+	case volumePhases.Has(string(corev1.VolumeReleased)):
+		newStatus.Phase = corev1.VolumeReleased
+	default:
+		klog.Errorf("SHOULD-NEVER-HAPPEN, maybe volume added a new state that Karmada don't know about.")
+	}
+
+	if reflect.DeepEqual(pv.Status, *newStatus) {
+		klog.V(3).Infof("ignore update persistentVolume(%s/%s) status as up to date", pv.Namespace, pv.Name)
+		return object, nil
+	}
+
+	pv.Status = *newStatus
+	return helper.ToUnstructured(pv)
 }
 
 func aggregatePersistentVolumeClaimStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {

@@ -96,6 +96,8 @@ const (
 	EndpointSliceKind = "EndpointSlice"
 	// PersistentVolumeClaimKind indicated the target resource is a persistentvolumeclaim
 	PersistentVolumeClaimKind = "PersistentVolumeClaim"
+	// PersistentVolumeKind indicates the target resource is a persistentvolume
+	PersistentVolumeKind = "PersistentVolume"
 	// HorizontalPodAutoscalerKind indicated the target resource is a horizontalpodautoscaler
 	HorizontalPodAutoscalerKind = "HorizontalPodAutoscaler"
 

@@ -3,11 +3,14 @@ package binding
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
@@ -21,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -30,6 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 // ClusterResourceBindingControllerName is the controller name that will be used when reporting events.
@@ -131,6 +136,11 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
 	}
 
+	err = c.updateResourceStatus(binding)
+	if err != nil {
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
 	return controllerruntime.Result{}, nil
 }
 
@@ -149,6 +159,44 @@ func (c *ClusterResourceBindingController) removeOrphanWorks(binding *workv1alph
 		return err
 	}
 
+	return nil
+}
+
+// updateResourceStatus will try to calculate the summary status and update to original object
+// that the ResourceBinding refer to.
+func (c *ClusterResourceBindingController) updateResourceStatus(binding *workv1alpha2.ClusterResourceBinding) error {
+	resource := binding.Spec.Resource
+	gvr, err := restmapper.GetGroupVersionResource(
+		c.RESTMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind),
+	)
+	if err != nil {
+		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resource.APIVersion, resource.Kind, err)
+		return err
+	}
+	obj, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, resource)
+	if err != nil {
+		klog.Errorf("Failed to get resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+
+	if !c.ResourceInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationAggregateStatus) {
+		return nil
+	}
+	newObj, err := c.ResourceInterpreter.AggregateStatus(obj, binding.Status.AggregatedStatus)
+	if err != nil {
+		klog.Errorf("AggregateStatus for resource(%s/%s/%s) failed: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+	if reflect.DeepEqual(obj, newObj) {
+		klog.V(3).Infof("ignore update resource(%s/%s/%s) status as up to date", resource.Kind, resource.Namespace, resource.Name)
+		return nil
+	}
+
+	if _, err = c.DynamicClient.Resource(gvr).Namespace(resource.Namespace).UpdateStatus(context.TODO(), newObj, metav1.UpdateOptions{}); err != nil {
+		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+	klog.V(3).Infof("update resource status successfully for resource(%s/%s/%s)", resource.Kind, resource.Namespace, resource.Name)
 	return nil
 }
 
