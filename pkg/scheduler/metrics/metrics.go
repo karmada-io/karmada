@@ -26,8 +26,6 @@ const (
 	ScheduleAttemptFailure = "ScheduleAttemptFailure"
 	// PolicyChanged means binding needs to be rescheduled for the policy changed
 	PolicyChanged = "PolicyChanged"
-	// ClusterNotReady means binding needs to be rescheduled for cluster is not ready
-	ClusterNotReady = "ClusterNotReady"
 )
 
 const (
