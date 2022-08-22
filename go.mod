@@ -6,6 +6,7 @@ require (
 	github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
 	github.com/evanphx/json-patch/v5 v5.6.0
 	github.com/gogo/protobuf v1.3.2
+	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.1.2
 	github.com/kr/pretty v0.3.0
 	github.com/olekukonko/tablewriter v0.0.4
@@ -79,7 +80,6 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect

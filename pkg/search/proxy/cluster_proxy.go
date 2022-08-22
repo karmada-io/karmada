@@ -10,22 +10,28 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/proxy"
 )
 
 // clusterProxy proxy to member clusters
 type clusterProxy struct {
-	secretLister listcorev1.SecretLister
+	clusterLister clusterlisters.ClusterLister
+	secretLister  listcorev1.SecretLister
 }
 
-func newClusterProxy(secretLister listcorev1.SecretLister) *clusterProxy {
+func newClusterProxy(clusterLister clusterlisters.ClusterLister, secretLister listcorev1.SecretLister) *clusterProxy {
 	return &clusterProxy{
-		secretLister: secretLister,
+		clusterLister: clusterLister,
+		secretLister:  secretLister,
 	}
 }
 
-func (c *clusterProxy) connect(ctx context.Context, cluster *v1alpha1.Cluster, proxyPath string, responder rest.Responder) (http.Handler, error) {
+func (c *clusterProxy) connect(ctx context.Context, clusterName string, proxyPath string, responder rest.Responder) (http.Handler, error) {
+	cluster, err := c.clusterLister.Get(clusterName)
+	if err != nil {
+		return nil, err
+	}
 	location, transport, err := proxy.Location(cluster.Name, cluster.Spec.APIEndpoint, cluster.Spec.ProxyURL)
 	if err != nil {
 		return nil, err
