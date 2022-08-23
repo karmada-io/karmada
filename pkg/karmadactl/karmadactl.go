@@ -68,6 +68,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				NewCmdJoin(karmadaConfig, parentCommand),
 				NewCmdUnjoin(karmadaConfig, parentCommand),
 				NewCmdToken(karmadaConfig, parentCommand, ioStreams),
+				NewCmdRegister(parentCommand),
 			},
 		},
 		{
