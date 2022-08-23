@@ -1299,6 +1299,7 @@ k8s.io/client-go/util/workqueue
 ## explicit; go 1.16
 k8s.io/cluster-bootstrap/token/api
 k8s.io/cluster-bootstrap/token/util
+k8s.io/cluster-bootstrap/util/secrets
 # k8s.io/code-generator v0.24.2
 ## explicit; go 1.16
 k8s.io/code-generator
