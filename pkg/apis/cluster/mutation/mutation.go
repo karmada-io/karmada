@@ -2,6 +2,7 @@ package mutation
 
 import (
 	"math"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -30,11 +31,29 @@ func MutateClusterTaints(taints []corev1.Taint) {
 	}
 }
 
-// SetDefaultClusterResourceModels set default cluster resource models for cluster.
-func SetDefaultClusterResourceModels(cluster *clusterapis.Cluster) {
-	if cluster.Spec.ResourceModels != nil {
+// StandardizeClusterResourceModels set cluster resource models for given order and boundary value.
+func StandardizeClusterResourceModels(models []clusterapis.ResourceModel) {
+	if len(models) == 0 {
 		return
 	}
+
+	sort.Slice(models, func(i, j int) bool {
+		return models[i].Grade < models[j].Grade
+	})
+
+	// The Min value of the first grade(usually 0) always acts as zero.
+	for index := range models[0].Ranges {
+		models[0].Ranges[index].Min.Set(0)
+	}
+
+	// The Max value of the last grade always acts as MaxInt64.
+	for index := range models[len(models)-1].Ranges {
+		models[len(models)-1].Ranges[index].Max.Set(math.MaxInt64)
+	}
+}
+
+// SetDefaultClusterResourceModels set default cluster resource models for cluster.
+func SetDefaultClusterResourceModels(cluster *clusterapis.Cluster) {
 	cluster.Spec.ResourceModels = []clusterapis.ResourceModel{
 		{
 			Grade: 0,

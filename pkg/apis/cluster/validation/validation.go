@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
@@ -34,7 +35,10 @@ func ValidateClusterName(name string) []string {
 	return kubevalidation.IsDNS1123Label(name)
 }
 
-var supportedSyncModes = sets.NewString(string(api.Pull), string(api.Push))
+var (
+	supportedSyncModes     = sets.NewString(string(api.Pull), string(api.Push))
+	supportedResourceNames = sets.NewString(string(api.ResourceCPU), string(api.ResourceMemory), string(api.ResourceStorage), string(api.ResourceEphemeralStorage))
+)
 
 // ValidateCluster tests if required fields in the Cluster are set.
 func ValidateCluster(cluster *api.Cluster) field.ErrorList {
@@ -90,6 +94,12 @@ func ValidateClusterSpec(spec *api.ClusterSpec, fldPath *field.Path) field.Error
 		allErrs = append(allErrs, lifted.ValidateClusterTaints(spec.Taints, fldPath.Child("taints"))...)
 	}
 
+	if len(spec.ResourceModels) > 0 {
+		if err := ValidateClusterResourceModels(fldPath.Child("resourceModels"), spec.ResourceModels); err != nil {
+			allErrs = append(allErrs, err)
+		}
+	}
+
 	return allErrs
 }
 
@@ -132,4 +142,42 @@ func ValidateClusterProxyURL(fldPath *field.Path, proxyURL string) field.ErrorLi
 		}
 	}
 	return allErrs
+}
+
+// ValidateClusterResourceModels validates cluster's resource models.
+func ValidateClusterResourceModels(fldPath *field.Path, models []api.ResourceModel) *field.Error {
+	for i, resourceModel := range models {
+		if i != 0 && resourceModel.Grade == models[i-1].Grade {
+			return field.Invalid(fldPath, models, "The grade of each models should not be the same")
+		}
+
+		if i != 0 && len(models[i-1].Ranges) != len(resourceModel.Ranges) {
+			return field.Invalid(fldPath, models, "The number of resource types should be the same")
+		}
+
+		for j, resourceModelRange := range resourceModel.Ranges {
+			if !supportedResourceNames.Has(string(resourceModelRange.Name)) {
+				return field.NotSupported(fldPath.Child("ranges").Child("name"), resourceModelRange.Name, supportedResourceNames.List())
+			}
+			if resourceModelRange.Max.Cmp(resourceModelRange.Min) <= 0 {
+				return field.Invalid(fldPath, models, "The max value of each resource must be greater than the min value")
+			}
+			if i == 0 {
+				if !resourceModelRange.Min.IsZero() {
+					return field.Invalid(fldPath, models, "The min value of each resource in the first model should be 0")
+				}
+			} else if models[i-1].Ranges[j].Name != resourceModelRange.Name {
+				return field.Invalid(fldPath, models, "The resource types of each models should be the same")
+			} else if models[i-1].Ranges[j].Max != resourceModelRange.Min {
+				return field.Invalid(fldPath, models, "Model intervals for resources must be contiguous and non-overlapping")
+			}
+
+			if i == len(models)-1 {
+				if resourceModelRange.Max.Value() != math.MaxInt64 {
+					return field.Invalid(fldPath, models, "The max value of each resource in the last model should be MaxInt64")
+				}
+			}
+		}
+	}
+	return nil
 }
