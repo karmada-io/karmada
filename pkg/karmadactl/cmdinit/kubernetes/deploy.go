@@ -471,12 +471,18 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 		return err
 	}
 
+	// Create bootstarp token in karmada
+	registerCommand, err := karmada.InitKarmadaBootstrapToken(i.KarmadaDataPath)
+	if err != nil {
+		return err
+	}
+
 	// install karmada Component
 	if err := i.initKarmadaComponent(); err != nil {
 		return err
 	}
 
-	utils.GenExamples(i.KarmadaDataPath, parentCommand)
+	utils.GenExamples(i.KarmadaDataPath, parentCommand, registerCommand)
 	return nil
 }
 
