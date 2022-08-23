@@ -145,7 +145,7 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 		return err
 	}
 
-	if !ok {
+	if !ok && opts.ClusterName != name {
 		return fmt.Errorf("the same cluster has been registered with name %s", name)
 	}
 
