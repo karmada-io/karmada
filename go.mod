@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
+	github.com/emirpasic/gods v1.18.1
 	github.com/evanphx/json-patch/v5 v5.6.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.5.6
