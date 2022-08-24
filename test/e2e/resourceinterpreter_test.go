@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -184,6 +185,45 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation InterpretStatus testing", func() {
+		ginkgo.It("InterpretStatus testing", func() {
+			for _, cluster := range framework.ClusterNames() {
+				clusterDynamicClient := framework.GetClusterDynamicClient(cluster)
+				gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
+
+				memberWorkload := framework.GetWorkload(clusterDynamicClient, workloadNamespace, workloadName)
+				memberWorkload.Status.ReadyReplicas = *workload.Spec.Replicas
+				framework.UpdateWorkload(clusterDynamicClient, memberWorkload, cluster, "status")
+
+				workName := names.GenerateWorkName(workload.Kind, workload.Name, workload.Namespace)
+				workNamespace, err := names.GenerateExecutionSpaceName(cluster)
+				gomega.Expect(err).Should(gomega.BeNil())
+
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+					work, err := karmadaClient.WorkV1alpha1().Works(workNamespace).Get(context.TODO(), workName, metav1.GetOptions{})
+					g.Expect(err).NotTo(gomega.HaveOccurred())
+					if len(work.Status.ManifestStatuses) == 0 || work.Status.ManifestStatuses[0].Status == nil {
+						return false, nil
+					}
+
+					var observedStatus workloadv1alpha1.WorkloadStatus
+					err = json.Unmarshal(work.Status.ManifestStatuses[0].Status.Raw, &observedStatus)
+					g.Expect(err).NotTo(gomega.HaveOccurred())
+
+					klog.Infof("work(%s/%s) readyReplicas: %d, want: %d", workNamespace, workName, observedStatus.ReadyReplicas, *workload.Spec.Replicas)
+
+					// not collect status.conditions in webhook
+					klog.Infof("work(%s/%s) length of conditions: %v, want: %v", workNamespace, workName, len(observedStatus.Conditions), 0)
+
+					if observedStatus.ReadyReplicas == *workload.Spec.Replicas && len(observedStatus.Conditions) == 0 {
+						return true, nil
+					}
+					return false, nil
+				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+			}
 		})
 	})
 })

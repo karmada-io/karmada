@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
@@ -44,6 +45,8 @@ func (e *workloadInterpreter) Handle(ctx context.Context, req interpreter.Reques
 		return e.responseWithExploreAggregateStatus(workload, req)
 	case configv1alpha1.InterpreterOperationInterpretHealth:
 		return e.responseWithExploreInterpretHealth(workload)
+	case configv1alpha1.InterpreterOperationInterpretStatus:
+		return e.responseWithExploreInterpretStatus(workload)
 	default:
 		return interpreter.Errored(http.StatusBadRequest, fmt.Errorf("wrong request operation type: %s", req.Operation))
 	}
@@ -121,5 +124,23 @@ func (e *workloadInterpreter) responseWithExploreInterpretHealth(workload *workl
 
 	res := interpreter.Succeeded("")
 	res.Healthy = healthy
+	return res
+}
+
+func (e *workloadInterpreter) responseWithExploreInterpretStatus(workload *workloadv1alpha1.Workload) interpreter.Response {
+	status := workloadv1alpha1.WorkloadStatus{
+		ReadyReplicas: workload.Status.ReadyReplicas,
+	}
+
+	marshaledBytes, err := json.Marshal(status)
+	if err != nil {
+		return interpreter.Errored(http.StatusInternalServerError, err)
+	}
+
+	res := interpreter.Succeeded("")
+	res.RawStatus = &runtime.RawExtension{
+		Raw:    marshaledBytes,
+	}
+
 	return res
 }

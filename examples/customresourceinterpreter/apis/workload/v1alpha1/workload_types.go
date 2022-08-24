@@ -44,4 +44,8 @@ type WorkloadStatus struct {
 	// ReadyReplicas represents the total number of ready pods targeted by this Workload.
 	// +optional
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	// Conditions is an array of current cluster conditions.
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
