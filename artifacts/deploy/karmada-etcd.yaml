@@ -39,7 +39,7 @@ spec:
               command:
                 - /bin/sh
                 - -ec
-                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/kubernetes/pki/etcd/server-ca.crt --cert /etc/kubernetes/pki/etcd/karmada.crt --key /etc/kubernetes/pki/etcd/karmada.key'
+                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/karmada/pki/etcd-ca.crt --cert /etc/karmada/pki/etcd-server.crt --key /etc/karmada/pki/etcd-server.key'
             failureThreshold: 3
             initialDelaySeconds: 600
             periodSeconds: 60
