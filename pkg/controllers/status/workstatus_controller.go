@@ -294,6 +294,18 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		return nil
 	}
 
+	var resourceHealth workv1alpha1.ResourceHealth
+	// When an unregistered resource kind is requested with the ResourceInterpreter,
+	// the interpreter will return an error, we treat its health status as Unknown.
+	healthy, err := c.ResourceInterpreter.InterpretHealth(clusterObj)
+	if err != nil {
+		resourceHealth = workv1alpha1.ResourceUnknown
+	} else if healthy {
+		resourceHealth = workv1alpha1.ResourceHealthy
+	} else {
+		resourceHealth = workv1alpha1.ResourceUnhealthy
+	}
+
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)
 	if err != nil {
 		return err
@@ -302,6 +314,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	manifestStatus := workv1alpha1.ManifestStatus{
 		Identifier: *identifier,
 		Status:     statusRaw,
+		Health:     resourceHealth,
 	}
 
 	workCopy := work.DeepCopy()

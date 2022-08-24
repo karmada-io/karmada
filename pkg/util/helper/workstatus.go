@@ -167,6 +167,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 				ClusterName:    clusterName,
 				Applied:        applied,
 				AppliedMessage: appliedMsg,
+				Health:         workv1alpha2.ResourceUnknown,
 			}
 			statuses = append(statuses, aggregatedStatus)
 			continue
@@ -176,6 +177,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 		aggregatedStatus := workv1alpha2.AggregatedStatusItem{
 			ClusterName: clusterName,
 			Applied:     applied,
+			Health:      workv1alpha2.ResourceUnknown,
 		}
 
 		for _, manifestStatus := range work.Status.ManifestStatuses {
@@ -185,6 +187,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 			}
 			if equal {
 				aggregatedStatus.Status = manifestStatus.Status
+				aggregatedStatus.Health = workv1alpha2.ResourceHealth(manifestStatus.Health)
 				break
 			}
 		}

@@ -63,7 +63,9 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 	case configv1alpha1.InterpreterOperationInterpretStatus:
 		return true
 	case configv1alpha1.InterpreterOperationInterpretHealth:
-		return true
+		if _, exist := e.healthHandlers[kind]; exist {
+			return true
+		}
 		// TODO(RainbowMango): more cases should be added here
 	}
 
