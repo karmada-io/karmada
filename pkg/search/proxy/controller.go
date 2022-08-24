@@ -66,7 +66,7 @@ func NewController(restConfig *restclient.Config, restMapper meta.RESTMapper,
 
 	ctl.store = s
 	ctl.cacheProxy = newCacheProxy(s, restMapper, minRequestTimeout)
-	ctl.clusterProxy = newClusterProxy(ctl.clusterLister, ctl.secretLister)
+	ctl.clusterProxy = newClusterProxy(s, ctl.clusterLister, ctl.secretLister)
 	ctl.karmadaProxy = kp
 
 	workerOptions := util.Options{
@@ -201,11 +201,7 @@ func (ctl *Controller) connect(ctx context.Context, requestInfo *request.Request
 	// - writing resources.
 	// - or subresource requests, e.g. `pods/log`
 	// We firstly find the resource from cache, and get the located cluster. Then redirect the request to the cluster.
-	_, clusterName, err := ctl.store.GetResourceFromCache(ctx, gvr, requestInfo.Namespace, requestInfo.Name)
-	if err != nil {
-		return nil, err
-	}
-	return ctl.clusterProxy.connect(ctx, clusterName, path, responder)
+	return ctl.clusterProxy.connect(ctx, requestInfo, gvr, path, responder)
 }
 
 // TODO: reuse with karmada/pkg/util/membercluster_client.go
