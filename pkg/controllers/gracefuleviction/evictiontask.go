@@ -45,14 +45,42 @@ func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
 }
 
 func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOption) *workv1alpha2.GracefulEvictionTask {
-	// TODO(): gradually evict replica as per observed status.
-
 	// task exceeds timeout
 	if metav1.Now().After(task.CreationTimestamp.Add(opt.timeout)) {
 		return nil
 	}
 
+	if allScheduledResourceInHealthyState(opt) {
+		return nil
+	}
+
 	return &task
+}
+
+func allScheduledResourceInHealthyState(opt assessmentOption) bool {
+	for _, targetCluster := range opt.scheduleResult {
+		var statusItem *workv1alpha2.AggregatedStatusItem
+
+		// find the observed status of targetCluster
+		for index, aggregatedStatus := range opt.observedStatus {
+			if aggregatedStatus.ClusterName == targetCluster.Name {
+				statusItem = &opt.observedStatus[index]
+				break
+			}
+		}
+
+		// no observed status found, maybe the resource hasn't been applied
+		if statusItem == nil {
+			return false
+		}
+
+		// resource not in healthy state
+		if statusItem.Health != workv1alpha2.ResourceHealthy {
+			return false
+		}
+	}
+
+	return true
 }
 
 func nextRetry(tasks []workv1alpha2.GracefulEvictionTask, timeout time.Duration, timeNow time.Time) time.Duration {
