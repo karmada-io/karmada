@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Usage Instructions: https://github.com/karmada-io/karmada/blob/master/docs/contributors/devel/cherry-picks.md
+# Usage Instructions: https://karmada.io/docs/contributor/cherry-picks
 
 # Checkout a PR from GitHub. (Yes, this is sitting in a Git tree. How
 # meta.) Assumes you care about pulls from remote "upstream" and
@@ -64,7 +64,7 @@ if [[ "$#" -lt 2 ]]; then
   echo "  Set UPSTREAM_REMOTE (default: upstream) and FORK_REMOTE (default: origin)"
   echo "  to override the default remote names to what you have locally."
   echo
-  echo "  For merge process info, see https://github.com/karmada-io/karmada/blob/master/docs/contributors/devel/cherry-picks.md"
+  echo "  For merge process info, see https://karmada.io/docs/contributor/cherry-picks"
   exit 2
 fi
 
@@ -146,7 +146,7 @@ function make-a-pr() {
     cat <<EOF
 Cherry pick of ${PULLSUBJ} on ${rel}.
 ${numandtitle}
-For details on the cherry pick process, see the [cherry pick requests](https://github.com/karmada-io/karmada/blob/master/docs/contributors/devel/cherry-picks.md) page.
+For details on the cherry pick process, see the [cherry pick requests](https://karmada.io/docs/contributor/cherry-picks) page.
 \`\`\`release-note
 \`\`\`
 EOF
