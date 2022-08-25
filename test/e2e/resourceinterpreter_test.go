@@ -16,6 +16,7 @@ import (
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -224,6 +225,50 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					return false, nil
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 			}
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation InterpretHealth testing", func() {
+		ginkgo.It("InterpretHealth testing", func() {
+			resourceBindingName := names.GenerateBindingName(workload.Kind, workload.Name)
+
+			SetReadyReplicas := func(readyReplicas int32) {
+				for _, cluster := range framework.ClusterNames() {
+					clusterDynamicClient := framework.GetClusterDynamicClient(cluster)
+					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
+					memberWorkload := framework.GetWorkload(clusterDynamicClient, workloadNamespace, workloadName)
+					memberWorkload.Status.ReadyReplicas = readyReplicas
+					framework.UpdateWorkload(clusterDynamicClient, memberWorkload, cluster, "status")
+				}
+			}
+
+			CheckResult := func(result workv1alpha2.ResourceHealth) interface{} {
+				return func(g gomega.Gomega) (bool, error) {
+					rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(workload.Namespace).Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
+					g.Expect(err).NotTo(gomega.HaveOccurred())
+					if len(rb.Status.AggregatedStatus) != len(framework.ClusterNames()) {
+						return false, nil
+					}
+
+					for _, status := range rb.Status.AggregatedStatus {
+						klog.Infof("resourceBinding(%s/%s) on cluster %s got %s, want %s ", workload.Namespace, resourceBindingName, status.ClusterName, status.Health, result)
+						if status.Health != result {
+							return false, nil
+						}
+					}
+					return true, nil
+				}
+			}
+
+			ginkgo.By("workload healthy", func() {
+				SetReadyReplicas(*workload.Spec.Replicas)
+				gomega.Eventually(CheckResult(workv1alpha2.ResourceHealthy), pollTimeout, pollInterval).Should(gomega.BeTrue())
+			})
+
+			ginkgo.By("workload unhealthy", func() {
+				SetReadyReplicas(1)
+				gomega.Eventually(CheckResult(workv1alpha2.ResourceUnhealthy), pollTimeout, pollInterval).Should(gomega.BeTrue())
+			})
 		})
 	})
 })
