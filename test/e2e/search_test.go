@@ -3,22 +3,30 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("[karmada-search] karmada search testing", func() {
+var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordered, func() {
 	var member1 = "member1"
 	var member2 = "member2"
 
@@ -53,6 +61,20 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", func() {
 			return strings.Contains(string(raw), target)
 		}, pollTimeout, pollInterval).Should(gomega.Equal(exists))
 	}
+
+	ginkgo.BeforeAll(func() {
+		// get clusters' name
+		pushModeClusters := framework.ClusterNamesWithSyncMode(clusterv1alpha1.Push)
+		ginkgo.By(fmt.Sprintf("get %v clusters in push mode", len(pushModeClusters)))
+		gomega.Expect(len(pushModeClusters) >= 2).Should(gomega.BeTrue())
+		pushModeClusters = pushModeClusters[:2]
+		sort.Strings(pushModeClusters)
+		member1, member2 = pushModeClusters[0], pushModeClusters[1]
+		ginkgo.By(fmt.Sprintf("test on %v and %v", member1, member2))
+
+		// clean ResourceRegistries before test
+		gomega.Expect(karmadaClient.SearchV1alpha1().ResourceRegistries().DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{})).Should(gomega.Succeed())
+	})
 
 	// use service as search object
 	ginkgo.Describe("no ResourceRegistry testings", func() {
@@ -319,5 +341,287 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", func() {
 	})
 
 	ginkgo.Describe("backend store testing", ginkgo.Ordered, func() {
+	})
+
+	ginkgo.Describe("karmada proxy testing", ginkgo.Ordered, func() {
+		var (
+			m1Client, m2Client, proxyClient    kubernetes.Interface
+			m1Dynamic, m2Dynamic, proxyDynamic dynamic.Interface
+			nodeGVR                            = corev1.SchemeGroupVersion.WithResource("nodes")
+		)
+
+		ginkgo.BeforeAll(func() {
+			m1Dynamic = framework.GetClusterDynamicClient(member1)
+			gomega.Expect(m1Dynamic).ShouldNot(gomega.BeNil())
+			m2Dynamic = framework.GetClusterDynamicClient(member2)
+			gomega.Expect(m2Dynamic).ShouldNot(gomega.BeNil())
+
+			m1Client = framework.GetClusterClient(member1)
+			gomega.Expect(m1Client).ShouldNot(gomega.BeNil())
+			m2Client = framework.GetClusterClient(member2)
+			gomega.Expect(m2Client).ShouldNot(gomega.BeNil())
+
+			proxyConfig := *restConfig
+			proxyConfig.Host += "/apis/search.karmada.io/v1alpha1/proxying/karmada/proxy"
+			proxyClient = kubernetes.NewForConfigOrDie(&proxyConfig)
+			proxyDynamic = dynamic.NewForConfigOrDie(&proxyConfig)
+		})
+
+		ginkgo.Describe("resourceRegistry testings", func() {
+			var (
+				rr1, rr2           *searchv1alpha1.ResourceRegistry
+				m1Deploy, m2Deploy *appsv1.Deployment
+			)
+
+			ginkgo.BeforeAll(func() {
+				rr1 = &searchv1alpha1.ResourceRegistry{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "rr-" + rand.String(RandomStrLength),
+					},
+					Spec: searchv1alpha1.ResourceRegistrySpec{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{member1, member2},
+						},
+						ResourceSelectors: []searchv1alpha1.ResourceSelector{
+							{
+								APIVersion: "v1",
+								Kind:       "Node",
+							},
+						},
+					},
+				}
+				rr2 = &searchv1alpha1.ResourceRegistry{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "rr-" + rand.String(RandomStrLength),
+					},
+					Spec: searchv1alpha1.ResourceRegistrySpec{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{member1, member2},
+						},
+						ResourceSelectors: []searchv1alpha1.ResourceSelector{
+							{
+								APIVersion: "v1",
+								Kind:       "Node",
+							},
+							{
+								APIVersion: "v1",
+								Kind:       "Pod",
+							},
+						},
+					},
+				}
+
+				m1Deploy = testhelper.NewDeployment(testNamespace, "proxy-m1-"+rand.String(RandomStrLength))
+				framework.CreateDeployment(m1Client, m1Deploy)
+
+				m2Deploy = testhelper.NewDeployment(testNamespace, "proxy-m2-"+rand.String(RandomStrLength))
+				framework.CreateDeployment(m2Client, m2Deploy)
+			})
+
+			ginkgo.AfterAll(func() {
+				err := karmadaClient.SearchV1alpha1().ResourceRegistries().Delete(context.TODO(), rr1.Name, metav1.DeleteOptions{})
+				if err != nil && !apierrors.IsNotFound(err) {
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+				err = karmadaClient.SearchV1alpha1().ResourceRegistries().Delete(context.TODO(), rr2.Name, metav1.DeleteOptions{})
+				if err != nil && !apierrors.IsNotFound(err) {
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+
+				framework.RemoveDeployment(m1Client, testNamespace, m1Deploy.Name)
+				framework.RemoveDeployment(m2Client, testNamespace, m2Deploy.Name)
+			})
+
+			ginkgo.It("create, update, delete resourceRegistry", func() {
+				ginkgo.By("no resourceRegistries testings", func() {
+					ginkgo.By("should not list pods", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							list, err := proxyClient.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list.Items).Should(gomega.BeEmpty())
+						}, time.Second*10).Should(gomega.Succeed())
+					})
+
+					ginkgo.By("should not list nodes", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							list, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list.Items).Should(gomega.BeEmpty())
+						}, time.Second*10).Should(gomega.Succeed())
+					})
+				})
+
+				ginkgo.By("create resourceRegistry rr1 for nodes", func() {
+					framework.CreateResourceRegistry(karmadaClient, rr1)
+
+					ginkgo.By("should not list pods", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							list, err := proxyClient.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list.Items).Should(gomega.BeEmpty())
+						}, time.Second*10).Should(gomega.Succeed())
+					})
+
+					ginkgo.By("should list nodes", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							list, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list.Items).ShouldNot(gomega.BeEmpty())
+						}, time.Second*10).Should(gomega.Succeed())
+					})
+				})
+
+				ginkgo.By("create resourceRegistry rr2 for pods, nodes", func() {
+					framework.CreateResourceRegistry(karmadaClient, rr2)
+
+					ginkgo.By("should list pods", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							list, err := proxyClient.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list.Items).ShouldNot(gomega.BeEmpty())
+						}, time.Second*10).Should(gomega.Succeed())
+					})
+
+					ginkgo.By("should list nodes", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							list, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list.Items).ShouldNot(gomega.BeEmpty())
+						}, time.Second*10).Should(gomega.Succeed())
+					})
+				})
+
+				ginkgo.By("delete resourceRegistries rr1 and rr2", func() {
+					framework.RemoveResourceRegistry(karmadaClient, rr1.Name)
+					framework.RemoveResourceRegistry(karmadaClient, rr2.Name)
+
+					ginkgo.By("should not list pods", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							list, err := proxyClient.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list.Items).Should(gomega.BeEmpty())
+						}, time.Second*10).Should(gomega.Succeed())
+					})
+
+					ginkgo.By("should not list nodes", func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							list, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+							g.Expect(err).ShouldNot(gomega.HaveOccurred())
+							g.Expect(list.Items).Should(gomega.BeEmpty())
+						}, time.Second*10).Should(gomega.Succeed())
+					})
+				})
+			})
+		})
+		ginkgo.Describe("access resources testings", func() {
+			ginkgo.Context("caching nodes", func() {
+				var (
+					rr *searchv1alpha1.ResourceRegistry
+				)
+
+				ginkgo.BeforeAll(func() {
+					rr = &searchv1alpha1.ResourceRegistry{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "rr-" + rand.String(RandomStrLength),
+						},
+						Spec: searchv1alpha1.ResourceRegistrySpec{
+							TargetCluster: policyv1alpha1.ClusterAffinity{
+								ClusterNames: []string{member1, member2},
+							},
+							ResourceSelectors: []searchv1alpha1.ResourceSelector{
+								{
+									APIVersion: "v1",
+									Kind:       "Node",
+								},
+							},
+						},
+					}
+					framework.CreateResourceRegistry(karmadaClient, rr)
+				})
+
+				ginkgo.AfterAll(func() {
+					framework.RemoveResourceRegistry(karmadaClient, rr.Name)
+				})
+
+				ginkgo.It("could list nodes", func() {
+					fromM1 := framework.GetResourceNames(m1Dynamic.Resource(nodeGVR))
+					ginkgo.By("list nodes from member1: " + strings.Join(fromM1.List(), ","))
+					fromM2 := framework.GetResourceNames(m2Dynamic.Resource(nodeGVR))
+					ginkgo.By("list nodes from member2: " + strings.Join(fromM2.List(), ","))
+					fromMembers := sets.NewString().Union(fromM1).Union(fromM2)
+
+					gomega.Eventually(func(g gomega.Gomega) {
+						fromProxy := framework.GetResourceNames(proxyDynamic.Resource(nodeGVR))
+						g.Expect(fromProxy).Should(gomega.Equal(fromMembers))
+					}, time.Second*10).Should(gomega.Succeed())
+				})
+
+				ginkgo.It("could chunk list nodes", func() {
+					fromM1, err := m1Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					ginkgo.By(fmt.Sprintf("list %v nodes from member1", len(fromM1.Items)))
+
+					fromM2, err := m2Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					total := len(fromM1.Items) + len(fromM2.Items)
+					ginkgo.By(fmt.Sprintf("list %v nodes from member2", len(fromM2.Items)))
+
+					list1, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{Limit: 1})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(list1.Items).Should(gomega.HaveLen(1))
+
+					if list1.Continue == "" {
+						ginkgo.By("No more nodes remains")
+						gomega.Expect(list1.Items).Should(gomega.HaveLen(total))
+						ginkgo.Skip("No more nodes remains")
+					}
+
+					list2, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+						Limit:    999999999999,
+						Continue: list1.Continue,
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(list2.Items).Should(gomega.HaveLen(total - len(list1.Items)))
+				})
+
+				ginkgo.It("could list & watch nodes", func() {
+					listObj, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					watcher, err := proxyClient.CoreV1().Nodes().Watch(context.TODO(), metav1.ListOptions{ResourceVersion: listObj.ResourceVersion})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					defer watcher.Stop()
+
+					testNode := framework.GetAnyResourceOrFail(m1Dynamic.Resource(nodeGVR))
+
+					anno := "proxy-ann-" + rand.String(RandomStrLength)
+					data := []byte(`{"metadata": {"annotations": {"` + anno + `": "true"}}}`)
+					_, err = m1Client.CoreV1().Nodes().Patch(context.TODO(), testNode.GetName(), types.StrategicMergePatchType, data, metav1.PatchOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					gomega.Eventually(func() bool {
+						event := <-watcher.ResultChan()
+						o, ok := event.Object.(*corev1.Node)
+						if !ok {
+							return false
+						}
+						return o.UID == testNode.GetUID() && metav1.HasAnnotation(o.ObjectMeta, anno)
+					}, time.Second*10, 0).Should(gomega.BeTrue())
+				})
+
+				ginkgo.It("could path nodes", func() {
+					testObject := framework.GetAnyResourceOrFail(m1Dynamic.Resource(nodeGVR))
+
+					anno := "proxy-ann-" + rand.String(RandomStrLength)
+					data := []byte(`{"metadata": {"annotations": {"` + anno + `": "true"}}}`)
+					_, err := proxyClient.CoreV1().Nodes().Patch(context.TODO(), testObject.GetName(), types.StrategicMergePatchType, data, metav1.PatchOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					testPod, err := m1Client.CoreV1().Nodes().Get(context.TODO(), testObject.GetName(), metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(testPod.Annotations).Should(gomega.HaveKey(anno))
+				})
+			})
+		})
 	})
 })
