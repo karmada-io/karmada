@@ -281,6 +281,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	if err != nil {
 		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter.",
 			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
+		return err
 	}
 
 	if statusRaw == nil {
