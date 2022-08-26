@@ -83,17 +83,12 @@ func (c *CRBGracefulEvictionController) SetupWithManager(mgr controllerruntime.M
 		CreateFunc: func(createEvent event.CreateEvent) bool { return false },
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			newObj := updateEvent.ObjectNew.(*workv1alpha2.ClusterResourceBinding)
-			oldObj := updateEvent.ObjectOld.(*workv1alpha2.ClusterResourceBinding)
 
 			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
 				return false
 			}
 
-			if newObj.Status.SchedulerObservedGeneration != newObj.Generation {
-				return false
-			}
-
-			return !reflect.DeepEqual(newObj.Spec.GracefulEvictionTasks, oldObj.Spec.GracefulEvictionTasks)
+			return newObj.Status.SchedulerObservedGeneration == newObj.Generation
 		},
 		DeleteFunc:  func(deleteEvent event.DeleteEvent) bool { return false },
 		GenericFunc: func(genericEvent event.GenericEvent) bool { return false },
