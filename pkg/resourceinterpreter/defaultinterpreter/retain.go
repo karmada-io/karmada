@@ -22,6 +22,7 @@ func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionIn
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = lifted.RetainServiceFields
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceAccountKind)] = lifted.RetainServiceAccountFields
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = retainPersistentVolumeClaimFields
+	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeKind)] = retainPersistentVolumeFields
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = retainJobSelectorFields
 	return s
 }
@@ -69,6 +70,20 @@ func retainPersistentVolumeClaimFields(desired, observed *unstructured.Unstructu
 	if ok && len(volumeName) > 0 {
 		if err = unstructured.SetNestedField(desired.Object, volumeName, "spec", "volumeName"); err != nil {
 			return nil, fmt.Errorf("error setting volumeName for pvc: %w", err)
+		}
+	}
+	return desired, nil
+}
+
+func retainPersistentVolumeFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	// claimRef is updated by kube-controller-manager.
+	claimRef, ok, err := unstructured.NestedFieldNoCopy(observed.Object, "spec", "claimRef")
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve claimRef from pv: %v", err)
+	}
+	if ok {
+		if err = unstructured.SetNestedField(desired.Object, claimRef, "spec", "claimRef"); err != nil {
+			return nil, fmt.Errorf("failed to set claimRef for pv: %v", err)
 		}
 	}
 	return desired, nil
