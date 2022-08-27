@@ -230,7 +230,16 @@ apiServer:
   ## @param apiServer.nodeSelector
   nodeSelector: { }
   ## @param apiServer.affinity
-  affinity: { }
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - karmada-apiserver
+          topologyKey: kubernetes.io/hostname
   ## @param apiServer.tolerations
   tolerations: [ ]
     # - key: node-role.kubernetes.io/master
@@ -246,6 +255,11 @@ apiServer:
   nodePort: 0
   maxRequestsInflight: 1500
   maxMutatingRequestsInflight: 500
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:
