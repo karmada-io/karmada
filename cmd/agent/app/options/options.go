@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -184,5 +185,6 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
 		"Disable if it does not fit your cases for better performance.")
 	o.RateLimiterOpts.AddFlags(fs)
+	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
 }
