@@ -15,7 +15,6 @@ KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 # The host cluster name which used to install karmada control plane components.
 HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 ROOT_CA_FILE=${CERT_DIR}/ca.crt
-ROOT_CA_KEY=${CERT_DIR}/ca.key
 CFSSL_VERSION="v1.5.0"
 LOAD_BALANCER=${LOAD_BALANCER:-false} # whether create a 'LoadBalancer' type service for karmada apiserver
 source "${REPO_ROOT}"/hack/util.sh
@@ -72,48 +71,7 @@ fi
 HOST_CLUSTER_TYPE=${3:-"local"} # the default of host cluster type is local, i.e. cluster created by kind.
 
 # generate a secret to store the certificates
-function generate_cert_secret {
-    local karmada_ca
-    local karmada_ca_key
-    karmada_ca=$(base64 "${ROOT_CA_FILE}" | tr -d '\r\n')
-    karmada_ca_key=$(base64 "${ROOT_CA_KEY}" | tr -d '\r\n')
 
-    local TEMP_PATH
-    TEMP_PATH=$(mktemp -d)
-
-    cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-cert-secret.yaml "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    cp -rf "${REPO_ROOT}"/artifacts/deploy/secret.yaml "${TEMP_PATH}"/secret-tmp.yaml
-    cp -rf "${REPO_ROOT}"/artifacts/deploy/karmada-webhook-cert-secret.yaml "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
-
-    sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{ca_key}}/${karmada_ca_key}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{client_crt}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{apiserver_crt}}/${KARMADA_APISERVER_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{apiserver_key}}/${KARMADA_APISERVER_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-
-    sed -i'' -e "s/{{front_proxy_ca_crt}}/${FRONT_PROXY_CA_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{front_proxy_client_crt}}/${FRONT_PROXY_CLIENT_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{front_proxy_client_key}}/${FRONT_PROXY_CLIENT_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-
-    sed -i'' -e "s/{{etcd_ca_crt}}/${ETCD_CA_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{etcd_server_crt}}/${ETCD_SERVER_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{etcd_server_key}}/${ETCD_SERVER_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{etcd_client_crt}}/${ETCD_CLIENT_CRT}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{etcd_client_key}}/${ETCD_CLIENT_KEY}/g" "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-
-    sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH}"/secret-tmp.yaml
-    sed -i'' -e "s/{{client_crt}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/secret-tmp.yaml
-    sed -i'' -e "s/{{client_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/secret-tmp.yaml
-
-    sed -i'' -e "s/{{server_key}}/${KARMADA_KEY}/g" "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
-    sed -i'' -e "s/{{server_certificate}}/${KARMADA_CRT}/g" "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
-
-    kubectl apply -f "${TEMP_PATH}"/karmada-cert-secret-tmp.yaml
-    kubectl apply -f "${TEMP_PATH}"/secret-tmp.yaml
-    kubectl apply -f "${TEMP_PATH}"/karmada-webhook-cert-secret-tmp.yaml
-    rm -rf "${TEMP_PATH}"
-}
 
 # install Karmada's APIs
 function installCRDs() {
@@ -146,24 +104,13 @@ util::create_certkey "" "${CERT_DIR}" "etcd-ca" etcd-client etcd-client "" "*.et
 # create namespace for control plane components
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
+# render yamls of secrets
+util::generate_cert_secret "${REPO_ROOT}" "${CERT_DIR}" "${ROOT_CA_FILE}"
+
 # create service account, cluster role for controller-manager
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/serviceaccount.yaml"
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/clusterrole.yaml"
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/clusterrolebinding.yaml"
-
-KARMADA_CRT=$(base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
-KARMADA_KEY=$(base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
-KARMADA_APISERVER_CRT=$(base64 "${CERT_DIR}/apiserver.crt" | tr -d '\r\n')
-KARMADA_APISERVER_KEY=$(base64 "${CERT_DIR}/apiserver.key" | tr -d '\r\n')
-FRONT_PROXY_CA_CRT=$(base64 "${CERT_DIR}/front-proxy-ca.crt" | tr -d '\r\n')
-FRONT_PROXY_CLIENT_CRT=$(base64 "${CERT_DIR}/front-proxy-client.crt" | tr -d '\r\n')
-FRONT_PROXY_CLIENT_KEY=$(base64 "${CERT_DIR}/front-proxy-client.key" | tr -d '\r\n')
-ETCD_CA_CRT=$(base64 "${CERT_DIR}/etcd-ca.crt" | tr -d '\r\n')
-ETCD_SERVER_CRT=$(base64 "${CERT_DIR}/etcd-server.crt" | tr -d '\r\n')
-ETCD_SERVER_KEY=$(base64 "${CERT_DIR}/etcd-server.key" | tr -d '\r\n')
-ETCD_CLIENT_CRT=$(base64 "${CERT_DIR}/etcd-client.crt" | tr -d '\r\n')
-ETCD_CLIENT_KEY=$(base64 "${CERT_DIR}/etcd-client.key" | tr -d '\r\n')
-generate_cert_secret
 
 # deploy karmada etcd
 kubectl apply -f "${REPO_ROOT}/artifacts/deploy/karmada-etcd.yaml"

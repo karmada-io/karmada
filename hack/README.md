@@ -54,6 +54,13 @@ ensures development quality.
 - [`delete-cluster.sh`](delete-cluster.sh) This script delete a kube cluster by kind,
   please use it like this: `hack/delete-cluster.sh.sh <CLUSTER_NAME> <KUBECONFIG>`
 
+- [`renew-cert.sh`](renew-cert.sh) This script helps update certificates and private keys expiration date,
+  please use it like this: `hack/renew-cert.sh <HOST_KUBECONFIG> <HOST_CONTEXT_NAME> <KARMADA_KUBECONFIG> <KARMADA_CONTEXT_NAME>`
+
+  Warning:
+  + This operation will update the credentials part in the kubeconfig file of the Karmada Control Plane.
+  + If any workload crashes after running 'hack/renew-cert.sh' you must patch your workload with [the latest Yamls](../artifacts/deploy) manually in namespace karmada-system. That means your karmada is too old.
+
 ## For CI pipeline
 - [`local-up-karmada.sh`](local-up-karmada.sh) This script also used for testing.
 
