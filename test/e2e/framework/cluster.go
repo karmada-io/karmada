@@ -146,8 +146,8 @@ func fetchClusters(client karmada.Interface) ([]*clusterv1alpha1.Cluster, error)
 	return clusters, nil
 }
 
-// fetchCluster will fetch member cluster by name.
-func fetchCluster(client karmada.Interface, clusterName string) (*clusterv1alpha1.Cluster, error) {
+// FetchCluster will fetch member cluster by name.
+func FetchCluster(client karmada.Interface, clusterName string) (*clusterv1alpha1.Cluster, error) {
 	cluster, err := client.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
