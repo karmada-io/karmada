@@ -69,7 +69,6 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
 			deployment.Spec.Replicas = pointer.Int32Ptr(10)
 
-			// set MaxGroups=MinGroups=1, label is sync-mode=Push.
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: deployment.APIVersion,

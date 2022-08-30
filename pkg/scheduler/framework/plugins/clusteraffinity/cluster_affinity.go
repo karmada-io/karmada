@@ -32,7 +32,8 @@ func (p *ClusterAffinity) Name() string {
 }
 
 // Filter checks if the cluster matched the placement cluster affinity constraint.
-func (p *ClusterAffinity) Filter(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *ClusterAffinity) Filter(ctx context.Context, placement *policyv1alpha1.Placement,
+	bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	affinity := placement.ClusterAffinity
 	if affinity != nil {
 		if util.ClusterMatches(cluster, *affinity) {

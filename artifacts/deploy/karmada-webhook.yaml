@@ -27,6 +27,8 @@ spec:
             - /bin/karmada-webhook
             - --kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
+            - --default-not-ready-toleration-seconds=30
+            - --default-unreachable-toleration-seconds=30
             - --secure-port=8443
             - --cert-dir=/var/serving-cert
             - --v=4

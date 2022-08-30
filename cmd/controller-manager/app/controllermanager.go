@@ -178,9 +178,7 @@ func init() {
 	controllers["unifiedAuth"] = startUnifiedAuthController
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
-	if features.FeatureGate.Enabled(features.Failover) && features.FeatureGate.Enabled(features.GracefulEviction) {
-		controllers["gracefulEviction"] = startGracefulEvictionController
-	}
+	controllers["gracefulEviction"] = startGracefulEvictionController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -459,27 +457,31 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 }
 
 func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bool, err error) {
-	rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
-		Client:                  ctx.Mgr.GetClient(),
-		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
-		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
-		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
-	}
-	if err := rbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
-		return false, err
+	if features.FeatureGate.Enabled(features.Failover) && features.FeatureGate.Enabled(features.GracefulEviction) {
+		rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
+			Client:                  ctx.Mgr.GetClient(),
+			EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
+			RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
+			GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
+		}
+		if err := rbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
+			return false, err
+		}
+
+		crbGracefulEvictionController := &gracefuleviction.CRBGracefulEvictionController{
+			Client:                  ctx.Mgr.GetClient(),
+			EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.CRBGracefulEvictionControllerName),
+			RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
+			GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
+		}
+		if err := crbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
+			return false, err
+		}
+
+		return true, nil
 	}
 
-	crbGracefulEvictionController := &gracefuleviction.CRBGracefulEvictionController{
-		Client:                  ctx.Mgr.GetClient(),
-		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.CRBGracefulEvictionControllerName),
-		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
-		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
-	}
-	if err := crbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return false, nil
 }
 
 // setupControllers initialize controllers and setup one by one.
