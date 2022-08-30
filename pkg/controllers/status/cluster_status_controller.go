@@ -570,7 +570,13 @@ func getAllocatedResource(podList []*corev1.Pod) corev1.ResourceList {
 }
 
 func getNodeAvailable(allocatable corev1.ResourceList, podResources *util.Resource) corev1.ResourceList {
+	if podResources == nil {
+		return allocatable
+	}
 	allocatedResourceList := podResources.ResourceList()
+	if allocatedResourceList == nil {
+		return allocatable
+	}
 	allowedPodNumber := allocatable.Pods().Value() - allocatedResourceList.Pods().Value()
 	// When too many pods have been created, scheduling will fail so that the allocating pods number may be huge.
 	// If allowedPodNumber is less than or equal to 0, we don't allow more pods to be created.
