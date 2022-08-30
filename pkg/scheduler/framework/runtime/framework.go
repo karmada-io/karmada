@@ -44,9 +44,9 @@ func NewFramework(r Registry) (framework.Framework, error) {
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, resource *workv1alpha2.ObjectReference, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	for _, p := range frw.filterPlugins {
-		if result := p.Filter(ctx, placement, resource, cluster); !result.IsSuccess() {
+		if result := p.Filter(ctx, placement, bindingSpec, cluster); !result.IsSuccess() {
 			return result
 		}
 	}
