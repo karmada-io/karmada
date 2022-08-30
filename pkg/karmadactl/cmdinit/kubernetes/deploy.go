@@ -398,15 +398,12 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 	}
 
 	// Create karmada kubeconfig
-	serverURL := fmt.Sprintf("https://%s:%v", i.KarmadaAPIServerIP[0].String(), i.KarmadaAPIServerNodePort)
-	if err := utils.WriteKubeConfigFromSpec(serverURL, options.UserName, options.ClusterName, i.KarmadaDataPath, options.KarmadaKubeConfigName,
-		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)],
-		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]); err != nil {
-		return fmt.Errorf("failed to create karmada kubeconfig file. %v", err)
+	err := i.createKarmadaConfig()
+	if err != nil {
+		return fmt.Errorf("create karmada kubeconfig failed.%v", err)
 	}
-	klog.Info("Create karmada kubeconfig success.")
 
-	// create ns
+	// Create ns
 	if err := i.CreateNamespace(); err != nil {
 		return fmt.Errorf("create namespace %s failed: %v", i.Namespace, err)
 	}
@@ -446,9 +443,78 @@ func (i *CommandInitOption) RunInit(_ io.Writer, parentCommand string) error {
 	return nil
 }
 
+func (i *CommandInitOption) createKarmadaConfig() error {
+	serverIP := i.KarmadaAPIServerIP[0].String()
+	serverURL, err := generateServerURL(serverIP, i.KarmadaAPIServerNodePort)
+	if err != nil {
+		return err
+	}
+	if err := utils.WriteKubeConfigFromSpec(serverURL, options.UserName, options.ClusterName, i.KarmadaDataPath, options.KarmadaKubeConfigName,
+		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)],
+		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]); err != nil {
+		return fmt.Errorf("failed to create karmada kubeconfig file. %v", err)
+	}
+	klog.Info("Create karmada kubeconfig success.")
+	return err
+}
+
+// get kube components registry
+func (i *CommandInitOption) kubeRegistry() string {
+	registry := i.KubeImageRegistry
+	mirrorCountry := strings.ToLower(i.KubeImageMirrorCountry)
+
+	if registry != "" {
+		return registry
+	}
+
+	if mirrorCountry != "" {
+		value, ok := imageRepositories[mirrorCountry]
+		if ok {
+			return value
+		}
+	}
+
+	return imageRepositories["global"]
+}
+
+// get kube-apiserver image
+func (i *CommandInitOption) kubeAPIServerImage() string {
+	if i.KarmadaAPIServerImage != "" {
+		return i.KarmadaAPIServerImage
+	}
+	return i.kubeRegistry() + "/" + defaultKubeAPIServerImage
+}
+
+// get kube-controller-manager image
+func (i *CommandInitOption) kubeControllerManagerImage() string {
+	if i.KubeControllerManagerImage != "" {
+		return i.KubeControllerManagerImage
+	}
+	return i.kubeRegistry() + "/" + defaultKubeControllerManagerImage
+}
+
+// get etcd image
+func (i *CommandInitOption) etcdImage() string {
+	if i.EtcdImage != "" {
+		return i.EtcdImage
+	}
+	return i.kubeRegistry() + "/" + defaultEtcdImage
+}
+
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // windows
+}
+
+func generateServerURL(serverIP string, nodePort int32) (string, error) {
+	_, ipType, err := utils.ParseIP(serverIP)
+	if err != nil {
+		return "", err
+	}
+	if ipType == 4 {
+		return fmt.Sprintf("https://%s:%v", serverIP, nodePort), nil
+	}
+	return fmt.Sprintf("https://[%s]:%v", serverIP, nodePort), nil
 }
