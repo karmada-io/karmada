@@ -245,7 +245,8 @@ func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
 	// If the replica division preference is 'static weighted', ignore the declaration specified by spread constraints.
 	if strategy != nil && strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
 		strategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
-		(len(strategy.WeightPreference.StaticWeightList) != 0 && strategy.WeightPreference.DynamicWeight == "") {
+		(strategy.WeightPreference == nil ||
+			len(strategy.WeightPreference.StaticWeightList) != 0 && strategy.WeightPreference.DynamicWeight == "") {
 		return true
 	}
 
