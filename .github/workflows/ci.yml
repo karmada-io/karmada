@@ -7,7 +7,7 @@ on:
 jobs:
   golangci:
     name: lint
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
@@ -27,7 +27,7 @@ jobs:
         run: hack/verify-estimator-protobuf.sh
   codegen:
     name: codegen
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     env:
       GOPATH: ${{ github.workspace }}
     defaults:
@@ -49,7 +49,7 @@ jobs:
   build:
     name: compile
     needs: codegen # rely on codegen successful completion
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -66,7 +66,7 @@ jobs:
   test:
     name: unit test
     needs: build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -79,7 +79,7 @@ jobs:
   e2e:
     name: e2e test
     needs: build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     env:
       ARTIFACTS_PATH: ${{ github.workspace }}/karmada-e2e-logs/
     steps:
