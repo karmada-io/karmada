@@ -298,7 +298,7 @@ func TestMultiClusterCache_Get(t *testing.T) {
 				options: &metav1.GetOptions{},
 			},
 			want: want{
-				object:    newUnstructuredObject(podGVK, "pod11", withDefaultNamespace(), withResourceVersion(buildMultiClusterRV("cluster1", "1000"))),
+				object:    newUnstructuredObject(podGVK, "pod11", withDefaultNamespace(), withResourceVersion(buildMultiClusterRV("cluster1", "1000")), withCacheSourceAnnotation("cluster1")),
 				errAssert: noError,
 			},
 		},
@@ -311,7 +311,7 @@ func TestMultiClusterCache_Get(t *testing.T) {
 				options: &metav1.GetOptions{},
 			},
 			want: want{
-				object:    newUnstructuredObject(podGVK, "pod21", withDefaultNamespace(), withResourceVersion(buildMultiClusterRV("cluster2", "2000"))),
+				object:    newUnstructuredObject(podGVK, "pod21", withDefaultNamespace(), withResourceVersion(buildMultiClusterRV("cluster2", "2000")), withCacheSourceAnnotation("cluster2")),
 				errAssert: noError,
 			},
 		},
@@ -350,7 +350,7 @@ func TestMultiClusterCache_Get(t *testing.T) {
 				options: &metav1.GetOptions{},
 			},
 			want: want{
-				object:    newUnstructuredObject(nodeGVK, "node11", withResourceVersion(buildMultiClusterRV("cluster1", "1000"))),
+				object:    newUnstructuredObject(nodeGVK, "node11", withResourceVersion(buildMultiClusterRV("cluster1", "1000")), withCacheSourceAnnotation("cluster1")),
 				errAssert: noError,
 			},
 		},
@@ -494,6 +494,59 @@ func TestMultiClusterCache_List(t *testing.T) {
 	}
 }
 
+func TestMultiClusterCache_List_CachSourceAnnotation(t *testing.T) {
+	cluster1 := newCluster("cluster1")
+	cluster2 := newCluster("cluster2")
+	cluster1Client := fakedynamic.NewSimpleDynamicClient(scheme,
+		newUnstructuredObject(podGVK, "pod11"),
+		newUnstructuredObject(podGVK, "pod12"),
+	)
+	cluster2Client := fakedynamic.NewSimpleDynamicClient(scheme,
+		newUnstructuredObject(podGVK, "pod21"),
+		newUnstructuredObject(podGVK, "pod22"),
+	)
+
+	newClientFunc := func(cluster string) (dynamic.Interface, error) {
+		switch cluster {
+		case cluster1.Name:
+			return cluster1Client, nil
+		case cluster2.Name:
+			return cluster2Client, nil
+		}
+		return fakedynamic.NewSimpleDynamicClient(scheme), nil
+	}
+	cache := NewMultiClusterCache(newClientFunc, restMapper)
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+		cluster1.Name: resourceSet(podGVR),
+		cluster2.Name: resourceSet(podGVR),
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	list, err := cache.List(context.TODO(), podGVR, &metainternalversion.ListOptions{})
+	if err != nil {
+		t.Errorf("List error: %v", err)
+		return
+	}
+	items, err := meta.ExtractList(list)
+	if err != nil {
+		t.Errorf("ExtractList error: %v", err)
+		return
+	}
+
+	expect := []runtime.Object{
+		newUnstructuredObject(podGVK, "pod11", withCacheSourceAnnotation("cluster1")),
+		newUnstructuredObject(podGVK, "pod12", withCacheSourceAnnotation("cluster1")),
+		newUnstructuredObject(podGVK, "pod21", withCacheSourceAnnotation("cluster2")),
+		newUnstructuredObject(podGVK, "pod22", withCacheSourceAnnotation("cluster2")),
+	}
+	if !reflect.DeepEqual(items, expect) {
+		t.Errorf("list items diff: %v", cmp.Diff(expect, items))
+	}
+}
+
 func newCluster(name string) *clusterv1alpha1.Cluster {
 	o := &clusterv1alpha1.Cluster{}
 	o.Name = name
@@ -519,6 +572,12 @@ func withDefaultNamespace() func(*unstructured.Unstructured) {
 func withResourceVersion(rv string) func(*unstructured.Unstructured) {
 	return func(obj *unstructured.Unstructured) {
 		obj.SetResourceVersion(rv)
+	}
+}
+
+func withCacheSourceAnnotation(cluster string) func(*unstructured.Unstructured) {
+	return func(obj *unstructured.Unstructured) {
+		addCacheSourceAnnotation(obj, cluster)
 	}
 }
 
