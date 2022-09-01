@@ -18,7 +18,7 @@ jobs:
           - karmada-interpreter-webhook-example
           - karmada-aggregated-apiserver
           - karmada-search
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout code
         uses: actions/checkout@v2

@@ -6,7 +6,7 @@ name: Build Release
 jobs:
   release-assests:
     name: release kubectl-karmada
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         target:
@@ -39,7 +39,7 @@ jobs:
   update-krew-index:
     needs: release-assests
     name: Update krew-index
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@master
     - name: Update new version in krew-index
