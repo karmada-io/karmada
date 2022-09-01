@@ -298,8 +298,8 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 	})
 })
 
-var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{NeedCreateCluster}, func() {
-	ginkgo.Context("unjoining not ready cluster", func() {
+var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels{NeedCreateCluster}, func() {
+	ginkgo.Context("joining cluster and unjoining not ready cluster", func() {
 		var clusterName string
 		var homeDir string
 		var kubeConfigPath string
@@ -375,6 +375,28 @@ var _ = framework.SerialDescribe("Karmadactl unjoin testing", ginkgo.Labels{Need
 		})
 
 		ginkgo.It("Test unjoining not ready cluster", func() {
+			ginkgo.By("Checking cluster status collection", func() {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+					cluster, err := framework.FetchCluster(karmadaClient, clusterName)
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+					if cluster.Status.KubernetesVersion == "" {
+						return false, nil
+					}
+					if len(cluster.Status.APIEnablements) == 0 {
+						return false, nil
+					}
+					if len(cluster.Status.Conditions) == 0 {
+						return false, nil
+					}
+					if cluster.Status.NodeSummary == nil {
+						return false, nil
+					}
+					if cluster.Status.ResourceSummary == nil || len(cluster.Status.ResourceSummary.AllocatableModelings) == 0 {
+						return false, nil
+					}
+					return true, nil
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
 			ginkgo.By("Waiting for deployment have been propagated to the member cluster.", func() {
 				klog.Infof("Waiting for deployment(%s/%s) synced on cluster(%s)", deploymentNamespace, deploymentName, clusterName)
 

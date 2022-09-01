@@ -55,7 +55,7 @@ func WaitCRDPresentOnClusters(client karmada.Interface, clusters []string, crdAP
 		for _, clusterName := range clusters {
 			klog.Infof("Waiting for crd present on cluster(%s)", clusterName)
 			gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-				cluster, err := fetchCluster(client, clusterName)
+				cluster, err := FetchCluster(client, clusterName)
 				g.Expect(err).NotTo(gomega.HaveOccurred())
 				return helper.IsAPIEnabled(cluster.Status.APIEnablements, crdAPIVersion, crdKind), nil
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
