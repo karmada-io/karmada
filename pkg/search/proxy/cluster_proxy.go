@@ -1,13 +1,17 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"path"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -42,7 +46,25 @@ func (c *clusterProxy) connect(ctx context.Context, requestInfo *request.Request
 	if err != nil {
 		return nil, err
 	}
-	return c.connectCluster(ctx, clusterName, proxyPath, responder)
+
+	h, err := c.connectCluster(ctx, clusterName, proxyPath, responder)
+	if err != nil {
+		return nil, err
+	}
+
+	if requestInfo.Verb != "update" {
+		return h, nil
+	}
+
+	// Objects get by client via proxy are edited some fields, different from objets in member clusters.
+	// So before update, we shall recover these fields.
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if err = modifyRequest(req, clusterName); err != nil {
+			responder.Error(err)
+			return
+		}
+		h.ServeHTTP(rw, req)
+	}), nil
 }
 
 func (c *clusterProxy) connectCluster(ctx context.Context, clusterName string, proxyPath string, responder rest.Responder) (http.Handler, error) {
@@ -63,4 +85,41 @@ func (c *clusterProxy) connectCluster(ctx context.Context, clusterName string, p
 		return c.secretLister.Secrets(cluster.Spec.ImpersonatorSecretRef.Namespace).Get(cluster.Spec.ImpersonatorSecretRef.Name)
 	}
 	return proxy.ConnectCluster(ctx, cluster.Name, location, transport, responder, secretGetter)
+}
+
+func modifyRequest(req *http.Request, cluster string) error {
+	if req.ContentLength == 0 {
+		return nil
+	}
+
+	body := bytes.NewBuffer(make([]byte, 0, req.ContentLength))
+	_, err := io.Copy(body, req.Body)
+	if err != nil {
+		return err
+	}
+	_ = req.Body.Close()
+
+	defer func() {
+		req.Body = ioutil.NopCloser(body)
+		req.ContentLength = int64(body.Len())
+	}()
+
+	obj := &unstructured.Unstructured{}
+	_, _, err = unstructured.UnstructuredJSONScheme.Decode(body.Bytes(), nil, obj)
+	if err != nil {
+		// ignore error
+		return nil
+	}
+
+	changed := false
+	changed = store.RemoveCacheSourceAnnotation(obj) || changed
+	changed = store.RecoverClusterResourceVersion(obj, cluster) || changed
+
+	if changed {
+		// write changed object into body
+		body.Reset()
+		return unstructured.UnstructuredJSONScheme.Encode(obj, body)
+	}
+
+	return nil
 }
