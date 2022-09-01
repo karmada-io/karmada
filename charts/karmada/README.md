@@ -40,7 +40,7 @@ With the repo added, available charts and versions can be viewed.
 ```console
 helm search repo karmada
 ```
-Install the chart and specify the version to install with the --version argument. Replace <x.x.x> with your desired version. Now only support --version=v1.2.0.
+Install the chart and specify the version to install with the --version argument. Replace <x.x.x> with your desired version.
 ```console
 helm --namespace karmada-system upgrade -i karmada karmada-charts/karmada --version=<x.x.x> --create-namespace
 Release "karmada" does not exist. Installing it now.
