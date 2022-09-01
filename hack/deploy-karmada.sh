@@ -16,7 +16,7 @@ KARMADA_APISERVER_SECURE_PORT=${KARMADA_APISERVER_SECURE_PORT:-5443}
 HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
 ROOT_CA_FILE=${CERT_DIR}/ca.crt
 ROOT_CA_KEY=${CERT_DIR}/ca.key
-CFSSL_VERSION="v1.5.0"
+CFSSL_VERSION="v1.6.2"
 LOAD_BALANCER=${LOAD_BALANCER:-false} # whether create a 'LoadBalancer' type service for karmada apiserver
 source "${REPO_ROOT}"/hack/util.sh
 
