@@ -14,7 +14,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -50,7 +50,7 @@ var (
 )
 
 // NewCmdLogs new logs command.
-func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogs(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &LogsOptions{
 		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams, false),
 	}
@@ -61,7 +61,7 @@ func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string, streams gener
 		SilenceUsage: true,
 		Example:      fmt.Sprintf(logsExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(karmadaConfig, cmd, args); err != nil {
+			if err := o.Complete(cmd, args, f); err != nil {
 				return err
 			}
 			if err := o.Validate(); err != nil {
@@ -74,25 +74,25 @@ func NewCmdLogs(karmadaConfig KarmadaConfig, parentCommand string, streams gener
 		},
 	}
 
-	o.GlobalCommandOptions.AddFlags(cmd.Flags())
+	flags := cmd.Flags()
+	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
 	o.KubectlLogsOptions.AddFlags(cmd)
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "If present, the namespace scope for this CLI request")
-	cmd.Flags().StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
+
 	return cmd
 }
 
 // LogsOptions contains the input to the logs command.
 type LogsOptions struct {
-	// global flags
-	options.GlobalCommandOptions
 	// flags specific to logs
 	KubectlLogsOptions *kubectllogs.LogsOptions
-	Namespace          string
 	Cluster            string
 }
 
 // Complete ensures that options are valid and marshals them if necessary
-func (o *LogsOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Command, args []string) error {
+func (o *LogsOptions) Complete(cmd *cobra.Command, args []string, f util.Factory) error {
 	if o.Cluster == "" {
 		return fmt.Errorf("must specify a cluster")
 	}
@@ -112,17 +112,11 @@ func (o *LogsOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Command, 
 		return cmdutil.UsageErrorf(cmd, "%s", logsUsageErrStr)
 	}
 
-	karmadaRestConfig, err := karmadaConfig.GetRestConfig(o.KarmadaContext, o.KubeConfig)
-	if err != nil {
-		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			o.KarmadaContext, o.KubeConfig, err)
-	}
-	clusterInfo, err := getClusterInfo(karmadaRestConfig, o.Cluster, o.KubeConfig, o.KarmadaContext)
+	memberFactory, err := f.FactoryForMemberCluster(o.Cluster)
 	if err != nil {
 		return err
 	}
-	f := getFactory(o.Cluster, clusterInfo, o.Namespace)
-	return o.KubectlLogsOptions.Complete(f, cmd, args)
+	return o.KubectlLogsOptions.Complete(memberFactory, cmd, args)
 }
 
 // Validate checks to the LogsOptions to see if there is sufficient information run the command
@@ -136,6 +130,7 @@ func (o *LogsOptions) Run() error {
 }
 
 // getClusterInfo get information of cluster
+// TODO(@carlory): remove it when all sub command accepts factory as input parameter.
 func getClusterInfo(karmadaRestConfig *rest.Config, clusterName, kubeConfig, karmadaContext string) (map[string]*ClusterInfo, error) {
 	clusterClient := karmadaclientset.NewForConfigOrDie(karmadaRestConfig).ClusterV1alpha1().Clusters()
 
