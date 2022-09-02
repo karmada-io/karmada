@@ -297,6 +297,7 @@ func (o *CommandDeInitOption) Run() error {
 	}
 
 	fmt.Println("remove Karmada from Kubernetes successfully.\n" +
-		"\ndeinit will not delete etcd data, if the etcd data is persistent, please delete it yourself.")
+		"\ndeinit will not delete etcd data, if the etcd data is persistent, please delete it yourself." +
+		"\nthe default persistence path for etcd data is '/var/lib/karmada-etcd'")
 	return nil
 }
