@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -18,7 +19,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -93,8 +98,20 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
+		if helper.IsResourceAvailable(&work.Status) {
+			if err = helper.UpdateWorkCondition(c.Client, work, workv1alpha1.WorkAvailable, metav1.ConditionUnknown,
+				"ClusterNotReady", fmt.Sprintf("Cluster %q is not ready", clusterName)); err != nil {
+				return controllerruntime.Result{Requeue: true}, err
+			}
+		}
 		klog.Errorf("Stop sync work(%s/%s) for cluster(%s) as cluster not ready.", work.Namespace, work.Name, cluster.Name)
 		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+	}
+	if !helper.IsResourceAvailable(&work.Status) {
+		if err = helper.UpdateWorkCondition(c.Client, work, workv1alpha1.WorkAvailable, metav1.ConditionTrue,
+			"AppliedSuccessful", "Manifest has been successfully applied"); err != nil {
+			return controllerruntime.Result{Requeue: true}, err
+		}
 	}
 
 	return c.buildResourceInformers(cluster, work)
@@ -474,8 +491,52 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
+	fn := handler.MapFunc(
+		func(cluster client.Object) []reconcile.Request {
+			var requests []reconcile.Request
+			executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.GetName())
+			if err != nil {
+				klog.Errorf("Failed to generate execution space name for member cluster %s: %v", cluster.GetName(), err)
+				return requests
+			}
+			workList := &workv1alpha1.WorkList{}
+			if err = c.List(context.TODO(), workList, &client.ListOptions{Namespace: executionSpaceName}); err != nil {
+				klog.Errorf("Failed to list works in %s: %v", executionSpaceName, err)
+				return requests
+			}
+			for _, work := range workList.Items {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: executionSpaceName,
+						Name:      work.Name,
+					},
+				})
+			}
+			return requests
+		},
+	)
+
+	clusterPredicate := builder.WithPredicates(predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldCluster := e.ObjectOld.(*clusterv1alpha1.Cluster)
+			newCluster := e.ObjectNew.(*clusterv1alpha1.Cluster)
+			// only sync work status when cluster ready status changes
+			return util.IsClusterReady(&oldCluster.Status) != util.IsClusterReady(&newCluster.Status)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	})
+
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
+		Watches(&source.Kind{Type: &clusterv1alpha1.Cluster{}}, handler.EnqueueRequestsFromMapFunc(fn), clusterPredicate).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
 		}).Complete(c)

@@ -162,7 +162,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 				panic("unexpected status")
 			}
 		}
-		if !applied {
+		if !applied || !IsResourceAvailable(&work.Status) {
 			aggregatedStatus := workv1alpha2.AggregatedStatusItem{
 				ClusterName:    clusterName,
 				Applied:        applied,
@@ -267,6 +267,11 @@ func IsResourceApplied(workStatus *workv1alpha1.WorkStatus) bool {
 	return meta.IsStatusConditionTrue(workStatus.Conditions, workv1alpha1.WorkApplied)
 }
 
+// IsResourceAvailable checks whether resource has been dispatched to member cluster or not
+func IsResourceAvailable(workStatus *workv1alpha1.WorkStatus) bool {
+	return meta.IsStatusConditionTrue(workStatus.Conditions, workv1alpha1.WorkAvailable)
+}
+
 // BuildStatusRawExtension builds raw JSON by a status map.
 func BuildStatusRawExtension(status interface{}) (*runtime.RawExtension, error) {
 	statusJSON, err := json.Marshal(status)
@@ -278,4 +283,35 @@ func BuildStatusRawExtension(status interface{}) (*runtime.RawExtension, error) 
 	return &runtime.RawExtension{
 		Raw: statusJSON,
 	}, nil
+}
+
+// UpdateWorkCondition updates the work condition
+func UpdateWorkCondition(c client.Client, work *workv1alpha1.Work, typ string, status metav1.ConditionStatus, reason, message string) error {
+	newCondition := metav1.Condition{
+		Type:               typ,
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
+		LastTransitionTime: metav1.Now(),
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		if !work.DeletionTimestamp.IsZero() {
+			// don't need to update status as it's going to be deleted
+			return nil
+		}
+		meta.SetStatusCondition(&work.Status.Conditions, newCondition)
+		updateErr := c.Status().Update(context.TODO(), work)
+		if updateErr == nil {
+			return nil
+		}
+		updated := &workv1alpha1.Work{}
+		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
+			// make a copy, so we don't mutate the shared cache
+			work = updated.DeepCopy()
+		} else {
+			klog.Errorf("failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
+		}
+		return updateErr
+	})
 }

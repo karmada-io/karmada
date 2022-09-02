@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -215,7 +214,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 	if len(errs) > 0 {
 		total := len(work.Spec.Workload.Manifests)
 		message := fmt.Sprintf("Failed to apply all manifests (%v/%v): %v", syncSucceedNum, total, errors.NewAggregate(errs).Error())
-		err := c.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message)
+		err := helper.UpdateWorkCondition(c.Client, work, workv1alpha1.WorkApplied, metav1.ConditionFalse, "AppliedFailed", message)
 		if err != nil {
 			klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 			errs = append(errs, err)
@@ -223,7 +222,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 		return errors.NewAggregate(errs)
 	}
 
-	err := c.updateAppliedCondition(work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
+	err := helper.UpdateWorkCondition(c.Client, work, workv1alpha1.WorkApplied, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
 	if err != nil {
 		klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 		return err
@@ -263,33 +262,6 @@ func (c *Controller) tryUpdateWorkload(clusterName string, workload *unstructure
 
 func (c *Controller) tryCreateWorkload(clusterName string, workload *unstructured.Unstructured) error {
 	return c.ObjectWatcher.Create(clusterName, workload)
-}
-
-// updateAppliedCondition update the Applied condition for the given Work
-func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
-	newWorkAppliedCondition := metav1.Condition{
-		Type:               workv1alpha1.WorkApplied,
-		Status:             status,
-		Reason:             reason,
-		Message:            message,
-		LastTransitionTime: metav1.Now(),
-	}
-
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
-		updateErr := c.Status().Update(context.TODO(), work)
-		if updateErr == nil {
-			return nil
-		}
-		updated := &workv1alpha1.Work{}
-		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
-			// make a copy, so we don't mutate the shared cache
-			work = updated.DeepCopy()
-		} else {
-			klog.Errorf("failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
-		}
-		return updateErr
-	})
 }
 
 func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {

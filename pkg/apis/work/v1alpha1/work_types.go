@@ -21,6 +21,7 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={karmada-io}
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Applied")].status`,name="Applied",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Available")].status`,name="Available",type=string
 // +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="Age",type=date
 
 // Work defines a list of resources to be deployed on the member cluster.
