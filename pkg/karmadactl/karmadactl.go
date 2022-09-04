@@ -88,7 +88,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
 				NewCmdLogs(f, parentCommand, ioStreams),
-				NewCmdExec(karmadaConfig, parentCommand, ioStreams),
+				NewCmdExec(f, parentCommand, ioStreams),
 				NewCmdDescribe(karmadaConfig, parentCommand, ioStreams),
 			},
 		},
