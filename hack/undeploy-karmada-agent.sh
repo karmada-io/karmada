@@ -52,13 +52,16 @@ MEMBER_CLUSTER_NAME=$4
 
 source "${REPO_ROOT}"/hack/util.sh
 
-# remove the member cluster from karmada control plane
-kubectl delete cluster ${MEMBER_CLUSTER_NAME}
-
-# remove agent from the member cluster
 if [ -n "${KUBECONFIG+x}" ];then
   CURR_KUBECONFIG=$KUBECONFIG # backup current kubeconfig
 fi
+
+# remove the member cluster from karmada control plane
+export KUBECONFIG="${KARMADA_APISERVER_KUBECONFIG}"
+kubectl config use-context "${KARMADA_APISERVER_CONTEXT_NAME}"
+kubectl delete cluster ${MEMBER_CLUSTER_NAME}
+
+# remove agent from the member cluster
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}" # switch to member cluster
 kubectl config use-context "${MEMBER_CLUSTER_NAME}"
 
