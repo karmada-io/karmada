@@ -39,7 +39,7 @@ export KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG}
 export PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS}
 
 set +e
-ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/
+ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/ -- --karmada-context=karmada-apiserver
 TESTING_RESULT=$?
 
 # Collect logs

@@ -85,6 +85,9 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
+					GlobalCommandOptions: options.GlobalCommandOptions{
+						KarmadaContext: karmadaContext,
+					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
@@ -100,6 +103,9 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandUnjoinOption{
+					GlobalCommandOptions: options.GlobalCommandOptions{
+						KarmadaContext: karmadaContext,
+					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,

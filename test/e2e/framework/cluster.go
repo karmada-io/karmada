@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -188,7 +189,7 @@ func newClusterClientSet(controlPlaneClient client.Client, c *clusterv1alpha1.Cl
 	}
 
 	clusterConfigPath := pullModeClusters[c.Name]
-	clusterConfig, err := clientcmd.BuildConfigFromFlags("", clusterConfigPath)
+	clusterConfig, err := LoadRESTClientConfig(clusterConfigPath, c.Name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -247,4 +248,25 @@ func WaitClusterFitWith(c client.Client, clusterName string, fit func(cluster *c
 		}
 		return fit(currentCluster), nil
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
+// LoadRESTClientConfig creates a rest.Config using the passed kubeconfig. If context is empty, current context in kubeconfig will be used.
+func LoadRESTClientConfig(kubeconfig string, context string) (*rest.Config, error) {
+	loader := &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig}
+	loadedConfig, err := loader.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	if context == "" {
+		context = loadedConfig.CurrentContext
+	}
+	klog.Infof("Use context %v", context)
+
+	return clientcmd.NewNonInteractiveClientConfig(
+		*loadedConfig,
+		context,
+		&clientcmd.ConfigOverrides{},
+		loader,
+	).ClientConfig()
 }
