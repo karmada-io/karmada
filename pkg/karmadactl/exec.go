@@ -10,7 +10,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -40,7 +40,7 @@ var (
 )
 
 // NewCmdExec new exec command.
-func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdExec(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &ExecOptions{
 		KubectlExecOptions: &kubectlexec.ExecOptions{
 			StreamOptions: kubectlexec.StreamOptions{
@@ -57,7 +57,7 @@ func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string, streams gener
 		Example: fmt.Sprintf(execExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			argsLenAtDash := cmd.ArgsLenAtDash()
-			if err := o.Complete(karmadaConfig, cmd, args, argsLenAtDash); err != nil {
+			if err := o.Complete(f, cmd, args, argsLenAtDash); err != nil {
 				return err
 			}
 			if err := o.Validate(); err != nil {
@@ -70,49 +70,39 @@ func NewCmdExec(karmadaConfig KarmadaConfig, parentCommand string, streams gener
 		},
 	}
 
-	o.GlobalCommandOptions.AddFlags(cmd.Flags())
+	flags := cmd.Flags()
 
 	cmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodExecTimeout)
-	cmdutil.AddJsonFilenameFlag(cmd.Flags(), &o.KubectlExecOptions.FilenameOptions.Filenames, "to use to exec into the resource")
+	cmdutil.AddJsonFilenameFlag(flags, &o.KubectlExecOptions.FilenameOptions.Filenames, "to use to exec into the resource")
 	cmdutil.AddContainerVarFlags(cmd, &o.KubectlExecOptions.ContainerName, o.KubectlExecOptions.ContainerName)
 
-	cmd.Flags().BoolVarP(&o.KubectlExecOptions.Stdin, "stdin", "i", o.KubectlExecOptions.Stdin, "Pass stdin to the container")
-	cmd.Flags().BoolVarP(&o.KubectlExecOptions.TTY, "tty", "t", o.KubectlExecOptions.TTY, "Stdin is a TTY")
-	cmd.Flags().BoolVarP(&o.KubectlExecOptions.Quiet, "quiet", "q", o.KubectlExecOptions.Quiet, "Only print output from the remote session")
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "If present, the namespace scope for this CLI request")
-	cmd.Flags().StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
+	flags.BoolVarP(&o.KubectlExecOptions.Stdin, "stdin", "i", o.KubectlExecOptions.Stdin, "Pass stdin to the container")
+	flags.BoolVarP(&o.KubectlExecOptions.TTY, "tty", "t", o.KubectlExecOptions.TTY, "Stdin is a TTY")
+	flags.BoolVarP(&o.KubectlExecOptions.Quiet, "quiet", "q", o.KubectlExecOptions.Quiet, "Only print output from the remote session")
+	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
+	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	return cmd
 }
 
 // ExecOptions declare the arguments accepted by the Exec command
 type ExecOptions struct {
-	// global flags
-	options.GlobalCommandOptions
 	// flags specific to exec
 	KubectlExecOptions *kubectlexec.ExecOptions
-	Namespace          string
 	Cluster            string
 }
 
 // Complete verifies command line arguments and loads data from the command environment
-func (o *ExecOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Command, argsIn []string, argsLenAtDash int) error {
+func (o *ExecOptions) Complete(f util.Factory, cmd *cobra.Command, argsIn []string, argsLenAtDash int) error {
 	if len(o.Cluster) == 0 {
 		return fmt.Errorf("must specify a cluster")
 	}
-
-	karmadaRestConfig, err := karmadaConfig.GetRestConfig(o.KarmadaContext, o.KubeConfig)
-	if err != nil {
-		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			o.KarmadaContext, o.KubeConfig, err)
-	}
-
-	clusterInfo, err := getClusterInfo(karmadaRestConfig, o.Cluster, o.KubeConfig, o.KarmadaContext)
+	memberFactory, err := f.FactoryForMemberCluster(o.Cluster)
 	if err != nil {
 		return err
 	}
-
-	f := getFactory(o.Cluster, clusterInfo, o.Namespace)
-	return o.KubectlExecOptions.Complete(f, cmd, argsIn, argsLenAtDash)
+	return o.KubectlExecOptions.Complete(memberFactory, cmd, argsIn, argsLenAtDash)
 }
 
 // Validate checks that the provided exec options are specified.
