@@ -103,7 +103,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 
 	clusterProvider = cluster.NewProvider()
 	var err error
-	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, karmadaContext)
+	restConfig, err = helper.LoadRESTClientConfig(kubeconfig, karmadaContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	karmadaHost = restConfig.Host
