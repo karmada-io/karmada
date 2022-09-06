@@ -87,6 +87,9 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName), func() {
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
+					GlobalCommandOptions: options.GlobalCommandOptions{
+						KarmadaContext: karmadaContext,
+					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
@@ -229,6 +232,9 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
+					GlobalCommandOptions: options.GlobalCommandOptions{
+						KarmadaContext: karmadaContext,
+					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
@@ -289,6 +295,9 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
 				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
+					GlobalCommandOptions: options.GlobalCommandOptions{
+						KarmadaContext: karmadaContext,
+					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,

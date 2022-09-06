@@ -68,6 +68,7 @@ var (
 )
 
 var (
+	karmadaContext        string
 	kubeconfig            string
 	restConfig            *rest.Config
 	karmadaHost           string
@@ -86,6 +87,7 @@ func init() {
 	// eg. ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/ -- --poll-interval=5s --pollTimeout=5m
 	flag.DurationVar(&pollInterval, "poll-interval", 5*time.Second, "poll-interval defines the interval time for a poll operation")
 	flag.DurationVar(&pollTimeout, "poll-timeout", 300*time.Second, "poll-timeout defines the time which the poll operation times out")
+	flag.StringVar(&karmadaContext, "karmada-context", karmadaContext, "Name of the cluster context in control plane kubeconfig file.")
 }
 
 func TestE2E(t *testing.T) {
@@ -101,7 +103,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 
 	clusterProvider = cluster.NewProvider()
 	var err error
-	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, karmadaContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	karmadaHost = restConfig.Host

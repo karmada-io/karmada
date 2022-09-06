@@ -25,9 +25,9 @@ fi
 KARMADA_APISERVER_KUBECONFIG=$1
 
 # check context existence
-if ! kubectl config use-context "${2}" --kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" > /dev/null 2>&1;
+if ! kubectl config get-contexts "${2}" --kubeconfig="${KARMADA_APISERVER_KUBECONFIG}" > /dev/null 2>&1;
 then
-  echo -e "ERROR: failed to use context: '${2}' not in ${KARMADA_APISERVER_KUBECONFIG}. \n"
+  echo -e "ERROR: failed to get context: '${2}' not in ${KARMADA_APISERVER_KUBECONFIG}. \n"
   usage
   exit 1
 fi
@@ -53,22 +53,21 @@ MEMBER_CLUSTER_NAME=$4
 source "${REPO_ROOT}"/hack/util.sh
 
 # remove the member cluster from karmada control plane
-kubectl delete cluster ${MEMBER_CLUSTER_NAME}
+kubectl --context="${2}" delete cluster "${MEMBER_CLUSTER_NAME}"
 
 # remove agent from the member cluster
 if [ -n "${KUBECONFIG+x}" ];then
   CURR_KUBECONFIG=$KUBECONFIG # backup current kubeconfig
 fi
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}" # switch to member cluster
-kubectl config use-context "${MEMBER_CLUSTER_NAME}"
 
 # remove namespace of karmada agent
-kubectl delete -f "${REPO_ROOT}/artifacts/agent/namespace.yaml"
-kubectl delete namespace karmada-cluster
+kubectl --context="${MEMBER_CLUSTER_NAME}" delete -f "${REPO_ROOT}/artifacts/agent/namespace.yaml"
+kubectl --context="${MEMBER_CLUSTER_NAME}" delete namespace karmada-cluster
 
 # remove clusterrole and clusterrolebinding of karmada agent
-kubectl delete -f "${REPO_ROOT}/artifacts/agent/clusterrole.yaml"
-kubectl delete -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
+kubectl --context="${MEMBER_CLUSTER_NAME}" delete -f "${REPO_ROOT}/artifacts/agent/clusterrole.yaml"
+kubectl --context="${MEMBER_CLUSTER_NAME}" delete -f "${REPO_ROOT}/artifacts/agent/clusterrolebinding.yaml"
 
 # recover the kubeconfig after removing agent if necessary
 if [ -n "${CURR_KUBECONFIG+x}" ];then
