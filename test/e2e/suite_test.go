@@ -33,7 +33,7 @@ import (
 
 const (
 	// RandomStrLength represents the random string length to combine names.
-	RandomStrLength = 3
+	RandomStrLength = 5
 )
 
 const (
