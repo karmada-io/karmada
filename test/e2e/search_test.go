@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -345,9 +346,9 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 
 	ginkgo.Describe("karmada proxy testing", ginkgo.Ordered, func() {
 		var (
-			m1Client, m2Client, proxyClient    kubernetes.Interface
-			m1Dynamic, m2Dynamic, proxyDynamic dynamic.Interface
-			nodeGVR                            = corev1.SchemeGroupVersion.WithResource("nodes")
+			m1Client, m2Client, proxyClient kubernetes.Interface
+			m1Dynamic, m2Dynamic            dynamic.Interface
+			nodeGVR                         = corev1.SchemeGroupVersion.WithResource("nodes")
 		)
 
 		ginkgo.BeforeAll(func() {
@@ -364,7 +365,6 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 			proxyConfig := *restConfig
 			proxyConfig.Host += "/apis/search.karmada.io/v1alpha1/proxying/karmada/proxy"
 			proxyClient = kubernetes.NewForConfigOrDie(&proxyConfig)
-			proxyDynamic = dynamic.NewForConfigOrDie(&proxyConfig)
 		})
 
 		ginkgo.Describe("resourceRegistry testings", func() {
@@ -517,6 +517,12 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 			ginkgo.Context("caching nodes", func() {
 				var (
 					rr *searchv1alpha1.ResourceRegistry
+
+					deleteAnnotationAfterTest = func(c kubernetes.Interface, name string, anno string) {
+						data := []byte(`{"metadata": {"annotations": {"` + anno + `":null}}}`)
+						_, err := c.CoreV1().Nodes().Patch(context.TODO(), name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
+						klog.Warningf("Clean node %v's annotation %v failed: %v", name, anno, err)
+					}
 				)
 
 				ginkgo.BeforeAll(func() {
@@ -543,6 +549,14 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					framework.RemoveResourceRegistry(karmadaClient, rr.Name)
 				})
 
+				ginkgo.It("could get node", func() {
+					testObject := framework.GetAnyResourceOrFail(m1Dynamic.Resource(nodeGVR))
+
+					get, err := proxyClient.CoreV1().Nodes().Get(context.TODO(), testObject.GetName(), metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(get.Annotations[clusterv1alpha1.CacheSourceAnnotationKey]).Should(gomega.Equal(member1))
+				})
+
 				ginkgo.It("could list nodes", func() {
 					fromM1 := framework.GetResourceNames(m1Dynamic.Resource(nodeGVR))
 					ginkgo.By("list nodes from member1: " + strings.Join(fromM1.List(), ","))
@@ -550,10 +564,32 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					ginkgo.By("list nodes from member2: " + strings.Join(fromM2.List(), ","))
 					fromMembers := sets.NewString().Union(fromM1).Union(fromM2)
 
+					var proxyList *corev1.NodeList
 					gomega.Eventually(func(g gomega.Gomega) {
-						fromProxy := framework.GetResourceNames(proxyDynamic.Resource(nodeGVR))
+						var err error
+						proxyList, err = proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						fromProxy := sets.NewString()
+						for _, item := range proxyList.Items {
+							fromProxy.Insert(item.Name)
+						}
 						g.Expect(fromProxy).Should(gomega.Equal(fromMembers))
 					}, time.Second*10).Should(gomega.Succeed())
+
+					// assert cache source annotation
+					groupM1, groupM2 := sets.NewString(), sets.NewString()
+					for _, item := range proxyList.Items {
+						cluster := item.Annotations[clusterv1alpha1.CacheSourceAnnotationKey]
+						switch cluster {
+						case member1:
+							groupM1.Insert(item.Name)
+						case member2:
+							groupM2.Insert(item.Name)
+						}
+					}
+					gomega.Expect(groupM1).Should(gomega.Equal(fromM1))
+					gomega.Expect(groupM2).Should(gomega.Equal(fromM2))
 				})
 
 				ginkgo.It("could chunk list nodes", func() {
@@ -598,15 +634,22 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					data := []byte(`{"metadata": {"annotations": {"` + anno + `": "true"}}}`)
 					_, err = m1Client.CoreV1().Nodes().Patch(context.TODO(), testNode.GetName(), types.StrategicMergePatchType, data, metav1.PatchOptions{})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					defer func() {
+						deleteAnnotationAfterTest(m1Client, testNode.GetName(), anno)
+					}()
 
+					var get *corev1.Node
 					gomega.Eventually(func() bool {
+						var ok bool
 						event := <-watcher.ResultChan()
-						o, ok := event.Object.(*corev1.Node)
+						get, ok = event.Object.(*corev1.Node)
 						if !ok {
 							return false
 						}
-						return o.UID == testNode.GetUID() && metav1.HasAnnotation(o.ObjectMeta, anno)
+						return get.UID == testNode.GetUID() && metav1.HasAnnotation(get.ObjectMeta, anno)
 					}, time.Second*10, 0).Should(gomega.BeTrue())
+
+					gomega.Expect(get.Annotations[clusterv1alpha1.CacheSourceAnnotationKey]).Should(gomega.Equal(member1))
 				})
 
 				ginkgo.It("could path nodes", func() {
@@ -616,10 +659,36 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					data := []byte(`{"metadata": {"annotations": {"` + anno + `": "true"}}}`)
 					_, err := proxyClient.CoreV1().Nodes().Patch(context.TODO(), testObject.GetName(), types.StrategicMergePatchType, data, metav1.PatchOptions{})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					defer func() {
+						deleteAnnotationAfterTest(m1Client, testObject.GetName(), anno)
+					}()
 
 					testPod, err := m1Client.CoreV1().Nodes().Get(context.TODO(), testObject.GetName(), metav1.GetOptions{})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					gomega.Expect(testPod.Annotations).Should(gomega.HaveKey(anno))
+				})
+
+				ginkgo.It("could update node", func() {
+					testObject := framework.GetAnyResourceOrFail(m2Dynamic.Resource(nodeGVR))
+					anno := "proxy-ann-" + rand.String(RandomStrLength)
+
+					ginkgo.By("update node " + testObject.GetName())
+					gomega.Eventually(func(g gomega.Gomega) {
+						node, err := proxyClient.CoreV1().Nodes().Get(context.TODO(), testObject.GetName(), metav1.GetOptions{})
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						metav1.SetMetaDataAnnotation(&node.ObjectMeta, anno, "true")
+						_, err = proxyClient.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+					}, time.Second*10, 0).Should(gomega.Succeed())
+					defer func() {
+						deleteAnnotationAfterTest(m2Client, testObject.GetName(), anno)
+					}()
+
+					node, err := m2Client.CoreV1().Nodes().Get(context.TODO(), testObject.GetName(), metav1.GetOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(metav1.HasAnnotation(node.ObjectMeta, anno)).Should(gomega.BeTrue())
+					gomega.Expect(metav1.HasAnnotation(node.ObjectMeta, clusterv1alpha1.CacheSourceAnnotationKey)).Should(gomega.BeFalse())
 				})
 			})
 		})

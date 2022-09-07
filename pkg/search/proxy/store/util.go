@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
 type multiClusterResourceVersion struct {
@@ -169,4 +173,76 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 		case w.result <- event:
 		}
 	}
+}
+
+func addCacheSourceAnnotation(obj runtime.Object, clusterName string) {
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		// Object has no meta, do nothing
+		return
+	}
+	annotations := accessor.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[clusterv1alpha1.CacheSourceAnnotationKey] = clusterName
+	accessor.SetAnnotations(annotations)
+}
+
+// RemoveCacheSourceAnnotation delete CacheSourceAnnotationKey annotation in object. If obj is updated, return true.
+func RemoveCacheSourceAnnotation(obj runtime.Object) bool {
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		// Object has no meta, do nothing
+		return false
+	}
+
+	annotations := accessor.GetAnnotations()
+	_, exist := annotations[clusterv1alpha1.CacheSourceAnnotationKey]
+	if exist {
+		delete(annotations, clusterv1alpha1.CacheSourceAnnotationKey)
+		accessor.SetAnnotations(annotations)
+		return true
+	}
+	return false
+}
+
+// RecoverClusterResourceVersion convert global resource version to single cluster resource version. If obj is updated, return true.
+func RecoverClusterResourceVersion(obj runtime.Object, cluster string) bool {
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		// Object has no meta, do nothing
+		return false
+	}
+
+	rv := accessor.GetResourceVersion()
+	if rv == "" || rv == "0" {
+		return false
+	}
+
+	decoded, err := base64.RawURLEncoding.DecodeString(rv)
+	if err != nil {
+		// it's not global rv, do nothing
+		return false
+	}
+
+	m := make(map[string]string)
+	err = json.Unmarshal(decoded, &m)
+	if err != nil {
+		// it's not global rv, do nothing
+		return false
+	}
+
+	crv := m[cluster]
+	accessor.SetResourceVersion(crv)
+	return true
+}
+
+// BuildMultiClusterResourceVersion build multi cluster resource version.
+func BuildMultiClusterResourceVersion(clusterResourceMap map[string]string) string {
+	m := newMultiClusterResourceVersionWithCapacity(len(clusterResourceMap))
+	for cluster, rv := range clusterResourceMap {
+		m.set(cluster, rv)
+	}
+	return m.String()
 }
