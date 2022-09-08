@@ -204,19 +204,20 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 			resultObject = obj
 		}
 
-		extractList, err := meta.ExtractList(obj)
+		cnt := 0
+		err = meta.EachListItem(obj, func(o runtime.Object) error {
+			clone := o.DeepCopyObject()
+			addCacheSourceAnnotation(clone, cluster)
+			items = append(items, clone)
+			cnt++
+			return nil
+		})
 		if err != nil {
 			return 0, "", err
 		}
 
-		for i := range extractList {
-			// Add annotation will modify the object in cache, but seems not bad. So we don't deep copy it here.
-			addCacheSourceAnnotation(extractList[i], cluster)
-		}
-
-		items = append(items, extractList...)
 		responseResourceVersion.set(cluster, list.GetResourceVersion())
-		return len(extractList), list.GetContinue(), nil
+		return cnt, list.GetContinue(), nil
 	}
 
 	if options.Limit == 0 {
