@@ -346,6 +346,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 
 	ginkgo.Describe("karmada proxy testing", ginkgo.Ordered, func() {
 		var (
+			pollTimeout, pollInterval       = time.Second * 10, time.Second
 			m1Client, m2Client, proxyClient kubernetes.Interface
 			m1Dynamic, m2Dynamic            dynamic.Interface
 			nodeGVR                         = corev1.SchemeGroupVersion.WithResource("nodes")
@@ -439,7 +440,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							list, err := proxyClient.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{})
 							g.Expect(err).ShouldNot(gomega.HaveOccurred())
 							g.Expect(list.Items).Should(gomega.BeEmpty())
-						}, time.Second*10).Should(gomega.Succeed())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					})
 
 					ginkgo.By("should not list nodes", func() {
@@ -447,7 +448,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							list, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 							g.Expect(err).ShouldNot(gomega.HaveOccurred())
 							g.Expect(list.Items).Should(gomega.BeEmpty())
-						}, time.Second*10).Should(gomega.Succeed())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					})
 				})
 
@@ -459,7 +460,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							list, err := proxyClient.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{})
 							g.Expect(err).ShouldNot(gomega.HaveOccurred())
 							g.Expect(list.Items).Should(gomega.BeEmpty())
-						}, time.Second*10).Should(gomega.Succeed())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					})
 
 					ginkgo.By("should list nodes", func() {
@@ -467,7 +468,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							list, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 							g.Expect(err).ShouldNot(gomega.HaveOccurred())
 							g.Expect(list.Items).ShouldNot(gomega.BeEmpty())
-						}, time.Second*10).Should(gomega.Succeed())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					})
 				})
 
@@ -479,7 +480,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							list, err := proxyClient.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{})
 							g.Expect(err).ShouldNot(gomega.HaveOccurred())
 							g.Expect(list.Items).ShouldNot(gomega.BeEmpty())
-						}, time.Second*10).Should(gomega.Succeed())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					})
 
 					ginkgo.By("should list nodes", func() {
@@ -487,7 +488,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							list, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 							g.Expect(err).ShouldNot(gomega.HaveOccurred())
 							g.Expect(list.Items).ShouldNot(gomega.BeEmpty())
-						}, time.Second*10).Should(gomega.Succeed())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					})
 				})
 
@@ -500,7 +501,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							list, err := proxyClient.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{})
 							g.Expect(err).ShouldNot(gomega.HaveOccurred())
 							g.Expect(list.Items).Should(gomega.BeEmpty())
-						}, time.Second*10).Should(gomega.Succeed())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					})
 
 					ginkgo.By("should not list nodes", func() {
@@ -508,7 +509,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							list, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 							g.Expect(err).ShouldNot(gomega.HaveOccurred())
 							g.Expect(list.Items).Should(gomega.BeEmpty())
-						}, time.Second*10).Should(gomega.Succeed())
+						}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					})
 				})
 			})
@@ -552,8 +553,13 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 				ginkgo.It("could get node", func() {
 					testObject := framework.GetAnyResourceOrFail(m1Dynamic.Resource(nodeGVR))
 
-					get, err := proxyClient.CoreV1().Nodes().Get(context.TODO(), testObject.GetName(), metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					var get *corev1.Node
+					gomega.Eventually(func(g gomega.Gomega) {
+						var err error
+						get, err = proxyClient.CoreV1().Nodes().Get(context.TODO(), testObject.GetName(), metav1.GetOptions{})
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
+
 					gomega.Expect(get.Annotations[clusterv1alpha1.CacheSourceAnnotationKey]).Should(gomega.Equal(member1))
 				})
 
@@ -575,7 +581,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 							fromProxy.Insert(item.Name)
 						}
 						g.Expect(fromProxy).Should(gomega.Equal(fromMembers))
-					}, time.Second*10).Should(gomega.Succeed())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 
 					// assert cache source annotation
 					groupM1, groupM2 := sets.NewString(), sets.NewString()
@@ -599,18 +605,22 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 
 					fromM2, err := m2Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					total := len(fromM1.Items) + len(fromM2.Items)
 					ginkgo.By(fmt.Sprintf("list %v nodes from member2", len(fromM2.Items)))
 
-					list1, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{Limit: 1})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					gomega.Expect(list1.Items).Should(gomega.HaveLen(1))
-
-					if list1.Continue == "" {
-						ginkgo.By("No more nodes remains")
-						gomega.Expect(list1.Items).Should(gomega.HaveLen(total))
-						ginkgo.Skip("No more nodes remains")
+					total := len(fromM1.Items) + len(fromM2.Items)
+					if total < 2 {
+						ginkgo.Skip(fmt.Sprintf("Total nodes %v, less than 2", total))
 					}
+
+					var list1 *corev1.NodeList
+					gomega.Eventually(func(g gomega.Gomega) {
+						list1, err = proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{Limit: 1})
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(list1.Items).ShouldNot(gomega.BeEmpty())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
+
+					gomega.Expect(list1.Items).Should(gomega.HaveLen(1))
+					gomega.Expect(list1.Continue).ShouldNot(gomega.BeEmpty())
 
 					list2, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
 						Limit:    999999999999,
@@ -621,8 +631,13 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 				})
 
 				ginkgo.It("could list & watch nodes", func() {
-					listObj, err := proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					var listObj *corev1.NodeList
+					gomega.Eventually(func(g gomega.Gomega) {
+						var err error
+						listObj, err = proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(listObj.Items).ShouldNot(gomega.BeEmpty())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 
 					watcher, err := proxyClient.CoreV1().Nodes().Watch(context.TODO(), metav1.ListOptions{ResourceVersion: listObj.ResourceVersion})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -657,8 +672,11 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 
 					anno := "proxy-ann-" + rand.String(RandomStrLength)
 					data := []byte(`{"metadata": {"annotations": {"` + anno + `": "true"}}}`)
-					_, err := proxyClient.CoreV1().Nodes().Patch(context.TODO(), testObject.GetName(), types.StrategicMergePatchType, data, metav1.PatchOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					gomega.Eventually(func() error {
+						_, err := proxyClient.CoreV1().Nodes().Patch(context.TODO(), testObject.GetName(), types.StrategicMergePatchType, data, metav1.PatchOptions{})
+						return err
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					defer func() {
 						deleteAnnotationAfterTest(m1Client, testObject.GetName(), anno)
 					}()
@@ -680,7 +698,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 						metav1.SetMetaDataAnnotation(&node.ObjectMeta, anno, "true")
 						_, err = proxyClient.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
 						g.Expect(err).ShouldNot(gomega.HaveOccurred())
-					}, time.Second*10, 0).Should(gomega.Succeed())
+					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 					defer func() {
 						deleteAnnotationAfterTest(m2Client, testObject.GetName(), anno)
 					}()
