@@ -178,9 +178,9 @@ Karmada is installed successfully.
 Register Kubernetes cluster to Karmada control plane.
 
 Register cluster with 'Push' mode
-                                                                                                                                                                             
+
 Step 1: Use "%[2]s join" command to register the cluster to Karmada control plane. --cluster-kubeconfig is kubeconfig of the member cluster.
-(In karmada)~# MEMBER_CLUSTER_NAME="cat ~/.kube/config  | grep current-context | sed 's/: /\n/g'| sed '1d'"
+(In karmada)~# MEMBER_CLUSTER_NAME=$(cat ~/.kube/config  | grep current-context | sed 's/: /\n/g'| sed '1d')
 (In karmada)~# %[2]s --kubeconfig %[1]s/karmada-apiserver.config  join ${MEMBER_CLUSTER_NAME} --cluster-kubeconfig=$HOME/.kube/config
 
 Step 2: Show members of karmada
