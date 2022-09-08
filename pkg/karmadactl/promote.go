@@ -59,11 +59,12 @@ func NewCmdPromote(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Com
 	opts.JSONYamlPrintFlags = genericclioptions.NewJSONYamlPrintFlags()
 
 	cmd := &cobra.Command{
-		Use:          "promote <RESOURCE_TYPE> <RESOURCE_NAME> -n <NAME_SPACE> -C <CLUSTER_NAME>",
-		Short:        promoteShort,
-		Long:         promoteLong,
-		Example:      fmt.Sprintf(promoteExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "promote <RESOURCE_TYPE> <RESOURCE_NAME> -n <NAME_SPACE> -C <CLUSTER_NAME>",
+		Short:                 promoteShort,
+		Long:                  promoteLong,
+		Example:               fmt.Sprintf(promoteExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err

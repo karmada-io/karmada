@@ -40,11 +40,12 @@ func NewCmdUnjoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 	opts := CommandUnjoinOption{}
 
 	cmd := &cobra.Command{
-		Use:          "unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:        unjoinShort,
-		Long:         unjoinLong,
-		Example:      fmt.Sprintf(unjoinExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
+		Short:                 unjoinShort,
+		Long:                  unjoinLong,
+		Example:               fmt.Sprintf(unjoinExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err

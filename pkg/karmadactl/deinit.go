@@ -44,11 +44,12 @@ type CommandDeInitOption struct {
 func NewCmdDeInit(parentCommand string) *cobra.Command {
 	opts := CommandDeInitOption{}
 	cmd := &cobra.Command{
-		Use:          "deinit",
-		Short:        "Removes Karmada from Kubernetes",
-		Long:         "Removes Karmada from Kubernetes",
-		Example:      fmt.Sprintf(deInitExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "deinit",
+		Short:                 "Removes Karmada from Kubernetes",
+		Long:                  "Removes Karmada from Kubernetes",
+		Example:               fmt.Sprintf(deInitExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(); err != nil {
 				return err

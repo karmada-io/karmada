@@ -129,11 +129,12 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:          "register [karmada-apiserver-endpoint]",
-		Short:        registerShort,
-		Long:         registerLong,
-		Example:      fmt.Sprintf(registerExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "register [karmada-apiserver-endpoint]",
+		Short:                 registerShort,
+		Long:                  registerLong,
+		Example:               fmt.Sprintf(registerExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(args); err != nil {
 				return err

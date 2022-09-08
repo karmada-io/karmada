@@ -73,10 +73,12 @@ func NewCmdApply(karmadaConfig KarmadaConfig, parentCommand string, streams gene
 		KubectlApplyFlags: kubectlapply.NewApplyFlags(nil, streams),
 	}
 	cmd := &cobra.Command{
-		Use:     "apply (-f FILENAME | -k DIRECTORY)",
-		Short:   "Apply a configuration to a resource by file name or stdin and propagate them into member clusters",
-		Long:    applyLong,
-		Example: fmt.Sprintf(applyExample, parentCommand),
+		Use:                   "apply (-f FILENAME | -k DIRECTORY)",
+		Short:                 "Apply a configuration to a resource by file name or stdin and propagate them into member clusters",
+		Long:                  applyLong,
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
+		Example:               fmt.Sprintf(applyExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(karmadaConfig, cmd, parentCommand, args); err != nil {
 				return err

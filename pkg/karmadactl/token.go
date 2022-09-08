@@ -90,15 +90,16 @@ type CommandTokenOptions struct {
 // NewCmdTokenCreate returns cobra.Command to create token
 func NewCmdTokenCreate(karmadaConfig KarmadaConfig, out io.Writer, tokenOpts *CommandTokenOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:                   "create",
-		DisableFlagsInUseLine: true,
-		Short:                 "Create bootstrap tokens on the server",
+		Use:   "create",
+		Short: "Create bootstrap tokens on the server",
 		Long: templates.LongDesc(`
 			This command will create a bootstrap token for you.
 			You can specify the usages for this token, the "time to live" and an optional human friendly description.
 
 			This should be a securely generated random token of the form "[a-z0-9]{6}.[a-z0-9]{16}".
 		`),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(Cmd *cobra.Command, args []string) error {
 			// Get control plane kube-apiserver client
 			client, err := tokenOpts.getClientSet(karmadaConfig)

@@ -32,11 +32,12 @@ var (
 func NewCmdAddonsList(parentCommand string) *cobra.Command {
 	opts := addoninit.CommandAddonsListOption{}
 	cmd := &cobra.Command{
-		Use:          "list",
-		Short:        "List karmada addons from Kubernetes",
-		Long:         "List Karmada addons from Kubernetes",
-		Example:      fmt.Sprintf(listExample, parentCommand),
-		SilenceUsage: true,
+		Use:                   "list",
+		Short:                 "List karmada addons from Kubernetes",
+		Long:                  "List Karmada addons from Kubernetes",
+		Example:               fmt.Sprintf(listExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(); err != nil {
 				return err

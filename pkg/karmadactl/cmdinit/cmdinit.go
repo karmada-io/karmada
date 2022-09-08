@@ -58,11 +58,12 @@ var (
 func NewCmdInit(parentCommand string) *cobra.Command {
 	opts := kubernetes.CommandInitOption{}
 	cmd := &cobra.Command{
-		Use:          "init",
-		Short:        initShort,
-		Long:         initLong,
-		Example:      initExample(parentCommand),
-		SilenceUsage: true,
+		Use:                   "init",
+		Short:                 initShort,
+		Long:                  initLong,
+		Example:               initExample(parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Validate(parentCommand); err != nil {
 				return err
