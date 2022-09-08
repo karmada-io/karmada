@@ -228,20 +228,21 @@ func (i CommandInitOption) isNodePortExist() bool {
 	if err != nil {
 		klog.Exit(err)
 	}
+	karmadaService := i.makeKarmadaAPIServerService()
 	for _, v := range svc.Items {
 		if v.Spec.Type != corev1.ServiceTypeNodePort {
 			continue
 		}
-		if !nodePort(i.KarmadaAPIServerNodePort, v) {
+		if !nodePort(i.KarmadaAPIServerNodePort, v, *karmadaService) {
 			return false
 		}
 	}
 	return true
 }
 
-func nodePort(nodePort int32, service corev1.Service) bool {
+func nodePort(nodePort int32, service, karmadaService corev1.Service) bool {
 	for _, v := range service.Spec.Ports {
-		if v.NodePort == nodePort {
+		if v.NodePort == nodePort && service.Name != karmadaService.Name && service.Namespace != karmadaService.Namespace {
 			return false
 		}
 	}
