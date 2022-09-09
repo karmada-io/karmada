@@ -54,12 +54,12 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 
 	// var pollTimeout = 30 * time.Second
 	var searchObject = func(path, target string, exists bool) {
-		gomega.Eventually(func() bool {
+		gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 			res := karmadaClient.SearchV1alpha1().RESTClient().Get().AbsPath(path).Do(context.TODO())
-			gomega.Expect(res.Error()).ShouldNot(gomega.HaveOccurred())
+			g.Expect(res.Error()).ShouldNot(gomega.HaveOccurred())
 			raw, err := res.Raw()
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			return strings.Contains(string(raw), target)
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
+			return strings.Contains(string(raw), target), nil
 		}, pollTimeout, pollInterval).Should(gomega.Equal(exists))
 	}
 
@@ -557,7 +557,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					gomega.Eventually(func(g gomega.Gomega) {
 						var err error
 						get, err = proxyClient.CoreV1().Nodes().Get(context.TODO(), testObject.GetName(), metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
 					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 
 					gomega.Expect(get.Annotations[clusterv1alpha1.CacheSourceAnnotationKey]).Should(gomega.Equal(member1))
@@ -574,7 +574,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					gomega.Eventually(func(g gomega.Gomega) {
 						var err error
 						proxyList, err = proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 						fromProxy := sets.NewString()
 						for _, item := range proxyList.Items {

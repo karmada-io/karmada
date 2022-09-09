@@ -81,15 +81,15 @@ func WaitWorkloadPresentOnClusterFitWith(cluster, namespace, name string, fit fu
 	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
 	klog.Infof("Waiting for Workload(%s/%s) synced on cluster(%s)", namespace, name, cluster)
-	gomega.Eventually(func() bool {
+	gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 		workload, err := clusterClient.Resource(workloadGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
-			return false
+			return false, nil
 		}
 		typedObj := &workloadv1alpha1.Workload{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(workload.UnstructuredContent(), typedObj)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		return fit(typedObj)
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		return fit(typedObj), nil
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 }
 
