@@ -59,6 +59,10 @@ func PodTransformFunc(obj interface{}) (interface{}, error) {
 	}
 
 	aggregatedPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+		},
 		Spec: corev1.PodSpec{
 			NodeName:       pod.Spec.NodeName,
 			InitContainers: pod.Spec.InitContainers,

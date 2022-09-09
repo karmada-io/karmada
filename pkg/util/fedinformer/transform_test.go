@@ -169,7 +169,7 @@ func TestPodTransformFunc(t *testing.T) {
 		want interface{}
 	}{
 		{
-			name: "transform pods without needed",
+			name: "transform pods without status",
 			obj: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace:   "foo",
@@ -183,10 +183,15 @@ func TestPodTransformFunc(t *testing.T) {
 					},
 				},
 			},
-			want: &corev1.Pod{},
+			want: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "bar",
+				},
+			},
 		},
 		{
-			name: "transform pods with needed",
+			name: "transform pods with status",
 			obj: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "foo",
@@ -208,6 +213,10 @@ func TestPodTransformFunc(t *testing.T) {
 				},
 			},
 			want: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "bar",
+				},
 				Spec: corev1.PodSpec{
 					NodeName:       "test",
 					InitContainers: []corev1.Container{{Name: "test"}},
