@@ -9,11 +9,15 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
+	"k8s.io/apiserver/pkg/endpoints/metrics"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes/scheme"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -34,7 +38,9 @@ const workKey = "key"
 
 // Controller syncs Cluster and GlobalResource.
 type Controller struct {
-	restMapper     meta.RESTMapper
+	restMapper           meta.RESTMapper
+	negotiatedSerializer runtime.NegotiatedSerializer
+
 	secretLister   listcorev1.SecretLister
 	clusterLister  clusterlisters.ClusterLister
 	registryLister searchlisters.ResourceRegistryLister
@@ -57,10 +63,11 @@ func NewController(restConfig *restclient.Config, restMapper meta.RESTMapper,
 	}
 
 	ctl := &Controller{
-		restMapper:     restMapper,
-		secretLister:   kubeFactory.Core().V1().Secrets().Lister(),
-		clusterLister:  karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
-		registryLister: karmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
+		restMapper:           restMapper,
+		negotiatedSerializer: scheme.Codecs.WithoutConversion(),
+		secretLister:         kubeFactory.Core().V1().Secrets().Lister(),
+		clusterLister:        karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
+		registryLister:       karmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
 	}
 	s := store.NewMultiClusterCache(ctl.dynamicClientForCluster, restMapper)
 
@@ -162,9 +169,17 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 
 		h, err := ctl.connect(newCtx, requestInfo, proxyPath, responder)
 		if err != nil {
-			responder.Error(err)
-			return
+			h = http.HandlerFunc(func(delegate http.ResponseWriter, req *http.Request) {
+				// Write error into delegate ResponseWriter, wrapped in metrics.InstrumentHandlerFunc, so metrics can record this error.
+				gv := schema.GroupVersion{
+					Group:   requestInfo.APIGroup,
+					Version: requestInfo.Verb,
+				}
+				responsewriters.ErrorNegotiated(err, ctl.negotiatedSerializer, gv, delegate, req)
+			})
 		}
+		h = metrics.InstrumentHandlerFunc(requestInfo.Verb, requestInfo.APIGroup, requestInfo.APIVersion, requestInfo.Resource, requestInfo.Subresource,
+			"", "karmada-search", false, "", h.ServeHTTP)
 		h.ServeHTTP(rw, newReq)
 	}), nil
 }
