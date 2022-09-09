@@ -180,7 +180,7 @@ func (i *CommandInitOption) Complete() error {
 	return nil
 }
 
-//  genCerts create ca etcd karmada cert
+// genCerts create ca etcd karmada cert
 func (i *CommandInitOption) genCerts() error {
 	notAfter := time.Now().Add(cert.Duration365d).UTC()
 
