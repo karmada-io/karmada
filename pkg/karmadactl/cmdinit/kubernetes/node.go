@@ -31,6 +31,12 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 	if err != nil {
 		return err
 	}
+	if len(masterNodes.Items) == 0 {
+		masterNodes, err = nodeClient.List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/control-plane"})
+		if err != nil {
+			return err
+		}
+	}
 
 	if len(masterNodes.Items) == 0 {
 		klog.Warning("the kubernetes cluster does not have a Master role.")
