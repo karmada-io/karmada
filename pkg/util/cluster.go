@@ -3,7 +3,9 @@ package util
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/labels"
 	"reflect"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -184,15 +186,16 @@ func ObtainClusterID(clusterKubeClient *kubernetes.Clientset) (string, error) {
 
 // IsClusterIdentifyUnique checks whether the ClusterID exists in the karmada control plane.
 func IsClusterIdentifyUnique(controlPlaneClient karmadaclientset.Interface, id string) (bool, string, error) {
-	clusterList, err := controlPlaneClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+	clusterList, err := controlPlaneClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{
+		FieldSelector: labels.FormatLabels(map[string]string{"spec.ID": id}),
+	})
 	if err != nil {
 		return false, "", err
 	}
 
+	joinedNames := make([]string, len(clusterList.Items))
 	for _, cluster := range clusterList.Items {
-		if cluster.Spec.ID == id {
-			return false, cluster.Name, nil
-		}
+		joinedNames = append(joinedNames, cluster.Name)
 	}
-	return true, "", nil
+	return len(clusterList.Items) == 0, strings.Join(joinedNames, ","), nil
 }
