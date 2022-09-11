@@ -23,6 +23,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 )
 
@@ -176,7 +177,7 @@ func initializeDirectory(path string) error {
 			return err
 		}
 	}
-	if err := os.MkdirAll(path, os.FileMode(0755)); err != nil {
+	if err := os.MkdirAll(path, os.FileMode(0o755)); err != nil {
 		return fmt.Errorf("failed to create directory: %s, error: %v", path, err)
 	}
 
@@ -187,7 +188,7 @@ func initializeDirectory(path string) error {
 func (i *CommandInitOption) genCerts() error {
 	notAfter := time.Now().Add(cert.Duration365d).UTC()
 
-	var etcdServerCertDNS = []string{
+	etcdServerCertDNS := []string{
 		"localhost",
 	}
 	for number := int32(0); number < i.EtcdReplicas; number++ {
@@ -200,7 +201,7 @@ func (i *CommandInitOption) genCerts() error {
 	etcdServerCertConfig := cert.NewCertConfig("karmada-etcd-server", []string{}, etcdServerAltNames, &notAfter)
 	etcdClientCertCfg := cert.NewCertConfig("karmada-etcd-client", []string{}, certutil.AltNames{}, &notAfter)
 
-	var karmadaDNS = []string{
+	karmadaDNS := []string{
 		"localhost",
 		"kubernetes",
 		"kubernetes.default",
@@ -441,7 +442,7 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 	}
 
 	// Create ns
-	if err := i.CreateNamespace(); err != nil {
+	if err := util.CreateOrUpdateNamespace(i.KubeClientSet, util.NewNamespace(i.Namespace)); err != nil {
 		return fmt.Errorf("create namespace %s failed: %v", i.Namespace, err)
 	}
 

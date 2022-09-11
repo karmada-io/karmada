@@ -9,6 +9,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -155,6 +156,61 @@ func CreateOrUpdateConfigMap(client *kubeclient.Clientset, cm *corev1.ConfigMap)
 		}
 	}
 	klog.V(2).Infof("ConfigMap %s/%s has been created or updated.", cm.ObjectMeta.Namespace, cm.ObjectMeta.Name)
+
+	return nil
+}
+
+// NewNamespace generates a new Namespace by given name.
+func NewNamespace(name string) *corev1.Namespace {
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+}
+
+// CreateOrUpdateNamespace creates a Namespaces if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateNamespace(client kubeclient.Interface, ns *corev1.Namespace) error {
+	if _, err := client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{}); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("unable to create Namespace: %v", err)
+		}
+
+		existNs, err := client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		ns.ResourceVersion = existNs.ResourceVersion
+
+		if _, err := client.CoreV1().Namespaces().Update(context.TODO(), ns, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("unable to update Namespace: %v", err)
+		}
+	}
+	klog.Infof("Namespace %s has been created or updated.", ns.ObjectMeta.Name)
+
+	return nil
+}
+
+// CreateOrUpdateService creates a Service if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateService(client kubernetes.Interface, svc *corev1.Service) error {
+	if _, err := client.CoreV1().Services(svc.Namespace).Create(context.TODO(), svc, metav1.CreateOptions{}); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("unable to create Service: %v", err)
+		}
+
+		existSvc, err := client.CoreV1().Services(svc.Namespace).Get(context.TODO(), svc.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		svc.ResourceVersion = existSvc.ResourceVersion
+
+		if _, err := client.CoreV1().Services(svc.ObjectMeta.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("unable to update Service: %v", err)
+		}
+	}
+	klog.Infof("Service %s/%s has been created or updated.", svc.ObjectMeta.Namespace, svc.ObjectMeta.Name)
 
 	return nil
 }
