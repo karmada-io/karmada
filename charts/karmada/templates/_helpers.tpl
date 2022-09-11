@@ -70,7 +70,6 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
 {{- end -}}
 
 {{- define "karmada.kubeconfig.volumeMount" -}}
-{{- $name := include "karmada.name" . -}}
 - name: kubeconfig-secret
   subPath: kubeconfig
   mountPath: /etc/kubeconfig
@@ -88,7 +87,6 @@ app: {{$name}}-controller-manager
 {{- end -}}
 
 {{- define "karmada.cm.podLabels" -}}
-{{ $name :=  include "karmada.name" .}}
 {{- if .Values.controllerManager.podLabels }}
 {{- range $key, $value := .Values.controllerManager.podLabels }}
 {{ $key }}: {{ $value }}
@@ -109,7 +107,6 @@ app: {{$name}}-scheduler
 {{- end -}}
 
 {{- define "karmada.scheduler.podLabels" -}}
-{{ $name :=  include "karmada.name" .}}
 {{- if .Values.scheduler.podLabels }}
 {{- range $key, $value := .Values.scheduler.podLabels }}
 {{ $key }}: {{ $value }}
@@ -130,7 +127,6 @@ app: {{$name}}
 {{- end -}}
 
 {{- define "karmada.descheduler.podLabels" -}}
-{{ $name :=  include "karmada.name" .}}
 {{- if .Values.descheduler.podLabels }}
 {{- range $key, $value := .Values.descheduler.podLabels }}
 {{ $key }}: {{ $value }}
@@ -157,7 +153,6 @@ app: {{$name}}-webhook
 {{- end -}}
 
 {{- define "karmada.webhook.podLabels" -}}
-{{ $name :=  include "karmada.name" .}}
 {{- if .Values.webhook.podLabels }}
 {{- range $key, $value := .Values.webhook.podLabels }}
 {{ $key }}: {{ $value }}
@@ -177,7 +172,6 @@ app: {{$name}}
 {{- end -}}
 
 {{- define "karmada.agent.podLabels" -}}
-{{ $name :=  include "karmada.name" .}}
 {{- if .Values.agent.podLabels }}
 {{- range $key, $value := .Values.agent.podLabels }}
 {{ $key }}: {{ $value }}
