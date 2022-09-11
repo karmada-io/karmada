@@ -21,3 +21,6 @@ _output/
 
 # OSX trash
 .DS_Store
+
+# sub chart tgz
+charts/karmada/charts

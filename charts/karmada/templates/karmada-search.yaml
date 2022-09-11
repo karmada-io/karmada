@@ -1,6 +1,5 @@
 {{- $name := include "karmada.name" . -}}
-
-{{- if and (eq .Values.installMode "component") (has "search" .Values.components) }}
+{{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "search" .Values.components) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -96,5 +95,4 @@ spec:
       targetPort: 443
   selector:
     {{- include "karmada.search.labels" . | nindent 4 }}
-
 {{- end }}

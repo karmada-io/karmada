@@ -1,5 +1,5 @@
 {{- $name := include "karmada.name" . -}}
-{{- if and (eq .Values.installMode "component") (has "descheduler" .Values.components) }}
+{{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "descheduler" .Values.components) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
