@@ -11,7 +11,7 @@ import (
 	"k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 var (
@@ -34,7 +34,7 @@ var (
 )
 
 // NewCmdDescribe new describe command.
-func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDescribe(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &DescribeOptions{
 		KubectlDescribeOptions: &kubectldescribe.DescribeOptions{
 			FilenameOptions: &resource.FilenameOptions{},
@@ -54,7 +54,7 @@ func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string, streams g
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(describeExample, parentCommand),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(karmadaConfig, cmd, args); err != nil {
+			if err := o.Complete(f, cmd, args); err != nil {
 				return err
 			}
 			if err := o.Run(); err != nil {
@@ -64,47 +64,40 @@ func NewCmdDescribe(karmadaConfig KarmadaConfig, parentCommand string, streams g
 		},
 	}
 
-	o.GlobalCommandOptions.AddFlags(cmd.Flags())
+	flags := cmd.Flags()
 
 	usage := "containing the resource to describe"
 	cmdutil.AddFilenameOptionFlags(cmd, o.KubectlDescribeOptions.FilenameOptions, usage)
-	cmd.Flags().StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "If present, the namespace scope for this CLI request")
-	cmd.Flags().StringVarP(&o.KubectlDescribeOptions.Selector, "selector", "l", o.KubectlDescribeOptions.Selector, "Selector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2)")
-	cmd.Flags().BoolVarP(&o.KubectlDescribeOptions.AllNamespaces, "all-namespaces", "A", o.KubectlDescribeOptions.AllNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
-	cmd.Flags().BoolVar(&o.KubectlDescribeOptions.DescriberSettings.ShowEvents, "show-events", o.KubectlDescribeOptions.DescriberSettings.ShowEvents, "If true, display events related to the described object.")
+	flags.StringVarP(&o.KubectlDescribeOptions.Selector, "selector", "l", o.KubectlDescribeOptions.Selector, "Selector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2)")
+	flags.BoolVarP(&o.KubectlDescribeOptions.AllNamespaces, "all-namespaces", "A", o.KubectlDescribeOptions.AllNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
+	flags.BoolVar(&o.KubectlDescribeOptions.DescriberSettings.ShowEvents, "show-events", o.KubectlDescribeOptions.DescriberSettings.ShowEvents, "If true, display events related to the described object.")
 	cmdutil.AddChunkSizeFlag(cmd, &o.KubectlDescribeOptions.DescriberSettings.ChunkSize)
+	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
+	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 
 	return cmd
 }
 
 // DescribeOptions contains the input to the describe command.
 type DescribeOptions struct {
-	// global flags
-	options.GlobalCommandOptions
 	// flags specific to describe
 	KubectlDescribeOptions *kubectldescribe.DescribeOptions
-	Namespace              string
 	Cluster                string
 }
 
 // Complete ensures that options are valid and marshals them if necessary
-func (o *DescribeOptions) Complete(karmadaConfig KarmadaConfig, cmd *cobra.Command, args []string) error {
+func (o *DescribeOptions) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
 	if len(o.Cluster) == 0 {
 		return fmt.Errorf("must specify a cluster")
 	}
 
-	karmadaRestConfig, err := karmadaConfig.GetRestConfig(o.KarmadaContext, o.KubeConfig)
-	if err != nil {
-		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			o.KarmadaContext, o.KubeConfig, err)
-	}
-	clusterInfo, err := getClusterInfo(karmadaRestConfig, o.Cluster, o.KubeConfig, o.KarmadaContext)
+	memberFactory, err := f.FactoryForMemberCluster(o.Cluster)
 	if err != nil {
 		return err
 	}
-	f := getFactory(o.Cluster, clusterInfo, o.Namespace)
-	return o.KubectlDescribeOptions.Complete(f, cmd, args)
+	return o.KubectlDescribeOptions.Complete(memberFactory, cmd, args)
 }
 
 // Run describe information of resources

@@ -1,19 +1,14 @@
 package karmadactl
 
 import (
-	"context"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/rest"
 	kubectllogs "k8s.io/kubectl/pkg/cmd/logs"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -128,33 +123,4 @@ func (o *LogsOptions) Validate() error {
 // Run retrieves a pod log
 func (o *LogsOptions) Run() error {
 	return o.KubectlLogsOptions.RunLogs()
-}
-
-// getClusterInfo get information of cluster
-// TODO(@carlory): remove it when all sub command accepts factory as input parameter.
-func getClusterInfo(karmadaRestConfig *rest.Config, clusterName, kubeConfig, karmadaContext string) (map[string]*ClusterInfo, error) {
-	clusterClient := karmadaclientset.NewForConfigOrDie(karmadaRestConfig).ClusterV1alpha1().Clusters()
-
-	// check if the cluster exist in karmada control plane
-	_, err := clusterClient.Get(context.TODO(), clusterName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	clusterInfos := make(map[string]*ClusterInfo)
-	clusterInfos[clusterName] = &ClusterInfo{}
-
-	clusterInfos[clusterName].APIEndpoint = karmadaRestConfig.Host + fmt.Sprintf(proxyURL, clusterName)
-	clusterInfos[clusterName].KubeConfig = kubeConfig
-	clusterInfos[clusterName].Context = karmadaContext
-	if clusterInfos[clusterName].KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			clusterInfos[clusterName].KubeConfig = env
-		} else {
-			clusterInfos[clusterName].KubeConfig = defaultKubeConfig
-		}
-	}
-
-	return clusterInfos, nil
 }
