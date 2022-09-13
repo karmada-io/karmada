@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -107,6 +108,11 @@ var _ = framework.SerialDescribe("propagation with taint and toleration testing"
 		})
 
 		ginkgo.BeforeEach(func() {
+			// wait a little while for the karmada-scheduler to sync the cluster changes
+			// before deploying the workload.
+			// Note: 1 second might be not enough, bug should fit for the most cases.
+			time.Sleep(time.Second)
+
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, deployment)
 			ginkgo.DeferCleanup(func() {
@@ -116,12 +122,11 @@ var _ = framework.SerialDescribe("propagation with taint and toleration testing"
 		})
 
 		ginkgo.It("deployment with cluster tolerations testing", func() {
-
 			ginkgo.By(fmt.Sprintf("check if deployment(%s/%s) only scheduled to tolerated cluster(%s)", deploymentNamespace, deploymentName, tolerationValue), func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-					g.Expect(len(targetClusterNames) == 1).Should(gomega.BeTrue())
-					g.Expect(targetClusterNames[0] == tolerationValue).Should(gomega.BeTrue())
+					g.Expect(len(targetClusterNames)).Should(gomega.Equal(1))
+					g.Expect(targetClusterNames[0]).Should(gomega.Equal(tolerationValue))
 				}, pollTimeout, pollInterval).Should(gomega.Succeed())
 			})
 		})
