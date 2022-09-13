@@ -141,10 +141,6 @@ func (o *CommandDeInitOption) delete() error {
 		}
 	}
 
-	if err = o.deleteRBAC(); err != nil {
-		return err
-	}
-
 	// Delete namespace where Karmada components are installed
 	fmt.Printf("delete Namespace %q\n", o.Namespace)
 	if o.DryRun {
@@ -154,41 +150,6 @@ func (o *CommandDeInitOption) delete() error {
 		return err
 	}
 
-	return nil
-}
-
-func (o *CommandDeInitOption) deleteRBAC() error {
-	// Delete ClusterRole by karmadaBootstrappingLabelKey
-	clusterRoleClient := o.KubeClientSet.RbacV1().ClusterRoles()
-	clusterRoles, err := clusterRoleClient.List(context.TODO(), metav1.ListOptions{LabelSelector: karmadaBootstrappingLabelKey})
-	if err != nil {
-		return err
-	}
-	for _, clusterRole := range clusterRoles.Items {
-		fmt.Printf("delete ClusterRole %q\n", clusterRole.Name)
-		if o.DryRun {
-			continue
-		}
-		if err := clusterRoleClient.Delete(context.TODO(), clusterRole.Name, metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
-
-	// Delete ClusterRoleBinding by karmadaBootstrappingLabelKey
-	clusterRoleBindingClient := o.KubeClientSet.RbacV1().ClusterRoleBindings()
-	clusterRoleBindings, err := clusterRoleBindingClient.List(context.TODO(), metav1.ListOptions{LabelSelector: karmadaBootstrappingLabelKey})
-	if err != nil {
-		return err
-	}
-	for _, clusterRoleBinding := range clusterRoleBindings.Items {
-		fmt.Printf("delete ClusterRoleBinding %q\n", clusterRoleBinding.Name)
-		if o.DryRun {
-			continue
-		}
-		if err := clusterRoleBindingClient.Delete(context.TODO(), clusterRoleBinding.Name, metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
