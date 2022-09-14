@@ -503,7 +503,7 @@ function util::fill_cabundle() {
   local ca_file=$1
   local conf=$2
 
-  local ca_string=$(sudo cat ${ca_file} | base64 | tr "\n" " "|sed s/[[:space:]]//g)
+  local ca_string=$(cat "${ca_file}" | base64 | tr "\n" " "|sed s/[[:space:]]//g)
   sed -i'' -e "s/{{caBundle}}/${ca_string}/g" "${conf}"
 }
 
