@@ -653,7 +653,8 @@ schedulerEstimator:
     ## @param schedulerEstimator.kubeconfig.server apiserver of the member cluster
     server: ""
   ## @param schedulerEstimator.labels labels of the scheduler-estimator deployment
-  labels: {}
+  labels:
+    app: karmada-scheduler-estimator
   ## @param schedulerEstimator.replicaCount target replicas
   replicaCount: 1
   ## @param schedulerEstimator.podAnnotations annotaions of the scheduler-estimator pods
@@ -768,7 +769,6 @@ search:
   ## @param search.labels labels of the search deployment
   labels:
     app: karmada-search
-    apiserver: "true"
   ## @param search.replicaCount target replicas
   replicaCount: 2
   ## @param search.podAnnotations annotaions of the search pods
