@@ -113,7 +113,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 						}
 					}
 
-					gomega.Expect(len(targetClusterNames) == minGroups).Should(gomega.BeTrue())
+					gomega.Expect(len(targetClusterNames)).Should(gomega.Equal(minGroups))
 					return true, nil
 				})
 
