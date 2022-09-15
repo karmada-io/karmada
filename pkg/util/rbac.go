@@ -86,8 +86,8 @@ func DeleteClusterRoleBinding(client kubeclient.Interface, name string) error {
 }
 
 // PolicyRuleAPIGroupMatches determines if the given policy rule is applied for requested group.
-func PolicyRuleAPIGroupMatches(rules *rbacv1.PolicyRule, requestedGroup string) bool {
-	for _, ruleGroup := range rules.APIGroups {
+func PolicyRuleAPIGroupMatches(rule *rbacv1.PolicyRule, requestedGroup string) bool {
+	for _, ruleGroup := range rule.APIGroups {
 		if ruleGroup == rbacv1.APIGroupAll {
 			return true
 		}
@@ -100,8 +100,8 @@ func PolicyRuleAPIGroupMatches(rules *rbacv1.PolicyRule, requestedGroup string) 
 }
 
 // PolicyRuleResourceMatches determines if the given policy rule is applied for requested resource.
-func PolicyRuleResourceMatches(rules *rbacv1.PolicyRule, requestedResource string) bool {
-	for _, ruleResource := range rules.Resources {
+func PolicyRuleResourceMatches(rule *rbacv1.PolicyRule, requestedResource string) bool {
+	for _, ruleResource := range rule.Resources {
 		if ruleResource == rbacv1.ResourceAll {
 			return true
 		}
@@ -119,8 +119,8 @@ func PolicyRuleResourceNameMatches(rule *rbacv1.PolicyRule, requestedName string
 		return true
 	}
 
-	for _, ruleName := range rule.ResourceNames {
-		if ruleName == requestedName {
+	for _, resourceName := range rule.ResourceNames {
+		if resourceName == requestedName {
 			return true
 		}
 	}
