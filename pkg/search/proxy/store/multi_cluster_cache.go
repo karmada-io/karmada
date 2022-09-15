@@ -155,6 +155,9 @@ func (c *MultiClusterCache) Get(ctx context.Context, gvr schema.GroupVersionReso
 	mrv := newMultiClusterResourceVersionWithCapacity(1)
 	mrv.set(clusterName, accessor.GetResourceVersion())
 	accessor.SetResourceVersion(mrv.String())
+
+	addCacheSourceAnnotation(cloneObj, clusterName)
+
 	return cloneObj, err
 }
 
@@ -201,13 +204,20 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 			resultObject = obj
 		}
 
-		extractList, err := meta.ExtractList(obj)
+		cnt := 0
+		err = meta.EachListItem(obj, func(o runtime.Object) error {
+			clone := o.DeepCopyObject()
+			addCacheSourceAnnotation(clone, cluster)
+			items = append(items, clone)
+			cnt++
+			return nil
+		})
 		if err != nil {
 			return 0, "", err
 		}
-		items = append(items, extractList...)
+
 		responseResourceVersion.set(cluster, list.GetResourceVersion())
-		return len(extractList), list.GetContinue(), nil
+		return cnt, list.GetContinue(), nil
 	}
 
 	if options.Limit == 0 {
@@ -303,6 +313,7 @@ func (c *MultiClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionRe
 		mux.AddSource(w, func(e watch.Event) {
 			// We can safely modify data because it is deepCopied in cacheWatcher.convertToWatchEvent
 			setObjectResourceVersionFunc(cluster, e.Object)
+			addCacheSourceAnnotation(e.Object, cluster)
 		})
 	}
 	mux.Start()

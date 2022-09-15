@@ -119,9 +119,9 @@ var _ = ginkgo.Describe("Aggregated Kubernetes API Endpoint testing", func() {
 
 			ginkgo.It("tom access the member cluster", func() {
 				ginkgo.By("access the cluster `/api` path with right", func() {
-					gomega.Eventually(func() (int, error) {
+					gomega.Eventually(func(g gomega.Gomega) (int, error) {
 						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api", member1), tomToken)
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
 						return code, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(http.StatusOK))
 				})
@@ -138,9 +138,9 @@ var _ = ginkgo.Describe("Aggregated Kubernetes API Endpoint testing", func() {
 				})
 
 				ginkgo.By("access the member1 /api/v1/nodes path with right", func() {
-					gomega.Eventually(func() (int, error) {
+					gomega.Eventually(func(g gomega.Gomega) (int, error) {
 						code, err := helper.DoRequest(fmt.Sprintf(karmadaHost+clusterProxy+"api/v1/nodes", member1), tomToken)
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
 						return code, nil
 					}, pollTimeout, pollInterval).Should(gomega.Equal(http.StatusOK))
 				})
