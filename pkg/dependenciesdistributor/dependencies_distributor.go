@@ -49,6 +49,7 @@ const (
 var supportedTypes = []schema.GroupVersionResource{
 	corev1.SchemeGroupVersion.WithResource("configmaps"),
 	corev1.SchemeGroupVersion.WithResource("secrets"),
+	corev1.SchemeGroupVersion.WithResource("serviceaccounts"),
 	corev1.SchemeGroupVersion.WithResource("persistentvolumeclaims"),
 }
 
