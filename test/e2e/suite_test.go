@@ -47,6 +47,7 @@ const (
 	configMapNamePrefix          = "configmap-"
 	secretNamePrefix             = "secret-"
 	pvcNamePrefix                = "pvc-"
+	saNamePrefix                 = "sa-"
 	ingressNamePrefix            = "ingress-"
 	daemonSetNamePrefix          = "daemonset-"
 	statefulSetNamePrefix        = "statefulset-"

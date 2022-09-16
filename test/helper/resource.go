@@ -559,6 +559,41 @@ func NewDeploymentWithVolumes(namespace, deploymentName string, volumes []corev1
 	}
 }
 
+// NewDeploymentWithServiceAccount will build a deployment object that with serviceAccount.
+func NewDeploymentWithServiceAccount(namespace, deploymentName string, serviceAccountName string) *appsv1.Deployment {
+	podLabels := map[string]string{"app": "nginx"}
+
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      deploymentName,
+		},
+		Spec: appsv1.DeploymentSpec{
+
+			Replicas: pointer.Int32Ptr(3),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podLabels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "nginx",
+						Image: "nginx:1.19.0",
+					}},
+					ServiceAccountName: serviceAccountName,
+				},
+			},
+		},
+	}
+}
+
 // NewSecret will build a secret object.
 func NewSecret(namespace string, name string, data map[string][]byte) *corev1.Secret {
 	return &corev1.Secret{

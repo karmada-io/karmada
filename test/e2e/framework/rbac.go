@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 // CreateClusterRole create clusterRole.
@@ -67,5 +68,58 @@ func RemoveServiceAccount(client kubernetes.Interface, namespace, name string) {
 			return
 		}
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// WaitServiceAccountPresentOnClusterFitWith wait sa present on member clusters sync with fit func.
+func WaitServiceAccountPresentOnClusterFitWith(cluster, namespace, name string, fit func(sa *corev1.ServiceAccount) bool) {
+	clusterClient := GetClusterClient(cluster)
+	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+	klog.Infof("Waiting for serviceAccount(%s/%s) synced on cluster(%s)", namespace, name, cluster)
+	gomega.Eventually(func() bool {
+		sa, err := clusterClient.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		return fit(sa)
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
+// WaitServiceAccountPresentOnClustersFitWith wait sa present on cluster sync with fit func.
+func WaitServiceAccountPresentOnClustersFitWith(clusters []string, namespace, name string, fit func(sa *corev1.ServiceAccount) bool) {
+	ginkgo.By(fmt.Sprintf("Waiting for pod(%s/%s) synced on member clusters", namespace, name), func() {
+		for _, clusterName := range clusters {
+			WaitServiceAccountPresentOnClusterFitWith(clusterName, namespace, name, fit)
+		}
+	})
+}
+
+// WaitServiceAccountDisappearOnCluster wait sa disappear on cluster until timeout.
+func WaitServiceAccountDisappearOnCluster(cluster, namespace, name string) {
+	clusterClient := GetClusterClient(cluster)
+	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+	klog.Infof("Waiting for sa(%s/%s) disappear on cluster(%s)", namespace, name, cluster)
+	gomega.Eventually(func() bool {
+		_, err := clusterClient.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err == nil {
+			return false
+		}
+		if apierrors.IsNotFound(err) {
+			return true
+		}
+
+		klog.Errorf("Failed to get sa(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
+		return false
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
+// WaitServiceAccountDisappearOnClusters wait sa disappear on member clusters until timeout.
+func WaitServiceAccountDisappearOnClusters(clusters []string, namespace, name string) {
+	ginkgo.By(fmt.Sprintf("Check if sa(%s/%s) diappeare on member clusters", namespace, name), func() {
+		for _, clusterName := range clusters {
+			WaitServiceAccountDisappearOnCluster(clusterName, namespace, name)
+		}
 	})
 }
