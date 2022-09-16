@@ -1,11 +1,16 @@
 package defaultinterpreter
 
 import (
+	"context"
 	"fmt"
 
+	autoscalingapi "k8s.io/api/autoscaling/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/scale"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -15,6 +20,10 @@ import (
 // DefaultInterpreter contains all default operation interpreter factory
 // for interpreting common resource.
 type DefaultInterpreter struct {
+	restMapper        meta.RESTMapper
+	scaleClient       scale.ScalesGetter
+	scaleKindResolver scale.ScaleKindResolver
+
 	replicaHandlers         map[schema.GroupVersionKind]replicaInterpreter
 	reviseReplicaHandlers   map[schema.GroupVersionKind]reviseReplicaInterpreter
 	retentionHandlers       map[schema.GroupVersionKind]retentionInterpreter
@@ -25,8 +34,12 @@ type DefaultInterpreter struct {
 }
 
 // NewDefaultInterpreter return a new DefaultInterpreter.
-func NewDefaultInterpreter() *DefaultInterpreter {
+func NewDefaultInterpreter(restMapper meta.RESTMapper, scaleClient scale.ScalesGetter, scaleKindResolver scale.ScaleKindResolver) *DefaultInterpreter {
 	return &DefaultInterpreter{
+		restMapper:        restMapper,
+		scaleClient:       scaleClient,
+		scaleKindResolver: scaleKindResolver,
+
 		replicaHandlers:         getAllDefaultReplicaInterpreter(),
 		reviseReplicaHandlers:   getAllDefaultReviseReplicaInterpreter(),
 		retentionHandlers:       getAllDefaultRetentionInterpreter(),
@@ -44,6 +57,7 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 		if _, exist := e.replicaHandlers[kind]; exist {
 			return true
 		}
+		return e.checkScaleSubResourceExist(kind)
 	case configv1alpha1.InterpreterOperationReviseReplica:
 		if _, exist := e.reviseReplicaHandlers[kind]; exist {
 			return true
@@ -76,10 +90,15 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 func (e *DefaultInterpreter) GetReplicas(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
 	handler, exist := e.replicaHandlers[object.GroupVersionKind()]
-	if !exist {
-		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretReplica, object.GroupVersionKind())
+	if exist {
+		return handler(object)
 	}
-	return handler(object)
+
+	scaleObj, err := e.getScaleSubResource(object)
+	if err != nil {
+		return 0, nil, err
+	}
+	return scaleObj.Spec.Replicas, nil, nil
 }
 
 // ReviseReplica revises the replica of the given object.
@@ -137,4 +156,30 @@ func (e *DefaultInterpreter) InterpretHealth(object *unstructured.Unstructured) 
 	}
 
 	return false, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretHealth, object.GroupVersionKind())
+}
+
+func (e *DefaultInterpreter) checkScaleSubResourceExist(kind schema.GroupVersionKind) bool {
+	mapping, err := e.restMapper.RESTMapping(kind.GroupKind(), kind.Version)
+	if err != nil {
+		klog.Errorf("Failed to get RESTMapping of resource %v: %v", kind, err)
+		return false
+	}
+
+	gvr := mapping.GroupVersionKind.GroupVersion().WithResource(mapping.Resource.Resource)
+	if _, err = e.scaleKindResolver.ScaleForResource(gvr); err != nil {
+		klog.Warningf("Cannot get scale subresource for %v: %v", gvr, err)
+		return false
+	}
+	return true
+}
+
+func (e *DefaultInterpreter) getScaleSubResource(object *unstructured.Unstructured) (*autoscalingapi.Scale, error) {
+	mapping, err := e.restMapper.RESTMapping(object.GroupVersionKind().GroupKind(), object.GroupVersionKind().Version)
+	if err != nil {
+		klog.Errorf("Failed to get RESTMapping of resource %v: %v", object.GroupVersionKind(), err)
+		return nil, err
+	}
+
+	return e.scaleClient.Scales(object.GetNamespace()).Get(context.TODO(), mapping.Resource.GroupResource(),
+		object.GetName(), metav1.GetOptions{})
 }

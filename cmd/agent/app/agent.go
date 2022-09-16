@@ -10,8 +10,10 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/scale"
 	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
@@ -213,8 +215,16 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) error {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
+	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
-	resourceInterpreter := resourceinterpreter.NewResourceInterpreter("", controlPlaneInformerManager)
+
+	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(discoverClientSet)
+	scaleClient, err := scale.NewForConfig(restConfig, mgr.GetRESTMapper(), dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+	if err != nil {
+		klog.Fatalf("failed to get scaleClient: %v", err)
+	}
+
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, mgr.GetRESTMapper(), scaleClient, scaleKindResolver)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}

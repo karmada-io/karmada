@@ -3,9 +3,11 @@ package resourceinterpreter
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/scale"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -49,16 +51,25 @@ type ResourceInterpreter interface {
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
-func NewResourceInterpreter(kubeconfig string, informer genericmanager.SingleClusterInformerManager) ResourceInterpreter {
+func NewResourceInterpreter(
+	informer genericmanager.SingleClusterInformerManager,
+	restMapper meta.RESTMapper,
+	scaleClient scale.ScalesGetter,
+	scaleKindResolver scale.ScaleKindResolver,
+) ResourceInterpreter {
 	return &customResourceInterpreterImpl{
-		kubeconfig: kubeconfig,
-		informer:   informer,
+		informer:          informer,
+		restMapper:        restMapper,
+		scaleClient:       scaleClient,
+		scaleKindResolver: scaleKindResolver,
 	}
 }
 
 type customResourceInterpreterImpl struct {
-	kubeconfig string
-	informer   genericmanager.SingleClusterInformerManager
+	informer          genericmanager.SingleClusterInformerManager
+	restMapper        meta.RESTMapper
+	scaleClient       scale.ScalesGetter
+	scaleKindResolver scale.ScaleKindResolver
 
 	customizedInterpreter *customizedinterpreter.CustomizedInterpreter
 	defaultInterpreter    *defaultinterpreter.DefaultInterpreter
@@ -68,12 +79,12 @@ type customResourceInterpreterImpl struct {
 func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	klog.Infof("Starting custom resource interpreter.")
 
-	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter(i.kubeconfig, i.informer)
+	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter("", i.informer)
 	if err != nil {
 		return
 	}
 
-	i.defaultInterpreter = defaultinterpreter.NewDefaultInterpreter()
+	i.defaultInterpreter = defaultinterpreter.NewDefaultInterpreter(i.restMapper, i.scaleClient, i.scaleKindResolver)
 
 	i.informer.Start()
 	<-ctx.Done()

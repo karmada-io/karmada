@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/scale"
 	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
@@ -504,7 +505,13 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 
-	resourceInterpreter := resourceinterpreter.NewResourceInterpreter("", controlPlaneInformerManager)
+	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(discoverClientSet)
+	scaleClient, err := scale.NewForConfig(restConfig, mgr.GetRESTMapper(), dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+	if err != nil {
+		klog.Fatalf("failed to get scaleClient: %v", err)
+	}
+
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, mgr.GetRESTMapper(), scaleClient, scaleKindResolver)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
 	}
