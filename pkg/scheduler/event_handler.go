@@ -14,6 +14,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
@@ -56,6 +57,12 @@ func (s *Scheduler) addAllEventHandlers() {
 			DeleteFunc: s.deleteCluster,
 		},
 	)
+	// ignore the error here because the informers haven't been started
+	_ = bindingInformer.SetTransform(fedinformer.StripUnusedFields)
+	_ = policyInformer.SetTransform(fedinformer.StripUnusedFields)
+	_ = clusterBindingInformer.SetTransform(fedinformer.StripUnusedFields)
+	_ = clusterPolicyInformer.SetTransform(fedinformer.StripUnusedFields)
+	_ = memClusterInformer.SetTransform(fedinformer.StripUnusedFields)
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartStructuredLogging(0)

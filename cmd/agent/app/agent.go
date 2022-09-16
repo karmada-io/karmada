@@ -17,6 +17,7 @@ import (
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -188,6 +190,9 @@ func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *opti
 				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String(): opts.ConcurrentClusterSyncs,
 			},
 		},
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			DefaultTransform: fedinformer.StripUnusedFields,
+		}),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %w", err)

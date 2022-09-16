@@ -32,6 +32,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
 	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -92,6 +93,10 @@ func NewEstimatorServer(
 		},
 		parallelizer: lifted.NewParallelizer(opts.Parallelism),
 	}
+	// ignore the error here because the informers haven't been started
+	_ = es.nodeInformer.Informer().SetTransform(fedinformer.StripUnusedFields)
+	_ = es.podInformer.Informer().SetTransform(fedinformer.StripUnusedFields)
+	_ = informerFactory.Apps().V1().ReplicaSets().Informer().SetTransform(fedinformer.StripUnusedFields)
 
 	// Establish a connection between the pods and their assigned nodes.
 	_ = es.podInformer.Informer().AddIndexers(cache.Indexers{
