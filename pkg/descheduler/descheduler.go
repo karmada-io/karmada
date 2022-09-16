@@ -26,6 +26,7 @@ import (
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
@@ -70,6 +71,10 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 		unschedulableThreshold:  opts.UnschedulableThreshold.Duration,
 		deschedulingInterval:    opts.DeschedulingInterval.Duration,
 	}
+	// ignore the error here because the informers haven't been started
+	_ = desched.bindingInformer.SetTransform(fedinformer.StripUnusedFields)
+	_ = desched.clusterInformer.SetTransform(fedinformer.StripUnusedFields)
+
 	schedulerEstimatorWorkerOptions := util.Options{
 		Name:          "scheduler-estimator",
 		KeyFunc:       nil,
