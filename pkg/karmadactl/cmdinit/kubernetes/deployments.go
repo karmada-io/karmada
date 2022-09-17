@@ -38,8 +38,6 @@ const (
 	webhookTargetPort                                           = 8443
 	webhookPort                                                 = 443
 	karmadaAggregatedAPIServerDeploymentAndServiceName          = "karmada-aggregated-apiserver"
-	karmadaBootstrappingLabelKey                                = "karmada.io/bootstrapping"
-	karmadaBootstrappingLabelValue                              = "rbac-defaults"
 )
 
 var (

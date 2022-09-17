@@ -447,11 +447,6 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 		return err
 	}
 
-	// Create karmada-controller-manager ClusterRole and ClusterRoleBinding
-	if err := i.CreateControllerManagerRBAC(); err != nil {
-		return err
-	}
-
 	// Create Secrets
 	if err := i.createCertsSecrets(); err != nil {
 		return err
