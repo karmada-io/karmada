@@ -46,9 +46,10 @@ type Descheduler struct {
 
 	eventRecorder record.EventRecorder
 
-	schedulerEstimatorCache  *estimatorclient.SchedulerEstimatorCache
-	schedulerEstimatorPort   int
-	schedulerEstimatorWorker util.AsyncWorker
+	schedulerEstimatorCache         *estimatorclient.SchedulerEstimatorCache
+	schedulerEstimatorServicePrefix string
+	schedulerEstimatorPort          int
+	schedulerEstimatorWorker        util.AsyncWorker
 
 	unschedulableThreshold time.Duration
 	deschedulingInterval   time.Duration
@@ -250,7 +251,7 @@ func (d *Descheduler) establishEstimatorConnections() {
 		return
 	}
 	for i := range clusterList.Items {
-		if err = estimatorclient.EstablishConnection(d.KubeClient, clusterList.Items[i].Name, d.schedulerEstimatorCache, d.schedulerEstimatorPort); err != nil {
+		if err = estimatorclient.EstablishConnection(d.KubeClient, clusterList.Items[i].Name, d.schedulerEstimatorCache, d.schedulerEstimatorServicePrefix, d.schedulerEstimatorPort); err != nil {
 			klog.Error(err)
 		}
 	}
@@ -270,7 +271,7 @@ func (d *Descheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		}
 		return err
 	}
-	return estimatorclient.EstablishConnection(d.KubeClient, name, d.schedulerEstimatorCache, d.schedulerEstimatorPort)
+	return estimatorclient.EstablishConnection(d.KubeClient, name, d.schedulerEstimatorCache, d.schedulerEstimatorServicePrefix, d.schedulerEstimatorPort)
 }
 
 func (d *Descheduler) recordDescheduleResultEventForResourceBinding(rb *workv1alpha2.ResourceBinding, message string, err error) {
