@@ -1,12 +1,6 @@
 {{- $name := include "karmada.name" . -}}
 
 {{- if eq .Values.installMode "host" }}
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ $name}}-scheduler
-  namespace: {{ include "karmada.namespace" . }}
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -46,7 +40,7 @@ spec:
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ $name}}-scheduler
+      automountServiceAccountToken: false
       containers:
         - name: {{ $name }}-scheduler
           image: {{ template "karmada.scheduler.image" .}}

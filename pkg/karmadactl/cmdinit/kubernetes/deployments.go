@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 )
@@ -155,6 +156,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 				},
 			},
 		},
+		AutomountServiceAccountToken: pointer.Bool(false),
 		Containers: []corev1.Container{
 			{
 				Name:    karmadaAPIServerDeploymentAndServiceName,
@@ -250,6 +252,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 				},
 			},
 		},
+		AutomountServiceAccountToken: pointer.Bool(false),
 		Containers: []corev1.Container{
 			{
 				Name:  kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
@@ -435,7 +438,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 				Operator: corev1.TolerationOpExists,
 			},
 		},
-		ServiceAccountName: schedulerDeploymentNameAndServiceAccountName,
+		AutomountServiceAccountToken: pointer.Bool(false),
 	}
 
 	// PodTemplateSpec
@@ -555,7 +558,8 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 				Operator: corev1.TolerationOpExists,
 			},
 		},
-		ServiceAccountName: controllerManagerDeploymentAndServiceName,
+		ServiceAccountName:           controllerManagerDeploymentAndServiceName,
+		AutomountServiceAccountToken: pointer.Bool(false),
 	}
 
 	// PodTemplateSpec
@@ -624,6 +628,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 				},
 			},
 		},
+		AutomountServiceAccountToken: pointer.Bool(false),
 		Containers: []corev1.Container{
 			{
 				Name:  webhookDeploymentAndServiceAccountAndServiceName,
@@ -754,6 +759,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 				},
 			},
 		},
+		AutomountServiceAccountToken: pointer.Bool(false),
 		Containers: []corev1.Container{
 			{
 				Name:  karmadaAggregatedAPIServerDeploymentAndServiceName,

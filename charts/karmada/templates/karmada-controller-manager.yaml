@@ -1,11 +1,5 @@
 {{- if eq .Values.installMode "host" }}
 {{- $name := include "karmada.name" . -}}
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ $name }}-controller-manager
-  namespace: {{ include "karmada.namespace" . }}
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,7 +27,7 @@ spec:
         {{- include "karmada.cm.podLabels" . | nindent 8 }}
     spec:
       {{- include "karmada.controllerManager.imagePullSecrets" . | nindent 6 }}
-      serviceAccountName: {{ $name }}-controller-manager
+      automountServiceAccountToken: false
       {{- with .Values.controllerManager.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}

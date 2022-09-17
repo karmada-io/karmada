@@ -442,11 +442,6 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 		return fmt.Errorf("create namespace %s failed: %v", i.Namespace, err)
 	}
 
-	// Create sa
-	if err := i.CreateServiceAccount(); err != nil {
-		return err
-	}
-
 	// Create Secrets
 	if err := i.createCertsSecrets(); err != nil {
 		return err

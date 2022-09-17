@@ -1,13 +1,6 @@
 {{- $name := include "karmada.name" . -}}
 
 {{- if eq .Values.installMode "host" }}
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ $name }}-webhook
-  namespace: {{ include "karmada.namespace" . }}
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,7 +28,7 @@ spec:
         {{- include "karmada.webhook.podLabels" . | nindent 8 }}
     spec:
       {{- include "karmada.webhook.imagePullSecrets" . | nindent 6 }}
-      serviceAccountName: {{ $name }}-webhook
+      automountServiceAccountToken: false
       {{- with .Values.webhook.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}

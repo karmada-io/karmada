@@ -20,6 +20,7 @@ spec:
       labels:
         app: kube-controller-manager
     spec:
+      automountServiceAccountToken: false
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

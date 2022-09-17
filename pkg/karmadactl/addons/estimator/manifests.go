@@ -23,6 +23,7 @@ spec:
       tolerations:
         - key: node-role.kubernetes.io/master
           operator: Exists
+      automountServiceAccountToken: false
       containers:
         - name: karmada-scheduler-estimator
           image: {{ .Image }}
