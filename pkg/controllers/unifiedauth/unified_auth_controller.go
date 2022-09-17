@@ -29,11 +29,12 @@ import (
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName         = "unified-auth-controller"
-	rbacAPIVersion         = "rbac.authorization.k8s.io/v1"
-	clusterProxyResource   = "clusters/proxy"
-	clusterProxyAPIGroup   = "cluster.karmada.io"
-	karmadaImpersontorName = "karmada-impersonator"
+	ControllerName = "unified-auth-controller"
+
+	rbacAPIVersion          = "rbac.authorization.k8s.io/v1"
+	clusterProxyResource    = "clusters/proxy"
+	clusterProxyAPIGroup    = "cluster.karmada.io"
+	karmadaImpersonatorName = "karmada-impersonator"
 )
 
 // Controller is to sync impersonation config to member clusters for unified authentication.
@@ -87,6 +88,7 @@ func (c *Controller) syncImpersonationConfig(cluster *clusterv1alpha1.Cluster) e
 				util.PolicyRuleResourceMatches(&clusterRole.Rules[i], clusterProxyResource) &&
 				util.PolicyRuleResourceNameMatches(&clusterRole.Rules[i], cluster.Name) {
 				allMatchedClusterRoles.Insert(clusterRole.Name)
+				break
 			}
 		}
 	}
@@ -132,7 +134,7 @@ func (c *Controller) buildImpersonationClusterRole(cluster *clusterv1alpha1.Clus
 			Kind:       util.ClusterRoleKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: karmadaImpersontorName,
+			Name: karmadaImpersonatorName,
 		},
 		Rules: rules,
 	}
@@ -140,7 +142,7 @@ func (c *Controller) buildImpersonationClusterRole(cluster *clusterv1alpha1.Clus
 	clusterRoleObj, err := helper.ToUnstructured(impersonationClusterRole)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterrole %s. Error: %v", impersonationClusterRole.GetName(), err)
-		return nil
+		return err
 	}
 
 	return c.buildWorks(cluster, clusterRoleObj)
@@ -153,26 +155,26 @@ func (c *Controller) buildImpersonationClusterRoleBinding(cluster *clusterv1alph
 			Kind:       util.ClusterRoleBindingKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: karmadaImpersontorName,
+			Name: karmadaImpersonatorName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
-				Namespace: names.NamespaceKarmadaCluster,
+				Namespace: cluster.Spec.ImpersonatorSecretRef.Namespace,
 				Name:      names.GenerateServiceAccountName("impersonator"),
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     util.ClusterRoleKind,
-			Name:     karmadaImpersontorName,
+			Name:     karmadaImpersonatorName,
 		},
 	}
 
 	clusterRoleBindingObj, err := helper.ToUnstructured(impersonatorClusterRoleBinding)
 	if err != nil {
 		klog.Errorf("Failed to transform clusterrolebinding %s. Error: %v", impersonatorClusterRoleBinding.GetName(), err)
-		return nil
+		return err
 	}
 
 	return c.buildWorks(cluster, clusterRoleBindingObj)
@@ -213,19 +215,10 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 			return true
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if _, ok := e.ObjectNew.(*clusterv1alpha1.Cluster); ok {
-				return false
-			}
-			if _, ok := e.ObjectOld.(*clusterv1alpha1.Cluster); ok {
-				return false
-			}
-			return true
+			return false
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			if _, ok := e.Object.(*clusterv1alpha1.Cluster); ok {
-				return false
-			}
-			return true
+			return false
 		},
 		GenericFunc: func(event.GenericEvent) bool {
 			return false
@@ -264,14 +257,14 @@ func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
 
 // found out which clusters need to sync impersonation config from rules like:
 //   resources: ["cluster/proxy"]
-//   resourceNmaes: ["cluster1", "cluster2"]
+//   resourceNames: ["cluster1", "cluster2"]
 func (c *Controller) generateRequestsFromClusterRole(clusterRole *rbacv1.ClusterRole) []reconcile.Request {
 	var requests []reconcile.Request
 	for i := range clusterRole.Rules {
 		if util.PolicyRuleAPIGroupMatches(&clusterRole.Rules[i], clusterProxyAPIGroup) &&
 			util.PolicyRuleResourceMatches(&clusterRole.Rules[i], clusterProxyResource) {
 			if len(clusterRole.Rules[i].ResourceNames) == 0 {
-				// if rule.ResourceNames == 0, means to match all clusters
+				// if the length of rule[i].ResourceNames is 0, means to match all clusters
 				clusterList := &clusterv1alpha1.ClusterList{}
 				if err := c.Client.List(context.TODO(), clusterList); err != nil {
 					klog.Errorf("Failed to list clusters, error: %v", err)
@@ -283,9 +276,9 @@ func (c *Controller) generateRequestsFromClusterRole(clusterRole *rbacv1.Cluster
 					}})
 				}
 			} else {
-				for _, ruleName := range clusterRole.Rules[i].ResourceNames {
+				for _, resourceName := range clusterRole.Rules[i].ResourceNames {
 					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
-						Name: ruleName,
+						Name: resourceName,
 					}})
 				}
 			}
