@@ -38,6 +38,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -60,25 +61,25 @@ var (
 	getExample = templates.Examples(`
 		# List all pods in ps output format
 		%[1]s get pods
-	
+
 		# List all pods in ps output format with more information (such as node name)
 		%[1]s get pods -o wide
-	
+
 		# List all pods of member1 cluster in ps output format
 		%[1]s get pods -C member1
-	
+
 		# List a single replicasets controller with specified NAME in ps output format
 		%[1]s get replicasets nginx
-	
+
 		# List deployments in JSON output format, in the "v1" version of the "apps" API group
 		%[1]s get deployments.v1.apps -o json
-	
+
 		# Return only the phase value of the specified resource
 		%[1]s get -o template deployment/nginx -C member1 --template={{.spec.replicas}}
-	
+
 		# List all replication controllers and services together in ps output format
 		%[1]s get rs,services
-	
+
 		# List one or more resources by their type and names
 		%[1]s get rs/nginx-cb87b6d88 service/kubernetes`)
 )
@@ -981,12 +982,7 @@ func (g *CommandGetOptions) setClusterProxyInfo(karmadaRestConfig *rest.Config, 
 	clusterInfos[name].KubeConfig = g.KubeConfig
 	clusterInfos[name].Context = g.KarmadaContext
 	if clusterInfos[name].KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			clusterInfos[name].KubeConfig = env
-		} else {
-			clusterInfos[name].KubeConfig = defaultKubeConfig
-		}
+		clusterInfos[name].KubeConfig = util.GetDefaultKubeConfigPath()
 	}
 	return nil
 }

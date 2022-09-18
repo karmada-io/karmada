@@ -13,6 +13,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -73,12 +74,7 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 // Complete the conditions required to be able to run deinit.
 func (o *CommandDeInitOption) Complete() error {
 	if o.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			o.KubeConfig = env
-		} else {
-			o.KubeConfig = defaultKubeConfig
-		}
+		o.KubeConfig = util.GetDefaultKubeConfigPath()
 	}
 
 	if !Exists(o.KubeConfig) {

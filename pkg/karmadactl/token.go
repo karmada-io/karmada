@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 var (
@@ -115,12 +115,7 @@ func NewCmdTokenCreate(karmadaConfig KarmadaConfig, out io.Writer, tokenOpts *Co
 	tokenOpts.GlobalCommandOptions.AddFlags(cmd.Flags())
 
 	if tokenOpts.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			tokenOpts.KubeConfig = env
-		} else {
-			tokenOpts.KubeConfig = defaultKubeConfig
-		}
+		tokenOpts.KubeConfig = util.GetDefaultKubeConfigPath()
 	}
 
 	cmd.Flags().BoolVar(&tokenOpts.PrintRegisterCommand, "print-register-command", false, fmt.Sprintf("Instead of printing only the token, print the full '%s join' flag needed to join the member cluster using the token.", tokenOpts.parentCommand))
@@ -153,12 +148,7 @@ func NewCmdTokenList(karmadaConfig KarmadaConfig, out io.Writer, errW io.Writer,
 	tokenOpts.GlobalCommandOptions.AddFlags(cmd.Flags())
 
 	if tokenOpts.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			tokenOpts.KubeConfig = env
-		} else {
-			tokenOpts.KubeConfig = defaultKubeConfig
-		}
+		tokenOpts.KubeConfig = util.GetDefaultKubeConfigPath()
 	}
 
 	return cmd
@@ -194,12 +184,7 @@ func NewCmdTokenDelete(karmadaConfig KarmadaConfig, out io.Writer, tokenOpts *Co
 	tokenOpts.GlobalCommandOptions.AddFlags(cmd.Flags())
 
 	if tokenOpts.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			tokenOpts.KubeConfig = env
-		} else {
-			tokenOpts.KubeConfig = defaultKubeConfig
-		}
+		tokenOpts.KubeConfig = util.GetDefaultKubeConfigPath()
 	}
 
 	return cmd

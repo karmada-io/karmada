@@ -25,6 +25,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter/prune"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -36,19 +37,19 @@ var (
 	promoteExample = templates.Examples(`
 		# Promote deployment(default/nginx) from cluster1 to Karmada
 		%[1]s promote deployment nginx -n default -C cluster1
-	
+
 		# Promote deployment(default/nginx) with gvk from cluster1 to Karmada
 		%[1]s promote deployment.v1.apps nginx -n default -C cluster1
-	
+
 		# Dumps the artifacts but does not deploy them to Karmada, same as 'dry run'
 		%[1]s promote deployment nginx -n default -C cluster1 -o yaml|json
-	
+
 		# Promote secret(default/default-token) from cluster1 to Karmada
 		%[1]s promote secret default-token -n default -C cluster1
-			
+
 		# Support to use '--cluster-kubeconfig' to specify the configuration of member cluster
 		%[1]s promote deployment nginx -n default -C cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH>
-			
+
 		# Support to use '--cluster-kubeconfig' and '--cluster-context' to specify the configuration of member cluster
 		%[1]s promote deployment nginx -n default -C cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH> --cluster-context=<CLUSTER_CONTEXT>`)
 )
@@ -340,12 +341,7 @@ func (o *CommandPromoteOption) setClusterProxyInfo(karmadaRestConfig *rest.Confi
 	clusterInfos[name].KubeConfig = o.KubeConfig
 	clusterInfos[name].Context = o.KarmadaContext
 	if clusterInfos[name].KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			clusterInfos[name].KubeConfig = env
-		} else {
-			clusterInfos[name].KubeConfig = defaultKubeConfig
-		}
+		clusterInfos[name].KubeConfig = util.GetDefaultKubeConfigPath()
 	}
 }
 

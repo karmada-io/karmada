@@ -25,8 +25,7 @@ import (
 )
 
 var (
-	defaultKubeConfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
-	defaultCacheDir   = filepath.Join(homedir.HomeDir(), ".kube", "cache")
+	defaultCacheDir = filepath.Join(homedir.HomeDir(), ".kube", "cache")
 	// ErrEmptyConfig is the error message to be displayed if the configuration info is missing or incomplete
 	ErrEmptyConfig = clientcmd.NewEmptyConfigError(
 		`Missing or incomplete configuration info.  Please point to an existing, complete config file:

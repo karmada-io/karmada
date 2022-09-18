@@ -52,7 +52,7 @@ var (
 		# Register cluster into karamada control plane with PULL mode.
 		# If '--cluster-name' isn't specified, the cluster of current-context will be used by default.
 		%[1]s register [karmada-apiserver-endpoint] --cluster-name=<CLUSTER_NAME> --token=<TOKEN>  --discovery-token-ca-cert-hash=<CA-CERT-HASH>
-		
+
 		# UnsafeSkipCAVerification allows token-based discovery without CA verification via CACertHashes. This can weaken
 		# the security of register command since other clusters can impersonate the control-plane.
 		%[1]s register [karmada-apiserver-endpoint] --token=<TOKEN>  --discovery-token-unsafe-skip-ca-verification=true
@@ -236,12 +236,7 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 	o.BootstrapToken.APIServerEndpoint = args[0]
 
 	if o.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			o.KubeConfig = env
-		} else {
-			o.KubeConfig = defaultKubeConfig
-		}
+		o.KubeConfig = karmadautil.GetDefaultKubeConfigPath()
 	}
 
 	if !Exists(o.KubeConfig) {
