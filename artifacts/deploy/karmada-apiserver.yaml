@@ -20,6 +20,7 @@ spec:
       labels:
         app: karmada-apiserver
     spec:
+      automountServiceAccountToken: false
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

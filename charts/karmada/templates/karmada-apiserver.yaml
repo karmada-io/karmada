@@ -27,6 +27,7 @@ spec:
         {{- include "karmada.apiserver.podLabels" . | nindent 8 }}
     spec:
       {{- include "karmada.apiServer.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
       containers:
         - name: {{ $name }}-apiserver
           image: {{ template "karmada.apiServer.image" . }}

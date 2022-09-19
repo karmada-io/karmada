@@ -36,6 +36,7 @@ spec:
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
+      automountServiceAccountToken: false
       containers:
         - name: karmada-scheduler-estimator
           image: {{ template "karmada.schedulerEstimator.image" . }}

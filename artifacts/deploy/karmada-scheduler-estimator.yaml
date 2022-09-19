@@ -15,6 +15,7 @@ spec:
       labels:
         app: karmada-scheduler-estimator-{{member_cluster_name}}
     spec:
+      automountServiceAccountToken: false
       tolerations:
         - key: node-role.kubernetes.io/master
           operator: Exists

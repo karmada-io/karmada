@@ -147,9 +147,6 @@ util::create_certkey "" "${CERT_DIR}" "etcd-ca" etcd-client etcd-client "" "*.et
 # create namespace for control plane components
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
-# create service account, cluster role for controller-manager
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/serviceaccount.yaml"
-
 KARMADA_CRT=$(base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
 KARMADA_KEY=$(base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
 KARMADA_APISERVER_CRT=$(base64 "${CERT_DIR}/apiserver.crt" | tr -d '\r\n')
