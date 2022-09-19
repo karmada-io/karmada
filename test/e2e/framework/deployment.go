@@ -122,6 +122,17 @@ func UpdateDeploymentVolumes(client kubernetes.Interface, deployment *appsv1.Dep
 	})
 }
 
+// UpdateDeploymentServiceAccountName update Deployment's serviceAccountName.
+func UpdateDeploymentServiceAccountName(client kubernetes.Interface, deployment *appsv1.Deployment, serviceAccountName string) {
+	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s serviceAccountName", deployment.Namespace, deployment.Name), func() {
+		deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
+		gomega.Eventually(func() error {
+			_, err := client.AppsV1().Deployments(deployment.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
 // ExtractTargetClustersFrom extract the target cluster names from deployment's related resourceBinding Information.
 func ExtractTargetClustersFrom(c client.Client, deployment *appsv1.Deployment) []string {
 	bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)

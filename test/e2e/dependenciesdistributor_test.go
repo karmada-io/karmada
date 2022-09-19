@@ -277,5 +277,53 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 				})
 			})
 		})
+
+		ginkgo.When("serviceAccount propagate automatically", func() {
+			var saName string
+			var sa *corev1.ServiceAccount
+
+			ginkgo.BeforeEach(func() {
+				saName = saNamePrefix + rand.String(RandomStrLength)
+				sa = testhelper.NewServiceaccount(testNamespace, saName)
+
+				deployment = testhelper.NewDeploymentWithServiceAccount(testNamespace, deploymentName, saName)
+
+				policy = testhelper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment.APIVersion,
+						Kind:       deployment.Kind,
+						Name:       deployment.Name,
+					},
+				}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: initClusterNames,
+					},
+				})
+				policy.Spec.PropagateDeps = true
+			})
+
+			ginkgo.It("serviceAccount automatically propagation testing", func() {
+				framework.CreateServiceAccount(kubeClient, sa)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveServiceAccount(kubeClient, sa.GetNamespace(), sa.GetName())
+				})
+				ginkgo.By("check if the serviceAccount is propagated automatically", func() {
+					framework.WaitDeploymentPresentOnClustersFitWith(initClusterNames, deployment.Namespace, deployment.Name,
+						func(deployment *appsv1.Deployment) bool {
+							return true
+						})
+
+					framework.WaitServiceAccountPresentOnClustersFitWith(initClusterNames, sa.GetNamespace(), sa.GetName(),
+						func(sa *corev1.ServiceAccount) bool {
+							return true
+						})
+				})
+
+				ginkgo.By("make the sa is not referenced by the deployment ", func() {
+					framework.UpdateDeploymentServiceAccountName(kubeClient, deployment, "default")
+					framework.WaitServiceAccountDisappearOnClusters(initClusterNames, sa.GetNamespace(), sa.GetName())
+				})
+			})
+		})
 	})
 })
