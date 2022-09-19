@@ -45,6 +45,8 @@ var (
 	defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
 
 	defaultEtcdImage                  = "etcd:3.5.3-0"
+	defaultEtcdInitImage              = "alpine:3.15.1"
+	defaultDockerEtcdInitImage        = "docker.io/alpine:3.15.1"
 	defaultKubeAPIServerImage         = "kube-apiserver:v1.24.2"
 	defaultKubeControllerManagerImage = "kube-controller-manager:v1.24.2"
 )
@@ -529,6 +531,16 @@ func (i *CommandInitOption) etcdImage() string {
 		return i.EtcdImage
 	}
 	return i.kubeRegistry() + "/" + defaultEtcdImage
+}
+
+// get etcd init image
+func (i *CommandInitOption) etcdInitImage() string {
+	if i.EtcdInitImage != "" {
+		return i.EtcdInitImage
+	} else if i.KubeImageRegistry != "" {
+		return i.KubeImageRegistry + "/" + defaultEtcdInitImage
+	}
+	return defaultDockerEtcdInitImage
 }
 
 func homeDir() string {
