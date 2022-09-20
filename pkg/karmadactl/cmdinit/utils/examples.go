@@ -184,7 +184,7 @@ Step 1: Use "%[2]s join" command to register the cluster to Karmada control plan
 (In karmada)~# %[2]s --kubeconfig %[1]s/karmada-apiserver.config  join ${MEMBER_CLUSTER_NAME} --cluster-kubeconfig=$HOME/.kube/config
 
 Step 2: Show members of karmada
-(In karmada)~# kubectl  --kubeconfig %[1]s/karmada-apiserver.config get clusters
+(In karmada)~# kubectl --kubeconfig %[1]s/karmada-apiserver.config get clusters
 
 
 Register cluster with 'Pull' mode
@@ -193,7 +193,7 @@ Step 1: Use "%[2]s register" command to register the cluster to Karmada control 
 (In member cluster)~# %[2]s%[3]s
 
 Step 2: Show members of karmada
-(In karmada)~# kubectl  --kubeconfig %[1]s/karmada-apiserver.config get clusters
+(In karmada)~# kubectl --kubeconfig %[1]s/karmada-apiserver.config get clusters
 
 `, path, parentCommand, printRegisterCommand)
 }
