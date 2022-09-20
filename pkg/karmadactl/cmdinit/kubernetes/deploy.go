@@ -170,11 +170,18 @@ func (i *CommandInitOption) Complete() error {
 		}
 	}
 
-	// Determine whether KarmadaDataPath exists, if so, delete it
-	if utils.IsExist(i.KarmadaDataPath) {
-		if err := os.RemoveAll(i.KarmadaDataPath); err != nil {
+	return initializeDirectory(i.KarmadaDataPath)
+}
+
+// initializeDirectory initializes a directory and makes sure it's empty.
+func initializeDirectory(path string) error {
+	if utils.IsExist(path) {
+		if err := os.RemoveAll(path); err != nil {
 			return err
 		}
+	}
+	if err := os.MkdirAll(path, os.FileMode(0755)); err != nil {
+		return fmt.Errorf("failed to create directory: %s, error: %v", path, err)
 	}
 
 	return nil
