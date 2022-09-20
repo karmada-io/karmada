@@ -47,6 +47,9 @@ var (
 		# Private registry can be specified for all images
 		%[1]s init --etcd-image local.registry.com/library/etcd:3.5.3-0
 
+		# Specify Karmada API Server IP address. If not set, the address on the master node will be used.
+		%[1]s init --karmada-apiserver-advertise-address 192.168.1.2
+
 		# Deploy highly available(HA) karmada
 		%[1]s init --karmada-apiserver-replicas 3 --etcd-replicas 3 --etcd-storage-mode PVC --storage-classes-name {StorageClassesName}
 
@@ -115,6 +118,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	// karmada
 	crdURL := fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", releaseVer.FirstMinorRelease())
 	flags.StringVar(&opts.CRDs, "crds", crdURL, "Karmada crds resource.(local file e.g. --crds /root/crds.tar.gz)")
+	flags.StringVarP(&opts.KarmadaAPIServerAdvertiseAddress, "karmada-apiserver-advertise-address", "", "", "The IP address the Karmada API Server will advertise it's listening on. If not set, the address on the master node will be used.")
 	flags.Int32VarP(&opts.KarmadaAPIServerNodePort, "port", "p", 32443, "Karmada apiserver service node port")
 	flags.StringVarP(&opts.KarmadaDataPath, "karmada-data", "d", "/etc/karmada", "Karmada data path. kubeconfig cert and crds files")
 	flags.StringVarP(&opts.KarmadaPkiPath, "karmada-pki", "", "/etc/karmada/pki", "Karmada pki path. Karmada cert files")

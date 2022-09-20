@@ -19,7 +19,12 @@ var (
 	etcdSelectorLabels map[string]string
 )
 
-func (i *CommandInitOption) getKubeMasterIP() error {
+func (i *CommandInitOption) getKarmadaAPIServerIP() error {
+	if i.KarmadaAPIServerAdvertiseAddress != "" {
+		i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(i.KarmadaAPIServerAdvertiseAddress))
+		return nil
+	}
+
 	nodeClient := i.KubeClientSet.CoreV1().Nodes()
 	masterNodes, err := nodeClient.List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/master"})
 	if err != nil {
