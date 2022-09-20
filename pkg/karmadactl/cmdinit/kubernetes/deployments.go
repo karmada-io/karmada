@@ -558,7 +558,6 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 				Operator: corev1.TolerationOpExists,
 			},
 		},
-		ServiceAccountName:           controllerManagerDeploymentAndServiceName,
 		AutomountServiceAccountToken: pointer.Bool(false),
 	}
 
