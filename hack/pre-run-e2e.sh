@@ -34,29 +34,30 @@ sed -e "s/strictARP: false/strictARP: true/" | \
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f - -n kube-system
 
 # install metallb by manifest, refer to https://metallb.universe.tf/installation/#installation-by-manifest
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/namespace.yaml
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/metallb.yaml
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
 util::wait_pod_ready "${HOST_CLUSTER_NAME}" metallb metallb-system
 
-# Use x.x.x.6 IP address, which is the same CIDR with the node address of the Kind cluster,
+# Use x.x.x.8 IP address, which is the same CIDR with the node address of the Kind cluster,
 # as the loadBalancer service address of component karmada-interpreter-webhook-example.
 interpreter_webhook_example_service_external_ip_prefix=$(echo $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}") | awk -F. '{printf "%s.%s.%s",$1,$2,$3}')
-interpreter_webhook_example_service_external_ip_address=${interpreter_webhook_example_service_external_ip_prefix}.6
+interpreter_webhook_example_service_external_ip_address=${interpreter_webhook_example_service_external_ip_prefix}.8
 
 # config with layer 2 configuration. refer to https://metallb.universe.tf/configuration/#layer-2-configuration
 cat <<EOF | kubectl --context="${HOST_CLUSTER_NAME}" apply -f -
-apiVersion: v1
-kind: ConfigMap
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
 metadata:
+  name: metallb-config
   namespace: metallb-system
-  name: config
-data:
-  config: |
-    address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-      - ${interpreter_webhook_example_service_external_ip_address}-${interpreter_webhook_example_service_external_ip_address}
+spec:
+  addresses:
+  - ${interpreter_webhook_example_service_external_ip_address}-${interpreter_webhook_example_service_external_ip_address}
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: metallb-advertisement
+  namespace: metallb-system
 EOF
 
 # deploy interpreter webhook example in karmada-host

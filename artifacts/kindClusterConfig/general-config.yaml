@@ -4,8 +4,6 @@ networking:
   disableDefaultCNI: {{disable_cni}}
   podSubnet: {{pod_cidr}}
   serviceSubnet: {{service_cidr}}
-featureGates:
-  EndpointSliceProxying: true
 nodes:
   - role: control-plane
   - role: worker

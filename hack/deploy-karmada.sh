@@ -125,10 +125,10 @@ function installCRDs() {
     kubectl --context="${context_name}" apply -k "${crd_path}"/_crds
 }
 
-# Use x.x.x.6 IP address, which is the same CIDR with the node address of the Kind cluster,
+# Use x.x.x.8 IP address, which is the same CIDR with the node address of the Kind cluster,
 # as the loadBalancer service address of component karmada-interpreter-webhook-example.
 interpreter_webhook_example_service_external_ip_prefix=$(echo $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}") | awk -F. '{printf "%s.%s.%s",$1,$2,$3}')
-interpreter_webhook_example_service_external_ip_address=${interpreter_webhook_example_service_external_ip_prefix}.6
+interpreter_webhook_example_service_external_ip_address=${interpreter_webhook_example_service_external_ip_prefix}.8
 
 # generate cert
 util::cmd_must_exist "openssl"
