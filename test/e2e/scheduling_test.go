@@ -90,12 +90,11 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 
 			ginkgo.By("check if the scheduled condition is true", func() {
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					rb, err := getResourceBinding(deployment)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 					return meta.IsStatusConditionTrue(rb.Status.Conditions, workv1alpha2.Scheduled), nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 
 			ginkgo.By("check if deployment present on right clusters", func() {
@@ -199,12 +198,11 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 
 			ginkgo.By("check if the scheduled condition is true", func() {
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					crb, err := getClusterResourceBinding(crd)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 					return meta.IsStatusConditionTrue(crb.Status.Conditions, workv1alpha2.Scheduled), nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 
 			ginkgo.By("check if crd present on right clusters", func() {
@@ -306,12 +304,11 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 			})
 
 			ginkgo.By("check if the scheduled condition is true", func() {
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					rb, err := getResourceBinding(job)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 					return meta.IsStatusConditionTrue(rb.Status.Conditions, workv1alpha2.Scheduled), nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 
 			ginkgo.By("check if job present on right clusters", func() {
