@@ -140,6 +140,31 @@ func TestGenerateBindingName(t *testing.T) {
 			name:     "Pod",
 			expect:   "pod-pods",
 		},
+		// RBAC kind resource test with colon character in the name
+		{
+			testCase: "role kind resource",
+			kind:     "Role",
+			name:     "system:controller:tom",
+			expect:   "system.controller.tom-role",
+		},
+		{
+			testCase: "clusterRole kind resource",
+			kind:     "ClusterRole",
+			name:     "system::tom",
+			expect:   "system..tom-clusterrole",
+		},
+		{
+			testCase: "roleBinding kind resource",
+			kind:     "RoleBinding",
+			name:     "system::tt:tom",
+			expect:   "system..tt.tom-rolebinding",
+		},
+		{
+			testCase: "clusterRoleBinding kind resource",
+			kind:     "ClusterRoleBinding",
+			name:     "system:tt:tom",
+			expect:   "system.tt.tom-clusterrolebinding",
+		},
 	}
 	for _, test := range tests {
 		if result := GenerateBindingName(test.kind, test.name); result != test.expect {

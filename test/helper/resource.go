@@ -642,9 +642,42 @@ func NewServiceaccount(namespace, name string) *corev1.ServiceAccount {
 	}
 }
 
+// NewRole will build a new role object.
+func NewRole(namespace, name string, rules []rbacv1.PolicyRule) *rbacv1.Role {
+	return &rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
+		Rules:      rules,
+	}
+}
+
+// NewRoleBinding will build a new roleBinding object.
+func NewRoleBinding(namespace, name, roleRefName string, subject []rbacv1.Subject) *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
+		Subjects:   subject,
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     roleRefName,
+		},
+	}
+}
+
 // NewClusterRole will build a new clusterRole object.
 func NewClusterRole(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Rules:      rules,
 	}
@@ -653,6 +686,10 @@ func NewClusterRole(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole 
 // NewClusterRoleBinding will build a new clusterRoleBinding object.
 func NewClusterRoleBinding(name, roleRefName string, subject []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Subjects:   subject,
 		RoleRef: rbacv1.RoleRef{

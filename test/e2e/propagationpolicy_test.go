@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -397,6 +398,96 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 			framework.WaitJobPresentOnClustersFitWith(framework.ClusterNames(), job.Namespace, job.Name,
 				func(job *batchv1.Job) bool {
 					return *job.Spec.BackoffLimit == updateBackoffLimit
+				})
+		})
+	})
+
+	ginkgo.Context("Role propagation testing", func() {
+		var (
+			roleNamespace, roleName string
+			policyName              string
+			policy                  *policyv1alpha1.PropagationPolicy
+			role                    *rbacv1.Role
+		)
+
+		ginkgo.BeforeEach(func() {
+			roleNamespace = testNamespace
+			policyName = roleNamePrefix + rand.String(RandomStrLength)
+			roleName = fmt.Sprintf("system:test:%s", policyName)
+
+			role = testhelper.NewRole(roleNamespace, roleName, nil)
+			policy = testhelper.NewPropagationPolicy(roleNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: role.APIVersion,
+					Kind:       role.Kind,
+					Name:       role.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateRole(kubeClient, role)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.RemoveRole(kubeClient, role.Namespace, role.Name)
+				framework.WaitRoleDisappearOnClusters(framework.ClusterNames(), role.Namespace, role.Name)
+			})
+		})
+
+		ginkgo.It("role propagation testing", func() {
+			framework.WaitRolePresentOnClustersFitWith(framework.ClusterNames(), role.Namespace, role.Name,
+				func(role *rbacv1.Role) bool {
+					return true
+				})
+		})
+	})
+
+	ginkgo.Context("RoleBinding propagation testing", func() {
+		var (
+			roleBindingNamespace, roleBindingName string
+			policyName                            string
+			policy                                *policyv1alpha1.PropagationPolicy
+			roleBinding                           *rbacv1.RoleBinding
+		)
+
+		ginkgo.BeforeEach(func() {
+			roleBindingNamespace = testNamespace
+			policyName = roleBindingNamePrefix + rand.String(RandomStrLength)
+			roleBindingName = fmt.Sprintf("system:test.%s", policyName)
+
+			roleBinding = testhelper.NewRoleBinding(roleBindingNamespace, roleBindingName, roleBindingName, nil)
+			policy = testhelper.NewPropagationPolicy(roleBindingNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: roleBinding.APIVersion,
+					Kind:       roleBinding.Kind,
+					Name:       roleBinding.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateRoleBinding(kubeClient, roleBinding)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.RemoveRoleBinding(kubeClient, roleBinding.Namespace, roleBinding.Name)
+				framework.WaitRoleBindingDisappearOnClusters(framework.ClusterNames(), roleBinding.Namespace, roleBinding.Name)
+			})
+		})
+
+		ginkgo.It("roleBinding propagation testing", func() {
+			framework.WaitRoleBindingPresentOnClustersFitWith(framework.ClusterNames(), roleBinding.Namespace, roleBinding.Name,
+				func(roleBinding *rbacv1.RoleBinding) bool {
+					return true
 				})
 		})
 	})
