@@ -8,7 +8,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -65,9 +64,9 @@ var _ = ginkgo.Describe("porting workloads testing", func() {
 				wantedReplicas := *deployment.Spec.Replicas * int32(len(framework.Clusters())-1)
 
 				klog.Infof("Waiting for deployment(%s/%s) collecting status", deploymentNamespace, deploymentName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentDeployment, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					klog.Infof("deployment(%s/%s) readyReplicas: %d, wanted replicas: %d", deploymentNamespace, deploymentName, currentDeployment.Status.ReadyReplicas, wantedReplicas)
 					if currentDeployment.Status.ReadyReplicas == wantedReplicas &&
@@ -78,8 +77,7 @@ var _ = ginkgo.Describe("porting workloads testing", func() {
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 
 			klog.Infof(
@@ -93,9 +91,9 @@ var _ = ginkgo.Describe("porting workloads testing", func() {
 				wantedReplicas := *deployment.Spec.Replicas * int32(len(framework.Clusters()))
 
 				klog.Infof("Waiting for deployment(%s/%s) collecting status", deploymentNamespace, deploymentName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentDeployment, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					klog.Infof("deployment(%s/%s) readyReplicas: %d, wanted replicas: %d", deploymentNamespace, deploymentName, currentDeployment.Status.ReadyReplicas, wantedReplicas)
 					if currentDeployment.Status.ReadyReplicas == wantedReplicas &&
@@ -106,8 +104,7 @@ var _ = ginkgo.Describe("porting workloads testing", func() {
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})
 	})

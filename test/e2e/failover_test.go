@@ -104,20 +104,17 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 
 			ginkgo.By("check whether deployment of failed cluster is rescheduled to other available cluster", func() {
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+				gomega.Eventually(func() int {
 					targetClusterNames = framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
 					for _, targetClusterName := range targetClusterNames {
 						// the target cluster should be overwritten to another available cluster
 						if !testhelper.IsExclude(targetClusterName, disabledClusters) {
-							return false, nil
+							return 0
 						}
 					}
 
-					gomega.Expect(len(targetClusterNames)).Should(gomega.Equal(minGroups))
-					return true, nil
-				})
-
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					return len(targetClusterNames)
+				}, pollTimeout, pollInterval).Should(gomega.Equal(minGroups))
 			})
 
 			ginkgo.By("recover not ready cluster", func() {
