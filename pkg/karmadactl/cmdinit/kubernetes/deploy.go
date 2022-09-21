@@ -45,8 +45,8 @@ var (
 	defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
 
 	defaultEtcdImage                  = "etcd:3.5.3-0"
-	defaultKubeAPIServerImage         = "kube-apiserver:v1.25.1"
-	defaultKubeControllerManagerImage = "kube-controller-manager:v1.25.1"
+	defaultKubeAPIServerImage         = "kube-apiserver:v1.25.2"
+	defaultKubeControllerManagerImage = "kube-controller-manager:v1.25.2"
 )
 
 const (
