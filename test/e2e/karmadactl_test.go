@@ -14,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -130,13 +129,12 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			ginkgo.By(fmt.Sprintf("Waiting for deployment(%s)'s replicas is ready", deploymentName), func() {
 				wantedReplicas := *deployment.Spec.Replicas
 
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentDeployment, err := kubeClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					return framework.CheckDeploymentReadyStatus(currentDeployment, wantedReplicas), nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})
 	})

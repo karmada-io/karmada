@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
@@ -137,12 +136,11 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 			})
 
 			ginkgo.By("check if the scheduled condition is true", func() {
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					rb, err := getResourceBinding(deployment)
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 					return meta.IsStatusConditionTrue(rb.Status.Conditions, workv1alpha2.Scheduled), nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})
 	})

@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -72,9 +71,9 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				wantedReplicas := *deployment.Spec.Replicas * int32(len(framework.Clusters()))
 
 				klog.Infof("Waiting for deployment(%s/%s) collecting correctly status", deploymentNamespace, deploymentName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentDeployment, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					klog.Infof("deployment(%s/%s) readyReplicas: %d, wanted replicas: %d", deploymentNamespace, deploymentName, currentDeployment.Status.ReadyReplicas, wantedReplicas)
 					if currentDeployment.Status.ReadyReplicas == wantedReplicas &&
@@ -85,8 +84,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 
 			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
@@ -95,9 +93,9 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				wantedReplicas := updateDeploymentReplicas * int32(len(framework.Clusters()))
 
 				klog.Infof("Waiting for deployment(%s/%s) collecting correctly status", deploymentNamespace, deploymentName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentDeployment, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					if currentDeployment.Status.ReadyReplicas == wantedReplicas &&
 						currentDeployment.Status.AvailableReplicas == wantedReplicas &&
@@ -107,8 +105,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})
 	})
@@ -363,9 +360,9 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				wantedSucceedPods := int32(len(framework.Clusters()))
 
 				klog.Infof("Waiting for job(%s/%s) collecting correctly status", jobNamespace, jobName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentJob, err := kubeClient.BatchV1().Jobs(jobNamespace).Get(context.TODO(), jobName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					klog.Infof("job(%s/%s) succeedPods: %d, wanted succeedPods: %d", jobNamespace, jobName, currentJob.Status.Succeeded, wantedSucceedPods)
 					if currentJob.Status.Succeeded == wantedSucceedPods {
@@ -373,8 +370,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})
 	})
@@ -424,9 +420,9 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				wantedReplicas := int32(len(framework.Clusters()))
 
 				klog.Infof("Waiting for daemonSet(%s/%s) collecting correctly status", daemonSetNamespace, daemonSetName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentDaemonSet, err := kubeClient.AppsV1().DaemonSets(daemonSetNamespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					klog.Infof("daemonSet(%s/%s) replicas: %d, wanted replicas: %d", daemonSetNamespace, daemonSetName, currentDaemonSet.Status.NumberReady, wantedReplicas)
 					if currentDaemonSet.Status.NumberReady == wantedReplicas &&
@@ -438,8 +434,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 
 			framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policyName, patch, types.JSONPatchType)
@@ -448,9 +443,9 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				wantedReplicas := int32(len(framework.Clusters()) - 1)
 
 				klog.Infof("Waiting for daemonSet(%s/%s) collecting correctly status", daemonSetNamespace, daemonSetName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentDaemonSet, err := kubeClient.AppsV1().DaemonSets(daemonSetNamespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					if currentDaemonSet.Status.NumberReady == wantedReplicas &&
 						currentDaemonSet.Status.CurrentNumberScheduled == wantedReplicas &&
@@ -461,8 +456,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})
 	})
@@ -502,9 +496,9 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			ginkgo.By("check whether the statefulSet status can be correctly collected", func() {
 				wantedReplicas := *statefulSet.Spec.Replicas * int32(len(framework.Clusters()))
 				klog.Infof("Waiting for statefulSet(%s/%s) collecting correctly status", statefulSetNamespace, statefulSetName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentStatefulSet, err := kubeClient.AppsV1().StatefulSets(statefulSetNamespace).Get(context.TODO(), statefulSetName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					klog.Infof("statefulSet(%s/%s) replicas: %d, wanted replicas: %d", statefulSetNamespace, statefulSetName, currentStatefulSet.Status.Replicas, wantedReplicas)
 					if currentStatefulSet.Status.Replicas == wantedReplicas &&
@@ -515,8 +509,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 
 			framework.UpdateStatefulSetReplicas(kubeClient, statefulSet, updateStatefulSetReplicas)
@@ -525,9 +518,9 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				wantedReplicas := updateStatefulSetReplicas * int32(len(framework.Clusters()))
 
 				klog.Infof("Waiting for statefulSet(%s/%s) collecting correctly status", statefulSetNamespace, statefulSetName)
-				err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					currentStatefulSet, err := kubeClient.AppsV1().StatefulSets(statefulSetNamespace).Get(context.TODO(), statefulSetName, metav1.GetOptions{})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					if currentStatefulSet.Status.Replicas == wantedReplicas &&
 						currentStatefulSet.Status.ReadyReplicas == wantedReplicas &&
@@ -537,8 +530,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					}
 
 					return false, nil
-				})
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})
 	})
