@@ -12,6 +12,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
@@ -102,6 +103,28 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
 	metrics.CountSchedulerBindings(metrics.BindingUpdate)
 }
 
+func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBinding, event string) {
+	key, err := cache.MetaNamespaceKeyFunc(binding)
+	if err != nil {
+		klog.Errorf("couldn't get key for ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
+		return
+	}
+	klog.Infof("Requeue ResourceBinding(%s/%s) due to event(%s).", binding.Namespace, binding.Name, event)
+	s.queue.Add(key)
+	metrics.CountSchedulerBindings(event)
+}
+
+func (s *Scheduler) onClusterResourceBindingRequeue(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, event string) {
+	key, err := cache.MetaNamespaceKeyFunc(clusterResourceBinding)
+	if err != nil {
+		klog.Errorf("couldn't get key for ClusterResourceBinding(%s): %v", clusterResourceBinding.Name, err)
+		return
+	}
+	klog.Infof("Requeue ClusterResourceBinding(%s) due to event(%s).", clusterResourceBinding.Name, event)
+	s.queue.Add(key)
+	metrics.CountSchedulerBindings(event)
+}
+
 func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
 	oldPropagationPolicy := old.(*policyv1alpha1.PropagationPolicy)
 	curPropagationPolicy := cur.(*policyv1alpha1.PropagationPolicy)
@@ -115,7 +138,7 @@ func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
 		policyv1alpha1.PropagationPolicyNameLabel:      oldPropagationPolicy.Name,
 	})
 
-	err := s.requeueResourceBindings(selector)
+	err := s.requeueResourceBindings(selector, metrics.PolicyChanged)
 	if err != nil {
 		klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
 		return
@@ -123,7 +146,7 @@ func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
 }
 
 // requeueClusterResourceBindings will retrieve all ClusterResourceBinding objects by the label selector and put them to queue.
-func (s *Scheduler) requeueClusterResourceBindings(selector labels.Selector) error {
+func (s *Scheduler) requeueClusterResourceBindings(selector labels.Selector, event string) error {
 	referenceClusterResourceBindings, err := s.clusterBindingLister.List(selector)
 	if err != nil {
 		klog.Errorf("Failed to list ClusterResourceBinding by selector: %s, error: %v", selector.String(), err)
@@ -131,20 +154,13 @@ func (s *Scheduler) requeueClusterResourceBindings(selector labels.Selector) err
 	}
 
 	for _, clusterResourceBinding := range referenceClusterResourceBindings {
-		key, err := cache.MetaNamespaceKeyFunc(clusterResourceBinding)
-		if err != nil {
-			klog.Errorf("couldn't get key for ClusterResourceBinding(%s): %v", clusterResourceBinding.Name, err)
-			continue
-		}
-		klog.Infof("Requeue ClusterResourceBinding(%s) as placement changed.", clusterResourceBinding.Name)
-		s.queue.Add(key)
-		metrics.CountSchedulerBindings(metrics.PolicyChanged)
+		s.onClusterResourceBindingRequeue(clusterResourceBinding, event)
 	}
 	return nil
 }
 
 // requeueResourceBindings will retrieve all ResourceBinding objects by the label selector and put them to queue.
-func (s *Scheduler) requeueResourceBindings(selector labels.Selector) error {
+func (s *Scheduler) requeueResourceBindings(selector labels.Selector, event string) error {
 	referenceBindings, err := s.bindingLister.List(selector)
 	if err != nil {
 		klog.Errorf("Failed to list ResourceBinding by selector: %s, error: %v", selector.String(), err)
@@ -152,14 +168,7 @@ func (s *Scheduler) requeueResourceBindings(selector labels.Selector) error {
 	}
 
 	for _, binding := range referenceBindings {
-		key, err := cache.MetaNamespaceKeyFunc(binding)
-		if err != nil {
-			klog.Errorf("couldn't get key for ResourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
-			continue
-		}
-		klog.Infof("Requeue ResourceBinding(%s/%s) as placement changed.", binding.Namespace, binding.Name)
-		s.queue.Add(key)
-		metrics.CountSchedulerBindings(metrics.PolicyChanged)
+		s.onResourceBindingRequeue(binding, event)
 	}
 	return nil
 }
@@ -176,12 +185,12 @@ func (s *Scheduler) onClusterPropagationPolicyUpdate(old, cur interface{}) {
 		policyv1alpha1.ClusterPropagationPolicyLabel: oldClusterPropagationPolicy.Name,
 	})
 
-	err := s.requeueClusterResourceBindings(selector)
+	err := s.requeueClusterResourceBindings(selector, metrics.PolicyChanged)
 	if err != nil {
 		klog.Errorf("Failed to requeue ClusterResourceBinding, error: %v", err)
 	}
 
-	err = s.requeueResourceBindings(selector)
+	err = s.requeueResourceBindings(selector, metrics.PolicyChanged)
 	if err != nil {
 		klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
 	}
@@ -240,7 +249,7 @@ func (s *Scheduler) enqueueAffectedPolicy(newCluster *clusterv1alpha1.Cluster) {
 			fallthrough
 		case util.ClusterMatches(newCluster, *affinity):
 			// If specific cluster matches the affinity. add it in queue
-			err := s.requeueResourceBindings(selector)
+			err := s.requeueResourceBindings(selector, metrics.ClusterChanged)
 			if err != nil {
 				klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
 			}
@@ -262,11 +271,11 @@ func (s *Scheduler) enqueueAffectedClusterPolicy(newCluster *clusterv1alpha1.Clu
 			fallthrough
 		case util.ClusterMatches(newCluster, *affinity):
 			// If specific cluster matches the affinity. add it in queue
-			err := s.requeueClusterResourceBindings(selector)
+			err := s.requeueClusterResourceBindings(selector, metrics.ClusterChanged)
 			if err != nil {
 				klog.Errorf("Failed to requeue ClusterResourceBinding, error: %v", err)
 			}
-			err = s.requeueResourceBindings(selector)
+			err = s.requeueResourceBindings(selector, metrics.ClusterChanged)
 			if err != nil {
 				klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
 			}
