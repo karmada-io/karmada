@@ -20,8 +20,7 @@ export KUBECONFIG="${MAIN_KUBECONFIG}"
 kubectl --context="${HOST_CLUSTER_NAME}" delete -f "${REPO_ROOT}"/examples/customresourceinterpreter/karmada-interpreter-webhook-example.yaml
 
 # uninstall metallb
-kubectl --context="${HOST_CLUSTER_NAME}" delete configmap config -n metallb-system
-kubectl --context="${HOST_CLUSTER_NAME}" delete -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
+kubectl --context="${HOST_CLUSTER_NAME}" --ignore-not-found=true delete -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
 
 kubectl --context="${HOST_CLUSTER_NAME}" get configmap kube-proxy -n kube-system -o yaml | \
 sed -e "s/strictARP: true/strictARP: false/" | \
