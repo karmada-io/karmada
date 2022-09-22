@@ -21,6 +21,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -895,6 +896,75 @@ func TestGenerateReplicaRequirements(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GenerateReplicaRequirements(tt.args.podTemplate); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GenerateReplicaRequirements() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConstructClusterWideKey(t *testing.T) {
+	type args struct {
+		resource workv1alpha2.ObjectReference
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    keys.ClusterWideKey
+		wantErr bool
+	}{
+		{
+			name: "wrong APIVersion",
+			args: args{resource: workv1alpha2.ObjectReference{
+				APIVersion: "a/b/c",
+				Kind:       "Foo",
+				Namespace:  "test",
+				Name:       "foo",
+			}},
+			want:    keys.ClusterWideKey{},
+			wantErr: true,
+		},
+		{
+			name: "APIVersion: v1",
+			args: args{resource: workv1alpha2.ObjectReference{
+				APIVersion: "v1",
+				Kind:       "Foo",
+				Namespace:  "test",
+				Name:       "foo",
+			}},
+			want: keys.ClusterWideKey{
+				Version:   "v1",
+				Kind:      "Foo",
+				Namespace: "test",
+				Name:      "foo",
+			},
+			wantErr: false,
+		},
+		{
+			name: "APIVersion: test/v1",
+			args: args{resource: workv1alpha2.ObjectReference{
+				APIVersion: "test/v1",
+				Kind:       "Foo",
+				Namespace:  "test",
+				Name:       "foo",
+			}},
+			want: keys.ClusterWideKey{
+				Group:     "test",
+				Version:   "v1",
+				Kind:      "Foo",
+				Namespace: "test",
+				Name:      "foo",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ConstructClusterWideKey(tt.args.resource)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ConstructClusterWideKey() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ConstructClusterWideKey() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

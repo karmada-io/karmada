@@ -1,11 +1,16 @@
 package detector
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -117,4 +122,123 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 	}
 
 	return d.ApplyClusterPolicy(object, objectKey, matchedClusterPropagationPolicy)
+}
+
+func (d *ResourceDetector) cleanUnmatchedResourceBindings(policyNamespace, policyName string, selectors []policyv1alpha1.ResourceSelector) error {
+	var ls labels.Set
+	var removeLabels []string
+	if len(policyNamespace) == 0 {
+		ls = labels.Set{policyv1alpha1.ClusterPropagationPolicyLabel: policyName}
+		removeLabels = []string{policyv1alpha1.ClusterPropagationPolicyLabel}
+	} else {
+		ls = labels.Set{
+			policyv1alpha1.PropagationPolicyNamespaceLabel: policyNamespace,
+			policyv1alpha1.PropagationPolicyNameLabel:      policyName,
+		}
+		removeLabels = []string{
+			policyv1alpha1.PropagationPolicyNamespaceLabel,
+			policyv1alpha1.PropagationPolicyNameLabel,
+		}
+	}
+
+	bindings := &workv1alpha2.ResourceBindingList{}
+	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
+	err := d.Client.List(context.TODO(), bindings, listOpt)
+	if err != nil {
+		klog.Errorf("Failed to list ResourceBinding with policy(%s/%s), error: %v", policyNamespace, policyName, err)
+	}
+
+	var errs []error
+	for _, binding := range bindings.Items {
+		removed, err := d.removeResourceLabelsIfNotMatch(binding.Spec.Resource, selectors, removeLabels...)
+		if err != nil {
+			klog.Errorf("Failed to remove resource labels when resource not match with policy selectors, err: %v", err)
+			errs = append(errs, err)
+			continue
+		}
+		if !removed {
+			continue
+		}
+
+		bindingCopy := binding.DeepCopy()
+		for _, l := range removeLabels {
+			delete(bindingCopy.Labels, l)
+		}
+		err = d.Client.Update(context.TODO(), bindingCopy)
+		if err != nil {
+			klog.Errorf("Failed to update resourceBinding(%s/%s), err: %v", binding.Namespace, binding.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
+	return nil
+}
+
+func (d *ResourceDetector) cleanUnmatchedClusterResourceBinding(policyName string, selectors []policyv1alpha1.ResourceSelector) error {
+	bindings := &workv1alpha2.ClusterResourceBindingList{}
+	listOpt := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			policyv1alpha1.ClusterPropagationPolicyLabel: policyName,
+		})}
+	err := d.Client.List(context.TODO(), bindings, listOpt)
+	if err != nil {
+		klog.Errorf("Failed to list ClusterResourceBinding with policy(%s), error: %v", policyName, err)
+	}
+
+	var errs []error
+	for _, binding := range bindings.Items {
+		removed, err := d.removeResourceLabelsIfNotMatch(binding.Spec.Resource, selectors, []string{policyv1alpha1.ClusterPropagationPolicyLabel}...)
+		if err != nil {
+			klog.Errorf("Failed to remove resource labels when resource not match with policy selectors, err: %v", err)
+			errs = append(errs, err)
+			continue
+		}
+		if !removed {
+			continue
+		}
+
+		bindingCopy := binding.DeepCopy()
+		delete(bindingCopy.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
+		err = d.Client.Update(context.TODO(), bindingCopy)
+		if err != nil {
+			klog.Errorf("Failed to update clusterResourceBinding(%s), err: %v", binding.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
+	return nil
+}
+
+func (d *ResourceDetector) removeResourceLabelsIfNotMatch(objectReference workv1alpha2.ObjectReference, selectors []policyv1alpha1.ResourceSelector, labelKeys ...string) (bool, error) {
+	objectKey, err := helper.ConstructClusterWideKey(objectReference)
+	if err != nil {
+		return false, err
+	}
+
+	object, err := d.GetUnstructuredObject(objectKey)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if util.ResourceMatchSelectors(object, selectors...) {
+		return false, nil
+	}
+
+	for _, labelKey := range labelKeys {
+		util.RemoveLabel(object, labelKey)
+	}
+	err = d.Client.Update(context.TODO(), object)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

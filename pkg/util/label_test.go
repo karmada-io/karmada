@@ -208,3 +208,106 @@ func TestDedupeAndMergeLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveLabel(t *testing.T) {
+	type args struct {
+		obj      *unstructured.Unstructured
+		labelKey string
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expected *unstructured.Unstructured
+	}{
+		{
+			name: "nil object labels",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name": "demo-deployment",
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						}}},
+				labelKey: "foo",
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					}}},
+		},
+		{
+			name: "same labelKey",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":   "demo-deployment",
+							"labels": map[string]interface{}{"foo": "bar"},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						}}},
+				labelKey: "foo",
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":   "demo-deployment",
+						"labels": map[string]interface{}{},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					}}},
+		},
+		{
+			name: "different labelKey",
+			args: args{
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":   "demo-deployment",
+							"labels": map[string]interface{}{"foo": "bar"},
+						},
+						"spec": map[string]interface{}{
+							"replicas": 2,
+						}}},
+				labelKey: "foo1",
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":   "demo-deployment",
+						"labels": map[string]interface{}{"foo": "bar"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					}}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RemoveLabel(tt.args.obj, tt.args.labelKey)
+			if !reflect.DeepEqual(tt.args.obj, tt.expected) {
+				t.Errorf("RemoveLabel() = %v, want %v", tt.args.obj, tt.expected)
+			}
+		})
+	}
+}

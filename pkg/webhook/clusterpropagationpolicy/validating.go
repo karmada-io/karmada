@@ -4,8 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	admissionv1 "k8s.io/api/admission/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -33,18 +31,6 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	klog.V(2).Infof("Validating ClusterPropagationPolicy(%s) for request: %s", policy.Name, req.Operation)
-
-	if req.Operation == admissionv1.Update {
-		oldPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
-		err := v.decoder.DecodeRaw(req.OldObject, oldPolicy)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		if !equality.Semantic.DeepEqual(policy.Spec.ResourceSelectors, oldPolicy.Spec.ResourceSelectors) {
-			klog.Error(helper.DenyReasonResourceSelectorsModify)
-			return admission.Denied(helper.DenyReasonResourceSelectorsModify)
-		}
-	}
 
 	if err := helper.ValidateSpreadConstraint(policy.Spec.Placement.SpreadConstraints); err != nil {
 		klog.Error(err)

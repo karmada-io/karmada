@@ -15,9 +15,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// DenyReasonResourceSelectorsModify constructs a reason indicating that modify ResourceSelectors is not allowed.
-const DenyReasonResourceSelectorsModify = "modify ResourceSelectors is forbidden"
-
 // SetDefaultSpreadConstraints set default spread constraints if both 'SpreadByField' and 'SpreadByLabel' not set.
 func SetDefaultSpreadConstraints(spreadConstraints []policyv1alpha1.SpreadConstraint) {
 	for i := range spreadConstraints {

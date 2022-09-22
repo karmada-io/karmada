@@ -15,12 +15,19 @@ func GetLabelValue(labels map[string]string, labelKey string) string {
 
 // MergeLabel adds label for the given object.
 func MergeLabel(obj *unstructured.Unstructured, labelKey string, labelValue string) {
-	workloadLabel := obj.GetLabels()
-	if workloadLabel == nil {
-		workloadLabel = make(map[string]string, 1)
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string, 1)
 	}
-	workloadLabel[labelKey] = labelValue
-	obj.SetLabels(workloadLabel)
+	labels[labelKey] = labelValue
+	obj.SetLabels(labels)
+}
+
+// RemoveLabel removes the label from the given object.
+func RemoveLabel(obj *unstructured.Unstructured, labelKey string) {
+	labels := obj.GetLabels()
+	delete(labels, labelKey)
+	obj.SetLabels(labels)
 }
 
 // DedupeAndMergeLabels merges the new labels into exist labels.
