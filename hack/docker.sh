@@ -30,6 +30,10 @@ source "${REPO_ROOT}/hack/util.sh"
 REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
 VERSION=${VERSION:="unknown"}
 
+export http_proxy="${HTTP_PROXY:-${http_proxy:-}}"
+export https_proxy="${HTTPS_PROXY:-${https_proxy:-}}"
+export no_proxy="${NO_PROXY:-${no_proxy:-}}"
+
 function build_images() {
   local -r target=$1
   local -r output_type=${OUTPUT_TYPE:-docker}
@@ -55,6 +59,7 @@ function build_local_image() {
   echo "Building image for ${platform}: ${image_name}"
   set -x
   docker build --build-arg BINARY="${target}" \
+          --build-arg http_proxy --build-arg https_proxy --build-arg no_proxy \
           --tag "${image_name}" \
           --file "${REPO_ROOT}/cluster/images/Dockerfile" \
           "${REPO_ROOT}/_output/bin/${platform}"
@@ -77,6 +82,7 @@ function build_cross_image() {
   docker buildx build --output=type="${output_type}" \
           --platform "${platforms}" \
           --build-arg BINARY="${target}" \
+          --build-arg http_proxy --build-arg https_proxy --build-arg no_proxy \
           --tag "${image_name}" \
           --file "${REPO_ROOT}/cluster/images/buildx.Dockerfile" \
           "${REPO_ROOT}/_output/bin"
