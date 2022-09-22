@@ -14,21 +14,24 @@ set -o pipefail
 # Args:
 #   $1:              target to build
 # Environments:
-#   BUILD_PLATFORMS: platforms to build. You can set one or more platforms separated by comma.
-#                    e.g.: linux/amd64,linux/arm64
-#   OUTPUT_TYPE      Destination to save image(`docker`/`registry`/`local,dest=path`, default is `docker`).
-#   REGISTRY         image registry
-#   VERSION          image version
+#   BUILD_PLATFORMS:  platforms to build. You can set one or more platforms separated by comma.
+#                     e.g.: linux/amd64,linux/arm64
+#   OUTPUT_TYPE       Destination to save image(`docker`/`registry`/`local,dest=path`, default is `docker`).
+#   REGISTRY          image registry
+#   VERSION           image version
+#   DOCKER_BUILD_ARGS additional arguments to the docker build command
 # Examples:
 #   hack/docker.sh karmada-aggregated-apiserver
 #   BUILD_PLATFORMS=linux/amd64 hack/docker.sh karmada-aggregated-apiserver
 #   OUTPUT_TYPE=registry BUILD_PLATFORMS=linux/amd64,linux/arm64 hack/docker.sh karmada-aggregated-apiserver
+#   DOCKER_BUILD_ARGS="--build-arg https_proxy=${https_proxy}" hack/docker.sh karmada-aggregated-apiserver"
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}/hack/util.sh"
 
 REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
 VERSION=${VERSION:="unknown"}
+DOCKER_BUILD_ARGS=${DOCKER_BUILD_ARGS:-}
 
 function build_images() {
   local -r target=$1
@@ -55,6 +58,7 @@ function build_local_image() {
   echo "Building image for ${platform}: ${image_name}"
   set -x
   docker build --build-arg BINARY="${target}" \
+          ${DOCKER_BUILD_ARGS} \
           --tag "${image_name}" \
           --file "${REPO_ROOT}/cluster/images/Dockerfile" \
           "${REPO_ROOT}/_output/bin/${platform}"
@@ -77,6 +81,7 @@ function build_cross_image() {
   docker buildx build --output=type="${output_type}" \
           --platform "${platforms}" \
           --build-arg BINARY="${target}" \
+          ${DOCKER_BUILD_ARGS} \
           --tag "${image_name}" \
           --file "${REPO_ROOT}/cluster/images/buildx.Dockerfile" \
           "${REPO_ROOT}/_output/bin"
