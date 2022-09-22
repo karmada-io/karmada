@@ -34,7 +34,12 @@ sed -e "s/strictARP: false/strictARP: true/" | \
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f - -n kube-system
 
 # install metallb by manifest, refer to https://metallb.universe.tf/installation/#installation-by-manifest
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
+# disable the webhook-mode because there is a bug:https://github.com/metallb/metallb/issues/1597
+# this webhook only checks crd, it has not effects to out e2e tests
+curl https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml -k | \
+  sed '0,/args:/s//args:\n        - --webhook-mode=disabled/' | \
+  sed '/apiVersion: admissionregistration/,$d' | \
+  kubectl --context="${HOST_CLUSTER_NAME}" apply -f -
 util::wait_pod_ready "${HOST_CLUSTER_NAME}" metallb metallb-system
 
 # Use x.x.x.8 IP address, which is the same CIDR with the node address of the Kind cluster,
