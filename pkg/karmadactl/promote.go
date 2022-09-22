@@ -24,6 +24,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter/prune"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -76,6 +77,9 @@ func NewCmdPromote(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Com
 				return err
 			}
 			return nil
+		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupAdvancedCommands,
 		},
 	}
 

@@ -60,6 +60,9 @@ func NewCmdCordon(f util.Factory, parentCommand string) *cobra.Command {
 			}
 			return nil
 		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterManagement,
+		},
 	}
 
 	flags := cmd.Flags()
@@ -89,6 +92,9 @@ func NewCmdUncordon(f util.Factory, parentCommand string) *cobra.Command {
 				return err
 			}
 			return nil
+		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterManagement,
 		},
 	}
 

@@ -23,6 +23,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -73,6 +74,9 @@ func NewCmdTaint(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comma
 				return err
 			}
 			return nil
+		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterManagement,
 		},
 	}
 

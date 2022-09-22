@@ -62,6 +62,9 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericcliopti
 			}
 			return nil
 		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterTroubleshootingAndDebugging,
+		},
 	}
 
 	flags := cmd.Flags()
