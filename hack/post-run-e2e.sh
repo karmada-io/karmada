@@ -21,8 +21,7 @@ kubectl --context="${HOST_CLUSTER_NAME}" delete -f "${REPO_ROOT}"/examples/custo
 
 # uninstall metallb
 kubectl --context="${HOST_CLUSTER_NAME}" delete configmap config -n metallb-system
-kubectl --context="${HOST_CLUSTER_NAME}" delete -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/metallb.yaml
-kubectl --context="${HOST_CLUSTER_NAME}" delete -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/namespace.yaml
+kubectl --context="${HOST_CLUSTER_NAME}" delete -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
 
 kubectl --context="${HOST_CLUSTER_NAME}" get configmap kube-proxy -n kube-system -o yaml | \
 sed -e "s/strictARP: true/strictARP: false/" | \
