@@ -61,7 +61,7 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 		},
 	}
 
-	flags := cmd.PersistentFlags()
+	flags := cmd.Flags()
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "namespace where Karmada components are installed.")
 	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "Path to the host cluster kubeconfig file.")
 	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
