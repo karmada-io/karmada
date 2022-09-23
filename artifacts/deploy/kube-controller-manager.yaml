@@ -52,7 +52,7 @@ spec:
             - --service-cluster-ip-range=10.96.0.0/12
             - --use-service-account-credentials=true
             - --v=4
-          image: k8s.gcr.io/kube-controller-manager:v1.24.2
+          image: k8s.gcr.io/kube-controller-manager:v1.25.2
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 8

@@ -45,8 +45,8 @@ var (
 	defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
 
 	defaultEtcdImage                  = "etcd:3.5.3-0"
-	defaultKubeAPIServerImage         = "kube-apiserver:v1.24.2"
-	defaultKubeControllerManagerImage = "kube-controller-manager:v1.24.2"
+	defaultKubeAPIServerImage         = "kube-apiserver:v1.25.2"
+	defaultKubeControllerManagerImage = "kube-controller-manager:v1.25.2"
 )
 
 const (
@@ -255,7 +255,7 @@ func (i *CommandInitOption) genCerts() error {
 func (i *CommandInitOption) prepareCRD() error {
 	if strings.HasPrefix(i.CRDs, "http") {
 		filename := i.KarmadaDataPath + "/" + path.Base(i.CRDs)
-		klog.Infoln("download crds file name:", filename)
+		klog.Infof("download crds file:%s", i.CRDs)
 		if err := utils.DownloadFile(i.CRDs, filename); err != nil {
 			return err
 		}
