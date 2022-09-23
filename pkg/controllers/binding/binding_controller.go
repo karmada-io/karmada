@@ -126,18 +126,10 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 		c.EventRecorder.Event(binding, corev1.EventTypeNormal, workv1alpha2.EventReasonSyncWorkSucceed, msg)
 		c.EventRecorder.Event(workload, corev1.EventTypeNormal, workv1alpha2.EventReasonSyncWorkSucceed, msg)
 	}
-	err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload)
-	if err != nil {
+	if err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload, c.EventRecorder); err != nil {
 		klog.Errorf("Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
-		c.EventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
-		c.EventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
 		errs = append(errs, err)
-	} else {
-		msg := fmt.Sprintf("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
-		klog.V(4).Infof(msg)
-		c.EventRecorder.Event(binding, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
-		c.EventRecorder.Event(workload, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
 	}
 	if len(errs) > 0 {
 		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)

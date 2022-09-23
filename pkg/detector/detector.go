@@ -429,10 +429,11 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
 func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) (err error) {
 	klog.Infof("Applying policy(%s%s) for object: %s", policy.Namespace, policy.Name, objectKey)
+	var operationResult controllerutil.OperationResult
 	defer func() {
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply policy(%s/%s) failed: %v", policy.Namespace, policy.Name, err)
-		} else {
+		} else if operationResult != controllerutil.OperationResultNone {
 			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Namespace, policy.Name)
 		}
 	}()
@@ -453,7 +454,6 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return err
 	}
 	bindingCopy := binding.DeepCopy()
-	var operationResult controllerutil.OperationResult
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
@@ -490,10 +490,11 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 // ApplyClusterPolicy starts propagate the object referenced by object key according to ClusterPropagationPolicy.
 func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
 	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
+	var operationResult controllerutil.OperationResult
 	defer func() {
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "Apply cluster policy(%s) failed: %v", policy.Name, err)
-		} else {
+		} else if operationResult != controllerutil.OperationResultNone {
 			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, workv1alpha2.EventReasonApplyPolicySucceed, "Apply policy(%s/%s) succeed", policy.Name)
 		}
 	}()
@@ -517,7 +518,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 		bindingCopy := binding.DeepCopy()
-		var operationResult controllerutil.OperationResult
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
@@ -554,7 +554,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 		bindingCopy := binding.DeepCopy()
-		operationResult, err := controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = binding.Labels
 			bindingCopy.OwnerReferences = binding.OwnerReferences
