@@ -36,8 +36,9 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "karmada-webhook",
-		Long: `Start a karmada webhook server`,
+		Use: "karmada-webhook",
+		Long: `The karmada-webhook starts a webhook server and manages policies about how to mutate and validate
+Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {

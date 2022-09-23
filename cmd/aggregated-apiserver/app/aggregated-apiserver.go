@@ -18,8 +18,10 @@ func NewAggregatedApiserverCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "karmada-aggregated-apiserver",
-		Long: `Launch the karmada-aggregated-apiserver`,
+		Use: "karmada-aggregated-apiserver",
+		Long: `The karmada-aggregated-apiserver starts an aggregated server. 
+It is responsible for registering the Cluster API and provides the ability to aggregate APIs, 
+allowing users to access member clusters from the control plane directly.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(); err != nil {
 				return err
