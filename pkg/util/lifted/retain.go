@@ -84,33 +84,49 @@ func retainServiceClusterIP(desired, observed *unstructured.Unstructured) error 
 // +lifted:source=https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/sync/dispatch/retain.go
 // +lifted:changed
 
-// RetainServiceAccountFields retains the 'secrets' field of a service account
-// if the desired representation does not include a value for the field.  This
-// ensures that the sync controller doesn't continually clear a generated
+// RetainServiceAccountFields merges the 'secrets' field in the service account
+// of the control plane and the member clusters and retains the merged service account. This
+// ensures that the karmada-controller-manager doesn't continually clear a generated
 // secret from a service account, prompting continual regeneration by the
 // service account controller in the member cluster.
+// Related issue: https://github.com/karmada-io/karmada/issues/2573
 func RetainServiceAccountFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	// Check whether the secrets field is populated in the desired object.
+	var mergedSecrets []interface{}
+	isSecretExistMap := make(map[string]struct{})
+
 	desiredSecrets, ok, err := unstructured.NestedSlice(desired.Object, SecretsField)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving secrets from desired service account: %w", err)
 	}
+
 	if ok && len(desiredSecrets) > 0 {
-		// Field is populated, so an update to the target resource does not
-		// risk triggering a race with the service account controller.
-		return desired, nil
+		for _, desiredSecret := range desiredSecrets {
+			secretName := desiredSecret.(map[string]interface{})["name"].(string)
+			mergedSecrets = append(mergedSecrets, desiredSecret)
+			isSecretExistMap[secretName] = struct{}{}
+		}
 	}
 
-	// Retrieve the secrets from the cluster object and retain them.
 	secrets, ok, err := unstructured.NestedSlice(observed.Object, SecretsField)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving secrets from service account: %w", err)
 	}
+
 	if ok && len(secrets) > 0 {
-		err := unstructured.SetNestedField(desired.Object, secrets, SecretsField)
-		if err != nil {
-			return nil, fmt.Errorf("error setting secrets for service account: %w", err)
+		for _, secret := range secrets {
+			secretName := secret.(map[string]interface{})["name"].(string)
+			if _, exist := isSecretExistMap[secretName]; exist {
+				continue
+			}
+			mergedSecrets = append(mergedSecrets, secret)
+			isSecretExistMap[secretName] = struct{}{}
 		}
 	}
+
+	err = unstructured.SetNestedField(desired.Object, mergedSecrets, SecretsField)
+	if err != nil {
+		return nil, fmt.Errorf("error setting secrets for service account: %w", err)
+	}
+
 	return desired, nil
 }
