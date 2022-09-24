@@ -80,12 +80,12 @@ func (c *SchedulerEstimatorCache) GetClient(name string) (estimatorservice.Estim
 }
 
 // EstablishConnection establishes a new gRPC connection with the specified cluster scheduler estimator.
-func EstablishConnection(kubeClient kubernetes.Interface, name string, estimatorCache *SchedulerEstimatorCache, port int) error {
+func EstablishConnection(kubeClient kubernetes.Interface, name, namespace string, estimatorCache *SchedulerEstimatorCache, port int) error {
 	if estimatorCache.IsEstimatorExist(name) {
 		return nil
 	}
 
-	serverAddr, err := resolveCluster(kubeClient, util.NamespaceKarmadaSystem,
+	serverAddr, err := resolveCluster(kubeClient, namespace,
 		names.GenerateEstimatorServiceName(name), int32(port))
 	if err != nil {
 		return err

@@ -80,6 +80,7 @@ type Scheduler struct {
 	enableSchedulerEstimator            bool
 	disableSchedulerEstimatorInPullMode bool
 	schedulerEstimatorCache             *estimatorclient.SchedulerEstimatorCache
+	schedulerEstimatorNamespace         string
 	schedulerEstimatorPort              int
 	schedulerEstimatorWorker            util.AsyncWorker
 
@@ -93,6 +94,8 @@ type schedulerOptions struct {
 	disableSchedulerEstimatorInPullMode bool
 	// schedulerEstimatorTimeout specifies the timeout period of calling the accurate scheduler estimator service.
 	schedulerEstimatorTimeout metav1.Duration
+	// schedulerEstimatorNamespace is the namespace that the accurate scheduler estimator server serves at.
+	schedulerEstimatorNamespace string
 	// schedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
 	schedulerEstimatorPort int
 	//enableEmptyWorkloadPropagation represents whether allow workload with replicas 0 propagated to member clusters should be enabled
@@ -124,6 +127,13 @@ func WithDisableSchedulerEstimatorInPullMode(disableSchedulerEstimatorInPullMode
 func WithSchedulerEstimatorTimeout(schedulerEstimatorTimeout metav1.Duration) Option {
 	return func(o *schedulerOptions) {
 		o.schedulerEstimatorTimeout = schedulerEstimatorTimeout
+	}
+}
+
+// WithSchedulerEstimatorNamespace sets the schedulerEstimatorNamespace for scheduler
+func WithSchedulerEstimatorNamespace(schedulerEstimatorNamespace string) Option {
+	return func(o *schedulerOptions) {
+		o.schedulerEstimatorNamespace = schedulerEstimatorNamespace
 	}
 }
 
@@ -577,7 +587,7 @@ func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		return nil
 	}
 
-	return estimatorclient.EstablishConnection(s.KubeClient, name, s.schedulerEstimatorCache, s.schedulerEstimatorPort)
+	return estimatorclient.EstablishConnection(s.KubeClient, name, s.schedulerEstimatorNamespace, s.schedulerEstimatorCache, s.schedulerEstimatorPort)
 }
 
 func (s *Scheduler) establishEstimatorConnections() {
@@ -590,7 +600,7 @@ func (s *Scheduler) establishEstimatorConnections() {
 		if clusterList.Items[i].Spec.SyncMode == clusterv1alpha1.Pull && s.disableSchedulerEstimatorInPullMode {
 			continue
 		}
-		if err = estimatorclient.EstablishConnection(s.KubeClient, clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorPort); err != nil {
+		if err = estimatorclient.EstablishConnection(s.KubeClient, s.schedulerEstimatorNamespace, clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorPort); err != nil {
 			klog.Error(err)
 		}
 	}

@@ -46,9 +46,10 @@ type Descheduler struct {
 
 	eventRecorder record.EventRecorder
 
-	schedulerEstimatorCache  *estimatorclient.SchedulerEstimatorCache
-	schedulerEstimatorPort   int
-	schedulerEstimatorWorker util.AsyncWorker
+	schedulerEstimatorCache     *estimatorclient.SchedulerEstimatorCache
+	schedulerEstimatorNamespace string
+	schedulerEstimatorPort      int
+	schedulerEstimatorWorker    util.AsyncWorker
 
 	unschedulableThreshold time.Duration
 	deschedulingInterval   time.Duration
@@ -59,17 +60,18 @@ type Descheduler struct {
 func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts *options.Options) *Descheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	desched := &Descheduler{
-		KarmadaClient:           karmadaClient,
-		KubeClient:              kubeClient,
-		informerFactory:         factory,
-		bindingInformer:         factory.Work().V1alpha2().ResourceBindings().Informer(),
-		bindingLister:           factory.Work().V1alpha2().ResourceBindings().Lister(),
-		clusterInformer:         factory.Cluster().V1alpha1().Clusters().Informer(),
-		clusterLister:           factory.Cluster().V1alpha1().Clusters().Lister(),
-		schedulerEstimatorCache: estimatorclient.NewSchedulerEstimatorCache(),
-		schedulerEstimatorPort:  opts.SchedulerEstimatorPort,
-		unschedulableThreshold:  opts.UnschedulableThreshold.Duration,
-		deschedulingInterval:    opts.DeschedulingInterval.Duration,
+		KarmadaClient:               karmadaClient,
+		KubeClient:                  kubeClient,
+		informerFactory:             factory,
+		bindingInformer:             factory.Work().V1alpha2().ResourceBindings().Informer(),
+		bindingLister:               factory.Work().V1alpha2().ResourceBindings().Lister(),
+		clusterInformer:             factory.Cluster().V1alpha1().Clusters().Informer(),
+		clusterLister:               factory.Cluster().V1alpha1().Clusters().Lister(),
+		schedulerEstimatorCache:     estimatorclient.NewSchedulerEstimatorCache(),
+		schedulerEstimatorNamespace: opts.SchedulerEstimatorNamespace,
+		schedulerEstimatorPort:      opts.SchedulerEstimatorPort,
+		unschedulableThreshold:      opts.UnschedulableThreshold.Duration,
+		deschedulingInterval:        opts.DeschedulingInterval.Duration,
 	}
 	// ignore the error here because the informers haven't been started
 	_ = desched.bindingInformer.SetTransform(fedinformer.StripUnusedFields)
@@ -250,7 +252,7 @@ func (d *Descheduler) establishEstimatorConnections() {
 		return
 	}
 	for i := range clusterList.Items {
-		if err = estimatorclient.EstablishConnection(d.KubeClient, clusterList.Items[i].Name, d.schedulerEstimatorCache, d.schedulerEstimatorPort); err != nil {
+		if err = estimatorclient.EstablishConnection(d.KubeClient, clusterList.Items[i].Name, d.schedulerEstimatorNamespace, d.schedulerEstimatorCache, d.schedulerEstimatorPort); err != nil {
 			klog.Error(err)
 		}
 	}
@@ -270,7 +272,7 @@ func (d *Descheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		}
 		return err
 	}
-	return estimatorclient.EstablishConnection(d.KubeClient, name, d.schedulerEstimatorCache, d.schedulerEstimatorPort)
+	return estimatorclient.EstablishConnection(d.KubeClient, name, d.schedulerEstimatorNamespace, d.schedulerEstimatorCache, d.schedulerEstimatorPort)
 }
 
 func (d *Descheduler) recordDescheduleResultEventForResourceBinding(rb *workv1alpha2.ResourceBinding, message string, err error) {
