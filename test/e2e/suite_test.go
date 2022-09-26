@@ -51,6 +51,10 @@ const (
 	ingressNamePrefix            = "ingress-"
 	daemonSetNamePrefix          = "daemonset-"
 	statefulSetNamePrefix        = "statefulset-"
+	roleNamePrefix               = "role-"
+	clusterRoleNamePrefix        = "clusterrole-"
+	roleBindingNamePrefix        = "rolebinding-"
+	clusterRoleBindingNamePrefix = "clusterrolebinding-"
 
 	updateDeploymentReplicas  = 6
 	updateStatefulSetReplicas = 6
