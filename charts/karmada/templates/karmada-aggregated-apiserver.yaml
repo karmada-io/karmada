@@ -75,6 +75,14 @@ spec:
             initialDelaySeconds: 1
             periodSeconds: 3
             timeoutSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 15
       {{- with .Values.aggregatedApiServer.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}
