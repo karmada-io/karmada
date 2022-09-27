@@ -110,9 +110,10 @@ release-chart:
 
 .PHONY: test
 test:
-	go test --race --v ./pkg/...
-	go test --race --v ./cmd/...
-	go test --race --v ./examples/...
+	mkdir -p ./_output/coverage/
+	go test --race --v ./pkg/... -coverprofile=./_output/coverage/coverage_pkg.txt -covermode=atomic
+	go test --race --v ./cmd/... -coverprofile=./_output/coverage/coverage_cmd.txt -covermode=atomic
+	go test --race --v ./examples/... -coverprofile=./_output/coverage/coverage_examples.txt -covermode=atomic
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
