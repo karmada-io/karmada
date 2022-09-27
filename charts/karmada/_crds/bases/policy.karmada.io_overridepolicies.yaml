@@ -50,6 +50,36 @@ spec:
                       description: Overriders represents the override rules that would
                         apply on resources
                       properties:
+                        annotationsOverrider:
+                          description: AnnotationsOverrider represents the rules dedicated
+                            to handling workload annotations
+                          items:
+                            description: LabelAnnotationOverrider represents the rules
+                              dedicated to handling workload labels/annotations
+                            properties:
+                              operator:
+                                description: Operator represents the operator which
+                                  will apply on the workload.
+                                enum:
+                                - add
+                                - remove
+                                - replace
+                                type: string
+                              value:
+                                additionalProperties:
+                                  type: string
+                                description: Value to be applied to annotations/labels
+                                  of workload. Items in Value which will be appended
+                                  after annotations/labels when Operator is 'add'.
+                                  Items in Value which match in annotations/labels
+                                  will be deleted when Operator is 'remove'. Items
+                                  in Value which match in annotations/labels will
+                                  be replaced when Operator is 'replace'.
+                                type: object
+                            required:
+                            - operator
+                            type: object
+                          type: array
                         argsOverrider:
                           description: ArgsOverrider represents the rules dedicated
                             to handling container args
@@ -168,6 +198,36 @@ spec:
                                 type: string
                             required:
                             - component
+                            - operator
+                            type: object
+                          type: array
+                        labelsOverrider:
+                          description: LabelsOverrider represents the rules dedicated
+                            to handling workload labels
+                          items:
+                            description: LabelAnnotationOverrider represents the rules
+                              dedicated to handling workload labels/annotations
+                            properties:
+                              operator:
+                                description: Operator represents the operator which
+                                  will apply on the workload.
+                                enum:
+                                - add
+                                - remove
+                                - replace
+                                type: string
+                              value:
+                                additionalProperties:
+                                  type: string
+                                description: Value to be applied to annotations/labels
+                                  of workload. Items in Value which will be appended
+                                  after annotations/labels when Operator is 'add'.
+                                  Items in Value which match in annotations/labels
+                                  will be deleted when Operator is 'remove'. Items
+                                  in Value which match in annotations/labels will
+                                  be replaced when Operator is 'replace'.
+                                type: object
+                            required:
                             - operator
                             type: object
                           type: array
@@ -314,6 +374,35 @@ spec:
                   apply on resources \n Deprecated: This filed is deprecated in v1.0
                   and please use the OverrideRules instead."
                 properties:
+                  annotationsOverrider:
+                    description: AnnotationsOverrider represents the rules dedicated
+                      to handling workload annotations
+                    items:
+                      description: LabelAnnotationOverrider represents the rules dedicated
+                        to handling workload labels/annotations
+                      properties:
+                        operator:
+                          description: Operator represents the operator which will
+                            apply on the workload.
+                          enum:
+                          - add
+                          - remove
+                          - replace
+                          type: string
+                        value:
+                          additionalProperties:
+                            type: string
+                          description: Value to be applied to annotations/labels of
+                            workload. Items in Value which will be appended after
+                            annotations/labels when Operator is 'add'. Items in Value
+                            which match in annotations/labels will be deleted when
+                            Operator is 'remove'. Items in Value which match in annotations/labels
+                            will be replaced when Operator is 'replace'.
+                          type: object
+                      required:
+                      - operator
+                      type: object
+                    type: array
                   argsOverrider:
                     description: ArgsOverrider represents the rules dedicated to handling
                       container args
@@ -427,6 +516,35 @@ spec:
                           type: string
                       required:
                       - component
+                      - operator
+                      type: object
+                    type: array
+                  labelsOverrider:
+                    description: LabelsOverrider represents the rules dedicated to
+                      handling workload labels
+                    items:
+                      description: LabelAnnotationOverrider represents the rules dedicated
+                        to handling workload labels/annotations
+                      properties:
+                        operator:
+                          description: Operator represents the operator which will
+                            apply on the workload.
+                          enum:
+                          - add
+                          - remove
+                          - replace
+                          type: string
+                        value:
+                          additionalProperties:
+                            type: string
+                          description: Value to be applied to annotations/labels of
+                            workload. Items in Value which will be appended after
+                            annotations/labels when Operator is 'add'. Items in Value
+                            which match in annotations/labels will be deleted when
+                            Operator is 'remove'. Items in Value which match in annotations/labels
+                            will be replaced when Operator is 'replace'.
+                          type: object
+                      required:
                       - operator
                       type: object
                     type: array

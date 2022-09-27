@@ -255,7 +255,12 @@ func applyPolicyOverriders(rawObj *unstructured.Unstructured, overriders policyv
 	if err := applyArgsOverriders(rawObj, overriders.ArgsOverrider); err != nil {
 		return err
 	}
-
+	if err := applyLabelsOverriders(rawObj, overriders.LabelsOverrider); err != nil {
+		return err
+	}
+	if err := applyAnnotationsOverriders(rawObj, overriders.AnnotationsOverrider); err != nil {
+		return err
+	}
 	return applyJSONPatch(rawObj, parseJSONPatchesByPlaintext(overriders.Plaintext))
 }
 

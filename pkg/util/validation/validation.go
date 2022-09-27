@@ -68,5 +68,11 @@ func EmptyOverrides(overriders policyv1alpha1.Overriders) bool {
 	if len(overriders.ArgsOverrider) != 0 {
 		return false
 	}
+	if len(overriders.LabelsOverrider) != 0 {
+		return false
+	}
+	if len(overriders.AnnotationsOverrider) != 0 {
+		return false
+	}
 	return true
 }
