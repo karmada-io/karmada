@@ -738,6 +738,20 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		PeriodSeconds:       3,
 		TimeoutSeconds:      15,
 	}
+	livenesProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/healthz",
+				Port: intstr.IntOrString{
+					IntVal: 443,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      15,
+	}
 
 	podSpec := corev1.PodSpec{
 		Affinity: &corev1.Affinity{
@@ -793,6 +807,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 					},
 				},
 				ReadinessProbe: readinesProbe,
+				LivenessProbe:  livenesProbe,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU: resource.MustParse("100m"),
