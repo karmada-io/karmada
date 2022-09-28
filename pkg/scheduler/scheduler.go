@@ -577,7 +577,7 @@ func (s *Scheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		return nil
 	}
 
-	return estimatorclient.EstablishConnection(name, s.schedulerEstimatorCache, s.schedulerEstimatorPort)
+	return estimatorclient.EstablishConnection(s.KubeClient, name, s.schedulerEstimatorCache, s.schedulerEstimatorPort)
 }
 
 func (s *Scheduler) establishEstimatorConnections() {
@@ -590,7 +590,7 @@ func (s *Scheduler) establishEstimatorConnections() {
 		if clusterList.Items[i].Spec.SyncMode == clusterv1alpha1.Pull && s.disableSchedulerEstimatorInPullMode {
 			continue
 		}
-		if err = estimatorclient.EstablishConnection(clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorPort); err != nil {
+		if err = estimatorclient.EstablishConnection(s.KubeClient, clusterList.Items[i].Name, s.schedulerEstimatorCache, s.schedulerEstimatorPort); err != nil {
 			klog.Error(err)
 		}
 	}

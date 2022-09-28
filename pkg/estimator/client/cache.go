@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
@@ -79,11 +80,17 @@ func (c *SchedulerEstimatorCache) GetClient(name string) (estimatorservice.Estim
 }
 
 // EstablishConnection establishes a new gRPC connection with the specified cluster scheduler estimator.
-func EstablishConnection(name string, estimatorCache *SchedulerEstimatorCache, port int) error {
+func EstablishConnection(kubeClient kubernetes.Interface, name string, estimatorCache *SchedulerEstimatorCache, port int) error {
 	if estimatorCache.IsEstimatorExist(name) {
 		return nil
 	}
-	serverAddr := fmt.Sprintf("%s:%d", names.GenerateEstimatorServiceName(name), port)
+
+	serverAddr, err := resolveCluster(kubeClient, util.NamespaceKarmadaSystem,
+		names.GenerateEstimatorServiceName(name), int32(port))
+	if err != nil {
+		return err
+	}
+
 	klog.Infof("Start dialing estimator server(%s) of cluster(%s).", serverAddr, name)
 	cc, err := util.Dial(serverAddr, 5*time.Second)
 	if err != nil {

@@ -250,7 +250,7 @@ func (d *Descheduler) establishEstimatorConnections() {
 		return
 	}
 	for i := range clusterList.Items {
-		if err = estimatorclient.EstablishConnection(clusterList.Items[i].Name, d.schedulerEstimatorCache, d.schedulerEstimatorPort); err != nil {
+		if err = estimatorclient.EstablishConnection(d.KubeClient, clusterList.Items[i].Name, d.schedulerEstimatorCache, d.schedulerEstimatorPort); err != nil {
 			klog.Error(err)
 		}
 	}
@@ -270,7 +270,7 @@ func (d *Descheduler) reconcileEstimatorConnection(key util.QueueKey) error {
 		}
 		return err
 	}
-	return estimatorclient.EstablishConnection(name, d.schedulerEstimatorCache, d.schedulerEstimatorPort)
+	return estimatorclient.EstablishConnection(d.KubeClient, name, d.schedulerEstimatorCache, d.schedulerEstimatorPort)
 }
 
 func (d *Descheduler) recordDescheduleResultEventForResourceBinding(rb *workv1alpha2.ResourceBinding, message string, err error) {
