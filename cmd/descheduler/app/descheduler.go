@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -28,6 +29,19 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
+)
+
+const (
+	// ReadHeaderTimeout is the amount of time allowed to read
+	// request headers.
+	// HTTP timeouts are necessary to expire inactive connections
+	// and failing to do so might make the application vulnerable
+	// to attacks like slowloris which work by sending data very slow,
+	// which in case of no timeout will keep the connection active
+	// eventually leading to a denial-of-service (DoS) attack.
+	// References:
+	// - https://en.wikipedia.org/wiki/Slowloris_(computer_security)
+	ReadHeaderTimeout = 32 * time.Second
 )
 
 // NewDeschedulerCommand creates a *cobra.Command object with default parameters
@@ -152,6 +166,13 @@ func serveHealthzAndMetrics(address string) {
 	})
 
 	mux.Handle("/metrics", promhttp.Handler())
-
-	klog.Fatal(http.ListenAndServe(address, mux))
+	httpServer := http.Server{
+		Addr:              address,
+		Handler:           mux,
+		ReadHeaderTimeout: ReadHeaderTimeout,
+	}
+	if err := httpServer.ListenAndServe(); err != nil {
+		klog.Errorf("Failed to serve healthz and metrics: %v", err)
+		os.Exit(1)
+	}
 }
