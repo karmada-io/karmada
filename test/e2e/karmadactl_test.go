@@ -457,45 +457,20 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 })
 
 var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.Labels{NeedCreateCluster}, func() {
-	var member1 string
 	var controlPlane string
 	var clusterName string
 	var homeDir string
 	var kubeConfigPath string
 	var clusterContext string
-	var deploymentName, deploymentNamespace string
-	var policyName, policyNamespace string
-	var deployment *appsv1.Deployment
-	var policy *policyv1alpha1.PropagationPolicy
 	var karmadaConfig karmadactl.KarmadaConfig
 
 	ginkgo.BeforeEach(func() {
-		member1 = "member1"
 		clusterName = "member-e2e-" + rand.String(3)
 		homeDir = os.Getenv("HOME")
 		kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
 		controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
 		clusterContext = fmt.Sprintf("kind-%s", clusterName)
-		deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
-		deploymentNamespace = testNamespace
-		policyName = deploymentName
-		policyNamespace = testNamespace
 
-		deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
-		policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
-			{
-				APIVersion: deployment.APIVersion,
-				Kind:       deployment.Kind,
-				Name:       deployment.Name,
-			},
-		}, policyv1alpha1.Placement{
-			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-				ClusterNames: []string{member1, clusterName},
-			},
-			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
-				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
-			},
-		})
 		karmadaConfig = karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 	})
 
@@ -549,7 +524,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		})
 	})
 
-	ginkgo.Context("cordon cluster", func() {
+	ginkgo.Context("cordon/uncordon cluster taint check", func() {
 		ginkgo.BeforeEach(func() {
 			opts := karmadactl.CommandCordonOption{
 				GlobalCommandOptions: options.GlobalCommandOptions{
@@ -561,33 +536,23 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredCordon, karmadaConfig, opts)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-			ginkgo.By("cluster should have unschedulable:NoSchedule taint", func() {
-				clusterObj := &clusterv1alpha1.Cluster{}
-				err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				gomega.Expect(
-					khelper.TaintExists(
-						clusterObj.Spec.Taints,
-						&corev1.Taint{
-							Key:    clusterv1alpha1.TaintClusterUnscheduler,
-							Effect: corev1.TaintEffectNoSchedule,
-						})).
-					Should(gomega.Equal(true))
-			})
 		})
 
-		ginkgo.It(fmt.Sprintf("deployment should not be scheduled to cordon cluster %s", clusterName), func() {
-			framework.CreatePropagationPolicy(karmadaClient, policy)
-			framework.CreateDeployment(kubeClient, deployment)
-			ginkgo.DeferCleanup(func() {
-				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
-			})
-			targetClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
-			gomega.Expect(targetClusters).ShouldNot(gomega.ContainElement(clusterName))
+		ginkgo.It(fmt.Sprintf("cluster %s should have unschedulable:NoSchedule taint", clusterName), func() {
+			clusterObj := &clusterv1alpha1.Cluster{}
+			err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			gomega.Expect(
+				khelper.TaintExists(
+					clusterObj.Spec.Taints,
+					&corev1.Taint{
+						Key:    clusterv1alpha1.TaintClusterUnscheduler,
+						Effect: corev1.TaintEffectNoSchedule,
+					})).
+				Should(gomega.Equal(true))
 		})
 
-		ginkgo.It("uncordon cluster taint check", func() {
+		ginkgo.It(fmt.Sprintf("cluster %s should not have unschedulable:NoSchedule taint", clusterName), func() {
 			opts := karmadactl.CommandCordonOption{
 				GlobalCommandOptions: options.GlobalCommandOptions{
 					KarmadaContext: karmadaContext,
