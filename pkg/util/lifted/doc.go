@@ -13,7 +13,7 @@ package lifted
 | corehelpers.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L263-L266                          | func IsStandardResourceName             | N       |
 | corehelpers.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L268-L278                          | var integerResources                    | N       |
 | corehelpers.go           | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L280-L283                          | func IsIntegerResourceName              | N       |
-| corev1helpers.go         | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L31-L46                         | func IsExtendedResourceName             | N       |
+| corev1helpers.go         | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L31-L46                         | func IsExtendedResourceName             | Y       |
 | corev1helpers.go         | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L48-L51                         | func IsPrefixedNativeResource           | N       |
 | corev1helpers.go         | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L54-L60                         | func IsNativeResource                   | N       |
 | corev1helpers.go         | https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L62-L66                         | func IsHugePageResourceName             | N       |
