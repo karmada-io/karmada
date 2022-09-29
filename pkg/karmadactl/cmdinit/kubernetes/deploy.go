@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/klog/v2"
+	netutils "k8s.io/utils/net"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
@@ -68,6 +69,7 @@ type CommandInitOption struct {
 	EtcdPersistentVolumeSize           string
 	KarmadaAPIServerImage              string
 	KarmadaAPIServerReplicas           int32
+	KarmadaAPIServerAdvertiseAddress   string
 	KarmadaAPIServerNodePort           int32
 	KarmadaSchedulerImage              string
 	KarmadaSchedulerReplicas           int32
@@ -96,6 +98,12 @@ type CommandInitOption struct {
 
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
+	if i.KarmadaAPIServerAdvertiseAddress != "" {
+		if netutils.ParseIPSloppy(i.KarmadaAPIServerAdvertiseAddress) == nil {
+			return fmt.Errorf("karmada apiserver advertise address is not valid")
+		}
+	}
+
 	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdHostDataPath == "" {
 		return fmt.Errorf("when etcd storage mode is hostPath, dataPath is not empty. See '%s init --help'", parentCommand)
 	}
@@ -159,7 +167,7 @@ func (i *CommandInitOption) Complete() error {
 		}
 	}
 
-	if err := i.getKubeMasterIP(); err != nil {
+	if err := i.getKarmadaAPIServerIP(); err != nil {
 		return err
 	}
 	klog.Infof("karmada apiserver ip: %s", i.KarmadaAPIServerIP)
