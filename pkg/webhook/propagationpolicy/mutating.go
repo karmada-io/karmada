@@ -38,8 +38,13 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 	// Set default namespace for all resource selector if not set.
 	for i := range policy.Spec.ResourceSelectors {
 		if len(policy.Spec.ResourceSelectors[i].Namespace) == 0 {
-			klog.Infof("Setting resource selector default namespace for policy: %s/%s", policy.Namespace, policy.Name)
-			policy.Spec.ResourceSelectors[i].Namespace = policy.Namespace
+			if len(policy.Namespace) == 0 {
+				klog.Infof("Setting resource selector default namespace for policy: %s/%s", policy.Namespace, policy.Name)
+				policy.Spec.ResourceSelectors[i].Namespace = defaultNameSpace
+			} else {
+				klog.Infof("Setting resource selector default namespace for policy: %s/%s", policy.Namespace, policy.Name)
+				policy.Spec.ResourceSelectors[i].Namespace = policy.Namespace
+			}
 		}
 	}
 
