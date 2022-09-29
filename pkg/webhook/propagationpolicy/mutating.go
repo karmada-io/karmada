@@ -19,6 +19,8 @@ type MutatingAdmission struct {
 	decoder *admission.Decoder
 }
 
+const defaultNameSpace = "default"
+
 // Check if our MutatingAdmission implements necessary interface
 var _ admission.Handler = &MutatingAdmission{}
 var _ admission.DecoderInjector = &MutatingAdmission{}
