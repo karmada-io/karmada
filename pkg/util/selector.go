@@ -10,12 +10,33 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
+// ImplicitPriority describes the extent to which a ResourceSelector or a set of
+// ResourceSelectors match resources.
+type ImplicitPriority int
+
+const (
+	// PriorityMisMatch means the ResourceSelector does not match the resource.
+	PriorityMisMatch ImplicitPriority = iota
+	// PriorityMatchAll means the ResourceSelector whose Name and LabelSelector is empty
+	// matches the resource.
+	PriorityMatchAll
+	// PriorityMatchLabelSelector means the LabelSelector of ResourceSelector matches the resource.
+	PriorityMatchLabelSelector
+	// PriorityMatchName means the Name of ResourceSelector matches the resource.
+	PriorityMatchName
+)
+
 // ResourceMatches tells if the specific resource matches the selector.
 func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) bool {
+	return ResourceSelectorPriority(resource, rs) > PriorityMisMatch
+}
+
+// ResourceSelectorPriority tells the priority between the specific resource and the selector.
+func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) ImplicitPriority {
 	if resource.GetAPIVersion() != rs.APIVersion ||
 		resource.GetKind() != rs.Kind ||
 		(len(rs.Namespace) > 0 && resource.GetNamespace() != rs.Namespace) {
-		return false
+		return PriorityMisMatch
 	}
 
 	// match rules:
@@ -27,12 +48,15 @@ func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.Reso
 
 	// case 1, 2: name not empty, don't need to consult selector.
 	if len(rs.Name) > 0 {
-		return rs.Name == resource.GetName()
+		if rs.Name == resource.GetName() {
+			return PriorityMatchName
+		}
+		return PriorityMisMatch
 	}
 
 	// case 4: short path, both name and selector empty, matches all
 	if rs.LabelSelector == nil {
-		return true
+		return PriorityMatchAll
 	}
 
 	// case 3: matches with selector
@@ -40,10 +64,13 @@ func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.Reso
 	var err error
 	if s, err = metav1.LabelSelectorAsSelector(rs.LabelSelector); err != nil {
 		// should not happen because all resource selector should be fully validated by webhook.
-		return false
+		return PriorityMisMatch
 	}
 
-	return s.Matches(labels.Set(resource.GetLabels()))
+	if s.Matches(labels.Set(resource.GetLabels())) {
+		return PriorityMatchLabelSelector
+	}
+	return PriorityMisMatch
 }
 
 // ClusterMatches tells if specific cluster matches the affinity.
@@ -114,6 +141,17 @@ func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...po
 		}
 	}
 	return false
+}
+
+// ResourceMatchSelectorsPriority returns the highest priority between specific resource and the selectors.
+func ResourceMatchSelectorsPriority(resource *unstructured.Unstructured, selectors ...policyv1alpha1.ResourceSelector) ImplicitPriority {
+	var priority ImplicitPriority
+	for _, rs := range selectors {
+		if p := ResourceSelectorPriority(resource, rs); p > priority {
+			priority = p
+		}
+	}
+	return priority
 }
 
 func extractClusterFields(cluster *clusterv1alpha1.Cluster) labels.Set {
