@@ -26,6 +26,8 @@ const (
 	ScheduleAttemptFailure = "ScheduleAttemptFailure"
 	// PolicyChanged means binding needs to be rescheduled for the policy changed
 	PolicyChanged = "PolicyChanged"
+	// ClusterChanged means binding needs to be rescheduled for the cluster changed
+	ClusterChanged = "ClusterChanged"
 )
 
 const (
@@ -63,7 +65,8 @@ var (
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 15),
 		}, []string{"schedule_step"})
 
-	schedulerQueueIncomingBindings = promauto.NewCounterVec(
+	// SchedulerQueueIncomingBindings is the number of bindings added to scheduling queues by event type.
+	SchedulerQueueIncomingBindings = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "queue_incoming_bindings_total",
@@ -93,5 +96,5 @@ func ScheduleStep(action string, startTime time.Time) {
 
 // CountSchedulerBindings records the number of binding added to scheduling queues by event type.
 func CountSchedulerBindings(event string) {
-	schedulerQueueIncomingBindings.WithLabelValues(event).Inc()
+	SchedulerQueueIncomingBindings.WithLabelValues(event).Inc()
 }
