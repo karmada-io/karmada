@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	certutil "k8s.io/client-go/util/cert"
+	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 
@@ -43,7 +44,7 @@ var (
 		options.FrontProxyClientCertAndKeyName,
 	}
 
-	defaultKubeConfig = filepath.Join(homeDir(), ".kube", "config")
+	defaultKubeConfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
 
 	defaultEtcdImage                  = "etcd:3.5.3-0"
 	defaultKubeAPIServerImage         = "kube-apiserver:v1.25.2"
@@ -544,13 +545,6 @@ func (i *CommandInitOption) etcdImage() string {
 		return i.EtcdImage
 	}
 	return i.kubeRegistry() + "/" + defaultEtcdImage
-}
-
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE") // windows
 }
 
 func generateServerURL(serverIP string, nodePort int32) (string, error) {
