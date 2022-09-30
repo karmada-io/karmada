@@ -10,9 +10,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
+// ImplicitPriority describes the extent to which a ResourceSelector or a set of
+// ResourceSelectors match resources.
+type ImplicitPriority int
+
 const (
 	// PriorityMisMatch means the ResourceSelector does not match the resource.
-	PriorityMisMatch = iota
+	PriorityMisMatch ImplicitPriority = iota
 	// PriorityMatchAll means the ResourceSelector whose Name and LabelSelector is empty
 	// matches the resource.
 	PriorityMatchAll
@@ -28,7 +32,7 @@ func ResourceMatches(resource *unstructured.Unstructured, rs policyv1alpha1.Reso
 }
 
 // ResourceSelectorPriority tells the priority between the specific resource and the selector.
-func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) int {
+func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1alpha1.ResourceSelector) ImplicitPriority {
 	if resource.GetAPIVersion() != rs.APIVersion ||
 		resource.GetKind() != rs.Kind ||
 		(len(rs.Namespace) > 0 && resource.GetNamespace() != rs.Namespace) {
@@ -140,8 +144,8 @@ func ResourceMatchSelectors(resource *unstructured.Unstructured, selectors ...po
 }
 
 // ResourceMatchSelectorsPriority returns the highest priority between specific resource and the selectors.
-func ResourceMatchSelectorsPriority(resource *unstructured.Unstructured, selectors ...policyv1alpha1.ResourceSelector) int {
-	var priority int
+func ResourceMatchSelectorsPriority(resource *unstructured.Unstructured, selectors ...policyv1alpha1.ResourceSelector) ImplicitPriority {
+	var priority ImplicitPriority
 	for _, rs := range selectors {
 		if p := ResourceSelectorPriority(resource, rs); p > priority {
 			priority = p
