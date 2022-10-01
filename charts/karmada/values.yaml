@@ -122,7 +122,7 @@ scheduler:
     app: karmada-scheduler
   ## @param scheduler.replicaCount target replicas of the scheduler
   replicaCount: 1
-  ## @param scheduler.podAnnotations annotaions of the scheduler pods
+  ## @param scheduler.podAnnotations annotations of the scheduler pods
   podAnnotations: {}
   ## @param scheduler.podLabels labels of the scheduler pods
   podLabels: {}
@@ -179,7 +179,7 @@ webhook:
     app: karmada-webhook
   ## @param webhook.replicaCount target replicas
   replicaCount: 1
-  ## @param webhook.podAnnotations annotaions of the webhook pods
+  ## @param webhook.podAnnotations annotations of the webhook pods
   podAnnotations: {}
   ## @param webhook.podLabels labels of the webhook pods
   podLabels: {}
@@ -236,7 +236,7 @@ controllerManager:
     app: karmada-controller-manager
   ## @param controllerManager.replicaCount target replicas of the karmada-controller-manager
   replicaCount: 1
-  ## @param controllerManager.podAnnotations annotaions of the karmada-controller-manager pods
+  ## @param controllerManager.podAnnotations annotations of the karmada-controller-manager pods
   podAnnotations: {}
   ## @param controllerManager.podLabels labels of the karmada-controller-manager pods
   podLabels: {}
@@ -293,7 +293,7 @@ apiServer:
     app: karmada-apiserver
   ## @param apiServer.replicaCount target replicas of the karmada-apiserver
   replicaCount: 1
-  ## @param apiServer.podAnnotations annotaions of the karmada-apiserver pods
+  ## @param apiServer.podAnnotations annotations of the karmada-apiserver pods
   podAnnotations: {}
   ## @param apiServer.podLabels labels of the karmada-apiserver pods
   podLabels: {}
@@ -374,7 +374,7 @@ aggregatedApiServer:
     app: karmada-aggregated-apiserver
   ## @param aggregatedApiServer.replicaCount target replicas of the karmada-aggregated-apiserver
   replicaCount: 1
-  ## @param aggregatedApiServer.podAnnotations annotaions of the karmada-aggregated-apiserver pods
+  ## @param aggregatedApiServer.podAnnotations annotations of the karmada-aggregated-apiserver pods
   podAnnotations: {}
   ## @param aggregatedApiServer.podLabels labels of the karmada-aggregated-apiserver pods
   podLabels: {}
@@ -433,7 +433,7 @@ kubeControllerManager:
     app: kube-controller-manager
   ## @param kubeControllerManager.replicaCount target replicas of the kube-controller-manager
   replicaCount: 1
-  ## @param kubeControllerManager.podAnnotations annotaions of the kube-controller-manager pods
+  ## @param kubeControllerManager.podAnnotations annotations of the kube-controller-manager pods
   podAnnotations: {}
   ## @param kubeControllerManager.podLabels labels of the kube-controller-manager pods
   podLabels: {}
@@ -579,7 +579,7 @@ agent:
     app: karmada-agent
   ## @param agent.replicaCount target replicas
   replicaCount: 1
-  ## @param agent.podAnnotations annotaions of the agent pods
+  ## @param agent.podAnnotations annotations of the agent pods
   podAnnotations: {}
   ## @param agent.podLabels labels of the agent pods
   podLabels: {}
@@ -657,7 +657,7 @@ schedulerEstimator:
     app: karmada-scheduler-estimator
   ## @param schedulerEstimator.replicaCount target replicas
   replicaCount: 1
-  ## @param schedulerEstimator.podAnnotations annotaions of the scheduler-estimator pods
+  ## @param schedulerEstimator.podAnnotations annotations of the scheduler-estimator pods
   podAnnotations: {}
   ## @param schedulerEstimator.podLabels labels of the scheduler-estimator pods
   podLabels: {}
@@ -714,7 +714,7 @@ descheduler:
     app: karmada-descheduler
   ## @param descheduler.replicaCount target replicas of the descheduler
   replicaCount: 2
-  ## @param descheduler.podAnnotations annotaions of the descheduler pods
+  ## @param descheduler.podAnnotations annotations of the descheduler pods
   podAnnotations: {}
   ## @param descheduler.podLabels labels of the descheduler pods
   podLabels: {}
@@ -771,7 +771,7 @@ search:
     app: karmada-search
   ## @param search.replicaCount target replicas
   replicaCount: 2
-  ## @param search.podAnnotations annotaions of the search pods
+  ## @param search.podAnnotations annotations of the search pods
   podAnnotations: {}
   ## @param search.podLabels labels of the search pods
   podLabels: {}
