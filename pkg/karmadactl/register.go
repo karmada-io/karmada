@@ -49,7 +49,7 @@ var (
 	registerLong  = `Register a cluster to Karmada control plane with PULL mode.`
 
 	registerExample = templates.Examples(`
-		# Register cluster into karamada control plane with PULL mode.
+		# Register cluster into karmada control plane with PULL mode.
 		# If '--cluster-name' isn't specified, the cluster of current-context will be used by default.
 		%[1]s register [karmada-apiserver-endpoint] --cluster-name=<CLUSTER_NAME> --token=<TOKEN>  --discovery-token-ca-cert-hash=<CA-CERT-HASH>
 		
