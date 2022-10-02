@@ -80,7 +80,7 @@ func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 
 func joinExample(parentCommand string) string {
 	example := `
-# Join cluster into karamada control plane, if '--cluster-context' not specified, take the cluster name as the context` + "\n" +
+# Join cluster into karmada control plane, if '--cluster-context' not specified, take the cluster name as the context` + "\n" +
 		fmt.Sprintf("%s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>", parentCommand)
 	return example
 }

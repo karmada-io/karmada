@@ -58,13 +58,13 @@ func NewCmdUnjoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 
 func unjoinExample(parentCommand string) string {
 	example := `
-# Unjoin cluster from karamada control plane, but not to remove resources created by karmada in the unjoining cluster` + "\n" +
+# Unjoin cluster from karmada control plane, but not to remove resources created by karmada in the unjoining cluster` + "\n" +
 		fmt.Sprintf("%s unjoin CLUSTER_NAME", parentCommand) + `
 
-# Unjoin cluster from karamada control plane and attempt to remove resources created by karmada in the unjoining cluster` + "\n" +
+# Unjoin cluster from karmada control plane and attempt to remove resources created by karmada in the unjoining cluster` + "\n" +
 		fmt.Sprintf("%s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>", parentCommand) + `
 		
-# Unjoin cluster from karamada control plane with timeout` + "\n" +
+# Unjoin cluster from karmada control plane with timeout` + "\n" +
 		fmt.Sprintf("%s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --wait 2m", parentCommand)
 	return example
 }
