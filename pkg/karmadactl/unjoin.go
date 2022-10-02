@@ -26,10 +26,10 @@ var (
 	unjoinShort   = `Remove the registration of a cluster from control plane`
 	unjoinLong    = `Unjoin removes the registration of a cluster from control plane.`
 	unjoinExample = `
-# Unjoin cluster from karamada control plane
+# Unjoin cluster from karmada control plane
 %s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
 
-# Unjoin cluster from karamada control plane with timeout
+# Unjoin cluster from karmada control plane with timeout
 %s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --wait 2m
 `
 )

@@ -28,7 +28,7 @@ var (
 	joinShort   = `Register a cluster to control plane`
 	joinLong    = `Join registers a cluster to control plane.`
 	joinExample = `
-# Join cluster into karamada control plane
+# Join cluster into karmada control plane
 %s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
 `
 )

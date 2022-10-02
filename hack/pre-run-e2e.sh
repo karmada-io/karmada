@@ -35,7 +35,7 @@ util::wait_pod_ready "${INTERPRETER_WEBHOOK_EXAMPLE_LABEL}" "${KARMADA_SYSTEM_NA
 kubectl config use-context "${KARMADA_APISERVER}"
 util::deploy_webhook_configuration "${ROOT_CA_FILE}" "${REPO_ROOT}/examples/customresourceinterpreter/webhook-configuration.yaml"
 
-# install interpreter example workload CRD in karamada-apiserver and member clusters
+# install interpreter example workload CRD in karmada-apiserver and member clusters
 kubectl apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}"
 kubectl config use-context "${MEMBER_CLUSTER_1_NAME}"

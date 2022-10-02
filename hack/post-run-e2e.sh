@@ -24,7 +24,7 @@ kubectl delete -f "${REPO_ROOT}"/examples/customresourceinterpreter/karmada-inte
 kubectl config use-context "${KARMADA_APISERVER}"
 kubectl delete ResourceInterpreterWebhookConfiguration examples
 
-# delete interpreter example workload CRD in karamada-apiserver and member clusters
+# delete interpreter example workload CRD in karmada-apiserver and member clusters
 kubectl delete -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}"
 kubectl config use-context "${MEMBER_CLUSTER_1_NAME}"
