@@ -75,7 +75,7 @@ sed -i'' -e "s/{{karmada-interpreter-webhook-example-svc-address}}/${interpreter
 util::deploy_webhook_configuration "${KARMADA_APISERVER}" "${ROOT_CA_FILE}" "${REPO_ROOT}/examples/customresourceinterpreter/webhook-configuration-temp.yaml"
 rm -rf "${REPO_ROOT}/examples/customresourceinterpreter/webhook-configuration-temp.yaml"
 
-# install interpreter example workload CRD in karamada-apiserver and member clusters
+# install interpreter example workload CRD in karmada-apiserver and member clusters
 kubectl --context="${KARMADA_APISERVER}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
 export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}"
 kubectl --context="${MEMBER_CLUSTER_1_NAME}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
