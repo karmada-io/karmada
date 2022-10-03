@@ -79,8 +79,8 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 		{
 			Message: "Cluster Management Commands:",
 			Commands: []*cobra.Command{
-				NewCmdCordon(karmadaConfig, parentCommand),
-				NewCmdUncordon(karmadaConfig, parentCommand),
+				NewCmdCordon(f, parentCommand),
+				NewCmdUncordon(f, parentCommand),
 				NewCmdTaint(karmadaConfig, parentCommand),
 			},
 		},
