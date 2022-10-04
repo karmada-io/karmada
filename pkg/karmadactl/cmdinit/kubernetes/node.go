@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -106,6 +107,10 @@ func (i *CommandInitOption) AddNodeSelectorLabels() error {
 			etcdSelectorLabels = v.Labels
 			break
 		}
+	}
+
+	if etcdSelectorLabels == nil {
+		return errors.New("failed to find a healthy node for karmada-etcd")
 	}
 
 	etcdSelectorLabels["karmada.io/etcd"] = ""
