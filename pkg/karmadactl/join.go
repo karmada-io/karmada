@@ -23,7 +23,7 @@ var (
 	joinLong  = `Join registers a cluster to control plane.`
 
 	joinExample = templates.Examples(`
-		# Join cluster into karamada control plane, if '--cluster-context' not specified, take the cluster name as the context
+		# Join cluster into karmada control plane, if '--cluster-context' not specified, take the cluster name as the context
 		%[1]s join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>`)
 )
 
