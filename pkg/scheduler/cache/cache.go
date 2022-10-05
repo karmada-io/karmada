@@ -6,7 +6,6 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
 // Cache is an interface for scheduler internal cache.
@@ -48,12 +47,6 @@ func (c *schedulerCache) Snapshot() *Snapshot {
 		klog.Errorf("Failed to list clusters: %v", err)
 		return nil
 	}
-	out := NewEmptySnapshot()
-	out.clusterInfoList = make([]*framework.ClusterInfo, 0, len(clusters))
-	for _, cluster := range clusters {
-		cloned := cluster.DeepCopy()
-		out.clusterInfoList = append(out.clusterInfoList, framework.NewClusterInfo(cloned))
-	}
 
-	return out
+	return NewSnapshotFromClusters(clusters)
 }
