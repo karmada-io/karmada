@@ -3,8 +3,9 @@ package cache
 import (
 	"testing"
 
-	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
 func TestSnapshotGetCluster(t *testing.T) {
