@@ -32,7 +32,7 @@ This document proposes a mechanism to specify that a member cluster resource sho
 
 ## Motivation
 
-When a cluster is unjoined, karmada should provide a mechanism to cleanup the resources propagated by karmada. Currently, when unjoin a cluster, `Karamada` first try to remove propagated resource, and will skip remove if the cluster not ready.  
+When a cluster is unjoined, karmada should provide a mechanism to cleanup the resources propagated by karmada. Currently, when unjoin a cluster, `Karmada` first try to remove propagated resource, and will skip remove if the cluster not ready.  
 
 ### Goals
 
@@ -71,11 +71,11 @@ By default, `RemoveStrategy` will be  `needless` on all cluster. A user must exp
 
 
 
-In kubefed's propose, the author suggest add a `BestEffort` strategy, reviewers say we need a certain value, so we should not use it too. `Karamada` use the `BestEffort` strategy, currently.
+In kubefed's propose, the author suggest add a `BestEffort` strategy, reviewers say we need a certain value, so we should not use it too. `Karmada` use the `BestEffort` strategy, currently.
 
 #### Needless Strategy
 
-Not need cleanup propagated resources when unjoining cluster. `Karamada` should use this strategy as default value,  condsider the business risk.
+Not need cleanup propagated resources when unjoining cluster. `Karmada` should use this strategy as default value,  condsider the business risk.
 
 #### Required Strategy
 

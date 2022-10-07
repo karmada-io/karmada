@@ -49,9 +49,9 @@ Goals:
 
 #### New Search APIGroup
 
-We propose a new commponent named `karmada-search`, it provides a new api group called `search.karmada.io`, the reason why select the `search` word is because it's more to [OpenSearch](https://opensearch.org) which is a community-driven, Apache 2.0-licensed open source search and analytics suite.
+We propose a new component named `karmada-search`, it provides a new api group called `search.karmada.io`, the reason why select the `search` word is because it's more to [OpenSearch](https://opensearch.org) which is a community-driven, Apache 2.0-licensed open source search and analytics suite.
 
-The `karmada-search` component currently supports two types of backend stores, namely `cache` and `opensearch`. It uses the `cache` type as the default backend store of the caching layer for Karamda.
+The `karmada-search` component currently supports two types of backend stores, namely `cache` and `opensearch`. It uses the `cache` type as the default backend store of the caching layer for Karmada.
 
 We introduce a new resource type called `ResourceRegistry` in `search.karmada.io` group, it requires end users to manually specify the clusters and resources that need to be cached
 
