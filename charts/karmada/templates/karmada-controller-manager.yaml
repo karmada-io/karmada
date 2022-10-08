@@ -54,6 +54,9 @@ spec:
             - --secure-port=10357
             - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
             - --v=2
+            {{- with (include "karmada.controllerManager.featureGates" .) }}
+            - {{ . }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

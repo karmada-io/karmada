@@ -285,6 +285,10 @@ controllerManager:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  ## @param featureGate to controllerManager
+  featureGates:
+    ## @param PropagateDeps is a feature gate for the controllerManager to allow propagate dependent respurce to workloads.
+    PropagateDeps: false
 
 ## karmada apiserver config
 apiServer:
