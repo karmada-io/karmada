@@ -1,4 +1,4 @@
-{{- if and (eq .Values.installMode "component") (has "schedulerEstimator" .Values.components) }}
+{{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "schedulerEstimator" .Values.components) }}
 {{ $namespace := include "karmada.namespace" .}}
 {{ $clusterName := .Values.schedulerEstimator.clusterName }}
 ---
