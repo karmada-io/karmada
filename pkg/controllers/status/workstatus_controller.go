@@ -47,13 +47,13 @@ type WorkStatusController struct {
 	StopChan        <-chan struct{}
 	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
 	// ConcurrentWorkStatusSyncs is the number of Work status that are allowed to sync concurrently.
-	ConcurrentWorkStatusSyncs int
-	ObjectWatcher             objectwatcher.ObjectWatcher
-	PredicateFunc             predicate.Predicate
-	ClusterClientSetFunc      func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
-	ClusterCacheSyncTimeout   metav1.Duration
-	RateLimiterOptions        ratelimiterflag.Options
-	ResourceInterpreter       resourceinterpreter.ResourceInterpreter
+	ConcurrentWorkStatusSyncs   int
+	ObjectWatcher               objectwatcher.ObjectWatcher
+	PredicateFunc               predicate.Predicate
+	ClusterDynamicClientSetFunc func(clusterName string, client client.Client) (*util.DynamicClusterClient, error)
+	ClusterCacheSyncTimeout     metav1.Duration
+	RateLimiterOptions          ratelimiterflag.Options
+	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -462,7 +462,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 	//  the cache in informer manager should be updated.
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client)
+		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client)
 		if err != nil {
 			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
 			return nil, err
