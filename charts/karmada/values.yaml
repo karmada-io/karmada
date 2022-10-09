@@ -122,6 +122,12 @@ certs:
 
 ## scheduler config
 scheduler:
+  ## @estimator estimator config
+  estimator:
+    ## @enableEstimatorEnable calling cluster scheduler estimator for adjusting replicas
+    enabled: false
+    ## @disableInPullMode Disable the scheduler estimator for clusters in pull mode, which takes effect only when enable-scheduler-estimator is true.
+    disableInPullMode: false
   ## @param scheduler.labels labels of the schedeler deployment
   labels:
     app: karmada-scheduler
