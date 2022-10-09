@@ -42,7 +42,11 @@ type PropagationPolicy struct {
 // PropagationSpec represents the desired behavior of PropagationPolicy.
 type PropagationSpec struct {
 	// ResourceSelectors used to select resources.
+	// Nil or empty selector is not allowed and doesn't mean match all kinds
+	// of resources for security concerns that sensitive resources(like Secret)
+	// might be accidentally propagated.
 	// +required
+	// +kubebuilder:validation:MinItems=1
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
 
 	// Association tells if relevant resources should be selected automatically.

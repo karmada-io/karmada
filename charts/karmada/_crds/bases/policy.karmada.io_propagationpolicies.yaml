@@ -433,7 +433,10 @@ spec:
                   scenario. \n Defaults to false."
                 type: boolean
               resourceSelectors:
-                description: ResourceSelectors used to select resources.
+                description: ResourceSelectors used to select resources. Nil or empty
+                  selector is not allowed and doesn't mean match all kinds of resources
+                  for security concerns that sensitive resources(like Secret) might
+                  be accidentally propagated.
                 items:
                   description: ResourceSelector the resources will be selected.
                   properties:
@@ -501,6 +504,7 @@ spec:
                   - apiVersion
                   - kind
                   type: object
+                minItems: 1
                 type: array
               schedulerName:
                 description: SchedulerName represents which scheduler to proceed the
