@@ -348,18 +348,18 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
-		Client:                    ctx.Mgr.GetClient(),
-		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:                ctx.Mgr.GetRESTMapper(),
-		InformerManager:           genericmanager.GetInstance(),
-		StopChan:                  ctx.StopChan,
-		ObjectWatcher:             ctx.ObjectWatcher,
-		PredicateFunc:             helper.NewExecutionPredicate(ctx.Mgr),
-		ClusterClientSetFunc:      util.NewClusterDynamicClientSet,
-		ClusterCacheSyncTimeout:   opts.ClusterCacheSyncTimeout,
-		ConcurrentWorkStatusSyncs: opts.ConcurrentWorkSyncs,
-		RateLimiterOptions:        ctx.Opts.RateLimiterOptions,
-		ResourceInterpreter:       ctx.ResourceInterpreter,
+		Client:                      ctx.Mgr.GetClient(),
+		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
+		InformerManager:             genericmanager.GetInstance(),
+		StopChan:                    ctx.StopChan,
+		ObjectWatcher:               ctx.ObjectWatcher,
+		PredicateFunc:               helper.NewExecutionPredicate(ctx.Mgr),
+		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
+		ConcurrentWorkStatusSyncs:   opts.ConcurrentWorkSyncs,
+		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
+		ResourceInterpreter:         ctx.ResourceInterpreter,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
