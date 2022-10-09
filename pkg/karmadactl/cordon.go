@@ -115,6 +115,9 @@ func (o *CommandCordonOption) Complete(args []string) error {
 	if len(args) == 0 {
 		return errors.New("cluster name is required")
 	}
+	if len(args) > 1 {
+		return errors.New("more than one cluster name is not supported")
+	}
 	o.ClusterName = args[0]
 	return nil
 }
