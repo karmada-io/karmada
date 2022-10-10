@@ -3,7 +3,7 @@ package cache
 import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -21,7 +21,7 @@ func NewEmptySnapshot() *Snapshot {
 }
 
 // NewSnapshotFromClusters Initializes a Snapshot from clusters.
-func NewSnapshotFromClusters(clusters []*v1alpha1.Cluster) *Snapshot {
+func NewSnapshotFromClusters(clusters []*clusterv1alpha1.Cluster) *Snapshot {
 	snapshot := NewEmptySnapshot()
 	snapshot.clusterInfoList = make([]*framework.ClusterInfo, 0, len(clusters))
 	for _, cluster := range clusters {
