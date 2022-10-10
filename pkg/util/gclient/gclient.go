@@ -2,6 +2,7 @@ package gclient
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	clusterapiv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4"
@@ -22,17 +23,17 @@ import (
 var aggregatedScheme = runtime.NewScheme()
 
 func init() {
-	var _ = scheme.AddToScheme(aggregatedScheme)             // add Kubernetes schemes
-	var _ = clusterv1alpha1.AddToScheme(aggregatedScheme)    // add cluster schemes
-	var _ = configv1alpha1.AddToScheme(aggregatedScheme)     // add config v1alpha1 schemes
-	var _ = networkingv1alpha1.AddToScheme(aggregatedScheme) // add network v1alpha1 schemes
-	var _ = policyv1alpha1.AddToScheme(aggregatedScheme)     // add propagation schemes
-	var _ = workv1alpha1.AddToScheme(aggregatedScheme)       // add work v1alpha1 schemes
-	var _ = workv1alpha2.AddToScheme(aggregatedScheme)       // add work v1alpha2 schemes
-	var _ = searchv1alpha1.AddToScheme(aggregatedScheme)     // add search v1alpha1 schemes
-	var _ = mcsv1alpha1.AddToScheme(aggregatedScheme)        // add mcs-api schemes
-	var _ = clusterapiv1alpha4.AddToScheme(aggregatedScheme) // add cluster-api v1alpha4 schemes
-	var _ = clusterapiv1beta1.AddToScheme(aggregatedScheme)  // add cluster-api v1beta1 schemes
+	utilruntime.Must(scheme.AddToScheme(aggregatedScheme))             // add Kubernetes schemes
+	utilruntime.Must(clusterv1alpha1.AddToScheme(aggregatedScheme))    // add cluster schemes
+	utilruntime.Must(configv1alpha1.AddToScheme(aggregatedScheme))     // add config v1alpha1 schemes
+	utilruntime.Must(networkingv1alpha1.AddToScheme(aggregatedScheme)) // add network v1alpha1 schemes
+	utilruntime.Must(policyv1alpha1.AddToScheme(aggregatedScheme))     // add propagation schemes
+	utilruntime.Must(workv1alpha1.AddToScheme(aggregatedScheme))       // add work v1alpha1 schemes
+	utilruntime.Must(workv1alpha2.AddToScheme(aggregatedScheme))       // add work v1alpha2 schemes
+	utilruntime.Must(searchv1alpha1.AddToScheme(aggregatedScheme))     // add search v1alpha1 schemes
+	utilruntime.Must(mcsv1alpha1.AddToScheme(aggregatedScheme))        // add mcs-api schemes
+	utilruntime.Must(clusterapiv1alpha4.AddToScheme(aggregatedScheme)) // add cluster-api v1alpha4 schemes
+	utilruntime.Must(clusterapiv1beta1.AddToScheme(aggregatedScheme))  // add cluster-api v1beta1 schemes
 }
 
 // NewSchema returns a singleton schema set which aggregated Kubernetes's schemes and extended schemes.
