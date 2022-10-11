@@ -2918,7 +2918,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"resourceSelectors": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ResourceSelectors used to select resources.",
+							Description: "ResourceSelectors used to select resources. Nil or empty selector is not allowed and doesn't mean match all kinds of resources for security concerns that sensitive resources(like Secret) might be accidentally propagated.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
