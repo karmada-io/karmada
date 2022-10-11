@@ -290,6 +290,26 @@ func TestGenerateDerivedServiceName(t *testing.T) {
 	}
 }
 
+func TestGenerateEstimatorDeploymentName(t *testing.T) {
+	tests := []struct {
+		name        string
+		clusterName string
+		expected    string
+	}{
+		{
+			name:        "generate estimator deployment name",
+			clusterName: "cluster",
+			expected:    "karmada-scheduler-estimator-cluster",
+		},
+	}
+	for _, test := range tests {
+		got := GenerateEstimatorDeploymentName(test.clusterName)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
+
 func TestGenerateEstimatorServiceName(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -364,6 +384,30 @@ func TestGenerateImpersonationSecretName(t *testing.T) {
 	}
 	for _, test := range tests {
 		got := GenerateImpersonationSecretName(test.clusterName)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
+
+func TestGeneratePolicyName(t *testing.T) {
+	tests := []struct {
+		name         string
+		namespace    string
+		resourcename string
+		gvk          string
+		expected     string
+	}{
+		{
+			name:         "generate policy name",
+			namespace:    "ns-foo",
+			resourcename: "foo",
+			gvk:          "rand",
+			expected:     "foo-b4978784",
+		},
+	}
+	for _, test := range tests {
+		got := GeneratePolicyName(test.namespace, test.resourcename, test.gvk)
 		if got != test.expected {
 			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
 		}
