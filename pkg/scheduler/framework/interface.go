@@ -126,6 +126,11 @@ func (s *Result) AsError() error {
 	return errors.New(strings.Join(s.reasons, ", "))
 }
 
+// Reasons returns reasons of the Result.
+func (s *Result) Reasons() []string {
+	return s.reasons
+}
+
 // ScorePlugin is an interface that must be implemented by "Score" plugins to rank
 // clusters that passed the filtering phase.
 type ScorePlugin interface {
