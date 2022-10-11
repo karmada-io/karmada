@@ -4,65 +4,156 @@ import "testing"
 
 func TestReleaseVersion(t *testing.T) {
 	tests := []struct {
-		Name                    string
-		GitVersion              string
-		ExpectFirstMinorRelease string
-		ExpectPatchRelease      string
-		ExpectError             bool
+		name                    string
+		gitVersion              string
+		expectFirstMinorRelease string
+		expectPatchRelease      string
+		expectError             bool
 	}{
 		{
-			Name:                    "first minor release",
-			GitVersion:              "v1.1.0",
-			ExpectFirstMinorRelease: "v1.1.0",
-			ExpectPatchRelease:      "v1.1.0",
-			ExpectError:             false,
+			name:                    "first minor release",
+			gitVersion:              "v1.1.0",
+			expectFirstMinorRelease: "v1.1.0",
+			expectPatchRelease:      "v1.1.0",
+			expectError:             false,
 		},
 		{
-			Name:                    "subsequent minor release",
-			GitVersion:              "v1.1.1",
-			ExpectFirstMinorRelease: "v1.1.0",
-			ExpectPatchRelease:      "v1.1.1",
-			ExpectError:             false,
+			name:                    "subsequent minor release",
+			gitVersion:              "v1.1.1",
+			expectFirstMinorRelease: "v1.1.0",
+			expectPatchRelease:      "v1.1.1",
+			expectError:             false,
 		},
 		{
-			Name:                    "normal git version",
-			GitVersion:              "v1.1.1-6-gf20c721a",
-			ExpectFirstMinorRelease: "v1.1.0",
-			ExpectPatchRelease:      "v1.1.1",
-			ExpectError:             false,
+			name:                    "normal git version",
+			gitVersion:              "v1.1.1-6-gf20c721a",
+			expectFirstMinorRelease: "v1.1.0",
+			expectPatchRelease:      "v1.1.1",
+			expectError:             false,
 		},
 		{
-			Name:                    "abnormal version",
-			GitVersion:              "vx.y.z-6-gf20c721a",
-			ExpectFirstMinorRelease: "",
-			ExpectPatchRelease:      "",
-			ExpectError:             true,
+			name:        "abnormal version",
+			gitVersion:  "vx.y.z-6-gf20c721a",
+			expectError: true,
 		},
 	}
 
 	for i := range tests {
 		tc := tests[i]
-
-		t.Run(tc.Name, func(t *testing.T) {
-			rv, err := ParseGitVersion(tc.GitVersion)
+		t.Run(tc.name, func(t *testing.T) {
+			rv, err := ParseGitVersion(tc.gitVersion)
 			if err != nil {
-				if !tc.ExpectError {
+				if !tc.expectError {
 					t.Fatalf("No error is expected but got: %v", err)
 				}
 				// Stop and passes this test as error is expected.
 				return
 			} else if err == nil {
-				if tc.ExpectError {
+				if tc.expectError {
 					t.Fatalf("Expect error, but got nil")
 				}
 			}
 
-			if rv.FirstMinorRelease() != tc.ExpectFirstMinorRelease {
-				t.Fatalf("expect first minor release: %s, but got: %s", tc.ExpectFirstMinorRelease, rv.FirstMinorRelease())
+			if rv.FirstMinorRelease() != tc.expectFirstMinorRelease {
+				t.Fatalf("expect first minor release: %s, but got: %s", tc.expectFirstMinorRelease, rv.FirstMinorRelease())
 			}
 
-			if rv.PatchRelease() != tc.ExpectPatchRelease {
-				t.Fatalf("expect patch release: %s, but got: %s", tc.ExpectPatchRelease, rv.PatchRelease())
+			if rv.PatchRelease() != tc.expectPatchRelease {
+				t.Fatalf("expect patch release: %s, but got: %s", tc.expectPatchRelease, rv.PatchRelease())
+			}
+		})
+	}
+}
+
+func TestReleaseVersion_FirstMinorRelease(t *testing.T) {
+	tests := []struct {
+		name        string
+		gitVersion  string
+		ignoreError bool
+		expect      string
+	}{
+		{
+			name:        "invalid version should dump nil",
+			gitVersion:  "",
+			ignoreError: true,
+			expect:      "<nil>",
+		},
+		{
+			name:        "standard semantic version",
+			gitVersion:  "v1.2.1",
+			ignoreError: false,
+			expect:      "v1.2.0",
+		},
+		{
+			name:        "standard semantic version suffixed with commits",
+			gitVersion:  "v1.2.3-12-g2e860210",
+			ignoreError: false,
+			expect:      "v1.2.0",
+		},
+	}
+
+	for i := range tests {
+		tc := tests[i]
+		t.Run(tc.name, func(t *testing.T) {
+			rv, err := ParseGitVersion(tc.gitVersion)
+			if err != nil {
+				if tc.ignoreError {
+					// initialize to avoid panic because just focus on the version inside ReleaseVersion.
+					rv = &ReleaseVersion{Version: nil}
+				} else {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+
+			if rv.FirstMinorRelease() != tc.expect {
+				t.Fatalf("expect first minor release: %s, but got: %s", tc.expect, rv.FirstMinorRelease())
+			}
+		})
+	}
+}
+
+func TestReleaseVersion_PatchRelease(t *testing.T) {
+	tests := []struct {
+		name        string
+		gitVersion  string
+		ignoreError bool
+		expect      string
+	}{
+		{
+			name:        "invalid version should dump nil",
+			gitVersion:  "",
+			ignoreError: true,
+			expect:      "<nil>",
+		},
+		{
+			name:        "standard semantic version",
+			gitVersion:  "v1.2.1",
+			ignoreError: false,
+			expect:      "v1.2.1",
+		},
+		{
+			name:        "standard semantic version suffixed with commits",
+			gitVersion:  "v1.2.3-12-g2e860210",
+			ignoreError: false,
+			expect:      "v1.2.3",
+		},
+	}
+
+	for i := range tests {
+		tc := tests[i]
+		t.Run(tc.name, func(t *testing.T) {
+			rv, err := ParseGitVersion(tc.gitVersion)
+			if err != nil {
+				if tc.ignoreError {
+					// initialize to avoid panic because just focus on the version inside ReleaseVersion.
+					rv = &ReleaseVersion{Version: nil}
+				} else {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+
+			if rv.PatchRelease() != tc.expect {
+				t.Fatalf("expect patch release: %s, but got: %s", tc.expect, rv.PatchRelease())
 			}
 		})
 	}
