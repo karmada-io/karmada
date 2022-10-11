@@ -36,6 +36,10 @@ import (
 
 const workKey = "key"
 
+type connector interface {
+	connect(ctx context.Context, gvr schema.GroupVersionResource, proxyPath string, responder rest.Responder) (http.Handler, error)
+}
+
 // Controller syncs Cluster and GlobalResource.
 type Controller struct {
 	restMapper           meta.RESTMapper
@@ -48,9 +52,9 @@ type Controller struct {
 	store          store.Cache
 
 	// proxy
-	karmadaProxy *karmadaProxy
-	clusterProxy *clusterProxy
-	cacheProxy   *cacheProxy
+	karmadaProxy connector
+	clusterProxy connector
+	cacheProxy   connector
 }
 
 // NewController create a controller for proxy
@@ -167,7 +171,14 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 		newCtx = request.WithNamespace(newCtx, requestInfo.Namespace)
 		newReq = newReq.WithContext(newCtx)
 
-		h, err := ctl.connect(newCtx, requestInfo, proxyPath, responder)
+		gvr := schema.GroupVersionResource{
+			Group:    requestInfo.APIGroup,
+			Version:  requestInfo.APIVersion,
+			Resource: requestInfo.Resource,
+		}
+
+		conn := ctl.connect(requestInfo)
+		h, err := conn.connect(newCtx, gvr, proxyPath, responder)
 		if err != nil {
 			h = http.HandlerFunc(func(delegate http.ResponseWriter, req *http.Request) {
 				// Write error into delegate ResponseWriter, wrapped in metrics.InstrumentHandlerFunc, so metrics can record this error.
@@ -184,7 +195,7 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 	}), nil
 }
 
-func (ctl *Controller) connect(ctx context.Context, requestInfo *request.RequestInfo, path string, responder rest.Responder) (http.Handler, error) {
+func (ctl *Controller) connect(requestInfo *request.RequestInfo) connector {
 	gvr := schema.GroupVersionResource{
 		Group:    requestInfo.APIGroup,
 		Version:  requestInfo.APIVersion,
@@ -203,20 +214,20 @@ func (ctl *Controller) connect(ctx context.Context, requestInfo *request.Request
 	// - api index, e.g.: `/api`, `/apis`
 	// - to workload created in karmada controller panel, such as deployments and services.
 	if !requestInfo.IsResourceRequest || !ctl.store.HasResource(gvr) {
-		return ctl.karmadaProxy.connect(path, responder)
+		return ctl.karmadaProxy
 	}
 
 	// 2. For reading requests, we redirect them to cache.
 	// Users call these requests to read resources in member clusters, such as pods and nodes.
 	if requestInfo.Subresource == "" && (requestInfo.Verb == "get" || requestInfo.Verb == "list" || requestInfo.Verb == "watch") {
-		return ctl.cacheProxy.connect(ctx)
+		return ctl.cacheProxy
 	}
 
 	// 3. The remaining requests are:
 	// - writing resources.
 	// - or subresource requests, e.g. `pods/log`
 	// We firstly find the resource from cache, and get the located cluster. Then redirect the request to the cluster.
-	return ctl.clusterProxy.connect(ctx, requestInfo, gvr, path, responder)
+	return ctl.clusterProxy
 }
 
 // TODO: reuse with karmada/pkg/util/membercluster_client.go
