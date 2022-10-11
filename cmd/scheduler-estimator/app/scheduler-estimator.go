@@ -46,8 +46,9 @@ func NewSchedulerEstimatorCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "karmada-scheduler-estimator",
-		Long: `The karmada scheduler estimator runs an accurate scheduler estimator of a cluster`,
+		Use: "karmada-scheduler-estimator",
+		Long: `The karmada-scheduler-estimator runs an accurate scheduler estimator of a cluster. It 
+provides the scheduler with more accurate cluster resource information.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {

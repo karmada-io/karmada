@@ -66,8 +66,10 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "karmada-controller-manager",
-		Long: `The karmada controller manager runs a bunch of controllers`,
+		Use: "karmada-controller-manager",
+		Long: `The karmada-controller-manager runs various controllers.
+The controllers watch Karmada objects and then talk to the underlying clusters' API servers 
+to create regular Kubernetes resources.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {

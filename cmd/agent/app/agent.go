@@ -53,8 +53,10 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 
 	cmd := &cobra.Command{
-		Use:  "karmada-agent",
-		Long: `The karmada agent runs the cluster registration agent`,
+		Use: "karmada-agent",
+		Long: `The karmada-agent is the agent of member clusters. It can register a specific cluster to the Karmada control
+plane and sync manifests from the Karmada control plane to the member cluster. In addition, it also syncs the status of member 
+cluster and manifests to the Karmada control plane.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {

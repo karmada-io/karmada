@@ -18,8 +18,9 @@ func NewKarmadaSearchCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "karmada-search",
-		Long: `Launch the karmada-search`,
+		Use: "karmada-search",
+		Long: `The karmada-search starts an aggregated server. It provides 
+capabilities such as global search and resource proxy in a multi-cloud environment.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Complete(); err != nil {
 				return err

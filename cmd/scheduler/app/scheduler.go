@@ -61,8 +61,11 @@ func NewSchedulerCommand(stopChan <-chan struct{}, registryOptions ...Option) *c
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "karmada-scheduler",
-		Long: `The karmada scheduler binds resources to the clusters it manages.`,
+		Use: "karmada-scheduler",
+		Long: `The karmada-scheduler is a control plane process which assigns resources to the clusters it manages.
+The scheduler determines which clusters are valid placements for each resource in the scheduling queue according to
+constraints and available resources. The scheduler then ranks each valid cluster and binds the resource to
+the most suitable cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
