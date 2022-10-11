@@ -15038,6 +15038,28 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider": {
+      "description": "LabelAnnotationOverrider represents the rules dedicated to handling workload labels/annotations",
+      "type": "object",
+      "required": [
+        "operator"
+      ],
+      "properties": {
+        "operator": {
+          "description": "Operator represents the operator which will apply on the workload.",
+          "type": "string",
+          "default": ""
+        },
+        "value": {
+          "description": "Value to be applied to annotations/labels of workload. Items in Value which will be appended after annotations/labels when Operator is 'add'. Items in Value which match in annotations/labels will be deleted when Operator is 'remove'. Items in Value which match in annotations/labels will be replaced when Operator is 'replace'.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverridePolicy": {
       "description": "OverridePolicy represents the policy that overrides a group of resources to one or more clusters.",
       "type": "object",
@@ -15139,9 +15161,17 @@
       }
     },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Overriders": {
-      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - Plaintext",
+      "description": "Overriders offers various alternatives to represent the override rules.\n\nIf more than one alternative exists, they will be applied with following order: - ImageOverrider - CommandOverrider - ArgsOverrider - LabelsOverrider - AnnotationsOverrider - Plaintext",
       "type": "object",
       "properties": {
+        "annotationsOverrider": {
+          "description": "AnnotationsOverrider represents the rules dedicated to handling workload annotations",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider"
+          }
+        },
         "argsOverrider": {
           "description": "ArgsOverrider represents the rules dedicated to handling container args",
           "type": "array",
@@ -15164,6 +15194,14 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ImageOverrider"
+          }
+        },
+        "labelsOverrider": {
+          "description": "LabelsOverrider represents the rules dedicated to handling workload labels",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider"
           }
         },
         "plaintext": {

@@ -83,6 +83,8 @@ type RuleWithCluster struct {
 // - ImageOverrider
 // - CommandOverrider
 // - ArgsOverrider
+// - LabelsOverrider
+// - AnnotationsOverrider
 // - Plaintext
 type Overriders struct {
 	// Plaintext represents override rules defined with plaintext overriders.
@@ -100,6 +102,29 @@ type Overriders struct {
 	// ArgsOverrider represents the rules dedicated to handling container args
 	// +optional
 	ArgsOverrider []CommandArgsOverrider `json:"argsOverrider,omitempty"`
+
+	// LabelsOverrider represents the rules dedicated to handling workload labels
+	// +optional
+	LabelsOverrider []LabelAnnotationOverrider `json:"labelsOverrider,omitempty"`
+
+	// AnnotationsOverrider represents the rules dedicated to handling workload annotations
+	// +optional
+	AnnotationsOverrider []LabelAnnotationOverrider `json:"annotationsOverrider,omitempty"`
+}
+
+// LabelAnnotationOverrider represents the rules dedicated to handling workload labels/annotations
+type LabelAnnotationOverrider struct {
+	// Operator represents the operator which will apply on the workload.
+	// +kubebuilder:validation:Enum=add;remove;replace
+	// +required
+	Operator OverriderOperator `json:"operator"`
+
+	// Value to be applied to annotations/labels of workload.
+	// Items in Value which will be appended after annotations/labels when Operator is 'add'.
+	// Items in Value which match in annotations/labels will be deleted when Operator is 'remove'.
+	// Items in Value which match in annotations/labels will be replaced when Operator is 'replace'.
+	// +required
+	Value map[string]string `json:"value,omitempty"`
 }
 
 // ImageOverrider represents the rules dedicated to handling image overrides.
