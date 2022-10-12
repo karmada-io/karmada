@@ -21,6 +21,7 @@ limitations under the License.
 package lifted
 
 import (
+	"reflect"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -183,6 +184,109 @@ func TestRetainClusterIPInServiceFields(t *testing.T) {
 			}
 			if ok && (test.expectedClusterIPValue == nil || *test.expectedClusterIPValue != currentClusterIPValue) {
 				t.Fatalf("test %s fails: unexpected current clusterIP %s", test.name, currentClusterIPValue)
+			}
+		})
+	}
+}
+
+func TestRetainServiceAccountFields(t *testing.T) {
+	tests := []struct {
+		name                 string
+		desiredObj           *unstructured.Unstructured
+		observedObj          *unstructured.Unstructured
+		expectedErr          bool
+		expectedSecretsValue []interface{}
+	}{
+		{
+			name: "neither desired or observed service account has the secrets field",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			},
+			expectedErr:          false,
+			expectedSecretsValue: nil,
+		},
+		{
+			name: "both desired and observed service account have the same secrets field",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{
+							"name": "test",
+						},
+					},
+				},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{
+							"name": "test",
+						},
+					},
+				},
+			},
+			expectedErr: false,
+			expectedSecretsValue: []interface{}{
+				map[string]interface{}{
+					"name": "test",
+				},
+			},
+		},
+		{
+			name: "desired and observed service account have the different secrets field",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{
+							"name": "test",
+						},
+					},
+				},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{
+							"name": "test",
+						},
+						map[string]interface{}{
+							"name": "test-token",
+						},
+					},
+				},
+			},
+			expectedErr: false,
+			expectedSecretsValue: []interface{}{
+				map[string]interface{}{
+					"name": "test",
+				},
+				map[string]interface{}{
+					"name": "test-token",
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			desiredObj, err := RetainServiceAccountFields(test.desiredObj, test.observedObj)
+			if (err != nil) != test.expectedErr {
+				t.Fatalf("unexpected returned error %v", err)
+			}
+
+			if err == nil {
+				currentSecretValue, ok, err := unstructured.NestedSlice(desiredObj.Object, SecretsField)
+				if err != nil {
+					t.Fatalf("failed to get the secrets field from the serviceaccount, err is: %v", err)
+				}
+				if !ok && test.expectedSecretsValue != nil {
+					t.Fatalf("expect specified secrets %s but not found", test.expectedSecretsValue)
+				}
+				if ok && !reflect.DeepEqual(test.expectedSecretsValue, currentSecretValue) {
+					t.Fatalf("expect specified secrets %s but get %s", test.expectedSecretsValue, currentSecretValue)
+				}
 			}
 		})
 	}
