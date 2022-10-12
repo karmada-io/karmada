@@ -104,7 +104,7 @@ type decoratedWatcher struct {
 }
 
 type watchMux struct {
-	lock    sync.Mutex
+	lock    sync.RWMutex
 	sources []decoratedWatcher
 	result  chan watch.Event
 	done    chan struct{}
@@ -127,11 +127,9 @@ func (w *watchMux) AddSource(watcher watch.Interface, decorator func(watch.Event
 
 // Start run the watcher
 func (w *watchMux) Start() {
-	go func() {
-		for _, source := range w.sources {
-			go w.startWatchSource(source.watcher, source.decorator)
-		}
-	}()
+	for _, source := range w.sources {
+		go w.startWatchSource(source.watcher, source.decorator)
+	}
 }
 
 // ResultChan implements watch.Interface
@@ -141,6 +139,12 @@ func (w *watchMux) ResultChan() <-chan watch.Event {
 
 // Stop implements watch.Interface
 func (w *watchMux) Stop() {
+	select {
+	case <-w.done:
+		return
+	default:
+	}
+
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
@@ -148,6 +152,7 @@ func (w *watchMux) Stop() {
 	case <-w.done:
 	default:
 		close(w.done)
+		close(w.result)
 	}
 }
 
@@ -162,7 +167,9 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 			if !ok {
 				return
 			}
-			decorator(event)
+			if decorator != nil {
+				decorator(event)
+			}
 		case <-w.done:
 			return
 		}
@@ -170,8 +177,19 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 		select {
 		case <-w.done:
 			return
-		case w.result <- event:
+		default:
 		}
+
+		func() {
+			w.lock.RLock()
+			defer w.lock.RUnlock()
+			select {
+			case <-w.done:
+				return
+			default:
+				w.result <- event
+			}
+		}()
 	}
 }
 
