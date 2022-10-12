@@ -19,9 +19,9 @@ jobs:
           - amd64
           - arm64
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v3
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: 1.18.3
     - name: Making and packaging
@@ -41,6 +41,6 @@ jobs:
     name: Update krew-index
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v3
     - name: Update new version in krew-index
       uses: rajatjindal/krew-release-bot@v0.0.40
