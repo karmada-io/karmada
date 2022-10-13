@@ -6,7 +6,44 @@ This example implements a new CustomResourceDefinition(CRD), `Workload`, and cre
 
 ### Install
 
-> For karmada deployed using `hack/local-up-karmada.sh`, there are `karmada-host`, `karmada-apiserver` and three member clusters named `member1`, `member2` and `member3`.
+### Prerequisites
+
+For karmada deploy using `hack/local-up-karmada.sh`, there are `karmada-host`, `karmada-apiserver` and three member clusters named `member1`, `member2` and `member3`.
+
+Then you need to deploy MetalLB as a Load Balancer to expose the webhook.
+
+```bash
+kubectl --context="karmada-host" get configmap kube-proxy -n kube-system -o yaml | \
+  sed -e "s/strictARP: false/strictARP: true/" | \
+  kubectl --context="karmada-host" apply -n kube-system -f -
+
+curl https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml -k | \
+  sed '0,/args:/s//args:\n        - --webhook-mode=disabled/' | \
+  sed '/apiVersion: admissionregistration/,$d' | \
+  kubectl --context="karmada-host" apply -f -
+
+export interpreter_webhook_example_service_external_ip_address=$(kubectl config view --template='{{range $_, $value := .clusters }}{{if eq $value.name "karmada-apiserver"}}{{$value.cluster.server}}{{end}}{{end}}' | \
+  awk -F/ '{print $3}' | \
+  sed 's/:.*//' | \
+  awk -F. '{printf "%s.%s.%s.8",$1,$2,$3}')
+
+cat <<EOF | kubectl --context="karmada-host" apply -f -
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: metallb-config
+  namespace: metallb-system
+spec:
+  addresses:
+  - ${interpreter_webhook_example_service_external_ip_address}-${interpreter_webhook_example_service_external_ip_address}
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: metallb-advertisement
+  namespace: metallb-system
+EOF
+```
 
 #### Step1: Install `Workload` CRD in `karmada-apiserver` and member clusters
 
@@ -62,9 +99,13 @@ webhook-configuration.sh
 
 export ca_string=$(cat ${HOME}/.karmada/ca.crt | base64 | tr "\n" " "|sed s/[[:space:]]//g)
 export temp_path=$(mktemp -d)
+export interpreter_webhook_example_service_external_ip_address=$(kubectl config view --template='{{range $_, $value := .clusters }}{{if eq $value.name "karmada-apiserver"}}{{$value.cluster.server}}{{end}}{{end}}' | \
+  awk -F/ '{print $3}' | \
+  sed 's/:.*//' | \
+  awk -F. '{printf "%s.%s.%s.8",$1,$2,$3}')
 
 cp -rf "examples/customresourceinterpreter/webhook-configuration.yaml" "${temp_path}/temp.yaml"
-sed -i'' -e "s/{{caBundle}}/${ca_string}/g" "${temp_path}/temp.yaml"
+sed -i'' -e "s/{{caBundle}}/${ca_string}/g" -e "s/{{karmada-interpreter-webhook-example-svc-address}}/${interpreter_webhook_example_service_external_ip_address}/g" "${temp_path}/temp.yaml"
 kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f "${temp_path}/temp.yaml"
 rm -rf "${temp_path}"
 ```
@@ -157,7 +198,7 @@ kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver appl
 You can get `ResourceBinding` to check if the `replicas` field is interpreted successfully.
 
 ```bash
-kubectl get rb nginx-workload -o yaml 
+kubectl get rb nginx-workload -o yaml
 ```
 
 #### ReviseReplica
