@@ -43,6 +43,8 @@ func init() {
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&ResourceInterpreterContext{},
+		&ResourceInterpreterCustomization{},
+		&ResourceInterpreterCustomizationList{},
 		&ResourceInterpreterWebhookConfiguration{},
 		&ResourceInterpreterWebhookConfigurationList{},
 	)
