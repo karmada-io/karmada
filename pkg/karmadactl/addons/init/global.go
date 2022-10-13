@@ -43,7 +43,7 @@ func (o *GlobalCommandOptions) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.Context, "context", "", "The name of the kubeconfig context to use.")
 	flags.StringVar(&o.KarmadaConfig, "karmada-kubeconfig", "/etc/karmada/karmada-apiserver.config", "Path to the karmada control plane kubeconfig file.")
 	flags.StringVar(&o.KarmadaContext, "karmada-context", "", "The name of the karmada control plane kubeconfig context to use.")
-	flags.StringVarP(&o.Cluster, "cluster", "C", "", "The name of member cluster to disable scheduler estimator")
+	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Name of the member cluster that enables or disables the scheduler estimator.")
 }
 
 // Complete the conditions required to be able to run list.
