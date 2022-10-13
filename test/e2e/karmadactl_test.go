@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -23,6 +24,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	khelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -463,6 +465,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 	var kubeConfigPath string
 	var clusterContext string
 	var karmadaConfig karmadactl.KarmadaConfig
+	var f cmdutil.Factory
 
 	ginkgo.BeforeEach(func() {
 		clusterName = "member-e2e-" + rand.String(3)
@@ -472,6 +475,9 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		clusterContext = fmt.Sprintf("kind-%s", clusterName)
 
 		karmadaConfig = karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
+		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+		defaultConfigFlags.Context = &karmadaContext
+		f = cmdutil.NewFactory(defaultConfigFlags)
 	})
 
 	ginkgo.BeforeEach(func() {
@@ -527,13 +533,10 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 	ginkgo.Context("cordon/uncordon cluster taint check", func() {
 		ginkgo.BeforeEach(func() {
 			opts := karmadactl.CommandCordonOption{
-				GlobalCommandOptions: options.GlobalCommandOptions{
-					KarmadaContext: karmadaContext,
-				},
 				DryRun:      false,
 				ClusterName: clusterName,
 			}
-			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredCordon, karmadaConfig, opts)
+			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredCordon, f, opts)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		})
@@ -554,13 +557,10 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 
 		ginkgo.It(fmt.Sprintf("cluster %s should not have unschedulable:NoSchedule taint", clusterName), func() {
 			opts := karmadactl.CommandCordonOption{
-				GlobalCommandOptions: options.GlobalCommandOptions{
-					KarmadaContext: karmadaContext,
-				},
 				DryRun:      false,
 				ClusterName: clusterName,
 			}
-			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredUnCordon, karmadaConfig, opts)
+			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredUnCordon, f, opts)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 			ginkgo.By(fmt.Sprintf("cluster %s taint(unschedulable:NoSchedule) will be removed", clusterName), func() {

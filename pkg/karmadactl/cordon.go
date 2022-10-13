@@ -15,7 +15,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 var (
@@ -42,7 +42,7 @@ const (
 )
 
 // NewCmdCordon defines the `cordon` command that mark cluster as unschedulable.
-func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdCordon(f util.Factory, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:                   "cordon CLUSTER",
@@ -55,7 +55,7 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(DesiredCordon, karmadaConfig, opts); err != nil {
+			if err := RunCordonOrUncordon(DesiredCordon, f, opts); err != nil {
 				return err
 			}
 			return nil
@@ -63,15 +63,16 @@ func NewCmdCordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 	}
 
 	flags := cmd.Flags()
-	opts.GlobalCommandOptions.AddFlags(flags)
-
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 
 	return cmd
 }
 
 // NewCmdUncordon defines the `uncordon` command that mark cluster as schedulable.
-func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdUncordon(f util.Factory, parentCommand string) *cobra.Command {
 	opts := CommandCordonOption{}
 	cmd := &cobra.Command{
 		Use:                   "uncordon CLUSTER",
@@ -84,7 +85,7 @@ func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(DesiredUnCordon, karmadaConfig, opts); err != nil {
+			if err := RunCordonOrUncordon(DesiredUnCordon, f, opts); err != nil {
 				return err
 			}
 			return nil
@@ -92,16 +93,15 @@ func NewCmdUncordon(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Co
 	}
 
 	flags := cmd.Flags()
-	opts.AddFlags(flags)
+	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 
 	return cmd
 }
 
 // CommandCordonOption holds all command options for cordon and uncordon
 type CommandCordonOption struct {
-	// global flags
-	options.GlobalCommandOptions
-
 	// ClusterName is the cluster's name that we are going to join with.
 	ClusterName string
 
@@ -170,8 +170,8 @@ func (c *CordonHelper) hasUnschedulerTaint() bool {
 // PatchOrReplace uses given karmada clientset to update the cluster unschedulable scheduler, either by patching or
 // updating the given cluster object; it may return error if the object cannot be encoded as
 // JSON, or if either patch or update calls fail; it will also return error whenever creating a patch has failed
-func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clientset) error {
-	client := controlPlaneClient.ClusterV1alpha1().Clusters()
+func (c *CordonHelper) PatchOrReplace(karmadaClient karmadaclientset.Interface) error {
+	client := karmadaClient.ClusterV1alpha1().Clusters()
 	oldData, err := json.Marshal(c.cluster)
 	if err != nil {
 		return err
@@ -212,22 +212,18 @@ func (c *CordonHelper) PatchOrReplace(controlPlaneClient *karmadaclientset.Clien
 
 // RunCordonOrUncordon exec marks the cluster unschedulable or schedulable according to desired.
 // if true cordon cluster otherwise uncordon cluster.
-func RunCordonOrUncordon(desired int, karmadaConfig KarmadaConfig, opts CommandCordonOption) error {
+func RunCordonOrUncordon(desired int, f util.Factory, opts CommandCordonOption) error {
 	cordonOrUncordon := "cordon"
 	if desired == DesiredUnCordon {
 		cordonOrUncordon = "un" + cordonOrUncordon
 	}
 
-	// Get control plane kube-apiserver client
-	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KubeConfig)
+	karmadaClient, err := f.KarmadaClientSet()
 	if err != nil {
-		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			opts.KarmadaContext, opts.KubeConfig, err)
+		return err
 	}
 
-	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
-
-	cluster, err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), opts.ClusterName, metav1.GetOptions{})
+	cluster, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), opts.ClusterName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -239,7 +235,7 @@ func RunCordonOrUncordon(desired int, karmadaConfig KarmadaConfig, opts CommandC
 	}
 
 	if !opts.DryRun {
-		err := cordonHelper.PatchOrReplace(controlPlaneKarmadaClient)
+		err := cordonHelper.PatchOrReplace(karmadaClient)
 		if err != nil {
 			return err
 		}
