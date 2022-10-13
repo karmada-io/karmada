@@ -1,3 +1,5 @@
+//go:generate mockgen -source=objectwatcher.go  -destination=testing/mock_objectwatcher.go -package=testing ObjectWatcher
+
 package objectwatcher
 
 import (

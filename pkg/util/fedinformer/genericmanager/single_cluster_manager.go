@@ -1,3 +1,5 @@
+//go:generate mockgen -source=single_cluster_manager.go  -destination=testing/mock_single_cluster_manager.go -package=testing SingleClusterInformerManager
+
 package genericmanager
 
 import (
