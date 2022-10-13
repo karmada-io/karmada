@@ -8,6 +8,8 @@ type: Opaque
 data:
   server-ca.crt: |
     {{ b64enc .Values.certs.custom.caCrt }}
+  server-ca.key: |
+    {{ b64enc .Values.certs.custom.caKey }}
   karmada.crt: |
     {{ b64enc .Values.certs.custom.crt }}
   karmada.key: |

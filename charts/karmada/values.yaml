@@ -89,6 +89,11 @@ certs:
       -----BEGIN CERTIFICATE-----
       XXXXXXXXXXXXXXXXXXXXXXXXXXX
       -----END CERTIFICATE-----
+    ## @param certs.custom.caKey key of the ca
+    caKey: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
     ## @param certs.custom.crt crt of the certificate
     crt: |
       -----BEGIN CERTIFICATE-----
