@@ -21,7 +21,6 @@ type Factory interface {
 
 	// KarmadaClientSet returns a karmada clientset
 	KarmadaClientSet() (karmadaclientset.Interface, error)
-
 	// FactoryForMemberCluster returns a cmdutil.Factory for the member cluster
 	FactoryForMemberCluster(clusterName string) (cmdutil.Factory, error)
 }
