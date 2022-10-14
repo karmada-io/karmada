@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"reflect"
+
 	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +19,92 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 	var overridePolicyNamespace, overridePolicyName string
 	var propagationPolicy *policyv1alpha1.PropagationPolicy
 	var overridePolicy *policyv1alpha1.OverridePolicy
+
+	ginkgo.Context("[LabelsOverrider] apply labels overrider testing", func() {
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+
+		ginkgo.BeforeEach(func() {
+			deploymentNamespace = testNamespace
+			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+			propagationPolicyNamespace = testNamespace
+			propagationPolicyName = deploymentName
+			overridePolicyNamespace = testNamespace
+			overridePolicyName = deploymentName
+
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+			deployment.SetLabels(map[string]string{
+				"foo": "foo",
+				"bar": "bar"},
+			)
+
+			propagationPolicy = helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+			overridePolicy = helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.ClusterAffinity{
+				ClusterNames: framework.ClusterNames(),
+			}, policyv1alpha1.Overriders{
+				LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+					{
+						Operator: "replace",
+						Value: map[string]string{
+							"foo":       "exist",
+							"non-exist": "non-exist",
+						},
+					},
+					{
+						Operator: "add",
+						Value: map[string]string{
+							"app": "nginx",
+						},
+					},
+					{
+						Operator: "remove",
+						Value: map[string]string{
+							"bar": "bar",
+						},
+					},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
+			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("deployment labelsOverride testing", func() {
+			klog.Infof("check if deployment present on member clusters have correct labels value")
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					reflect.DeepEqual(deployment.GetLabels(), map[string]string{
+						"foo": "exist",
+						"app": "nginx",
+					})
+					return true
+				})
+		})
+	})
 
 	ginkgo.Context("Deployment override all images in container list", func() {
 		var deploymentNamespace, deploymentName string
