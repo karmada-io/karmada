@@ -127,7 +127,7 @@ func GenerateDerivedServiceName(serviceName string) string {
 }
 
 // GenerateEstimatorServiceName generates the gRPC scheduler estimator service name which belongs to a cluster.
-func GenerateEstimatorServiceName(clusterName string) string {
+func GenerateEstimatorServiceName(estimatorServicePrefix, clusterName string) string {
 	return fmt.Sprintf("%s-%s", estimatorServicePrefix, clusterName)
 }
 

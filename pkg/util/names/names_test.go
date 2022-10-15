@@ -312,18 +312,26 @@ func TestGenerateEstimatorDeploymentName(t *testing.T) {
 
 func TestGenerateEstimatorServiceName(t *testing.T) {
 	tests := []struct {
-		name        string
-		clusterName string
-		expected    string
+		name                   string
+		clusterName            string
+		estimatorServicePrefix string
+		expected               string
 	}{
 		{
-			name:        "",
-			clusterName: "cluster",
-			expected:    "karmada-scheduler-estimator-cluster",
+			name:                   "",
+			clusterName:            "cluster",
+			estimatorServicePrefix: "karmada-scheduler-estimator",
+			expected:               "karmada-scheduler-estimator-cluster",
+		},
+		{
+			name:                   "",
+			clusterName:            "cluster",
+			estimatorServicePrefix: "demo-karmada-scheduler-estimator",
+			expected:               "demo-karmada-scheduler-estimator-cluster",
 		},
 	}
 	for _, test := range tests {
-		got := GenerateEstimatorServiceName(test.clusterName)
+		got := GenerateEstimatorServiceName(test.estimatorServicePrefix, test.clusterName)
 		if got != test.expected {
 			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
 		}
