@@ -222,4 +222,41 @@ Check if it is retained successfully.
 kubectl --kubeconfig $HOME/.kube/members.config --context member1 get workload nginx --template={{.spec.paused}}
 ```
 
-> Note: If you want to use `Retain` function in pull mode cluster, you need to deploy interpreter webhook example in this member cluster.
+#### InterpretStatus
+
+There is no `Workload` controller deployed on member clusters, so in order to simulate the `Workload` CR handling, 
+we will manually update `status.readyReplicas` of `Workload` object in member1 cluster to 1. 
+
+```bash
+kubectl proxy --port=8001 &
+curl  http://127.0.0.1:8001/apis/workload.example.io/v1alpha1/namespaces/default/workloads/nginx/status  -XPATCH -d'{"status":{"readyReplicas": 1}}' -H "Content-Type: application/merge-patch+json
+```
+
+Then you can get `ResourceBinding` to check if the `status.aggregatedStatus[x].status` field is interpreted successfully.
+
+```bash
+kubectl get rb nginx-workload --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver -o yaml
+```
+
+You can also check the `status.manifestStatuses[x].status` field of Karmada `Work` object in namespace karmada-es-member1.
+
+#### InterpretHealth
+
+You can get `ResourceBinding` to check if the `status.aggregatedStatus[x].health` field is interpreted successfully.
+
+```bash
+kubectl get rb nginx-workload --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver -o yaml
+```
+
+You can also check the `status.manifestStatuses[x].health` field of Karmada `Work` object in namespace karmada-es-member1.
+
+#### AggregateStatus
+
+You can check if the `status` field of `Workload` object is aggregated correctly.
+
+```bash
+kubectl get workload nginx --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver -o yaml
+```
+ 
+
+> Note: If you want to use `Retain`/`InterpretStatus`/`InterpretHealth` function in pull mode cluster, you need to deploy interpreter webhook example in this member cluster.
