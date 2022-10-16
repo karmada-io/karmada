@@ -15,7 +15,7 @@ type Cache interface {
 	UpdateCluster(cluster *clusterv1alpha1.Cluster)
 	DeleteCluster(cluster *clusterv1alpha1.Cluster)
 	// Snapshot returns a snapshot of the current clusters info
-	Snapshot() *Snapshot
+	Snapshot() Snapshot
 }
 
 type schedulerCache struct {
@@ -42,13 +42,14 @@ func (c *schedulerCache) DeleteCluster(cluster *clusterv1alpha1.Cluster) {
 }
 
 // TODO: need optimization, only clone when necessary
-func (c *schedulerCache) Snapshot() *Snapshot {
+func (c *schedulerCache) Snapshot() Snapshot {
+	out := NewEmptySnapshot()
 	clusters, err := c.clusterLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Failed to list clusters: %v", err)
-		return nil
+		return out
 	}
-	out := NewEmptySnapshot()
+
 	out.clusterInfoList = make([]*framework.ClusterInfo, 0, len(clusters))
 	for _, cluster := range clusters {
 		cloned := cluster.DeepCopy()
