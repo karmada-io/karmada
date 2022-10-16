@@ -61,7 +61,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 		{
 			Message: "Basic Commands:",
 			Commands: []*cobra.Command{
-				NewCmdGet(karmadaConfig, parentCommand, ioStreams),
+				NewCmdGet(f, parentCommand, ioStreams),
 			},
 		},
 		{
