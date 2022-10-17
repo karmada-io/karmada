@@ -15253,7 +15253,7 @@
       ],
       "properties": {
         "operator": {
-          "description": "Operator indicates the operation on target field. Available operators are: add, update and remove.",
+          "description": "Operator indicates the operation on target field. Available operators are: add, replace and remove.",
           "type": "string",
           "default": ""
         },

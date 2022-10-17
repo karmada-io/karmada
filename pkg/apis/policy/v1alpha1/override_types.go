@@ -218,7 +218,7 @@ type PlaintextOverrider struct {
 	// Path indicates the path of target field
 	Path string `json:"path"`
 	// Operator indicates the operation on target field.
-	// Available operators are: add, update and remove.
+	// Available operators are: add, replace and remove.
 	// +kubebuilder:validation:Enum=add;remove;replace
 	Operator OverriderOperator `json:"operator"`
 	// Value to be applied to target field.

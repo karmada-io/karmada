@@ -2795,7 +2795,7 @@ func schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref common.ReferenceCall
 					},
 					"operator": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Operator indicates the operation on target field. Available operators are: add, update and remove.",
+							Description: "Operator indicates the operation on target field. Available operators are: add, replace and remove.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
