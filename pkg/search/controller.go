@@ -21,7 +21,6 @@ import (
 	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
@@ -57,16 +56,8 @@ type Controller struct {
 }
 
 // NewController returns a new ResourceRegistry controller
-func NewController(restConfig *rest.Config) (*Controller, error) {
-	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
-	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
+func NewController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, restMapper meta.RESTMapper) (*Controller, error) {
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
-	restMapper, err := restmapper.MapperProvider(restConfig)
-	if err != nil {
-		klog.Errorf("Failed to create REST mapper: %v", err)
-		return nil, err
-	}
-
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	c := &Controller{
@@ -115,7 +106,6 @@ func (c *Controller) Start(stopCh <-chan struct{}) {
 
 	defer runtime.HandleCrash()
 
-	c.informerFactory.Start(stopCh)
 	c.informerFactory.WaitForCacheSync(stopCh)
 
 	go wait.Until(c.worker, time.Second, stopCh)
