@@ -18,6 +18,177 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 	var propagationPolicy *policyv1alpha1.PropagationPolicy
 	var overridePolicy *policyv1alpha1.OverridePolicy
 
+	ginkgo.Context("[LabelsOverrider] apply labels overrider testing", func() {
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+
+		ginkgo.BeforeEach(func() {
+			deploymentNamespace = testNamespace
+			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+			propagationPolicyNamespace = testNamespace
+			propagationPolicyName = deploymentName
+			overridePolicyNamespace = testNamespace
+			overridePolicyName = deploymentName
+
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+			deployment.SetLabels(map[string]string{
+				"foo": "foo",
+				"bar": "bar"},
+			)
+
+			propagationPolicy = helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+			overridePolicy = helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.ClusterAffinity{
+				ClusterNames: framework.ClusterNames(),
+			}, policyv1alpha1.Overriders{
+				LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+					{
+						Operator: "replace",
+						Value: map[string]string{
+							"foo":       "exist",
+							"non-exist": "non-exist",
+						},
+					},
+					{
+						Operator: "add",
+						Value: map[string]string{
+							"app": "nginx",
+						},
+					},
+					{
+						Operator: "remove",
+						Value: map[string]string{
+							"bar": "bar",
+						},
+					},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
+			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("deployment labelsOverride testing", func() {
+			klog.Infof("check if deployment present on member clusters have correct labels value")
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					_, labelBarExist := deployment.GetLabels()["bar"]
+					_, labelNonExist := deployment.GetLabels()["non-exist"]
+					return !labelBarExist && !labelNonExist &&
+						deployment.GetLabels()["foo"] == "exist" &&
+						deployment.GetLabels()["app"] == "nginx"
+				})
+		})
+	})
+	ginkgo.Context("[AnnotationsOverrider] apply annotations overrider testing", func() {
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+
+		ginkgo.BeforeEach(func() {
+			deploymentNamespace = testNamespace
+			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+			propagationPolicyNamespace = testNamespace
+			propagationPolicyName = deploymentName
+			overridePolicyNamespace = testNamespace
+			overridePolicyName = deploymentName
+
+			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+			deployment.SetAnnotations(map[string]string{
+				"foo": "foo",
+				"bar": "bar"},
+			)
+
+			propagationPolicy = helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+			overridePolicy = helper.NewOverridePolicy(overridePolicyNamespace, overridePolicyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.ClusterAffinity{
+				ClusterNames: framework.ClusterNames(),
+			}, policyv1alpha1.Overriders{
+				AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+					{
+						Operator: "replace",
+						Value: map[string]string{
+							"foo":       "exist",
+							"non-exist": "non-exist",
+						},
+					},
+					{
+						Operator: "add",
+						Value: map[string]string{
+							"app": "nginx",
+						},
+					},
+					{
+						Operator: "remove",
+						Value: map[string]string{
+							"bar": "bar",
+						},
+					},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
+			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("deployment annotationsOverrider testing", func() {
+			klog.Infof("check if deployment present on member clusters have correct annotations value")
+			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool {
+					_, labelBarExist := deployment.GetAnnotations()["bar"]
+					_, labelNonExist := deployment.GetAnnotations()["non-exist"]
+					return !labelBarExist && !labelNonExist &&
+						deployment.GetAnnotations()["foo"] == "exist" &&
+						deployment.GetAnnotations()["app"] == "nginx"
+				})
+		})
+	})
+
 	ginkgo.Context("Deployment override all images in container list", func() {
 		var deploymentNamespace, deploymentName string
 		var deployment *appsv1.Deployment
