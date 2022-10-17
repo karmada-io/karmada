@@ -21,13 +21,16 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/request"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 var (
-	podGVR  = corev1.SchemeGroupVersion.WithResource("pods")
-	nodeGVR = corev1.SchemeGroupVersion.WithResource("nodes")
+	podGVR     = corev1.SchemeGroupVersion.WithResource("pods")
+	nodeGVR    = corev1.SchemeGroupVersion.WithResource("nodes")
+	secretGVR  = corev1.SchemeGroupVersion.WithResource("secret")
+	clusterGVR = clusterv1alpha1.SchemeGroupVersion.WithResource("cluster")
 )
 
 func TestCacheProxy_connect(t *testing.T) {
@@ -216,7 +219,7 @@ func TestCacheProxy_connect(t *testing.T) {
 				req = req.WithContext(request.WithNamespace(req.Context(), requestInfo.Namespace))
 			}
 
-			h, err := p.connect(req.Context())
+			h, err := p.connect(req.Context(), podGVR, "", nil)
 			if err != nil {
 				t.Error(err)
 				return

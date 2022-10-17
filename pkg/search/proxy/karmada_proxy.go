@@ -1,10 +1,12 @@
 package proxy
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"path"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/rest"
 	restclient "k8s.io/client-go/rest"
 
@@ -34,7 +36,7 @@ func newKarmadaProxy(restConfig *restclient.Config) (*karmadaProxy, error) {
 }
 
 // connect to Karmada-ApiServer directly
-func (p *karmadaProxy) connect(proxyPath string, responder rest.Responder) (http.Handler, error) {
+func (p *karmadaProxy) connect(_ context.Context, _ schema.GroupVersionResource, proxyPath string, responder rest.Responder) (http.Handler, error) {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		location, transport := p.resourceLocation()
 		location.Path = path.Join(location.Path, proxyPath)

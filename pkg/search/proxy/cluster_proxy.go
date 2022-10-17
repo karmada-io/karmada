@@ -37,7 +37,12 @@ func newClusterProxy(store store.Cache, clusterLister clusterlisters.ClusterList
 	}
 }
 
-func (c *clusterProxy) connect(ctx context.Context, requestInfo *request.RequestInfo, gvr schema.GroupVersionResource, proxyPath string, responder rest.Responder) (http.Handler, error) {
+func (c *clusterProxy) connect(ctx context.Context, gvr schema.GroupVersionResource, proxyPath string, responder rest.Responder) (http.Handler, error) {
+	requestInfo, ok := request.RequestInfoFrom(ctx)
+	if !ok {
+		return nil, fmt.Errorf("missing requestInfo")
+	}
+
 	if requestInfo.Verb == "create" {
 		return nil, apierrors.NewMethodNotSupported(gvr.GroupResource(), requestInfo.Verb)
 	}

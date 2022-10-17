@@ -35,7 +35,7 @@ func newCacheProxy(store store.RESTReader, restMapper meta.RESTMapper, minReques
 	}
 }
 
-func (c *cacheProxy) connect(ctx context.Context) (http.Handler, error) {
+func (c *cacheProxy) connect(ctx context.Context, _ schema.GroupVersionResource, _ string, _ rest.Responder) (http.Handler, error) {
 	requestInfo, _ := request.RequestInfoFrom(ctx)
 	gvr := schema.GroupVersionResource{
 		Group:    requestInfo.APIGroup,
