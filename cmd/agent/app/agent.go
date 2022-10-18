@@ -221,7 +221,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
-	resourceInterpreter := resourceinterpreter.NewResourceInterpreter("", controlPlaneInformerManager)
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}

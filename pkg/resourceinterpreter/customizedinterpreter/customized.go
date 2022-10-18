@@ -26,12 +26,14 @@ import (
 
 // CustomizedInterpreter interpret custom resource with webhook configuration.
 type CustomizedInterpreter struct {
-	hookManager   configmanager.ConfigManager
-	configManager *webhookutil.ClientManager
+	// hookManager caches all webhook configurations.
+	hookManager configmanager.ConfigManager
+	// clientManager builds REST clients to talk to webhooks.
+	clientManager *webhookutil.ClientManager
 }
 
 // NewCustomizedInterpreter return a new CustomizedInterpreter.
-func NewCustomizedInterpreter(kubeconfig string, informer genericmanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
+func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
 	cm, err := webhookutil.NewClientManager(
 		[]schema.GroupVersion{configv1alpha1.SchemeGroupVersion},
 		configv1alpha1.AddToScheme,
@@ -39,7 +41,7 @@ func NewCustomizedInterpreter(kubeconfig string, informer genericmanager.SingleC
 	if err != nil {
 		return nil, err
 	}
-	authInfoResolver, err := webhookutil.NewDefaultAuthenticationInfoResolver(kubeconfig)
+	authInfoResolver, err := webhookutil.NewDefaultAuthenticationInfoResolver("")
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +50,7 @@ func NewCustomizedInterpreter(kubeconfig string, informer genericmanager.SingleC
 
 	return &CustomizedInterpreter{
 		hookManager:   configmanager.NewExploreConfigManager(informer),
-		configManager: &cm,
+		clientManager: &cm,
 	}, nil
 }
 
@@ -184,7 +186,7 @@ func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager
 		}
 	}
 
-	client, err := hook.GetRESTClient(e.configManager)
+	client, err := hook.GetRESTClient(e.clientManager)
 	if err != nil {
 		return nil, &webhookutil.ErrCallingWebhook{
 			WebhookName: hook.GetUID(),

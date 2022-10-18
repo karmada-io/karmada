@@ -49,16 +49,14 @@ type ResourceInterpreter interface {
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
-func NewResourceInterpreter(kubeconfig string, informer genericmanager.SingleClusterInformerManager) ResourceInterpreter {
+func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager) ResourceInterpreter {
 	return &customResourceInterpreterImpl{
-		kubeconfig: kubeconfig,
-		informer:   informer,
+		informer: informer,
 	}
 }
 
 type customResourceInterpreterImpl struct {
-	kubeconfig string
-	informer   genericmanager.SingleClusterInformerManager
+	informer genericmanager.SingleClusterInformerManager
 
 	customizedInterpreter *customizedinterpreter.CustomizedInterpreter
 	defaultInterpreter    *defaultinterpreter.DefaultInterpreter
@@ -68,7 +66,7 @@ type customResourceInterpreterImpl struct {
 func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	klog.Infof("Starting custom resource interpreter.")
 
-	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter(i.kubeconfig, i.informer)
+	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter(i.informer)
 	if err != nil {
 		return
 	}
