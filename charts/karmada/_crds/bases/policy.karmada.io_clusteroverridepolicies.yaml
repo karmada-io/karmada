@@ -241,7 +241,7 @@ spec:
                             properties:
                               operator:
                                 description: 'Operator indicates the operation on
-                                  target field. Available operators are: add, update
+                                  target field. Available operators are: add, replace
                                   and remove.'
                                 enum:
                                 - add
@@ -557,7 +557,7 @@ spec:
                       properties:
                         operator:
                           description: 'Operator indicates the operation on target
-                            field. Available operators are: add, update and remove.'
+                            field. Available operators are: add, replace and remove.'
                           enum:
                           - add
                           - remove
