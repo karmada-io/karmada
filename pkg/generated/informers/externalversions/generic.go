@@ -47,6 +47,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Cluster().V1alpha1().Clusters().Informer()}, nil
 
 		// Group=config.karmada.io, Version=v1alpha1
+	case configv1alpha1.SchemeGroupVersion.WithResource("resourceinterpretercustomizations"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ResourceInterpreterCustomizations().Informer()}, nil
 	case configv1alpha1.SchemeGroupVersion.WithResource("resourceinterpreterwebhookconfigurations"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ResourceInterpreterWebhookConfigurations().Informer()}, nil
 

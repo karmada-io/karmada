@@ -8,6 +8,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// ResourceInterpreterCustomizations returns a ResourceInterpreterCustomizationInformer.
+	ResourceInterpreterCustomizations() ResourceInterpreterCustomizationInformer
 	// ResourceInterpreterWebhookConfigurations returns a ResourceInterpreterWebhookConfigurationInformer.
 	ResourceInterpreterWebhookConfigurations() ResourceInterpreterWebhookConfigurationInformer
 }
@@ -21,6 +23,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// ResourceInterpreterCustomizations returns a ResourceInterpreterCustomizationInformer.
+func (v *version) ResourceInterpreterCustomizations() ResourceInterpreterCustomizationInformer {
+	return &resourceInterpreterCustomizationInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // ResourceInterpreterWebhookConfigurations returns a ResourceInterpreterWebhookConfigurationInformer.

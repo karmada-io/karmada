@@ -12,6 +12,10 @@ type FakeConfigV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeConfigV1alpha1) ResourceInterpreterCustomizations() v1alpha1.ResourceInterpreterCustomizationInterface {
+	return &FakeResourceInterpreterCustomizations{c}
+}
+
 func (c *FakeConfigV1alpha1) ResourceInterpreterWebhookConfigurations() v1alpha1.ResourceInterpreterWebhookConfigurationInterface {
 	return &FakeResourceInterpreterWebhookConfigurations{c}
 }

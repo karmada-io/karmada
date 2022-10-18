@@ -2,6 +2,10 @@
 
 package v1alpha1
 
+// ResourceInterpreterCustomizationListerExpansion allows custom methods to be added to
+// ResourceInterpreterCustomizationLister.
+type ResourceInterpreterCustomizationListerExpansion interface{}
+
 // ResourceInterpreterWebhookConfigurationListerExpansion allows custom methods to be added to
 // ResourceInterpreterWebhookConfigurationLister.
 type ResourceInterpreterWebhookConfigurationListerExpansion interface{}
