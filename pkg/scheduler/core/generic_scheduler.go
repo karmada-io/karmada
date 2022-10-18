@@ -58,7 +58,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, spec, clusterInfoSnapshot)
+	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, spec, &clusterInfoSnapshot)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}

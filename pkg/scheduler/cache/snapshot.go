@@ -15,8 +15,8 @@ type Snapshot struct {
 }
 
 // NewEmptySnapshot initializes a Snapshot struct and returns it.
-func NewEmptySnapshot() *Snapshot {
-	return &Snapshot{}
+func NewEmptySnapshot() Snapshot {
+	return Snapshot{}
 }
 
 // NumOfClusters returns the number of clusters.
