@@ -14,3 +14,5 @@ bash "$REPO_ROOT/hack/update-estimator-protobuf.sh"
 bash "$REPO_ROOT/hack/update-import-aliases.sh"
 bash "$REPO_ROOT/hack/update-swagger-docs.sh"
 bash "$REPO_ROOT/hack/update-lifted.sh"
+bash "$REPO_ROOT/hack/update-mocks.sh"
+
