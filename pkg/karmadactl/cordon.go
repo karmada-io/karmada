@@ -19,26 +19,11 @@ import (
 )
 
 var (
-	cordonShort = `Mark cluster as unschedulable`
-	cordonLong  = `Mark cluster as unschedulable.`
-
-	uncordonShort = `Mark cluster as schedulable`
-	uncordonLong  = `Mark cluster as schedulable.`
-
+	cordonShort   = `Mark cluster as unschedulable`
+	cordonLong    = `Mark cluster as unschedulable.`
 	cordonExample = templates.Examples(`
 		# Mark cluster "foo" as unschedulable.
 		%[1]s cordon foo`)
-	uncordonExample = templates.Examples(`
-		# Mark cluster "foo" as schedulable.
-		%[1]s uncordon foo`)
-)
-
-const (
-	// DesiredCordon a flag indicate karmadactl.RunCordonOrUncordon cordon a cluster,
-	// cordon prevent new resource scheduler to cordoned cluster.
-	DesiredCordon = iota
-	// DesiredUnCordon a flag indicate karmadactl.RunCordonOrUncordon uncordon a cluster.
-	DesiredUnCordon
 )
 
 // NewCmdCordon defines the `cordon` command that mark cluster as unschedulable.
@@ -55,7 +40,7 @@ func NewCmdCordon(f util.Factory, parentCommand string) *cobra.Command {
 			if err := opts.Complete(args); err != nil {
 				return err
 			}
-			if err := RunCordonOrUncordon(DesiredCordon, f, opts); err != nil {
+			if err := opts.Run(f); err != nil {
 				return err
 			}
 			return nil
@@ -74,39 +59,7 @@ func NewCmdCordon(f util.Factory, parentCommand string) *cobra.Command {
 	return cmd
 }
 
-// NewCmdUncordon defines the `uncordon` command that mark cluster as schedulable.
-func NewCmdUncordon(f util.Factory, parentCommand string) *cobra.Command {
-	opts := CommandCordonOption{}
-	cmd := &cobra.Command{
-		Use:                   "uncordon CLUSTER",
-		Short:                 uncordonShort,
-		Long:                  uncordonLong,
-		Example:               fmt.Sprintf(uncordonExample, parentCommand),
-		SilenceUsage:          true,
-		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := opts.Complete(args); err != nil {
-				return err
-			}
-			if err := RunCordonOrUncordon(DesiredUnCordon, f, opts); err != nil {
-				return err
-			}
-			return nil
-		},
-		Annotations: map[string]string{
-			util.TagCommandGroup: util.GroupClusterManagement,
-		},
-	}
-
-	flags := cmd.Flags()
-	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
-	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
-
-	return cmd
-}
-
-// CommandCordonOption holds all command options for cordon and uncordon
+// CommandCordonOption holds all command options for cordon
 type CommandCordonOption struct {
 	// ClusterName is the cluster's name that we are going to join with.
 	ClusterName string
@@ -128,34 +81,47 @@ func (o *CommandCordonOption) Complete(args []string) error {
 	return nil
 }
 
+// Run exec marks the cluster schedulable.
+func (o *CommandCordonOption) Run(f util.Factory) error {
+	karmadaClient, err := f.KarmadaClientSet()
+	if err != nil {
+		return err
+	}
+
+	cluster, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), o.ClusterName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	cordonHelper := NewCordonHelper(cluster, true)
+	if cordonHelper.hasUnschedulerTaint() {
+		fmt.Printf("%s cluster already cordoned\n", cluster.Name)
+		return nil
+	}
+
+	if !o.DryRun {
+		err := cordonHelper.PatchOrReplace(karmadaClient)
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("%s cluster cordoned\n", cluster.Name)
+	return nil
+}
+
 // CordonHelper wraps functionality to cordon/uncordon cluster
 type CordonHelper struct {
+	cordon  bool
 	cluster *clusterv1alpha1.Cluster
-	desired int
 }
 
 // NewCordonHelper returns a new CordonHelper that help execute
 // the cordon and uncordon commands
-func NewCordonHelper(cluster *clusterv1alpha1.Cluster) *CordonHelper {
+func NewCordonHelper(cluster *clusterv1alpha1.Cluster, cordon bool) *CordonHelper {
 	return &CordonHelper{
 		cluster: cluster,
+		cordon:  cordon,
 	}
-}
-
-// UpdateIfRequired returns true if unscheduler taint isn't already set,
-// or false when no change is needed
-func (c *CordonHelper) UpdateIfRequired(desired int) bool {
-	c.desired = desired
-
-	if desired == DesiredCordon && !c.hasUnschedulerTaint() {
-		return true
-	}
-
-	if desired == DesiredUnCordon && c.hasUnschedulerTaint() {
-		return true
-	}
-
-	return false
 }
 
 func (c *CordonHelper) hasUnschedulerTaint() bool {
@@ -188,11 +154,9 @@ func (c *CordonHelper) PatchOrReplace(karmadaClient karmadaclientset.Interface) 
 		Effect: corev1.TaintEffectNoSchedule,
 	}
 
-	if c.desired == DesiredCordon {
+	if c.cordon {
 		c.cluster.Spec.Taints = append(c.cluster.Spec.Taints, unschedulerTaint)
-	}
-
-	if c.desired == DesiredUnCordon {
+	} else {
 		for i, n := 0, len(c.cluster.Spec.Taints); i < n; i++ {
 			if c.cluster.Spec.Taints[i].MatchTaint(&unschedulerTaint) {
 				c.cluster.Spec.Taints[i] = c.cluster.Spec.Taints[n-1]
@@ -214,46 +178,4 @@ func (c *CordonHelper) PatchOrReplace(karmadaClient karmadaclientset.Interface) 
 		_, err = client.Update(context.TODO(), c.cluster, metav1.UpdateOptions{})
 	}
 	return err
-}
-
-// RunCordonOrUncordon exec marks the cluster unschedulable or schedulable according to desired.
-// if true cordon cluster otherwise uncordon cluster.
-func RunCordonOrUncordon(desired int, f util.Factory, opts CommandCordonOption) error {
-	cordonOrUncordon := "cordon"
-	if desired == DesiredUnCordon {
-		cordonOrUncordon = "un" + cordonOrUncordon
-	}
-
-	karmadaClient, err := f.KarmadaClientSet()
-	if err != nil {
-		return err
-	}
-
-	cluster, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), opts.ClusterName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	cordonHelper := NewCordonHelper(cluster)
-	if !cordonHelper.UpdateIfRequired(desired) {
-		fmt.Printf("%s cluster %s\n", cluster.Name, alreadyStr(desired))
-		return nil
-	}
-
-	if !opts.DryRun {
-		err := cordonHelper.PatchOrReplace(karmadaClient)
-		if err != nil {
-			return err
-		}
-	}
-
-	fmt.Printf("%s cluster %sed\n", cluster.Name, cordonOrUncordon)
-	return nil
-}
-
-func alreadyStr(desired int) string {
-	if desired == DesiredCordon {
-		return "already cordoned"
-	}
-	return "already uncordoned"
 }

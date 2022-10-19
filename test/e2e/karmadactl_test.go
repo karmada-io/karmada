@@ -536,7 +536,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 				DryRun:      false,
 				ClusterName: clusterName,
 			}
-			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredCordon, f, opts)
+			err := opts.Run(f)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		})
@@ -556,11 +556,11 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		})
 
 		ginkgo.It(fmt.Sprintf("cluster %s should not have unschedulable:NoSchedule taint", clusterName), func() {
-			opts := karmadactl.CommandCordonOption{
+			opts := karmadactl.CommandUncordonOption{
 				DryRun:      false,
 				ClusterName: clusterName,
 			}
-			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredUnCordon, f, opts)
+			err := opts.Run(f)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 			ginkgo.By(fmt.Sprintf("cluster %s taint(unschedulable:NoSchedule) will be removed", clusterName), func() {
