@@ -45,7 +45,7 @@ As a cluster administrator, I want each cluster could be assigned with a unique 
 
 #### Story 2
 
-As a cluster administrator, when I create a `id.k8s.io ClusterProperty` in a kubernetes cluster, I want to use it as its cluster ID after joining Karmada, so that to uniquely identify the cluster.
+As a cluster administrator, when I create a `cluster.clusterset.k8s.io ClusterProperty` in a kubernetes cluster, I want to use it as its cluster ID after joining Karmada, so that to uniquely identify the cluster.
 
 ### Notes/Constraints/Caveats (Optional)
 
@@ -99,15 +99,15 @@ type ClusterStatus struct {
 }
 ```
 
-We provide a flag (such as `create-clusterproperty-not-exist`) to tell Karmada whether to create `id.k8s.io ClusterProperty` when it does not exist in the Kubernetes Cluster. During the cluster joining process, Karmada will look for if the kubernetes cluster has defined the cluster identifier by `id.k8s.io ClusterProperty`. If so, we just take the `id.k8s.io ClusterProperty` value as cluster id; otherwise, when the `create-clusterproperty-not-exist` flag is true, we'll just use kubernetes cluster's `kube-system` namespace uuid to create `id.k8s.io ClusterProperty`, when the `create-clusterproperty-not-exist` flag is false, we refuse to join the cluster into Karmada.
+We provide a flag (such as `create-clusterproperty-not-exist`) to tell Karmada whether to create `cluster.clusterset.k8s.io ClusterProperty` when it does not exist in the Kubernetes Cluster. During the cluster joining process, Karmada will look for if the kubernetes cluster has defined the cluster identifier by `cluster.clusterset.k8s.io ClusterProperty`. If so, we just take the `cluster.clusterset.k8s.io ClusterProperty` value as cluster id; otherwise, when the `create-clusterproperty-not-exist` flag is true, we'll just use kubernetes cluster's `kube-system` namespace uuid to create `cluster.clusterset.k8s.io ClusterProperty`, when the `create-clusterproperty-not-exist` flag is false, we refuse to join the cluster into Karmada.
 
-> Note: We will use the latest version of ClusterProperty CRD to create `id.k8s.io ClusterProperty`. If the ClusterProperty version in the kubernetes cluster does not match, the user needs to upgrade the ClusterProperty version.
+> Note: We will use the latest version of ClusterProperty CRD to create `cluster.clusterset.k8s.io ClusterProperty`. If the ClusterProperty version in the kubernetes cluster does not match, the user needs to upgrade the ClusterProperty version.
 
 Just as phase one, we need to use the same check to ensure the uniqueness of the cluster in Karmada.
 
 Again, this check can be performed in two places: one in the join phase and the other in the Cluster object creation phase. We can choose one of them.
 
-When a cluster is removed from Karmada, `id.k8s.io ClusterProperty` created in the cluster do not need to be deleted.
+When a cluster is removed from Karmada, `cluster.clusterset.k8s.io ClusterProperty` created in the cluster do not need to be deleted.
 
 ### Test Plan
 
