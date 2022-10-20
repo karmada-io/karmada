@@ -159,7 +159,7 @@ webhooks:
     timeoutSeconds: 3`, systemNamespace, caBundle)
 }
 
-func createValidatingWebhookConfiguration(c *kubernetes.Clientset, staticYaml string) error {
+func createValidatingWebhookConfiguration(c kubernetes.Interface, staticYaml string) error {
 	obj := admissionregistrationv1.ValidatingWebhookConfiguration{}
 
 	if err := json.Unmarshal(utils.StaticYamlToJSONByte(staticYaml), &obj); err != nil {
@@ -173,7 +173,7 @@ func createValidatingWebhookConfiguration(c *kubernetes.Clientset, staticYaml st
 	return nil
 }
 
-func createMutatingWebhookConfiguration(c *kubernetes.Clientset, staticYaml string) error {
+func createMutatingWebhookConfiguration(c kubernetes.Interface, staticYaml string) error {
 	obj := admissionregistrationv1.MutatingWebhookConfiguration{}
 
 	if err := json.Unmarshal(utils.StaticYamlToJSONByte(staticYaml), &obj); err != nil {

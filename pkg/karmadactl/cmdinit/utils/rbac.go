@@ -47,7 +47,7 @@ func ClusterRoleBindingFromSubjects(clusterRoleBindingName, clusterRoleName stri
 }
 
 // CreateIfNotExistClusterRole  create ClusterRole when it doesn't exist
-func CreateIfNotExistClusterRole(clientSet *kubernetes.Clientset, role *rbacv1.ClusterRole) error {
+func CreateIfNotExistClusterRole(clientSet kubernetes.Interface, role *rbacv1.ClusterRole) error {
 	clusterRoleClient := clientSet.RbacV1().ClusterRoles()
 	_, err := clusterRoleClient.Get(context.TODO(), role.Name, metav1.GetOptions{})
 	if err != nil {
@@ -68,7 +68,7 @@ func CreateIfNotExistClusterRole(clientSet *kubernetes.Clientset, role *rbacv1.C
 }
 
 // CreateIfNotExistClusterRoleBinding create ClusterRoleBinding when it doesn't exist
-func CreateIfNotExistClusterRoleBinding(clientSet *kubernetes.Clientset, binding *rbacv1.ClusterRoleBinding) error {
+func CreateIfNotExistClusterRoleBinding(clientSet kubernetes.Interface, binding *rbacv1.ClusterRoleBinding) error {
 	crbClient := clientSet.RbacV1().ClusterRoleBindings()
 	_, err := crbClient.Get(context.TODO(), binding.Name, metav1.GetOptions{})
 	if err != nil {
@@ -89,7 +89,7 @@ func CreateIfNotExistClusterRoleBinding(clientSet *kubernetes.Clientset, binding
 }
 
 // CreateOrUpdateRole creates a Role if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateRole(clientSet *kubernetes.Clientset, role *rbacv1.Role) error {
+func CreateOrUpdateRole(clientSet kubernetes.Interface, role *rbacv1.Role) error {
 	if _, err := clientSet.RbacV1().Roles(role.ObjectMeta.Namespace).Create(context.TODO(), role, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("unable to create RBAC role: %v", err)
@@ -105,7 +105,7 @@ func CreateOrUpdateRole(clientSet *kubernetes.Clientset, role *rbacv1.Role) erro
 }
 
 // CreateOrUpdateRoleBinding creates a RoleBinding if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateRoleBinding(clientSet *kubernetes.Clientset, roleBinding *rbacv1.RoleBinding) error {
+func CreateOrUpdateRoleBinding(clientSet kubernetes.Interface, roleBinding *rbacv1.RoleBinding) error {
 	if _, err := clientSet.RbacV1().RoleBindings(roleBinding.ObjectMeta.Namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("unable to create RBAC rolebinding: %v", err)
