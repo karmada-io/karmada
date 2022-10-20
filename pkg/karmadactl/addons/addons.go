@@ -7,6 +7,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons/install"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 var (
@@ -27,6 +28,9 @@ func NewCommandAddons(parentCommand string) *cobra.Command {
 		Short:   "Enable or disable a Karmada addon",
 		Long:    "Enable or disable a Karmada addon",
 		Example: fmt.Sprintf(addonsExamples, parentCommand),
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterRegistration,
+		},
 	}
 
 	addonsParentCommand := fmt.Sprintf("%s %s", parentCommand, "addons")

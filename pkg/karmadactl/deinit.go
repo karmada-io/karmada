@@ -13,6 +13,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -58,6 +59,9 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 				return err
 			}
 			return nil
+		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterRegistration,
 		},
 	}
 

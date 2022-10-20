@@ -38,6 +38,7 @@ import (
 	check "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/pubkeypin"
@@ -146,6 +147,9 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 				return err
 			}
 			return nil
+		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterRegistration,
 		},
 	}
 	flags := cmd.Flags()

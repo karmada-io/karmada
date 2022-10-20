@@ -83,6 +83,9 @@ func NewCmdApply(f util.Factory, parentCommand string, streams genericclioptions
 			}
 			return o.Run()
 		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupAdvancedCommands,
+		},
 	}
 
 	o.KubectlApplyFlags.AddFlags(cmd)

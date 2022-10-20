@@ -70,6 +70,9 @@ func NewCmdExec(f util.Factory, parentCommand string, streams genericclioptions.
 			}
 			return nil
 		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterTroubleshootingAndDebugging,
+		},
 	}
 
 	flags := cmd.Flags()

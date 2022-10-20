@@ -17,6 +17,7 @@ import (
 
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	karmadactlutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -57,6 +58,9 @@ func NewCmdUnjoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comm
 				return err
 			}
 			return nil
+		},
+		Annotations: map[string]string{
+			karmadactlutil.TagCommandGroup: karmadactlutil.GroupClusterRegistration,
 		},
 	}
 

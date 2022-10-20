@@ -9,6 +9,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -86,6 +87,9 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 				}
 			}
 			return nil
+		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterRegistration,
 		},
 	}
 	flags := cmd.Flags()

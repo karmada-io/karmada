@@ -22,6 +22,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 )
 
@@ -63,6 +64,9 @@ func NewCmdToken(karmadaConfig KarmadaConfig, parentCommand string, streams gene
 		Short:   "Manage bootstrap tokens",
 		Long:    tokenLong,
 		Example: fmt.Sprintf(tokenExamples, parentCommand),
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterRegistration,
+		},
 	}
 
 	cmd.AddCommand(NewCmdTokenCreate(karmadaConfig, streams.Out, opts))
