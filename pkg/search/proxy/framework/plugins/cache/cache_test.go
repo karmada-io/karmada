@@ -1,4 +1,4 @@
-package proxy
+package cache
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -21,16 +20,9 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/request"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/search/proxy/store"
+	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
+	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
-)
-
-var (
-	podGVR     = corev1.SchemeGroupVersion.WithResource("pods")
-	nodeGVR    = corev1.SchemeGroupVersion.WithResource("nodes")
-	secretGVR  = corev1.SchemeGroupVersion.WithResource("secret")
-	clusterGVR = clusterv1alpha1.SchemeGroupVersion.WithResource("cluster")
 )
 
 func TestCacheProxy_connect(t *testing.T) {
@@ -46,8 +38,8 @@ func TestCacheProxy_connect(t *testing.T) {
 	}
 
 	var actual want
-	p := &cacheProxy{
-		store: &restReaderFuncs{
+	p := &Cache{
+		store: &proxytest.MockStore{
 			GetFunc: func(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error) {
 				actual = want{}
 				actual.namespace = request.NamespaceValue(ctx)
@@ -76,7 +68,7 @@ func TestCacheProxy_connect(t *testing.T) {
 				return w, nil
 			},
 		},
-		restMapper: restMapper,
+		restMapper: proxytest.RestMapper,
 	}
 	tests := []struct {
 		name string
@@ -90,7 +82,7 @@ func TestCacheProxy_connect(t *testing.T) {
 			},
 			want: want{
 				name:       "foo",
-				gvr:        nodeGVR,
+				gvr:        proxytest.NodeGVR,
 				getOptions: &metav1.GetOptions{},
 			},
 		},
@@ -102,7 +94,7 @@ func TestCacheProxy_connect(t *testing.T) {
 			want: want{
 				namespace:  "default",
 				name:       "foo",
-				gvr:        podGVR,
+				gvr:        proxytest.PodGVR,
 				getOptions: &metav1.GetOptions{},
 			},
 		},
@@ -114,7 +106,7 @@ func TestCacheProxy_connect(t *testing.T) {
 			want: want{
 				namespace:  "default",
 				name:       "foo",
-				gvr:        podGVR,
+				gvr:        proxytest.PodGVR,
 				getOptions: &metav1.GetOptions{ResourceVersion: "1000"},
 			},
 		},
@@ -124,7 +116,7 @@ func TestCacheProxy_connect(t *testing.T) {
 				url: "/api/v1/nodes",
 			},
 			want: want{
-				gvr:         nodeGVR,
+				gvr:         proxytest.NodeGVR,
 				listOptions: &metainternalversion.ListOptions{},
 			},
 		},
@@ -135,7 +127,7 @@ func TestCacheProxy_connect(t *testing.T) {
 			},
 			want: want{
 				namespace:   "default",
-				gvr:         podGVR,
+				gvr:         proxytest.PodGVR,
 				listOptions: &metainternalversion.ListOptions{},
 			},
 		},
@@ -146,7 +138,7 @@ func TestCacheProxy_connect(t *testing.T) {
 			},
 			want: want{
 				namespace: "default",
-				gvr:       podGVR,
+				gvr:       proxytest.PodGVR,
 				listOptions: &metainternalversion.ListOptions{
 					LabelSelector:   asLabelSelector("app=foo"),
 					FieldSelector:   fields.OneTermEqualSelector("metadata.name", "bar"),
@@ -161,7 +153,7 @@ func TestCacheProxy_connect(t *testing.T) {
 				url: "/api/v1/nodes?watch=true",
 			},
 			want: want{
-				gvr: nodeGVR,
+				gvr: proxytest.NodeGVR,
 				listOptions: &metainternalversion.ListOptions{
 					LabelSelector: labels.NewSelector(),
 					FieldSelector: fields.Everything(),
@@ -176,7 +168,7 @@ func TestCacheProxy_connect(t *testing.T) {
 			},
 			want: want{
 				namespace: "default",
-				gvr:       podGVR,
+				gvr:       proxytest.PodGVR,
 				listOptions: &metainternalversion.ListOptions{
 					LabelSelector: labels.NewSelector(),
 					FieldSelector: fields.Everything(),
@@ -191,7 +183,7 @@ func TestCacheProxy_connect(t *testing.T) {
 			},
 			want: want{
 				namespace: "default",
-				gvr:       podGVR,
+				gvr:       proxytest.PodGVR,
 				listOptions: &metainternalversion.ListOptions{
 					LabelSelector:   asLabelSelector("app=foo"),
 					FieldSelector:   fields.OneTermEqualSelector("metadata.name", "bar"),
@@ -219,7 +211,19 @@ func TestCacheProxy_connect(t *testing.T) {
 				req = req.WithContext(request.WithNamespace(req.Context(), requestInfo.Namespace))
 			}
 
-			h, err := p.connect(req.Context(), podGVR, "", nil)
+			gvr := schema.GroupVersionResource{
+				Group:    requestInfo.APIGroup,
+				Version:  requestInfo.APIVersion,
+				Resource: requestInfo.Resource,
+			}
+
+			h, err := p.Connect(req.Context(), framework.ProxyRequest{
+				RequestInfo:          requestInfo,
+				GroupVersionResource: gvr,
+				ProxyPath:            "",
+				Responder:            nil,
+				HTTPReq:              req,
+			})
 			if err != nil {
 				t.Error(err)
 				return
@@ -242,35 +246,6 @@ func TestCacheProxy_connect(t *testing.T) {
 			}
 		})
 	}
-}
-
-type restReaderFuncs struct {
-	GetFunc   func(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error)
-	ListFunc  func(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (runtime.Object, error)
-	WatchFunc func(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error)
-}
-
-var _ store.RESTReader = &restReaderFuncs{}
-
-func (r *restReaderFuncs) Get(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	if r.GetFunc == nil {
-		panic("implement me")
-	}
-	return r.GetFunc(ctx, gvr, name, options)
-}
-
-func (r *restReaderFuncs) List(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (runtime.Object, error) {
-	if r.GetFunc == nil {
-		panic("implement me")
-	}
-	return r.ListFunc(ctx, gvr, options)
-}
-
-func (r *restReaderFuncs) Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error) {
-	if r.GetFunc == nil {
-		panic("implement me")
-	}
-	return r.WatchFunc(ctx, gvr, options)
 }
 
 type emptyResponseWriter struct{}

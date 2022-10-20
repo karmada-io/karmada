@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,14 +12,10 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/diff"
-	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -31,23 +26,10 @@ import (
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	karmadainformers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
-	"github.com/karmada-io/karmada/pkg/search/proxy/store"
+	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
+	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
+	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 )
-
-var (
-	podGVK  = corev1.SchemeGroupVersion.WithKind("Pod")
-	nodeGVK = corev1.SchemeGroupVersion.WithKind("Node")
-
-	podSelector  = searchv1alpha1.ResourceSelector{APIVersion: podGVK.GroupVersion().String(), Kind: podGVK.Kind}
-	nodeSelector = searchv1alpha1.ResourceSelector{APIVersion: nodeGVK.GroupVersion().String(), Kind: nodeGVK.Kind}
-
-	restMapper = meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
-)
-
-func init() {
-	restMapper.Add(podGVK, meta.RESTScopeNamespace)
-	restMapper.Add(nodeGVK, meta.RESTScopeRoot)
-}
 
 func TestController(t *testing.T) {
 	restConfig := &restclient.Config{
@@ -59,7 +41,7 @@ func TestController(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "rr"},
 		Spec: searchv1alpha1.ResourceRegistrySpec{
 			ResourceSelectors: []searchv1alpha1.ResourceSelector{
-				podSelector,
+				proxytest.PodSelector,
 			},
 		},
 	}
@@ -67,13 +49,14 @@ func TestController(t *testing.T) {
 	kubeFactory := informers.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
 	karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadafake.NewSimpleClientset(cluster1, rr), 0)
 
-	ctrl, err := NewController(
-		restConfig,
-		restMapper,
-		kubeFactory,
-		karmadaFactory,
-		0,
-	)
+	ctrl, err := NewController(NewControllerOption{
+		RestConfig:        restConfig,
+		RestMapper:        proxytest.RestMapper,
+		KubeFactory:       kubeFactory,
+		KarmadaFactory:    karmadaFactory,
+		MinRequestTimeout: 0,
+	})
+
 	if err != nil {
 		t.Error(err)
 		return
@@ -95,7 +78,7 @@ func TestController(t *testing.T) {
 	// wait for controller synced
 	time.Sleep(time.Second)
 
-	hasPod := ctrl.store.HasResource(podGVR)
+	hasPod := ctrl.store.HasResource(proxytest.PodGVR)
 	if !hasPod {
 		t.Error("has no pod resource")
 		return
@@ -127,7 +110,7 @@ func TestController_reconcile(t *testing.T) {
 							ClusterNames: []string{"cluster1"},
 						},
 						ResourceSelectors: []searchv1alpha1.ResourceSelector{
-							podSelector,
+							proxytest.PodSelector,
 						},
 					},
 				},
@@ -146,8 +129,8 @@ func TestController_reconcile(t *testing.T) {
 							ClusterNames: []string{"cluster1", "cluster2"},
 						},
 						ResourceSelectors: []searchv1alpha1.ResourceSelector{
-							podSelector,
-							nodeSelector,
+							proxytest.PodSelector,
+							proxytest.NodeSelector,
 						},
 					},
 				},
@@ -166,14 +149,14 @@ func TestController_reconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "rr1"},
 					Spec: searchv1alpha1.ResourceRegistrySpec{
 						TargetCluster:     policyv1alpha1.ClusterAffinity{ClusterNames: []string{"cluster1"}},
-						ResourceSelectors: []searchv1alpha1.ResourceSelector{podSelector},
+						ResourceSelectors: []searchv1alpha1.ResourceSelector{proxytest.PodSelector},
 					},
 				},
 				&searchv1alpha1.ResourceRegistry{
 					ObjectMeta: metav1.ObjectMeta{Name: "rr2"},
 					Spec: searchv1alpha1.ResourceRegistrySpec{
 						TargetCluster:     policyv1alpha1.ClusterAffinity{ClusterNames: []string{"cluster2"}},
-						ResourceSelectors: []searchv1alpha1.ResourceSelector{nodeSelector},
+						ResourceSelectors: []searchv1alpha1.ResourceSelector{proxytest.NodeSelector},
 					},
 				},
 			},
@@ -191,14 +174,14 @@ func TestController_reconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "rr1"},
 					Spec: searchv1alpha1.ResourceRegistrySpec{
 						TargetCluster:     policyv1alpha1.ClusterAffinity{ClusterNames: []string{"cluster1"}},
-						ResourceSelectors: []searchv1alpha1.ResourceSelector{podSelector, nodeSelector},
+						ResourceSelectors: []searchv1alpha1.ResourceSelector{proxytest.PodSelector, proxytest.NodeSelector},
 					},
 				},
 				&searchv1alpha1.ResourceRegistry{
 					ObjectMeta: metav1.ObjectMeta{Name: "rr2"},
 					Spec: searchv1alpha1.ResourceRegistrySpec{
 						TargetCluster:     policyv1alpha1.ClusterAffinity{ClusterNames: []string{"cluster2"}},
-						ResourceSelectors: []searchv1alpha1.ResourceSelector{nodeSelector},
+						ResourceSelectors: []searchv1alpha1.ResourceSelector{proxytest.NodeSelector},
 					},
 				},
 			},
@@ -219,8 +202,8 @@ func TestController_reconcile(t *testing.T) {
 							ClusterNames: []string{"cluster1"},
 						},
 						ResourceSelectors: []searchv1alpha1.ResourceSelector{
-							podSelector,
-							podSelector,
+							proxytest.PodSelector,
+							proxytest.PodSelector,
 						},
 					},
 				},
@@ -241,7 +224,7 @@ func TestController_reconcile(t *testing.T) {
 							ClusterNames: []string{"cluster1"},
 						},
 						ResourceSelectors: []searchv1alpha1.ResourceSelector{
-							podSelector,
+							proxytest.PodSelector,
 						},
 					},
 				},
@@ -252,7 +235,7 @@ func TestController_reconcile(t *testing.T) {
 							ClusterNames: []string{"cluster1"},
 						},
 						ResourceSelectors: []searchv1alpha1.ResourceSelector{
-							podSelector,
+							proxytest.PodSelector,
 						},
 					},
 				},
@@ -288,10 +271,10 @@ func TestController_reconcile(t *testing.T) {
 			karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadaClientset, 0)
 
 			ctl := &Controller{
-				restMapper:     restMapper,
+				restMapper:     proxytest.RestMapper,
 				clusterLister:  karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
 				registryLister: karmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
-				store: &cacheFuncs{
+				store: &proxytest.MockStore{
 					UpdateCacheFunc: func(m map[string]map[schema.GroupVersionResource]struct{}) error {
 						for clusterName, resources := range m {
 							resourceNames := make([]string, 0, len(resources))
@@ -324,148 +307,165 @@ func TestController_reconcile(t *testing.T) {
 	}
 }
 
-func TestController_Connect(t *testing.T) {
-	var karmadaProxying, clusterProxying, cacheProxying bool
-	ctl := &Controller{
-		karmadaProxy: connectFunc(func(context.Context, schema.GroupVersionResource, string, rest.Responder) (http.Handler, error) {
-			return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-				karmadaProxying = true
-			}), nil
-		}),
-		cacheProxy: connectFunc(func(context.Context, schema.GroupVersionResource, string, rest.Responder) (http.Handler, error) {
-			return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-				cacheProxying = true
-			}), nil
-		}),
-		clusterProxy: connectFunc(func(context.Context, schema.GroupVersionResource, string, rest.Responder) (http.Handler, error) {
-			return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-				clusterProxying = true
-			}), nil
-		}),
-		store: &cacheFuncs{
-			HasResourceFunc: func(gvr schema.GroupVersionResource) bool { return gvr == podGVR },
-		},
+type mockPlugin struct {
+	TheOrder         int
+	IsSupportRequest bool
+	Called           bool
+}
+
+var _ framework.Plugin = (*mockPlugin)(nil)
+
+func (r *mockPlugin) Order() int {
+	return r.TheOrder
+}
+
+func (r *mockPlugin) SupportRequest(request framework.ProxyRequest) bool {
+	return r.IsSupportRequest
+}
+
+func (r *mockPlugin) Connect(ctx context.Context, request framework.ProxyRequest) (http.Handler, error) {
+	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		r.Called = true
+	}), nil
+}
+
+func convertPluginSlice(in []*mockPlugin) []framework.Plugin {
+	out := make([]framework.Plugin, 0, len(in))
+	for _, plugin := range in {
+		out = append(out, plugin)
 	}
 
-	type args struct {
-		path string
-	}
-	type want struct {
-		karmadaProxying, clusterProxying, cacheProxying bool
+	return out
+}
+
+func TestController_Connect(t *testing.T) {
+	store := &proxytest.MockStore{
+		HasResourceFunc: func(gvr schema.GroupVersionResource) bool { return gvr == proxytest.PodGVR },
 	}
 
 	tests := []struct {
-		name string
-		args args
-		want want
+		name       string
+		plugins    []*mockPlugin
+		wantErr    bool
+		wantCalled []bool
 	}{
 		{
-			name: "get api from karmada",
-			args: args{
-				path: "/api",
+			name: "call first",
+			plugins: []*mockPlugin{
+				{
+					TheOrder:         0,
+					IsSupportRequest: true,
+				},
+				{
+					TheOrder:         1,
+					IsSupportRequest: true,
+				},
 			},
-			want: want{
-				karmadaProxying: true,
-			},
+			wantErr:    false,
+			wantCalled: []bool{true, false},
 		},
 		{
-			name: "get event api karmada",
-			args: args{
-				path: "/apis/events.k8s.io/v1",
+			name: "call second",
+			plugins: []*mockPlugin{
+				{
+					TheOrder:         0,
+					IsSupportRequest: false,
+				},
+				{
+					TheOrder:         1,
+					IsSupportRequest: true,
+				},
 			},
-			want: want{
-				karmadaProxying: true,
-			},
+			wantErr:    false,
+			wantCalled: []bool{false, true},
 		},
 		{
-			name: "list nodes from karmada",
-			args: args{
-				path: "/api/v1/nodes",
+			name: "call fail",
+			plugins: []*mockPlugin{
+				{
+					TheOrder:         0,
+					IsSupportRequest: false,
+				},
+				{
+					TheOrder:         1,
+					IsSupportRequest: false,
+				},
 			},
-			want: want{
-				karmadaProxying: true,
-			},
-		},
-		{
-			name: "get node from karmada",
-			args: args{
-				path: "/api/v1/nodes",
-			},
-			want: want{
-				karmadaProxying: true,
-			},
-		},
-		{
-			name: "list pod from cache",
-			args: args{
-				path: "/api/v1/pods",
-			},
-			want: want{
-				cacheProxying: true,
-			},
-		},
-		{
-			name: "list pod from cache with namespace",
-			args: args{
-				path: "/api/v1/namespaces/default/pods",
-			},
-			want: want{
-				cacheProxying: true,
-			},
-		},
-		{
-			name: "get pod from cache",
-			args: args{
-				path: "/api/v1/namespaces/default/pods/foo",
-			},
-			want: want{
-				cacheProxying: true,
-			},
-		},
-		{
-			name: "get pod log from cluster",
-			args: args{
-				path: "/api/v1/namespaces/default/pods/foo/log",
-			},
-			want: want{
-				clusterProxying: true,
-			},
+			wantErr:    true,
+			wantCalled: []bool{false, false},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			karmadaProxying, clusterProxying, cacheProxying = false, false, false
-			conn, err := ctl.Connect(context.TODO(), tt.args.path, nil)
-			if err != nil {
-				t.Error(err)
-				return
+			ctl := &Controller{
+				proxy:                pluginruntime.NewFramework(convertPluginSlice(tt.plugins)),
+				negotiatedSerializer: scheme.Codecs.WithoutConversion(),
+				store:                store,
 			}
-			req, err := http.NewRequest("GET", "/prefix"+tt.args.path, nil)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			conn.ServeHTTP(httptest.NewRecorder(), req)
 
-			if karmadaProxying != tt.want.karmadaProxying {
-				t.Errorf("karmadaProxying get = %v, want = %v", karmadaProxying, tt.want.karmadaProxying)
+			conn, err := ctl.Connect(context.TODO(), "/api/v1/pods", nil)
+			if err != nil {
+				t.Fatal(err)
 			}
-			if cacheProxying != tt.want.cacheProxying {
-				t.Errorf("cacheProxying get = %v, want = %v", cacheProxying, tt.want.cacheProxying)
+
+			req, err := http.NewRequest("GET", "/prefix/api/v1/pods", nil)
+			if err != nil {
+				t.Fatal(err)
 			}
-			if clusterProxying != tt.want.clusterProxying {
-				t.Errorf("clusterProxying get = %v, want = %v", clusterProxying, tt.want.clusterProxying)
+
+			recorder := httptest.NewRecorder()
+			conn.ServeHTTP(recorder, req)
+
+			response := recorder.Result()
+			fmt.Printf("response: %v", response)
+
+			if (response.StatusCode != 200) != tt.wantErr {
+				t.Errorf("http request returned status code = %v, want error = %v",
+					response.StatusCode, tt.wantErr)
+			}
+
+			if len(tt.plugins) != len(tt.wantCalled) {
+				panic("len(tt.plugins) != len(tt.wantCalled), please fix test cases")
+			}
+
+			for i, n := 0, len(tt.plugins); i < n; i++ {
+				if tt.plugins[i].Called != tt.wantCalled[i] {
+					t.Errorf("plugin[%v].Called = %v, want = %v", i, tt.plugins[i].Called, tt.wantCalled[i])
+				}
 			}
 		})
 	}
 }
 
+type failPlugin struct{}
+
+var _ framework.Plugin = (*failPlugin)(nil)
+
+func (r *failPlugin) Order() int {
+	return 0
+}
+
+func (r *failPlugin) SupportRequest(request framework.ProxyRequest) bool {
+	return true
+}
+
+func (r *failPlugin) Connect(ctx context.Context, request framework.ProxyRequest) (http.Handler, error) {
+	return nil, fmt.Errorf("test")
+}
+
 func TestController_Connect_Error(t *testing.T) {
+	store := &proxytest.MockStore{
+		HasResourceFunc: func(gvr schema.GroupVersionResource) bool {
+			return gvr == proxytest.PodGVR
+		},
+	}
+
+	plugins := []framework.Plugin{&failPlugin{}}
+
 	ctl := &Controller{
-		karmadaProxy: connectFunc(func(context.Context, schema.GroupVersionResource, string, rest.Responder) (http.Handler, error) {
-			return nil, fmt.Errorf("test")
-		}),
+		proxy:                pluginruntime.NewFramework(plugins),
+		store:                store,
 		negotiatedSerializer: scheme.Codecs.WithoutConversion(),
 	}
 
@@ -491,287 +491,8 @@ func TestController_Connect_Error(t *testing.T) {
 	}
 }
 
-func TestController_dynamicClientForCluster(t *testing.T) {
-	// copy from go/src/net/http/internal/testcert/testcert.go
-	testCA := []byte(`-----BEGIN CERTIFICATE-----
-MIIDOTCCAiGgAwIBAgIQSRJrEpBGFc7tNb1fb5pKFzANBgkqhkiG9w0BAQsFADAS
-MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
-MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-MIIBCgKCAQEA6Gba5tHV1dAKouAaXO3/ebDUU4rvwCUg/CNaJ2PT5xLD4N1Vcb8r
-bFSW2HXKq+MPfVdwIKR/1DczEoAGf/JWQTW7EgzlXrCd3rlajEX2D73faWJekD0U
-aUgz5vtrTXZ90BQL7WvRICd7FlEZ6FPOcPlumiyNmzUqtwGhO+9ad1W5BqJaRI6P
-YfouNkwR6Na4TzSj5BrqUfP0FwDizKSJ0XXmh8g8G9mtwxOSN3Ru1QFc61Xyeluk
-POGKBV/q6RBNklTNe0gI8usUMlYyoC7ytppNMW7X2vodAelSu25jgx2anj9fDVZu
-h7AXF5+4nJS4AAt0n1lNY7nGSsdZas8PbQIDAQABo4GIMIGFMA4GA1UdDwEB/wQE
-AwICpDATBgNVHSUEDDAKBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud
-DgQWBBStsdjh3/JCXXYlQryOrL4Sh7BW5TAuBgNVHREEJzAlggtleGFtcGxlLmNv
-bYcEfwAAAYcQAAAAAAAAAAAAAAAAAAAAATANBgkqhkiG9w0BAQsFAAOCAQEAxWGI
-5NhpF3nwwy/4yB4i/CwwSpLrWUa70NyhvprUBC50PxiXav1TeDzwzLx/o5HyNwsv
-cxv3HdkLW59i/0SlJSrNnWdfZ19oTcS+6PtLoVyISgtyN6DpkKpdG1cOkW3Cy2P2
-+tK/tKHRP1Y/Ra0RiDpOAmqn0gCOFGz8+lqDIor/T7MTpibL3IxqWfPrvfVRHL3B
-grw/ZQTTIVjjh4JBSW3WyWgNo/ikC1lrVxzl4iPUGptxT36Cr7Zk2Bsg0XqwbOvK
-5d+NTDREkSnUbie4GeutujmX3Dsx88UiV6UY/4lHJa6I5leHUNOHahRbpbWeOfs/
-WkBKOclmOV2xlTVuPw==
------END CERTIFICATE-----`)
-
-	type args struct {
-		clusters []runtime.Object
-		secrets  []runtime.Object
-	}
-
-	type want struct {
-		err error
-	}
-
-	tests := []struct {
-		name string
-		args args
-		want want
-	}{
-		{
-			name: "cluster not found",
-			args: args{
-				clusters: nil,
-				secrets:  nil,
-			},
-			want: want{
-				err: apierrors.NewNotFound(schema.GroupResource{Resource: "cluster", Group: "cluster.karmada.io"}, "test"),
-			},
-		},
-		{
-			name: "api endpoint is empty",
-			args: args{
-				clusters: []runtime.Object{&clusterv1alpha1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test",
-					},
-					Spec: clusterv1alpha1.ClusterSpec{},
-				}},
-				secrets: nil,
-			},
-			want: want{
-				err: errors.New("the api endpoint of cluster test is empty"),
-			},
-		},
-		{
-			name: "secret is empty",
-			args: args{
-				clusters: []runtime.Object{&clusterv1alpha1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test",
-					},
-					Spec: clusterv1alpha1.ClusterSpec{
-						APIEndpoint: "https://localhost",
-					},
-				}},
-				secrets: nil,
-			},
-			want: want{
-				err: errors.New("cluster test does not have a secret"),
-			},
-		},
-		{
-			name: "secret not found",
-			args: args{
-				clusters: []runtime.Object{&clusterv1alpha1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test",
-					},
-					Spec: clusterv1alpha1.ClusterSpec{
-						APIEndpoint: "https://localhost",
-						SecretRef: &clusterv1alpha1.LocalSecretReference{
-							Namespace: "default",
-							Name:      "test_secret",
-						},
-					},
-				}},
-				secrets: nil,
-			},
-			want: want{
-				err: errors.New(`secret "test_secret" not found`),
-			},
-		},
-		{
-			name: "token not found",
-			args: args{
-				clusters: []runtime.Object{&clusterv1alpha1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test",
-					},
-					Spec: clusterv1alpha1.ClusterSpec{
-						APIEndpoint: "https://localhost",
-						SecretRef: &clusterv1alpha1.LocalSecretReference{
-							Namespace: "default",
-							Name:      "test_secret",
-						},
-					},
-				}},
-				secrets: []runtime.Object{&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "default",
-						Name:      "test_secret",
-					},
-					Data: map[string][]byte{},
-				}},
-			},
-			want: want{
-				err: errors.New(`the secret for cluster test is missing a non-empty value for "token"`),
-			},
-		},
-		{
-			name: "success",
-			args: args{
-				clusters: []runtime.Object{&clusterv1alpha1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test",
-					},
-					Spec: clusterv1alpha1.ClusterSpec{
-						APIEndpoint: "https://localhost",
-						SecretRef: &clusterv1alpha1.LocalSecretReference{
-							Namespace: "default",
-							Name:      "test_secret",
-						},
-					},
-				}},
-				secrets: []runtime.Object{&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "default",
-						Name:      "test_secret",
-					},
-					Data: map[string][]byte{
-						clusterv1alpha1.SecretTokenKey:  []byte("test_token"),
-						clusterv1alpha1.SecretCADataKey: testCA,
-					},
-				}},
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		{
-			name: "has proxy",
-			args: args{
-				clusters: []runtime.Object{&clusterv1alpha1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test",
-					},
-					Spec: clusterv1alpha1.ClusterSpec{
-						APIEndpoint: "https://localhost",
-						SecretRef: &clusterv1alpha1.LocalSecretReference{
-							Namespace: "default",
-							Name:      "test_secret",
-						},
-						ProxyURL: "https://localhost",
-					},
-				}},
-				secrets: []runtime.Object{&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "default",
-						Name:      "test_secret",
-					},
-					Data: map[string][]byte{
-						clusterv1alpha1.SecretTokenKey:  []byte("test_token"),
-						clusterv1alpha1.SecretCADataKey: testCA,
-					},
-				}},
-			},
-			want: want{
-				err: nil,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			kubeClient := fake.NewSimpleClientset(tt.args.secrets...)
-			kubeFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-
-			karmadaClient := karmadafake.NewSimpleClientset(tt.args.clusters...)
-			karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadaClient, 0)
-
-			ctrl := &Controller{
-				clusterLister: karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
-				secretLister:  kubeFactory.Core().V1().Secrets().Lister(),
-			}
-
-			stopCh := make(chan struct{})
-			defer close(stopCh)
-			karmadaFactory.Start(stopCh)
-			karmadaFactory.WaitForCacheSync(stopCh)
-			kubeFactory.Start(stopCh)
-			kubeFactory.WaitForCacheSync(stopCh)
-
-			client, err := ctrl.dynamicClientForCluster("test")
-
-			if !errorEquals(err, tt.want.err) {
-				t.Errorf("got error %v, want %v", err, tt.want.err)
-				return
-			}
-
-			if err != nil {
-				return
-			}
-			if client == nil {
-				t.Error("got client nil")
-			}
-		})
-	}
-}
-
-func errorEquals(a, b error) bool {
-	if a == b {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return a.Error() == b.Error()
-}
-
-type connectFunc func(ctx context.Context, gvr schema.GroupVersionResource, proxyPath string, responder rest.Responder) (http.Handler, error)
-
-func (c connectFunc) connect(ctx context.Context, gvr schema.GroupVersionResource, proxyPath string, responder rest.Responder) (http.Handler, error) {
-	return c(ctx, gvr, proxyPath, responder)
-}
-
 func newCluster(name string) *clusterv1alpha1.Cluster {
 	c := &clusterv1alpha1.Cluster{}
 	c.Name = name
 	return c
-}
-
-type cacheFuncs struct {
-	UpdateCacheFunc          func(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error
-	HasResourceFunc          func(resource schema.GroupVersionResource) bool
-	GetResourceFromCacheFunc func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error)
-	StopFunc                 func()
-}
-
-var _ store.Cache = &cacheFuncs{}
-
-func (c *cacheFuncs) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error {
-	if c.UpdateCacheFunc == nil {
-		panic("implement me")
-	}
-	return c.UpdateCacheFunc(resourcesByCluster)
-}
-
-func (c *cacheFuncs) HasResource(resource schema.GroupVersionResource) bool {
-	if c.HasResourceFunc == nil {
-		panic("implement me")
-	}
-	return c.HasResourceFunc(resource)
-}
-
-func (c *cacheFuncs) GetResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
-	if c.GetResourceFromCacheFunc == nil {
-		panic("implement me")
-	}
-	return c.GetResourceFromCacheFunc(ctx, gvr, namespace, name)
-}
-
-func (c *cacheFuncs) Stop() {
-	if c.StopFunc != nil {
-		c.StopFunc()
-	}
 }

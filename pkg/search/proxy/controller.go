@@ -2,9 +2,7 @@ package proxy
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -15,19 +13,19 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/metrics"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/scheme"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	searchlisters "github.com/karmada-io/karmada/pkg/generated/listers/search/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
+	"github.com/karmada-io/karmada/pkg/search/proxy/framework/plugins"
+	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
@@ -35,10 +33,6 @@ import (
 )
 
 const workKey = "key"
-
-type connector interface {
-	connect(ctx context.Context, gvr schema.GroupVersionResource, proxyPath string, responder rest.Responder) (http.Handler, error)
-}
 
 // Controller syncs Cluster and GlobalResource.
 type Controller struct {
@@ -49,36 +43,47 @@ type Controller struct {
 	clusterLister  clusterlisters.ClusterLister
 	registryLister searchlisters.ResourceRegistryLister
 	worker         util.AsyncWorker
-	store          store.Cache
+	store          store.Store
 
-	// proxy
-	karmadaProxy connector
-	clusterProxy connector
-	cacheProxy   connector
+	proxy framework.Proxy
+}
+
+// NewControllerOption is the Option for NewController().
+type NewControllerOption struct {
+	RestConfig *restclient.Config
+	RestMapper meta.RESTMapper
+
+	KubeFactory    informers.SharedInformerFactory
+	KarmadaFactory informerfactory.SharedInformerFactory
+
+	MinRequestTimeout time.Duration
+
+	OutOfTreeRegistry pluginruntime.Registry
 }
 
 // NewController create a controller for proxy
-func NewController(restConfig *restclient.Config, restMapper meta.RESTMapper,
-	kubeFactory informers.SharedInformerFactory, karmadaFactory informerfactory.SharedInformerFactory,
-	minRequestTimeout time.Duration) (*Controller, error) {
-	kp, err := newKarmadaProxy(restConfig)
+func NewController(option NewControllerOption) (*Controller, error) {
+	secretLister := option.KubeFactory.Core().V1().Secrets().Lister()
+	clusterLister := option.KarmadaFactory.Cluster().V1alpha1().Clusters().Lister()
+
+	multiClusterStore := newMultiClusterStore(clusterLister, secretLister, option.RestMapper)
+
+	allPlugins, err := newPlugins(option, multiClusterStore)
 	if err != nil {
 		return nil, err
 	}
 
-	ctl := &Controller{
-		restMapper:           restMapper,
-		negotiatedSerializer: scheme.Codecs.WithoutConversion(),
-		secretLister:         kubeFactory.Core().V1().Secrets().Lister(),
-		clusterLister:        karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
-		registryLister:       karmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
-	}
-	s := store.NewMultiClusterCache(ctl.dynamicClientForCluster, restMapper)
+	proxy := pluginruntime.NewFramework(allPlugins)
 
-	ctl.store = s
-	ctl.cacheProxy = newCacheProxy(s, restMapper, minRequestTimeout)
-	ctl.clusterProxy = newClusterProxy(s, ctl.clusterLister, ctl.secretLister)
-	ctl.karmadaProxy = kp
+	ctl := &Controller{
+		restMapper:           option.RestMapper,
+		negotiatedSerializer: scheme.Codecs.WithoutConversion(),
+		secretLister:         secretLister,
+		clusterLister:        clusterLister,
+		registryLister:       option.KarmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
+		store:                multiClusterStore,
+		proxy:                proxy,
+	}
 
 	workerOptions := util.Options{
 		Name:          "proxy-controller",
@@ -99,10 +104,36 @@ func NewController(restConfig *restclient.Config, restMapper meta.RESTMapper,
 		},
 	}
 
-	karmadaFactory.Cluster().V1alpha1().Clusters().Informer().AddEventHandler(resourceEventHandler)
-	karmadaFactory.Search().V1alpha1().ResourceRegistries().Informer().AddEventHandler(resourceEventHandler)
+	option.KarmadaFactory.Cluster().V1alpha1().Clusters().Informer().AddEventHandler(resourceEventHandler)
+	option.KarmadaFactory.Search().V1alpha1().ResourceRegistries().Informer().AddEventHandler(resourceEventHandler)
 
 	return ctl, nil
+}
+
+func newPlugins(option NewControllerOption, clusterStore store.Store) ([]framework.Plugin, error) {
+	pluginDependency := pluginruntime.PluginDependency{
+		RestConfig:        option.RestConfig,
+		RestMapper:        option.RestMapper,
+		KubeFactory:       option.KubeFactory,
+		KarmadaFactory:    option.KarmadaFactory,
+		MinRequestTimeout: option.MinRequestTimeout,
+		Store:             clusterStore,
+	}
+
+	registry := plugins.NewInTreeRegistry()
+	registry.Merge(option.OutOfTreeRegistry)
+
+	allPlugins := make([]framework.Plugin, 0, len(registry))
+	for _, pluginFactory := range registry {
+		plugin, err := pluginFactory(pluginDependency)
+		if err != nil {
+			return nil, err
+		}
+
+		allPlugins = append(allPlugins, plugin)
+	}
+
+	return allPlugins, nil
 }
 
 // Start run the proxy controller
@@ -160,6 +191,21 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 	return ctl.store.UpdateCache(resourcesByClusters)
 }
 
+type errorHTTPHandler struct {
+	requestInfo          *request.RequestInfo
+	err                  error
+	negotiatedSerializer runtime.NegotiatedSerializer
+}
+
+func (handler *errorHTTPHandler) ServeHTTP(delegate http.ResponseWriter, req *http.Request) {
+	// Write error into delegate ResponseWriter, wrapped in metrics.InstrumentHandlerFunc, so metrics can record this error.
+	gv := schema.GroupVersion{
+		Group:   handler.requestInfo.APIGroup,
+		Version: handler.requestInfo.Verb,
+	}
+	responsewriters.ErrorNegotiated(handler.err, handler.negotiatedSerializer, gv, delegate, req)
+}
+
 // Connect proxy and dispatch handlers
 func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder rest.Responder) (http.Handler, error) {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -177,106 +223,24 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 			Resource: requestInfo.Resource,
 		}
 
-		conn := ctl.connect(requestInfo)
-		h, err := conn.connect(newCtx, gvr, proxyPath, responder)
+		h, err := ctl.proxy.Connect(newCtx, framework.ProxyRequest{
+			RequestInfo:          requestInfo,
+			GroupVersionResource: gvr,
+			ProxyPath:            proxyPath,
+			Responder:            responder,
+			HTTPReq:              newReq,
+		})
+
 		if err != nil {
-			h = http.HandlerFunc(func(delegate http.ResponseWriter, req *http.Request) {
-				// Write error into delegate ResponseWriter, wrapped in metrics.InstrumentHandlerFunc, so metrics can record this error.
-				gv := schema.GroupVersion{
-					Group:   requestInfo.APIGroup,
-					Version: requestInfo.Verb,
-				}
-				responsewriters.ErrorNegotiated(err, ctl.negotiatedSerializer, gv, delegate, req)
-			})
+			h = &errorHTTPHandler{
+				requestInfo:          requestInfo,
+				err:                  err,
+				negotiatedSerializer: ctl.negotiatedSerializer,
+			}
 		}
+
 		h = metrics.InstrumentHandlerFunc(requestInfo.Verb, requestInfo.APIGroup, requestInfo.APIVersion, requestInfo.Resource, requestInfo.Subresource,
 			"", "karmada-search", false, "", h.ServeHTTP)
 		h.ServeHTTP(rw, newReq)
 	}), nil
-}
-
-func (ctl *Controller) connect(requestInfo *request.RequestInfo) connector {
-	gvr := schema.GroupVersionResource{
-		Group:    requestInfo.APIGroup,
-		Version:  requestInfo.APIVersion,
-		Resource: requestInfo.Resource,
-	}
-
-	// requests will be redirected to:
-	// 1. karmada apiserver
-	// 2. cache
-	// 3. member clusters
-	// see more information from https://github.com/karmada-io/karmada/tree/master/docs/proposals/resource-aggregation-proxy#request-routing
-
-	// 1. For non-resource requests, or resources are not defined in ResourceRegistry,
-	// we redirect the requests to karmada apiserver.
-	// Usually the request are
-	// - api index, e.g.: `/api`, `/apis`
-	// - to workload created in karmada controller panel, such as deployments and services.
-	if !requestInfo.IsResourceRequest || !ctl.store.HasResource(gvr) {
-		return ctl.karmadaProxy
-	}
-
-	// 2. For reading requests, we redirect them to cache.
-	// Users call these requests to read resources in member clusters, such as pods and nodes.
-	if requestInfo.Subresource == "" && (requestInfo.Verb == "get" || requestInfo.Verb == "list" || requestInfo.Verb == "watch") {
-		return ctl.cacheProxy
-	}
-
-	// 3. The remaining requests are:
-	// - writing resources.
-	// - or subresource requests, e.g. `pods/log`
-	// We firstly find the resource from cache, and get the located cluster. Then redirect the request to the cluster.
-	return ctl.clusterProxy
-}
-
-// TODO: reuse with karmada/pkg/util/membercluster_client.go
-func (ctl *Controller) dynamicClientForCluster(clusterName string) (dynamic.Interface, error) {
-	cluster, err := ctl.clusterLister.Get(clusterName)
-	if err != nil {
-		return nil, err
-	}
-
-	apiEndpoint := cluster.Spec.APIEndpoint
-	if apiEndpoint == "" {
-		return nil, fmt.Errorf("the api endpoint of cluster %s is empty", clusterName)
-	}
-
-	if cluster.Spec.SecretRef == nil {
-		return nil, fmt.Errorf("cluster %s does not have a secret", clusterName)
-	}
-
-	secret, err := ctl.secretLister.Secrets(cluster.Spec.SecretRef.Namespace).Get(cluster.Spec.SecretRef.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
-	if !tokenFound || len(token) == 0 {
-		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
-	}
-
-	clusterConfig, err := clientcmd.BuildConfigFromFlags(apiEndpoint, "")
-	if err != nil {
-		return nil, err
-	}
-
-	clusterConfig.BearerToken = string(token)
-
-	if cluster.Spec.InsecureSkipTLSVerification {
-		clusterConfig.TLSClientConfig.Insecure = true
-	} else {
-		clusterConfig.CAData = secret.Data[clusterv1alpha1.SecretCADataKey]
-	}
-
-	if cluster.Spec.ProxyURL != "" {
-		proxy, err := url.Parse(cluster.Spec.ProxyURL)
-		if err != nil {
-			klog.Errorf("parse proxy error. %v", err)
-			return nil, err
-		}
-		clusterConfig.Proxy = http.ProxyURL(proxy)
-	}
-
-	return dynamic.NewForConfig(clusterConfig)
 }

@@ -1,15 +1,17 @@
-package proxy
+package karmada
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	restclient "k8s.io/client-go/rest"
+
+	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
+	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
+	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 )
 
 func Test_karmadaProxy(t *testing.T) {
@@ -65,14 +67,17 @@ func Test_karmadaProxy(t *testing.T) {
 				},
 				Timeout: time.Second * 1,
 			}
-			p, err := newKarmadaProxy(restConfig)
+			p, err := New(pluginruntime.PluginDependency{RestConfig: restConfig})
 			if err != nil {
 				t.Error(err)
 				return
 			}
 
 			response := httptest.NewRecorder()
-			h, err := p.connect(context.TODO(), podGVR, tt.args.path, newTestResponder(response))
+			h, err := p.Connect(context.TODO(), framework.ProxyRequest{
+				ProxyPath: tt.args.path,
+				Responder: proxytest.NewResponder(response),
+			})
 			if err != nil {
 				t.Error(err)
 				return
@@ -100,29 +105,4 @@ func Test_karmadaProxy(t *testing.T) {
 			}
 		})
 	}
-}
-
-type testResponder struct {
-	resp *httptest.ResponseRecorder
-}
-
-func newTestResponder(response *httptest.ResponseRecorder) *testResponder {
-	return &testResponder{
-		resp: response,
-	}
-}
-
-func (f *testResponder) Object(statusCode int, obj runtime.Object) {
-	f.resp.Code = statusCode
-
-	if obj != nil {
-		err := json.NewEncoder(f.resp).Encode(obj)
-		if err != nil {
-			f.Error(err)
-		}
-	}
-}
-
-func (f *testResponder) Error(err error) {
-	_, _ = f.resp.WriteString(err.Error())
 }

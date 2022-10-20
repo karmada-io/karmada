@@ -1,4 +1,4 @@
-package proxy
+package cluster
 
 import (
 	"bytes"
@@ -30,7 +30,9 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	karmadainformers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
+	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 )
 
 func TestModifyRequest(t *testing.T) {
@@ -167,13 +169,13 @@ func Test_clusterProxy_connect(t *testing.T) {
 	reqCtx := request.WithUser(context.TODO(), &user.DefaultInfo{})
 
 	type fields struct {
-		store    store.Cache
+		store    store.Store
 		secrets  []runtime.Object
 		clusters []runtime.Object
 	}
 	type args struct {
-		ctx     context.Context
-		request *http.Request
+		requestInfo *request.RequestInfo
+		request     *http.Request
 	}
 	type want struct {
 		err  error
@@ -186,36 +188,26 @@ func Test_clusterProxy_connect(t *testing.T) {
 		want   want
 	}{
 		{
-			name:   "missing requestInfo",
-			fields: fields{},
-			args: args{
-				ctx: context.TODO(),
-			},
-			want: want{
-				err: errors.New("missing requestInfo"),
-			},
-		},
-		{
 			name:   "create not supported",
 			fields: fields{},
 			args: args{
-				ctx: request.WithRequestInfo(context.TODO(), &request.RequestInfo{Verb: "create"}),
+				requestInfo: &request.RequestInfo{Verb: "create"},
 			},
 			want: want{
-				err: apierrors.NewMethodNotSupported(podGVR.GroupResource(), "create"),
+				err: apierrors.NewMethodNotSupported(proxytest.PodGVR.GroupResource(), "create"),
 			},
 		},
 		{
 			name: "get cache error",
 			fields: fields{
-				store: &cacheFuncs{
+				store: &proxytest.MockStore{
 					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
 						return nil, "", errors.New("test error")
 					},
 				},
 			},
 			args: args{
-				ctx: request.WithRequestInfo(context.TODO(), &request.RequestInfo{Verb: "get"}),
+				requestInfo: &request.RequestInfo{Verb: "get"},
 			},
 			want: want{
 				err: errors.New("test error"),
@@ -224,23 +216,23 @@ func Test_clusterProxy_connect(t *testing.T) {
 		{
 			name: "cluster not found",
 			fields: fields{
-				store: &cacheFuncs{
+				store: &proxytest.MockStore{
 					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
 				},
 			},
 			args: args{
-				ctx: request.WithRequestInfo(context.TODO(), &request.RequestInfo{Verb: "get"}),
+				requestInfo: &request.RequestInfo{Verb: "get"},
 			},
 			want: want{
-				err: apierrors.NewNotFound(clusterGVR.GroupResource(), "cluster1"),
+				err: apierrors.NewNotFound(proxytest.ClusterGVR.GroupResource(), "cluster1"),
 			},
 		},
 		{
 			name: "API endpoint of cluster cluster1 should not be empty",
 			fields: fields{
-				store: &cacheFuncs{
+				store: &proxytest.MockStore{
 					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
@@ -251,7 +243,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx: request.WithRequestInfo(context.TODO(), &request.RequestInfo{Verb: "get"}),
+				requestInfo: &request.RequestInfo{Verb: "get"},
 			},
 			want: want{
 				err: errors.New("API endpoint of cluster cluster1 should not be empty"),
@@ -260,7 +252,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 		{
 			name: "impersonatorSecretRef is nil",
 			fields: fields{
-				store: &cacheFuncs{
+				store: &proxytest.MockStore{
 					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
@@ -273,7 +265,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx: request.WithRequestInfo(context.TODO(), &request.RequestInfo{Verb: "get"}),
+				requestInfo: &request.RequestInfo{Verb: "get"},
 			},
 			want: want{
 				err: errors.New("the impersonatorSecretRef of cluster cluster1 is nil"),
@@ -282,7 +274,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 		{
 			name: "secret not found",
 			fields: fields{
-				store: &cacheFuncs{
+				store: &proxytest.MockStore{
 					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
@@ -299,16 +291,16 @@ func Test_clusterProxy_connect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx: request.WithRequestInfo(context.TODO(), &request.RequestInfo{Verb: "get"}),
+				requestInfo: &request.RequestInfo{Verb: "get"},
 			},
 			want: want{
-				err: apierrors.NewNotFound(secretGVR.GroupResource(), "secret"),
+				err: apierrors.NewNotFound(proxytest.SecretGVR.GroupResource(), "secret"),
 			},
 		},
 		{
 			name: "response ok",
 			fields: fields{
-				store: &cacheFuncs{
+				store: &proxytest.MockStore{
 					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
@@ -334,8 +326,8 @@ func Test_clusterProxy_connect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx:     request.WithRequestInfo(context.TODO(), &request.RequestInfo{Verb: "get"}),
-				request: makeRequest(reqCtx, "GET", "/test", nil),
+				requestInfo: &request.RequestInfo{Verb: "get"},
+				request:     makeRequest(reqCtx, "GET", "/test", nil),
 			},
 			want: want{
 				err:  nil,
@@ -345,7 +337,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 		{
 			name: "update error",
 			fields: fields{
-				store: &cacheFuncs{
+				store: &proxytest.MockStore{
 					GetResourceFromCacheFunc: func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
 						return nil, "cluster1", nil
 					},
@@ -371,7 +363,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx: request.WithRequestInfo(context.TODO(), &request.RequestInfo{Verb: "update"}),
+				requestInfo: &request.RequestInfo{Verb: "update"},
 				request: (&http.Request{
 					Method:        "PUT",
 					URL:           &url.URL{Scheme: "https", Host: "localhost", Path: "/test"},
@@ -393,7 +385,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			kubeFactory := informers.NewSharedInformerFactory(fake.NewSimpleClientset(tt.fields.secrets...), 0)
 			karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadafake.NewSimpleClientset(tt.fields.clusters...), 0)
 
-			c := &clusterProxy{
+			c := &Cluster{
 				store:         tt.fields.store,
 				clusterLister: karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
 				secretLister:  kubeFactory.Core().V1().Secrets().Lister(),
@@ -406,9 +398,15 @@ func Test_clusterProxy_connect(t *testing.T) {
 
 			response := httptest.NewRecorder()
 
-			h, err := c.connect(tt.args.ctx, podGVR, "/proxy", newTestResponder(response))
-			if !errorEquals(err, tt.want.err) {
-				t.Errorf("connect() error = %v, want %v", err, tt.want.err)
+			h, err := c.Connect(context.TODO(), framework.ProxyRequest{
+				RequestInfo:          tt.args.requestInfo,
+				GroupVersionResource: proxytest.PodGVR,
+				ProxyPath:            "/proxy",
+				Responder:            proxytest.NewResponder(response),
+				HTTPReq:              tt.args.request,
+			})
+			if !proxytest.ErrorMessageEquals(err, tt.want.err) {
+				t.Errorf("Connect() error = %v, want %v", err, tt.want.err)
 				return
 			}
 			if err != nil {

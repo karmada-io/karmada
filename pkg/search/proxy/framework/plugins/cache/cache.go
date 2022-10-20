@@ -1,4 +1,4 @@
-package proxy
+package cache
 
 import (
 	"context"
@@ -13,42 +13,66 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/handlers"
-	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
+	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 )
 
-// cacheProxy caches resource from member clusters, and handle the read request(get/list/watch) for resources.
-type cacheProxy struct {
-	store             store.RESTReader
+const (
+	// We keep a big gap between in-tree plugins, to allow users to insert custom plugins between them.
+	order = 1000
+)
+
+// Cache caches resource from member clusters, and handle the read request(get/list/watch) for resources.
+// For reading requests, we redirect them to cache.
+// Users call these requests to read resources in member clusters, such as pods and nodes.
+type Cache struct {
+	store             store.Store
 	restMapper        meta.RESTMapper
 	minRequestTimeout time.Duration
 }
 
-func newCacheProxy(store store.RESTReader, restMapper meta.RESTMapper, minRequestTimeout time.Duration) *cacheProxy {
-	return &cacheProxy{
-		store:             store,
-		restMapper:        restMapper,
-		minRequestTimeout: minRequestTimeout,
-	}
+var _ framework.Plugin = (*Cache)(nil)
+
+// New creates an instance of Cache
+func New(dep pluginruntime.PluginDependency) (framework.Plugin, error) {
+	return &Cache{
+		store:             dep.Store,
+		restMapper:        dep.RestMapper,
+		minRequestTimeout: dep.MinRequestTimeout,
+	}, nil
 }
 
-func (c *cacheProxy) connect(ctx context.Context, _ schema.GroupVersionResource, _ string, _ rest.Responder) (http.Handler, error) {
-	requestInfo, _ := request.RequestInfoFrom(ctx)
-	gvr := schema.GroupVersionResource{
-		Group:    requestInfo.APIGroup,
-		Version:  requestInfo.APIVersion,
-		Resource: requestInfo.Resource,
-	}
+// Order implements Plugin
+func (c *Cache) Order() int {
+	return order
+}
+
+// SupportRequest implements Plugin
+func (c *Cache) SupportRequest(request framework.ProxyRequest) bool {
+	requestInfo := request.RequestInfo
+
+	return requestInfo.IsResourceRequest &&
+		c.store.HasResource(request.GroupVersionResource) &&
+		requestInfo.Subresource == "" &&
+		(requestInfo.Verb == "get" ||
+			requestInfo.Verb == "list" ||
+			requestInfo.Verb == "watch")
+}
+
+// Connect implements Plugin
+func (c *Cache) Connect(ctx context.Context, request framework.ProxyRequest) (http.Handler, error) {
+	requestInfo := request.RequestInfo
 	r := &rester{
 		store:          c.store,
-		gvr:            gvr,
-		tableConvertor: rest.NewDefaultTableConvertor(gvr.GroupResource()),
+		gvr:            request.GroupVersionResource,
+		tableConvertor: rest.NewDefaultTableConvertor(request.GroupVersionResource.GroupResource()),
 	}
 
-	gvk, err := c.restMapper.KindFor(gvr)
+	gvk, err := c.restMapper.KindFor(request.GroupVersionResource)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +83,7 @@ func (c *cacheProxy) connect(ctx context.Context, _ schema.GroupVersionResource,
 
 	scope := &handlers.RequestScope{
 		Kind:     gvk,
-		Resource: gvr,
+		Resource: request.GroupVersionResource,
 		Namer: &handlers.ContextBasedNaming{
 			Namer:         meta.NewAccessor(),
 			ClusterScoped: mapping.Scope.Name() == meta.RESTScopeNameRoot,
@@ -81,7 +105,7 @@ func (c *cacheProxy) connect(ctx context.Context, _ schema.GroupVersionResource,
 }
 
 type rester struct {
-	store          store.RESTReader
+	store          store.Store
 	gvr            schema.GroupVersionResource
 	tableConvertor rest.TableConvertor
 }
