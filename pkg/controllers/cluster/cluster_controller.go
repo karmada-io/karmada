@@ -215,14 +215,14 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 	// create execution space
 	err := c.createExecutionSpace(cluster)
 	if err != nil {
-		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", clusterv1alpha1.EventReasonCreateExecutionSpaceFailed), err.Error())
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonCreateExecutionSpaceFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	// taint cluster by condition
 	err = c.taintClusterByCondition(ctx, cluster)
 	if err != nil {
-		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, fmt.Sprintf("Failed %s", clusterv1alpha1.EventReasonTaintClusterByConditionFailed), err.Error())
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonTaintClusterByConditionFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
