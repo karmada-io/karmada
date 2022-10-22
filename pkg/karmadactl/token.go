@@ -51,7 +51,7 @@ var (
 )
 
 // NewCmdToken returns cobra.Command for token management
-func NewCmdToken(karmadaConfig KarmadaConfig, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdToken(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	opts := &CommandTokenOptions{
 		parentCommand: parentCommand,
 		TTL: &metav1.Duration{
@@ -69,9 +69,9 @@ func NewCmdToken(karmadaConfig KarmadaConfig, parentCommand string, streams gene
 		},
 	}
 
-	cmd.AddCommand(NewCmdTokenCreate(karmadaConfig, streams.Out, opts))
-	cmd.AddCommand(NewCmdTokenList(karmadaConfig, streams.Out, streams.ErrOut, opts))
-	cmd.AddCommand(NewCmdTokenDelete(karmadaConfig, streams.Out, opts))
+	cmd.AddCommand(NewCmdTokenCreate(f, streams.Out, opts))
+	cmd.AddCommand(NewCmdTokenList(f, streams.Out, streams.ErrOut, opts))
+	cmd.AddCommand(NewCmdTokenDelete(f, streams.Out, opts))
 
 	return cmd
 }
@@ -92,7 +92,7 @@ type CommandTokenOptions struct {
 }
 
 // NewCmdTokenCreate returns cobra.Command to create token
-func NewCmdTokenCreate(karmadaConfig KarmadaConfig, out io.Writer, tokenOpts *CommandTokenOptions) *cobra.Command {
+func NewCmdTokenCreate(f util.Factory, out io.Writer, tokenOpts *CommandTokenOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create bootstrap tokens on the server",
@@ -106,7 +106,7 @@ func NewCmdTokenCreate(karmadaConfig KarmadaConfig, out io.Writer, tokenOpts *Co
 		DisableFlagsInUseLine: true,
 		RunE: func(Cmd *cobra.Command, args []string) error {
 			// Get control plane kube-apiserver client
-			client, err := tokenOpts.getClientSet(karmadaConfig)
+			client, err := f.KubernetesClientSet()
 			if err != nil {
 				return err
 			}
@@ -137,14 +137,14 @@ func NewCmdTokenCreate(karmadaConfig KarmadaConfig, out io.Writer, tokenOpts *Co
 }
 
 // NewCmdTokenList returns cobra.Command to list tokens
-func NewCmdTokenList(karmadaConfig KarmadaConfig, out io.Writer, errW io.Writer, tokenOpts *CommandTokenOptions) *cobra.Command {
+func NewCmdTokenList(f util.Factory, out io.Writer, errW io.Writer, tokenOpts *CommandTokenOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List bootstrap tokens on the server",
 		Long:  "This command will list all bootstrap tokens for you.",
 		RunE: func(tokenCmd *cobra.Command, args []string) error {
 			// Get control plane kube-apiserver client
-			client, err := tokenOpts.getClientSet(karmadaConfig)
+			client, err := f.KubernetesClientSet()
 			if err != nil {
 				return err
 			}
@@ -169,7 +169,7 @@ func NewCmdTokenList(karmadaConfig KarmadaConfig, out io.Writer, errW io.Writer,
 }
 
 // NewCmdTokenDelete returns cobra.Command to delete tokens
-func NewCmdTokenDelete(karmadaConfig KarmadaConfig, out io.Writer, tokenOpts *CommandTokenOptions) *cobra.Command {
+func NewCmdTokenDelete(f util.Factory, out io.Writer, tokenOpts *CommandTokenOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                   "delete [token-value] ...",
 		DisableFlagsInUseLine: true,
@@ -186,7 +186,7 @@ func NewCmdTokenDelete(karmadaConfig KarmadaConfig, out io.Writer, tokenOpts *Co
 			}
 
 			// Get control plane kube-apiserver client
-			client, err := tokenOpts.getClientSet(karmadaConfig)
+			client, err := f.KubernetesClientSet()
 			if err != nil {
 				return err
 			}
@@ -323,17 +323,6 @@ func (o *CommandTokenOptions) runDeleteTokens(out io.Writer, client kubeclient.I
 		fmt.Fprintf(out, "bootstrap token %q deleted\n", tokenID)
 	}
 	return nil
-}
-
-// getClientSet get clientset of karmada control plane
-func (o *CommandTokenOptions) getClientSet(karmadaConfig KarmadaConfig) (kubeclient.Interface, error) {
-	// Get control plane karmada-apiserver client
-	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(o.KarmadaContext, o.KubeConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			o.KarmadaContext, o.KubeConfig, err)
-	}
-	return kubeclient.NewForConfigOrDie(controlPlaneRestConfig), nil
 }
 
 // constructTokenTableRow construct token table row
