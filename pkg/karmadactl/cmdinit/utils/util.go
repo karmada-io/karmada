@@ -21,11 +21,16 @@ type Downloader struct {
 // Read Implementation of Downloader
 func (d *Downloader) Read(p []byte) (n int, err error) {
 	n, err = d.Reader.Read(p)
+	if err != nil {
+		if err != io.EOF {
+			return
+		}
+		fmt.Println("\nDownload complete.")
+		return
+	}
+
 	d.Current += int64(n)
 	fmt.Printf("\rDownloading...[ %.2f%% ]", float64(d.Current*10000/d.Total)/100)
-	if d.Current == d.Total {
-		fmt.Printf("\nDownload complete.")
-	}
 	return
 }
 
