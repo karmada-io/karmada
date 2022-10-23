@@ -51,9 +51,6 @@ type ClusterRegisterOption struct {
 
 // IsKubeCredentialsEnabled represents whether report secret
 func (r ClusterRegisterOption) IsKubeCredentialsEnabled() bool {
-	if len(r.ReportSecrets) == 1 && r.ReportSecrets[0] == None {
-		return false
-	}
 	for _, sct := range r.ReportSecrets {
 		if sct == KubeCredentials {
 			return true
@@ -64,9 +61,6 @@ func (r ClusterRegisterOption) IsKubeCredentialsEnabled() bool {
 
 // IsKubeImpersonatorEnabled represents whether report impersonator secret
 func (r ClusterRegisterOption) IsKubeImpersonatorEnabled() bool {
-	if len(r.ReportSecrets) == 1 && r.ReportSecrets[0] == None {
-		return false
-	}
 	for _, sct := range r.ReportSecrets {
 		if sct == KubeImpersonator {
 			return true
@@ -146,7 +140,7 @@ func GetClusterWithKarmadaClient(client karmadaclientset.Interface, name string)
 			return nil, false, nil
 		}
 
-		klog.Warningf("failed to retrieve cluster(%s). error: %v", cluster.Name, err)
+		klog.Warningf("failed to retrieve cluster(%s). error: %v", name, err)
 		return nil, false, err
 	}
 
@@ -174,7 +168,7 @@ func updateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clust
 }
 
 // ObtainClusterID returns the cluster ID property with clusterKubeClient
-func ObtainClusterID(clusterKubeClient *kubernetes.Clientset) (string, error) {
+func ObtainClusterID(clusterKubeClient kubernetes.Interface) (string, error) {
 	ns, err := clusterKubeClient.CoreV1().Namespaces().Get(context.TODO(), metav1.NamespaceSystem, metav1.GetOptions{})
 	if err != nil {
 		return "", err
