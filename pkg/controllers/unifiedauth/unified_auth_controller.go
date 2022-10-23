@@ -63,6 +63,11 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, nil
 	}
 
+	if cluster.Spec.ImpersonatorSecretRef == nil {
+		klog.Infof("Aggregated API feature is disabled on cluster %s as it does not have an impersonator secret", cluster.Name)
+		return controllerruntime.Result{}, nil
+	}
+
 	err := c.syncImpersonationConfig(cluster)
 	if err != nil {
 		klog.Errorf("Failed to sync impersonation config for cluster %s. Error: %v.", cluster.Name, err)
