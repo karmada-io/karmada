@@ -81,7 +81,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 			Commands: []*cobra.Command{
 				NewCmdCordon(f, parentCommand),
 				NewCmdUncordon(f, parentCommand),
-				NewCmdTaint(karmadaConfig, parentCommand),
+				NewCmdTaint(f, parentCommand),
 			},
 		},
 		{

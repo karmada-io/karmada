@@ -14,15 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
-	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
@@ -41,19 +38,19 @@ var (
 		# Update cluster 'foo' with a taint with key 'dedicated' and value 'special-user' and effect 'NoSchedule'
 		# If a taint with that key and effect already exists, its value is replaced as specified
 		%[1]s taint clusters foo dedicated=special-user:NoSchedule
-	
+
 		# Remove from cluster 'foo' the taint with key 'dedicated' and effect 'NoSchedule' if one exists
 		%[1]s taint clusters foo dedicated:NoSchedule-
-	
+
 		# Remove from cluster 'foo' all the taints with key 'dedicated'
 		%[1]s taint clusters foo dedicated-
-	
+
 		# Add to cluster 'foo' a taint with key 'bar' and no value
 		%[1]s taint clusters foo bar:NoSchedule`)
 )
 
 // NewCmdTaint defines the `taint` command that mark cluster with taints
-func NewCmdTaint(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdTaint(f util.Factory, parentCommand string) *cobra.Command {
 	opts := CommandTaintOption{}
 
 	cmd := &cobra.Command{
@@ -64,13 +61,13 @@ func NewCmdTaint(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comma
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := opts.Complete(args); err != nil {
+			if err := opts.Complete(f, args); err != nil {
 				return err
 			}
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunTaint(karmadaConfig, opts); err != nil {
+			if err := RunTaint(f, opts); err != nil {
 				return err
 			}
 			return nil
@@ -88,8 +85,6 @@ func NewCmdTaint(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comma
 
 // CommandTaintOption holds all command options for taint
 type CommandTaintOption struct {
-	options.GlobalCommandOptions
-
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
 
@@ -101,7 +96,7 @@ type CommandTaintOption struct {
 }
 
 // Complete ensures that options are valid and marshals them if necessary
-func (o *CommandTaintOption) Complete(args []string) error {
+func (o *CommandTaintOption) Complete(f cmdutil.Factory, args []string) error {
 	taintArgs, err := o.parseTaintArgs(args)
 	if err != nil {
 		return err
@@ -118,25 +113,9 @@ func (o *CommandTaintOption) Complete(args []string) error {
 		return err
 	}
 
-	kubeConfigFlags := genericclioptions.NewConfigFlags(false).WithDeprecatedPasswordFlag()
-
-	if o.KubeConfig != "" {
-		kubeConfigFlags.KubeConfig = &o.KubeConfig
-		kubeConfigFlags.Context = &o.KarmadaContext
-	}
-
-	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
-	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
-
-	namespace, _, err := f.ToRawKubeConfigLoader().Namespace()
-	if err != nil {
-		return err
-	}
-
 	o.builder = f.NewBuilder().
 		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
-		ContinueOnError().
-		NamespaceParam(namespace).DefaultNamespace()
+		ContinueOnError().DefaultNamespace()
 
 	o.builder = o.builder.ResourceNames("cluster", o.resources[1:]...)
 
@@ -177,22 +156,21 @@ func (o *CommandTaintOption) Validate() error {
 
 // AddFlags adds flags to the specified FlagSet.
 func (o *CommandTaintOption) AddFlags(flags *pflag.FlagSet) {
-	o.GlobalCommandOptions.AddFlags(flags)
-
 	flags.BoolVar(&o.overwrite, "overwrite", o.overwrite, "If true, allow taints to be overwritten, otherwise reject taint updates that overwrite existing taints.")
 	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 }
 
 // RunTaint set taints for the clusters
-func RunTaint(karmadaConfig KarmadaConfig, opts CommandTaintOption) error {
+func RunTaint(f util.Factory, opts CommandTaintOption) error {
 	// Get control plane kube-apiserver client
-	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KubeConfig)
+	karmadaClient, err := f.KarmadaClientSet()
 	if err != nil {
-		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			opts.KarmadaContext, opts.KubeConfig, err)
+		return err
 	}
-
-	client := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig).ClusterV1alpha1().Clusters()
+	client := karmadaClient.ClusterV1alpha1().Clusters()
 
 	r := opts.builder.Do()
 	if err := r.Err(); err != nil {
@@ -334,7 +312,7 @@ func addTaints(oldTaints []corev1.Taint, newTaints *[]corev1.Taint) bool {
 
 // checkIfTaintsAlreadyExists checks if the cluster already has taints that we want to add and returns a string with taint keys.
 func checkIfTaintsAlreadyExists(oldTaints []corev1.Taint, taints []corev1.Taint) string {
-	var existingTaintList = make([]string, 0)
+	existingTaintList := make([]string, 0)
 	for _, taint := range taints {
 		for _, oldTaint := range oldTaints {
 			if taint.Key == oldTaint.Key && taint.Effect == oldTaint.Effect {
