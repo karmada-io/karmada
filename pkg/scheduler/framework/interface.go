@@ -27,7 +27,7 @@ type Framework interface {
 	RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, bindingSpec *workv1alpha2.ResourceBindingSpec, clusterv1alpha1 *clusterv1alpha1.Cluster) *Result
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin name to cores
-	RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, error)
+	RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, *Result)
 }
 
 // Plugin is the parent type for all the scheduling framework plugins.
@@ -66,6 +66,13 @@ const (
 	// Error is used for internal plugin errors, unexpected input, etc.
 	Error
 )
+
+// This list should be exactly the same as the codes iota defined above in the same order.
+var codes = []string{"Success", "Unschedulable", "Error"}
+
+func (c Code) String() string {
+	return codes[c]
+}
 
 // NewResult makes a result out of the given arguments and returns its pointer.
 func NewResult(code Code, reasons ...string) *Result {
@@ -129,6 +136,23 @@ func (s *Result) AsError() error {
 // Reasons returns reasons of the Result.
 func (s *Result) Reasons() []string {
 	return s.reasons
+}
+
+// Code returns code of the Result.
+func (s *Result) Code() Code {
+	if s == nil {
+		return Success
+	}
+	return s.code
+}
+
+// AsResult wraps an error in a Result.
+func AsResult(err error) *Result {
+	return &Result{
+		code:    Error,
+		reasons: []string{err.Error()},
+		err:     err,
+	}
 }
 
 // ScorePlugin is an interface that must be implemented by "Score" plugins to rank
