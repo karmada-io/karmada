@@ -17,8 +17,13 @@ const (
 )
 
 var (
+	logsLong = templates.LongDesc(`
+		Print the logs for a container in a pod in a member cluster or specified resource. If the pod has
+		only one container, the container name is optional.`)
+
 	logsUsageErrStr = fmt.Sprintf("expected '%s'.\nPOD or TYPE/NAME is a required argument for the logs command", logsUsageStr)
-	logsExample     = templates.Examples(`
+
+	logsExample = templates.Examples(`
 		# Return snapshot logs from pod nginx with only one container in cluster(member1)
 		%[1]s logs nginx -C=member1
 	
@@ -53,6 +58,7 @@ func NewCmdLogs(f util.Factory, parentCommand string, streams genericclioptions.
 	cmd := &cobra.Command{
 		Use:                   logsUsageStr,
 		Short:                 "Print the logs for a container in a pod in a cluster",
+		Long:                  logsLong,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(logsExample, parentCommand),
