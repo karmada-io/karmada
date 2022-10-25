@@ -15,6 +15,7 @@ set -x
 bash "$REPO_ROOT/hack/verify-lifted.sh"
 bash "$REPO_ROOT/hack/verify-import-aliases.sh"
 bash "$REPO_ROOT/hack/verify-staticcheck.sh"
+bash "$REPO_ROOT/hack/verify-mocks.sh"
 bash "$REPO_ROOT/hack/verify-vendor.sh"
 bash "$REPO_ROOT/hack/verify-swagger-docs.sh"
 bash "$REPO_ROOT/hack/verify-crdgen.sh"

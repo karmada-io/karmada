@@ -1,3 +1,5 @@
+//go:generate mockgen -source=interface.go -destination=testing/mock_interface.go -package=testing FilterPlugin ScorePlugin ScoreExtensions
+
 package framework
 
 import (

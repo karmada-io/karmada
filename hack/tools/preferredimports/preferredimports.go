@@ -42,12 +42,13 @@ import (
 )
 
 var (
-	importAliases = flag.String("import-aliases", "hack/.import-aliases", "json file with import aliases")
-	confirm       = flag.Bool("confirm", false, "update file with the preferred aliases for imports")
-	regex         = flag.String("include-path", "(test/e2e/|test/e2e_node)", "only files with paths matching this regex is touched")
-	isTerminal    = term.IsTerminal(int(os.Stdout.Fd()))
-	logPrefix     = ""
-	aliases       map[string]string
+	importAliases    = flag.String("import-aliases", "hack/.import-aliases", "json file with import aliases")
+	confirm          = flag.Bool("confirm", false, "update file with the preferred aliases for imports")
+	includePathRegex = flag.String("include-path", "(test/e2e/|test/e2e_node)", "only files with paths matching this regex is touched")
+	excludePathRegex = flag.String("exclude-path", "(testing)", "files with paths matching this regex is ignored")
+	isTerminal       = term.IsTerminal(int(os.Stdout.Fd()))
+	logPrefix        = ""
+	aliases          map[string]string
 )
 
 type analyzer struct {
@@ -179,8 +180,9 @@ func (a *analyzer) filterFiles(fs map[string]*ast.File) []*ast.File {
 }
 
 type collector struct {
-	dirs  []string
-	regex *regexp.Regexp
+	dirs             []string
+	includePathRegex *regexp.Regexp
+	excludePathRegex *regexp.Regexp
 }
 
 // handlePath walks the filesystem recursively, collecting directories,
@@ -209,7 +211,7 @@ func (c *collector) handlePath(path string, info os.FileInfo, err error) error {
 			path == "pkg/kubectl/cmd/testdata/edit" {
 			return filepath.SkipDir
 		}
-		if c.regex.MatchString(path) {
+		if c.includePathRegex.MatchString(path) && !c.excludePathRegex.MatchString(path) {
 			c.dirs = append(c.dirs, path)
 		}
 	}
@@ -224,11 +226,15 @@ func main() {
 		args = append(args, ".")
 	}
 
-	regex, err := regexp.Compile(*regex)
+	includePathRegex, err := regexp.Compile(*includePathRegex)
 	if err != nil {
 		log.Fatalf("Error compiling regex: %v", err)
 	}
-	c := collector{regex: regex}
+	excludePathRegex, err := regexp.Compile(*excludePathRegex)
+	if err != nil {
+		log.Fatalf("Error compiling regex: %v", err)
+	}
+	c := collector{includePathRegex: includePathRegex, excludePathRegex: excludePathRegex}
 	for _, arg := range args {
 		err := filepath.Walk(arg, c.handlePath)
 		if err != nil {
