@@ -56,6 +56,17 @@ var (
 
 	getShort = `Display one or many resources`
 
+	getLong = templates.LongDesc(`
+		Display one or many resources in member clusters.
+
+		Prints a table of the most important information about the specified resources.
+		You can filter the list using a label selector and the --selector flag. If the
+		desired resource type is namespaced you will only see results in your current
+		namespace unless you pass --all-namespaces.
+		
+		By specifying the output as 'template' and providing a Go template as the value
+		of the --template flag, you can filter the attributes of the fetched resources.`)
+
 	getExample = templates.Examples(`
 		# List all pods in ps output format
 		%[1]s get pods
@@ -88,6 +99,7 @@ func NewCmdGet(f util.Factory, parentCommand string, streams genericclioptions.I
 	cmd := &cobra.Command{
 		Use:                   "get [NAME | -l label | -n namespace]",
 		Short:                 getShort,
+		Long:                  getLong,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(getExample, parentCommand),

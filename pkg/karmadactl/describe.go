@@ -15,6 +15,19 @@ import (
 )
 
 var (
+	describeLong = templates.LongDesc(`
+		Show details of a specific resource or group of resources in a member cluster.
+
+		Print a detailed description of the selected resources, including related
+		resources such as events or controllers. You may select a single object by name,
+		all objects of that type, provide a name prefix, or label selector. For example:
+
+		$ %[1]s describe TYPE NAME_PREFIX
+
+		will first check for an exact match on TYPE and NAME_PREFIX. If no such
+		resource exists, it will output details for every resource that has a name
+		prefixed with NAME_PREFIX.`)
+
 	describeExample = templates.Examples(`
 		# Describe a pod in cluster(member1)
 		%[1]s describe pods/nginx -C=member1
@@ -50,6 +63,7 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericcliopti
 	cmd := &cobra.Command{
 		Use:                   "describe (-f FILENAME | TYPE [NAME_PREFIX | -l label] | TYPE/NAME) (-C CLUSTER)",
 		Short:                 "Show details of a specific resource or group of resources in a cluster",
+		Long:                  fmt.Sprintf(describeLong, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(describeExample, parentCommand),
