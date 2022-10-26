@@ -32,7 +32,8 @@ echo 'installing mockgen'
 source "${KARMADA_ROOT}"/hack/util.sh
 echo -n "Preparing: 'mockgen' existence check - "
 if [ ! $(util::cmd_exist mockgen) ]; then
-  GO111MODULE=on go install "github.com/golang/mock/mockgen@v1.6.0"
+  # install from vendor with the pinned version in go.mod file
+  GO111MODULE=on go install "github.com/golang/mock/mockgen"
 fi
 
 find_files() {
