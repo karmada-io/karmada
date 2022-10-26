@@ -47,6 +47,9 @@ type Options struct {
 	KubeAPIBurst int
 
 	ProfileOpts profileflag.Options
+
+	DisableSearch bool
+	DisableProxy  bool
 }
 
 // NewOptions returns a new Options.
@@ -69,6 +72,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 
 	flags.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
 	flags.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	flags.BoolVar(&o.DisableSearch, "disable-search", false, "Disable search feature that would save memory usage significantly.")
+	flags.BoolVar(&o.DisableProxy, "disable-proxy", false, "Disable proxy feature that would save memory usage significantly.")
 
 	utilfeature.DefaultMutableFeatureGate.AddFlag(flags)
 	o.ProfileOpts.AddFlags(flags)
@@ -101,25 +106,29 @@ func (o *Options) Run(ctx context.Context) error {
 	})
 
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-informers", func(context genericapiserver.PostStartHookContext) error {
-		config.KarmadaSharedInformerFactory.Start(context.StopCh)
+		config.ExtraConfig.KarmadaSharedInformerFactory.Start(context.StopCh)
 		return nil
 	})
 
-	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
-		// start ResourceRegistry controller
-		config.Controller.Start(context.StopCh)
-		return nil
-	})
+	if config.ExtraConfig.Controller != nil {
+		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
+			// start ResourceRegistry controller
+			config.ExtraConfig.Controller.Start(context.StopCh)
+			return nil
+		})
+	}
 
-	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-proxy-controller", func(context genericapiserver.PostStartHookContext) error {
-		config.ProxyController.Start(context.StopCh)
-		return nil
-	})
+	if config.ExtraConfig.ProxyController != nil {
+		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-proxy-controller", func(context genericapiserver.PostStartHookContext) error {
+			config.ExtraConfig.ProxyController.Start(context.StopCh)
+			return nil
+		})
 
-	server.GenericAPIServer.AddPreShutdownHookOrDie("stop-karmada-proxy-controller", func() error {
-		config.ProxyController.Stop()
-		return nil
-	})
+		server.GenericAPIServer.AddPreShutdownHookOrDie("stop-karmada-proxy-controller", func() error {
+			config.ExtraConfig.ProxyController.Stop()
+			return nil
+		})
+	}
 
 	return server.GenericAPIServer.PrepareRun().Run(ctx.Done())
 }
@@ -152,25 +161,33 @@ func (o *Options) Config() (*search.Config, error) {
 		return nil, err
 	}
 
-	ctl, err := search.NewController(serverConfig.ClientConfig)
-	if err != nil {
-		return nil, err
-	}
-
 	karmadaClient := karmadaclientset.NewForConfigOrDie(serverConfig.ClientConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 
-	proxyCtl, err := proxy.NewController(serverConfig.ClientConfig, restMapper, serverConfig.SharedInformerFactory, factory,
-		time.Second*time.Duration(serverConfig.Config.MinRequestTimeout))
-	if err != nil {
-		return nil, err
+	var ctl *search.Controller
+	if !o.DisableSearch {
+		ctl, err = search.NewController(serverConfig.ClientConfig, factory, restMapper)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var proxyCtl *proxy.Controller
+	if !o.DisableProxy {
+		proxyCtl, err = proxy.NewController(serverConfig.ClientConfig, restMapper, serverConfig.SharedInformerFactory, factory,
+			time.Second*time.Duration(serverConfig.Config.MinRequestTimeout))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	config := &search.Config{
-		GenericConfig:                serverConfig,
-		Controller:                   ctl,
-		ProxyController:              proxyCtl,
-		KarmadaSharedInformerFactory: factory,
+		GenericConfig: serverConfig,
+		ExtraConfig: search.ExtraConfig{
+			KarmadaSharedInformerFactory: factory,
+			Controller:                   ctl,
+			ProxyController:              proxyCtl,
+		},
 	}
 	return config, nil
 }
