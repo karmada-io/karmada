@@ -24,6 +24,7 @@ import (
 	"github.com/karmada-io/karmada/cmd/agent/app/options"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/controllers/certificate"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
@@ -98,13 +99,16 @@ cluster and manifests to the Karmada control plane.`,
 
 var controllers = make(controllerscontext.Initializers)
 
-var controllersDisabledByDefault = sets.NewString()
+var controllersDisabledByDefault = sets.NewString(
+	"certRotation",
+)
 
 func init() {
 	controllers["clusterStatus"] = startClusterStatusController
 	controllers["execution"] = startExecutionController
 	controllers["workStatus"] = startWorkStatusController
 	controllers["serviceExport"] = startServiceExportController
+	controllers["certRotation"] = startCertRotationController
 }
 
 func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *options.Options) error {
@@ -231,19 +235,22 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
 		Opts: controllerscontext.Options{
-			Controllers:                       opts.Controllers,
-			ClusterName:                       opts.ClusterName,
-			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-			ClusterSuccessThreshold:           opts.ClusterSuccessThreshold,
-			ClusterFailureThreshold:           opts.ClusterFailureThreshold,
-			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
-			ClusterAPIQPS:                     opts.ClusterAPIQPS,
-			ClusterAPIBurst:                   opts.ClusterAPIBurst,
-			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
-			RateLimiterOptions:                opts.RateLimiterOpts,
-			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
+			Controllers:                        opts.Controllers,
+			ClusterName:                        opts.ClusterName,
+			ClusterStatusUpdateFrequency:       opts.ClusterStatusUpdateFrequency,
+			ClusterLeaseDuration:               opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction:  opts.ClusterLeaseRenewIntervalFraction,
+			ClusterSuccessThreshold:            opts.ClusterSuccessThreshold,
+			ClusterFailureThreshold:            opts.ClusterFailureThreshold,
+			ClusterCacheSyncTimeout:            opts.ClusterCacheSyncTimeout,
+			ClusterAPIQPS:                      opts.ClusterAPIQPS,
+			ClusterAPIBurst:                    opts.ClusterAPIBurst,
+			ConcurrentWorkSyncs:                opts.ConcurrentWorkSyncs,
+			RateLimiterOptions:                 opts.RateLimiterOpts,
+			EnableClusterResourceModeling:      opts.EnableClusterResourceModeling,
+			CertRotationCheckingInterval:       opts.CertRotationCheckingInterval,
+			CertRotationRemainingTimeThreshold: opts.CertRotationRemainingTimeThreshold,
+			KarmadaKubeconfigNamespace:         opts.KarmadaKubeconfigNamespace,
 		},
 		StopChan:            stopChan,
 		ResourceInterpreter: resourceInterpreter,
@@ -341,6 +348,26 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func startCertRotationController(ctx controllerscontext.Context) (bool, error) {
+	certRotationController := &certificate.CertRotationController{
+		Client:                             ctx.Mgr.GetClient(),
+		KubeClient:                         kubeclientset.NewForConfigOrDie(ctx.Mgr.GetConfig()),
+		EventRecorder:                      ctx.Mgr.GetEventRecorderFor(certificate.CertRotationControllerName),
+		RESTMapper:                         ctx.Mgr.GetRESTMapper(),
+		ClusterClientSetFunc:               util.NewClusterClientSetForAgent,
+		PredicateFunc:                      helper.NewClusterPredicateOnAgent(ctx.Opts.ClusterName),
+		InformerManager:                    genericmanager.GetInstance(),
+		RatelimiterOptions:                 ctx.Opts.RateLimiterOptions,
+		CertRotationCheckingInterval:       ctx.Opts.CertRotationCheckingInterval,
+		CertRotationRemainingTimeThreshold: ctx.Opts.CertRotationRemainingTimeThreshold,
+		KarmadaKubeconfigNamespace:         ctx.Opts.KarmadaKubeconfigNamespace,
+	}
+	if err := certRotationController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
 	return true, nil
