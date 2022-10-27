@@ -163,7 +163,7 @@ func GenerateImpersonationRules(allSubjects []rbacv1.Subject) []rbacv1.PolicyRul
 }
 
 // CreateOrUpdateClusterRole creates a ClusterRole if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateClusterRole(client *kubeclient.Clientset, clusterRole *rbacv1.ClusterRole) error {
+func CreateOrUpdateClusterRole(client kubeclient.Interface, clusterRole *rbacv1.ClusterRole) error {
 	if _, err := client.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("unable to create RBAC clusterrole: %v", err)
@@ -179,7 +179,7 @@ func CreateOrUpdateClusterRole(client *kubeclient.Clientset, clusterRole *rbacv1
 }
 
 // CreateOrUpdateClusterRoleBinding creates a ClusterRoleBinding if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateClusterRoleBinding(client *kubeclient.Clientset, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
+func CreateOrUpdateClusterRoleBinding(client kubeclient.Interface, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
 	if _, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("unable to create RBAC clusterrolebinding: %v", err)
