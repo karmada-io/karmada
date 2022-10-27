@@ -114,6 +114,14 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+
+	// CertRotationCheckingInterval defines the interval of checking if the certificate need to be rotated.
+	CertRotationCheckingInterval time.Duration
+	// CertRotationRemainingTimeThreshold defines the threshold of remaining time of the valid certificate.
+	// If the ratio of remaining time to total time is less than or equal to this threshold, the certificate rotation starts.
+	CertRotationRemainingTimeThreshold float64
+	// KarmadaKubeconfigNamespace is the namespace of the secret containing karmada-agent certificate.
+	KarmadaKubeconfigNamespace string
 }
 
 // NewOptions builds an default scheduler options.
@@ -184,6 +192,9 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
 		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
 		"Disable if it does not fit your cases for better performance.")
+	fs.DurationVar(&o.CertRotationCheckingInterval, "cert-rotation-checking-interval", 5*time.Minute, "The interval of checking if the certificate need to be rotated. This is only applicable if cert rotation is enabled")
+	fs.Float64Var(&o.CertRotationRemainingTimeThreshold, "cert-rotation-remaining-time-threshold", 0.2, "The threshold of remaining time of the valid certificate. This is only applicable if cert rotation is enabled.")
+	fs.StringVar(&o.KarmadaKubeconfigNamespace, "karmada-kubeconfig-namespace", "karmada-system", "Namespace of the secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
 	o.RateLimiterOpts.AddFlags(fs)
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)

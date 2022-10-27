@@ -1,6 +1,8 @@
 package context
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
@@ -69,6 +71,13 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+	// CertRotationCheckingInterval defines the interval of checking if the certificate need to be rotated.
+	CertRotationCheckingInterval time.Duration
+	// CertRotationRemainingTimeThreshold defines the threshold of remaining time of the valid certificate.
+	// If the ratio of remaining time to total time is less than or equal to this threshold, the certificate rotation starts.
+	CertRotationRemainingTimeThreshold float64
+	// KarmadaKubeconfigNamespace is the namespace of the secret containing karmada-agent certificate.
+	KarmadaKubeconfigNamespace string
 }
 
 // Context defines the context object for controller.
