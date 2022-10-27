@@ -167,7 +167,8 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.StringVar(&opts.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
 	flags.StringVar(&opts.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
-	flags.StringVar(&opts.CACertPath, "ca-cert-path", CACertPath, "The path to the SSL certificate authority used to secure comunications between member cluster and karmada-control-plane.")
+	flags.BoolVar(&opts.EnableCertRotation, "enable-cert-rotation", false, "Enable means controller would rotate certificate for karmada-agent when the certificate is about to expire.")
+	flags.StringVar(&opts.CACertPath, "ca-cert-path", CACertPath, "The path to the SSL certificate authority used to secure communications between member cluster and karmada-control-plane.")
 	flags.StringVar(&opts.BootstrapToken.Token, "token", "", "For token-based discovery, the token used to validate cluster information fetched from the API server.")
 	flags.StringSliceVar(&opts.BootstrapToken.CACertHashes, "discovery-token-ca-cert-hash", []string{}, "For token-based discovery, validate that the root CA public key matches this hash (format: \"<type>:<value>\").")
 	flags.BoolVar(&opts.BootstrapToken.UnsafeSkipCAVerification, "discovery-token-unsafe-skip-ca-verification", false, "For token-based discovery, allow joining without --discovery-token-ca-cert-hash pinning.")
@@ -203,6 +204,9 @@ type CommandRegisterOption struct {
 
 	// ClusterRegion represents the region of the cluster locate in.
 	ClusterRegion string
+
+	// EnableCertRotation indicates if enable certificate rotation for karmada-agent.
+	EnableCertRotation bool
 
 	// CACertPath is the path to the SSL certificate authority used to
 	// secure comunications between member cluster and karmada-control-plane.
@@ -646,6 +650,13 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 		},
 	}
 
+	var controllers []string
+	if o.EnableCertRotation {
+		controllers = []string{"*", "certRotation"}
+	} else {
+		controllers = []string{"*"}
+	}
+
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: KarmadaAgentServiceAccountName,
 		Containers: []corev1.Container{
@@ -659,6 +670,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--cluster-api-endpoint=%s", o.memberClusterEndpoint),
 					fmt.Sprintf("--cluster-provider=%s", o.ClusterProvider),
 					fmt.Sprintf("--cluster-region=%s", o.ClusterRegion),
+					fmt.Sprintf("--controllers=%s", strings.Join(controllers, ",")),
 					"--cluster-status-update-frequency=10s",
 					"--bind-address=0.0.0.0",
 					"--secure-port=10357",
