@@ -32,6 +32,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/modeling"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -153,6 +154,12 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 }
 
 func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordClusterStatus(cluster)
+		metrics.RecordClusterSyncStatusDuration(cluster, start)
+	}()
+
 	currentClusterStatus := *cluster.Status.DeepCopy()
 
 	// create a ClusterClient for the given member cluster
