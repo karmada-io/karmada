@@ -127,7 +127,7 @@ func NewCmdTokenCreate(f util.Factory, out io.Writer, tokenOpts *CommandTokenOpt
 		}
 	}
 
-	cmd.Flags().BoolVar(&tokenOpts.PrintRegisterCommand, "print-register-command", false, fmt.Sprintf("Instead of printing only the token, print the full '%s join' flag needed to join the member cluster using the token.", tokenOpts.parentCommand))
+	cmd.Flags().BoolVar(&tokenOpts.PrintRegisterCommand, "print-register-command", false, fmt.Sprintf("Instead of printing only the token, print the full '%s register' flag needed to register the member cluster using the token.", tokenOpts.parentCommand))
 	cmd.Flags().DurationVar(&tokenOpts.TTL.Duration, "ttl", tokenutil.DefaultTokenDuration, "The duration before the token is automatically deleted (e.g. 1s, 2m, 3h). If set to '0', the token will never expire")
 	cmd.Flags().StringSliceVar(&tokenOpts.Usages, "usages", tokenutil.DefaultUsages, fmt.Sprintf("Describes the ways in which this token can be used. You can pass --usages multiple times or provide a comma separated list of options. Valid options: [%s]", strings.Join(bootstrapapi.KnownTokenUsages, ",")))
 	cmd.Flags().StringSliceVar(&tokenOpts.Groups, "groups", tokenutil.DefaultGroups, fmt.Sprintf("Extra groups that this token will authenticate as when used for authentication. Must match %q", bootstrapapi.BootstrapGroupPattern))
