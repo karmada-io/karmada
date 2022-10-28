@@ -9,6 +9,7 @@ resources:
 - bases/work.karmada.io_resourcebindings.yaml
 - bases/work.karmada.io_clusterresourcebindings.yaml
 - bases/work.karmada.io_works.yaml
+- bases/config.karmada.io_resourceinterpretercustomizations.yaml
 - bases/config.karmada.io_resourceinterpreterwebhookconfigurations.yaml
 - bases/networking.karmada.io_multiclusteringresses.yaml
 
