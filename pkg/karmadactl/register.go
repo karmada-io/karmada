@@ -436,7 +436,7 @@ func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(bootstrap
 	}
 
 	klog.V(1).Info("[discovery] Using provided TLSBootstrapToken as authentication credentials for the join process")
-	clusterinfo := tokenutil.GetClusterFromKubeConfig(config)
+	clusterinfo := tokenutil.GetClusterFromKubeConfig(config, "")
 	tlsBootstrapCfg := CreateWithToken(
 		clusterinfo.Server,
 		DefaultClusterName,
