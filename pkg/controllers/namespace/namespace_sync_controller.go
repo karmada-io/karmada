@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,7 +53,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	namespace := &corev1.Namespace{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, namespace); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, namespace); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -67,8 +68,14 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, nil
 	}
 
+	skipAutoPropagation := util.GetLabelValue(namespace.Labels, policyv1alpha1.NamespaceSkipAutoPropagationLabel)
+	if strings.ToLower(skipAutoPropagation) == "true" {
+		klog.Infof("Skip auto propagation namespace:%s", namespace.Name)
+		return controllerruntime.Result{}, nil
+	}
+
 	clusterList := &clusterv1alpha1.ClusterList{}
-	if err := c.Client.List(context.TODO(), clusterList); err != nil {
+	if err := c.Client.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list clusters, error: %v", err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
