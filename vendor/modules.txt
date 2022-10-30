@@ -1383,6 +1383,7 @@ k8s.io/component-base/version
 # k8s.io/component-helpers v0.24.2
 ## explicit; go 1.16
 k8s.io/component-helpers/apimachinery/lease
+k8s.io/component-helpers/node/topology
 k8s.io/component-helpers/scheduling/corev1
 k8s.io/component-helpers/scheduling/corev1/nodeaffinity
 # k8s.io/gengo v0.0.0-20211129171323-c02415ce4185
