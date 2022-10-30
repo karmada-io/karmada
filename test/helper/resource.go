@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
@@ -162,6 +163,7 @@ func NewPod(namespace string, name string) *corev1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
+			UID:       types.UID(name),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -336,7 +338,7 @@ func NewResourceList(milliCPU, memory, ephemeralStorage int64) corev1.ResourceLi
 // NewPodWithRequest will build a Pod with resource request.
 func NewPodWithRequest(pod, node string, milliCPU, memory, ephemeralStorage int64) *corev1.Pod {
 	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: pod},
+		ObjectMeta: metav1.ObjectMeta{Name: pod, UID: types.UID(pod)},
 		Spec: corev1.PodSpec{
 			NodeName: node,
 			Containers: []corev1.Container{
@@ -360,7 +362,7 @@ func NewPodWithRequest(pod, node string, milliCPU, memory, ephemeralStorage int6
 // NewNode will build a ready node with resource.
 func NewNode(node string, milliCPU, memory, pods, ephemeralStorage int64) *corev1.Node {
 	return &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: node},
+		ObjectMeta: metav1.ObjectMeta{Name: node, UID: types.UID(node)},
 		Status: corev1.NodeStatus{
 			Capacity: corev1.ResourceList{
 				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
@@ -396,6 +398,7 @@ func MakeNodesAndPods(allNodesNum, allPodsNum int, nodeTemplate *corev1.Node, po
 	for i := 0; i < allNodesNum; i++ {
 		node := nodeTemplate.DeepCopy()
 		node.Name = fmt.Sprintf("node-%d", i)
+		node.UID = types.UID(node.Name)
 		nodes = append(nodes, node)
 		num := avg
 		if i < residue {
@@ -404,6 +407,7 @@ func MakeNodesAndPods(allNodesNum, allPodsNum int, nodeTemplate *corev1.Node, po
 		for j := 0; j < num; j++ {
 			pod := podTemplate.DeepCopy()
 			pod.Name = fmt.Sprintf("node-%d-%d", i, j)
+			pod.UID = types.UID(pod.Name)
 			pod.Spec.NodeName = node.Name
 			pods = append(pods, pod)
 		}
@@ -414,7 +418,7 @@ func MakeNodesAndPods(allNodesNum, allPodsNum int, nodeTemplate *corev1.Node, po
 // MakeNodeWithLabels will build a ready node with resource and labels.
 func MakeNodeWithLabels(node string, milliCPU, memory, pods, ephemeralStorage int64, labels map[string]string) *corev1.Node {
 	return &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: node, Labels: labels},
+		ObjectMeta: metav1.ObjectMeta{Name: node, Labels: labels, UID: types.UID(node)},
 		Status: corev1.NodeStatus{
 			Capacity: corev1.ResourceList{
 				corev1.ResourceCPU:              *resource.NewMilliQuantity(milliCPU, resource.DecimalSI),
@@ -444,7 +448,7 @@ func MakeNodeWithLabels(node string, milliCPU, memory, pods, ephemeralStorage in
 // MakeNodeWithTaints will build a ready node with resource and taints.
 func MakeNodeWithTaints(node string, milliCPU, memory, pods, ephemeralStorage int64, taints []corev1.Taint) *corev1.Node {
 	return &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: node},
+		ObjectMeta: metav1.ObjectMeta{Name: node, UID: types.UID(node)},
 		Spec: corev1.NodeSpec{
 			Taints: taints,
 		},

@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -160,7 +160,7 @@ func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Opt
 		return fmt.Errorf("unable to get hostname: %v", err)
 	}
 	// add a uniquifier so that two processes on the same host don't accidentally both become active
-	id := hostname + "_" + uuid.New().String()
+	id := hostname + "_" + string(uuid.NewUUID())
 
 	rl, err := resourcelock.New(opts.LeaderElection.ResourceLock,
 		opts.LeaderElection.ResourceNamespace,

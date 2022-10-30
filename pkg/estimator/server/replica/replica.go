@@ -12,21 +12,10 @@ import (
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/estimator/server/nodes"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	utilworkload "github.com/karmada-io/karmada/pkg/util/lifted"
 )
-
-// NodeMaxAvailableReplica calculates max available replicas of a node, based on
-// the pods assigned to the node and the request resource of the replica.
-func NodeMaxAvailableReplica(node *corev1.Node, pods []*corev1.Pod, request corev1.ResourceList) (int32, error) {
-	ni := nodes.NewNodeInfo(node)
-	if err := ni.AssignedPodRequest(pods); err != nil {
-		return 0, err
-	}
-	return int32(ni.MaxReplicaDivided(request)), nil
-}
 
 // ListerWrapper is a wrapper which wraps the pod lister and replicaset lister.
 type ListerWrapper struct {

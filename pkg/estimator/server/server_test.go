@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -232,9 +231,8 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 			es := NewEstimatorServer(fake.NewSimpleClientset(tt.objs...), dynamicClient, discoveryClient, opt, ctx.Done())
 
 			es.informerFactory.Start(ctx.Done())
-			if !es.waitForCacheSync(ctx.Done()) {
-				t.Fatalf("MaxAvailableReplicas() error = %v, wantErr %v", fmt.Errorf("failed to wait for cache sync"), tt.wantErr)
-			}
+			es.informerFactory.WaitForCacheSync(ctx.Done())
+			es.informerManager.WaitForCacheSync()
 
 			gotResponse, err := es.MaxAvailableReplicas(ctx, tt.args.request)
 			if (err != nil) != tt.wantErr {
@@ -385,9 +383,8 @@ func BenchmarkAccurateSchedulerEstimatorServer_MaxAvailableReplicas(b *testing.B
 			es := NewEstimatorServer(fake.NewSimpleClientset(objs...), dynamicClient, discoveryClient, opt, ctx.Done())
 
 			es.informerFactory.Start(ctx.Done())
-			if !es.waitForCacheSync(ctx.Done()) {
-				b.Fatalf("MaxAvailableReplicas() error = %v", fmt.Errorf("failed to wait for cache sync"))
-			}
+			es.informerFactory.WaitForCacheSync(ctx.Done())
+			es.informerManager.WaitForCacheSync()
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
