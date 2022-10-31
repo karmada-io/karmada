@@ -21,16 +21,13 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// Cache an interface for cache.
-type Cache interface {
+// Store is the cache for resources from multiple member clusters
+type Store interface {
 	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error
 	HasResource(resource schema.GroupVersionResource) bool
 	GetResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error)
 	Stop()
-}
 
-// RESTReader supports get/list/watch rest.
-type RESTReader interface {
 	Get(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error)
 	List(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (runtime.Object, error)
 	Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error)
@@ -46,8 +43,7 @@ type MultiClusterCache struct {
 	newClientFunc func(string) (dynamic.Interface, error)
 }
 
-var _ Cache = &MultiClusterCache{}
-var _ RESTReader = &MultiClusterCache{}
+var _ Store = &MultiClusterCache{}
 
 // NewMultiClusterCache return a cache for resources from member clusters
 func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error), restMapper meta.RESTMapper) *MultiClusterCache {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path"
 
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -16,18 +17,38 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
+	listcorev1 "k8s.io/client-go/listers/core/v1"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
+	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 )
 
-// NewThrottledUpgradeAwareProxyHandler creates a new proxy handler with a default flush interval. Responder is required for returning
-// errors to the caller.
-func NewThrottledUpgradeAwareProxyHandler(location *url.URL, transport http.RoundTripper, wrapTransport, upgradeRequired bool, responder rest.Responder) *proxy.UpgradeAwareHandler {
-	return proxy.NewUpgradeAwareHandler(location, transport, wrapTransport, upgradeRequired, proxy.NewErrorResponder(responder))
-}
+// todo: consider share logic with pkg/registry/cluster/storage/proxy.go:53
 
 // ConnectCluster returns a handler for proxy cluster.
-func ConnectCluster(ctx context.Context, clusterName string, location *url.URL, transport http.RoundTripper, responder rest.Responder,
+func ConnectCluster(ctx context.Context,
+	clusterLister clusterlisters.ClusterLister, secretLister listcorev1.SecretLister,
+	clusterName string, proxyPath string, responder rest.Responder) (http.Handler, error) {
+	cluster, err := clusterLister.Get(clusterName)
+	if err != nil {
+		return nil, err
+	}
+	location, transport, err := Location(cluster.Name, cluster.Spec.APIEndpoint, cluster.Spec.ProxyURL)
+	if err != nil {
+		return nil, err
+	}
+	location.Path = path.Join(location.Path, proxyPath)
+
+	secretGetter := func(context.Context, string) (*corev1.Secret, error) {
+		if cluster.Spec.ImpersonatorSecretRef == nil {
+			return nil, fmt.Errorf("the impersonatorSecretRef of cluster %s is nil", cluster.Name)
+		}
+		return secretLister.Secrets(cluster.Spec.ImpersonatorSecretRef.Namespace).Get(cluster.Spec.ImpersonatorSecretRef.Name)
+	}
+	return connectCluster(ctx, cluster.Name, location, transport, responder, secretGetter)
+}
+
+func connectCluster(ctx context.Context, clusterName string, location *url.URL, transport http.RoundTripper, responder rest.Responder,
 	impersonateSecretGetter func(context.Context, string) (*corev1.Secret, error)) (http.Handler, error) {
 	secret, err := impersonateSecretGetter(ctx, clusterName)
 	if err != nil {
@@ -40,6 +61,12 @@ func ConnectCluster(ctx context.Context, clusterName string, location *url.URL, 
 	}
 
 	return newProxyHandler(location, transport, impersonateToken, responder)
+}
+
+// NewThrottledUpgradeAwareProxyHandler creates a new proxy handler with a default flush interval. Responder is required for returning
+// errors to the caller.
+func NewThrottledUpgradeAwareProxyHandler(location *url.URL, transport http.RoundTripper, wrapTransport, upgradeRequired bool, responder rest.Responder) *proxy.UpgradeAwareHandler {
+	return proxy.NewUpgradeAwareHandler(location, transport, wrapTransport, upgradeRequired, proxy.NewErrorResponder(responder))
 }
 
 // Location returns a URL to which one can send traffic for the specified cluster.
