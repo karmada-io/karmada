@@ -418,7 +418,6 @@ func TestController_Connect(t *testing.T) {
 			conn.ServeHTTP(recorder, req)
 
 			response := recorder.Result()
-			fmt.Printf("response: %v", response)
 
 			if (response.StatusCode != 200) != tt.wantErr {
 				t.Errorf("http request returned status code = %v, want error = %v",
