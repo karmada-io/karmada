@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"math"
 
 	corev1 "k8s.io/api/core/v1"
@@ -57,50 +56,22 @@ func (r *Resource) Add(rl corev1.ResourceList) {
 	}
 }
 
-// Sub is used to subtract two resources.
-// Return error when the minuend is less than the subtrahend.
-func (r *Resource) Sub(rl corev1.ResourceList) error {
-	for rName, rQuant := range rl {
-		switch rName {
-		case corev1.ResourceCPU:
-			cpu := rQuant.MilliValue()
-			if r.MilliCPU < cpu {
-				return fmt.Errorf("cpu difference is less than 0, remain %d, got %d", r.MilliCPU, cpu)
-			}
-			r.MilliCPU -= cpu
-		case corev1.ResourceMemory:
-			mem := rQuant.Value()
-			if r.Memory < mem {
-				return fmt.Errorf("memory difference is less than 0, remain %d, got %d", r.Memory, mem)
-			}
-			r.Memory -= mem
-		case corev1.ResourcePods:
-			pods := rQuant.Value()
-			if r.AllowedPodNumber < pods {
-				return fmt.Errorf("allowed pod difference is less than 0, remain %d, got %d", r.AllowedPodNumber, pods)
-			}
-			r.AllowedPodNumber -= pods
-		case corev1.ResourceEphemeralStorage:
-			ephemeralStorage := rQuant.Value()
-			if r.EphemeralStorage < ephemeralStorage {
-				return fmt.Errorf("allowed storage number difference is less than 0, remain %d, got %d", r.EphemeralStorage, ephemeralStorage)
-			}
-			r.EphemeralStorage -= ephemeralStorage
-		default:
-			if lifted.IsScalarResourceName(rName) {
-				rScalar, ok := r.ScalarResources[rName]
-				scalar := rQuant.Value()
-				if !ok && scalar > 0 {
-					return fmt.Errorf("scalar resources %s does not exist, got %d", rName, scalar)
-				}
-				if rScalar < scalar {
-					return fmt.Errorf("scalar resources %s difference is less than 0, remain %d, got %d", rName, rScalar, scalar)
-				}
-				r.ScalarResources[rName] = rScalar - scalar
+// SubResource is used to subtract two resources, if r < rr, set r to zero.
+func (r *Resource) SubResource(rr *Resource) *Resource {
+	r.MilliCPU = MaxInt64(r.MilliCPU-rr.MilliCPU, 0)
+	r.Memory = MaxInt64(r.Memory-rr.Memory, 0)
+	r.EphemeralStorage = MaxInt64(r.EphemeralStorage-rr.EphemeralStorage, 0)
+	r.AllowedPodNumber = MaxInt64(r.AllowedPodNumber-rr.AllowedPodNumber, 0)
+
+	for rrName, rrScalar := range rr.ScalarResources {
+		if lifted.IsScalarResourceName(rrName) {
+			rScalar, ok := r.ScalarResources[rrName]
+			if ok {
+				r.ScalarResources[rrName] = MaxInt64(rScalar-rrScalar, 0)
 			}
 		}
 	}
-	return nil
+	return r
 }
 
 // SetMaxResource compares with ResourceList and takes max value for each Resource.
@@ -302,9 +273,34 @@ func (r *Resource) AddResourcePods(pods int64) {
 	})
 }
 
+// Clone returns a copy of this resource.
+func (r *Resource) Clone() *Resource {
+	res := &Resource{
+		MilliCPU:         r.MilliCPU,
+		Memory:           r.Memory,
+		AllowedPodNumber: r.AllowedPodNumber,
+		EphemeralStorage: r.EphemeralStorage,
+	}
+	if r.ScalarResources != nil {
+		res.ScalarResources = make(map[corev1.ResourceName]int64)
+		for k, v := range r.ScalarResources {
+			res.ScalarResources[k] = v
+		}
+	}
+	return res
+}
+
 // MinInt64 returns the smaller of two int64 numbers.
 func MinInt64(a, b int64) int64 {
 	if a <= b {
+		return a
+	}
+	return b
+}
+
+// MaxInt64 returns the largest of two int64 numbers.
+func MaxInt64(a, b int64) int64 {
+	if a >= b {
 		return a
 	}
 	return b

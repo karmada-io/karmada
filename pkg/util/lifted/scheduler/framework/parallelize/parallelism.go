@@ -18,7 +18,7 @@ limitations under the License.
 // For reference:
 // https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/scheduler/framework/parallelize/parallelism.go
 
-package lifted
+package parallelize
 
 import (
 	"context"
