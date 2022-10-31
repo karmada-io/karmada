@@ -94,7 +94,8 @@ spec:
               path: /readyz
               port: 5443
               scheme: HTTPS
-            periodSeconds: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 15
           resources:

@@ -65,4 +65,4 @@ jobs:
           kubectl_version: ${{ env.K8S_VERSION }}
 
       - name: Run chart-testing (install)
-        run: ct install --debug --helm-extra-args "--timeout 400s"
+        run: ct install --debug --helm-extra-args "--timeout 800s"
