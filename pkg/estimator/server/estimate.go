@@ -10,6 +10,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	nodeutil "github.com/karmada-io/karmada/pkg/estimator/server/nodes"
+	"github.com/karmada-io/karmada/pkg/util"
 	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/util/lifted/scheduler/framework"
 )
@@ -72,8 +73,10 @@ func (es *AccurateSchedulerEstimatorServer) estimateReplicas(
 
 func (es *AccurateSchedulerEstimatorServer) nodeMaxAvailableReplica(node *framework.NodeInfo, rl corev1.ResourceList) int32 {
 	rest := node.Allocatable.Clone().SubResource(node.Requested)
-	if rest.AllowedPodNumber > int64(len(node.Pods)) {
-		rest.AllowedPodNumber -= int64(len(node.Pods))
-	}
+	// The number of pods in a node is a kind of resource in node allocatable resources.
+	// However, total requested resources of all pods on this node, i.e. `node.Requested`,
+	// do not contain pod resources. So after subtraction, we should cope with allowed pod
+	// number manually which is the upper bound of this node available replicas.
+	rest.AllowedPodNumber = util.MaxInt64(rest.AllowedPodNumber-int64(len(node.Pods)), 0)
 	return int32(rest.MaxDivided(rl))
 }
