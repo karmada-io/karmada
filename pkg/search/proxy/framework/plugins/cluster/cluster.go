@@ -7,10 +7,13 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 
+	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
@@ -70,7 +73,22 @@ func (c *Cluster) Connect(ctx context.Context, request framework.ProxyRequest) (
 		return nil, err
 	}
 
-	h, err := proxy.ConnectCluster(ctx, c.clusterLister, c.secretLister, clusterName, request.ProxyPath, request.Responder)
+	cls, err := c.clusterLister.Get(clusterName)
+	if err != nil {
+		return nil, err
+	}
+
+	cluster := &clusterapis.Cluster{}
+	err = clusterv1alpha1.Convert_v1alpha1_Cluster_To_cluster_Cluster(cls, cluster, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	secretGetter := func(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
+		return c.secretLister.Secrets(namespace).Get(name)
+	}
+
+	h, err := proxy.ConnectCluster(ctx, cluster, request.ProxyPath, secretGetter, request.Responder)
 	if err != nil {
 		return nil, err
 	}

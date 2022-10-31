@@ -2,14 +2,12 @@ package storage
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/url"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -21,6 +19,7 @@ import (
 	printersinternal "github.com/karmada-io/karmada/pkg/printers/internalversion"
 	printerstorage "github.com/karmada-io/karmada/pkg/printers/storage"
 	clusterregistry "github.com/karmada-io/karmada/pkg/registry/cluster"
+	"github.com/karmada-io/karmada/pkg/util/proxy"
 )
 
 // ClusterStorage includes storage for Cluster and for all the subresources.
@@ -62,9 +61,8 @@ func NewStorage(scheme *runtime.Scheme, kubeClient kubernetes.Interface, optsGet
 		Cluster: clusterRest,
 		Status:  &StatusREST{&statusStore},
 		Proxy: &ProxyREST{
-			Store:      store,
-			Redirector: clusterRest,
-			kubeClient: kubeClient,
+			kubeClient:    kubeClient,
+			clusterGetter: clusterRest.getCluster,
 		},
 	}, nil
 }
@@ -79,31 +77,16 @@ var _ = rest.Redirector(&REST{})
 
 // ResourceLocation returns a URL to which one can send traffic for the specified cluster.
 func (r *REST) ResourceLocation(ctx context.Context, name string) (*url.URL, http.RoundTripper, error) {
-	cluster, err := getCluster(ctx, r, name)
+	cluster, err := r.getCluster(ctx, name)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	location, err := constructLocation(cluster)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	transport, err := createProxyTransport(cluster)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return location, transport, nil
+	return proxy.Location(cluster)
 }
 
-// ResourceGetter is an interface for retrieving resources by ResourceLocation.
-type ResourceGetter interface {
-	Get(context.Context, string, *metav1.GetOptions) (runtime.Object, error)
-}
-
-func getCluster(ctx context.Context, getter ResourceGetter, name string) (*clusterapis.Cluster, error) {
-	obj, err := getter.Get(ctx, name, &metav1.GetOptions{})
+func (r *REST) getCluster(ctx context.Context, name string) (*clusterapis.Cluster, error) {
+	obj, err := r.Get(ctx, name, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -114,34 +97,9 @@ func getCluster(ctx context.Context, getter ResourceGetter, name string) (*clust
 	return cluster, nil
 }
 
-func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
-	if cluster.Spec.APIEndpoint == "" {
-		return nil, fmt.Errorf("API endpoint of cluster %s should not be empty", cluster.Name)
-	}
-
-	uri, err := url.Parse(cluster.Spec.APIEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse api endpoint %s: %v", cluster.Spec.APIEndpoint, err)
-	}
-	return uri, nil
-}
-
-func createProxyTransport(cluster *clusterapis.Cluster) (*http.Transport, error) {
-	var proxyDialerFn utilnet.DialFunc
-	proxyTLSClientConfig := &tls.Config{InsecureSkipVerify: true} // #nosec
-	trans := utilnet.SetTransportDefaults(&http.Transport{
-		DialContext:     proxyDialerFn,
-		TLSClientConfig: proxyTLSClientConfig,
-	})
-
-	if cluster.Spec.ProxyURL != "" {
-		proxy, err := url.Parse(cluster.Spec.ProxyURL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse url of proxy url %s: %v", cluster.Spec.ProxyURL, err)
-		}
-		trans.Proxy = http.ProxyURL(proxy)
-	}
-	return trans, nil
+// ResourceGetter is an interface for retrieving resources by ResourceLocation.
+type ResourceGetter interface {
+	Get(context.Context, string, *metav1.GetOptions) (runtime.Object, error)
 }
 
 // StatusREST implements the REST endpoint for changing the status of a cluster.
@@ -162,7 +120,7 @@ func (r *StatusREST) Get(ctx context.Context, name string, options *metav1.GetOp
 // Update alters the status subset of an object.
 func (r *StatusREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
 	// We are explicitly setting forceAllowCreate to false in the call to the underlying storage because
-	// subresources should never allow create on update.
+	// subresources should never allow creating on update.
 	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation, false, options)
 }
 

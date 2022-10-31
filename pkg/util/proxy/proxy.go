@@ -17,47 +17,32 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
-	listcorev1 "k8s.io/client-go/listers/core/v1"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
-	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 )
 
-// todo: consider share logic with pkg/registry/cluster/storage/proxy.go:53
-
 // ConnectCluster returns a handler for proxy cluster.
-func ConnectCluster(ctx context.Context,
-	clusterLister clusterlisters.ClusterLister, secretLister listcorev1.SecretLister,
-	clusterName string, proxyPath string, responder rest.Responder) (http.Handler, error) {
-	cluster, err := clusterLister.Get(clusterName)
+func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath string,
+	secretGetter func(context.Context, string, string) (*corev1.Secret, error), responder rest.Responder) (http.Handler, error) {
+	location, transport, err := Location(cluster)
 	if err != nil {
 		return nil, err
 	}
-	location, transport, err := Location(cluster.Name, cluster.Spec.APIEndpoint, cluster.Spec.ProxyURL)
-	if err != nil {
-		return nil, err
-	}
+
 	location.Path = path.Join(location.Path, proxyPath)
 
-	secretGetter := func(context.Context, string) (*corev1.Secret, error) {
-		if cluster.Spec.ImpersonatorSecretRef == nil {
-			return nil, fmt.Errorf("the impersonatorSecretRef of cluster %s is nil", cluster.Name)
-		}
-		return secretLister.Secrets(cluster.Spec.ImpersonatorSecretRef.Namespace).Get(cluster.Spec.ImpersonatorSecretRef.Name)
+	if cluster.Spec.ImpersonatorSecretRef == nil {
+		return nil, fmt.Errorf("the impersonatorSecretRef of cluster %s is nil", cluster.Name)
 	}
-	return connectCluster(ctx, cluster.Name, location, transport, responder, secretGetter)
-}
 
-func connectCluster(ctx context.Context, clusterName string, location *url.URL, transport http.RoundTripper, responder rest.Responder,
-	impersonateSecretGetter func(context.Context, string) (*corev1.Secret, error)) (http.Handler, error) {
-	secret, err := impersonateSecretGetter(ctx, clusterName)
+	secret, err := secretGetter(ctx, cluster.Spec.ImpersonatorSecretRef.Namespace, cluster.Spec.ImpersonatorSecretRef.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	impersonateToken, err := getImpersonateToken(clusterName, secret)
+	impersonateToken, err := getImpersonateToken(cluster.Name, secret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get impresonateToken for cluster %s: %v", clusterName, err)
+		return nil, fmt.Errorf("failed to get impresonateToken for cluster %s: %v", cluster.Name, err)
 	}
 
 	return newProxyHandler(location, transport, impersonateToken, responder)
@@ -70,13 +55,13 @@ func NewThrottledUpgradeAwareProxyHandler(location *url.URL, transport http.Roun
 }
 
 // Location returns a URL to which one can send traffic for the specified cluster.
-func Location(clusterName string, apiEndpoint string, proxyURL string) (*url.URL, http.RoundTripper, error) {
-	location, err := constructLocation(clusterName, apiEndpoint)
+func Location(cluster *clusterapis.Cluster) (*url.URL, http.RoundTripper, error) {
+	location, err := constructLocation(cluster)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	transport, err := createProxyTransport(proxyURL)
+	transport, err := createProxyTransport(cluster)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,9 +69,10 @@ func Location(clusterName string, apiEndpoint string, proxyURL string) (*url.URL
 	return location, transport, nil
 }
 
-func constructLocation(clusterName string, apiEndpoint string) (*url.URL, error) {
+func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
+	apiEndpoint := cluster.Spec.APIEndpoint
 	if apiEndpoint == "" {
-		return nil, fmt.Errorf("API endpoint of cluster %s should not be empty", clusterName)
+		return nil, fmt.Errorf("API endpoint of cluster %s should not be empty", cluster.GetName())
 	}
 
 	uri, err := url.Parse(apiEndpoint)
@@ -96,7 +82,7 @@ func constructLocation(clusterName string, apiEndpoint string) (*url.URL, error)
 	return uri, nil
 }
 
-func createProxyTransport(proxyURL string) (*http.Transport, error) {
+func createProxyTransport(cluster *clusterapis.Cluster) (*http.Transport, error) {
 	var proxyDialerFn utilnet.DialFunc
 	proxyTLSClientConfig := &tls.Config{InsecureSkipVerify: true} // #nosec
 	trans := utilnet.SetTransportDefaults(&http.Transport{
@@ -104,7 +90,7 @@ func createProxyTransport(proxyURL string) (*http.Transport, error) {
 		TLSClientConfig: proxyTLSClientConfig,
 	})
 
-	if proxyURL != "" {
+	if proxyURL := cluster.Spec.ProxyURL; proxyURL != "" {
 		u, err := url.Parse(proxyURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse url of proxy url %s: %v", proxyURL, err)
