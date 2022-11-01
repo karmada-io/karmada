@@ -20,7 +20,7 @@ type Resource struct {
 	ScalarResources map[corev1.ResourceName]int64
 }
 
-// EmptyResource creates a empty resource object and returns.
+// EmptyResource creates an empty resource object and returns.
 func EmptyResource() *Resource {
 	return &Resource{}
 }
@@ -58,6 +58,10 @@ func (r *Resource) Add(rl corev1.ResourceList) {
 
 // SubResource is used to subtract two resources, if r < rr, set r to zero.
 func (r *Resource) SubResource(rr *Resource) *Resource {
+	if r == nil || rr == nil {
+		return r
+	}
+
 	r.MilliCPU = MaxInt64(r.MilliCPU-rr.MilliCPU, 0)
 	r.Memory = MaxInt64(r.Memory-rr.Memory, 0)
 	r.EphemeralStorage = MaxInt64(r.EphemeralStorage-rr.EphemeralStorage, 0)
@@ -182,33 +186,6 @@ func (r *Resource) MaxDivided(rl corev1.ResourceList) int64 {
 	return res
 }
 
-// LessEqual returns whether all dimensions of resources in r are less than or equal with that of rr.
-func (r *Resource) LessEqual(rr *Resource) bool {
-	lessEqualFunc := func(l, r int64) bool {
-		return l <= r
-	}
-
-	if !lessEqualFunc(r.MilliCPU, rr.MilliCPU) {
-		return false
-	}
-	if !lessEqualFunc(r.Memory, rr.Memory) {
-		return false
-	}
-	if !lessEqualFunc(r.EphemeralStorage, rr.EphemeralStorage) {
-		return false
-	}
-	if !lessEqualFunc(r.AllowedPodNumber, rr.AllowedPodNumber) {
-		return false
-	}
-	for rrName, rrQuant := range rr.ScalarResources {
-		rQuant := r.ScalarResources[rrName]
-		if !lessEqualFunc(rQuant, rrQuant) {
-			return false
-		}
-	}
-	return true
-}
-
 // AddPodTemplateRequest add the effective request resource of a pod template to the origin resource.
 // If pod container limits are specified, but requests are not, default requests to limits.
 // The code logic is almost the same as kubernetes.
@@ -275,6 +252,10 @@ func (r *Resource) AddResourcePods(pods int64) {
 
 // Clone returns a copy of this resource.
 func (r *Resource) Clone() *Resource {
+	if r == nil {
+		return nil
+	}
+
 	res := &Resource{
 		MilliCPU:         r.MilliCPU,
 		Memory:           r.Memory,
