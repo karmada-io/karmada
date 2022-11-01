@@ -9,7 +9,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -262,7 +261,7 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 	}
 
 	if len(o.ClusterName) == 0 {
-		configBytes, err := ioutil.ReadFile(o.KubeConfig)
+		configBytes, err := os.ReadFile(o.KubeConfig)
 		if err != nil {
 			return fmt.Errorf("failed to read kubeconfig file %s, err: %w", o.KubeConfig, err)
 		}
