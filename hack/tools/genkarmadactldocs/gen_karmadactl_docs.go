@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,7 +115,7 @@ func main() {
 		if info.IsDir() {
 			return nil
 		}
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}

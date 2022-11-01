@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -176,7 +176,7 @@ func createExtralResources(clientSet *kubernetes.Clientset, dir string) error {
 }
 
 func crdPatchesResources(filename, caBundle string) ([]byte, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func crdPatchesResources(filename, caBundle string) ([]byte, error) {
 // createCRDs create crd resource
 func createCRDs(crdClient *clientset.Clientset, filename string) error {
 	obj := apiextensionsv1.CustomResourceDefinition{}
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}

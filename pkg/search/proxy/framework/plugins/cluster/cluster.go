@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
@@ -121,7 +120,7 @@ func modifyRequest(req *http.Request, cluster string) error {
 	_ = req.Body.Close()
 
 	defer func() {
-		req.Body = ioutil.NopCloser(body)
+		req.Body = io.NopCloser(body)
 		req.ContentLength = int64(body.Len())
 	}()
 

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -137,7 +136,7 @@ func TestModifyRequest(t *testing.T) {
 
 			var get runtime.Object
 			if req.ContentLength != 0 {
-				data, err := ioutil.ReadAll(req.Body)
+				data, err := io.ReadAll(req.Body)
 				if err != nil {
 					t.Error(err)
 					return
@@ -368,7 +367,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 				request: (&http.Request{
 					Method:        "PUT",
 					URL:           &url.URL{Scheme: "https", Host: "localhost", Path: "/test"},
-					Body:          ioutil.NopCloser(&alwaysErrorReader{}),
+					Body:          io.NopCloser(&alwaysErrorReader{}),
 					ContentLength: 10,
 					Header:        make(http.Header),
 				}).WithContext(reqCtx),
