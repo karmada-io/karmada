@@ -87,35 +87,3 @@ func CreateIfNotExistClusterRoleBinding(clientSet kubernetes.Interface, binding 
 
 	return nil
 }
-
-// CreateOrUpdateRole creates a Role if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateRole(clientSet kubernetes.Interface, role *rbacv1.Role) error {
-	if _, err := clientSet.RbacV1().Roles(role.ObjectMeta.Namespace).Create(context.TODO(), role, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create RBAC role: %v", err)
-		}
-
-		if _, err := clientSet.RbacV1().Roles(role.ObjectMeta.Namespace).Update(context.TODO(), role, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update RBAC role: %v", err)
-		}
-	}
-	klog.Infof("Role %s%s has been created or updated.", role.ObjectMeta.Namespace, role.ObjectMeta.Name)
-
-	return nil
-}
-
-// CreateOrUpdateRoleBinding creates a RoleBinding if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateRoleBinding(clientSet kubernetes.Interface, roleBinding *rbacv1.RoleBinding) error {
-	if _, err := clientSet.RbacV1().RoleBindings(roleBinding.ObjectMeta.Namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create RBAC rolebinding: %v", err)
-		}
-
-		if _, err := clientSet.RbacV1().RoleBindings(roleBinding.ObjectMeta.Namespace).Update(context.TODO(), roleBinding, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update RBAC rolebinding: %v", err)
-		}
-	}
-	klog.Infof("RoleBinding %s/%s has been created or updated.", roleBinding.ObjectMeta.Namespace, roleBinding.ObjectMeta.Name)
-
-	return nil
-}

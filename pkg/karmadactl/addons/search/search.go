@@ -21,6 +21,7 @@ import (
 	initkarmada "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 	initutils "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -135,7 +136,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		return fmt.Errorf("decode karmada search service error: %v", err)
 	}
 
-	if err := addonutils.CreateService(opts.KubeClientSet, karmadaSearchService); err != nil {
+	if err := cmdutil.CreateService(opts.KubeClientSet, karmadaSearchService); err != nil {
 		return fmt.Errorf("create karmada search service error: %v", err)
 	}
 
@@ -161,7 +162,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaSearchDeploymentBytes, karmadaSearchDeployment); err != nil {
 		return fmt.Errorf("decode karmada search deployment error: %v", err)
 	}
-	if err := addonutils.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaSearchDeployment); err != nil {
+	if err := cmdutil.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaSearchDeployment); err != nil {
 		return fmt.Errorf("create karmada search deployment error: %v", err)
 	}
 
@@ -186,7 +187,7 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), aaServiceBytes, aaService); err != nil {
 		return fmt.Errorf("decode karmada search AA service error: %v", err)
 	}
-	if err := addonutils.CreateService(opts.KarmadaKubeClientSet, aaService); err != nil {
+	if err := cmdutil.CreateService(opts.KarmadaKubeClientSet, aaService); err != nil {
 		return fmt.Errorf("create karmada search AA service error: %v", err)
 	}
 
@@ -204,7 +205,7 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 		return fmt.Errorf("decode karmada search AA apiservice error: %v", err)
 	}
 
-	if err = addonutils.CreateOrUpdateAPIService(opts.KarmadaAggregatorClientSet, aaAPIService); err != nil {
+	if err = cmdutil.CreateOrUpdateAPIService(opts.KarmadaAggregatorClientSet, aaAPIService); err != nil {
 		return fmt.Errorf("craete karmada search AA apiservice error: %v", err)
 	}
 

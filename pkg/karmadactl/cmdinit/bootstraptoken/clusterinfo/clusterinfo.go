@@ -13,7 +13,7 @@ import (
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -47,7 +47,7 @@ func CreateBootstrapConfigMapIfNotExists(clientSet *kubernetes.Clientset, file s
 
 	// Create or update the ConfigMap in the kube-public namespace
 	klog.V(1).Infoln("[bootstrap-token] creating/updating ConfigMap in kube-public namespace")
-	return utils.CreateOrUpdateConfigMap(clientSet, &corev1.ConfigMap{
+	return cmdutil.CreateOrUpdateConfigMap(clientSet, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bootstrapapi.ConfigMapClusterInfo,
 			Namespace: metav1.NamespacePublic,
@@ -61,7 +61,7 @@ func CreateBootstrapConfigMapIfNotExists(clientSet *kubernetes.Clientset, file s
 // CreateClusterInfoRBACRules creates the RBAC rules for exposing the cluster-info ConfigMap in the kube-public namespace to unauthenticated users
 func CreateClusterInfoRBACRules(clientSet *kubernetes.Clientset) error {
 	klog.V(1).Infoln("creating the RBAC rules for exposing the cluster-info ConfigMap in the kube-public namespace")
-	err := utils.CreateOrUpdateRole(clientSet, &rbacv1.Role{
+	err := cmdutil.CreateOrUpdateRole(clientSet, &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      BootstrapSignerClusterRoleName,
 			Namespace: metav1.NamespacePublic,
@@ -79,7 +79,7 @@ func CreateClusterInfoRBACRules(clientSet *kubernetes.Clientset) error {
 		return err
 	}
 
-	return utils.CreateOrUpdateRoleBinding(clientSet, &rbacv1.RoleBinding{
+	return cmdutil.CreateOrUpdateRoleBinding(clientSet, &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      BootstrapSignerClusterRoleName,
 			Namespace: metav1.NamespacePublic,
