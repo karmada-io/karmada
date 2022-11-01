@@ -33,6 +33,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
+	utiltest "github.com/karmada-io/karmada/pkg/util/testing"
 )
 
 func TestModifyRequest(t *testing.T) {
@@ -402,7 +403,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 				RequestInfo:          tt.args.requestInfo,
 				GroupVersionResource: proxytest.PodGVR,
 				ProxyPath:            "/proxy",
-				Responder:            proxytest.NewResponder(response),
+				Responder:            utiltest.NewResponder(response),
 				HTTPReq:              tt.args.request,
 			})
 			if !proxytest.ErrorMessageEquals(err, tt.want.err) {

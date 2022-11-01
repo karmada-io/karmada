@@ -11,7 +11,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
-	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
+	utiltest "github.com/karmada-io/karmada/pkg/util/testing"
 )
 
 func Test_karmadaProxy(t *testing.T) {
@@ -76,7 +76,7 @@ func Test_karmadaProxy(t *testing.T) {
 			response := httptest.NewRecorder()
 			h, err := p.Connect(context.TODO(), framework.ProxyRequest{
 				ProxyPath: tt.args.path,
-				Responder: proxytest.NewResponder(response),
+				Responder: utiltest.NewResponder(response),
 			})
 			if err != nil {
 				t.Error(err)
