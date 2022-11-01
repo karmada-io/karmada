@@ -373,26 +373,7 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 		policyList = append(policyList, policy)
 	}
 
-	var (
-		matchedPolicy         *policyv1alpha1.PropagationPolicy
-		matchedPolicyPriority = util.PriorityMisMatch
-	)
-
-	for _, policy := range policyList {
-		if p := util.ResourceMatchSelectorsPriority(object, policy.Spec.ResourceSelectors...); p > matchedPolicyPriority {
-			matchedPolicy = policy
-			matchedPolicyPriority = p
-		} else if p > util.PriorityMisMatch && p == matchedPolicyPriority {
-			matchedPolicy = GetHigherPriorityPropagationPolicy(matchedPolicy, policy)
-		}
-	}
-
-	if matchedPolicy == nil {
-		klog.V(2).Infof("no propagationpolicy match for resource(%s)", objectKey)
-		return nil, nil
-	}
-	klog.V(2).Infof("Matched policy(%s/%s) for resource(%s)", matchedPolicy.Namespace, matchedPolicy.Name, objectKey)
-	return matchedPolicy, nil
+	return getHighestPriorityPropagationPolicies(policyList, object, objectKey), nil
 }
 
 // LookForMatchedClusterPolicy tries to find a ClusterPropagationPolicy for object referenced by object key.
@@ -418,26 +399,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 		policyList = append(policyList, policy)
 	}
 
-	var (
-		matchedClusterPolicy         *policyv1alpha1.ClusterPropagationPolicy
-		matchedClusterPolicyPriority = util.PriorityMisMatch
-	)
-
-	for _, policy := range policyList {
-		if p := util.ResourceMatchSelectorsPriority(object, policy.Spec.ResourceSelectors...); p > matchedClusterPolicyPriority {
-			matchedClusterPolicy = policy
-			matchedClusterPolicyPriority = p
-		} else if p > util.PriorityMisMatch && p == matchedClusterPolicyPriority {
-			matchedClusterPolicy = GetHigherPriorityClusterPropagationPolicy(matchedClusterPolicy, policy)
-		}
-	}
-
-	if matchedClusterPolicy == nil {
-		klog.V(2).Infof("no clusterpropagationpolicy match for resource(%s)", objectKey)
-		return nil, nil
-	}
-	klog.V(2).Infof("Matched cluster policy(%s) for resource(%s)", matchedClusterPolicy.Name, objectKey)
-	return matchedClusterPolicy, nil
+	return getHighestPriorityClusterPropagationPolicies(policyList, object, objectKey), nil
 }
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
