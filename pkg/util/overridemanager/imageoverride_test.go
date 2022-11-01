@@ -188,6 +188,25 @@ func generateDeploymentYamlWithTwoContainer() *unstructured.Unstructured {
 							}}}}}}}
 }
 
+func generateJobYaml() *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "batch/v1",
+			"kind":       "Job",
+			"metadata": map[string]interface{}{
+				"name": "pi",
+			},
+			"spec": map[string]interface{}{
+				"template": map[string]interface{}{
+					"spec": map[string]interface{}{
+						"containers": []interface{}{
+							map[string]interface{}{
+								"image": "perl:5.34.0",
+								"name":  "perl",
+							},
+						}}}}}}
+}
+
 func TestParseJSONPatchesByImageOverrider(t *testing.T) {
 	type args struct {
 		rawObj         *unstructured.Unstructured
@@ -199,6 +218,47 @@ func TestParseJSONPatchesByImageOverrider(t *testing.T) {
 		want    []overrideOption
 		wantErr bool
 	}{
+		{
+			name: "imageOverrider with empty predicate, resource kind: Job, component: Registry, operator: add",
+			args: args{
+				rawObj: generateJobYaml(),
+				imageOverrider: &policyv1alpha1.ImageOverrider{
+					Component: "Registry",
+					Operator:  "add",
+					Value:     "k8s.gcr.io",
+				},
+			},
+			want: []overrideOption{
+				{
+					Op:    "replace",
+					Path:  "/spec/template/spec/containers/0/image",
+					Value: "k8s.gcr.io/perl:5.34.0",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "imageOverrider with predicate, resource kind: Job, component: Registry, operator: add",
+			args: args{
+				rawObj: generateJobYaml(),
+				imageOverrider: &policyv1alpha1.ImageOverrider{
+					Predicate: &policyv1alpha1.ImagePredicate{
+						Path: "/spec/template/spec/containers/0/image",
+					},
+					Component: "Registry",
+					Operator:  "add",
+					Value:     "k8s.gcr.io",
+				},
+			},
+			want: []overrideOption{
+				{
+					Op:    "replace",
+					Path:  "/spec/template/spec/containers/0/image",
+					Value: "k8s.gcr.io/perl:5.34.0",
+				},
+			},
+			wantErr: false,
+		},
 		{
 			name: "imageOverrider with empty predicate, resource kind: Deployment, component: Registry, operator: add",
 			args: args{
