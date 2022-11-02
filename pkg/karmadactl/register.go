@@ -37,7 +37,7 @@ import (
 	check "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
-	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/pubkeypin"
@@ -148,7 +148,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 			return nil
 		},
 		Annotations: map[string]string{
-			util.TagCommandGroup: util.GroupClusterRegistration,
+			cmdutil.TagCommandGroup: cmdutil.GroupClusterRegistration,
 		},
 	}
 	flags := cmd.Flags()
@@ -570,7 +570,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 	}
 
 	// cerate karmada-kubeconfig secret to be used by karmada-agent component.
-	if err := karmadautil.CreateOrUpdateSecret(o.memberClusterClient, kubeConfigSecret); err != nil {
+	if err := cmdutil.CreateOrUpdateSecret(o.memberClusterClient, kubeConfigSecret); err != nil {
 		return fmt.Errorf("create secret %s failed: %v", kubeConfigSecret.Name, err)
 	}
 

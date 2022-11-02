@@ -17,6 +17,7 @@ import (
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 	initutils "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -72,7 +73,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 
 	secretName := fmt.Sprintf("%s-kubeconfig", opts.Cluster)
 	secret := secretFromSpec(secretName, opts.Namespace, corev1.SecretTypeOpaque, map[string]string{secretName: string(configBytes)})
-	if err := addonutils.CreateOrUpdateSecret(opts.KubeClientSet, secret); err != nil {
+	if err := cmdutil.CreateOrUpdateSecret(opts.KubeClientSet, secret); err != nil {
 		return fmt.Errorf("create or update scheduler estimator secret error: %v", err)
 	}
 
@@ -89,7 +90,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaEstimatorServiceBytes, karmadaEstimatorService); err != nil {
 		return fmt.Errorf("decode karmada scheduler estimator service error: %v", err)
 	}
-	if err := addonutils.CreateService(opts.KubeClientSet, karmadaEstimatorService); err != nil {
+	if err := cmdutil.CreateService(opts.KubeClientSet, karmadaEstimatorService); err != nil {
 		return fmt.Errorf("create or update scheduler estimator service error: %v", err)
 	}
 
@@ -108,7 +109,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaEstimatorDeploymentBytes, karmadaEstimatorDeployment); err != nil {
 		return fmt.Errorf("decode karmada scheduler estimator deployment error: %v", err)
 	}
-	if err := addonutils.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaEstimatorDeployment); err != nil {
+	if err := cmdutil.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaEstimatorDeployment); err != nil {
 		return fmt.Errorf("create or update scheduler estimator deployment error: %v", err)
 	}
 

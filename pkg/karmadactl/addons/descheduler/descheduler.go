@@ -15,6 +15,7 @@ import (
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 	initutils "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 var karmadaDeschedulerLabels = map[string]string{"app": addoninit.DeschedulerResourceName}
@@ -59,7 +60,7 @@ var enableDescheduler = func(opts *addoninit.CommandAddonsEnableOption) error {
 		return fmt.Errorf("decode descheduler deployment error: %v", err)
 	}
 
-	if err := addonutils.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaDeschedulerDeployment); err != nil {
+	if err := cmdutil.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaDeschedulerDeployment); err != nil {
 		return fmt.Errorf("create karmada descheduler deployment error: %v", err)
 	}
 
