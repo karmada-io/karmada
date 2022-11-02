@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -250,8 +252,8 @@ func promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured
 		return nil
 	}
 
+	controlPlaneClient := clientset.NewForConfigOrDie(controlPlaneRestConfig)
 	controlPlaneDynamicClient := dynamic.NewForConfigOrDie(controlPlaneRestConfig)
-
 	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	if len(obj.GetNamespace()) == 0 {
@@ -278,6 +280,16 @@ func promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured
 
 		fmt.Printf("Resource %q(%s) is promoted successfully\n", gvr, opts.name)
 	} else {
+		if _, err := controlPlaneClient.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: opts.Namespace,
+			},
+		}, metav1.CreateOptions{}); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("failed to create namespace %s in control plane: %v", opts.Namespace, err)
+			}
+		}
+
 		_, err := controlPlaneDynamicClient.Resource(gvr).Namespace(opts.Namespace).Get(context.TODO(), opts.name, metav1.GetOptions{})
 		if err == nil {
 			fmt.Printf("Resource %q(%s/%s) already exist in karmada control plane, you can edit PropagationPolicy and OverridePolicy to propagate it\n",
