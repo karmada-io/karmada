@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 	"k8s.io/kubectl/pkg/cmd/get"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 )
@@ -78,9 +76,6 @@ func NewCmdToken(f util.Factory, parentCommand string, streams genericclioptions
 
 // CommandTokenOptions holds all command options for token
 type CommandTokenOptions struct {
-	// global flags
-	options.GlobalCommandOptions
-
 	TTL         *metav1.Duration
 	Description string
 	Groups      []string
@@ -116,17 +111,8 @@ func NewCmdTokenCreate(f util.Factory, out io.Writer, tokenOpts *CommandTokenOpt
 		Args: cobra.NoArgs,
 	}
 
-	tokenOpts.GlobalCommandOptions.AddFlags(cmd.Flags())
-
-	if tokenOpts.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			tokenOpts.KubeConfig = env
-		} else {
-			tokenOpts.KubeConfig = defaultKubeConfig
-		}
-	}
-
+	cmd.Flags().StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	cmd.Flags().StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
 	cmd.Flags().BoolVar(&tokenOpts.PrintRegisterCommand, "print-register-command", false, fmt.Sprintf("Instead of printing only the token, print the full '%s register' flag needed to register the member cluster using the token.", tokenOpts.parentCommand))
 	cmd.Flags().DurationVar(&tokenOpts.TTL.Duration, "ttl", tokenutil.DefaultTokenDuration, "The duration before the token is automatically deleted (e.g. 1s, 2m, 3h). If set to '0', the token will never expire")
 	cmd.Flags().StringSliceVar(&tokenOpts.Usages, "usages", tokenutil.DefaultUsages, fmt.Sprintf("Describes the ways in which this token can be used. You can pass --usages multiple times or provide a comma separated list of options. Valid options: [%s]", strings.Join(bootstrapapi.KnownTokenUsages, ",")))
@@ -154,16 +140,8 @@ func NewCmdTokenList(f util.Factory, out io.Writer, errW io.Writer, tokenOpts *C
 		Args: cobra.NoArgs,
 	}
 
-	tokenOpts.GlobalCommandOptions.AddFlags(cmd.Flags())
-
-	if tokenOpts.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			tokenOpts.KubeConfig = env
-		} else {
-			tokenOpts.KubeConfig = defaultKubeConfig
-		}
-	}
+	cmd.Flags().StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	cmd.Flags().StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
 
 	return cmd
 }
@@ -195,16 +173,8 @@ func NewCmdTokenDelete(f util.Factory, out io.Writer, tokenOpts *CommandTokenOpt
 		},
 	}
 
-	tokenOpts.GlobalCommandOptions.AddFlags(cmd.Flags())
-
-	if tokenOpts.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			tokenOpts.KubeConfig = env
-		} else {
-			tokenOpts.KubeConfig = defaultKubeConfig
-		}
-	}
+	cmd.Flags().StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	cmd.Flags().StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
 
 	return cmd
 }
@@ -226,7 +196,7 @@ func (o *CommandTokenOptions) runCreateToken(out io.Writer, client kubeclient.In
 	// if --print-register-command was specified, print a machine-readable full `karmadactl register` command
 	// otherwise, just print the token
 	if o.PrintRegisterCommand {
-		joinCommand, err := tokenutil.GenerateRegisterCommand(o.KubeConfig, o.parentCommand, tokenStr)
+		joinCommand, err := tokenutil.GenerateRegisterCommand(*defaultConfigFlags.KubeConfig, o.parentCommand, tokenStr)
 		if err != nil {
 			return fmt.Errorf("failed to get register command, err: %w", err)
 		}
