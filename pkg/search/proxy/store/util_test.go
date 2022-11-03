@@ -201,7 +201,7 @@ func Test_newMultiClusterResourceVersionFromString(t *testing.T) {
 			},
 		},
 		{
-			name: "success",
+			name: "success - normal",
 			args: args{
 				s: base64.RawURLEncoding.EncodeToString([]byte(`{"cluster1":"1","cluster2":"2"}`)),
 			},
@@ -209,6 +209,30 @@ func Test_newMultiClusterResourceVersionFromString(t *testing.T) {
 				rvs: map[string]string{
 					"cluster1": "1",
 					"cluster2": "2",
+				},
+			},
+		},
+		{
+			name: "success - empty cluster name",
+			args: args{
+				s: base64.RawURLEncoding.EncodeToString([]byte(`{"":"1","cluster2":"2"}`)),
+			},
+			want: &multiClusterResourceVersion{
+				rvs: map[string]string{
+					"":         "1",
+					"cluster2": "2",
+				},
+			},
+		},
+		{
+			name: "success - empty ResourceVersion",
+			args: args{
+				s: base64.RawURLEncoding.EncodeToString([]byte(`{"cluster1":"","cluster2":""}`)),
+			},
+			want: &multiClusterResourceVersion{
+				rvs: map[string]string{
+					"cluster1": "",
+					"cluster2": "",
 				},
 			},
 		},
@@ -310,7 +334,7 @@ func Test_multiClusterResourceVersion_String(t *testing.T) {
 			want: "",
 		},
 		{
-			name: "get success",
+			name: "get success - normal",
 			fields: fields{
 				rvs: map[string]string{
 					"cluster1": "1",
@@ -318,6 +342,26 @@ func Test_multiClusterResourceVersion_String(t *testing.T) {
 				},
 			},
 			want: base64.RawURLEncoding.EncodeToString([]byte(`{"cluster1":"1","cluster2":"2"}`)),
+		},
+		{
+			name: "get success - empty cluster name",
+			fields: fields{
+				rvs: map[string]string{
+					"":         "1",
+					"cluster2": "2",
+				},
+			},
+			want: base64.RawURLEncoding.EncodeToString([]byte(`{"":"1","cluster2":"2"}`)),
+		},
+		{
+			name: "get success - empty ResourceVersion",
+			fields: fields{
+				rvs: map[string]string{
+					"cluster1": "",
+					"cluster2": "",
+				},
+			},
+			want: base64.RawURLEncoding.EncodeToString([]byte(`{"cluster1":"","cluster2":""}`)),
 		},
 	}
 	for _, tt := range tests {
