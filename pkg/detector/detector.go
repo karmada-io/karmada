@@ -224,43 +224,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return err
 	}
 
-	// first attempts to match policy in it's namespace.
-	propagationPolicy, err := d.LookForMatchedPolicy(object, clusterWideKey)
-	if err != nil {
-		klog.Errorf("Failed to retrieve policy for object: %s, error: %v", clusterWideKey.String(), err)
-		return err
-	}
-	if propagationPolicy != nil {
-		// return err when dependents not present, that we can retry at next reconcile.
-		if present, err := helper.IsDependentOverridesPresent(d.Client, propagationPolicy); err != nil || !present {
-			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", propagationPolicy.Namespace, propagationPolicy.Name)
-			return fmt.Errorf("waiting for dependent overrides")
-		}
-		d.RemoveWaiting(clusterWideKey)
-		return d.ApplyPolicy(object, clusterWideKey, propagationPolicy)
-	}
-
-	// reaching here means there is no appropriate PropagationPolicy, attempts to match a ClusterPropagationPolicy.
-	clusterPolicy, err := d.LookForMatchedClusterPolicy(object, clusterWideKey)
-	if err != nil {
-		klog.Errorf("Failed to retrieve cluster policy for object: %s, error: %v", clusterWideKey.String(), err)
-		return err
-	}
-	if clusterPolicy != nil {
-		d.RemoveWaiting(clusterWideKey)
-		return d.ApplyClusterPolicy(object, clusterWideKey, clusterPolicy)
-	}
-
-	if d.isWaiting(clusterWideKey) {
-		// reaching here means there is no appropriate policy for the object
-		d.EventRecorder.Event(object, corev1.EventTypeWarning, workv1alpha2.EventReasonApplyPolicyFailed, "No policy match for resource")
-		return nil
-	}
-
-	// put it into waiting list and retry once in case the resource and propagation policy come at the same time
-	// see https://github.com/karmada-io/karmada/issues/1195
-	d.AddWaiting(clusterWideKey)
-	return fmt.Errorf("no matched propagation policy")
+	return d.propagateResource(object, clusterWideKey)
 }
 
 // EventFilter tells if an object should be take care of.
