@@ -10,10 +10,10 @@ const (
 	EventReasonRemoveExecutionSpaceFailed = "RemoveExecutionSpaceFailed"
 	// EventReasonRemoveExecutionSpaceSucceed indicates that remove execution space succeed.
 	EventReasonRemoveExecutionSpaceSucceed = "RemoveExecutionSpaceSucceed"
-	// EventReasonTaintClusterByConditionFailed indicates that taint cluster by condition failed.
-	EventReasonTaintClusterByConditionFailed = "TaintClusterByConditionFailed"
-	// EventReasonRemoveTargetClusterFailed indicates that failed to remove target cluster from binding.
-	EventReasonRemoveTargetClusterFailed = "RemoveTargetClusterFailed"
+	// EventReasonTaintClusterFailed indicates that taint cluster failed.
+	EventReasonTaintClusterFailed = "TaintClusterFailed"
+	// EventReasonTaintClusterSucceed indicates that taint cluster succeed.
+	EventReasonTaintClusterSucceed = "TaintClusterSucceed"
 	// EventReasonSyncImpersonationConfigSucceed indicates that sync impersonation config succeed.
 	EventReasonSyncImpersonationConfigSucceed = "SyncImpersonationConfigSucceed"
 	// EventReasonSyncImpersonationConfigFailed indicates that sync impersonation config failed.

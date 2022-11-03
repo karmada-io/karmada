@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -10,12 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
 var (
@@ -30,7 +26,7 @@ var (
 	}
 )
 
-func TestUpdateClusterControllerTaint(t *testing.T) {
+func TestSetCurrentClusterTaints(t *testing.T) {
 	type args struct {
 		taints         []corev1.Taint
 		taintsToAdd    []*corev1.Taint
@@ -40,7 +36,6 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 		name       string
 		args       args
 		wantTaints []corev1.Taint
-		wantErr    bool
 	}{
 		{
 			name: "ready condition from true to false",
@@ -50,7 +45,6 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 				taintsToRemove: []*corev1.Taint{unreachableTaintTemplate.DeepCopy()},
 			},
 			wantTaints: []corev1.Taint{*notReadyTaintTemplate},
-			wantErr:    false,
 		},
 		{
 			name: "ready condition from true to unknown",
@@ -60,7 +54,6 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 				taintsToRemove: []*corev1.Taint{notReadyTaintTemplate.DeepCopy()},
 			},
 			wantTaints: []corev1.Taint{*unreachableTaintTemplate},
-			wantErr:    false,
 		},
 		{
 			name: "ready condition from false to unknown",
@@ -70,7 +63,6 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 				taintsToRemove: []*corev1.Taint{notReadyTaintTemplate.DeepCopy()},
 			},
 			wantTaints: []corev1.Taint{*unreachableTaintTemplate},
-			wantErr:    false,
 		},
 		{
 			name: "ready condition from false to true",
@@ -80,7 +72,6 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 				taintsToRemove: []*corev1.Taint{notReadyTaintTemplate.DeepCopy(), unreachableTaintTemplate.DeepCopy()},
 			},
 			wantTaints: nil,
-			wantErr:    false,
 		},
 		{
 			name: "ready condition from unknown to true",
@@ -90,7 +81,6 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 				taintsToRemove: []*corev1.Taint{notReadyTaintTemplate.DeepCopy(), unreachableTaintTemplate.DeepCopy()},
 			},
 			wantTaints: nil,
-			wantErr:    false,
 		},
 		{
 			name: "ready condition from unknown to false",
@@ -100,7 +90,6 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 				taintsToRemove: []*corev1.Taint{unreachableTaintTemplate.DeepCopy()},
 			},
 			wantTaints: []corev1.Taint{*notReadyTaintTemplate},
-			wantErr:    false,
 		},
 		{
 			name: "clusterTaintsToAdd is nil and clusterTaintsToRemove is nil",
@@ -110,38 +99,26 @@ func TestUpdateClusterControllerTaint(t *testing.T) {
 				taintsToRemove: []*corev1.Taint{notReadyTaintTemplate.DeepCopy()},
 			},
 			wantTaints: []corev1.Taint{*unreachableTaintTemplate},
-			wantErr:    false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
 			cluster := &clusterv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{Name: "member"},
 				Spec: clusterv1alpha1.ClusterSpec{
 					Taints: tt.args.taints,
 				},
 			}
-			c := fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).Build()
 
-			if err := UpdateClusterControllerTaint(ctx, c, tt.args.taintsToAdd, tt.args.taintsToRemove, cluster); (err != nil) != tt.wantErr {
-				t.Errorf("UpdateClusterControllerTaint() error = %v, wantErr %v", err, tt.wantErr)
+			taints := SetCurrentClusterTaints(tt.args.taintsToAdd, tt.args.taintsToRemove, cluster)
+			if len(taints) != len(tt.wantTaints) {
+				t.Errorf("Cluster gotTaints = %v, want %v", taints, tt.wantTaints)
 			}
-
-			if err := c.Get(ctx, client.ObjectKey{Name: cluster.Name}, cluster); err != nil {
-				t.Fatalf("Failed to get cluster %s: %v", cluster.Name, err)
-			}
-
-			if len(cluster.Spec.Taints) != len(tt.wantTaints) {
-				t.Errorf("Cluster gotTaints = %v, want %v", cluster.Spec.Taints, tt.wantTaints)
-			}
-			for i := range cluster.Spec.Taints {
-				if cluster.Spec.Taints[i].Key != tt.wantTaints[i].Key ||
-					cluster.Spec.Taints[i].Value != tt.wantTaints[i].Value ||
-					cluster.Spec.Taints[i].Effect != tt.wantTaints[i].Effect {
-					t.Errorf("Cluster gotTaints = %v, want %v", cluster.Spec.Taints, tt.wantTaints)
+			for i := range taints {
+				if taints[i].Key != tt.wantTaints[i].Key ||
+					taints[i].Value != tt.wantTaints[i].Value ||
+					taints[i].Effect != tt.wantTaints[i].Effect {
+					t.Errorf("Cluster gotTaints = %v, want %v", taints, tt.wantTaints)
 				}
 			}
 		})
