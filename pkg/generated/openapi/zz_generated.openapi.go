@@ -32,12 +32,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceSummary":                            schema_pkg_apis_cluster_v1alpha1_ResourceSummary(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationRules":                          schema_pkg_apis_config_v1alpha1_CustomizationRules(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationTarget":                         schema_pkg_apis_config_v1alpha1_CustomizationTarget(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation":                    schema_pkg_apis_config_v1alpha1_DependencyInterpretation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference":                    schema_pkg_apis_config_v1alpha1_DependentObjectReference(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation":                        schema_pkg_apis_config_v1alpha1_HealthInterpretation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention":                         schema_pkg_apis_config_v1alpha1_LocalValueRetention(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement":                  schema_pkg_apis_config_v1alpha1_ReplicaResourceRequirement(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaRevision":                             schema_pkg_apis_config_v1alpha1_ReplicaRevision(ref),
+		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation":                              schema_pkg_apis_config_v1alpha1_Interpretation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus":                               schema_pkg_apis_config_v1alpha1_RequestStatus(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterContext":                  schema_pkg_apis_config_v1alpha1_ResourceInterpreterContext(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterCustomization":            schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomization(ref),
@@ -50,8 +46,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterWebhookConfigurationList": schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfigurationList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Rule":                                        schema_pkg_apis_config_v1alpha1_Rule(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RuleWithOperations":                          schema_pkg_apis_config_v1alpha1_RuleWithOperations(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation":                           schema_pkg_apis_config_v1alpha1_StatusAggregation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection":                            schema_pkg_apis_config_v1alpha1_StatusReflection(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress":                     schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressList":                 schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
@@ -1090,51 +1084,51 @@ func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"retention": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Retention describes the desired behavior that Karmada should react on the changes made by member cluster components. This avoids system running into a meaningless loop that Karmada resource controller and the member cluster component continually applying opposite values of a field. For example, the \"replicas\" of Deployment might be changed by the HPA controller on member cluster. In this case, Karmada should retain the \"replicas\" and not try to change it.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention"),
+							Description: "Retention describes the desired behavior that Karmada should react on the changes made by member cluster components. This avoids system running into a meaningless loop that Karmada resource controller and the member cluster component continually applying opposite values of a field. For example, the \"replicas\" of Deployment might be changed by the HPA controller on member cluster. In this case, Karmada should retain the \"replicas\" and not try to change it. Now only supports Lua. Interpretation.LuaScript holds the Lua script that is used to interpret the dependencies of a specific resource. The script should implement a function as follows:\n    retention:\n        luaScript: >\n            function GetDependencies(desiredObj)\n                dependencies = {}\n                if desiredObj.spec.serviceAccountName ~= \"\" and desiredObj.spec.serviceAccountName ~= \"default\" then\n                    dependency = {}\n                    dependency.apiVersion = \"v1\"\n                    dependency.kind = \"ServiceAccount\"\n                    dependency.name = desiredObj.spec.serviceAccountName\n                    dependency.namespace = desiredObj.namespace\n                    dependencies[0] = {}\n                    dependencies[0] = dependency\n                end\n                return dependencies\n            end\nInterpretation.LuaScript only holds the function body part, take the `desiredObj` and `observedObj` as the function parameters or global variables, and finally returns a retained specification.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation"),
 						},
 					},
 					"replicaResource": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ReplicaResource describes the rules for Karmada to discover the resource's replica as well as resource requirements. It would be useful for those CRD resources that declare workload types like Deployment. It is usually not needed for Kubernetes native resources(Deployment, Job) as Karmada knows how to discover info from them. But if it is set, the built-in discovery rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement"),
+							Description: "ReplicaResource describes the rules for Karmada to discover the resource's replica as well as resource requirements. It would be useful for those CRD resources that declare workload types like Deployment. It is usually not needed for Kubernetes native resources(Deployment, Job) as Karmada knows how to discover info from them. But if it is set, the built-in discovery rules will be ignored. Now only supports Lua. Interpretation.LuaScript holds the Lua script that is used to discover the resource's replica as well as resource requirements The script should implement a function as follows:\n    replicaResource:\n        luaScript: >\n            function GetReplicas(desiredObj)\n                nodeClaim = {}\n                resourceRequest = {}\n                result = {}\n\n                result.replica = desiredObj.spec.replicas\n                result.resourceRequest = desiredObj.spec.template.spec.containers[0].resources.limits\n\n                nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector\n                nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations\n                result.nodeClaim = nodeClaim\n\n                return result\n            end\n\nLuaScript only holds the function body part, take the `desiredObj` as the function parameters or global variable, and finally returns the replica number and required resources.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation"),
 						},
 					},
 					"replicaRevision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ReplicaRevision describes the rules for Karmada to revise the resource's replica. It would be useful for those CRD resources that declare workload types like Deployment. It is usually not needed for Kubernetes native resources(Deployment, Job) as Karmada knows how to revise replicas for them. But if it is set, the built-in revision rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaRevision"),
+							Description: "ReplicaRevision describes the rules for Karmada to revise the resource's replica. It would be useful for those CRD resources that declare workload types like Deployment. It is usually not needed for Kubernetes native resources(Deployment, Job) as Karmada knows how to revise replicas for them. But if it is set, the built-in revision rules will be ignored. Now only supports Lua. Interpretation.LuaScript holds the Lua script that is used to revise replicas in the desired specification. The script should implement a function as follows:\n    replicaRevision:\n        luaScript: >\n            function ReviseReplica(desiredObj, desiredReplica)\n                desiredObj.spec.replicas = desiredReplica\n                return desiredObj\n            end\n\nLuaScript only holds the function body part, take the `desiredObj` and `desiredReplica` as the function parameters or global variables, and finally returns a revised specification.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation"),
 						},
 					},
 					"statusReflection": {
 						SchemaProps: spec.SchemaProps{
-							Description: "StatusReflection describes the rules for Karmada to pick the resource's status. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretstatus If StatusReflection is set, the built-in rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection"),
+							Description: "StatusReflection describes the rules for Karmada to pick the resource's status. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretstatus If StatusReflection is set, the built-in rules will be ignored. Now only supports Lua. Interpretation.LuaScript holds the Lua script that is used to get the status from the observed specification. The script should implement a function as follows:\n    statusReflection:\n        luaScript: >\n            function ReflectStatus(observedObj)\n                status = {}\n                status.readyReplicas = observedObj.status.observedObj\n                return status\n            end\n\nLuaScript only holds the function body part, take the `observedObj` as the function parameters or global variables, and finally returns the status.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation"),
 						},
 					},
 					"statusAggregation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "StatusAggregation describes the rules for Karmada to aggregate status collected from member clusters to resource template. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#aggregatestatus If StatusAggregation is set, the built-in rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation"),
+							Description: "StatusAggregation describes the rules for Karmada to aggregate status collected from member clusters to resource template. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#aggregatestatus If StatusAggregation is set, the built-in rules will be ignored. Now only supports Lua. Interpretation.LuaScript holds the Lua script that is used to aggregate decentralized statuses to the desired specification. The script should implement a function as follows:\n    statusAggregation:\n        luaScript: >\n            function AggregateStatus(desiredObj, statusItems)\n                for i = 1, #items do\n                    desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas\n                end\n                return desiredObj\n            end\n\nLuaScript only holds the function body part, take the `desiredObj` and `statusItems` as the function parameters or global variables, and finally returns the desiredObj.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation"),
 						},
 					},
 					"healthInterpretation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HealthInterpretation describes the health assessment rules by which Karmada can assess the health state of the resource type.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation"),
+							Description: "HealthInterpretation describes the health assessment rules by which Karmada can assess the health state of the resource type. Now only supports Lua. Interpretation.LuaScript holds the Lua script that is used to assess the health state of a specific resource. The script should implement a function as follows:\n    healthInterpretation:\n        luaScript: >\n            function InterpretHealth(observedObj)\n                if observedObj.status.readyReplicas == observedObj.spec.replicas then\n                    return true\n                end\n            end\n\nLuaScript only holds the function body part, take the `observedObj` as the function parameters or global variables, and finally returns the boolean health state.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation"),
 						},
 					},
 					"dependencyInterpretation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DependencyInterpretation describes the rules for Karmada to analyze the dependent resources. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretdependency If DependencyInterpretation is set, the built-in rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation"),
+							Description: "DependencyInterpretation describes the rules for Karmada to analyze the dependent resources. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretdependency If DependencyInterpretation is set, the built-in rules will be ignored. Now only supports Lua. Interpretation.LuaScript holds the Lua script that is used to interpret the dependencies of a specific resource. The script should implement a function as follows:\n    dependencyInterpretation:\n        luaScript: >\n            function GetDependencies(desiredObj)\n                dependencies = {}\n                if desiredObj.spec.serviceAccountName ~= \"\" and desiredObj.spec.serviceAccountName ~= \"default\" then\n                    dependency = {}\n                    dependency.apiVersion = \"v1\"\n                    dependency.kind = \"ServiceAccount\"\n                    dependency.name = desiredObj.spec.serviceAccountName\n                    dependency.namespace = desiredObj.namespace\n                    dependencies[0] = {}\n                    dependencies[0] = dependency\n                end\n                return dependencies\n            end\n\nLuaScript only holds the function body part, take the `desiredObj` as the function parameters or global variables, and finally returns the dependent resources.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaRevision", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection"},
+			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Interpretation"},
 	}
 }
 
@@ -1163,28 +1157,6 @@ func schema_pkg_apis_config_v1alpha1_CustomizationTarget(ref common.ReferenceCal
 					},
 				},
 				Required: []string{"apiVersion", "kind"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_config_v1alpha1_DependencyInterpretation(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DependencyInterpretation holds the rules for interpreting the dependent resources of a specific resources.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"luaScript": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to interpret the dependencies of a specific resource. The script should implement a function as follows:\n    luaScript: >\n        function GetDependencies(desiredObj)\n            dependencies = {}\n            if desiredObj.spec.serviceAccountName ~= \"\" and desiredObj.spec.serviceAccountName ~= \"default\" then\n                dependency = {}\n                dependency.apiVersion = \"v1\"\n                dependency.kind = \"ServiceAccount\"\n                dependency.name = desiredObj.spec.serviceAccountName\n                dependency.namespace = desiredObj.namespace\n                dependencies[0] = {}\n                dependencies[0] = dependency\n            end\n            return dependencies\n        end\n\nLuaScript only holds the function body part, take the `desiredObj` as the function parameters or global variables, and finally returns the dependent resources.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"luaScript"},
 			},
 		},
 	}
@@ -1235,82 +1207,16 @@ func schema_pkg_apis_config_v1alpha1_DependentObjectReference(ref common.Referen
 	}
 }
 
-func schema_pkg_apis_config_v1alpha1_HealthInterpretation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_config_v1alpha1_Interpretation(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "HealthInterpretation holds the rules for interpreting the health state of a specific resource.",
+				Description: "Interpretation holds the scripts for operation. Now only supports Lua.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"luaScript": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to assess the health state of a specific resource. The script should implement a function as follows:\n    luaScript: >\n        function InterpretHealth(observedObj)\n            if observedObj.status.readyReplicas == observedObj.spec.replicas then\n                return true\n            end\n        end\n\nLuaScript only holds the function body part, take the `observedObj` as the function parameters or global variables, and finally returns the boolean health state.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"luaScript"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_config_v1alpha1_LocalValueRetention(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "LocalValueRetention holds the scripts for retention. Now only supports Lua.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"luaScript": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to retain runtime values to the desired specification. The script should implement a function as follows:\n    luaScript: >\n        function Retain(desiredObj, observedObj)\n            desiredObj.spec.fieldFoo = observedObj.spec.fieldFoo\n            return desiredObj\n        end\n\nLuaScript only holds the function body part, take the `desiredObj` and `observedObj` as the function parameters or global variables, and finally returns a retained specification.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"luaScript"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_config_v1alpha1_ReplicaResourceRequirement(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ReplicaResourceRequirement holds the scripts for getting the desired replicas as well as the resource requirement of each replica.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"luaScript": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to discover the resource's replica as well as resource requirements The script should implement a function as follows:\n    luaScript: >\n        function GetReplicas(desiredObj)\n            nodeClaim = {}\n            resourceRequest = {}\n            result = {}\n\n            result.replica = desiredObj.spec.replicas\n            result.resourceRequest = desiredObj.spec.template.spec.containers[0].resources.limits\n\n            nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector\n            nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations\n            result.nodeClaim = nodeClaim\n\n            return result\n        end\n\nLuaScript only holds the function body part, take the `desiredObj` as the function parameters or global variable, and finally returns the replica number and required resources.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"luaScript"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_config_v1alpha1_ReplicaRevision(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ReplicaRevision holds the scripts for revising the desired replicas.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"luaScript": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to revise replicas in the desired specification. The script should implement a function as follows:\n    luaScript: >\n        function ReviseReplica(desiredObj, desiredReplica)\n            desiredObj.spec.replicas = desiredReplica\n            return desiredObj\n        end\n\nLuaScript only holds the function body part, take the `desiredObj` and `desiredReplica` as the function parameters or global variables, and finally returns a revised specification.",
+							Description: "LuaScript only holds the function body part.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1988,50 +1894,6 @@ func schema_pkg_apis_config_v1alpha1_RuleWithOperations(ref common.ReferenceCall
 					},
 				},
 				Required: []string{"operations", "apiGroups", "apiVersions", "kinds"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_config_v1alpha1_StatusAggregation(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "StatusAggregation holds the scripts for aggregating several decentralized statuses.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"luaScript": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to aggregate decentralized statuses to the desired specification. The script should implement a function as follows:\n    luaScript: >\n        function AggregateStatus(desiredObj, statusItems)\n            for i = 1, #items do\n                desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas\n            end\n            return desiredObj\n        end\n\nLuaScript only holds the function body part, take the `desiredObj` and `statusItems` as the function parameters or global variables, and finally returns the desiredObj.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"luaScript"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_config_v1alpha1_StatusReflection(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "StatusReflection holds the scripts for getting the status.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"luaScript": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to get the status from the observed specification. The script should implement a function as follows:\n    luaScript: >\n        function ReflectStatus(observedObj)\n            status = {}\n            status.readyReplicas = observedObj.status.observedObj\n            return status\n        end\n\nLuaScript only holds the function body part, take the `observedObj` as the function parameters or global variables, and finally returns the status.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"luaScript"},
 			},
 		},
 	}
