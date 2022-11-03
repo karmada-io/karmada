@@ -196,7 +196,7 @@ func (o *CommandTokenOptions) runCreateToken(out io.Writer, client kubeclient.In
 	// if --print-register-command was specified, print a machine-readable full `karmadactl register` command
 	// otherwise, just print the token
 	if o.PrintRegisterCommand {
-		joinCommand, err := tokenutil.GenerateRegisterCommand(*defaultConfigFlags.KubeConfig, o.parentCommand, tokenStr)
+		joinCommand, err := tokenutil.GenerateRegisterCommand(*defaultConfigFlags.KubeConfig, o.parentCommand, tokenStr, *defaultConfigFlags.Context)
 		if err != nil {
 			return fmt.Errorf("failed to get register command, err: %w", err)
 		}

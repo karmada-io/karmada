@@ -84,7 +84,7 @@ type Token struct {
 }
 
 // GenerateRegisterCommand generate register command that will be printed
-func GenerateRegisterCommand(kubeConfig, parentCommand, token string) (string, error) {
+func GenerateRegisterCommand(kubeConfig, parentCommand, token string, karmadaContext string) (string, error) {
 	klog.V(1).Info("print register command")
 	// load the kubeconfig file to get the CA certificate and endpoint
 	config, err := clientcmd.LoadFromFile(kubeConfig)
@@ -92,8 +92,8 @@ func GenerateRegisterCommand(kubeConfig, parentCommand, token string) (string, e
 		return "", fmt.Errorf("failed to load kubeconfig, err: %w", err)
 	}
 
-	// load the default cluster config
-	clusterConfig := GetClusterFromKubeConfig(config)
+	// load the cluster config with the given karmada-context
+	clusterConfig := GetClusterFromKubeConfig(config, karmadaContext)
 	if clusterConfig == nil {
 		return "", fmt.Errorf("failed to get default cluster config")
 	}
@@ -125,14 +125,17 @@ func GenerateRegisterCommand(kubeConfig, parentCommand, token string) (string, e
 		token, strings.Join(publicKeyPins, ",")), nil
 }
 
-// GetClusterFromKubeConfig returns the default Cluster of the specified KubeConfig
-func GetClusterFromKubeConfig(config *clientcmdapi.Config) *clientcmdapi.Cluster {
+// GetClusterFromKubeConfig returns the Cluster of the specified KubeConfig, if karmada-context unset, it will use the current-context
+func GetClusterFromKubeConfig(config *clientcmdapi.Config, karmadaContext string) *clientcmdapi.Cluster {
 	// If there is an unnamed cluster object, use it
 	if config.Clusters[""] != nil {
 		return config.Clusters[""]
 	}
-	if config.Contexts[config.CurrentContext] != nil {
-		return config.Clusters[config.Contexts[config.CurrentContext].Cluster]
+	if karmadaContext == "" {
+		karmadaContext = config.CurrentContext
+	}
+	if config.Contexts[karmadaContext] != nil {
+		return config.Clusters[config.Contexts[karmadaContext].Cluster]
 	}
 	return nil
 }
