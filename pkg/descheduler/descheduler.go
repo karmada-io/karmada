@@ -189,7 +189,7 @@ func (d *Descheduler) updateScheduleResult(h *core.SchedulingResultHelper) error
 	if unschedulableSum == 0 {
 		return nil
 	}
-	message = fmt.Sprintf(", %d total descheduled replica(s)", unschedulableSum) + message
+	message += fmt.Sprintf(", %d total descheduled replica(s)", unschedulableSum)
 
 	var err error
 	defer func() {
