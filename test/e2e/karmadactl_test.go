@@ -33,14 +33,16 @@ import (
 )
 
 var _ = ginkgo.Describe("Karmadactl promote testing", func() {
-	var karmadaConfig karmadactl.KarmadaConfig
 	var member1 string
 	var member1Client kubernetes.Interface
+	var f cmdutil.Factory
 
 	ginkgo.BeforeEach(func() {
-		karmadaConfig = karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 		member1 = "member1"
 		member1Client = framework.GetClusterClient(member1)
+		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+		defaultConfigFlags.Context = &karmadaContext
+		f = cmdutil.NewFactory(defaultConfigFlags)
 	})
 
 	ginkgo.Context("Test promoting namespaced resource: deployment", func() {
@@ -85,18 +87,15 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			// Step 2, promote namespace used by the deployment from member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", deploymentNamespace, member1), func() {
 				namespaceOpts = karmadactl.CommandPromoteOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					Cluster: member1,
 				}
 				args := []string{"namespace", deploymentNamespace}
 				// init args: place namespace name to CommandPromoteOption.name
-				err := namespaceOpts.Complete(args)
+				err := namespaceOpts.Complete(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote a namespace from member1
-				err = karmadactl.RunPromote(karmadaConfig, namespaceOpts, args)
+				err = namespaceOpts.Run(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				framework.WaitNamespacePresentOnClusterByClient(kubeClient, deploymentNamespace)
@@ -105,19 +104,16 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			// Step 3,  promote deployment from cluster member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting deployment %s from member: %s to karmada", deploymentName, member1), func() {
 				deploymentOpts = karmadactl.CommandPromoteOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					Namespace: deploymentNamespace,
 					Cluster:   member1,
 				}
 				args := []string{"deployment", deploymentName}
 				// init args: place deployment name to CommandPromoteOption.name
-				err := deploymentOpts.Complete(args)
+				err := deploymentOpts.Complete(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote a deployment from member1
-				err = karmadactl.RunPromote(karmadaConfig, deploymentOpts, args)
+				err = deploymentOpts.Run(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -196,35 +192,29 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			// Step2, promote clusterrole and clusterrolebinding from member1
 			ginkgo.By(fmt.Sprintf("Promoting clusterrole %s and clusterrolebindings %s from member to karmada", clusterRoleName, clusterRoleBindingName), func() {
 				clusterRoleOpts = karmadactl.CommandPromoteOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					Cluster: member1,
 				}
 
 				args := []string{"clusterrole", clusterRoleName}
 				// init args: place clusterrole name to CommandPromoteOption.name
-				err := clusterRoleOpts.Complete(args)
+				err := clusterRoleOpts.Complete(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote clusterrole from member1
-				err = karmadactl.RunPromote(karmadaConfig, clusterRoleOpts, args)
+				err = clusterRoleOpts.Run(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				clusterRoleBindingOpts = karmadactl.CommandPromoteOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					Cluster: member1,
 				}
 
 				args = []string{"clusterrolebinding", clusterRoleBindingName}
 				// init args: place clusterrolebinding name to CommandPromoteOption.name
-				err = clusterRoleBindingOpts.Complete(args)
+				err = clusterRoleBindingOpts.Complete(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// use karmadactl to promote clusterrolebinding from member1
-				err = karmadactl.RunPromote(karmadaConfig, clusterRoleBindingOpts, args)
+				err = clusterRoleBindingOpts.Run(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -267,16 +257,13 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", serviceNamespace, member1), func() {
 				opts := karmadactl.CommandPromoteOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					Cluster: member1,
 				}
 				args := []string{"namespace", serviceNamespace}
-				err := opts.Complete(args)
+				err := opts.Complete(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				err = karmadactl.RunPromote(karmadaConfig, opts, args)
+				err = opts.Run(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				framework.WaitNamespacePresentOnClusterByClient(kubeClient, serviceNamespace)
@@ -284,17 +271,14 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			ginkgo.By(fmt.Sprintf("Promoting service %s from member: %s to karmada control plane", serviceName, member1), func() {
 				opts := karmadactl.CommandPromoteOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					Namespace: serviceNamespace,
 					Cluster:   member1,
 				}
 				args := []string{"service", serviceName}
-				err := opts.Complete(args)
+				err := opts.Complete(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				err = karmadactl.RunPromote(karmadaConfig, opts, args)
+				err = opts.Run(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
