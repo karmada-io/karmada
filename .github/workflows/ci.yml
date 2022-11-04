@@ -81,8 +81,15 @@ jobs:
       - name: make test
         run: make test
       - name: Upload coverage to Codecov
+        # Prevent running from the forked repository that doesn't need to upload coverage.
+        # In addition, running on the forked repository would fail as missing the necessary secret.
+        if: ${{ github.repository == 'karmada-io/karmada' }}
         uses: codecov/codecov-action@v3
         with:
+          # Even though token upload token is not required for public repos,
+          # but adding a token might increase successful uploads as per:
+          # https://community.codecov.com/t/upload-issues-unable-to-locate-build-via-github-actions-api/3954
+          token: ${{secrets.CODECOV_UPLOAD_TOKEN}}
           files: ./_output/coverage/coverage_pkg.txt,./_output/coverage/coverage_cmd.txt,./_output/coverage/coverage_examples.txt
           flags: unittests
           fail_ci_if_error: true
