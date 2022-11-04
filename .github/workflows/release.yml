@@ -36,11 +36,3 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: ./kubectl-karmada-${{ matrix.goos }}-${{ matrix.goarch }}.tgz
-  update-krew-index:
-    needs: release-assests
-    name: Update krew-index
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@master
-    - name: Update new version in krew-index
-      uses: rajatjindal/krew-release-bot@v0.0.40
