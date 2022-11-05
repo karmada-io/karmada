@@ -108,7 +108,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 	klog.V(4).Infof("Syncing cluster status: %s", req.NamespacedName.Name)
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, cluster); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop the informer.
 		if apierrors.IsNotFound(err) {
 			c.GenericInformerManager.Stop(req.NamespacedName.Name)

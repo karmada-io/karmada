@@ -36,7 +36,7 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 	klog.V(4).Infof("Reconciling Work %s.", req.NamespacedName.String())
 
 	work := &workv1alpha1.Work{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, work); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Cleanup derived EndpointSlices after work has been removed.
 			err = helper.DeleteEndpointSlice(c.Client, labels.Set{

@@ -76,7 +76,7 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 	var err error
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, cluster); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -96,7 +96,7 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	secret, err := c.ClusterClient.KubeClient.CoreV1().Secrets(c.KarmadaKubeconfigNamespace).Get(context.TODO(), KarmadaKubeconfigName, metav1.GetOptions{})
+	secret, err := c.ClusterClient.KubeClient.CoreV1().Secrets(c.KarmadaKubeconfigNamespace).Get(ctx, KarmadaKubeconfigName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("failed to get karmada kubeconfig secret: %v", err)
 		return controllerruntime.Result{Requeue: true}, err

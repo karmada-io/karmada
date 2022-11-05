@@ -31,7 +31,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 	klog.V(4).Infof("Reconciling ServiceImport %s.", req.NamespacedName.String())
 
 	svcImport := &mcsv1alpha1.ServiceImport{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, svcImport); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, svcImport); err != nil {
 		if apierrors.IsNotFound(err) {
 			return c.deleteDerivedService(req.NamespacedName)
 		}
