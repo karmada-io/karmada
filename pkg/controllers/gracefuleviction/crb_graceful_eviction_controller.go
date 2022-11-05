@@ -38,7 +38,7 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}

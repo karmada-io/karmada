@@ -59,7 +59,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
 
 	clusterResourceBinding := &workv1alpha2.ClusterResourceBinding{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, clusterResourceBinding); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, clusterResourceBinding); err != nil {
 		// The resource no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil

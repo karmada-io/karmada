@@ -44,7 +44,7 @@ func (c *HorizontalPodAutoscalerController) Reconcile(ctx context.Context, req c
 	klog.V(4).Infof("Reconciling HorizontalPodAutoscaler %s.", req.NamespacedName.String())
 
 	hpa := &autoscalingv1.HorizontalPodAutoscaler{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, hpa); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, hpa); err != nil {
 		// The resource may no longer exist, in which case we delete related works.
 		if apierrors.IsNotFound(err) {
 			if err := c.deleteWorks(names.GenerateWorkName(util.HorizontalPodAutoscalerKind, req.Name, req.Namespace)); err != nil {

@@ -49,7 +49,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 	klog.V(4).Infof("FederatedResourceQuota status controller reconciling %s", req.NamespacedName.String())
 
 	quota := &policyv1alpha1.FederatedResourceQuota{}
-	if err := c.Get(context.TODO(), req.NamespacedName, quota); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, quota); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -62,7 +62,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 	}
 
 	workList := &workv1alpha1.WorkList{}
-	if err := c.List(context.TODO(), workList, &client.ListOptions{
+	if err := c.List(ctx, workList, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			util.FederatedResourceQuotaNamespaceLabel: quota.Namespace,
 			util.FederatedResourceQuotaNameLabel:      quota.Name,

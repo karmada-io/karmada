@@ -129,6 +129,9 @@ func Run(ctx context.Context, opts *options.Options) error {
 		LivenessEndpointName:       "/healthz",
 		MetricsBindAddress:         opts.MetricsBindAddress,
 		MapperProvider:             restmapper.MapperProvider,
+		BaseContext: func() context.Context {
+			return ctx
+		},
 		Controller: v1alpha1.ControllerConfigurationSpec{
 			GroupKindConcurrency: map[string]int{
 				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,

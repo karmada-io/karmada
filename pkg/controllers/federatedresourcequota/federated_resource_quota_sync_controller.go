@@ -45,7 +45,7 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 	klog.V(4).Infof("FederatedResourceQuota sync controller reconciling %s", req.NamespacedName.String())
 
 	quota := &policyv1alpha1.FederatedResourceQuota{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, quota); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, quota); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("Begin to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
 			if err = c.cleanUpWorks(req.Namespace, req.Name); err != nil {
@@ -58,7 +58,7 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 	}
 
 	clusterList := &clusterv1alpha1.ClusterList{}
-	if err := c.Client.List(context.TODO(), clusterList); err != nil {
+	if err := c.Client.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list clusters, error: %v", err)
 		return controllerruntime.Result{Requeue: true}, err
 	}

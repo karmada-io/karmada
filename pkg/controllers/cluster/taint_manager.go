@@ -47,7 +47,7 @@ func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Re
 	klog.V(4).Infof("Reconciling cluster %s for taint manager", req.NamespacedName.Name)
 
 	cluster := &clusterv1alpha1.Cluster{}
-	if err := tc.Client.Get(context.TODO(), req.NamespacedName, cluster); err != nil {
+	if err := tc.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil

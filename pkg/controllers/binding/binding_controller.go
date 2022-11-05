@@ -59,7 +59,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
 
 	binding := &workv1alpha2.ResourceBinding{}
-	if err := c.Client.Get(context.TODO(), req.NamespacedName, binding); err != nil {
+	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
 		// The resource no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
