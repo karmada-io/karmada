@@ -97,6 +97,37 @@ func NewClusterDynamicClientSet(clusterName string, client client.Client) (*Dyna
 	return &clusterClientSet, nil
 }
 
+func BuildRestConfig(apiEndpoint string, secret *corev1.Secret, cluster *clusterv1alpha1.Cluster) (*rest.Config, error) {
+	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
+	if !tokenFound || len(token) == 0 {
+		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", cluster.Name, clusterv1alpha1.SecretTokenKey)
+	}
+
+	clusterConfig, err := clientcmd.BuildConfigFromFlags(apiEndpoint, "")
+	if err != nil {
+		return nil, err
+	}
+
+	clusterConfig.BearerToken = string(token)
+
+	if cluster.Spec.InsecureSkipTLSVerification {
+		clusterConfig.TLSClientConfig.Insecure = true
+	} else {
+		clusterConfig.CAData = secret.Data[clusterv1alpha1.SecretCADataKey]
+	}
+
+	if cluster.Spec.ProxyURL != "" {
+		proxy, err := url.Parse(cluster.Spec.ProxyURL)
+		if err != nil {
+			klog.Errorf("parse proxy error. %v", err)
+			return nil, err
+		}
+		clusterConfig.Proxy = http.ProxyURL(proxy)
+	}
+
+	return clusterConfig, nil
+}
+
 // NewClusterDynamicClientSetForAgent returns a dynamic client for the given member cluster which will be used in karmada agent.
 func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client) (*DynamicClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
@@ -132,33 +163,5 @@ func buildClusterConfig(clusterName string, client client.Client) (*rest.Config,
 	if err := client.Get(context.TODO(), types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret); err != nil {
 		return nil, err
 	}
-
-	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
-	if !tokenFound || len(token) == 0 {
-		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
-	}
-
-	clusterConfig, err := clientcmd.BuildConfigFromFlags(apiEndpoint, "")
-	if err != nil {
-		return nil, err
-	}
-
-	clusterConfig.BearerToken = string(token)
-
-	if cluster.Spec.InsecureSkipTLSVerification {
-		clusterConfig.TLSClientConfig.Insecure = true
-	} else {
-		clusterConfig.CAData = secret.Data[clusterv1alpha1.SecretCADataKey]
-	}
-
-	if cluster.Spec.ProxyURL != "" {
-		proxy, err := url.Parse(cluster.Spec.ProxyURL)
-		if err != nil {
-			klog.Errorf("parse proxy error. %v", err)
-			return nil, err
-		}
-		clusterConfig.Proxy = http.ProxyURL(proxy)
-	}
-
-	return clusterConfig, nil
+	return BuildRestConfig(apiEndpoint, secret, cluster)
 }
