@@ -63,6 +63,14 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 		Annotations: map[string]string{
 			util.TagCommandGroup: util.GroupClusterRegistration,
 		},
+		Args: func(cmd *cobra.Command, args []string) error {
+			for _, arg := range args {
+				if len(arg) > 0 {
+					return fmt.Errorf("%q does not take any arguments, got %q", cmd.CommandPath(), args)
+				}
+			}
+			return nil
+		},
 	}
 
 	flags := cmd.Flags()
