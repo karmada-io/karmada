@@ -23,6 +23,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter/prune"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -36,19 +37,19 @@ var (
 	promoteExample = templates.Examples(`
 		# Promote deployment(default/nginx) from cluster1 to Karmada
 		%[1]s promote deployment nginx -n default -C cluster1
-	
+
 		# Promote deployment(default/nginx) with gvk from cluster1 to Karmada
 		%[1]s promote deployment.v1.apps nginx -n default -C cluster1
-	
+
 		# Dumps the artifacts but does not deploy them to Karmada, same as 'dry run'
 		%[1]s promote deployment nginx -n default -C cluster1 -o yaml|json
-	
+
 		# Promote secret(default/default-token) from cluster1 to Karmada
 		%[1]s promote secret default-token -n default -C cluster1
-			
+
 		# Support to use '--cluster-kubeconfig' to specify the configuration of member cluster
 		%[1]s promote deployment nginx -n default -C cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH>
-			
+
 		# Support to use '--cluster-kubeconfig' and '--cluster-context' to specify the configuration of member cluster
 		%[1]s promote deployment nginx -n default -C cluster1 --cluster-kubeconfig=<CLUSTER_KUBECONFIG_PATH> --cluster-context=<CLUSTER_CONTEXT>`)
 )
@@ -84,9 +85,7 @@ func NewCmdPromote(f util.Factory, parentCommand string) *cobra.Command {
 
 	flag := cmd.Flags()
 	opts.AddFlags(flag)
-
-	flag.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flag.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	options.AddKubeConfigFlags(flag)
 
 	return cmd
 }

@@ -22,9 +22,6 @@ import (
 var (
 	rootCmdShort = "%s controls a Kubernetes Cluster Federation."
 	rootCmdLong  = "%s controls a Kubernetes Cluster Federation."
-
-	// It composes the set of values necessary for obtaining a REST client config with default values set.
-	defaultConfigFlags = genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 )
 
 // NewKarmadaCtlCommand creates the `karmadactl` command.
@@ -52,8 +49,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 
 	// Prevent klog errors about logging before parsing.
 	_ = flag.CommandLine.Parse(nil)
-
-	f := util.NewFactory(defaultConfigFlags)
+	f := util.NewFactory(options.DefaultConfigFlags)
 	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 	groups := templates.CommandGroups{
 		{

@@ -59,9 +59,7 @@ func NewCmdJoin(f cmdutil.Factory, parentCommand string) *cobra.Command {
 
 	flags := cmd.Flags()
 	opts.AddFlags(flags)
-
-	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	options.AddKubeConfigFlags(flags)
 
 	return cmd
 }
@@ -149,7 +147,7 @@ func RunJoin(f cmdutil.Factory, opts CommandJoinOption) error {
 	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			*defaultConfigFlags.Context, *defaultConfigFlags.KubeConfig, err)
+			*options.DefaultConfigFlags.Context, *options.DefaultConfigFlags.KubeConfig, err)
 	}
 
 	// Get cluster config

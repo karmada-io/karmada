@@ -17,6 +17,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -90,11 +91,10 @@ func NewCmdApply(f util.Factory, parentCommand string, streams genericclioptions
 
 	o.KubectlApplyFlags.AddFlags(cmd)
 	flags := cmd.Flags()
+	options.AddKubeConfigFlags(flags)
+	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	flags.BoolVarP(&o.AllClusters, "all-clusters", "", o.AllClusters, "If present, propagates a group of resources to all member clusters.")
 	flags.StringSliceVarP(&o.Clusters, "cluster", "C", o.Clusters, "If present, propagates a group of resources to specified clusters.")
-	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
-	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	return cmd
 }
 

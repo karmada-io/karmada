@@ -20,6 +20,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
@@ -156,11 +157,9 @@ func (o *CommandTaintOption) Validate() error {
 
 // AddFlags adds flags to the specified FlagSet.
 func (o *CommandTaintOption) AddFlags(flags *pflag.FlagSet) {
+	options.AddKubeConfigFlags(flags)
 	flags.BoolVar(&o.overwrite, "overwrite", o.overwrite, "If true, allow taints to be overwritten, otherwise reject taint updates that overwrite existing taints.")
 	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
-	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
-	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 }
 
 // RunTaint set taints for the clusters

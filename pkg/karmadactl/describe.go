@@ -11,6 +11,7 @@ import (
 	"k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -31,16 +32,16 @@ var (
 	describeExample = templates.Examples(`
 		# Describe a pod in cluster(member1)
 		%[1]s describe pods/nginx -C=member1
-	
+
 		# Describe all pods in cluster(member1)
 		%[1]s describe pods -C=member1
-	
+
 		# Describe a pod identified by type and name in "pod.json" in cluster(member1)
 		%[1]s describe -f pod.json -C=member1
-	
+
 		# Describe pods by label name=myLabel in cluster(member1)
 		%[1]s describe po -l name=myLabel -C=member1
-	
+
 		# Describe all pods managed by the 'frontend' replication controller in cluster(member1)
 		# (rc-created pods get the name of the rc as a prefix in the pod name)
 		%[1]s describe pods frontend -C=member1`)
@@ -83,6 +84,8 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericcliopti
 
 	flags := cmd.Flags()
 
+	options.AddKubeConfigFlags(flags)
+	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	usage := "containing the resource to describe"
 	cmdutil.AddFilenameOptionFlags(cmd, o.KubectlDescribeOptions.FilenameOptions, usage)
 	flags.StringVarP(&o.KubectlDescribeOptions.Selector, "selector", "l", o.KubectlDescribeOptions.Selector, "Selector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2)")
@@ -90,9 +93,6 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericcliopti
 	flags.BoolVar(&o.KubectlDescribeOptions.DescriberSettings.ShowEvents, "show-events", o.KubectlDescribeOptions.DescriberSettings.ShowEvents, "If true, display events related to the described object.")
 	cmdutil.AddChunkSizeFlag(cmd, &o.KubectlDescribeOptions.DescriberSettings.ChunkSize)
 	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
-	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
-	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 
 	return cmd
 }
