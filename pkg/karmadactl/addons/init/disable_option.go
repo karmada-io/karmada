@@ -7,7 +7,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 )
 
 // CommandAddonsDisableOption options for addons list.
@@ -26,7 +26,7 @@ func (o *CommandAddonsDisableOption) Complete() error {
 		return err
 	}
 
-	o.KarmadaKubeClientSet, err = utils.NewClientSet(o.KarmadaRestConfig)
+	o.KarmadaKubeClientSet, err = apiclient.NewClientSet(o.KarmadaRestConfig)
 	if err != nil {
 		return err
 	}

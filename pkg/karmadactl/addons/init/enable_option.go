@@ -11,7 +11,7 @@ import (
 	"k8s.io/utils/strings/slices"
 
 	cmdinit "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 )
 
 // CommandAddonsEnableOption options for addons list.
@@ -48,7 +48,7 @@ func (o *CommandAddonsEnableOption) Complete() error {
 		return err
 	}
 
-	o.KarmadaKubeClientSet, err = utils.NewClientSet(o.KarmadaRestConfig)
+	o.KarmadaKubeClientSet, err = apiclient.NewClientSet(o.KarmadaRestConfig)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (o *CommandAddonsEnableOption) Validate(args []string) error {
 		}
 
 		// Check member kubeconfig and context is valid
-		memberConfig, err := utils.RestConfig(o.MemberContext, o.MemberKubeConfig)
+		memberConfig, err := apiclient.RestConfig(o.MemberContext, o.MemberKubeConfig)
 		if err != nil {
 			return fmt.Errorf("failed to get member cluster config. error: %v", err)
 		}

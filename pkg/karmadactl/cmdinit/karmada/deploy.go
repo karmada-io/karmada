@@ -26,6 +26,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/bootstraptoken/clusterinfo"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 )
 
@@ -36,12 +37,12 @@ const (
 
 // InitKarmadaResources Initialize karmada resource
 func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
-	restConfig, err := utils.RestConfig("", filepath.Join(dir, options.KarmadaKubeConfigName))
+	restConfig, err := apiclient.RestConfig("", filepath.Join(dir, options.KarmadaKubeConfigName))
 	if err != nil {
 		return err
 	}
 
-	clientSet, err := utils.NewClientSet(restConfig)
+	clientSet, err := apiclient.NewClientSet(restConfig)
 	if err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	}
 
 	// New CRDsClient
-	crdClient, err := utils.NewCRDsClient(restConfig)
+	crdClient, err := apiclient.NewCRDsClient(restConfig)
 	if err != nil {
 		return err
 	}
@@ -110,12 +111,12 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 
 // InitKarmadaBootstrapToken create initial bootstrap token
 func InitKarmadaBootstrapToken(dir string) (string, error) {
-	restConfig, err := utils.RestConfig("", filepath.Join(dir, options.KarmadaKubeConfigName))
+	restConfig, err := apiclient.RestConfig("", filepath.Join(dir, options.KarmadaKubeConfigName))
 	if err != nil {
 		return "", err
 	}
 
-	clientSet, err := utils.NewClientSet(restConfig)
+	clientSet, err := apiclient.NewClientSet(restConfig)
 	if err != nil {
 		return "", err
 	}
@@ -260,7 +261,7 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 		return err
 	}
 	// new apiRegistrationClient
-	apiRegistrationClient, err := utils.NewAPIRegistrationClient(restConfig)
+	apiRegistrationClient, err := apiclient.NewAPIRegistrationClient(restConfig)
 	if err != nil {
 		return err
 	}

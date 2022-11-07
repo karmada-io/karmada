@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -30,7 +29,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	"github.com/karmada-io/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -51,7 +50,6 @@ import (
 // NewAgentCommand creates a *cobra.Command object with default parameters
 func NewAgentCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
-	karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 
 	cmd := &cobra.Command{
 		Use: "karmada-agent",
@@ -63,7 +61,7 @@ cluster and manifests to the Karmada control plane.`,
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := run(ctx, karmadaConfig, opts); err != nil {
+			if err := run(ctx, opts); err != nil {
 				return err
 			}
 			return nil
@@ -111,12 +109,12 @@ func init() {
 	controllers["certRotation"] = startCertRotationController
 }
 
-func run(ctx context.Context, karmadaConfig karmadactl.KarmadaConfig, opts *options.Options) error {
+func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-agent version: %s", version.Get())
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
 
-	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KarmadaKubeConfig)
+	controlPlaneRestConfig, err := apiclient.RestConfig(opts.KarmadaContext, opts.KarmadaKubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of karmada control plane: %w", err)
 	}

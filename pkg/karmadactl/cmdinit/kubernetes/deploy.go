@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	certutil "k8s.io/client-go/util/cert"
-	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 
@@ -25,6 +23,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 )
 
 var (
@@ -43,8 +42,6 @@ var (
 		options.FrontProxyCaCertAndKeyName,
 		options.FrontProxyClientCertAndKeyName,
 	}
-
-	defaultKubeConfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
 
 	defaultEtcdImage                  = "etcd:3.5.3-0"
 	defaultKubeAPIServerImage         = "kube-apiserver:v1.25.2"
@@ -135,24 +132,14 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 
 // Complete Initialize k8s client
 func (i *CommandInitOption) Complete() error {
-	// check config path of host kubernetes cluster
-	if i.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			i.KubeConfig = env
-		} else {
-			i.KubeConfig = defaultKubeConfig
-		}
-	}
-
-	restConfig, err := utils.RestConfig(i.Context, i.KubeConfig)
+	restConfig, err := apiclient.RestConfig(i.Context, i.KubeConfig)
 	if err != nil {
 		return err
 	}
 	i.RestConfig = restConfig
 
 	klog.Infof("kubeconfig file: %s, kubernetes: %s", i.KubeConfig, restConfig.Host)
-	clientSet, err := utils.NewClientSet(restConfig)
+	clientSet, err := apiclient.NewClientSet(restConfig)
 	if err != nil {
 		return err
 	}

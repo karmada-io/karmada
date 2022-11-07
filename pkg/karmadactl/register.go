@@ -38,6 +38,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/pubkeypin"
@@ -242,20 +243,7 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 	}
 	o.BootstrapToken.APIServerEndpoint = args[0]
 
-	if o.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			o.KubeConfig = env
-		} else {
-			o.KubeConfig = defaultKubeConfig
-		}
-	}
-
-	if !Exists(o.KubeConfig) {
-		return ErrEmptyConfig
-	}
-
-	restConfig, err := utils.RestConfig(o.Context, o.KubeConfig)
+	restConfig, err := apiclient.RestConfig(o.Context, o.KubeConfig)
 	if err != nil {
 		return err
 	}
@@ -276,7 +264,7 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 
 	o.memberClusterEndpoint = restConfig.Host
 
-	o.memberClusterClient, err = utils.NewClientSet(restConfig)
+	o.memberClusterClient, err = apiclient.NewClientSet(restConfig)
 	if err != nil {
 		return err
 	}

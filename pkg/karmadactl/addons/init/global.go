@@ -1,16 +1,12 @@
 package init
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/util/homedir"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 )
 
 // GlobalCommandOptions holds the configuration shared by the all sub-commands of `karmadactl`.
@@ -48,31 +44,22 @@ func (o *GlobalCommandOptions) AddFlags(flags *pflag.FlagSet) {
 
 // Complete the conditions required to be able to run list.
 func (o *GlobalCommandOptions) Complete() error {
-	if o.KubeConfig == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			o.KubeConfig = env
-		} else {
-			o.KubeConfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
-		}
-	}
-
-	restConfig, err := utils.RestConfig(o.Context, o.KubeConfig)
+	restConfig, err := apiclient.RestConfig(o.Context, o.KubeConfig)
 	if err != nil {
 		return err
 	}
 
-	o.KubeClientSet, err = utils.NewClientSet(restConfig)
+	o.KubeClientSet, err = apiclient.NewClientSet(restConfig)
 	if err != nil {
 		return err
 	}
 
-	o.KarmadaRestConfig, err = utils.RestConfig(o.KarmadaContext, o.KarmadaConfig)
+	o.KarmadaRestConfig, err = apiclient.RestConfig(o.KarmadaContext, o.KarmadaConfig)
 	if err != nil {
 		return err
 	}
 
-	o.KarmadaAggregatorClientSet, err = utils.NewAPIRegistrationClient(o.KarmadaRestConfig)
+	o.KarmadaAggregatorClientSet, err = apiclient.NewAPIRegistrationClient(o.KarmadaRestConfig)
 	if err != nil {
 		return err
 	}

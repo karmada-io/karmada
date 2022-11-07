@@ -15,7 +15,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
-	karmadactlutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -29,7 +30,7 @@ var (
 )
 
 // NewCmdJoin defines the `join` command that registers a cluster.
-func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Command {
+func NewCmdJoin(f cmdutil.Factory, parentCommand string) *cobra.Command {
 	opts := CommandJoinOption{}
 
 	cmd := &cobra.Command{
@@ -46,26 +47,27 @@ func NewCmdJoin(karmadaConfig KarmadaConfig, parentCommand string) *cobra.Comman
 			if err := opts.Validate(args); err != nil {
 				return err
 			}
-			if err := RunJoin(karmadaConfig, opts); err != nil {
+			if err := RunJoin(f, opts); err != nil {
 				return err
 			}
 			return nil
 		},
 		Annotations: map[string]string{
-			karmadactlutil.TagCommandGroup: karmadactlutil.GroupClusterRegistration,
+			cmdutil.TagCommandGroup: cmdutil.GroupClusterRegistration,
 		},
 	}
 
 	flags := cmd.Flags()
 	opts.AddFlags(flags)
 
+	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+
 	return cmd
 }
 
 // CommandJoinOption holds all command options.
 type CommandJoinOption struct {
-	options.GlobalCommandOptions
-
 	// ClusterNamespace holds the namespace name where the member cluster secrets are stored.
 	ClusterNamespace string
 
@@ -126,8 +128,6 @@ func (j *CommandJoinOption) Validate(args []string) error {
 
 // AddFlags adds flags to the specified FlagSet.
 func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
-	j.GlobalCommandOptions.AddFlags(flags)
-
 	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 
 	flags.StringVar(&j.ClusterContext, "cluster-context", "",
@@ -141,19 +141,19 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 }
 
 // RunJoin is the implementation of the 'join' command.
-func RunJoin(karmadaConfig KarmadaConfig, opts CommandJoinOption) error {
+func RunJoin(f cmdutil.Factory, opts CommandJoinOption) error {
 	klog.V(1).Infof("joining cluster. cluster name: %s", opts.ClusterName)
 	klog.V(1).Infof("joining cluster. cluster namespace: %s", opts.ClusterNamespace)
 
 	// Get control plane karmada-apiserver client
-	controlPlaneRestConfig, err := karmadaConfig.GetRestConfig(opts.KarmadaContext, opts.KubeConfig)
+	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			opts.KarmadaContext, opts.KubeConfig, err)
+			*defaultConfigFlags.Context, *defaultConfigFlags.KubeConfig, err)
 	}
 
 	// Get cluster config
-	clusterConfig, err := karmadaConfig.GetRestConfig(opts.ClusterContext, opts.ClusterKubeConfig)
+	clusterConfig, err := apiclient.RestConfig(opts.ClusterContext, opts.ClusterKubeConfig)
 	if err != nil {
 		return fmt.Errorf("failed to get joining cluster config. error: %v", err)
 	}
