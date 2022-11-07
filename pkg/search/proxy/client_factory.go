@@ -12,7 +12,8 @@ import (
 )
 
 func newMultiClusterStore(clusterLister clusterlisters.ClusterLister,
-	secretLister listcorev1.SecretLister, restMapper meta.RESTMapper) store.Store {
+	secretLister listcorev1.SecretLister, restMapper meta.RESTMapper,
+) store.Store {
 	clientFactory := &clientFactory{
 		ClusterLister: clusterLister,
 		SecretLister:  secretLister,

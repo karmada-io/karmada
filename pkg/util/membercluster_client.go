@@ -135,6 +135,7 @@ func buildClusterConfig(clusterName string, client client.Client) (*rest.Config,
 	return BuildConfigWithSecret(secret, cluster, apiEndpoint)
 }
 
+// BuildConfigWithSecret return a restConfig by given cluster and secret
 func BuildConfigWithSecret(secret *corev1.Secret, cluster *clusterv1alpha1.Cluster, apiEndpoint string) (*rest.Config, error) {
 	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
 	if !tokenFound || len(token) == 0 {
