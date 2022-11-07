@@ -132,7 +132,7 @@ func InitKarmadaBootstrapToken(dir string) (string, error) {
 
 	tokenStr := bootstrapToken.Token.ID + "." + bootstrapToken.Token.Secret
 
-	registerCommand, err := tokenutil.GenerateRegisterCommand(filepath.Join(dir, options.KarmadaKubeConfigName), "", tokenStr)
+	registerCommand, err := tokenutil.GenerateRegisterCommand(filepath.Join(dir, options.KarmadaKubeConfigName), "", tokenStr, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to get register command, err: %w", err)
 	}
