@@ -96,7 +96,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 			Message: "Advanced Commands:",
 			Commands: []*cobra.Command{
 				NewCmdApply(f, parentCommand, ioStreams),
-				NewCmdPromote(karmadaConfig, parentCommand),
+				NewCmdPromote(f, parentCommand),
 			},
 		},
 	}

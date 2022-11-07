@@ -33,7 +33,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 	utilpointer "k8s.io/utils/pointer"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
@@ -295,18 +294,18 @@ func (g *CommandGetOptions) Run(f util.Factory, cmd *cobra.Command, args []strin
 		return err
 	}
 
-	clusterInfos, err := getClusterInKarmadaForClient(gclient)
-	if err != nil {
-		return fmt.Errorf("method getClusterInKarmadaForClient get cluster info in karmada failed, err is: %w", err)
-	}
-
 	if err := g.getRBInKarmada(gclient); err != nil {
 		return err
 	}
 
 	if len(g.Clusters) <= 0 {
-		for c := range clusterInfos {
-			g.Clusters = append(g.Clusters, c)
+		clusterList, err := gclient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to list all member clusters in control plane, err: %w", err)
+		}
+
+		for i := range clusterList.Items {
+			g.Clusters = append(g.Clusters, clusterList.Items[i].Name)
 		}
 	}
 
@@ -877,33 +876,6 @@ func shouldGetNewPrinterForMapping(printer printers.ResourcePrinter, lastMapping
 	return printer == nil || lastMapping == nil || mapping == nil || mapping.Resource != lastMapping.Resource
 }
 
-// ClusterInfo Information about the member in the karmada cluster.
-type ClusterInfo struct {
-	KubeConfig string
-	Context    string
-
-	APIEndpoint     string
-	ClusterSyncMode clusterv1alpha1.ClusterSyncMode
-}
-
-func getFactory(clusterName string, clusterInfos map[string]*ClusterInfo, namespace string) cmdutil.Factory {
-	kubeConfigFlags := NewConfigFlags(true).WithDeprecatedPasswordFlag()
-	// Build member cluster kubeConfigFlags
-	kubeConfigFlags.APIServer = stringptr(clusterInfos[clusterName].APIEndpoint)
-
-	// Use kubeconfig to access member cluster
-	kubeConfigFlags.KubeConfig = stringptr(clusterInfos[clusterName].KubeConfig)
-	kubeConfigFlags.Context = stringptr(clusterInfos[clusterName].Context)
-	kubeConfigFlags.usePersistentConfig = true
-
-	if namespace != "" {
-		kubeConfigFlags.Namespace = stringptr(namespace)
-	}
-
-	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
-	return cmdutil.NewFactory(matchVersionKubeConfigFlags)
-}
-
 func (g *CommandGetOptions) transformRequests(req *rest.Request) {
 	if !g.ServerPrint || !g.IsHumanReadablePrinter {
 		return
@@ -957,44 +929,6 @@ func (g *CommandGetOptions) getRBInKarmada(gclient karmadaclientset.Interface) e
 				}
 			}
 		}
-	}
-	return nil
-}
-
-// getClusterInKarmadaForClient get cluster info in karmada cluster
-func getClusterInKarmadaForClient(gclient karmadaclientset.Interface) (map[string]*ClusterInfo, error) {
-	clusterList, err := gclient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	clusterInfos := make(map[string]*ClusterInfo, len(clusterList.Items))
-	for i := range clusterList.Items {
-		cluster := &ClusterInfo{
-			APIEndpoint:     clusterList.Items[i].Spec.APIEndpoint,
-			ClusterSyncMode: clusterList.Items[i].Spec.SyncMode,
-		}
-		clusterInfos[clusterList.Items[i].GetName()] = cluster
-	}
-	return clusterInfos, nil
-}
-
-// getClusterInKarmada get cluster info in karmada cluster
-func getClusterInKarmada(client *rest.Config, clusterInfos map[string]*ClusterInfo) error {
-	clusterList := &clusterv1alpha1.ClusterList{}
-	gClient, err := gclient.NewForConfig(client)
-	if err != nil {
-		return err
-	}
-	if err = gClient.List(context.TODO(), clusterList); err != nil {
-		return err
-	}
-	for i := range clusterList.Items {
-		cluster := &ClusterInfo{
-			APIEndpoint:     clusterList.Items[i].Spec.APIEndpoint,
-			ClusterSyncMode: clusterList.Items[i].Spec.SyncMode,
-		}
-		clusterInfos[clusterList.Items[i].GetName()] = cluster
 	}
 	return nil
 }
