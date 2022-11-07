@@ -227,7 +227,6 @@ func (ctl *Controller) connect(requestInfo *request.RequestInfo) connector {
 	return ctl.clusterProxy
 }
 
-// TODO: reuse with karmada/pkg/util/membercluster_client.go
 func (ctl *Controller) dynamicClientForCluster(clusterName string) (dynamic.Interface, error) {
 	cluster, err := ctl.clusterLister.Get(clusterName)
 	if err != nil {
