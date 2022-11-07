@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -21,10 +20,8 @@ import (
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	searchlisters "github.com/karmada-io/karmada/pkg/generated/listers/search/v1alpha1"
@@ -250,33 +247,9 @@ func (ctl *Controller) dynamicClientForCluster(clusterName string) (dynamic.Inte
 	if err != nil {
 		return nil, err
 	}
-
-	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
-	if !tokenFound || len(token) == 0 {
-		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
-	}
-
-	clusterConfig, err := clientcmd.BuildConfigFromFlags(apiEndpoint, "")
+	clusterConfig, err := util.BuildRestConfig(apiEndpoint, secret, cluster)
 	if err != nil {
 		return nil, err
 	}
-
-	clusterConfig.BearerToken = string(token)
-
-	if cluster.Spec.InsecureSkipTLSVerification {
-		clusterConfig.TLSClientConfig.Insecure = true
-	} else {
-		clusterConfig.CAData = secret.Data[clusterv1alpha1.SecretCADataKey]
-	}
-
-	if cluster.Spec.ProxyURL != "" {
-		proxy, err := url.Parse(cluster.Spec.ProxyURL)
-		if err != nil {
-			klog.Errorf("parse proxy error. %v", err)
-			return nil, err
-		}
-		clusterConfig.Proxy = http.ProxyURL(proxy)
-	}
-
 	return dynamic.NewForConfig(clusterConfig)
 }
