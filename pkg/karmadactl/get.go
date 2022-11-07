@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -971,14 +970,6 @@ func (g *CommandGetOptions) setColumnDefinition(table *metav1.Table) {
 		}
 		table.ColumnDefinitions = tempColumnDefinition
 	}
-}
-
-// Exists determine if path exists
-func Exists(path string) bool {
-	if _, err := os.Stat(path); err != nil {
-		return os.IsExist(err)
-	}
-	return true
 }
 
 // skipPrinter allows conditionally suppressing object output via the output field.

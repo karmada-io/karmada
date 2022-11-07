@@ -11,12 +11,14 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -34,6 +36,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 	var tomClusterRoleBinding *rbacv1.ClusterRoleBinding
 	var tomClusterRoleOnMember *rbacv1.ClusterRole
 	var tomClusterRoleBindingOnMember *rbacv1.ClusterRoleBinding
+	var f cmdutil.Factory
 
 	var (
 		clusterName    string
@@ -41,7 +44,6 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 		kubeConfigPath string
 		clusterContext string
 		controlPlane   string
-		karmadaConfig  karmadactl.KarmadaConfig
 
 		secretStoreNamespace string
 	)
@@ -52,9 +54,11 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 		kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
 		clusterContext = fmt.Sprintf("kind-%s", clusterName)
 		controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
-		karmadaConfig = karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-
 		secretStoreNamespace = "test-" + rand.String(RandomStrLength)
+
+		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+		defaultConfigFlags.Context = &karmadaContext
+		f = cmdutil.NewFactory(defaultConfigFlags)
 	})
 
 	ginkgo.BeforeEach(func() {
@@ -74,27 +78,20 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 	ginkgo.BeforeEach(func() {
 		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
 			opts := karmadactl.CommandJoinOption{
-				GlobalCommandOptions: options.GlobalCommandOptions{
-					KarmadaContext: karmadaContext,
-				},
 				DryRun:            false,
 				ClusterNamespace:  secretStoreNamespace,
 				ClusterName:       clusterName,
 				ClusterContext:    clusterContext,
 				ClusterKubeConfig: kubeConfigPath,
 			}
-			err := karmadactl.RunJoin(karmadaConfig, opts)
+			err := karmadactl.RunJoin(f, opts)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 	})
 
 	ginkgo.AfterEach(func() {
 		ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-			karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 			opts := karmadactl.CommandUnjoinOption{
-				GlobalCommandOptions: options.GlobalCommandOptions{
-					KarmadaContext: karmadaContext,
-				},
 				DryRun:            false,
 				ClusterNamespace:  secretStoreNamespace,
 				ClusterName:       clusterName,
@@ -102,7 +99,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 				ClusterKubeConfig: kubeConfigPath,
 				Wait:              5 * options.DefaultKarmadactlCommandDuration,
 			}
-			err := karmadactl.RunUnjoin(karmadaConfig, opts)
+			err := karmadactl.RunUnjoin(f, opts)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 	})

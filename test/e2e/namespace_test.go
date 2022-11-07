@@ -12,10 +12,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
@@ -24,10 +25,15 @@ import (
 var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision testing", func() {
 	var namespaceName string
 	var namespace *corev1.Namespace
+	var f cmdutil.Factory
 
 	ginkgo.BeforeEach(func() {
 		namespaceName = "karmada-e2e-ns-" + rand.String(3)
 		namespace = helper.NewNamespace(namespaceName)
+
+		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+		defaultConfigFlags.Context = &karmadaContext
+		f = cmdutil.NewFactory(defaultConfigFlags)
 	})
 
 	ginkgo.When("create a namespace in karmada-apiserver", func() {
@@ -83,29 +89,21 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
-				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(karmadaConfig, opts)
+				err := karmadactl.RunJoin(f, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 
 		ginkgo.AfterEach(func() {
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandUnjoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
@@ -113,7 +111,7 @@ var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision tes
 					ClusterKubeConfig: kubeConfigPath,
 					Wait:              5 * options.DefaultKarmadactlCommandDuration,
 				}
-				err := karmadactl.RunUnjoin(karmadaConfig, opts)
+				err := karmadactl.RunUnjoin(f, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})

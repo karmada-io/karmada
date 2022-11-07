@@ -21,6 +21,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -41,7 +42,6 @@ var (
 
 // ClusterDetector is a cluster watcher which watched cluster object in cluster-api management cluster and reconcile the events.
 type ClusterDetector struct {
-	KarmadaConfig         karmadactl.KarmadaConfig
 	ControllerPlaneConfig *rest.Config
 	ClusterAPIConfig      *rest.Config
 	ClusterAPIClient      client.Client
@@ -183,7 +183,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 		return err
 	}
 
-	clusterRestConfig, err := d.KarmadaConfig.GetRestConfig("", kubeconfigPath)
+	clusterRestConfig, err := apiclient.RestConfig("", kubeconfigPath)
 	if err != nil {
 		klog.Fatalf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
 	}

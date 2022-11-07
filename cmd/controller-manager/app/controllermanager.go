@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
@@ -43,7 +42,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
-	"github.com/karmada-io/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -603,8 +602,7 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 
 	klog.Infof("Begin to setup cluster-api cluster detector")
 
-	karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
-	clusterAPIRestConfig, err := karmadaConfig.GetRestConfig(opts.ClusterAPIContext, opts.ClusterAPIKubeconfig)
+	clusterAPIRestConfig, err := apiclient.RestConfig(opts.ClusterAPIContext, opts.ClusterAPIKubeconfig)
 	if err != nil {
 		klog.Fatalf("Failed to get cluster-api management cluster rest config. context: %s, kubeconfig: %s, err: %v", opts.ClusterAPIContext, opts.ClusterAPIKubeconfig, err)
 	}
@@ -615,7 +613,6 @@ func setupClusterAPIClusterDetector(mgr controllerruntime.Manager, opts *options
 	}
 
 	clusterAPIClusterDetector := &clusterapi.ClusterDetector{
-		KarmadaConfig:         karmadaConfig,
 		ControllerPlaneConfig: mgr.GetConfig(),
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,

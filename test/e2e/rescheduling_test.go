@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
@@ -18,7 +18,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl"
-	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
@@ -31,6 +31,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 		var kubeConfigPath string
 		var controlPlane string
 		var clusterContext string
+		var f cmdutil.Factory
 
 		ginkgo.BeforeEach(func() {
 			newClusterName = "member-e2e-" + rand.String(3)
@@ -38,6 +39,10 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
 			clusterContext = fmt.Sprintf("kind-%s", newClusterName)
+
+			defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+			defaultConfigFlags.Context = &karmadaContext
+			f = cmdutil.NewFactory(defaultConfigFlags)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -84,18 +89,14 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 
 		ginkgo.It("deployment reschedule testing", func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName), func() {
-				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(karmadaConfig, opts)
+				err := karmadactl.RunJoin(f, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// wait for the current cluster status changing to true
@@ -115,16 +116,11 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 
 			ginkgo.By("unjoin target cluster", func() {
 				klog.Infof("Unjoining cluster %q.", newClusterName)
-				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandUnjoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KubeConfig:     fmt.Sprintf("%s/.kube/karmada.config", os.Getenv("HOME")),
-						KarmadaContext: "karmada-apiserver",
-					},
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
 				}
-				err := karmadactl.RunUnjoin(karmadaConfig, opts)
+				err := karmadactl.RunUnjoin(f, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -155,6 +151,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 		var controlPlane string
 		var clusterContext string
 		var initClusterNames []string
+		var f cmdutil.Factory
 
 		ginkgo.BeforeEach(func() {
 			newClusterName = "member-e2e-" + rand.String(3)
@@ -162,6 +159,10 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, newClusterName)
 			controlPlane = fmt.Sprintf("%s-control-plane", newClusterName)
 			clusterContext = fmt.Sprintf("kind-%s", newClusterName)
+
+			defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+			defaultConfigFlags.Context = &karmadaContext
+			f = cmdutil.NewFactory(defaultConfigFlags)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -173,16 +174,11 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 
 		ginkgo.AfterEach(func() {
 			ginkgo.By(fmt.Sprintf("Unjoin clsters: %s", newClusterName), func() {
-				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandUnjoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KubeConfig:     fmt.Sprintf("%s/.kube/karmada.config", os.Getenv("HOME")),
-						KarmadaContext: "karmada-apiserver",
-					},
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
 				}
-				err := karmadactl.RunUnjoin(karmadaConfig, opts)
+				err := karmadactl.RunUnjoin(f, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
@@ -228,18 +224,14 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				})
 
 				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
-				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(karmadaConfig, opts)
+				err := karmadactl.RunJoin(f, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// wait for the current cluster status changing to true
@@ -291,18 +283,14 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 
 				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
-				karmadaConfig := karmadactl.NewKarmadaConfig(clientcmd.NewDefaultPathOptions())
 				opts := karmadactl.CommandJoinOption{
-					GlobalCommandOptions: options.GlobalCommandOptions{
-						KarmadaContext: karmadaContext,
-					},
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(karmadaConfig, opts)
+				err := karmadactl.RunJoin(f, opts)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// wait for the current cluster status changing to true
