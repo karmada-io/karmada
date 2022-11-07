@@ -132,10 +132,13 @@ func buildClusterConfig(clusterName string, client client.Client) (*rest.Config,
 	if err := client.Get(context.TODO(), types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret); err != nil {
 		return nil, err
 	}
+	return BuildConfigWithSecret(secret, cluster, apiEndpoint)
+}
 
+func BuildConfigWithSecret(secret *corev1.Secret, cluster *clusterv1alpha1.Cluster, apiEndpoint string) (*rest.Config, error) {
 	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
 	if !tokenFound || len(token) == 0 {
-		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
+		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", cluster.Name, clusterv1alpha1.SecretTokenKey)
 	}
 
 	clusterConfig, err := clientcmd.BuildConfigFromFlags(apiEndpoint, "")

@@ -2,18 +2,13 @@ package proxy
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
 
+	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/search/proxy/store"
+	"github.com/karmada-io/karmada/pkg/util"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/dynamic"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog/v2"
-
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 )
 
 func newMultiClusterStore(clusterLister clusterlisters.ClusterLister,
@@ -32,7 +27,6 @@ type clientFactory struct {
 }
 
 // DynamicClientForCluster creates a dynamic client for required cluster.
-// TODO: reuse with karmada/pkg/util/membercluster_client.go
 func (factory *clientFactory) DynamicClientForCluster(clusterName string) (dynamic.Interface, error) {
 	cluster, err := factory.ClusterLister.Get(clusterName)
 	if err != nil {
@@ -52,32 +46,9 @@ func (factory *clientFactory) DynamicClientForCluster(clusterName string) (dynam
 	if err != nil {
 		return nil, err
 	}
-
-	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
-	if !tokenFound || len(token) == 0 {
-		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
-	}
-
-	clusterConfig, err := clientcmd.BuildConfigFromFlags(apiEndpoint, "")
+	clusterConfig, err := util.BuildConfigWithSecret(secret, cluster, apiEndpoint)
 	if err != nil {
 		return nil, err
-	}
-
-	clusterConfig.BearerToken = string(token)
-
-	if cluster.Spec.InsecureSkipTLSVerification {
-		clusterConfig.TLSClientConfig.Insecure = true
-	} else {
-		clusterConfig.CAData = secret.Data[clusterv1alpha1.SecretCADataKey]
-	}
-
-	if cluster.Spec.ProxyURL != "" {
-		proxy, err := url.Parse(cluster.Spec.ProxyURL)
-		if err != nil {
-			klog.Errorf("parse proxy error. %v", err)
-			return nil, err
-		}
-		clusterConfig.Proxy = http.ProxyURL(proxy)
 	}
 
 	return dynamic.NewForConfig(clusterConfig)
