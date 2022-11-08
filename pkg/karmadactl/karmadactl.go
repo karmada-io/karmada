@@ -20,6 +20,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/describe"
 	"github.com/karmada-io/karmada/pkg/karmadactl/exec"
 	"github.com/karmada-io/karmada/pkg/karmadactl/get"
+	"github.com/karmada-io/karmada/pkg/karmadactl/interpret"
 	"github.com/karmada-io/karmada/pkg/karmadactl/join"
 	"github.com/karmada-io/karmada/pkg/karmadactl/logs"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -97,6 +98,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 				logs.NewCmdLogs(f, parentCommand, ioStreams),
 				exec.NewCmdExec(f, parentCommand, ioStreams),
 				describe.NewCmdDescribe(f, parentCommand, ioStreams),
+				interpret.NewCmdInterpret(f, parentCommand, ioStreams),
 			},
 		},
 		{
