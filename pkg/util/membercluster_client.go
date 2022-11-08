@@ -47,7 +47,7 @@ type ClientOption struct {
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
 func NewClusterClientSet(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
-	clusterConfig, err := buildClusterConfig(clusterName, client)
+	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func NewClusterClientSetForAgent(clusterName string, client client.Client, clien
 
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
 func NewClusterDynamicClientSet(clusterName string, client client.Client) (*DynamicClusterClient, error) {
-	clusterConfig, err := buildClusterConfig(clusterName, client)
+	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +111,11 @@ func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client
 	return &clusterClientSet, nil
 }
 
-func buildClusterConfig(clusterName string, client client.Client) (*rest.Config, error) {
-	cluster, err := GetCluster(client, clusterName)
+// BuildClusterConfig return rest config for member cluster.
+func BuildClusterConfig(clusterName string,
+	clusterGetter func(string) (*clusterv1alpha1.Cluster, error),
+	secretGetter func(string, string) (*corev1.Secret, error)) (*rest.Config, error) {
+	cluster, err := clusterGetter(clusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -125,11 +128,8 @@ func buildClusterConfig(clusterName string, client client.Client) (*rest.Config,
 		return nil, fmt.Errorf("cluster %s does not have a secret", clusterName)
 	}
 
-	secretNamespace := cluster.Spec.SecretRef.Namespace
-	secretName := cluster.Spec.SecretRef.Name
-
-	secret := &corev1.Secret{}
-	if err := client.Get(context.TODO(), types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret); err != nil {
+	secret, err := secretGetter(cluster.Spec.SecretRef.Namespace, cluster.Spec.SecretRef.Name)
+	if err != nil {
 		return nil, err
 	}
 
@@ -161,4 +161,18 @@ func buildClusterConfig(clusterName string, client client.Client) (*rest.Config,
 	}
 
 	return clusterConfig, nil
+}
+
+func clusterGetter(client client.Client) func(string) (*clusterv1alpha1.Cluster, error) {
+	return func(cluster string) (*clusterv1alpha1.Cluster, error) {
+		return GetCluster(client, cluster)
+	}
+}
+
+func secretGetter(client client.Client) func(string, string) (*corev1.Secret, error) {
+	return func(namespace string, name string) (*corev1.Secret, error) {
+		secret := &corev1.Secret{}
+		err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, secret)
+		return secret, err
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/metrics"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/scheme"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
@@ -20,6 +22,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	searchlisters "github.com/karmada-io/karmada/pkg/generated/listers/search/v1alpha1"
@@ -66,7 +69,8 @@ func NewController(option NewControllerOption) (*Controller, error) {
 	secretLister := option.KubeFactory.Core().V1().Secrets().Lister()
 	clusterLister := option.KarmadaFactory.Cluster().V1alpha1().Clusters().Lister()
 
-	multiClusterStore := newMultiClusterStore(clusterLister, secretLister, option.RestMapper)
+	clientFactory := dynamicClientForClusterFunc(clusterLister, secretLister)
+	multiClusterStore := store.NewMultiClusterCache(clientFactory, option.RestMapper)
 
 	allPlugins, err := newPlugins(option, multiClusterStore)
 	if err != nil {
@@ -243,4 +247,22 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 			"", "karmada-search", false, "", h.ServeHTTP)
 		h.ServeHTTP(rw, newReq)
 	}), nil
+}
+
+func dynamicClientForClusterFunc(clusterLister clusterlisters.ClusterLister,
+	secretLister listcorev1.SecretLister) func(string) (dynamic.Interface, error) {
+	clusterGetter := func(cluster string) (*clusterv1alpha1.Cluster, error) {
+		return clusterLister.Get(cluster)
+	}
+	secretGetter := func(namespace string, name string) (*corev1.Secret, error) {
+		return secretLister.Secrets(namespace).Get(name)
+	}
+
+	return func(clusterName string) (dynamic.Interface, error) {
+		clusterConfig, err := util.BuildClusterConfig(clusterName, clusterGetter, secretGetter)
+		if err != nil {
+			return nil, err
+		}
+		return dynamic.NewForConfig(clusterConfig)
+	}
 }
