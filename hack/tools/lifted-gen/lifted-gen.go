@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/spf13/pflag"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -30,13 +31,16 @@ const (
 )
 
 var (
-	// TODO: add to flag
-	liftedDir    = "pkg/util/lifted"
-	output       = "pkg/util/lifted/doc.go"
+	liftedDir    = ""
+	output       = ""
 	excludeFiles = []string{"doc.go"}
 )
 
 func main() {
+	pflag.StringVar(&liftedDir, "lifted-dir", "pkg/util/lifted", "The path of lifted dir")
+	pflag.StringVarP(&output, "output", "o", "pkg/util/lifted/doc.go", "The path of lifted-gen output")
+	pflag.Parse()
+
 	a := newAnalyzer()
 	a.collect(liftedDir)
 	a.dump(output)
