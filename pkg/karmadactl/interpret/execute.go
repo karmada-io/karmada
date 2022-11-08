@@ -13,6 +13,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/genericresource"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter"
+	"github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
 func (o *Options) completeExecute(f util.Factory) []error {
@@ -72,7 +73,7 @@ func (o *Options) runExecute() error {
 		return fmt.Errorf("fail to get status items: %v", err)
 	}
 
-	args := ruleArgs{
+	args := interpreter.RuleArgs{
 		Desired:  desired,
 		Observed: observed,
 		Status:   status,
@@ -92,7 +93,7 @@ func (o *Options) runExecute() error {
 	return nil
 }
 
-func printExecuteResult(w, errOut io.Writer, name string, result *ruleResult) {
+func printExecuteResult(w, errOut io.Writer, name string, result *interpreter.RuleResult) {
 	if result.Err != nil {
 		fmt.Fprintf(errOut, "Execute %s error: %v\n", name, result.Err)
 		return

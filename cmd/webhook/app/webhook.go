@@ -28,6 +28,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/webhook/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/webhook/overridepolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/propagationpolicy"
+	"github.com/karmada-io/karmada/pkg/webhook/resourceinterpretercustomization"
 	"github.com/karmada-io/karmada/pkg/webhook/work"
 )
 
@@ -125,6 +126,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/convert", &conversion.Webhook{})
 	hookServer.Register("/validate-resourceinterpreterwebhookconfiguration", &webhook.Admission{Handler: &configuration.ValidatingAdmission{}})
 	hookServer.Register("/validate-federatedresourcequota", &webhook.Admission{Handler: &federatedresourcequota.ValidatingAdmission{}})
+	hookServer.Register("/validate-resourceinterpretercustomization", &webhook.Admission{Handler: &resourceinterpretercustomization.ValidatingAdmission{Client: hookManager.GetClient()}})
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.

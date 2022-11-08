@@ -20,6 +20,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/genericresource"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
 var (
@@ -72,7 +73,7 @@ const (
 func NewCmdInterpret(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &Options{
 		IOStreams: streams,
-		Rules:     allRules,
+		Rules:     interpreter.AllResourceInterpreterCustomizationRules,
 	}
 	cmd := &cobra.Command{
 		Use:                   "interpret (-f FILENAME) (--operation OPERATION) [--ARGS VALUE]... ",
@@ -123,7 +124,7 @@ type Options struct {
 	ObservedResult      *resource.Result
 	StatusResult        *genericresource.Result
 
-	Rules Rules
+	Rules interpreter.Rules
 
 	genericclioptions.IOStreams
 }

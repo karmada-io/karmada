@@ -143,4 +143,18 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: resourceinterpretercustomization.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["config.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["resourceinterpretercustomizations"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/validate-resourceinterpretercustomization
+      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
 {{- end -}}

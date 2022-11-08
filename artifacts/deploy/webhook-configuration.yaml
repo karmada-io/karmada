@@ -139,6 +139,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 10
+  - name: resourceinterpretercustomization.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["config.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["resourceinterpretercustomizations"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-resourceinterpretercustomization
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 10
   - name: federatedresourcequota.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
