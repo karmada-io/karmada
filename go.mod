@@ -19,6 +19,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/vektra/mockery/v2 v2.10.0
+	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 	go.uber.org/atomic v1.7.0
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8
@@ -40,6 +41,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42
 	k8s.io/kubectl v0.24.2
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
+	layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
 	sigs.k8s.io/cluster-api v1.0.1
 	sigs.k8s.io/controller-runtime v0.12.2
 	sigs.k8s.io/kind v0.15.0

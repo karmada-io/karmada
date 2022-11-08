@@ -428,6 +428,12 @@ github.com/vektra/mockery/v2/pkg/logging
 # github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
 ## explicit
 github.com/xlab/treeprint
+# github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
+## explicit; go 1.17
+github.com/yuin/gopher-lua
+github.com/yuin/gopher-lua/ast
+github.com/yuin/gopher-lua/parse
+github.com/yuin/gopher-lua/pm
 # go.etcd.io/etcd/api/v3 v3.5.1
 ## explicit; go 1.16
 go.etcd.io/etcd/api/v3/authpb
@@ -1491,6 +1497,9 @@ k8s.io/utils/path
 k8s.io/utils/pointer
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
+# layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
+## explicit
+layeh.com/gopher-json
 # sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.30
 ## explicit; go 1.17
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/client
