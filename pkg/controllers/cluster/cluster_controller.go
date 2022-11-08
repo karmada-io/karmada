@@ -243,6 +243,8 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonRemoveExecutionSpaceFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
+	msg := fmt.Sprintf("Removed execution space for cluster(%s).", cluster.Name)
+	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, clusterv1alpha1.EventReasonRemoveExecutionSpaceSucceed, msg)
 
 	if exist, err := c.ExecutionSpaceExistForCluster(cluster.Name); err != nil {
 		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
@@ -392,7 +394,9 @@ func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 			klog.Errorf("Failed to create execution space for cluster(%s): %v", cluster.Name, err)
 			return err
 		}
-		klog.V(2).Infof("Created execution space(%s) for cluster(%s).", executionSpaceName, cluster.Name)
+		msg := fmt.Sprintf("Created execution space(%s) for cluster(%s).", executionSpaceName, cluster.Name)
+		klog.V(2).Info(msg)
+		c.EventRecorder.Event(cluster, corev1.EventTypeNormal, clusterv1alpha1.EventReasonCreateExecutionSpaceSucceed, msg)
 	}
 
 	return nil
