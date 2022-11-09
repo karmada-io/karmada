@@ -234,11 +234,13 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 	return func(a client.Object) []reconcile.Request {
 		var overrideRS []policyv1alpha1.ResourceSelector
+		var namespace string
 		switch t := a.(type) {
 		case *policyv1alpha1.ClusterOverridePolicy:
 			overrideRS = t.Spec.ResourceSelectors
 		case *policyv1alpha1.OverridePolicy:
 			overrideRS = t.Spec.ResourceSelectors
+			namespace = t.Namespace
 		default:
 			return nil
 		}
@@ -251,6 +253,18 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 
 		var requests []reconcile.Request
 		for _, binding := range bindingList.Items {
+			// Skip resourceBinding with different namespace of current overridePolicy.
+			if len(namespace) != 0 && namespace != binding.Namespace {
+				continue
+			}
+
+			// Nil resourceSelectors means matching all resources.
+			if len(overrideRS) == 0 {
+				klog.V(2).Infof("Enqueue ResourceBinding(%s/%s) as override policy(%s/%s) changes.", binding.Namespace, binding.Name, a.GetNamespace(), a.GetName())
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}})
+				continue
+			}
+
 			workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
 				klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", binding.Namespace, binding.Name, err)

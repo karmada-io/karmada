@@ -790,4 +790,35 @@ var _ = ginkgo.Describe("OverrideRules with nil resourceSelectors", func() {
 				})
 		})
 	})
+
+	ginkgo.Context("Deployment override testing when creating overridePolicy after develop and propagationPolicy have been created", func() {
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
+		})
+
+		ginkgo.It("deployment imageOverride testing", func() {
+			ginkgo.By("Check if deployment have presented on member clusters", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return true
+					})
+			})
+
+			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+
+			ginkgo.By("Check if deployment presented on member clusters have correct image value", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
+					})
+			})
+
+			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+		})
+	})
 })
