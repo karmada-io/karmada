@@ -499,7 +499,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 
-	overrideManager := overridemanager.New(mgr.GetClient())
+	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName))
 	skippedResourceConfig := util.NewSkippedResourceConfig()
 	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
 		// The program will never go here because the parameters have been checked

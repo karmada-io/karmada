@@ -16,6 +16,10 @@ const (
 	EventReasonApplyPolicyFailed = "ApplyPolicyFailed"
 	// EventReasonApplyPolicySucceed indicates that apply policy for resource succeed.
 	EventReasonApplyPolicySucceed = "ApplyPolicySucceed"
+	// EventReasonApplyOverridePolicyFailed indicates that apply override policy failed.
+	EventReasonApplyOverridePolicyFailed = "ApplyOverridePolicyFailed"
+	// EventReasonApplyOverridePolicySucceed indicates that apply override policy succeed.
+	EventReasonApplyOverridePolicySucceed = "ApplyOverridePolicySucceed"
 	// EventReasonScheduleBindingFailed indicates that schedule binding failed.
 	EventReasonScheduleBindingFailed = "ScheduleBindingFailed"
 	// EventReasonScheduleBindingSucceed indicates that schedule binding succeed.
