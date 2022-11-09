@@ -176,7 +176,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.KarmadaAgentImage, "karmada-agent-image", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-agent:%s", releaseVer.PatchRelease()), "Karmada agent image.")
 	flags.Int32Var(&opts.KarmadaAgentReplicas, "karmada-agent-replicas", 1, "Karmada agent replicas.")
 	flags.Int32Var(&opts.CertExpirationSeconds, "cert-expiration-seconds", DefaultCertExpirationSeconds, "The expiration time of certificate.")
-	flags.BoolVar(&opts.DryRun, "dry-run", false, "Don't apply any changes; just output what would be done.")
+	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 
 	return cmd
 }
