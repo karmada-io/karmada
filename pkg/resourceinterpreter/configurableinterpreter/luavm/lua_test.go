@@ -11,22 +11,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 func TestGetReplicas(t *testing.T) {
 	var replicas int32 = 1
-	// quantity := *resource.NewQuantity(1000, resource.BinarySI)
 	vm := VM{UseOpenLibs: false}
 	tests := []struct {
-		name      string
-		deploy    *appsv1.Deployment
-		luaScript string
-		expected  bool
+		name         string
+		deploy       *appsv1.Deployment
+		luaScript    string
+		expected     bool
+		wantReplica  int32
+		wantRequires *workv1alpha2.ReplicaRequirements
 	}{
 		{
 			name: "Test GetReplica",
@@ -63,6 +64,8 @@ func TestGetReplicas(t *testing.T) {
 							result.nodeClaim = nil
 							return replica, {} 
 						end`,
+			wantReplica:  1,
+			wantRequires: &workv1alpha2.ReplicaRequirements{},
 		},
 	}
 
@@ -70,10 +73,14 @@ func TestGetReplicas(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			toUnstructured, _ := helper.ToUnstructured(tt.deploy)
 			replicas, requires, err := vm.GetReplicas(toUnstructured, tt.luaScript)
-			klog.Infof("replicas %v", replicas)
-			klog.Infof("requires %v", requires)
 			if err != nil {
 				t.Errorf(err.Error())
+			}
+			if !reflect.DeepEqual(replicas, tt.wantReplica) {
+				t.Errorf("GetReplicas() got = %v, want %v", replicas, tt.wantReplica)
+			}
+			if !reflect.DeepEqual(requires, tt.wantRequires) {
+				t.Errorf("GetReplicas() got = %v, want %v", requires, tt.wantRequires)
 			}
 		})
 	}
@@ -166,9 +173,9 @@ func TestReviseDeploymentReplica(t *testing.T) {
 func TestAggregateDeploymentStatus(t *testing.T) {
 	statusMap := map[string]interface{}{
 		"replicas":            0,
-		"readyReplicas":       0,
+		"readyReplicas":       1,
 		"updatedReplicas":     0,
-		"availableReplicas":   1,
+		"availableReplicas":   0,
 		"unavailableReplicas": 0,
 	}
 	raw, _ := helper.BuildStatusRawExtension(statusMap)
@@ -186,37 +193,25 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 	oldDeploy.Status = appsv1.DeploymentStatus{
 		Replicas: 0, ReadyReplicas: 1, UpdatedReplicas: 0, AvailableReplicas: 0, UnavailableReplicas: 0}
 
-	newDeploy := &appsv1.Deployment{Status: appsv1.DeploymentStatus{Replicas: 0, ReadyReplicas: 0, UpdatedReplicas: 0, AvailableReplicas: 2, UnavailableReplicas: 0}}
+	newDeploy := &appsv1.Deployment{Status: appsv1.DeploymentStatus{Replicas: 0, ReadyReplicas: 3, UpdatedReplicas: 0, AvailableReplicas: 0, UnavailableReplicas: 0}}
 	oldObj, _ := helper.ToUnstructured(oldDeploy)
 	newObj, _ := helper.ToUnstructured(newDeploy)
-
-	var aggregateItem []map[string]interface{}
-	for _, item := range aggregatedStatusItems {
-		if item.Status == nil {
-			continue
-		}
-		temp := make(map[string]interface{})
-		if err := json.Unmarshal(item.Status.Raw, &temp); err != nil {
-			t.Error(err.Error())
-		}
-		aggregateItem = append(aggregateItem, temp)
-	}
 
 	tests := []struct {
 		name                  string
 		curObj                *unstructured.Unstructured
-		aggregatedStatusItems []map[string]interface{}
+		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
 		expectedObj           *unstructured.Unstructured
 		luaScript             string
 	}{
 		{
 			name:                  "Test AggregateDeploymentStatus",
 			curObj:                oldObj,
-			aggregatedStatusItems: aggregateItem,
+			aggregatedStatusItems: aggregatedStatusItems,
 			expectedObj:           newObj,
-			luaScript: `function AggregateStatus(desiredObj, statusItems)  
+			luaScript: `function AggregateStatus(desiredObj, statusItems) 
 										for i = 1, #statusItems do    
-											desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + statusItems[i].readyReplicas 
+											desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + statusItems[i].status.readyReplicas 
 										end    
 										return desiredObj
 									end`,
@@ -236,8 +231,8 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 		if err != nil {
 			t.Error(err.Error())
 		}
-		if reflect.DeepEqual(expectDeploy, actualDeploy) {
-			t.Log("Success \n")
+		if !reflect.DeepEqual(expectDeploy, actualDeploy) {
+			t.Errorf("AggregateStatus() got = %v, want %v", actualDeploy, expectDeploy)
 		}
 	}
 }
@@ -273,10 +268,13 @@ func TestHealthDeploymentStatus(t *testing.T) {
 	vm := VM{UseOpenLibs: false}
 
 	for _, tt := range tests {
-		flag, _ := vm.InterpretHealth(tt.curObj, tt.luaScript)
+		flag, err := vm.InterpretHealth(tt.curObj, tt.luaScript)
 
-		if reflect.DeepEqual(flag, tt.expectedObj) {
-			t.Log("Success \n")
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if !reflect.DeepEqual(flag, tt.expectedObj) {
+			t.Errorf("AggregateStatus() got = %v, want %v", flag, tt.expectedObj)
 		}
 	}
 }
@@ -290,7 +288,7 @@ func TestRetainDeployment(t *testing.T) {
 		luaScript   string
 	}{
 		{
-			name: "Test RetainDeployment",
+			name: "Test RetainDeployment1",
 			desiredObj: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
@@ -299,7 +297,7 @@ func TestRetainDeployment(t *testing.T) {
 						"name": "fake-deployment",
 					},
 					"spec": map[string]interface{}{
-						"replicas": 1,
+						"replicas": 2,
 					},
 				},
 			},
@@ -319,7 +317,7 @@ func TestRetainDeployment(t *testing.T) {
 			luaScript:   "function Retain(desiredObj, observedObj)\n  desiredObj = observedObj\n  return desiredObj\n end",
 		},
 		{
-			name: "revise deployment replica",
+			name: "Test RetainDeployment2",
 			desiredObj: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
@@ -340,7 +338,7 @@ func TestRetainDeployment(t *testing.T) {
 						"name": "fake-deployment",
 					},
 					"spec": map[string]interface{}{
-						"replicas": int64(2),
+						"replicas": int64(1),
 					},
 				},
 			},
@@ -359,13 +357,8 @@ func TestRetainDeployment(t *testing.T) {
 			if err != nil {
 				t.Errorf(err.Error())
 			}
-			deploy := &appsv1.Deployment{}
-			err = runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), deploy)
-			if err == nil && reflect.DeepEqual(deploy, tt.observedObj) {
-				t.Log("Success Test")
-			}
-			if err != nil {
-				t.Errorf(err.Error())
+			if !reflect.DeepEqual(res.UnstructuredContent(), tt.observedObj.Object) {
+				t.Errorf("Retain() got = %v, want %v", res.UnstructuredContent(), tt.observedObj.Object)
 			}
 		})
 	}
@@ -397,9 +390,9 @@ func TestStatusReflection(t *testing.T) {
 			false,
 			`function ReflectStatus (observedObj)
 						if observedObj.status == nil then	
-							return false, nil   
+							return nil   
 						end    
-					return true, observedObj.status
+					return observedObj.status
 					end`,
 		},
 	}
@@ -438,11 +431,18 @@ func TestGetDeployPodDependencies(t *testing.T) {
 		},
 	}
 	newObj, _ := helper.ToUnstructured(&newDeploy)
-
+	expect := make([]configv1alpha1.DependentObjectReference, 1)
+	expect[0] = configv1alpha1.DependentObjectReference{
+		APIVersion: "v1",
+		Kind:       "ServiceAccount",
+		Namespace:  "test",
+		Name:       "test",
+	}
 	tests := []struct {
 		name      string
 		curObj    *unstructured.Unstructured
 		luaScript string
+		want      []configv1alpha1.DependentObjectReference
 	}{
 		{
 			name:   "Get GetDeployPodDependencies",
@@ -450,30 +450,36 @@ func TestGetDeployPodDependencies(t *testing.T) {
 			luaScript: `function GetDependencies(desiredObj)
 							dependentSas = {}
 							refs = {}
-							if desiredObj.spec.template.spec.serviceAccountName ~= \"\" and desiredObj.spec.template.spec.serviceAccountName ~= \"default\" then
+							if desiredObj.spec.template.spec.serviceAccountName ~= '' and desiredObj.spec.template.spec.serviceAccountName ~= 'default' then
 								dependentSas[desiredObj.spec.template.spec.serviceAccountName] = true
 							end
 						local idx = 1
 						for key, value in pairs(dependentSas) do    
 							dependObj = {}    
-							dependObj.apiVersion = \"v1\"   
-							dependObj.kind = \"ServiceAccount\"    
+							dependObj.apiVersion = 'v1'   
+							dependObj.kind = 'ServiceAccount'    
 							dependObj.name = key    
-							dependObj.namespace = desiredObj.namespace    
+							dependObj.namespace = desiredObj.metadata.namespace    
 							refs[idx] = {} 
 							refs[idx] = dependObj    
 							idx = idx + 1
 						end
 					return refs
 				    end`,
+			want: expect,
 		},
 	}
 
 	vm := VM{UseOpenLibs: false}
 
 	for _, tt := range tests {
-		res, _ := vm.GetDependencies(tt.curObj, tt.luaScript)
-		t.Logf("res %v", res)
+		res, err := vm.GetDependencies(tt.curObj, tt.luaScript)
+		if err != nil {
+			t.Errorf("GetDependencies err %v", err)
+		}
+		if !reflect.DeepEqual(res, tt.want) {
+			t.Errorf("GetDependencies() got = %v, want %v", res, tt.want)
+		}
 	}
 }
 
