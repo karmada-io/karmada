@@ -22,12 +22,12 @@ type ConfigurableInterpreter struct {
 
 // NewConfigurableInterpreter builds a new interpreter by registering the
 // event handler to the provided informer instance.
-func NewConfigurableInterpreter(informer genericmanager.SingleClusterInformerManager) *ConfigurableInterpreter {
+func NewConfigurableInterpreter(informer genericmanager.SingleClusterInformerManager) (*ConfigurableInterpreter, error) {
 	return &ConfigurableInterpreter{
 		configManager: configmanager.NewInterpreterConfigManager(informer),
 		// TODO: set an appropriate pool size.
 		luaVM: luavm.New(false, 10),
-	}
+	}, nil
 }
 
 // HookEnabled tells if any hook exist for specific resource gvk and operation type.

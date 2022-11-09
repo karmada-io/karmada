@@ -2,6 +2,7 @@ package resourceinterpreter
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -12,8 +13,8 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/framework"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
@@ -57,25 +58,29 @@ func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager
 }
 
 type customResourceInterpreterImpl struct {
-	informer genericmanager.SingleClusterInformerManager
-
-	customizedInterpreter   *customizedinterpreter.CustomizedInterpreter
-	defaultInterpreter      *defaultinterpreter.DefaultInterpreter
-	configurableInterpreter *configurableinterpreter.ConfigurableInterpreter
+	informer     genericmanager.SingleClusterInformerManager
+	interpreters []framework.Interpreter
 }
 
 // Start starts running the component and will never stop running until the context is closed or an error occurs.
 func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
-	klog.Infof("Starting custom resource interpreter.")
-
-	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter(i.informer)
-	if err != nil {
-		return
+	klog.Infof("Starting resource interpreter.")
+	var interpreter framework.Interpreter
+	interpreterFactories := []func(genericmanager.SingleClusterInformerManager) (framework.Interpreter, error){
+		func(manager genericmanager.SingleClusterInformerManager) (framework.Interpreter, error) {
+			interpreter, err = configurableinterpreter.NewConfigurableInterpreter(manager)
+			return interpreter, err
+		},
+		customizedinterpreter.NewCustomizedInterpreter,
+		defaultinterpreter.NewDefaultInterpreter,
 	}
-	i.configurableInterpreter = configurableinterpreter.NewConfigurableInterpreter(i.informer)
-
-	i.defaultInterpreter = defaultinterpreter.NewDefaultInterpreter()
-
+	for _, factory := range interpreterFactories {
+		interpreter, err = factory(i.informer)
+		if err != nil {
+			return err
+		}
+		i.interpreters = append(i.interpreters, interpreter)
+	}
 	i.informer.Start()
 	<-ctx.Done()
 	klog.Infof("Stopped as stopCh closed.")
@@ -84,186 +89,87 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 
 // HookEnabled tells if any hook exist for specific resource type and operation.
 func (i *customResourceInterpreterImpl) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
-	return i.defaultInterpreter.HookEnabled(objGVK, operation) ||
-		i.configurableInterpreter.HookEnabled(objGVK, operation) ||
-		i.customizedInterpreter.HookEnabled(objGVK, operation)
+	for _, interpreter := range i.interpreters {
+		if interpreter.HookEnabled(objGVK, operation) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstructured) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
-	var hookEnabled bool
-
-	replica, requires, hookEnabled, err = i.configurableInterpreter.GetReplicas(object)
-	if err != nil {
-		return
+	for _, interpreter := range i.interpreters {
+		replica, requires, enabled, err := interpreter.GetReplicas(object)
+		if err != nil || enabled {
+			return replica, requires, err
+		}
 	}
-	if hookEnabled {
-		return
-	}
-
-	replica, requires, hookEnabled, err = i.customizedInterpreter.GetReplicas(context.TODO(), &webhook.RequestAttributes{
-		Operation: configv1alpha1.InterpreterOperationInterpretReplica,
-		Object:    object,
-	})
-	if err != nil {
-		return
-	}
-	if hookEnabled {
-		return
-	}
-
-	replica, requires, err = i.defaultInterpreter.GetReplicas(object)
-	return
+	return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("resource interpreter %s for %q not found", configv1alpha1.InterpreterOperationInterpretReplica, object.GroupVersionKind())
 }
 
 // ReviseReplica revises the replica of the given object.
 func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
-	obj, hookEnabled, err := i.configurableInterpreter.ReviseReplica(object, replica)
-	if err != nil {
-		return nil, err
+	for _, interpreter := range i.interpreters {
+		obj, enabled, err := interpreter.ReviseReplica(object, replica)
+		if err != nil || enabled {
+			return obj, err
+		}
 	}
-	if hookEnabled {
-		return obj, nil
-	}
-
-	klog.V(4).Infof("Revise replicas for object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
-	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
-		Operation:   configv1alpha1.InterpreterOperationReviseReplica,
-		Object:      object,
-		ReplicasSet: int32(replica),
-	})
-	if err != nil {
-		return nil, err
-	}
-	if hookEnabled {
-		return obj, nil
-	}
-
-	return i.defaultInterpreter.ReviseReplica(object, replica)
+	return nil, fmt.Errorf("resource interpreter %s for %q not found", configv1alpha1.InterpreterOperationReviseReplica, object.GroupVersionKind())
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	obj, hookEnabled, err := i.configurableInterpreter.Retain(desired, observed)
-	if err != nil {
-		return nil, err
+	for _, interpreter := range i.interpreters {
+		retained, enabled, err := interpreter.Retain(desired, observed)
+		if err != nil || enabled {
+			return retained, err
+		}
 	}
-	if hookEnabled {
-		return obj, nil
-	}
-
-	klog.V(4).Infof("Retain object: %v %s/%s with webhook interpreter.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
-	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
-		Operation:   configv1alpha1.InterpreterOperationRetain,
-		Object:      desired,
-		ObservedObj: observed,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if hookEnabled {
-		return obj, nil
-	}
-
-	return i.defaultInterpreter.Retain(desired, observed)
+	return nil, fmt.Errorf("resource interpreter %s for %q not found", configv1alpha1.InterpreterOperationRetain, desired.GroupVersionKind())
 }
 
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated.
 func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
-	obj, hookEnabled, err := i.configurableInterpreter.AggregateStatus(object, aggregatedStatusItems)
-	if err != nil {
-		return nil, err
+	for _, interpreter := range i.interpreters {
+		obj, enabled, err := interpreter.AggregateStatus(object, aggregatedStatusItems)
+		if err != nil || enabled {
+			return obj, err
+		}
 	}
-	if hookEnabled {
-		return obj, nil
-	}
-
-	klog.V(4).Infof("Aggregate status of object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
-	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
-		Operation:        configv1alpha1.InterpreterOperationAggregateStatus,
-		Object:           object.DeepCopy(),
-		AggregatedStatus: aggregatedStatusItems,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if hookEnabled {
-		return obj, nil
-	}
-
-	return i.defaultInterpreter.AggregateStatus(object, aggregatedStatusItems)
+	return nil, fmt.Errorf("resource interpreter %s for %q not found", configv1alpha1.InterpreterOperationAggregateStatus, object.GroupVersionKind())
 }
 
 // GetDependencies returns the dependent resources of the given object.
 func (i *customResourceInterpreterImpl) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error) {
-	dependencies, hookEnabled, err := i.configurableInterpreter.GetDependencies(object)
-	if err != nil {
-		return
+	for _, interpreter := range i.interpreters {
+		getDependencies, enabled, err := interpreter.GetDependencies(object)
+		if err != nil || enabled {
+			return getDependencies, err
+		}
 	}
-	if hookEnabled {
-		return
-	}
-
-	dependencies, hookEnabled, err = i.customizedInterpreter.GetDependencies(context.TODO(), &webhook.RequestAttributes{
-		Operation: configv1alpha1.InterpreterOperationInterpretDependency,
-		Object:    object,
-	})
-	if err != nil {
-		return
-	}
-	if hookEnabled {
-		return
-	}
-
-	dependencies, err = i.defaultInterpreter.GetDependencies(object)
-	return
+	return nil, fmt.Errorf("resource interpreter %s operation %s not found", configv1alpha1.InterpreterOperationInterpretDependency, object.GroupVersionKind())
 }
 
 // ReflectStatus returns the status of the object.
 func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
-	status, hookEnabled, err := i.configurableInterpreter.ReflectStatus(object)
-	if err != nil {
-		return
+	for _, interpreter := range i.interpreters {
+		reflectStatus, enabled, err := interpreter.ReflectStatus(object)
+		if err != nil || enabled {
+			return reflectStatus, err
+		}
 	}
-	if hookEnabled {
-		return
-	}
-	status, hookEnabled, err = i.customizedInterpreter.ReflectStatus(context.TODO(), &webhook.RequestAttributes{
-		Operation: configv1alpha1.InterpreterOperationInterpretStatus,
-		Object:    object,
-	})
-	if err != nil {
-		return
-	}
-	if hookEnabled {
-		return
-	}
-
-	status, err = i.defaultInterpreter.ReflectStatus(object)
-	return
+	return nil, fmt.Errorf("resource interpreter %s for operation %s not found", configv1alpha1.InterpreterOperationInterpretStatus, object.GroupVersionKind())
 }
 
 // InterpretHealth returns the health state of the object.
 func (i *customResourceInterpreterImpl) InterpretHealth(object *unstructured.Unstructured) (healthy bool, err error) {
-	healthy, hookEnabled, err := i.configurableInterpreter.InterpretHealth(object)
-	if err != nil {
-		return
+	for _, interpreter := range i.interpreters {
+		health, enabled, err := interpreter.InterpretHealth(object)
+		if err != nil || enabled {
+			return health, err
+		}
 	}
-	if hookEnabled {
-		return
-	}
-
-	healthy, hookEnabled, err = i.customizedInterpreter.InterpretHealth(context.TODO(), &webhook.RequestAttributes{
-		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
-		Object:    object,
-	})
-	if err != nil {
-		return
-	}
-	if hookEnabled {
-		return
-	}
-
-	healthy, err = i.defaultInterpreter.InterpretHealth(object)
-	return
+	return false, fmt.Errorf("resource interpreter %s for %q not found", configv1alpha1.InterpreterOperationInterpretHealth, object.GroupVersionKind())
 }

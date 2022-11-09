@@ -20,6 +20,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/configmanager"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/framework"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	interpreterutil "github.com/karmada-io/karmada/pkg/util/interpreter"
 )
@@ -32,8 +33,113 @@ type CustomizedInterpreter struct {
 	clientManager *webhookutil.ClientManager
 }
 
+// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
+// return matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) GetReplicas(object *unstructured.Unstructured) (replica int32, requires *workv1alpha2.ReplicaRequirements, enabled bool, err error) {
+	klog.V(4).Infof("Get replicas for object: %v %s/%s with webhook interpreter.",
+		object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	var response *webhook.ResponseAttributes
+	response, enabled, err = e.interpret(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretReplica,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if !enabled {
+		return
+	}
+	return response.Replicas, response.ReplicaRequirements, true, nil
+}
+
+// ReviseReplica revises the replica of the given object.
+func (e *CustomizedInterpreter) ReviseReplica(object *unstructured.Unstructured, replica int64) (obj *unstructured.Unstructured, enabled bool, err error) {
+	klog.V(4).Infof("Revise replicas for object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	obj, enabled, err = e.patch(context.TODO(), &webhook.RequestAttributes{
+		Operation:   configv1alpha1.InterpreterOperationReviseReplica,
+		Object:      object,
+		ReplicasSet: int32(replica),
+	})
+	return
+}
+
+// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
+func (e *CustomizedInterpreter) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, enabled bool, err error) {
+	klog.V(4).Infof("Retain object: %v %s/%s with webhook interpreter.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
+	retained, enabled, err = e.patch(context.TODO(), &webhook.RequestAttributes{
+		Operation:   configv1alpha1.InterpreterOperationRetain,
+		Object:      desired,
+		ObservedObj: observed,
+	})
+	return
+}
+
+// AggregateStatus returns the objects that based on the 'object' but with status aggregated.
+func (e *CustomizedInterpreter) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (obj *unstructured.Unstructured, enabled bool, err error) {
+	klog.V(4).Infof("Aggregate status of object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	obj, enabled, err = e.patch(context.TODO(), &webhook.RequestAttributes{
+		Operation:        configv1alpha1.InterpreterOperationAggregateStatus,
+		Object:           object.DeepCopy(),
+		AggregatedStatus: aggregatedStatusItems,
+	})
+	return
+}
+
+// GetDependencies returns the dependent resources of the given object.
+func (e *CustomizedInterpreter) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, enabled bool, err error) {
+	klog.V(4).Infof("Get dependencies of object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	var response *webhook.ResponseAttributes
+	response, enabled, err = e.interpret(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretDependency,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if !enabled {
+		return
+	}
+	return response.Dependencies, true, nil
+}
+
+// ReflectStatus returns the status of the object.
+// return enabled value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, enabled bool, err error) {
+	klog.V(4).Infof("Reflect status of object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	var response *webhook.ResponseAttributes
+	response, enabled, err = e.interpret(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretStatus,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if !enabled {
+		return
+	}
+	return &response.RawStatus, true, nil
+}
+
+// InterpretHealth returns the health state of the object.
+// return enabled value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) InterpretHealth(object *unstructured.Unstructured) (healthy bool, enabled bool, err error) {
+	klog.V(4).Infof("Get health status of object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	var response *webhook.ResponseAttributes
+	response, enabled, err = e.interpret(context.TODO(), &webhook.RequestAttributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
+		Object:    object,
+	})
+	if err != nil {
+		return
+	}
+	if !enabled {
+		return
+	}
+	return response.Healthy, true, nil
+}
+
 // NewCustomizedInterpreter return a new CustomizedInterpreter.
-func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
+func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManager) (framework.Interpreter, error) {
 	cm, err := webhookutil.NewClientManager(
 		[]schema.GroupVersion{configv1alpha1.SchemeGroupVersion},
 		configv1alpha1.AddToScheme,
@@ -68,26 +174,9 @@ func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, oper
 	return hook != nil
 }
 
-// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
+// patch returns the Unstructured object that applied patch response that based on the RequestAttributes.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *webhook.RequestAttributes) (replica int32, requires *workv1alpha2.ReplicaRequirements, matched bool, err error) {
-	klog.V(4).Infof("Get replicas for object: %v %s/%s with webhook interpreter.",
-		attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
-	var response *webhook.ResponseAttributes
-	response, matched, err = e.interpret(ctx, attributes)
-	if err != nil {
-		return
-	}
-	if !matched {
-		return
-	}
-
-	return response.Replicas, response.ReplicaRequirements, matched, nil
-}
-
-// Patch returns the Unstructured object that applied patch response that based on the RequestAttributes.
-// return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) Patch(ctx context.Context, attributes *webhook.RequestAttributes) (obj *unstructured.Unstructured, matched bool, err error) {
+func (e *CustomizedInterpreter) patch(ctx context.Context, attributes *webhook.RequestAttributes) (obj *unstructured.Unstructured, matched bool, err error) {
 	var response *webhook.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
@@ -286,49 +375,4 @@ func applyPatch(object *unstructured.Unstructured, patch []byte, patchType confi
 	default:
 		return nil, fmt.Errorf("return patch type %s is not support", patchType)
 	}
-}
-
-// GetDependencies returns the dependencies of give object.
-// return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes *webhook.RequestAttributes) (dependencies []configv1alpha1.DependentObjectReference, matched bool, err error) {
-	var response *webhook.ResponseAttributes
-	response, matched, err = e.interpret(ctx, attributes)
-	if err != nil {
-		return
-	}
-	if !matched {
-		return
-	}
-
-	return response.Dependencies, matched, nil
-}
-
-// ReflectStatus returns the status of the object.
-// return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *webhook.RequestAttributes) (status *runtime.RawExtension, matched bool, err error) {
-	var response *webhook.ResponseAttributes
-	response, matched, err = e.interpret(ctx, attributes)
-	if err != nil {
-		return
-	}
-	if !matched {
-		return
-	}
-
-	return &response.RawStatus, matched, nil
-}
-
-// InterpretHealth returns the health state of the object.
-// return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) InterpretHealth(ctx context.Context, attributes *webhook.RequestAttributes) (healthy bool, matched bool, err error) {
-	var response *webhook.ResponseAttributes
-	response, matched, err = e.interpret(ctx, attributes)
-	if err != nil {
-		return
-	}
-	if !matched {
-		return
-	}
-
-	return response.Healthy, matched, nil
 }
