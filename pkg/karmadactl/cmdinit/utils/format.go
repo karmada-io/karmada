@@ -19,6 +19,8 @@ const (
 	// A split symbol that receives multiple values from a command flag
 	separator      = ","
 	labelSeparator = "="
+	// MaxRespBodyLength is the max length of http response body
+	MaxRespBodyLength = 1 << 20 // 1 MiB
 )
 
 // IsExist Determine whether the path exists
@@ -60,7 +62,7 @@ func InternetIP() (net.IP, error) {
 
 	defer resp.Body.Close()
 
-	content, err := io.ReadAll(resp.Body)
+	content, err := io.ReadAll(io.LimitReader(resp.Body, MaxRespBodyLength))
 	if err != nil {
 		return nil, err
 	}
