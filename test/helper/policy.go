@@ -22,6 +22,22 @@ func NewPropagationPolicy(ns, name string, rsSelectors []policyv1alpha1.Resource
 	}
 }
 
+// NewExplicitPriorityPropagationPolicy will build a PropagationPolicy object with explicit priority.
+func NewExplicitPriorityPropagationPolicy(ns, name string, rsSelectors []policyv1alpha1.ResourceSelector,
+	placement policyv1alpha1.Placement, priority int32) *policyv1alpha1.PropagationPolicy {
+	return &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      name,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: rsSelectors,
+			Priority:          &priority,
+			Placement:         placement,
+		},
+	}
+}
+
 // NewClusterPropagationPolicy will build a ClusterPropagationPolicy object.
 func NewClusterPropagationPolicy(policyName string, rsSelectors []policyv1alpha1.ResourceSelector, placement policyv1alpha1.Placement) *policyv1alpha1.ClusterPropagationPolicy {
 	return &policyv1alpha1.ClusterPropagationPolicy{
@@ -30,6 +46,21 @@ func NewClusterPropagationPolicy(policyName string, rsSelectors []policyv1alpha1
 		},
 		Spec: policyv1alpha1.PropagationSpec{
 			ResourceSelectors: rsSelectors,
+			Placement:         placement,
+		},
+	}
+}
+
+// NewExplicitPriorityClusterPropagationPolicy will build a ClusterPropagationPolicy object with explicit priority.
+func NewExplicitPriorityClusterPropagationPolicy(policyName string, rsSelectors []policyv1alpha1.ResourceSelector,
+	placement policyv1alpha1.Placement, priority int32) *policyv1alpha1.ClusterPropagationPolicy {
+	return &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: policyName,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: rsSelectors,
+			Priority:          &priority,
 			Placement:         placement,
 		},
 	}

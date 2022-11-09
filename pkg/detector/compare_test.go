@@ -260,7 +260,7 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "different priority policy",
+			name: "different implicit priority policy",
 			args: args{
 				policies: []*policyv1alpha1.PropagationPolicy{
 					{
@@ -321,7 +321,7 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 			},
 		},
 		{
-			name: "same priority policy",
+			name: "same implicit priority policy",
 			args: args{
 				policies: []*policyv1alpha1.PropagationPolicy{
 					{
@@ -371,11 +371,314 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 						}}},
 			},
 		},
+		{
+			name: "one policy with implicit priority, one policy with explicit priority 1",
+			args: args{
+				policies: []*policyv1alpha1.PropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Name:       "nginx",
+									Namespace:  "test",
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Name:       "nginx",
+									Namespace:  "test",
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					Priority: func() *int32 {
+						p := int32(1)
+						return &p
+					}(),
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "nginx",
+							Namespace:  "test",
+						}}},
+			},
+		},
+		{
+			name: "one policy with explicit priority 1(name match), one policy with explicit priority 2(label selector match)",
+			args: args{
+				policies: []*policyv1alpha1.PropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Name:       "nginx",
+									Namespace:  "test",
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(2)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion:    "apps/v1",
+									Kind:          "Deployment",
+									Namespace:     "test",
+									LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					Priority: func() *int32 {
+						p := int32(2)
+						return &p
+					}(),
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion:    "apps/v1",
+							Kind:          "Deployment",
+							Namespace:     "test",
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+						}}},
+			},
+		},
+		{
+			name: "two policies with explicit priority 1(name match), select the one with lower alphabetical order",
+			args: args{
+				policies: []*policyv1alpha1.PropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Name:       "nginx",
+									Namespace:  "test",
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Namespace:  "test",
+									Name:       "nginx",
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					Priority: func() *int32 {
+						p := int32(1)
+						return &p
+					}(),
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "nginx",
+						}}},
+			},
+		},
+		{
+			name: "one policy with explicit priority 1(name match), one policy with explicit priority 1(label selector match)",
+			args: args{
+				policies: []*policyv1alpha1.PropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion:    "apps/v1",
+									Kind:          "Deployment",
+									Namespace:     "test",
+									LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Namespace:  "test",
+									Name:       "nginx",
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					Priority: func() *int32 {
+						p := int32(1)
+						return &p
+					}(),
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "nginx",
+						}}},
+			},
+		},
+		{
+			name: "one policy with explicit priority -1(name match), one policy with implicit priority(label selector match)",
+			args: args{
+				policies: []*policyv1alpha1.PropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion:    "apps/v1",
+									Kind:          "Deployment",
+									Namespace:     "test",
+									LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(-1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Namespace:  "test",
+									Name:       "nginx",
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion:    "apps/v1",
+							Kind:          "Deployment",
+							Namespace:     "test",
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+						}}},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getHighestPriorityPropagationPolicies(tt.args.policies, tt.args.resource, tt.args.objectKey); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getHighestPriorityPropagationPolicies() = %v, want %v", got, tt.want)
+			if got := getHighestPriorityPropagationPolicy(tt.args.policies, tt.args.resource, tt.args.objectKey); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getHighestPriorityPropagationPolicy() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -452,7 +755,7 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "different priority policy",
+			name: "different implicit priority policy",
 			args: args{
 				policies: []*policyv1alpha1.ClusterPropagationPolicy{
 					{
@@ -513,7 +816,7 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 			},
 		},
 		{
-			name: "same priority policy",
+			name: "same implicit priority policy",
 			args: args{
 				policies: []*policyv1alpha1.ClusterPropagationPolicy{
 					{
@@ -563,11 +866,314 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 						}}},
 			},
 		},
+		{
+			name: "one policy with implicit priority, one policy with explicit priority 1",
+			args: args{
+				policies: []*policyv1alpha1.ClusterPropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Name:       "nginx",
+									Namespace:  "test",
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Name:       "nginx",
+									Namespace:  "test",
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					Priority: func() *int32 {
+						p := int32(1)
+						return &p
+					}(),
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "nginx",
+							Namespace:  "test",
+						}}},
+			},
+		},
+		{
+			name: "one policy with explicit priority 1(name match), one policy with explicit priority 2(label selector match)",
+			args: args{
+				policies: []*policyv1alpha1.ClusterPropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Name:       "nginx",
+									Namespace:  "test",
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(2)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion:    "apps/v1",
+									Kind:          "Deployment",
+									Namespace:     "test",
+									LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					Priority: func() *int32 {
+						p := int32(2)
+						return &p
+					}(),
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion:    "apps/v1",
+							Kind:          "Deployment",
+							Namespace:     "test",
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+						}}},
+			},
+		},
+		{
+			name: "two policies with explicit priority 1(name match), select the one with lower alphabetical order",
+			args: args{
+				policies: []*policyv1alpha1.ClusterPropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Name:       "nginx",
+									Namespace:  "test",
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Namespace:  "test",
+									Name:       "nginx",
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					Priority: func() *int32 {
+						p := int32(1)
+						return &p
+					}(),
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "nginx",
+						}}},
+			},
+		},
+		{
+			name: "one policy with explicit priority 1(name match), one policy with explicit priority 1(label selector match)",
+			args: args{
+				policies: []*policyv1alpha1.ClusterPropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion:    "apps/v1",
+									Kind:          "Deployment",
+									Namespace:     "test",
+									LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Namespace:  "test",
+									Name:       "nginx",
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					Priority: func() *int32 {
+						p := int32(1)
+						return &p
+					}(),
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Namespace:  "test",
+							Name:       "nginx",
+						}}},
+			},
+		},
+		{
+			name: "one policy with explicit priority -1(name match), one policy with implicit priority(label selector match)",
+			args: args{
+				policies: []*policyv1alpha1.ClusterPropagationPolicy{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion:    "apps/v1",
+									Kind:          "Deployment",
+									Namespace:     "test",
+									LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+								}}},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "b-pp", Namespace: "test"},
+						Spec: policyv1alpha1.PropagationSpec{
+							Priority: func() *int32 {
+								p := int32(-1)
+								return &p
+							}(),
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Namespace:  "test",
+									Name:       "nginx",
+								}}},
+					},
+				},
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "nginx",
+							"namespace": "test",
+							"labels": map[string]interface{}{
+								"app": "nginx",
+							}}}},
+				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
+			},
+			want: &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "a-pp", Namespace: "test"},
+				Spec: policyv1alpha1.PropagationSpec{
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion:    "apps/v1",
+							Kind:          "Deployment",
+							Namespace:     "test",
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+						}}},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getHighestPriorityClusterPropagationPolicies(tt.args.policies, tt.args.resource, tt.args.objectKey); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getHighestPriorityClusterPropagationPolicies() = %v, want %v", got, tt.want)
+			if got := getHighestPriorityClusterPropagationPolicy(tt.args.policies, tt.args.resource, tt.args.objectKey); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getHighestPriorityPropagationPolicies() = %v, want %v", got, tt.want)
 			}
 		})
 	}

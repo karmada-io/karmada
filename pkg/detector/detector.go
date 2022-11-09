@@ -337,7 +337,7 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 		policyList = append(policyList, policy)
 	}
 
-	return getHighestPriorityPropagationPolicies(policyList, object, objectKey), nil
+	return getHighestPriorityPropagationPolicy(policyList, object, objectKey), nil
 }
 
 // LookForMatchedClusterPolicy tries to find a ClusterPropagationPolicy for object referenced by object key.
@@ -363,7 +363,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 		policyList = append(policyList, policy)
 	}
 
-	return getHighestPriorityClusterPropagationPolicies(policyList, object, objectKey), nil
+	return getHighestPriorityClusterPropagationPolicy(policyList, object, objectKey), nil
 }
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.

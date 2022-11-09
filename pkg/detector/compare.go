@@ -1,6 +1,8 @@
 package detector
 
 import (
+	"math"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
 
@@ -9,15 +11,32 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
-func getHighestPriorityPropagationPolicies(policies []*policyv1alpha1.PropagationPolicy, resource *unstructured.Unstructured, objectKey keys.ClusterWideKey) *policyv1alpha1.PropagationPolicy {
+func getHighestPriorityPropagationPolicy(policies []*policyv1alpha1.PropagationPolicy, resource *unstructured.Unstructured, objectKey keys.ClusterWideKey) *policyv1alpha1.PropagationPolicy {
+	matchedPolicyImplicitPriority := util.PriorityMisMatch
+	matchedPolicyExplicitPriority := int32(math.MinInt32)
 	var matchedPolicy *policyv1alpha1.PropagationPolicy
-	matchedPolicyPriority := util.PriorityMisMatch
+
 	for _, policy := range policies {
-		if p := util.ResourceMatchSelectorsPriority(resource, policy.Spec.ResourceSelectors...); p > matchedPolicyPriority {
+		implicitPriority := util.ResourceMatchSelectorsPriority(resource, policy.Spec.ResourceSelectors...)
+		if implicitPriority <= util.PriorityMisMatch {
+			continue
+		}
+		explicitPriority := policy.ExplicitPriority()
+
+		if matchedPolicyExplicitPriority < explicitPriority {
+			matchedPolicyImplicitPriority = implicitPriority
+			matchedPolicyExplicitPriority = explicitPriority
 			matchedPolicy = policy
-			matchedPolicyPriority = p
-		} else if p > util.PriorityMisMatch && p == matchedPolicyPriority {
-			matchedPolicy = getHigherPriorityPropagationPolicy(matchedPolicy, policy)
+			continue
+		}
+
+		if matchedPolicyExplicitPriority == explicitPriority {
+			if implicitPriority > matchedPolicyImplicitPriority {
+				matchedPolicyImplicitPriority = implicitPriority
+				matchedPolicy = policy
+			} else if implicitPriority == matchedPolicyImplicitPriority {
+				matchedPolicy = getHigherPriorityPropagationPolicy(matchedPolicy, policy)
+			}
 		}
 	}
 
@@ -29,15 +48,32 @@ func getHighestPriorityPropagationPolicies(policies []*policyv1alpha1.Propagatio
 	return matchedPolicy
 }
 
-func getHighestPriorityClusterPropagationPolicies(policies []*policyv1alpha1.ClusterPropagationPolicy, resource *unstructured.Unstructured, objectKey keys.ClusterWideKey) *policyv1alpha1.ClusterPropagationPolicy {
+func getHighestPriorityClusterPropagationPolicy(policies []*policyv1alpha1.ClusterPropagationPolicy, resource *unstructured.Unstructured, objectKey keys.ClusterWideKey) *policyv1alpha1.ClusterPropagationPolicy {
+	matchedClusterPolicyImplicitPriority := util.PriorityMisMatch
+	matchedClusterPolicyExplicitPriority := int32(math.MinInt32)
 	var matchedClusterPolicy *policyv1alpha1.ClusterPropagationPolicy
-	matchedClusterPolicyPriority := util.PriorityMisMatch
+
 	for _, policy := range policies {
-		if p := util.ResourceMatchSelectorsPriority(resource, policy.Spec.ResourceSelectors...); p > matchedClusterPolicyPriority {
+		implicitPriority := util.ResourceMatchSelectorsPriority(resource, policy.Spec.ResourceSelectors...)
+		if implicitPriority <= util.PriorityMisMatch {
+			continue
+		}
+		explicitPriority := policy.ExplicitPriority()
+
+		if matchedClusterPolicyExplicitPriority < explicitPriority {
+			matchedClusterPolicyImplicitPriority = implicitPriority
+			matchedClusterPolicyExplicitPriority = explicitPriority
 			matchedClusterPolicy = policy
-			matchedClusterPolicyPriority = p
-		} else if p > util.PriorityMisMatch && p == matchedClusterPolicyPriority {
-			matchedClusterPolicy = getHigherPriorityClusterPropagationPolicy(matchedClusterPolicy, policy)
+			continue
+		}
+
+		if matchedClusterPolicyExplicitPriority == explicitPriority {
+			if implicitPriority > matchedClusterPolicyImplicitPriority {
+				matchedClusterPolicyImplicitPriority = implicitPriority
+				matchedClusterPolicy = policy
+			} else if implicitPriority == matchedClusterPolicyImplicitPriority {
+				matchedClusterPolicy = getHigherPriorityClusterPropagationPolicy(matchedClusterPolicy, policy)
+			}
 		}
 	}
 
