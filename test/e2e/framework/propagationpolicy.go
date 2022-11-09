@@ -40,3 +40,15 @@ func PatchPropagationPolicy(client karmada.Interface, namespace, name string, pa
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
+
+// UpdatePropagationPolicy update PropagationPolicy resourceSelectors with karmada client.
+func UpdatePropagationPolicy(client karmada.Interface, namespace, name string, resourceSelectors []policyv1alpha1.ResourceSelector) {
+	ginkgo.By(fmt.Sprintf("Updating PropagationPolicy(%s/%s)", namespace, name), func() {
+		newPolicy, err := client.PolicyV1alpha1().PropagationPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		newPolicy.Spec.ResourceSelectors = resourceSelectors
+		_, err = client.PolicyV1alpha1().PropagationPolicies(namespace).Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}

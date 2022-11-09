@@ -158,6 +158,19 @@ func WaitClusterRoleDisappearOnCluster(cluster, name string) {
 	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 }
 
+// WaitClusterRoleGetByClientFitWith wait clusterRole get by client fit with func.
+func WaitClusterRoleGetByClientFitWith(client kubernetes.Interface, name string, fit func(clusterRole *rbacv1.ClusterRole) bool) {
+	ginkgo.By(fmt.Sprintf("Check clusterRole(%s) labels fit with function", name), func() {
+		gomega.Eventually(func() bool {
+			clusterRole, err := client.RbacV1().ClusterRoles().Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return false
+			}
+			return fit(clusterRole)
+		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	})
+}
+
 // CreateRoleBinding create roleBinding.
 func CreateRoleBinding(client kubernetes.Interface, roleBinding *rbacv1.RoleBinding) {
 	ginkgo.By(fmt.Sprintf("Creating RoleBinding(%s/%s)", roleBinding.Namespace, roleBinding.Name), func() {

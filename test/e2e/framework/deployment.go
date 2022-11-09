@@ -166,3 +166,16 @@ func CheckDeploymentReadyStatus(deployment *appsv1.Deployment, wantedReplicas in
 	}
 	return false
 }
+
+// WaitDeploymentGetByClientFitWith wait deployment get by client fit with func.
+func WaitDeploymentGetByClientFitWith(client kubernetes.Interface, namespace, name string, fit func(deployment *appsv1.Deployment) bool) {
+	ginkgo.By(fmt.Sprintf("Check deployment(%s/%s) labels fit with function", namespace, name), func() {
+		gomega.Eventually(func() bool {
+			dep, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return false
+			}
+			return fit(dep)
+		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+	})
+}
