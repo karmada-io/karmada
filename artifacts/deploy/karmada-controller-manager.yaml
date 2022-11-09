@@ -21,7 +21,7 @@ spec:
         operator: Exists
       containers:
         - name: karmada-controller-manager
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-controller-manager:latest
+          image: docker.io/karmada/karmada-controller-manager:latest
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-controller-manager

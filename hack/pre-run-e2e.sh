@@ -17,7 +17,7 @@ MEMBER_CLUSTER_2_NAME=${MEMBER_CLUSTER_2_NAME:-"member2"}
 PULL_MODE_CLUSTER_NAME=${PULL_MODE_CLUSTER_NAME:-"member3"}
 
 export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+export REGISTRY="docker.io/karmada"
 
 CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
 ROOT_CA_FILE=${CERT_DIR}/ca.crt

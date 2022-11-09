@@ -21,7 +21,7 @@ spec:
           operator: Exists
       containers:
         - name: karmada-scheduler-estimator
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler-estimator:latest
+          image: docker.io/karmada/karmada-scheduler-estimator:latest
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-scheduler-estimator

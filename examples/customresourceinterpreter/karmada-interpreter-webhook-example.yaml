@@ -21,7 +21,7 @@ spec:
           operator: Exists
       containers:
         - name: karmada-interpreter-webhook-example
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-interpreter-webhook-example:latest
+          image: docker.io/karmada/karmada-interpreter-webhook-example:latest
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-interpreter-webhook-example

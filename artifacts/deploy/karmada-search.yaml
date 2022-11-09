@@ -22,7 +22,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: karmada-search
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-search:latest
+          image: docker.io/karmada/karmada-search:latest
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: karmada-certs

@@ -29,7 +29,7 @@ set -o pipefail
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}/hack/util.sh"
 
-REGISTRY=${REGISTRY:-"swr.ap-southeast-1.myhuaweicloud.com/karmada"}
+REGISTRY=${REGISTRY:-"docker.io/karmada"}
 VERSION=${VERSION:="unknown"}
 DOCKER_BUILD_ARGS=${DOCKER_BUILD_ARGS:-}
 
