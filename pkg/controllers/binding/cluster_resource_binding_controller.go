@@ -218,7 +218,6 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ClusterResourceBinding{}).
 		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
-		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
@@ -231,8 +230,6 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 		var overrideRS []policyv1alpha1.ResourceSelector
 		switch t := a.(type) {
 		case *policyv1alpha1.ClusterOverridePolicy:
-			overrideRS = t.Spec.ResourceSelectors
-		case *policyv1alpha1.OverridePolicy:
 			overrideRS = t.Spec.ResourceSelectors
 		default:
 			return nil
