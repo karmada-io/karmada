@@ -21,8 +21,8 @@ func init() {
 	install.Install()
 }
 
-// NewCommandAddons enable or disable Karmada addons on karmada-host cluster
-func NewCommandAddons(parentCommand string) *cobra.Command {
+// NewCmdAddons enable or disable Karmada addons on karmada-host cluster
+func NewCmdAddons(parentCommand string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "addons",
 		Short:   "Enable or disable a Karmada addon",

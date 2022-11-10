@@ -1,4 +1,4 @@
-package karmadactl
+package join
 
 import (
 	"fmt"
@@ -47,7 +47,7 @@ func NewCmdJoin(f cmdutil.Factory, parentCommand string) *cobra.Command {
 			if err := opts.Validate(args); err != nil {
 				return err
 			}
-			if err := RunJoin(f, opts); err != nil {
+			if err := opts.Run(f); err != nil {
 				return err
 			}
 			return nil
@@ -138,10 +138,10 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 
-// RunJoin is the implementation of the 'join' command.
-func RunJoin(f cmdutil.Factory, opts CommandJoinOption) error {
-	klog.V(1).Infof("joining cluster. cluster name: %s", opts.ClusterName)
-	klog.V(1).Infof("joining cluster. cluster namespace: %s", opts.ClusterNamespace)
+// Run is the implementation of the 'join' command.
+func (j *CommandJoinOption) Run(f cmdutil.Factory) error {
+	klog.V(1).Infof("joining cluster. cluster name: %s", j.ClusterName)
+	klog.V(1).Infof("joining cluster. cluster namespace: %s", j.ClusterNamespace)
 
 	// Get control plane karmada-apiserver client
 	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
@@ -151,16 +151,16 @@ func RunJoin(f cmdutil.Factory, opts CommandJoinOption) error {
 	}
 
 	// Get cluster config
-	clusterConfig, err := apiclient.RestConfig(opts.ClusterContext, opts.ClusterKubeConfig)
+	clusterConfig, err := apiclient.RestConfig(j.ClusterContext, j.ClusterKubeConfig)
 	if err != nil {
 		return fmt.Errorf("failed to get joining cluster config. error: %v", err)
 	}
 
-	return JoinCluster(controlPlaneRestConfig, clusterConfig, opts)
+	return j.RunJoinCluster(controlPlaneRestConfig, clusterConfig)
 }
 
-// JoinCluster join the cluster into karmada.
-func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts CommandJoinOption) (err error) {
+// RunJoinCluster join the cluster into karmada.
+func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config) (err error) {
 	controlPlaneKubeClient := kubeclient.NewForConfigOrDie(controlPlaneRestConfig)
 	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 	clusterKubeClient := kubeclient.NewForConfigOrDie(clusterConfig)
@@ -168,13 +168,13 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 	klog.V(1).Infof("joining cluster config. endpoint: %s", clusterConfig.Host)
 
 	registerOption := util.ClusterRegisterOption{
-		ClusterNamespace:   opts.ClusterNamespace,
-		ClusterName:        opts.ClusterName,
+		ClusterNamespace:   j.ClusterNamespace,
+		ClusterName:        j.ClusterName,
 		ReportSecrets:      []string{util.KubeCredentials, util.KubeImpersonator},
-		ClusterProvider:    opts.ClusterProvider,
-		ClusterRegion:      opts.ClusterRegion,
-		ClusterZone:        opts.ClusterZone,
-		DryRun:             opts.DryRun,
+		ClusterProvider:    j.ClusterProvider,
+		ClusterRegion:      j.ClusterRegion,
+		ClusterZone:        j.ClusterZone,
+		DryRun:             j.DryRun,
 		ControlPlaneConfig: controlPlaneRestConfig,
 		ClusterConfig:      clusterConfig,
 	}
@@ -200,7 +200,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return err
 	}
 
-	if opts.DryRun {
+	if j.DryRun {
 		return nil
 	}
 	registerOption.Secret = *clusterSecret
@@ -210,7 +210,7 @@ func JoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config, opts Comman
 		return err
 	}
 
-	fmt.Printf("cluster(%s) is joined successfully\n", opts.ClusterName)
+	fmt.Printf("cluster(%s) is joined successfully\n", j.ClusterName)
 	return nil
 }
 

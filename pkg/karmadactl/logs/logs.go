@@ -1,4 +1,4 @@
-package karmadactl
+package logs
 
 import (
 	"fmt"
@@ -52,7 +52,7 @@ var (
 
 // NewCmdLogs new logs command.
 func NewCmdLogs(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
-	o := &LogsOptions{
+	o := &CommandLogsOptions{
 		KubectlLogsOptions: kubectllogs.NewLogsOptions(streams, false),
 	}
 
@@ -89,15 +89,15 @@ func NewCmdLogs(f util.Factory, parentCommand string, streams genericclioptions.
 	return cmd
 }
 
-// LogsOptions contains the input to the logs command.
-type LogsOptions struct {
+// CommandLogsOptions contains the input to the logs command.
+type CommandLogsOptions struct {
 	// flags specific to logs
 	KubectlLogsOptions *kubectllogs.LogsOptions
 	Cluster            string
 }
 
 // Complete ensures that options are valid and marshals them if necessary
-func (o *LogsOptions) Complete(cmd *cobra.Command, args []string, f util.Factory) error {
+func (o *CommandLogsOptions) Complete(cmd *cobra.Command, args []string, f util.Factory) error {
 	if o.Cluster == "" {
 		return fmt.Errorf("must specify a cluster")
 	}
@@ -125,11 +125,11 @@ func (o *LogsOptions) Complete(cmd *cobra.Command, args []string, f util.Factory
 }
 
 // Validate checks to the LogsOptions to see if there is sufficient information run the command
-func (o *LogsOptions) Validate() error {
+func (o *CommandLogsOptions) Validate() error {
 	return o.KubectlLogsOptions.Validate()
 }
 
 // Run retrieves a pod log
-func (o *LogsOptions) Run() error {
+func (o *CommandLogsOptions) Run() error {
 	return o.KubectlLogsOptions.RunLogs()
 }

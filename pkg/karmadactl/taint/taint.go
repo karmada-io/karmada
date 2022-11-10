@@ -1,4 +1,4 @@
-package karmadactl
+package taint
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,7 +67,7 @@ func NewCmdTaint(f util.Factory, parentCommand string) *cobra.Command {
 			if err := opts.Validate(); err != nil {
 				return err
 			}
-			if err := RunTaint(f, opts); err != nil {
+			if err := opts.Run(f); err != nil {
 				return err
 			}
 			return nil
@@ -78,8 +77,11 @@ func NewCmdTaint(f util.Factory, parentCommand string) *cobra.Command {
 		},
 	}
 
-	flag := cmd.Flags()
-	opts.AddFlags(flag)
+	flags := cmd.Flags()
+	options.AddKubeConfigFlags(flags)
+
+	flags.BoolVar(&opts.overwrite, "overwrite", opts.overwrite, "If true, allow taints to be overwritten, otherwise reject taint updates that overwrite existing taints.")
+	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 
 	return cmd
 }
@@ -155,15 +157,8 @@ func (o *CommandTaintOption) Validate() error {
 	return nil
 }
 
-// AddFlags adds flags to the specified FlagSet.
-func (o *CommandTaintOption) AddFlags(flags *pflag.FlagSet) {
-	options.AddKubeConfigFlags(flags)
-	flags.BoolVar(&o.overwrite, "overwrite", o.overwrite, "If true, allow taints to be overwritten, otherwise reject taint updates that overwrite existing taints.")
-	flags.BoolVar(&o.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
-}
-
-// RunTaint set taints for the clusters
-func RunTaint(f util.Factory, opts CommandTaintOption) error {
+// Run set taints for the clusters
+func (o *CommandTaintOption) Run(f util.Factory) error {
 	// Get control plane kube-apiserver client
 	karmadaClient, err := f.KarmadaClientSet()
 	if err != nil {
@@ -171,7 +166,7 @@ func RunTaint(f util.Factory, opts CommandTaintOption) error {
 	}
 	client := karmadaClient.ClusterV1alpha1().Clusters()
 
-	r := opts.builder.Do()
+	r := o.builder.Do()
 	if err := r.Err(); err != nil {
 		return err
 	}
@@ -187,7 +182,7 @@ func RunTaint(f util.Factory, opts CommandTaintOption) error {
 		if err != nil {
 			return err
 		}
-		operation, err := opts.updateTaints(obj)
+		operation, err := o.updateTaints(obj)
 		if err != nil {
 			return err
 		}
@@ -196,7 +191,7 @@ func RunTaint(f util.Factory, opts CommandTaintOption) error {
 			return err
 		}
 
-		if !opts.DryRun {
+		if !o.DryRun {
 			patchBytes, patchErr := strategicpatch.CreateTwoWayMergePatch(oldData, newData, obj)
 
 			cluster, err := client.Get(context.TODO(), name, metav1.GetOptions{})

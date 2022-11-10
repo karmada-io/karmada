@@ -22,8 +22,11 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
+	"github.com/karmada-io/karmada/pkg/karmadactl/join"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/promote"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	khelper "github.com/karmada-io/karmada/pkg/util/helper"
@@ -48,7 +51,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 	ginkgo.Context("Test promoting namespaced resource: deployment", func() {
 		var deployment *appsv1.Deployment
 		var deploymentNamespace, deploymentName string
-		var deploymentOpts, namespaceOpts karmadactl.CommandPromoteOption
+		var deploymentOpts, namespaceOpts promote.CommandPromoteOption
 
 		ginkgo.BeforeEach(func() {
 			deploymentNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
@@ -86,7 +89,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step 2, promote namespace used by the deployment from member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", deploymentNamespace, member1), func() {
-				namespaceOpts = karmadactl.CommandPromoteOption{
+				namespaceOpts = promote.CommandPromoteOption{
 					Cluster: member1,
 				}
 				args := []string{"namespace", deploymentNamespace}
@@ -103,7 +106,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step 3,  promote deployment from cluster member1 to karmada
 			ginkgo.By(fmt.Sprintf("Promoting deployment %s from member: %s to karmada", deploymentName, member1), func() {
-				deploymentOpts = karmadactl.CommandPromoteOption{
+				deploymentOpts = promote.CommandPromoteOption{
 					Namespace: deploymentNamespace,
 					Cluster:   member1,
 				}
@@ -142,7 +145,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 		var clusterRoleName, clusterRoleBindingName string
 		var clusterRole *rbacv1.ClusterRole
 		var clusterRoleBinding *rbacv1.ClusterRoleBinding
-		var clusterRoleOpts, clusterRoleBindingOpts karmadactl.CommandPromoteOption
+		var clusterRoleOpts, clusterRoleBindingOpts promote.CommandPromoteOption
 
 		ginkgo.BeforeEach(func() {
 			var nameFlag = rand.String(RandomStrLength)
@@ -191,7 +194,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 
 			// Step2, promote clusterrole and clusterrolebinding from member1
 			ginkgo.By(fmt.Sprintf("Promoting clusterrole %s and clusterrolebindings %s from member to karmada", clusterRoleName, clusterRoleBindingName), func() {
-				clusterRoleOpts = karmadactl.CommandPromoteOption{
+				clusterRoleOpts = promote.CommandPromoteOption{
 					Cluster: member1,
 				}
 
@@ -204,7 +207,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 				err = clusterRoleOpts.Run(f, args)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-				clusterRoleBindingOpts = karmadactl.CommandPromoteOption{
+				clusterRoleBindingOpts = promote.CommandPromoteOption{
 					Cluster: member1,
 				}
 
@@ -256,7 +259,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Promoting namespace %s from member: %s to karmada control plane", serviceNamespace, member1), func() {
-				opts := karmadactl.CommandPromoteOption{
+				opts := promote.CommandPromoteOption{
 					Cluster: member1,
 				}
 				args := []string{"namespace", serviceNamespace}
@@ -270,7 +273,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Promoting service %s from member: %s to karmada control plane", serviceName, member1), func() {
-				opts := karmadactl.CommandPromoteOption{
+				opts := promote.CommandPromoteOption{
 					Namespace: serviceNamespace,
 					Cluster:   member1,
 				}
@@ -357,14 +360,14 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
-				opts := karmadactl.CommandJoinOption{
+				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
@@ -423,7 +426,7 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 			})
 
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-				opts := karmadactl.CommandUnjoinOption{
+				opts := unjoin.CommandUnjoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
@@ -431,7 +434,7 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 					ClusterKubeConfig: kubeConfigPath,
 					Wait:              5 * options.DefaultKarmadactlCommandDuration,
 				}
-				err := karmadactl.RunUnjoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
@@ -464,14 +467,14 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
-			opts := karmadactl.CommandJoinOption{
+			opts := join.CommandJoinOption{
 				DryRun:            false,
 				ClusterNamespace:  "karmada-cluster",
 				ClusterName:       clusterName,
 				ClusterContext:    clusterContext,
 				ClusterKubeConfig: kubeConfigPath,
 			}
-			err := karmadactl.RunJoin(f, opts)
+			err := opts.Run(f)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 		// When a newly joined cluster is unready at the beginning, the scheduler will ignore it.
@@ -482,7 +485,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		})
 		ginkgo.DeferCleanup(func() {
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-				opts := karmadactl.CommandUnjoinOption{
+				opts := unjoin.CommandUnjoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
@@ -490,7 +493,7 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 					ClusterKubeConfig: kubeConfigPath,
 					Wait:              5 * options.DefaultKarmadactlCommandDuration,
 				}
-				err := karmadactl.RunUnjoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
@@ -503,11 +506,10 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 
 	ginkgo.Context("cordon/uncordon cluster taint check", func() {
 		ginkgo.BeforeEach(func() {
-			opts := karmadactl.CommandCordonOption{
-				DryRun:      false,
+			opts := cordon.CommandCordonOption{
 				ClusterName: clusterName,
 			}
-			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredCordon, f, opts)
+			err := cordon.RunCordonOrUncordon(cordon.DesiredCordon, f, opts)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		})
@@ -527,11 +529,10 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		})
 
 		ginkgo.It(fmt.Sprintf("cluster %s should not have unschedulable:NoSchedule taint", clusterName), func() {
-			opts := karmadactl.CommandCordonOption{
-				DryRun:      false,
+			opts := cordon.CommandCordonOption{
 				ClusterName: clusterName,
 			}
-			err := karmadactl.RunCordonOrUncordon(karmadactl.DesiredUnCordon, f, opts)
+			err := cordon.RunCordonOrUncordon(cordon.DesiredUnCordon, f, opts)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 			ginkgo.By(fmt.Sprintf("cluster %s taint(unschedulable:NoSchedule) will be removed", clusterName), func() {

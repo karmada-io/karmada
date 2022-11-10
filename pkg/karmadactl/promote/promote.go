@@ -1,4 +1,4 @@
-package karmadactl
+package promote
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/karmadactl/get"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter/prune"
@@ -303,7 +304,7 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 }
 
 // getObjInfo get obj info in member cluster
-func (o *CommandPromoteOption) getObjInfo(f cmdutil.Factory, cluster string, args []string) (*Obj, error) {
+func (o *CommandPromoteOption) getObjInfo(f cmdutil.Factory, cluster string, args []string) (*get.Obj, error) {
 	r := f.NewBuilder().
 		Unstructured().
 		NamespaceParam(o.Namespace).
@@ -326,7 +327,7 @@ func (o *CommandPromoteOption) getObjInfo(f cmdutil.Factory, cluster string, arg
 		return nil, fmt.Errorf("the %s or %s don't exist in cluster(%s)", args[0], args[1], o.Cluster)
 	}
 
-	obj := &Obj{
+	obj := &get.Obj{
 		Cluster: cluster,
 		Info:    infos[0],
 	}

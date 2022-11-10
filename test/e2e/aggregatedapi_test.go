@@ -16,8 +16,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/karmadactl/join"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
@@ -77,21 +78,21 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 
 	ginkgo.BeforeEach(func() {
 		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
-			opts := karmadactl.CommandJoinOption{
+			opts := join.CommandJoinOption{
 				DryRun:            false,
 				ClusterNamespace:  secretStoreNamespace,
 				ClusterName:       clusterName,
 				ClusterContext:    clusterContext,
 				ClusterKubeConfig: kubeConfigPath,
 			}
-			err := karmadactl.RunJoin(f, opts)
+			err := opts.Run(f)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 	})
 
 	ginkgo.AfterEach(func() {
 		ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-			opts := karmadactl.CommandUnjoinOption{
+			opts := unjoin.CommandUnjoinOption{
 				DryRun:            false,
 				ClusterNamespace:  secretStoreNamespace,
 				ClusterName:       clusterName,
@@ -99,7 +100,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 				ClusterKubeConfig: kubeConfigPath,
 				Wait:              5 * options.DefaultKarmadactlCommandDuration,
 			}
-			err := karmadactl.RunUnjoin(f, opts)
+			err := opts.Run(f)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 	})

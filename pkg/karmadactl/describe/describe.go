@@ -1,4 +1,4 @@
-package karmadactl
+package describe
 
 import (
 	"fmt"
@@ -49,7 +49,7 @@ var (
 
 // NewCmdDescribe new describe command.
 func NewCmdDescribe(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
-	o := &DescribeOptions{
+	o := &CommandDescribeOptions{
 		KubectlDescribeOptions: &kubectldescribe.DescribeOptions{
 			FilenameOptions: &resource.FilenameOptions{},
 			DescriberSettings: &describe.DescriberSettings{
@@ -97,15 +97,15 @@ func NewCmdDescribe(f util.Factory, parentCommand string, streams genericcliopti
 	return cmd
 }
 
-// DescribeOptions contains the input to the describe command.
-type DescribeOptions struct {
+// CommandDescribeOptions contains the input to the describe command.
+type CommandDescribeOptions struct {
 	// flags specific to describe
 	KubectlDescribeOptions *kubectldescribe.DescribeOptions
 	Cluster                string
 }
 
 // Complete ensures that options are valid and marshals them if necessary
-func (o *DescribeOptions) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
+func (o *CommandDescribeOptions) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
 	if len(o.Cluster) == 0 {
 		return fmt.Errorf("must specify a cluster")
 	}
@@ -118,6 +118,6 @@ func (o *DescribeOptions) Complete(f util.Factory, cmd *cobra.Command, args []st
 }
 
 // Run describe information of resources
-func (o *DescribeOptions) Run() error {
+func (o *CommandDescribeOptions) Run() error {
 	return o.KubectlDescribeOptions.Run()
 }
