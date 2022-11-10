@@ -14,6 +14,11 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
+const (
+	// MaxRespBodyLength is the max length of http response body
+	MaxRespBodyLength = 1 << 20 // 1 MiB
+)
+
 var admissionScheme = runtime.NewScheme()
 var admissionCodecs = serializer.NewCodecFactory(admissionScheme)
 
@@ -33,7 +38,7 @@ func (wh *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer r.Body.Close()
-	if body, err = io.ReadAll(r.Body); err != nil {
+	if body, err = io.ReadAll(io.LimitReader(r.Body, MaxRespBodyLength)); err != nil {
 		klog.Errorf("unable to read the body from the incoming request: %w", err)
 		res = Errored(http.StatusBadRequest, err)
 		wh.writeResponse(w, res)
