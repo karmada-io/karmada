@@ -1,6 +1,5 @@
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
-SOURCES := $(shell find . -type f  -name '*.go')
 LDFLAGS='$(shell hack/version.sh)'
 
 # Images management
@@ -50,7 +49,7 @@ CMD_TARGET=$(TARGETS) $(CTL_TARGETS)
 all: $(CMD_TARGET)
 
 .PHONY: $(CMD_TARGET)
-$(CMD_TARGET): $(SOURCES)
+$(CMD_TARGET):
 	LDFLAGS=$(LDFLAGS) BUILD_PLATFORMS=$(GOOS)/$(GOARCH) hack/build.sh $@
 
 # Build image.
