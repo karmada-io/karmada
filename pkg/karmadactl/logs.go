@@ -9,6 +9,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -26,25 +27,25 @@ var (
 	logsExample = templates.Examples(`
 		# Return snapshot logs from pod nginx with only one container in cluster(member1)
 		%[1]s logs nginx -C=member1
-	
+
 		# Return snapshot logs from pod nginx with multi containers in cluster(member1)
 		%[1]s logs nginx --all-containers=true -C=member1
-	
+
 		# Return snapshot logs from all containers in pods defined by label app=nginx in cluster(member1)
 		%[1]s logs -l app=nginx --all-containers=true -C=member1
-	
+
 		# Return snapshot of previous terminated ruby container logs from pod web-1 in cluster(member1)
 		%[1]s logs -p -c ruby web-1 -C=member1
-	
+
 		# Begin streaming the logs of the ruby container in pod web-1 in cluster(member1)
 		%[1]s logs -f -c ruby web-1 -C=member1
-	
+
 		# Begin streaming the logs from all containers in pods defined by label app=nginx in cluster(member1)
 		%[1]s logs -f -l app=nginx --all-containers=true -C=member1
-	
+
 		# Display only the most recent 20 lines of output in pod nginx in cluster(member1)
 		%[1]s logs --tail=20 nginx -C=member1
-	
+
 		# Show all logs from pod nginx written in the last hour in cluster(member1)
 		%[1]s logs --since=1h nginx -C=member1`)
 )
@@ -80,9 +81,8 @@ func NewCmdLogs(f util.Factory, parentCommand string, streams genericclioptions.
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
-	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
+	options.AddKubeConfigFlags(flags)
+	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	flags.StringVarP(&o.Cluster, "cluster", "C", "", "Specify a member cluster")
 	o.KubectlLogsOptions.AddFlags(cmd)
 

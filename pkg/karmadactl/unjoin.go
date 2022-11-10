@@ -29,10 +29,10 @@ var (
 	unjoinExample = templates.Examples(`
 		# Unjoin cluster from karmada control plane, but not to remove resources created by karmada in the unjoining cluster
 		%[1]s unjoin CLUSTER_NAME
-	
+
 		# Unjoin cluster from karmada control plane and attempt to remove resources created by karmada in the unjoining cluster
 		%[1]s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>
-			
+
 		# Unjoin cluster from karmada control plane with timeout
 		%[1]s unjoin CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG> --wait 2m`)
 )
@@ -67,9 +67,7 @@ func NewCmdUnjoin(f cmdutil.Factory, parentCommand string) *cobra.Command {
 
 	flags := cmd.Flags()
 	opts.AddFlags(flags)
-
-	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
+	options.AddKubeConfigFlags(flags)
 
 	return cmd
 }
@@ -148,7 +146,7 @@ func RunUnjoin(f cmdutil.Factory, opts CommandUnjoinOption) error {
 	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
 	if err != nil {
 		klog.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
-			defaultConfigFlags.Context, defaultConfigFlags.KubeConfig, err)
+			options.DefaultConfigFlags.Context, options.DefaultConfigFlags.KubeConfig, err)
 		return err
 	}
 

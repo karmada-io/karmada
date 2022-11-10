@@ -34,6 +34,7 @@ import (
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -120,7 +121,8 @@ func NewCmdGet(f util.Factory, parentCommand string, streams genericclioptions.I
 
 	o.PrintFlags.AddFlags(cmd)
 	flags := cmd.Flags()
-
+	options.AddKubeConfigFlags(flags)
+	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", *options.DefaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 	flags.StringVarP(&o.LabelSelector, "labels", "l", "", "-l=label or -l label")
 	flags.StringSliceVarP(&o.Clusters, "clusters", "C", []string{}, "-C=member1,member2")
 	flags.BoolVarP(&o.AllNamespaces, "all-namespaces", "A", o.AllNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
@@ -128,9 +130,6 @@ func NewCmdGet(f util.Factory, parentCommand string, streams genericclioptions.I
 	flags.BoolVarP(&o.Watch, "watch", "w", o.Watch, "After listing/getting the requested object, watch for changes. Uninitialized objects are excluded if no object name is provided.")
 	flags.BoolVar(&o.WatchOnly, "watch-only", o.WatchOnly, "Watch for changes to the requested object(s), without listing/getting first.")
 	flags.BoolVar(&o.OutputWatchEvents, "output-watch-events", o.OutputWatchEvents, "Output watch event objects when --watch or --watch-only is used. Existing objects are output as initial ADDED events.")
-	flags.StringVar(defaultConfigFlags.KubeConfig, "kubeconfig", *defaultConfigFlags.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(defaultConfigFlags.Context, "karmada-context", *defaultConfigFlags.Context, "The name of the kubeconfig context to use")
-	flags.StringVarP(defaultConfigFlags.Namespace, "namespace", "n", *defaultConfigFlags.Namespace, "If present, the namespace scope for this CLI request")
 
 	return cmd
 }
@@ -422,7 +421,7 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []strin
 func (g *CommandGetOptions) printIfNotFindResource(written int, allErrs *[]error, allResourcesNamespaced bool) {
 	if written == 0 && !g.IgnoreNotFound && len(*allErrs) == 0 {
 		if allResourcesNamespaced {
-			fmt.Fprintf(g.ErrOut, "No resources found in %s namespace.\n", *defaultConfigFlags.Namespace)
+			fmt.Fprintf(g.ErrOut, "No resources found in %s namespace.\n", *options.DefaultConfigFlags.Namespace)
 		} else {
 			fmt.Fprintln(g.ErrOut, "No resources found")
 		}
@@ -893,7 +892,7 @@ func (g *CommandGetOptions) getRBInKarmada(gclient karmadaclientset.Interface) e
 	var err error
 
 	if !g.AllNamespaces {
-		rbList, err = gclient.WorkV1alpha2().ResourceBindings(*defaultConfigFlags.Namespace).List(context.TODO(), metav1.ListOptions{})
+		rbList, err = gclient.WorkV1alpha2().ResourceBindings(*options.DefaultConfigFlags.Namespace).List(context.TODO(), metav1.ListOptions{})
 	} else {
 		rbList, err = gclient.WorkV1alpha2().ResourceBindings("").List(context.TODO(), metav1.ListOptions{})
 	}
