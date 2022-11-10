@@ -22,6 +22,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
@@ -245,4 +246,19 @@ func GenerateReplicaRequirements(podTemplate *corev1.PodTemplateSpec) *workv1alp
 	}
 
 	return nil
+}
+
+// ConstructClusterWideKey construct resource ClusterWideKey from binding's objectReference.
+func ConstructClusterWideKey(resource workv1alpha2.ObjectReference) (keys.ClusterWideKey, error) {
+	gv, err := schema.ParseGroupVersion(resource.APIVersion)
+	if err != nil {
+		return keys.ClusterWideKey{}, err
+	}
+	return keys.ClusterWideKey{
+		Group:     gv.Group,
+		Version:   gv.Version,
+		Kind:      resource.Kind,
+		Namespace: resource.Namespace,
+		Name:      resource.Name,
+	}, nil
 }

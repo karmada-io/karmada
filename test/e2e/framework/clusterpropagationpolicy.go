@@ -27,3 +27,15 @@ func RemoveClusterPropagationPolicy(client karmada.Interface, name string) {
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
+
+// UpdateClusterPropagationPolicy update ClusterPropagationPolicy resourceSelectors with karmada client.
+func UpdateClusterPropagationPolicy(client karmada.Interface, name string, resourceSelectors []policyv1alpha1.ResourceSelector) {
+	ginkgo.By(fmt.Sprintf("Updating ClusterPropagationPolicy(%s)", name), func() {
+		newPolicy, err := client.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), name, metav1.GetOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		newPolicy.Spec.ResourceSelectors = resourceSelectors
+		_, err = client.PolicyV1alpha1().ClusterPropagationPolicies().Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}

@@ -734,7 +734,13 @@ func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}) {
 
 // OnPropagationPolicyUpdate handles object update event and push the object to queue.
 func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{}) {
-	// currently do nothing, since a policy's resource selector can not be updated.
+	key, err := ClusterWideKeyFunc(newObj)
+	if err != nil {
+		return
+	}
+
+	klog.V(2).Infof("Update PropagationPolicy(%s) resourceSelectors", key)
+	d.policyReconcileWorker.Add(key)
 }
 
 // OnPropagationPolicyDelete handles object delete event and push the object to queue.
@@ -776,7 +782,7 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 		klog.Errorf("Failed to convert PropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
-	return d.HandlePropagationPolicyCreation(propagationObject)
+	return d.HandlePropagationPolicyCreationOrUpdate(propagationObject)
 }
 
 // OnClusterPropagationPolicyAdd handles object add event and push the object to queue.
@@ -792,7 +798,13 @@ func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}) {
 
 // OnClusterPropagationPolicyUpdate handles object update event and push the object to queue.
 func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj interface{}) {
-	// currently do nothing, since a policy's resource selector can not be updated.
+	key, err := ClusterWideKeyFunc(newObj)
+	if err != nil {
+		return
+	}
+
+	klog.V(2).Infof("Update ClusterPropagationPolicy(%s) resourceSelectors", key)
+	d.clusterPolicyReconcileWorker.Add(key)
 }
 
 // OnClusterPropagationPolicyDelete handles object delete event and push the object to queue.
@@ -835,7 +847,7 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 		klog.Errorf("Failed to convert ClusterPropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
-	return d.HandleClusterPropagationPolicyCreation(propagationObject)
+	return d.HandleClusterPropagationPolicyCreationOrUpdate(propagationObject)
 }
 
 // HandlePropagationPolicyDeletion handles PropagationPolicy delete event.
@@ -934,10 +946,17 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 	return errors.NewAggregate(errs)
 }
 
-// HandlePropagationPolicyCreation handles PropagationPolicy add event.
-// When a new policy arrives, should check if object in waiting list matches the policy, if yes remove the object
+// HandlePropagationPolicyCreationOrUpdate handles PropagationPolicy add and update event.
+// When a new policy arrives, should first check whether existing objects are no longer
+// matched by the current policy, if yes, clean the labels on the object.
+// And then check if object in waiting list matches the policy, if yes remove the object
 // from waiting list and throw the object to it's reconcile queue. If not, do nothing.
-func (d *ResourceDetector) HandlePropagationPolicyCreation(policy *policyv1alpha1.PropagationPolicy) error {
+func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *policyv1alpha1.PropagationPolicy) error {
+	err := d.cleanUnmatchedResourceBindings(policy.Namespace, policy.Name, policy.Spec.ResourceSelectors)
+	if err != nil {
+		return err
+	}
+
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
 	klog.Infof("Matched %d resources by policy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
 
@@ -958,10 +977,22 @@ func (d *ResourceDetector) HandlePropagationPolicyCreation(policy *policyv1alpha
 	return nil
 }
 
-// HandleClusterPropagationPolicyCreation handles ClusterPropagationPolicy add event.
-// When a new policy arrives, should check if object in waiting list matches the policy, if yes remove the object
+// HandleClusterPropagationPolicyCreationOrUpdate handles ClusterPropagationPolicy add and update event.
+// When a new policy arrives, should first check whether existing objects are no longer
+// matched by the current policy, if yes, clean the labels on the object.
+// And then check if object in waiting list matches the policy, if yes remove the object
 // from waiting list and throw the object to it's reconcile queue. If not, do nothing.
-func (d *ResourceDetector) HandleClusterPropagationPolicyCreation(policy *policyv1alpha1.ClusterPropagationPolicy) error {
+func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy *policyv1alpha1.ClusterPropagationPolicy) error {
+	err := d.cleanUnmatchedResourceBindings("", policy.Name, policy.Spec.ResourceSelectors)
+	if err != nil {
+		return err
+	}
+
+	err = d.cleanUnmatchedClusterResourceBinding(policy.Name, policy.Spec.ResourceSelectors)
+	if err != nil {
+		return err
+	}
+
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
 	klog.Infof("Matched %d resources by policy(%s)", len(matchedKeys), policy.Name)
 

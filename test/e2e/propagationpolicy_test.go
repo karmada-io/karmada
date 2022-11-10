@@ -29,7 +29,7 @@ import (
 )
 
 // BasicPropagation focus on basic propagation functionality testing.
-var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
+var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 	ginkgo.Context("Deployment propagation testing", func() {
 		var policyNamespace, policyName string
 		var deploymentNamespace, deploymentName string
@@ -495,7 +495,7 @@ var _ = ginkgo.Describe("[BasicPropagation] basic propagation testing", func() {
 })
 
 // ImplicitPriority more than one PP matches the object, we should choose the most suitable one.
-var _ = ginkgo.Describe("[ImplicitPriority] basic propagation testing", func() {
+var _ = ginkgo.Describe("[ImplicitPriority] propagation testing", func() {
 	ginkgo.Context("priorityMatchName propagation testing", func() {
 		var policyNamespace, priorityMatchName, priorityMatchLabelSelector, priorityMatchAll string
 		var deploymentNamespace, deploymentName string
@@ -573,6 +573,7 @@ var _ = ginkgo.Describe("[ImplicitPriority] basic propagation testing", func() {
 			})
 		})
 	})
+
 	ginkgo.Context("policyMatchLabelSelector propagation testing", func() {
 		var policyNamespace, priorityMatchLabelSelector, priorityMatchAll string
 		var deploymentNamespace, deploymentName string
@@ -638,6 +639,7 @@ var _ = ginkgo.Describe("[ImplicitPriority] basic propagation testing", func() {
 			})
 		})
 	})
+
 	ginkgo.Context("priorityMatchAll propagation testing", func() {
 		var policyNamespace, priorityMatchAll string
 		var deploymentNamespace, deploymentName string
@@ -685,6 +687,93 @@ var _ = ginkgo.Describe("[ImplicitPriority] basic propagation testing", func() {
 						return deployment.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel] == priorityMatchAll
 					})
 			})
+		})
+	})
+})
+
+// AdvancedPropagation focus on some advanced propagation testing.
+var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
+	ginkgo.Context("Edit PropagationPolicy ResourceSelectors", func() {
+		var policy *policyv1alpha1.PropagationPolicy
+		var deployment01, deployment02 *appsv1.Deployment
+		var targetMember string
+
+		ginkgo.BeforeEach(func() {
+			targetMember = framework.ClusterNames()[0]
+			policyNamespace := testNamespace
+			policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+
+			deployment01 = testhelper.NewDeployment(testNamespace, policyName+"01")
+			deployment02 = testhelper.NewDeployment(testNamespace, policyName+"02")
+
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment01.APIVersion,
+					Kind:       deployment01.Kind,
+					Name:       deployment01.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{targetMember},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment01)
+			framework.CreateDeployment(kubeClient, deployment02)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.RemoveDeployment(kubeClient, deployment01.Namespace, deployment01.Name)
+				framework.RemoveDeployment(kubeClient, deployment02.Namespace, deployment02.Name)
+			})
+
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment01.Namespace, deployment01.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+		})
+
+		ginkgo.It("add resourceSelectors item", func() {
+			framework.UpdatePropagationPolicy(karmadaClient, policy.Namespace, policy.Name, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment01.APIVersion,
+					Kind:       deployment01.Kind,
+					Name:       deployment01.Name,
+				},
+				{
+					APIVersion: deployment02.APIVersion,
+					Kind:       deployment02.Kind,
+					Name:       deployment02.Name,
+				},
+			})
+
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+		})
+
+		ginkgo.It("update resourceSelectors item", func() {
+			framework.UpdatePropagationPolicy(karmadaClient, policy.Namespace, policy.Name, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment02.APIVersion,
+					Kind:       deployment02.Kind,
+					Name:       deployment02.Name,
+				},
+			})
+
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+			framework.WaitDeploymentGetByClientFitWith(kubeClient, deployment01.Namespace, deployment01.Name,
+				func(deployment *appsv1.Deployment) bool {
+					if deployment.Labels == nil {
+						return true
+					}
+
+					_, namespaceExist := deployment.Labels[policyv1alpha1.PropagationPolicyNamespaceLabel]
+					_, nameExist := deployment.Labels[policyv1alpha1.PropagationPolicyNameLabel]
+					if namespaceExist || nameExist {
+						return false
+					}
+					return true
+				})
 		})
 	})
 })
