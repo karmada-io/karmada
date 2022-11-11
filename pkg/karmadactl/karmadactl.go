@@ -13,8 +13,21 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/addons"
+	"github.com/karmada-io/karmada/pkg/karmadactl/apply"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cordon"
+	"github.com/karmada-io/karmada/pkg/karmadactl/deinit"
+	"github.com/karmada-io/karmada/pkg/karmadactl/describe"
+	"github.com/karmada-io/karmada/pkg/karmadactl/exec"
+	"github.com/karmada-io/karmada/pkg/karmadactl/get"
+	"github.com/karmada-io/karmada/pkg/karmadactl/join"
+	"github.com/karmada-io/karmada/pkg/karmadactl/logs"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/promote"
+	"github.com/karmada-io/karmada/pkg/karmadactl/register"
+	"github.com/karmada-io/karmada/pkg/karmadactl/taint"
+	"github.com/karmada-io/karmada/pkg/karmadactl/token"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
 )
@@ -55,42 +68,42 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 		{
 			Message: "Basic Commands:",
 			Commands: []*cobra.Command{
-				NewCmdGet(f, parentCommand, ioStreams),
+				get.NewCmdGet(f, parentCommand, ioStreams),
 			},
 		},
 		{
 			Message: "Cluster Registration Commands:",
 			Commands: []*cobra.Command{
 				cmdinit.NewCmdInit(parentCommand),
-				NewCmdDeInit(parentCommand),
-				addons.NewCommandAddons(parentCommand),
-				NewCmdJoin(f, parentCommand),
-				NewCmdUnjoin(f, parentCommand),
-				NewCmdToken(f, parentCommand, ioStreams),
-				NewCmdRegister(parentCommand),
+				deinit.NewCmdDeInit(parentCommand),
+				addons.NewCmdAddons(parentCommand),
+				join.NewCmdJoin(f, parentCommand),
+				unjoin.NewCmdUnjoin(f, parentCommand),
+				token.NewCmdToken(f, parentCommand, ioStreams),
+				register.NewCmdRegister(parentCommand),
 			},
 		},
 		{
 			Message: "Cluster Management Commands:",
 			Commands: []*cobra.Command{
-				NewCmdCordon(f, parentCommand),
-				NewCmdUncordon(f, parentCommand),
-				NewCmdTaint(f, parentCommand),
+				cordon.NewCmdCordon(f, parentCommand),
+				cordon.NewCmdUncordon(f, parentCommand),
+				taint.NewCmdTaint(f, parentCommand),
 			},
 		},
 		{
 			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
-				NewCmdLogs(f, parentCommand, ioStreams),
-				NewCmdExec(f, parentCommand, ioStreams),
-				NewCmdDescribe(f, parentCommand, ioStreams),
+				logs.NewCmdLogs(f, parentCommand, ioStreams),
+				exec.NewCmdExec(f, parentCommand, ioStreams),
+				describe.NewCmdDescribe(f, parentCommand, ioStreams),
 			},
 		},
 		{
 			Message: "Advanced Commands:",
 			Commands: []*cobra.Command{
-				NewCmdApply(f, parentCommand, ioStreams),
-				NewCmdPromote(f, parentCommand),
+				apply.NewCmdApply(f, parentCommand, ioStreams),
+				promote.NewCmdPromote(f, parentCommand),
 			},
 		},
 	}

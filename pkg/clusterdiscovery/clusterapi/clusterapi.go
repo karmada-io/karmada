@@ -19,8 +19,9 @@ import (
 	secretutil "sigs.k8s.io/cluster-api/util/secret"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/karmadactl/join"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
@@ -187,12 +188,12 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 	if err != nil {
 		klog.Fatalf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
 	}
-	opts := karmadactl.CommandJoinOption{
+	opts := join.CommandJoinOption{
 		DryRun:           false,
 		ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 		ClusterName:      clusterWideKey.Name,
 	}
-	err = karmadactl.JoinCluster(d.ControllerPlaneConfig, clusterRestConfig, opts)
+	err = opts.RunJoinCluster(d.ControllerPlaneConfig, clusterRestConfig)
 	if err != nil {
 		klog.Errorf("Failed to join cluster-api's cluster(%s): %v", clusterWideKey.Name, err)
 		return err
@@ -204,13 +205,13 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 
 func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 	klog.Infof("Begin to unJoin cluster-api's Cluster(%s) to karmada", clusterName)
-	opts := karmadactl.CommandUnjoinOption{
+	opts := unjoin.CommandUnjoinOption{
 		DryRun:           false,
 		ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 		ClusterName:      clusterName,
 		Wait:             options.DefaultKarmadactlCommandDuration,
 	}
-	err := karmadactl.UnJoinCluster(d.ControllerPlaneConfig, nil, opts)
+	err := opts.RunUnJoinCluster(d.ControllerPlaneConfig, nil)
 	if err != nil {
 		klog.Errorf("Failed to unJoin cluster-api's cluster(%s): %v", clusterName, err)
 		return err

@@ -13,8 +13,9 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/karmadactl/join"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -87,7 +88,7 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 
 		ginkgo.AfterEach(func() {
 			ginkgo.By(fmt.Sprintf("Unjoinning cluster: %s", clusterName), func() {
-				opts := karmadactl.CommandUnjoinOption{
+				opts := unjoin.CommandUnjoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
@@ -95,7 +96,7 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 					ClusterKubeConfig: kubeConfigPath,
 					Wait:              5 * options.DefaultKarmadactlCommandDuration,
 				}
-				err := karmadactl.RunUnjoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
@@ -114,14 +115,14 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 
 		ginkgo.It("federatedResourceQuota should be propagated to new joined clusters", func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
-				opts := karmadactl.CommandJoinOption{
+				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       clusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 

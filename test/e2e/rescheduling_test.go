@@ -17,7 +17,8 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/karmadactl"
+	"github.com/karmada-io/karmada/pkg/karmadactl/join"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -89,14 +90,14 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 
 		ginkgo.It("deployment reschedule testing", func() {
 			ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName), func() {
-				opts := karmadactl.CommandJoinOption{
+				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// wait for the current cluster status changing to true
@@ -116,11 +117,11 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 
 			ginkgo.By("unjoin target cluster", func() {
 				klog.Infof("Unjoining cluster %q.", newClusterName)
-				opts := karmadactl.CommandUnjoinOption{
+				opts := unjoin.CommandUnjoinOption{
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
 				}
-				err := karmadactl.RunUnjoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -174,11 +175,11 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 
 		ginkgo.AfterEach(func() {
 			ginkgo.By(fmt.Sprintf("Unjoin clsters: %s", newClusterName), func() {
-				opts := karmadactl.CommandUnjoinOption{
+				opts := unjoin.CommandUnjoinOption{
 					ClusterNamespace: "karmada-cluster",
 					ClusterName:      newClusterName,
 				}
-				err := karmadactl.RunUnjoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", newClusterName), func() {
@@ -224,14 +225,14 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				})
 
 				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
-				opts := karmadactl.CommandJoinOption{
+				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// wait for the current cluster status changing to true
@@ -283,14 +284,14 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
 
 				ginkgo.By(fmt.Sprintf("Joinning cluster: %s", newClusterName))
-				opts := karmadactl.CommandJoinOption{
+				opts := join.CommandJoinOption{
 					DryRun:            false,
 					ClusterNamespace:  "karmada-cluster",
 					ClusterName:       newClusterName,
 					ClusterContext:    clusterContext,
 					ClusterKubeConfig: kubeConfigPath,
 				}
-				err := karmadactl.RunJoin(f, opts)
+				err := opts.Run(f)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				// wait for the current cluster status changing to true

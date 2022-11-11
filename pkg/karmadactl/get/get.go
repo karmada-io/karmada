@@ -1,4 +1,4 @@
-package karmadactl
+package get
 
 import (
 	"context"
@@ -168,7 +168,7 @@ type CommandGetOptions struct {
 	genericclioptions.IOStreams
 }
 
-// NewCommandGetOptions returns a GetOptions with default chunk size 500.
+// NewCommandGetOptions returns a CommandGetOptions with default chunk size 500.
 func NewCommandGetOptions(streams genericclioptions.IOStreams) *CommandGetOptions {
 	return &CommandGetOptions{
 		PrintFlags:  get.NewGetPrintFlags(),

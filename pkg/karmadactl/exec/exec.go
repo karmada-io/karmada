@@ -1,4 +1,4 @@
-package karmadactl
+package exec
 
 import (
 	"fmt"
@@ -42,7 +42,7 @@ var (
 
 // NewCmdExec new exec command.
 func NewCmdExec(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
-	o := &ExecOptions{
+	o := &CommandExecOptions{
 		KubectlExecOptions: &kubectlexec.ExecOptions{
 			StreamOptions: kubectlexec.StreamOptions{
 				IOStreams: streams,
@@ -90,15 +90,15 @@ func NewCmdExec(f util.Factory, parentCommand string, streams genericclioptions.
 	return cmd
 }
 
-// ExecOptions declare the arguments accepted by the Exec command
-type ExecOptions struct {
+// CommandExecOptions declare the arguments accepted by the Exec command
+type CommandExecOptions struct {
 	// flags specific to exec
 	KubectlExecOptions *kubectlexec.ExecOptions
 	Cluster            string
 }
 
 // Complete verifies command line arguments and loads data from the command environment
-func (o *ExecOptions) Complete(f util.Factory, cmd *cobra.Command, argsIn []string, argsLenAtDash int) error {
+func (o *CommandExecOptions) Complete(f util.Factory, cmd *cobra.Command, argsIn []string, argsLenAtDash int) error {
 	if len(o.Cluster) == 0 {
 		return fmt.Errorf("must specify a cluster")
 	}
@@ -110,11 +110,11 @@ func (o *ExecOptions) Complete(f util.Factory, cmd *cobra.Command, argsIn []stri
 }
 
 // Validate checks that the provided exec options are specified.
-func (o *ExecOptions) Validate() error {
+func (o *CommandExecOptions) Validate() error {
 	return o.KubectlExecOptions.Validate()
 }
 
 // Run executes a validated remote execution against a pod.
-func (o *ExecOptions) Run() error {
+func (o *CommandExecOptions) Run() error {
 	return o.KubectlExecOptions.Run()
 }

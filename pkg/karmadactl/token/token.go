@@ -1,4 +1,4 @@
-package karmadactl
+package token
 
 import (
 	"context"
