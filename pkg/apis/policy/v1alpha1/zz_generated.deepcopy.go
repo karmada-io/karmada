@@ -719,6 +719,11 @@ func (in *PropagationSpec) DeepCopyInto(out *PropagationSpec) {
 		}
 	}
 	in.Placement.DeepCopyInto(&out.Placement)
+	if in.Priority != nil {
+		in, out := &in.Priority, &out.Priority
+		*out = new(int32)
+		**out = **in
+	}
 	if in.DependentOverrides != nil {
 		in, out := &in.DependentOverrides, &out.DependentOverrides
 		*out = make([]string, len(*in))

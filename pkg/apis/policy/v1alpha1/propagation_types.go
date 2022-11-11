@@ -70,6 +70,27 @@ type PropagationSpec struct {
 	// +optional
 	Placement Placement `json:"placement,omitempty"`
 
+	// Priority indicates the importance of a policy(PropagationPolicy or ClusterPropagationPolicy).
+	// A policy will be applied for the matched resource templates if there is
+	// no other policies with higher priority at the point of the resource
+	// template be processed.
+	// Once a resource template has been claimed by a policy, by default it will
+	// not be preempted by following policies even with a higher priority.
+	//
+	// In case of two policies have the same priority, the one with a more precise
+	// matching rules in ResourceSelectors wins:
+	// - matching by name(resourceSelector.name) has higher priority than
+	//   by selector(resourceSelector.labelSelector)
+	// - matching by selector(resourceSelector.labelSelector) has higher priority
+	//   than by APIVersion(resourceSelector.apiVersion) and Kind(resourceSelector.kind).
+	// If there is still no winner at this point, the one with the lower alphabetic
+	// order wins, e.g. policy 'bar' has higher priority than 'foo'.
+	//
+	// The higher the value, the higher the priority. Defaults to zero.
+	// +optional
+	// +kubebuilder:default=0
+	Priority *int32 `json:"priority,omitempty"`
+
 	// DependentOverrides represents the list of overrides(OverridePolicy)
 	// which must present before the current PropagationPolicy takes effect.
 	//
