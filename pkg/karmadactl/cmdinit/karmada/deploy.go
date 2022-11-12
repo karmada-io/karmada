@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -289,29 +290,25 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 		},
 	}
 
-	allAPIService, err := apiRegistrationClient.ApiregistrationV1().APIServices().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	// Update if it exists.
-	for _, v := range allAPIService.Items {
-		if v.Name == aaAPIServiceObjName {
-			klog.Infof("Update APIService '%s'", aaAPIServiceObjName)
-			aaAPIService.ObjectMeta.ResourceVersion = v.ResourceVersion
-			if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), aaAPIService, metav1.UpdateOptions{}); err != nil {
+	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), aaAPIService, metav1.CreateOptions{}); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			data, err := json.Marshal(aaAPIService)
+			if err != nil {
 				return err
 			}
-			return nil
+			klog.Infof("Patch APIService '%s'", aaAPIServiceObjName)
+			_, err = apiRegistrationClient.ApiregistrationV1().APIServices().Patch(context.TODO(), aaAPIServiceObjName, types.ApplyPatchType, data, metav1.PatchOptions{})
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
 		}
-	}
-
-	klog.Infof("Create APIService '%s'", aaAPIServiceObjName)
-	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), aaAPIService, metav1.CreateOptions{}); err != nil {
-		return err
 	}
 	if err := WaitAPIServiceReady(apiRegistrationClient, aaAPIServiceObjName, 120*time.Second); err != nil {
 		return err
 	}
+
+	klog.Infof("init APIService '%s' success", aaAPIServiceObjName)
 	return nil
 }
