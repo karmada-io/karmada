@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	applycorev1 "k8s.io/client-go/applyconfigurations/core/v1"
@@ -17,16 +18,8 @@ var serviceLabels = map[string]string{"karmada.io/bootstrapping": "service-defau
 
 // CreateService create service
 func (i *CommandInitOption) CreateService(service *corev1.Service) error {
-	serviceClient := i.KubeClientSet.CoreV1().Services(i.Namespace)
-
-	serviceList, err := serviceClient.List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	// Update if service exists.
-	for _, v := range serviceList.Items {
-		if service.Name == v.Name {
+	if _, err := i.KubeClientSet.CoreV1().Services(i.Namespace).Create(context.TODO(), service, metav1.CreateOptions{}); err != nil {
+		if apierrors.IsAlreadyExists(err) {
 			t := &applycorev1.ServiceApplyConfiguration{
 				TypeMetaApplyConfiguration: applymetav1.TypeMetaApplyConfiguration{
 					APIVersion: &service.APIVersion,
@@ -43,8 +36,7 @@ func (i *CommandInitOption) CreateService(service *corev1.Service) error {
 					Selector:   service.Spec.Selector,
 				},
 			}
-
-			_, err = serviceClient.Apply(context.TODO(), t, metav1.ApplyOptions{
+			_, err := i.KubeClientSet.CoreV1().Services(i.Namespace).Apply(context.TODO(), t, metav1.ApplyOptions{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: service.APIVersion,
 					Kind:       service.Kind,
@@ -52,18 +44,15 @@ func (i *CommandInitOption) CreateService(service *corev1.Service) error {
 				FieldManager: "apply",
 			})
 			if err != nil {
-				return fmt.Errorf("apply service %s failed: %v", service.Name, err)
+				return fmt.Errorf("service '%s' Apply failed: %v", service.Name, err)
 			}
-			klog.Infof("service %s update successfully.", service.Name)
+			klog.Infof("service '%s' Apply successfully.", service.Name)
 			return nil
 		}
+		return err
 	}
 
-	_, err = serviceClient.Create(context.TODO(), service, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("create service %s failed: %v", service.Name, err)
-	}
-	klog.Infof("service %s create successfully.", service.Name)
+	klog.Infof("service '%s' Create successfully.", service.Name)
 	return nil
 }
 
