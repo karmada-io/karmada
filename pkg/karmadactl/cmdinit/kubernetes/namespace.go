@@ -4,33 +4,23 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
 // CreateNamespace namespace IfNotExist
 func (i *CommandInitOption) CreateNamespace() error {
-	namespaceClient := i.KubeClientSet.CoreV1().Namespaces()
-	namespaceList, err := namespaceClient.List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, nsList := range namespaceList.Items {
-		if i.Namespace == nsList.Name {
-			klog.Infof("Namespace %s already exists.", i.Namespace)
-			return nil
-		}
-	}
-
-	n := &corev1.Namespace{
+	_, err := i.KubeClientSet.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: i.Namespace,
 		},
-	}
-
-	_, err = namespaceClient.Create(context.TODO(), n, metav1.CreateOptions{})
+	}, metav1.CreateOptions{})
 	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			klog.Infof("Namespace %s already exists.", i.Namespace)
+			return nil
+		}
 		return err
 	}
 	klog.Infof("Create Namespace '%s' successfully.", i.Namespace)
