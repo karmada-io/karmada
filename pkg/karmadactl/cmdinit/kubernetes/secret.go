@@ -9,6 +9,8 @@ import (
 	applycorev1 "k8s.io/client-go/applyconfigurations/core/v1"
 	applymetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/klog/v2"
+
+	cmdoptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 // SecretFromSpec secret spec
@@ -20,7 +22,7 @@ func (i *CommandInitOption) SecretFromSpec(name string, secretType corev1.Secret
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    map[string]string{"karmada.io/bootstrapping": "secret-defaults"},
 		},
 		//Immutable:  immutable,
@@ -31,7 +33,7 @@ func (i *CommandInitOption) SecretFromSpec(name string, secretType corev1.Secret
 
 // CreateSecret receive SecretFromSpec create secret
 func (i *CommandInitOption) CreateSecret(secret *corev1.Secret) error {
-	secretClient := i.KubeClientSet.CoreV1().Secrets(i.Namespace)
+	secretClient := i.KubeClientSet.CoreV1().Secrets(*cmdoptions.DefaultConfigFlags.Namespace)
 
 	secretList, err := secretClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {

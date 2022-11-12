@@ -10,6 +10,8 @@ import (
 	applycorev1 "k8s.io/client-go/applyconfigurations/core/v1"
 	applymetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/klog/v2"
+
+	cmdoptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 // serviceLabels remove via Labels karmada service
@@ -17,7 +19,7 @@ var serviceLabels = map[string]string{"karmada.io/bootstrapping": "service-defau
 
 // CreateService create service
 func (i *CommandInitOption) CreateService(service *corev1.Service) error {
-	serviceClient := i.KubeClientSet.CoreV1().Services(i.Namespace)
+	serviceClient := i.KubeClientSet.CoreV1().Services(*cmdoptions.DefaultConfigFlags.Namespace)
 
 	serviceList, err := serviceClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -76,7 +78,7 @@ func (i *CommandInitOption) makeEtcdService(name string) *corev1.Service {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
@@ -115,7 +117,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerService() *corev1.Service {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAPIServerDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
@@ -145,7 +147,7 @@ func (i *CommandInitOption) kubeControllerManagerService() *corev1.Service {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
@@ -174,7 +176,7 @@ func (i *CommandInitOption) karmadaWebhookService() *corev1.Service {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      webhookDeploymentAndServiceAccountAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
@@ -203,7 +205,7 @@ func (i *CommandInitOption) karmadaAggregatedAPIServerService() *corev1.Service 
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{

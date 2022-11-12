@@ -12,6 +12,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	cmdoptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 const (
@@ -53,7 +54,7 @@ var (
 func (i *CommandInitOption) etcdServers() string {
 	etcdClusterConfig := ""
 	for v := int32(0); v < i.EtcdReplicas; v++ {
-		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, etcdContainerClientPort) + ","
+		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace, etcdContainerClientPort) + ","
 	}
 	return etcdClusterConfig
 }
@@ -101,7 +102,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAPIServerDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    appLabels,
 		},
 	}
@@ -203,7 +204,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAPIServerDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    apiServerLabels,
 		},
 		Spec: podSpec,
@@ -228,7 +229,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    appLabels,
 		},
 	}
@@ -271,7 +272,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrapproving,csrcleaner,csrsigning",
 					"--kubeconfig=/etc/kubeconfig",
 					"--leader-elect=true",
-					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", *cmdoptions.DefaultConfigFlags.Namespace),
 					"--node-cidr-mask-size=24",
 					fmt.Sprintf("--root-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.CaCertAndKeyName),
 					fmt.Sprintf("--service-account-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
@@ -330,7 +331,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    kubeControllerManagerLabels,
 		},
 		Spec: podSpec,
@@ -355,7 +356,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      schedulerDeploymentNameAndServiceAccountName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    appLabels,
 		},
 	}
@@ -408,7 +409,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					"--feature-gates=Failover=true",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
-					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", *cmdoptions.DefaultConfigFlags.Namespace),
 					"--v=4",
 				},
 				LivenessProbe: livenessProbe,
@@ -445,7 +446,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      schedulerDeploymentNameAndServiceAccountName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    schedulerLabels,
 		},
 		Spec: podSpec,
@@ -471,7 +472,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      controllerManagerDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    appLabels,
 		},
 	}
@@ -521,7 +522,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 					"--bind-address=0.0.0.0",
 					"--cluster-status-update-frequency=10s",
 					"--secure-port=10357",
-					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
+					fmt.Sprintf("--leader-elect-resource-namespace=%s", *cmdoptions.DefaultConfigFlags.Namespace),
 					"--v=4",
 				},
 				LivenessProbe: livenessProbe,
@@ -565,7 +566,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      controllerManagerDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    controllerManagerLabels,
 		},
 		Spec: podSpec,
@@ -590,7 +591,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      webhookDeploymentAndServiceAccountAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    appLabels,
 		},
 	}
@@ -693,7 +694,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      webhookDeploymentAndServiceAccountAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    webhookLabels,
 		},
 		Spec: podSpec,
@@ -718,7 +719,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    appLabels,
 		},
 	}
@@ -844,7 +845,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAggregatedAPIServerDeploymentAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    aggregatedAPIServerLabels,
 		},
 		Spec: podSpec,

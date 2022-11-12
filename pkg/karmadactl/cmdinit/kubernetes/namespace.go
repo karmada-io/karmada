@@ -6,6 +6,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+
+	cmdoptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 // CreateNamespace namespace IfNotExist
@@ -17,15 +19,15 @@ func (i *CommandInitOption) CreateNamespace() error {
 	}
 
 	for _, nsList := range namespaceList.Items {
-		if i.Namespace == nsList.Name {
-			klog.Infof("Namespace %s already exists.", i.Namespace)
+		if *cmdoptions.DefaultConfigFlags.Namespace == nsList.Name {
+			klog.Infof("Namespace %s already exists.", *cmdoptions.DefaultConfigFlags.Namespace)
 			return nil
 		}
 	}
 
 	n := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: i.Namespace,
+			Name: *cmdoptions.DefaultConfigFlags.Namespace,
 		},
 	}
 
@@ -33,6 +35,6 @@ func (i *CommandInitOption) CreateNamespace() error {
 	if err != nil {
 		return err
 	}
-	klog.Infof("Create Namespace '%s' successfully.", i.Namespace)
+	klog.Infof("Create Namespace '%s' successfully.", *cmdoptions.DefaultConfigFlags.Namespace)
 	return nil
 }

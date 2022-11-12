@@ -12,6 +12,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	cmdoptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 )
 
 const (
@@ -67,7 +68,7 @@ func (i CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVol
 				Kind:       "PersistentVolumeClaim",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: i.Namespace,
+				Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 				Name:      etcdContainerDataVolumeMountName,
 				Labels:    map[string]string{"karmada.io/bootstrapping": "pvc-defaults"},
 			},
@@ -113,7 +114,7 @@ func (i CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVol
 func (i *CommandInitOption) etcdInitContainerCommand() []string {
 	etcdClusterConfig := ""
 	for v := int32(0); v < i.EtcdReplicas; v++ {
-		etcdClusterConfig += fmt.Sprintf("%s-%v=http://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, etcdContainerServerPort) + ","
+		etcdClusterConfig += fmt.Sprintf("%s-%v=http://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace, etcdContainerServerPort) + ","
 	}
 
 	command := []string{
@@ -136,7 +137,7 @@ peer-transport-security:
 initial-cluster-state: new
 initial-cluster-token: etcd-cluster
 initial-cluster: %s
-listen-peer-urls: http://${%s}:%v 
+listen-peer-urls: http://${%s}:%v
 listen-client-urls: https://${%s}:%v,http://127.0.0.1:%v
 initial-advertise-peer-urls: http://${%s}:%v
 advertise-client-urls: https://${%s}.%s.%s.svc.cluster.local:%v
@@ -155,7 +156,7 @@ data-dir: %s
 			etcdEnvPodIP, etcdContainerServerPort,
 			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
 			etcdEnvPodIP, etcdContainerServerPort,
-			etcdEnvPodName, etcdStatefulSetAndServiceName, i.Namespace, etcdContainerClientPort,
+			etcdEnvPodName, etcdStatefulSetAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace, etcdContainerClientPort,
 			etcdContainerDataVolumeMountPath,
 		),
 	}
@@ -174,7 +175,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      etcdStatefulSetAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    appLabels,
 		},
 	}
@@ -322,7 +323,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      etcdStatefulSetAndServiceName,
-			Namespace: i.Namespace,
+			Namespace: *cmdoptions.DefaultConfigFlags.Namespace,
 			Labels:    etcdLabels,
 		},
 		Spec: podSpec,

@@ -74,7 +74,7 @@ func NewKarmadaCtlCommand(cmdUse, parentCommand string) *cobra.Command {
 		{
 			Message: "Cluster Registration Commands:",
 			Commands: []*cobra.Command{
-				cmdinit.NewCmdInit(parentCommand),
+				cmdinit.NewCmdInit(f, parentCommand),
 				deinit.NewCmdDeInit(parentCommand),
 				addons.NewCmdAddons(parentCommand),
 				join.NewCmdJoin(f, parentCommand),

@@ -23,7 +23,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
-	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	cmdoptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 var (
@@ -79,9 +80,6 @@ type CommandInitOption struct {
 	KarmadaWebhookReplicas             int32
 	KarmadaAggregatedAPIServerImage    string
 	KarmadaAggregatedAPIServerReplicas int32
-	Namespace                          string
-	KubeConfig                         string
-	Context                            string
 	StorageClassesName                 string
 	KarmadaDataPath                    string
 	KarmadaPkiPath                     string
@@ -131,15 +129,8 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 }
 
 // Complete Initialize k8s client
-func (i *CommandInitOption) Complete() error {
-	restConfig, err := apiclient.RestConfig(i.Context, i.KubeConfig)
-	if err != nil {
-		return err
-	}
-	i.RestConfig = restConfig
-
-	klog.Infof("kubeconfig file: %s, kubernetes: %s", i.KubeConfig, restConfig.Host)
-	clientSet, err := apiclient.NewClientSet(restConfig)
+func (i *CommandInitOption) Complete(f util.Factory) error {
+	clientSet, err := f.KubernetesClientSet()
 	if err != nil {
 		return err
 	}
@@ -191,7 +182,7 @@ func (i *CommandInitOption) genCerts() error {
 		"localhost",
 	}
 	for number := int32(0); number < i.EtcdReplicas; number++ {
-		etcdServerCertDNS = append(etcdServerCertDNS, fmt.Sprintf("%s-%v.%s.%s.svc.cluster.local", etcdStatefulSetAndServiceName, number, etcdStatefulSetAndServiceName, i.Namespace))
+		etcdServerCertDNS = append(etcdServerCertDNS, fmt.Sprintf("%s-%v.%s.%s.svc.cluster.local", etcdStatefulSetAndServiceName, number, etcdStatefulSetAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace))
 	}
 	etcdServerAltNames := certutil.AltNames{
 		DNSNames: etcdServerCertDNS,
@@ -208,12 +199,12 @@ func (i *CommandInitOption) genCerts() error {
 		karmadaAPIServerDeploymentAndServiceName,
 		webhookDeploymentAndServiceAccountAndServiceName,
 		karmadaAggregatedAPIServerDeploymentAndServiceName,
-		fmt.Sprintf("%s.%s.svc.cluster.local", karmadaAPIServerDeploymentAndServiceName, i.Namespace),
-		fmt.Sprintf("%s.%s.svc.cluster.local", webhookDeploymentAndServiceAccountAndServiceName, i.Namespace),
-		fmt.Sprintf("%s.%s.svc", webhookDeploymentAndServiceAccountAndServiceName, i.Namespace),
-		fmt.Sprintf("%s.%s.svc.cluster.local", karmadaAggregatedAPIServerDeploymentAndServiceName, i.Namespace),
-		fmt.Sprintf("*.%s.svc.cluster.local", i.Namespace),
-		fmt.Sprintf("*.%s.svc", i.Namespace),
+		fmt.Sprintf("%s.%s.svc.cluster.local", karmadaAPIServerDeploymentAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace),
+		fmt.Sprintf("%s.%s.svc.cluster.local", webhookDeploymentAndServiceAccountAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace),
+		fmt.Sprintf("%s.%s.svc", webhookDeploymentAndServiceAccountAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace),
+		fmt.Sprintf("%s.%s.svc.cluster.local", karmadaAggregatedAPIServerDeploymentAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace),
+		fmt.Sprintf("*.%s.svc.cluster.local", *cmdoptions.DefaultConfigFlags.Namespace),
+		fmt.Sprintf("*.%s.svc", *cmdoptions.DefaultConfigFlags.Namespace),
 	}
 	karmadaDNS = append(karmadaDNS, utils.FlagsDNS(i.ExternalDNS)...)
 
@@ -266,7 +257,7 @@ func (i *CommandInitOption) prepareCRD() error {
 
 func (i *CommandInitOption) createCertsSecrets() error {
 	// Create kubeconfig Secret
-	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.cluster.local:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, karmadaAPIServerContainerPort)
+	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.cluster.local:%v", karmadaAPIServerDeploymentAndServiceName, *cmdoptions.DefaultConfigFlags.Namespace, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
 	configBytes, err := clientcmd.Write(*config)
@@ -317,13 +308,13 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 		return err
 	}
 	klog.Info("create etcd StatefulSets")
-	if _, err := i.KubeClientSet.AppsV1().StatefulSets(i.Namespace).Create(context.TODO(), i.makeETCDStatefulSet(), metav1.CreateOptions{}); err != nil {
+	if _, err := i.KubeClientSet.AppsV1().StatefulSets(*cmdoptions.DefaultConfigFlags.Namespace).Create(context.TODO(), i.makeETCDStatefulSet(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitEtcdReplicasetInDesired(i.EtcdReplicas, i.KubeClientSet, i.Namespace, utils.MapToString(etcdLabels), 30); err != nil {
+	if err := WaitEtcdReplicasetInDesired(i.EtcdReplicas, i.KubeClientSet, *cmdoptions.DefaultConfigFlags.Namespace, utils.MapToString(etcdLabels), 30); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(etcdLabels), 30); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, *cmdoptions.DefaultConfigFlags.Namespace, utils.MapToString(etcdLabels), 30); err != nil {
 		klog.Warning(err)
 	}
 
@@ -331,10 +322,10 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	if err := i.CreateService(i.makeKarmadaAPIServerService()); err != nil {
 		return err
 	}
-	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
+	if _, err := i.KubeClientSet.AppsV1().Deployments(*cmdoptions.DefaultConfigFlags.Namespace).Create(context.TODO(), i.makeKarmadaAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(apiServerLabels), 120); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, *cmdoptions.DefaultConfigFlags.Namespace, utils.MapToString(apiServerLabels), 120); err != nil {
 		return err
 	}
 
@@ -344,10 +335,10 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	if err := i.CreateService(i.karmadaAggregatedAPIServerService()); err != nil {
 		klog.Exitln(err)
 	}
-	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
+	if _, err := i.KubeClientSet.AppsV1().Deployments(*cmdoptions.DefaultConfigFlags.Namespace).Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(aggregatedAPIServerLabels), 30); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, *cmdoptions.DefaultConfigFlags.Namespace, utils.MapToString(aggregatedAPIServerLabels), 30); err != nil {
 		klog.Warning(err)
 	}
 	return nil
@@ -357,7 +348,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	// wait pod ready timeout 30s
 	waitPodReadyTimeout := 30
 
-	deploymentClient := i.KubeClientSet.AppsV1().Deployments(i.Namespace)
+	deploymentClient := i.KubeClientSet.AppsV1().Deployments(*cmdoptions.DefaultConfigFlags.Namespace)
 	// Create karmada-kube-controller-manager
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/kube-controller-manager.yaml
 	klog.Info("create karmada kube controller manager Deployment")
@@ -367,7 +358,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaKubeControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(kubeControllerManagerLabels), waitPodReadyTimeout); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, *cmdoptions.DefaultConfigFlags.Namespace, utils.MapToString(kubeControllerManagerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 
@@ -377,7 +368,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaSchedulerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(schedulerLabels), waitPodReadyTimeout); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, *cmdoptions.DefaultConfigFlags.Namespace, utils.MapToString(schedulerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 
@@ -387,7 +378,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(controllerManagerLabels), waitPodReadyTimeout); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, *cmdoptions.DefaultConfigFlags.Namespace, utils.MapToString(controllerManagerLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 
@@ -400,7 +391,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaWebhookDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := WaitPodReady(i.KubeClientSet, i.Namespace, utils.MapToString(webhookLabels), waitPodReadyTimeout); err != nil {
+	if err := WaitPodReady(i.KubeClientSet, *cmdoptions.DefaultConfigFlags.Namespace, utils.MapToString(webhookLabels), waitPodReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 	return nil
@@ -442,7 +433,7 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 
 	// Create ns
 	if err := i.CreateNamespace(); err != nil {
-		return fmt.Errorf("create namespace %s failed: %v", i.Namespace, err)
+		return fmt.Errorf("create namespace %s failed: %v", *cmdoptions.DefaultConfigFlags.Namespace, err)
 	}
 
 	// Create Secrets
@@ -457,7 +448,7 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 
 	// Create CRDs in karmada
 	caBase64 := base64.StdEncoding.EncodeToString(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)])
-	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64, i.Namespace); err != nil {
+	if err := karmada.InitKarmadaResources(i.KarmadaDataPath, caBase64, *cmdoptions.DefaultConfigFlags.Namespace); err != nil {
 		return err
 	}
 

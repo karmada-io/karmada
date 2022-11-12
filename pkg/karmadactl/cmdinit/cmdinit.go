@@ -9,6 +9,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/version"
 )
@@ -59,7 +60,7 @@ var (
 )
 
 // NewCmdInit install Karmada on Kubernetes
-func NewCmdInit(parentCommand string) *cobra.Command {
+func NewCmdInit(f util.Factory, parentCommand string) *cobra.Command {
 	opts := kubernetes.CommandInitOption{}
 	cmd := &cobra.Command{
 		Use:                   "init",
@@ -72,7 +73,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 			if err := opts.Validate(parentCommand); err != nil {
 				return err
 			}
-			if err := opts.Complete(); err != nil {
+			if err := opts.Complete(f); err != nil {
 				return err
 			}
 			if err := opts.RunInit(parentCommand); err != nil {
@@ -106,10 +107,9 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.ExternalIP, "cert-external-ip", "", "the external IP of Karmada certificate (e.g 192.168.1.2,172.16.1.2)")
 	flags.StringVar(&opts.ExternalDNS, "cert-external-dns", "", "the external DNS of Karmada certificate (e.g localhost,localhost.com)")
 	// Kubernetes
-	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "Kubernetes namespace")
+	options.AddKubeConfigFlags(flags)
+	flags.StringVarP(options.DefaultConfigFlags.Namespace, "namespace", "n", "karmada-system", "If present, the namespace scope for this CLI request")
 	flags.StringVar(&opts.StorageClassesName, "storage-classes-name", "", "Kubernetes StorageClasses Name")
-	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "absolute path to the kubeconfig file")
-	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
 	// etcd
 	flags.StringVarP(&opts.EtcdStorageMode, "etcd-storage-mode", "", "hostPath",
 		fmt.Sprintf("etcd data storage mode(%s). value is PVC, specify --storage-classes-name", strings.Join(kubernetes.SupportedStorageMode(), ",")))
