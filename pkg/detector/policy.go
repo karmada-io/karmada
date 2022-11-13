@@ -88,6 +88,17 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 		return err
 	}
 
+	// Some resources are available in more than one group in the same kubernetes version.
+	// Therefore, the following scenarios occurs:
+	// In v1.21 kubernetes cluster, Ingress are available in both networking.k8s.io and extensions groups.
+	// When user creates an Ingress(networking.k8s.io/v1) and specifies a PropagationPolicy to propagate it
+	// to the member clusters, the detector will listen two resource creation events:
+	// Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1). In order to prevent
+	// Ingress(extensions/v1beta1) from being propagated, we need to ignore it.
+	if !util.ResourceMatchSelectors(object, matchedPropagationPolicy.Spec.ResourceSelectors...) {
+		return nil
+	}
+
 	// return err when dependents not present, that we can retry at next reconcile.
 	if present, err := helper.IsDependentOverridesPresent(d.Client, matchedPropagationPolicy); err != nil || !present {
 		klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", policyNamespace, policyName)
@@ -108,6 +119,17 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 	if err != nil {
 		klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v", err)
 		return err
+	}
+
+	// Some resources are available in more than one group in the same kubernetes version.
+	// Therefore, the following scenarios occurs:
+	// In v1.21 kubernetes cluster, Ingress are available in both networking.k8s.io and extensions groups.
+	// When user creates an Ingress(networking.k8s.io/v1) and specifies a ClusterPropagationPolicy to
+	// propagate it to the member clusters, the detector will listen two resource creation events:
+	// Ingress(networking.k8s.io/v1) and Ingress(extensions/v1beta1). In order to prevent
+	// Ingress(extensions/v1beta1) from being propagated, we need to ignore it.
+	if !util.ResourceMatchSelectors(object, matchedClusterPropagationPolicy.Spec.ResourceSelectors...) {
+		return nil
 	}
 
 	// return err when dependents not present, that we can retry at next reconcile.
