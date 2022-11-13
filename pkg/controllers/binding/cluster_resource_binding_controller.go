@@ -243,6 +243,13 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 
 		var requests []reconcile.Request
 		for _, binding := range bindingList.Items {
+			// Nil resourceSelectors means matching all resources.
+			if len(overrideRS) == 0 {
+				klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as cluster override policy(%s) changes.", binding.Name, a.GetName())
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
+				continue
+			}
+
 			workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
 				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
@@ -251,7 +258,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 
 			for _, rs := range overrideRS {
 				if util.ResourceMatches(workload, rs) {
-					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as override policy(%s/%s) changes.", binding.Name, a.GetNamespace(), a.GetName())
+					klog.V(2).Infof("Enqueue ClusterResourceBinding(%s) as cluster override policy(%s) changes.", binding.Name, a.GetName())
 					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: binding.Name}})
 					break
 				}
