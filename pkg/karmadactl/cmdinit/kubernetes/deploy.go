@@ -276,7 +276,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 	}
 
 	kubeConfigSecret := i.SecretFromSpec(KubeConfigSecretAndMountName, corev1.SecretTypeOpaque, map[string]string{KubeConfigSecretAndMountName: string(configBytes)})
-	if err = i.CreateSecret(kubeConfigSecret); err != nil {
+	if err = util.CreateOrUpdateSecret(i.KubeClientSet, kubeConfigSecret); err != nil {
 		return err
 	}
 	// Create certs Secret
@@ -287,7 +287,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName)]),
 	}
 	etcdSecret := i.SecretFromSpec(etcdCertName, corev1.SecretTypeOpaque, etcdCert)
-	if err := i.CreateSecret(etcdSecret); err != nil {
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, etcdSecret); err != nil {
 		return err
 	}
 
@@ -297,7 +297,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		karmadaCert[fmt.Sprintf("%s.key", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)])
 	}
 	karmadaSecret := i.SecretFromSpec(karmadaCertsName, corev1.SecretTypeOpaque, karmadaCert)
-	if err := i.CreateSecret(karmadaSecret); err != nil {
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaSecret); err != nil {
 		return err
 	}
 
@@ -306,7 +306,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		"tls.key": string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)]),
 	}
 	karmadaWebhookSecret := i.SecretFromSpec(webhookCertsName, corev1.SecretTypeOpaque, karmadaWebhookCert)
-	if err := i.CreateSecret(karmadaWebhookSecret); err != nil {
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaWebhookSecret); err != nil {
 		return err
 	}
 
@@ -314,7 +314,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 }
 
 func (i *CommandInitOption) initKarmadaAPIServer() error {
-	if err := i.CreateService(i.makeEtcdService(etcdStatefulSetAndServiceName)); err != nil {
+	if err := util.CreateOrUpdateService(i.KubeClientSet, i.makeEtcdService(etcdStatefulSetAndServiceName)); err != nil {
 		return err
 	}
 	klog.Info("create etcd StatefulSets")
@@ -329,7 +329,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	}
 
 	klog.Info("create karmada ApiServer Deployment")
-	if err := i.CreateService(i.makeKarmadaAPIServerService()); err != nil {
+	if err := util.CreateOrUpdateService(i.KubeClientSet, i.makeKarmadaAPIServerService()); err != nil {
 		return err
 	}
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
@@ -342,7 +342,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	// Create karmada-aggregated-apiserver
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver.yaml
 	klog.Info("create karmada aggregated apiserver Deployment")
-	if err := i.CreateService(i.karmadaAggregatedAPIServerService()); err != nil {
+	if err := util.CreateOrUpdateService(i.KubeClientSet, i.karmadaAggregatedAPIServerService()); err != nil {
 		klog.Exitln(err)
 	}
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
@@ -362,7 +362,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	// Create karmada-kube-controller-manager
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/kube-controller-manager.yaml
 	klog.Info("create karmada kube controller manager Deployment")
-	if err := i.CreateService(i.kubeControllerManagerService()); err != nil {
+	if err := util.CreateOrUpdateService(i.KubeClientSet, i.kubeControllerManagerService()); err != nil {
 		klog.Exitln(err)
 	}
 	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaKubeControllerManagerDeployment(), metav1.CreateOptions{}); err != nil {
@@ -395,7 +395,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	// Create karmada-webhook
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-webhook.yaml
 	klog.Info("create karmada webhook Deployment")
-	if err := i.CreateService(i.karmadaWebhookService()); err != nil {
+	if err := util.CreateOrUpdateService(i.KubeClientSet, i.karmadaWebhookService()); err != nil {
 		klog.Exitln(err)
 	}
 	if _, err := deploymentClient.Create(context.TODO(), i.makeKarmadaWebhookDeployment(), metav1.CreateOptions{}); err != nil {
