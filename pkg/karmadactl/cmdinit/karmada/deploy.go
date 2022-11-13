@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -22,10 +23,12 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/yaml"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	bootstrapagent "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/bootstraptoken/agent"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/bootstraptoken/clusterinfo"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 )
@@ -33,6 +36,8 @@ import (
 const (
 	clusterProxyAdminRole = "cluster-proxy-admin"
 	clusterProxyAdminUser = "system:admin"
+
+	aggregatedApiserverServiceName = "karmada-aggregated-apiserver"
 )
 
 // InitKarmadaResources Initialize karmada resource
@@ -48,11 +53,7 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	}
 
 	// create namespace
-	if _, err := clientSet.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: systemNamespace,
-		},
-	}, metav1.CreateOptions{}); err != nil {
+	if err := util.CreateOrUpdateNamespace(clientSet, util.NewNamespace(systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
 
@@ -91,8 +92,8 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	if err = createMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
-	klog.Info("Create ValidatingWebhookConfiguration validating-config.")
 
+	klog.Info("Create ValidatingWebhookConfiguration validating-config.")
 	if err = createValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
@@ -208,10 +209,17 @@ func createCRDs(crdClient *clientset.Clientset, filename string) error {
 		return err
 	}
 
+	klog.Infof("Attempting to create CRD")
 	crd := crdClient.ApiextensionsV1().CustomResourceDefinitions()
 	if _, err := crd.Create(context.TODO(), &obj, metav1.CreateOptions{}); err != nil {
-		return err
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+		klog.Infof("CRD %s already exists, skipping.", obj.Name)
+		return nil
 	}
+
+	klog.Infof("Create CRD %s successfully.", obj.Name)
 	return nil
 }
 
@@ -249,17 +257,18 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "karmada-aggregated-apiserver",
+			Name:      aggregatedApiserverServiceName,
 			Namespace: systemNamespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:         corev1.ServiceTypeExternalName,
-			ExternalName: fmt.Sprintf("karmada-aggregated-apiserver.%s.svc", systemNamespace),
+			ExternalName: fmt.Sprintf("%s.%s.svc", aggregatedApiserverServiceName, systemNamespace),
 		},
 	}
-	if _, err := clientSet.CoreV1().Services(systemNamespace).Create(context.TODO(), aaService, metav1.CreateOptions{}); err != nil {
+	if err := util.CreateOrUpdateService(clientSet, aaService); err != nil {
 		return err
 	}
+
 	// new apiRegistrationClient
 	apiRegistrationClient, err := apiclient.NewAPIRegistrationClient(restConfig)
 	if err != nil {
@@ -278,13 +287,13 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 		},
 		Spec: apiregistrationv1.APIServiceSpec{
 			InsecureSkipTLSVerify: true,
-			Group:                 "cluster.karmada.io",
+			Group:                 clusterv1alpha1.GroupName,
 			GroupPriorityMinimum:  2000,
 			Service: &apiregistrationv1.ServiceReference{
-				Name:      "karmada-aggregated-apiserver",
-				Namespace: systemNamespace,
+				Name:      aaService.Name,
+				Namespace: aaService.Namespace,
 			},
-			Version:         "v1alpha1",
+			Version:         clusterv1alpha1.GroupVersion.Version,
 			VersionPriority: 10,
 		},
 	}

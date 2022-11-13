@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -168,8 +169,14 @@ func createValidatingWebhookConfiguration(c kubernetes.Interface, staticYaml str
 	}
 
 	if _, err := c.AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(context.TODO(), &obj, metav1.CreateOptions{}); err != nil {
-		return err
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+		klog.Infof("ValidatingWebhookConfiguration %s already exists, skipping.", obj.Name)
+		return nil
 	}
+	klog.Infof("Create ValidatingWebhookConfiguration %s successfully.", obj.Name)
+
 	return nil
 }
 
@@ -182,7 +189,13 @@ func createMutatingWebhookConfiguration(c kubernetes.Interface, staticYaml strin
 	}
 
 	if _, err := c.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.TODO(), &obj, metav1.CreateOptions{}); err != nil {
-		return err
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+		klog.Infof("MutatingWebhookConfiguration %s already exists, skipping.", obj.Name)
+		return nil
 	}
+
+	klog.Infof("Create MutatingWebhookConfiguration %s successfully.", obj.Name)
 	return nil
 }
