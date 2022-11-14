@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
@@ -50,7 +51,10 @@ func (vm VM) GetReplicas(obj *unstructured.Unstructured, script string) (replica
 	}
 
 	args := make([]lua.LValue, 1)
-	args[0] = decodeValue(l, obj.Object)
+	args[0], err = decodeValue(l, obj.Object)
+	if err != nil {
+		return
+	}
 	err = l.CallByParam(lua.P{Fn: f, NRet: 2, Protect: true}, args...)
 	if err != nil {
 		return 0, nil, err
@@ -108,8 +112,14 @@ func (vm VM) ReviseReplica(object *unstructured.Unstructured, replica int64, scr
 	}
 
 	args := make([]lua.LValue, 2)
-	args[0] = decodeValue(l, object.Object)
-	args[1] = decodeValue(l, replica)
+	args[0], err = decodeValue(l, object.Object)
+	if err != nil {
+		return nil, err
+	}
+	args[1], err = decodeValue(l, replica)
+	if err != nil {
+		return nil, err
+	}
 	err = l.CallByParam(lua.P{Fn: reviseReplicaLuaFunc, NRet: 1, Protect: true}, args...)
 	if err != nil {
 		return nil, err
@@ -178,8 +188,14 @@ func (vm VM) Retain(desired *unstructured.Unstructured, observed *unstructured.U
 	}
 
 	args := make([]lua.LValue, 2)
-	args[0] = decodeValue(l, desired.Object)
-	args[1] = decodeValue(l, observed.Object)
+	args[0], err = decodeValue(l, desired.Object)
+	if err != nil {
+		return
+	}
+	args[1], err = decodeValue(l, observed.Object)
+	if err != nil {
+		return
+	}
 	err = l.CallByParam(lua.P{Fn: retainLuaFunc, NRet: 1, Protect: true}, args...)
 	if err != nil {
 		return nil, err
@@ -225,8 +241,14 @@ func (vm VM) AggregateStatus(object *unstructured.Unstructured, item []map[strin
 		return nil, fmt.Errorf("can't get function AggregateStatus pleace check the function ")
 	}
 	args := make([]lua.LValue, 2)
-	args[0] = decodeValue(l, object.Object)
-	args[1] = decodeValue(l, item)
+	args[0], err = decodeValue(l, object.Object)
+	if err != nil {
+		return nil, err
+	}
+	args[1], err = decodeValue(l, item)
+	if err != nil {
+		return nil, err
+	}
 	err = l.CallByParam(lua.P{Fn: f, NRet: 1, Protect: true}, args...)
 	if err != nil {
 		return nil, err
@@ -272,7 +294,10 @@ func (vm VM) InterpretHealth(object *unstructured.Unstructured, script string) (
 	}
 
 	args := make([]lua.LValue, 1)
-	args[0] = decodeValue(l, object.Object)
+	args[0], err = decodeValue(l, object.Object)
+	if err != nil {
+		return false, err
+	}
 	err = l.CallByParam(lua.P{Fn: f, NRet: 1, Protect: true}, args...)
 	if err != nil {
 		return false, err
@@ -315,7 +340,10 @@ func (vm VM) ReflectStatus(object *unstructured.Unstructured, script string) (st
 	}
 
 	args := make([]lua.LValue, 1)
-	args[0] = decodeValue(l, object.Object)
+	args[0], err = decodeValue(l, object.Object)
+	if err != nil {
+		return
+	}
 	err = l.CallByParam(lua.P{Fn: f, NRet: 2, Protect: true}, args...)
 	if err != nil {
 		return nil, err
@@ -376,7 +404,10 @@ func (vm VM) GetDependencies(object *unstructured.Unstructured, script string) (
 	}
 
 	args := make([]lua.LValue, 1)
-	args[0] = decodeValue(l, object.Object)
+	args[0], err = decodeValue(l, object.Object)
+	if err != nil {
+		return
+	}
 	err = l.CallByParam(lua.P{Fn: f, NRet: 1, Protect: true}, args...)
 	if err != nil {
 		return nil, err
@@ -398,46 +429,64 @@ func (vm VM) GetDependencies(object *unstructured.Unstructured, script string) (
 	return
 }
 
-// Took logic from the link below and added the int, int32, and int64 types since the value would have type int64
-// while actually running in the controller and it was not reproducible through testing.
-// https://github.com/layeh/gopher-json/blob/97fed8db84274c421dbfffbb28ec859901556b97/json.go#L154
-func decodeValue(L *lua.LState, value interface{}) lua.LValue {
+// nolint:gocyclo
+func decodeValue(L *lua.LState, value interface{}) (lua.LValue, error) {
+	// We handle simple type without json for better performance.
 	switch converted := value.(type) {
-	case bool:
-		return lua.LBool(converted)
-	case float64:
-		return lua.LNumber(converted)
-	case string:
-		return lua.LString(converted)
-	case json.Number:
-		return lua.LString(converted)
-	case int:
-		return lua.LNumber(converted)
-	case int32:
-		return lua.LNumber(converted)
-	case int64:
-		return lua.LNumber(converted)
 	case []interface{}:
 		arr := L.CreateTable(len(converted), 0)
 		for _, item := range converted {
-			arr.Append(decodeValue(L, item))
+			v, err := decodeValue(L, item)
+			if err != nil {
+				return nil, err
+			}
+			arr.Append(v)
 		}
-		return arr
-	case []map[string]interface{}:
-		arr := L.CreateTable(len(converted), 0)
-		for _, item := range converted {
-			arr.Append(decodeValue(L, item))
-		}
-		return arr
+		return arr, nil
 	case map[string]interface{}:
 		tbl := L.CreateTable(0, len(converted))
 		for key, item := range converted {
-			tbl.RawSetH(lua.LString(key), decodeValue(L, item))
+			v, err := decodeValue(L, item)
+			if err != nil {
+				return nil, err
+			}
+			tbl.RawSetString(key, v)
 		}
-		return tbl
+		return tbl, nil
 	case nil:
-		return lua.LNil
+		return lua.LNil, nil
 	}
 
-	return lua.LNil
+	v := reflect.ValueOf(value)
+	switch {
+	case v.CanInt():
+		return lua.LNumber(v.Int()), nil
+	case v.CanUint():
+		return lua.LNumber(v.Uint()), nil
+	case v.CanFloat():
+		return lua.LNumber(v.Float()), nil
+	}
+
+	switch t := v.Type(); t.Kind() {
+	case reflect.String:
+		return lua.LString(v.String()), nil
+	case reflect.Bool:
+		return lua.LBool(v.Bool()), nil
+	case reflect.Pointer:
+		if v.IsNil() {
+			return lua.LNil, nil
+		}
+	}
+
+	// Other types can't be handled, ask for help from json
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("json Marshal obj %#v error: %v", value, err)
+	}
+
+	lv, err := luajson.Decode(L, data)
+	if err != nil {
+		return nil, fmt.Errorf("lua Decode obj %#v error: %v", value, err)
+	}
+	return lv, nil
 }
