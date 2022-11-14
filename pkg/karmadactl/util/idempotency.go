@@ -88,6 +88,8 @@ func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apise
 			return fmt.Errorf("unable to update APIService: %v", err)
 		}
 	}
+
+	klog.V(2).Infof("APIService %s has been created or updated.", apiservice.Name)
 	return nil
 }
 
