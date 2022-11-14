@@ -529,16 +529,21 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 })
 
 var _ = ginkgo.Describe("OverrideRules with nil resourceSelectors", func() {
-	ginkgo.Context("Deployment override testing", func() {
-		deploymentNamespace := testNamespace
-		deploymentName := deploymentNamePrefix + rand.String(RandomStrLength)
-		propagationPolicyNamespace := testNamespace
-		propagationPolicyName := deploymentName
-		overridePolicyNamespace := testNamespace
-		overridePolicyName := deploymentName
-
-		deployment := helper.NewDeployment(deploymentNamespace, deploymentName)
-		propagationPolicy := helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
+	var deploymentNamespace, deploymentName string
+	var propagationPolicyNamespace, propagationPolicyName string
+	var overridePolicyNamespace, overridePolicyName string
+	var deployment *appsv1.Deployment
+	var propagationPolicy *policyv1alpha1.PropagationPolicy
+	var overridePolicy *policyv1alpha1.OverridePolicy
+	ginkgo.BeforeEach(func() {
+		deploymentNamespace = testNamespace
+		deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+		propagationPolicyNamespace = testNamespace
+		propagationPolicyName = deploymentName
+		overridePolicyNamespace = testNamespace
+		overridePolicyName = deploymentName
+		deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
+		propagationPolicy = helper.NewPropagationPolicy(propagationPolicyNamespace, propagationPolicyName, []policyv1alpha1.ResourceSelector{
 			{
 				APIVersion: deployment.APIVersion,
 				Kind:       deployment.Kind,
@@ -549,8 +554,7 @@ var _ = ginkgo.Describe("OverrideRules with nil resourceSelectors", func() {
 				ClusterNames: framework.ClusterNames(),
 			},
 		})
-
-		overridePolicy := helper.NewOverridePolicyByOverrideRules(overridePolicyNamespace, overridePolicyName, nil, []policyv1alpha1.RuleWithCluster{
+		overridePolicy = helper.NewOverridePolicyByOverrideRules(overridePolicyNamespace, overridePolicyName, nil, []policyv1alpha1.RuleWithCluster{
 			{
 				TargetCluster: &policyv1alpha1.ClusterAffinity{
 					ClusterNames: framework.ClusterNames(),
@@ -569,28 +573,58 @@ var _ = ginkgo.Describe("OverrideRules with nil resourceSelectors", func() {
 				},
 			},
 		})
-
+	})
+	ginkgo.Context("Deployment override testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+			framework.CreateDeployment(kubeClient, deployment)
 		})
 
 		ginkgo.AfterEach(func() {
 			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
 			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
 
 		ginkgo.It("deployment imageOverride testing", func() {
-			framework.CreateDeployment(kubeClient, deployment)
-
 			klog.Infof("check if deployment present on member clusters have correct image value")
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
 					return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
 				})
+		})
+	})
 
+	ginkgo.Context("Deployment override testing when creating overridePolicy after develop and propagationPolicy have been created", func() {
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
+			framework.CreateDeployment(kubeClient, deployment)
+		})
+
+		ginkgo.AfterEach(func() {
+			framework.RemovePropagationPolicy(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name)
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 		})
 
+		ginkgo.It("deployment imageOverride testing", func() {
+			ginkgo.By("Check if deployment have presented on member clusters", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return true
+					})
+			})
+
+			framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+
+			ginkgo.By("Check if deployment presented on member clusters have correct image value", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
+					})
+			})
+
+			framework.RemoveOverridePolicy(karmadaClient, overridePolicy.Namespace, overridePolicy.Name)
+		})
 	})
 })
