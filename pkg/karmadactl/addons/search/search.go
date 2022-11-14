@@ -218,7 +218,7 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 }
 
 func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, error) {
-	sts, err := opts.KubeClientSet.AppsV1().StatefulSets(opts.Namespace).Get(context.TODO(), "etcd", metav1.GetOptions{})
+	sts, err := opts.KubeClientSet.AppsV1().StatefulSets(opts.Namespace).Get(context.TODO(), etcdStatefulSetAndServiceName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
