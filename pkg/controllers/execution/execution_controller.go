@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -113,12 +114,12 @@ func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (cont
 	if err != nil {
 		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, clusterName, err)
 		klog.Errorf(msg)
-		c.EventRecorder.Event(work, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, msg)
+		c.EventRecorder.Event(work, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, msg)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	msg := fmt.Sprintf("Sync work (%s) to cluster(%s) successful.", work.Name, clusterName)
 	klog.V(4).Infof(msg)
-	c.EventRecorder.Event(work, corev1.EventTypeNormal, workv1alpha1.EventReasonSyncWorkSucceed, msg)
+	c.EventRecorder.Event(work, corev1.EventTypeNormal, events.EventReasonSyncWorkloadSucceed, msg)
 	return controllerruntime.Result{}, nil
 }
 
@@ -195,7 +196,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			err = c.tryUpdateWorkload(clusterName, workload)
 			if err != nil {
 				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
-				c.eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
+				c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
@@ -203,12 +204,12 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			err = c.tryCreateWorkload(clusterName, workload)
 			if err != nil {
 				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
-				c.eventf(workload, corev1.EventTypeWarning, workv1alpha1.EventReasonSyncWorkFailed, "Failed to create resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
+				c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 				errs = append(errs, err)
 				continue
 			}
 		}
-		c.eventf(workload, corev1.EventTypeNormal, workv1alpha1.EventReasonSyncWorkSucceed, "Successfully applied resource(%v/%v) to cluster %s", workload.GetNamespace(), workload.GetName(), clusterName)
+		c.eventf(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkloadSucceed, "Successfully applied resource(%v/%v) to cluster %s", workload.GetNamespace(), workload.GetName(), clusterName)
 		syncSucceedNum++
 	}
 

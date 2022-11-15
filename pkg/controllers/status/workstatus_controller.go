@@ -23,6 +23,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -289,10 +290,10 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	if err != nil {
 		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter.",
 			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
-		c.EventRecorder.Eventf(work, corev1.EventTypeWarning, workv1alpha1.EventReasonReflectStatusFailed, "Reflect status for object(%s/%s/%s) failed, err: %s.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err.Error())
+		c.EventRecorder.Eventf(work, corev1.EventTypeWarning, events.EventReasonReflectStatusFailed, "Reflect status for object(%s/%s/%s) failed, err: %s.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err.Error())
 		return err
 	}
-	c.EventRecorder.Eventf(work, corev1.EventTypeNormal, workv1alpha1.EventReasonReflectStatusSucceed, "Reflect status for object(%s/%s/%s) succeed.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
+	c.EventRecorder.Eventf(work, corev1.EventTypeNormal, events.EventReasonReflectStatusSucceed, "Reflect status for object(%s/%s/%s) succeed.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
 
 	if statusRaw == nil {
 		return nil
@@ -304,13 +305,13 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	healthy, err := c.ResourceInterpreter.InterpretHealth(clusterObj)
 	if err != nil {
 		resourceHealth = workv1alpha1.ResourceUnknown
-		c.EventRecorder.Eventf(work, corev1.EventTypeWarning, workv1alpha1.EventReasonInterpretHealthFailed, "Interpret health of object(%s/%s/%s) failed, err: %s.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err.Error())
+		c.EventRecorder.Eventf(work, corev1.EventTypeWarning, events.EventReasonInterpretHealthFailed, "Interpret health of object(%s/%s/%s) failed, err: %s.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err.Error())
 	} else if healthy {
 		resourceHealth = workv1alpha1.ResourceHealthy
-		c.EventRecorder.Eventf(work, corev1.EventTypeNormal, workv1alpha1.EventReasonInterpretHealthSucceed, "Interpret health of object(%s/%s/%s) as healthy.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
+		c.EventRecorder.Eventf(work, corev1.EventTypeNormal, events.EventReasonInterpretHealthSucceed, "Interpret health of object(%s/%s/%s) as healthy.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
 	} else {
 		resourceHealth = workv1alpha1.ResourceUnhealthy
-		c.EventRecorder.Eventf(work, corev1.EventTypeNormal, workv1alpha1.EventReasonInterpretHealthSucceed, "Interpret health of object(%s/%s/%s) as unhealthy.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
+		c.EventRecorder.Eventf(work, corev1.EventTypeNormal, events.EventReasonInterpretHealthSucceed, "Interpret health of object(%s/%s/%s) as unhealthy.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
 	}
 
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)

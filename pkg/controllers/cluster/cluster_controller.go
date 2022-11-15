@@ -24,6 +24,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
@@ -215,14 +216,14 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 	// create execution space
 	err := c.createExecutionSpace(cluster)
 	if err != nil {
-		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonCreateExecutionSpaceFailed, err.Error())
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonCreateExecutionSpaceFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	// taint cluster by condition
 	err = c.taintClusterByCondition(ctx, cluster)
 	if err != nil {
-		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonTaintClusterByConditionFailed, err.Error())
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonTaintClusterByConditionFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
@@ -233,18 +234,18 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
 	// add terminating taint before cluster is deleted
 	if err := utilhelper.UpdateClusterControllerTaint(ctx, c.Client, []*corev1.Taint{TerminatingTaintTemplate}, nil, cluster); err != nil {
-		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonRemoveTargetClusterFailed, err.Error())
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonRemoveTargetClusterFailed, err.Error())
 		klog.ErrorS(err, "Failed to update terminating taint", "cluster", cluster.Name)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	if err := c.removeExecutionSpace(cluster); err != nil {
 		klog.Errorf("Failed to remove execution space %s: %v", cluster.Name, err)
-		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, clusterv1alpha1.EventReasonRemoveExecutionSpaceFailed, err.Error())
+		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonRemoveExecutionSpaceFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	msg := fmt.Sprintf("Removed execution space for cluster(%s).", cluster.Name)
-	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, clusterv1alpha1.EventReasonRemoveExecutionSpaceSucceed, msg)
+	c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonRemoveExecutionSpaceSucceed, msg)
 
 	if exist, err := c.ExecutionSpaceExistForCluster(cluster.Name); err != nil {
 		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
@@ -396,7 +397,7 @@ func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 		}
 		msg := fmt.Sprintf("Created execution space(%s) for cluster(%s).", executionSpaceName, cluster.Name)
 		klog.V(2).Info(msg)
-		c.EventRecorder.Event(cluster, corev1.EventTypeNormal, clusterv1alpha1.EventReasonCreateExecutionSpaceSucceed, msg)
+		c.EventRecorder.Event(cluster, corev1.EventTypeNormal, events.EventReasonCreateExecutionSpaceSucceed, msg)
 	}
 
 	return nil
