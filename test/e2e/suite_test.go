@@ -56,8 +56,8 @@ const (
 	roleBindingNamePrefix        = "rolebinding-"
 	clusterRoleBindingNamePrefix = "clusterrolebinding-"
 
-	updateDeploymentReplicas  = 6
-	updateStatefulSetReplicas = 6
+	updateDeploymentReplicas  = 2
+	updateStatefulSetReplicas = 2
 	updateServicePort         = 81
 	updatePodImage            = "nginx:latest"
 	updateCRnamespace         = "e2e-test"
