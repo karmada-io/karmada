@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -704,9 +705,9 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 
 		ginkgo.BeforeEach(func() {
 			policyNamespace = testNamespace
-			higherPriorityLabelSelector = deploymentNamePrefix + rand.String(RandomStrLength)
-			lowerPriorityMatchName = deploymentNamePrefix + rand.String(RandomStrLength)
-			implicitPriorityMatchName = deploymentNamePrefix + rand.String(RandomStrLength)
+			higherPriorityLabelSelector = deploymentNamePrefix + "higherprioritylabelselector" + rand.String(RandomStrLength)
+			lowerPriorityMatchName = deploymentNamePrefix + "lowerprioritymatchame" + rand.String(RandomStrLength)
+			implicitPriorityMatchName = deploymentNamePrefix + "implicitprioritymatchname" + rand.String(RandomStrLength)
 			deploymentNamespace = testNamespace
 			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
 
@@ -751,6 +752,10 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			framework.CreatePropagationPolicy(karmadaClient, policyHigherPriorityLabelSelector)
 			framework.CreatePropagationPolicy(karmadaClient, policyLowerPriorityMatchMatchName)
 			framework.CreatePropagationPolicy(karmadaClient, policyImplicitPriorityMatchMatchName)
+
+			// Wait policy present in cache
+			time.Sleep(time.Second)
+
 			framework.CreateDeployment(kubeClient, deployment)
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
@@ -766,6 +771,8 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			ginkgo.By("check whether the deployment uses the highest explicit priority PropagationPolicy", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
+						klog.Infof("Match PropagationPolicy:%s/%s", deployment.GetLabels()[policyv1alpha1.PropagationPolicyNamespaceLabel],
+							deployment.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel])
 						return deployment.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel] == higherPriorityLabelSelector
 					})
 			})
@@ -782,8 +789,8 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 
 		ginkgo.BeforeEach(func() {
 			policyNamespace = testNamespace
-			explicitPriorityLabelSelector = deploymentNamePrefix + rand.String(RandomStrLength)
-			explicitPriorityMatchName = deploymentNamePrefix + rand.String(RandomStrLength)
+			explicitPriorityLabelSelector = deploymentNamePrefix + "explicitprioritylabelselector" + rand.String(RandomStrLength)
+			explicitPriorityMatchName = deploymentNamePrefix + "explicitprioritymatchname" + rand.String(RandomStrLength)
 			deploymentNamespace = testNamespace
 			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
 
@@ -816,6 +823,10 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreatePropagationPolicy(karmadaClient, policyExplicitPriorityLabelSelector)
 			framework.CreatePropagationPolicy(karmadaClient, policyExplicitPriorityMatchName)
+
+			// Wait policy present in cache
+			time.Sleep(time.Second)
+
 			framework.CreateDeployment(kubeClient, deployment)
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
@@ -831,6 +842,8 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			ginkgo.By("check whether the deployment uses the PropagationPolicy with name matched", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
+						klog.Infof("Match PropagationPolicy:%s/%s", deployment.GetLabels()[policyv1alpha1.PropagationPolicyNamespaceLabel],
+							deployment.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel])
 						return deployment.GetLabels()[policyv1alpha1.PropagationPolicyNameLabel] == explicitPriorityMatchName
 					})
 			})

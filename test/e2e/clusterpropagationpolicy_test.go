@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -10,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -333,9 +335,9 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 		var priorityLabelValue = "priority"
 
 		ginkgo.BeforeEach(func() {
-			higherPriorityLabelSelector = deploymentNamePrefix + rand.String(RandomStrLength)
-			lowerPriorityMatchName = deploymentNamePrefix + rand.String(RandomStrLength)
-			implicitPriorityMatchName = deploymentNamePrefix + rand.String(RandomStrLength)
+			higherPriorityLabelSelector = deploymentNamePrefix + "higherprioritylabelselector" + rand.String(RandomStrLength)
+			lowerPriorityMatchName = deploymentNamePrefix + "lowerprioritymatchname" + rand.String(RandomStrLength)
+			implicitPriorityMatchName = deploymentNamePrefix + "implicitprioritymatchname" + rand.String(RandomStrLength)
 			deploymentNamespace = testNamespace
 			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
 
@@ -380,6 +382,10 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyHigherPriorityLabelSelector)
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyLowerPriorityMatchName)
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyImplicitPriorityMatchName)
+
+			// Wait policy present in cache
+			time.Sleep(time.Second)
+
 			framework.CreateDeployment(kubeClient, deployment)
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
@@ -395,6 +401,7 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			ginkgo.By("check whether the deployment uses the highest explicit priority ClusterPropagationPolicy", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
+						klog.Infof("Matched ClusterPropagationPolicy:%s", deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel])
 						return deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel] == higherPriorityLabelSelector
 					})
 			})
@@ -410,8 +417,8 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 		var priorityLabelValue = "priority"
 
 		ginkgo.BeforeEach(func() {
-			explicitPriorityLabelSelector = deploymentNamePrefix + rand.String(RandomStrLength)
-			explicitPriorityMatchName = deploymentNamePrefix + rand.String(RandomStrLength)
+			explicitPriorityLabelSelector = deploymentNamePrefix + "explicitprioritylabelselector" + rand.String(RandomStrLength)
+			explicitPriorityMatchName = deploymentNamePrefix + "explicitprioritymatchname" + rand.String(RandomStrLength)
 			deploymentNamespace = testNamespace
 			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
 
@@ -444,6 +451,10 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 		ginkgo.BeforeEach(func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyExplicitPriorityLabelSelector)
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyExplicitPriorityMatchName)
+
+			// Wait policy present in cache
+			time.Sleep(time.Second)
+
 			framework.CreateDeployment(kubeClient, deployment)
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
@@ -459,6 +470,7 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			ginkgo.By("check whether the deployment uses the ClusterPropagationPolicy with name matched", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 					func(deployment *appsv1.Deployment) bool {
+						klog.Infof("Matched ClusterPropagationPolicy:%s", deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel])
 						return deployment.GetLabels()[policyv1alpha1.ClusterPropagationPolicyLabel] == explicitPriorityMatchName
 					})
 			})
