@@ -190,7 +190,20 @@ func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []Gener
 			resourceMatchingPolicies = append(resourceMatchingPolicies, policy)
 		}
 	}
-
+	sort.SliceStable(resourceMatchingPolicies, func(i, j int) bool {
+		implicitPriorityI := util.ResourceMatchSelectorsPriority(resource, resourceMatchingPolicies[i].GetOverrideSpec().ResourceSelectors...)
+		if len(resourceMatchingPolicies[i].GetOverrideSpec().ResourceSelectors) == 0 {
+			implicitPriorityI = util.PriorityMatchAll
+		}
+		implicitPriorityJ := util.ResourceMatchSelectorsPriority(resource, resourceMatchingPolicies[j].GetOverrideSpec().ResourceSelectors...)
+		if len(resourceMatchingPolicies[j].GetOverrideSpec().ResourceSelectors) == 0 {
+			implicitPriorityJ = util.PriorityMatchAll
+		}
+		if implicitPriorityI != implicitPriorityJ {
+			return implicitPriorityI < implicitPriorityJ
+		}
+		return resourceMatchingPolicies[i].GetName() < resourceMatchingPolicies[j].GetName()
+	})
 	clusterMatchingPolicyOverriders := make([]policyOverriders, 0)
 	for _, policy := range resourceMatchingPolicies {
 		overrideRules := policy.GetOverrideSpec().OverrideRules
@@ -221,10 +234,6 @@ func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []Gener
 
 	// select policy in which at least one PlaintextOverrider matches target resource.
 	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
-
-	sort.Slice(clusterMatchingPolicyOverriders, func(i, j int) bool {
-		return clusterMatchingPolicyOverriders[i].name < clusterMatchingPolicyOverriders[j].name
-	})
 
 	return clusterMatchingPolicyOverriders
 }
