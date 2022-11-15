@@ -138,7 +138,7 @@ scheduler:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: swr.ap-southeast-1.myhuaweicloud.com
+    registry: docker.io
     repository: karmada/karmada-scheduler
     tag: latest
     ## Specify a imagePullPolicy
@@ -195,7 +195,7 @@ webhook:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: swr.ap-southeast-1.myhuaweicloud.com
+    registry: docker.io
     repository: karmada/karmada-webhook
     tag: latest
     ## Specify a imagePullPolicy
@@ -252,7 +252,7 @@ controllerManager:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: swr.ap-southeast-1.myhuaweicloud.com
+    registry: docker.io
     repository: karmada/karmada-controller-manager
     tag: latest
     ## Specify a imagePullPolicy
@@ -394,7 +394,7 @@ aggregatedApiServer:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: swr.ap-southeast-1.myhuaweicloud.com
+    registry: docker.io
     repository: karmada/karmada-aggregated-apiserver
     tag: latest
     ## Specify a imagePullPolicy
@@ -599,7 +599,7 @@ agent:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: swr.ap-southeast-1.myhuaweicloud.com
+    registry: docker.io
     repository: karmada/karmada-agent
     tag: latest
     ## Specify a imagePullPolicy
@@ -677,7 +677,7 @@ schedulerEstimator:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: swr.ap-southeast-1.myhuaweicloud.com
+    registry: docker.io
     repository: karmada/karmada-scheduler-estimator
     tag: latest
     ## Specify a imagePullPolicy
@@ -734,7 +734,7 @@ descheduler:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: swr.ap-southeast-1.myhuaweicloud.com
+    registry: docker.io
     repository: karmada/karmada-descheduler
     tag: latest
     ## Specify a imagePullPolicy
@@ -791,7 +791,7 @@ search:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: swr.ap-southeast-1.myhuaweicloud.com
+    registry: docker.io
     repository: karmada/karmada-search
     tag: latest
     ## Specify a imagePullPolicy

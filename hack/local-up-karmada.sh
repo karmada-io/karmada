@@ -86,7 +86,7 @@ util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" 
 
 #step2. make images and get karmadactl
 export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+export REGISTRY="docker.io/karmada"
 make images GOOS="linux" --directory="${REPO_ROOT}"
 
 GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl"
@@ -98,8 +98,6 @@ echo "Waiting for the host clusters to be ready..."
 util::check_clusters_ready "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}"
 
 #step4. load components images to kind cluster
-export VERSION="latest"
-export REGISTRY="swr.ap-southeast-1.myhuaweicloud.com/karmada"
 kind load docker-image "${REGISTRY}/karmada-controller-manager:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-scheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"
 kind load docker-image "${REGISTRY}/karmada-descheduler:${VERSION}" --name="${HOST_CLUSTER_NAME}"

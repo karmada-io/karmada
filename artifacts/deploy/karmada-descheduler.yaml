@@ -21,7 +21,7 @@ spec:
           operator: Exists
       containers:
         - name: karmada-descheduler
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-descheduler:latest
+          image: docker.io/karmada/karmada-descheduler:latest
           imagePullPolicy: IfNotPresent
           command:
             - /bin/karmada-descheduler

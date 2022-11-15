@@ -173,7 +173,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.StringSliceVar(&opts.BootstrapToken.CACertHashes, "discovery-token-ca-cert-hash", []string{}, "For token-based discovery, validate that the root CA public key matches this hash (format: \"<type>:<value>\").")
 	flags.BoolVar(&opts.BootstrapToken.UnsafeSkipCAVerification, "discovery-token-unsafe-skip-ca-verification", false, "For token-based discovery, allow joining without --discovery-token-ca-cert-hash pinning.")
 	flags.DurationVar(&opts.Timeout, "discovery-timeout", DefaultDiscoveryTimeout, "The timeout to discovery karmada apiserver client.")
-	flags.StringVar(&opts.KarmadaAgentImage, "karmada-agent-image", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-agent:%s", releaseVer.PatchRelease()), "Karmada agent image.")
+	flags.StringVar(&opts.KarmadaAgentImage, "karmada-agent-image", fmt.Sprintf("docker.io/karmada/karmada-agent:%s", releaseVer.PatchRelease()), "Karmada agent image.")
 	flags.Int32Var(&opts.KarmadaAgentReplicas, "karmada-agent-replicas", 1, "Karmada agent replicas.")
 	flags.Int32Var(&opts.CertExpirationSeconds, "cert-expiration-seconds", DefaultCertExpirationSeconds, "The expiration time of certificate.")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")

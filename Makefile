@@ -4,7 +4,7 @@ SOURCES := $(shell find . -type f  -name '*.go')
 LDFLAGS='$(shell hack/version.sh)'
 
 # Images management
-REGISTRY?="swr.ap-southeast-1.myhuaweicloud.com/karmada"
+REGISTRY?="docker.io/karmada"
 REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""

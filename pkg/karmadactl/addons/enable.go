@@ -32,7 +32,7 @@ var (
 	%[1]s enable karmada-search --karmada-kubeconfig /etc/karmada/karmada-apiserver.config
 
 	# Specify the karmada-search image
-	%[1]s enable karmada-search --karmada-search-image swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler-estimator:latest
+	%[1]s enable karmada-search --karmada-search-image docker.io/karmada/karmada-scheduler-estimator:latest
 
 	# Sepcify the namespace where Karmada components are installed
 	%[1]s enable karmada-search --namespace karmada-system
@@ -73,11 +73,11 @@ func NewCmdAddonsEnable(parentCommand string) *cobra.Command {
 	opts.GlobalCommandOptions.AddFlags(flags)
 	flags.IntVar(&opts.WaitPodReadyTimeout, "pod-timeout", 30, "Wait pod ready timeout.")
 	flags.IntVar(&opts.WaitAPIServiceReadyTimeout, "apiservice-timeout", 30, "Wait apiservice ready timeout.")
-	flags.StringVar(&opts.KarmadaSearchImage, "karmada-search-image", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-search:%s", releaseVer.PatchRelease()), "karmada search image")
+	flags.StringVar(&opts.KarmadaSearchImage, "karmada-search-image", fmt.Sprintf("docker.io/karmada/karmada-search:%s", releaseVer.PatchRelease()), "karmada search image")
 	flags.Int32Var(&opts.KarmadaSearchReplicas, "karmada-search-replicas", 1, "Karmada search replica set")
-	flags.StringVar(&opts.KarmadaDeschedulerImage, "karmada-descheduler-image", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-descheduler:%s", releaseVer.PatchRelease()), "karmada descheduler image")
+	flags.StringVar(&opts.KarmadaDeschedulerImage, "karmada-descheduler-image", fmt.Sprintf("docker.io/karmada/karmada-descheduler:%s", releaseVer.PatchRelease()), "karmada descheduler image")
 	flags.Int32Var(&opts.KarmadaDeschedulerReplicas, "karmada-descheduler-replicas", 1, "Karmada descheduler replica set")
-	flags.StringVar(&opts.KarmadaSchedulerEstimatorImage, "karmada-scheduler-estimator-image", fmt.Sprintf("swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-scheduler-estimator:%s", releaseVer.PatchRelease()), "karmada scheduler-estimator image")
+	flags.StringVar(&opts.KarmadaSchedulerEstimatorImage, "karmada-scheduler-estimator-image", fmt.Sprintf("docker.io/karmada/karmada-scheduler-estimator:%s", releaseVer.PatchRelease()), "karmada scheduler-estimator image")
 	flags.Int32Var(&opts.KarmadaEstimatorReplicas, "karmada-estimator-replicas", 1, "Karmada scheduler estimator replica set")
 	flags.StringVar(&opts.MemberKubeConfig, "member-kubeconfig", "", "Member cluster's kubeconfig which to deploy scheduler estimator")
 	flags.StringVar(&opts.MemberContext, "member-context", "", "Member cluster's context which to deploy scheduler estimator")

@@ -22,7 +22,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: karmada-aggregated-apiserver
-          image: swr.ap-southeast-1.myhuaweicloud.com/karmada/karmada-aggregated-apiserver:latest
+          image: docker.io/karmada/karmada-aggregated-apiserver:latest
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: karmada-certs
