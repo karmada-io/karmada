@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/base64"
 	"encoding/json"
+	"sort"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -63,11 +64,64 @@ func (m *multiClusterResourceVersion) String() string {
 	if m.isZero {
 		return "0"
 	}
+	// todo consider to separate this two scenarios:
+	// 1. client do not send ResourceVersion
+	// 2. client send ResourceVersion with empty cluster.
 	if len(m.rvs) == 0 {
 		return ""
 	}
-	buf, _ := json.Marshal(&m.rvs)
+	buf := marshalRvs(m.rvs)
 	return base64.RawURLEncoding.EncodeToString(buf)
+}
+
+func marshalRvs(rvs map[string]string) []byte {
+	// We must make sure the returned ResourceVersion string is stable, because client might use this string
+	// for equality comparison. But hashmap's key iteration order is not determined.
+	// So we can't use json encoding library directly.
+	// Instead, we convert the map to a slice, sort the slice by `Cluster` field, then manually build a string.
+	// The result string resembles json encoding result to keep compatible with older version of proxy.
+
+	if len(rvs) == 0 {
+		// need to keep sync with `func (m *multiClusterResourceVersion) String() string`
+		return nil
+	}
+
+	type onWireRvs struct {
+		Cluster         string
+		ResourceVersion string
+	}
+
+	slice := make([]onWireRvs, 0, len(rvs))
+
+	for clusterName, version := range rvs {
+		obj := onWireRvs{clusterName, version}
+		slice = append(slice, obj)
+	}
+
+	sort.Slice(slice, func(i, j int) bool {
+		return slice[i].Cluster < slice[j].Cluster
+	})
+
+	// Q: Why preallocate []byte with this capacity?
+	// A: Consider this json `{"cluster1":"1","cluster2":"2"}`
+	// For begin and end, need "{" and "}", this took 2 bytes.
+	// For `"cluster1":"1",`, there's 6 bytes. And we add 14bytes for longer cluster name and resource version.
+	var encoded = make([]byte, 0, (len(slice[0].Cluster)+len(slice[0].ResourceVersion)+20)*len(slice)+2)
+	encoded = append(encoded, '{')
+	for i, n := 0, len(slice); i < n; i++ {
+		encoded = append(encoded, '"')
+		encoded = append(encoded, slice[i].Cluster...)
+		encoded = append(encoded, `":"`...)
+		encoded = append(encoded, slice[i].ResourceVersion...)
+		encoded = append(encoded, '"')
+
+		if i != n-1 {
+			encoded = append(encoded, ',')
+		}
+	}
+	encoded = append(encoded, '}')
+
+	return encoded
 }
 
 type multiClusterContinue struct {
