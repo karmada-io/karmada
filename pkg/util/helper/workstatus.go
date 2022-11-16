@@ -21,6 +21,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -77,14 +78,14 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 		return updateErr
 	})
 	if err != nil {
-		eventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
-		eventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
+		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
+		eventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
 	msg := fmt.Sprintf("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
-	eventRecorder.Event(binding, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
-	eventRecorder.Event(workload, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
+	eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+	eventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
 	return nil
 }
 
@@ -128,14 +129,14 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 		return updateErr
 	})
 	if err != nil {
-		eventRecorder.Event(binding, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
-		eventRecorder.Event(workload, corev1.EventTypeWarning, workv1alpha2.EventReasonAggregateStatusFailed, err.Error())
+		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
+		eventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
 	msg := fmt.Sprintf("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
-	eventRecorder.Event(binding, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
-	eventRecorder.Event(workload, corev1.EventTypeNormal, workv1alpha2.EventReasonAggregateStatusSucceed, msg)
+	eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+	eventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
 	return nil
 }
 

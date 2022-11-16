@@ -21,6 +21,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/descheduler/core"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
+	"github.com/karmada-io/karmada/pkg/events"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
@@ -287,10 +288,10 @@ func (d *Descheduler) recordDescheduleResultEventForResourceBinding(rb *workv1al
 		UID:        rb.Spec.Resource.UID,
 	}
 	if err == nil {
-		d.eventRecorder.Event(rb, corev1.EventTypeNormal, workv1alpha2.EventReasonDescheduleBindingSucceed, message)
-		d.eventRecorder.Event(ref, corev1.EventTypeNormal, workv1alpha2.EventReasonDescheduleBindingSucceed, message)
+		d.eventRecorder.Event(rb, corev1.EventTypeNormal, events.EventReasonDescheduleBindingSucceed, message)
+		d.eventRecorder.Event(ref, corev1.EventTypeNormal, events.EventReasonDescheduleBindingSucceed, message)
 	} else {
-		d.eventRecorder.Event(rb, corev1.EventTypeWarning, workv1alpha2.EventReasonDescheduleBindingFailed, err.Error())
-		d.eventRecorder.Event(ref, corev1.EventTypeWarning, workv1alpha2.EventReasonDescheduleBindingFailed, err.Error())
+		d.eventRecorder.Event(rb, corev1.EventTypeWarning, events.EventReasonDescheduleBindingFailed, err.Error())
+		d.eventRecorder.Event(ref, corev1.EventTypeWarning, events.EventReasonDescheduleBindingFailed, err.Error())
 	}
 }
