@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,6 +29,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/detector"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
@@ -64,6 +66,7 @@ type DependenciesDistributor struct {
 
 	InformerManager     genericmanager.SingleClusterInformerManager
 	EventHandler        cache.ResourceEventHandler
+	EventRecorder       record.EventRecorder
 	Processor           util.AsyncWorker
 	RESTMapper          meta.RESTMapper
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
@@ -337,8 +340,10 @@ func (d *DependenciesDistributor) ReconcileResourceBinding(key util.QueueKey) er
 	dependencies, err := d.ResourceInterpreter.GetDependencies(workload)
 	if err != nil {
 		klog.Errorf("Failed to customize dependencies for %s(%s), %v", workload.GroupVersionKind(), workload.GetName(), err)
+		d.EventRecorder.Eventf(workload, corev1.EventTypeWarning, events.EventReasonGetDependenciesFailed, err.Error())
 		return err
 	}
+	d.EventRecorder.Eventf(workload, corev1.EventTypeNormal, events.EventReasonGetDependenciesSucceed, "Get dependencies(%+v) succeed.", dependencies)
 
 	return d.syncScheduleResultToAttachedBindings(bindingObject, dependencies)
 }
@@ -352,7 +357,15 @@ func (d *DependenciesDistributor) handleResourceBindingDeletion(bindingKey keys.
 	return d.removeScheduleResultFromAttachedBindings(bindingKey.Namespace, bindingKey.Name, attachedBindings)
 }
 
-func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) error {
+func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) (err error) {
+	defer func() {
+		if err != nil {
+			d.EventRecorder.Eventf(binding, corev1.EventTypeWarning, events.EventReasonSyncScheduleResultToDependenciesFailed, err.Error())
+		} else {
+			d.EventRecorder.Eventf(binding, corev1.EventTypeNormal, events.EventReasonSyncScheduleResultToDependenciesSucceed, "Sync schedule results to dependencies succeed.")
+		}
+	}()
+
 	if err := d.recordDependenciesForIndependentBinding(binding, dependencies); err != nil {
 		return err
 	}
