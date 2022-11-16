@@ -20,7 +20,7 @@ import (
 func CreateService(client kubeclient.Interface, service *corev1.Service) error {
 	if _, err := client.CoreV1().Services(service.ObjectMeta.Namespace).Create(context.TODO(), service, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create service: %v", err)
+			return fmt.Errorf("unable to create Service: %v", err)
 		}
 
 		klog.Warningf("Service %s is existed, creation process will skip", service.ObjectMeta.Name)
@@ -32,7 +32,7 @@ func CreateService(client kubeclient.Interface, service *corev1.Service) error {
 func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) error {
 	if _, err := client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create service: %v", err)
+			return fmt.Errorf("unable to create Secret: %v", err)
 		}
 
 		existSecret, err := client.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
@@ -43,7 +43,7 @@ func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) er
 		secret.ResourceVersion = existSecret.ResourceVersion
 
 		if _, err := client.CoreV1().Secrets(secret.ObjectMeta.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update deployment: %v", err)
+			return fmt.Errorf("unable to update Secret: %v", err)
 		}
 	}
 	return nil
@@ -53,7 +53,7 @@ func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) er
 func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deployment) error {
 	if _, err := client.AppsV1().Deployments(deploy.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create deployment: %v", err)
+			return fmt.Errorf("unable to create Deployment: %v", err)
 		}
 
 		existDeployment, err := client.AppsV1().Deployments(deploy.Namespace).Get(context.TODO(), deploy.Name, metav1.GetOptions{})
@@ -64,7 +64,7 @@ func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deploy
 		deploy.ResourceVersion = existDeployment.ResourceVersion
 
 		if _, err := client.AppsV1().Deployments(deploy.ObjectMeta.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update deployment: %v", err)
+			return fmt.Errorf("unable to update Deployment: %v", err)
 		}
 	}
 	return nil
@@ -74,7 +74,7 @@ func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deploy
 func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apiservice *apiregistrationv1.APIService) error {
 	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), apiservice, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create apiService: %v", err)
+			return fmt.Errorf("unable to create APIService: %v", err)
 		}
 
 		existAPIService, err := apiRegistrationClient.ApiregistrationV1().APIServices().Get(context.TODO(), apiservice.ObjectMeta.Name, metav1.GetOptions{})
@@ -85,7 +85,7 @@ func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apise
 		apiservice.ObjectMeta.ResourceVersion = existAPIService.ObjectMeta.ResourceVersion
 
 		if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), apiservice, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update apiService: %v", err)
+			return fmt.Errorf("unable to update APIService: %v", err)
 		}
 	}
 	return nil

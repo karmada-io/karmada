@@ -2,70 +2,15 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	applycorev1 "k8s.io/client-go/applyconfigurations/core/v1"
-	applymetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/klog/v2"
 )
 
 // serviceLabels remove via Labels karmada service
 var serviceLabels = map[string]string{"karmada.io/bootstrapping": "service-defaults"}
-
-// CreateService create service
-func (i *CommandInitOption) CreateService(service *corev1.Service) error {
-	serviceClient := i.KubeClientSet.CoreV1().Services(i.Namespace)
-
-	serviceList, err := serviceClient.List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	// Update if service exists.
-	for _, v := range serviceList.Items {
-		if service.Name == v.Name {
-			t := &applycorev1.ServiceApplyConfiguration{
-				TypeMetaApplyConfiguration: applymetav1.TypeMetaApplyConfiguration{
-					APIVersion: &service.APIVersion,
-					Kind:       &service.Kind,
-				},
-				ObjectMetaApplyConfiguration: &applymetav1.ObjectMetaApplyConfiguration{
-					Name:      &service.Name,
-					Namespace: &service.Namespace,
-				},
-				Spec: &applycorev1.ServiceSpecApplyConfiguration{
-					ClusterIP:  &service.Spec.ClusterIP,
-					ClusterIPs: service.Spec.ClusterIPs,
-					Type:       &service.Spec.Type,
-					Selector:   service.Spec.Selector,
-				},
-			}
-
-			_, err = serviceClient.Apply(context.TODO(), t, metav1.ApplyOptions{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: service.APIVersion,
-					Kind:       service.Kind,
-				},
-				FieldManager: "apply",
-			})
-			if err != nil {
-				return fmt.Errorf("apply service %s failed: %v", service.Name, err)
-			}
-			klog.Infof("service %s update successfully.", service.Name)
-			return nil
-		}
-	}
-
-	_, err = serviceClient.Create(context.TODO(), service, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("create service %s failed: %v", service.Name, err)
-	}
-	klog.Infof("service %s create successfully.", service.Name)
-	return nil
-}
 
 // makeEtcdService etcd service
 func (i *CommandInitOption) makeEtcdService(name string) *corev1.Service {
