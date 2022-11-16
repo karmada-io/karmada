@@ -3,6 +3,7 @@ package unifiedauth
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +23,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -71,8 +73,10 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	err := c.syncImpersonationConfig(cluster)
 	if err != nil {
 		klog.Errorf("Failed to sync impersonation config for cluster %s. Error: %v.", cluster.Name, err)
+		c.EventRecorder.Eventf(cluster, corev1.EventTypeWarning, events.EventReasonSyncImpersonationConfigFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
+	c.EventRecorder.Eventf(cluster, corev1.EventTypeNormal, events.EventReasonSyncImpersonationConfigSucceed, "Sync impersonation config succeed.")
 
 	return controllerruntime.Result{}, nil
 }

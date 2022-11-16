@@ -14,6 +14,10 @@ const (
 	EventReasonTaintClusterByConditionFailed = "TaintClusterByConditionFailed"
 	// EventReasonRemoveTargetClusterFailed indicates that failed to remove target cluster from binding.
 	EventReasonRemoveTargetClusterFailed = "RemoveTargetClusterFailed"
+	// EventReasonSyncImpersonationConfigSucceed indicates that sync impersonation config succeed.
+	EventReasonSyncImpersonationConfigSucceed = "SyncImpersonationConfigSucceed"
+	// EventReasonSyncImpersonationConfigFailed indicates that sync impersonation config failed.
+	EventReasonSyncImpersonationConfigFailed = "SyncImpersonationConfigFailed"
 )
 
 // Define events for work objects.
