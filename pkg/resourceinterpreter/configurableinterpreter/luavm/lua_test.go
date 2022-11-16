@@ -623,13 +623,11 @@ func Test_decodeValue(t *testing.T) {
 			args: args{
 				value: map[string]interface{}{
 					"foo": "foo1",
-					"bar": "bar1",
 				},
 			},
 			want: func() lua.LValue {
-				v := L.CreateTable(0, 2)
+				v := L.CreateTable(0, 1)
 				v.RawSetString("foo", lua.LString("foo1"))
-				v.RawSetString("bar", lua.LString("bar1"))
 				return v
 			}(),
 		},
