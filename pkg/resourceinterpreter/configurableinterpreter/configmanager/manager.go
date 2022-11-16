@@ -24,7 +24,7 @@ var resourceInterpreterCustomizationsGVR = schema.GroupVersionResource{
 
 // ConfigManager can list custom resource interpreter.
 type ConfigManager interface {
-	LuaScriptAccessors() map[schema.GroupVersionKind]LuaScriptAccessor
+	LuaScriptAccessors() map[schema.GroupVersionKind]CustomAccessor
 	HasSynced() bool
 }
 
@@ -36,8 +36,8 @@ type interpreterConfigManager struct {
 }
 
 // LuaScriptAccessors returns all cached configurations.
-func (configManager *interpreterConfigManager) LuaScriptAccessors() map[schema.GroupVersionKind]LuaScriptAccessor {
-	return configManager.configuration.Load().(map[schema.GroupVersionKind]LuaScriptAccessor)
+func (configManager *interpreterConfigManager) LuaScriptAccessors() map[schema.GroupVersionKind]CustomAccessor {
+	return configManager.configuration.Load().(map[schema.GroupVersionKind]CustomAccessor)
 }
 
 // HasSynced returns true when the cache is synced.
@@ -46,8 +46,13 @@ func (configManager *interpreterConfigManager) HasSynced() bool {
 		return true
 	}
 
-	if configManager.HasSynced() {
+	if configuration, err := configManager.lister.List(labels.Everything()); err == nil && len(configuration) == 0 {
+		// the empty list we initially stored is valid to use.
+		// Setting initialSynced to true, so subsequent checks
+		// would be able to take the fast path on the atomic boolean in a
+		// cluster without any customization configured.
 		configManager.initialSynced.Store(true)
+		// the informer has synced, and we don't have any items
 		return true
 	}
 	return false
@@ -61,7 +66,7 @@ func NewInterpreterConfigManager(inform genericmanager.SingleClusterInformerMana
 		initialSynced: &atomic.Value{},
 		configuration: &atomic.Value{},
 	}
-	manager.configuration.Store(make(map[schema.GroupVersionKind]LuaScriptAccessor))
+	manager.configuration.Store(make(map[schema.GroupVersionKind]CustomAccessor))
 	manager.initialSynced.Store(false)
 	configHandlers := fedinformer.NewHandlerOnEvents(
 		func(_ interface{}) { manager.updateConfiguration() },
@@ -88,7 +93,6 @@ func (configManager *interpreterConfigManager) updateConfiguration() {
 		key := schema.FromAPIVersionAndKind(config.Spec.Target.APIVersion, config.Spec.Target.Kind)
 		configs[key] = NewResourceCustomAccessorAccessor(config)
 	}
-
 	configManager.configuration.Store(configs)
 	configManager.initialSynced.Store(true)
 }

@@ -15,7 +15,6 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -214,7 +213,7 @@ func (vm VM) Retain(desired *unstructured.Unstructured, observed *unstructured.U
 }
 
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated by lua.
-func (vm VM) AggregateStatus(object *unstructured.Unstructured, item []map[string]interface{}, script string) (*unstructured.Unstructured, error) {
+func (vm VM) AggregateStatus(object *unstructured.Unstructured, items []workv1alpha2.AggregatedStatusItem, script string) (*unstructured.Unstructured, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -245,7 +244,7 @@ func (vm VM) AggregateStatus(object *unstructured.Unstructured, item []map[strin
 	if err != nil {
 		return nil, err
 	}
-	args[1], err = decodeValue(l, item)
+	args[1], err = decodeValue(l, items)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +343,7 @@ func (vm VM) ReflectStatus(object *unstructured.Unstructured, script string) (st
 	if err != nil {
 		return
 	}
-	err = l.CallByParam(lua.P{Fn: f, NRet: 2, Protect: true}, args...)
+	err = l.CallByParam(lua.P{Fn: f, NRet: 1, Protect: true}, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -354,26 +353,9 @@ func (vm VM) ReflectStatus(object *unstructured.Unstructured, script string) (st
 		return nil, fmt.Errorf("expect the returned replica type is table but got %s", luaStatusResult.Type())
 	}
 
-	luaExistResult := l.Get(l.GetTop())
-	var exist bool
-	exist, err = ConvertLuaResultToBool(luaExistResult)
-	if err != nil {
-		return nil, err
-	}
-
-	if exist {
-		resultMap := make(map[string]interface{})
-		jsonBytes, err := luajson.Encode(luaStatusResult)
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(jsonBytes, &resultMap)
-		if err != nil {
-			return nil, err
-		}
-		return helper.BuildStatusRawExtension(resultMap)
-	}
-	return nil, err
+	status = &runtime.RawExtension{}
+	err = ConvertLuaResultInto(luaStatusResult, status)
+	return status, err
 }
 
 // GetDependencies returns the dependent resources of the given object by lua.
@@ -414,18 +396,11 @@ func (vm VM) GetDependencies(object *unstructured.Unstructured, script string) (
 	}
 
 	luaResult := l.Get(l.GetTop())
-	if luaResult.Type() == lua.LTTable {
-		jsonBytes, err := luajson.Encode(luaResult)
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(jsonBytes, &dependencies)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+
+	if luaResult.Type() != lua.LTTable {
 		return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
 	}
+	err = ConvertLuaResultInto(luaResult, &dependencies)
 	return
 }
 

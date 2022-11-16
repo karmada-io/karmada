@@ -58,31 +58,52 @@ func NewResourceCustomAccessorAccessor(customization *configv1alpha1.ResourceInt
 }
 
 func (a *resourceCustomAccessor) GetRetentionLuaScript() string {
+	if a.retention == nil {
+		return ""
+	}
 	return a.retention.LuaScript
 }
 
 func (a *resourceCustomAccessor) GetReplicaResourceLuaScript() string {
-	return a.replicaRevision.LuaScript
-}
-
-func (a *resourceCustomAccessor) GetReplicaRevisionLuaScript() string {
+	if a.replicaResource == nil {
+		return ""
+	}
 	return a.replicaResource.LuaScript
 }
 
+func (a *resourceCustomAccessor) GetReplicaRevisionLuaScript() string {
+	if a.replicaRevision == nil {
+		return ""
+	}
+	return a.replicaRevision.LuaScript
+}
+
 func (a *resourceCustomAccessor) GetStatusReflectionLuaScript() string {
+	if a.statusReflection == nil {
+		return ""
+	}
 	return a.statusReflection.LuaScript
 }
 
 func (a *resourceCustomAccessor) GetStatusAggregationLuaScript() string {
+	if a.statusAggregation == nil {
+		return ""
+	}
 	return a.statusAggregation.LuaScript
 }
 
 func (a *resourceCustomAccessor) GetHealthInterpretationLuaScript() string {
+	if a.healthInterpretation == nil {
+		return ""
+	}
 	return a.healthInterpretation.LuaScript
 }
 
 func (a *resourceCustomAccessor) GetDependencyInterpretationLuaScript() string {
-	return a.healthInterpretation.LuaScript
+	if a.dependencyInterpretation == nil {
+		return ""
+	}
+	return a.dependencyInterpretation.LuaScript
 }
 
 func (a *resourceCustomAccessor) Name() string {
