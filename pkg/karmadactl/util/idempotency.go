@@ -98,7 +98,7 @@ func CreateOrUpdateRole(client kubeclient.Interface, role *rbacv1.Role) error {
 			return fmt.Errorf("unable to create RBAC role: %v", err)
 		}
 
-		existRole, err := client.AppsV1().Deployments(role.Namespace).Get(context.TODO(), role.Name, metav1.GetOptions{})
+		existRole, err := client.RbacV1().Roles(role.Namespace).Get(context.TODO(), role.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ func CreateOrUpdateRoleBinding(client kubeclient.Interface, roleBinding *rbacv1.
 			return fmt.Errorf("unable to create RBAC rolebinding: %v", err)
 		}
 
-		existRoleBinding, err := client.AppsV1().Deployments(roleBinding.Namespace).Get(context.TODO(), roleBinding.Name, metav1.GetOptions{})
+		existRoleBinding, err := client.RbacV1().RoleBindings(roleBinding.Namespace).Get(context.TODO(), roleBinding.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -144,7 +144,7 @@ func CreateOrUpdateConfigMap(client *kubeclient.Clientset, cm *corev1.ConfigMap)
 			return fmt.Errorf("unable to create ConfigMap: %v", err)
 		}
 
-		existCm, err := client.AppsV1().Deployments(cm.Namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
+		existCm, err := client.CoreV1().ConfigMaps(cm.Namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
