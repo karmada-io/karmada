@@ -62,7 +62,7 @@ var (
 		You can filter the list using a label selector and the --selector flag. If the
 		desired resource type is namespaced you will only see results in your current
 		namespace unless you pass --all-namespaces.
-		
+
 		By specifying the output as 'template' and providing a Go template as the value
 		of the --template flag, you can filter the attributes of the fetched resources.`)
 
@@ -166,6 +166,8 @@ type CommandGetOptions struct {
 	Export         bool
 
 	genericclioptions.IOStreams
+
+	karmadaClient karmadaclientset.Interface
 }
 
 // NewCommandGetOptions returns a CommandGetOptions with default chunk size 500.
@@ -230,6 +232,11 @@ func (g *CommandGetOptions) Complete(f util.Factory) error {
 
 		return printer.PrintObj, nil
 	}
+	karmadaClient, err := f.KarmadaClientSet()
+	if err != nil {
+		return err
+	}
+	g.karmadaClient = karmadaClient
 	return nil
 }
 
@@ -243,6 +250,27 @@ func (g *CommandGetOptions) Validate(cmd *cobra.Command) error {
 	}
 	if g.OutputWatchEvents && !(g.Watch || g.WatchOnly) {
 		return fmt.Errorf("--output-watch-events option can only be used with --watch or --watch-only")
+	}
+
+	if len(g.Clusters) > 0 {
+		clusters, err := g.karmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		clusterSet := sets.NewString()
+		for _, cluster := range clusters.Items {
+			clusterSet.Insert(cluster.Name)
+		}
+
+		noneExistClusters := []string{}
+		for _, cluster := range g.Clusters {
+			if !clusterSet.Has(cluster) {
+				noneExistClusters = append(noneExistClusters, cluster)
+			}
+		}
+		if len(noneExistClusters) != 0 {
+			return fmt.Errorf("clusters don't exist: " + strings.Join(noneExistClusters, ","))
+		}
 	}
 	return nil
 }
@@ -287,17 +315,12 @@ func (g *CommandGetOptions) Run(f util.Factory, cmd *cobra.Command, args []strin
 
 	RBInfo = make(map[string]*OtherPrint)
 
-	gclient, err := f.KarmadaClientSet()
-	if err != nil {
+	if err := g.getRBInKarmada(); err != nil {
 		return err
 	}
 
-	if err := g.getRBInKarmada(gclient); err != nil {
-		return err
-	}
-
-	if len(g.Clusters) <= 0 {
-		clusterList, err := gclient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+	if len(g.Clusters) == 0 {
+		clusterList, err := g.karmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to list all member clusters in control plane, err: %w", err)
 		}
@@ -886,21 +909,21 @@ func (g *CommandGetOptions) transformRequests(req *rest.Request) {
 	}, ","))
 }
 
-func (g *CommandGetOptions) getRBInKarmada(gclient karmadaclientset.Interface) error {
+func (g *CommandGetOptions) getRBInKarmada() error {
 	var rbList *workv1alpha2.ResourceBindingList
 	var crbList *workv1alpha2.ClusterResourceBindingList
 	var err error
 
 	if !g.AllNamespaces {
-		rbList, err = gclient.WorkV1alpha2().ResourceBindings(*options.DefaultConfigFlags.Namespace).List(context.TODO(), metav1.ListOptions{})
+		rbList, err = g.karmadaClient.WorkV1alpha2().ResourceBindings(*options.DefaultConfigFlags.Namespace).List(context.TODO(), metav1.ListOptions{})
 	} else {
-		rbList, err = gclient.WorkV1alpha2().ResourceBindings("").List(context.TODO(), metav1.ListOptions{})
+		rbList, err = g.karmadaClient.WorkV1alpha2().ResourceBindings("").List(context.TODO(), metav1.ListOptions{})
 	}
 	if err != nil {
 		return err
 	}
 
-	if crbList, err = gclient.WorkV1alpha2().ClusterResourceBindings().List(context.TODO(), metav1.ListOptions{}); err != nil {
+	if crbList, err = g.karmadaClient.WorkV1alpha2().ClusterResourceBindings().List(context.TODO(), metav1.ListOptions{}); err != nil {
 		return err
 	}
 
