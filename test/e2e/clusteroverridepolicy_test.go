@@ -99,7 +99,7 @@ var _ = ginkgo.Describe("[BasicClusterOverridePolicy] basic cluster override pol
 	})
 })
 
-var _ = ginkgo.Describe("Test clusterOverridePolicy with nil resourceSelectors", func() {
+var _ = framework.SerialDescribe("Test clusterOverridePolicy with nil resourceSelectors", func() {
 	var deploymentNamespace, deploymentName string
 	var propagationPolicyNamespace, propagationPolicyName string
 	var clusterOverridePolicyName string
