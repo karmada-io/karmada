@@ -66,6 +66,18 @@ const (
 	EventReasonDescheduleBindingSucceed = "DescheduleBindingSucceed"
 )
 
+// Define events for FederatedResourceQuota.
+const (
+	// EventReasonSyncFederatedResourceQuotaFailed indicates that Sync work failed.
+	EventReasonSyncFederatedResourceQuotaFailed = "SyncWorkFailed"
+	// EventReasonSyncFederatedResourceQuotaSucceed indicates that Sync work succeed.
+	EventReasonSyncFederatedResourceQuotaSucceed = "SyncWorkSucceed"
+	// EventReasonCollectFederatedResourceQuotaStatusFailed indicates that aggregate status failed.
+	EventReasonCollectFederatedResourceQuotaStatusFailed = "AggregateStatusFailed"
+	// EventReasonCollectFederatedResourceQuotaStatusSucceed indicates that aggregate status succeed.
+	EventReasonCollectFederatedResourceQuotaStatusSucceed = "AggregateStatusSucceed"
+)
+
 // Define events for resource templates.
 const (
 	// EventReasonApplyPolicyFailed indicates that apply policy for resource failed.

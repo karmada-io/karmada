@@ -26,6 +26,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -61,20 +62,12 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 		return controllerruntime.Result{}, nil
 	}
 
-	workList := &workv1alpha1.WorkList{}
-	if err := c.List(ctx, workList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{
-			util.FederatedResourceQuotaNamespaceLabel: quota.Namespace,
-			util.FederatedResourceQuotaNameLabel:      quota.Name,
-		}),
-	}); err != nil {
-		klog.Errorf("Failed to list workList created by federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
-	}
-
 	if err := c.collectQuotaStatus(quota); err != nil {
 		klog.Errorf("Failed to collect status from works to federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, err.Error())
 		return controllerruntime.Result{Requeue: true}, err
 	}
+	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonCollectFederatedResourceQuotaStatusSucceed, "Collect status of FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
 	return controllerruntime.Result{}, nil
 }
 
