@@ -233,6 +233,23 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 		},
 	}
 
+	// Probes
+	livenessProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/healthz",
+				Port: intstr.IntOrString{
+					IntVal: 10257,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+		InitialDelaySeconds: 10,
+		FailureThreshold:    8,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      15,
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity: &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -279,6 +296,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 					"--use-service-account-credentials=true",
 					"--v=4",
 				},
+				LivenessProbe: livenessProbe,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          portName,
