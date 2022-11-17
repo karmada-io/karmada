@@ -29,6 +29,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 )
@@ -265,7 +266,7 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 			ExternalName: fmt.Sprintf("%s.%s.svc", aggregatedApiserverServiceName, systemNamespace),
 		},
 	}
-	if err := util.CreateOrUpdateService(clientSet, aaService); err != nil {
+	if err := cmdutil.CreateOrUpdateService(clientSet, aaService); err != nil {
 		return err
 	}
 
@@ -298,27 +299,11 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 		},
 	}
 
-	allAPIService, err := apiRegistrationClient.ApiregistrationV1().APIServices().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	// Update if it exists.
-	for _, v := range allAPIService.Items {
-		if v.Name == aaAPIServiceObjName {
-			klog.Infof("Update APIService '%s'", aaAPIServiceObjName)
-			aaAPIService.ObjectMeta.ResourceVersion = v.ResourceVersion
-			if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), aaAPIService, metav1.UpdateOptions{}); err != nil {
-				return err
-			}
-			return nil
-		}
-	}
-
 	klog.Infof("Create APIService '%s'", aaAPIServiceObjName)
-	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), aaAPIService, metav1.CreateOptions{}); err != nil {
+	if err = cmdutil.CreateOrUpdateAPIService(apiRegistrationClient, aaAPIService); err != nil {
 		return err
 	}
+
 	if err := WaitAPIServiceReady(apiRegistrationClient, aaAPIServiceObjName, 120*time.Second); err != nil {
 		return err
 	}
