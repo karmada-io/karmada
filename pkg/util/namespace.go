@@ -51,7 +51,7 @@ func DeleteNamespace(client kubeclient.Interface, namespace string) error {
 // If namespace not exit, just create it.
 func EnsureNamespaceExist(client kubeclient.Interface, namespace string, dryRun bool) (*corev1.Namespace, error) {
 	namespaceObj := &corev1.Namespace{}
-	namespaceObj.ObjectMeta.Name = namespace
+	namespaceObj.Name = namespace
 
 	if dryRun {
 		return namespaceObj, nil

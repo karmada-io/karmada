@@ -194,7 +194,7 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 
 	secret.Data["karmada-kubeconfig"] = karmadaKubeconfigBytes
 	// Update the karmada-kubeconfig secret in the member cluster.
-	if _, err := c.ClusterClient.KubeClient.CoreV1().Secrets(secret.ObjectMeta.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
+	if _, err := c.ClusterClient.KubeClient.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("Unable to update secret, err: %w", err)
 	}
 

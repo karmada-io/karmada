@@ -275,7 +275,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					},
 				},
 			}
-			rr.ObjectMeta.Name = rrName
+			rr.Name = rrName
 			framework.CreateResourceRegistry(karmadaClient, rr)
 		})
 
@@ -329,7 +329,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					},
 				},
 			}
-			rr.ObjectMeta.Name = rrName
+			rr.Name = rrName
 			framework.CreateResourceRegistry(karmadaClient, rr)
 			searchObject(pathAllDaemonsets, existsDaemonsetName, true)
 		})
