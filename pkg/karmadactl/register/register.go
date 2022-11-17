@@ -580,7 +580,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 	}
 
 	// create a karmada-agent ClusterRole in member cluster.
-	if err := karmadautil.CreateOrUpdateClusterRole(o.memberClusterClient, clusterRole); err != nil {
+	if err := cmdutil.CreateOrUpdateClusterRole(o.memberClusterClient, clusterRole); err != nil {
 		return err
 	}
 
@@ -616,7 +616,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 	}
 
 	// grant karmada-agent clusterrole to karmada-agent service account
-	if err := karmadautil.CreateOrUpdateClusterRoleBinding(o.memberClusterClient, clusterRoleBinding); err != nil {
+	if err := cmdutil.CreateOrUpdateClusterRoleBinding(o.memberClusterClient, clusterRoleBinding); err != nil {
 		return err
 	}
 

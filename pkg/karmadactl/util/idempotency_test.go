@@ -2,15 +2,21 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
 )
+
+var errorAction = func(coretesting.Action) (handled bool, ret runtime.Object, err error) {
+	return true, nil, fmt.Errorf("always error")
+}
 
 func TestCreateOrUpdateSecret(t *testing.T) {
 	type args struct {
@@ -81,6 +87,142 @@ func makeSecret(name string) *corev1.Secret {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
 			Name:      name,
+		},
+	}
+}
+
+func TestCreateOrUpdateClusterRole(t *testing.T) {
+	type args struct {
+		client      kubernetes.Interface
+		clusterRole *rbacv1.ClusterRole
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "not exist and create",
+			args: args{
+				client:      fake.NewSimpleClientset(),
+				clusterRole: makeClusterRole("test"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "already exist and update",
+			args: args{
+				client:      fake.NewSimpleClientset(makeClusterRole("test")),
+				clusterRole: makeClusterRole("test"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "create error",
+			args: args{
+				client: func() kubernetes.Interface {
+					c := fake.NewSimpleClientset()
+					c.PrependReactor("create", "*", errorAction)
+					return c
+				}(),
+				clusterRole: makeClusterRole("test"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "update error",
+			args: args{
+				client: func() kubernetes.Interface {
+					c := fake.NewSimpleClientset(makeClusterRole("test"))
+					c.PrependReactor("update", "*", errorAction)
+					return c
+				}(),
+				clusterRole: makeClusterRole("test"),
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := CreateOrUpdateClusterRole(tt.args.client, tt.args.clusterRole); (err != nil) != tt.wantErr {
+				t.Errorf("CreateOrUpdateClusterRole() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCreateOrUpdateClusterRoleBinding(t *testing.T) {
+	type args struct {
+		client             kubernetes.Interface
+		clusterRoleBinding *rbacv1.ClusterRoleBinding
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "not exist and create",
+			args: args{
+				client:             fake.NewSimpleClientset(),
+				clusterRoleBinding: makeClusterRoleBinding("test"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "already exist and update",
+			args: args{
+				client:             fake.NewSimpleClientset(makeClusterRole("test")),
+				clusterRoleBinding: makeClusterRoleBinding("test"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "create error",
+			args: args{
+				client: func() kubernetes.Interface {
+					c := fake.NewSimpleClientset()
+					c.PrependReactor("create", "*", errorAction)
+					return c
+				}(),
+				clusterRoleBinding: makeClusterRoleBinding("test"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "update error",
+			args: args{
+				client: func() kubernetes.Interface {
+					c := fake.NewSimpleClientset(makeClusterRoleBinding("test"))
+					c.PrependReactor("update", "*", errorAction)
+					return c
+				}(),
+				clusterRoleBinding: makeClusterRoleBinding("test"),
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := CreateOrUpdateClusterRoleBinding(tt.args.client, tt.args.clusterRoleBinding); (err != nil) != tt.wantErr {
+				t.Errorf("CreateOrUpdateClusterRoleBinding() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func makeClusterRole(name string) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+}
+
+func makeClusterRoleBinding(name string) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
 		},
 	}
 }

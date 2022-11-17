@@ -159,20 +159,6 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "get error",
-			args: args{
-				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset()
-					c.PrependReactor("get", "*", errorAction)
-					return c
-				}(),
-				serviceAccountObj: makeServiceAccount("test"),
-				dryRun:            false,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
 			name: "create error",
 			args: args{
 				client: func() kubernetes.Interface {
@@ -196,63 +182,6 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("EnsureServiceAccountExist() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestIsServiceAccountExist(t *testing.T) {
-	type args struct {
-		client    kubernetes.Interface
-		namespace string
-		name      string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    bool
-		wantErr bool
-	}{
-		{
-			name: "not found",
-			args: args{
-				client:    fake.NewSimpleClientset(),
-				namespace: metav1.NamespaceDefault,
-				name:      "test",
-			},
-			want:    false,
-			wantErr: false,
-		},
-		{
-			name: "error",
-			args: args{
-				client:    alwaysErrorKubeClient,
-				namespace: metav1.NamespaceDefault,
-				name:      "test",
-			},
-			want:    false,
-			wantErr: true,
-		},
-		{
-			name: "error",
-			args: args{
-				client:    fake.NewSimpleClientset(makeServiceAccount("test")),
-				namespace: metav1.NamespaceDefault,
-				name:      "test",
-			},
-			want:    true,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := IsServiceAccountExist(tt.args.client, tt.args.namespace, tt.args.name)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("IsServiceAccountExist() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("IsServiceAccountExist() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
