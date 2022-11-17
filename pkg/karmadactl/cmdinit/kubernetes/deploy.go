@@ -25,6 +25,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/version"
 )
 
 var (
@@ -44,9 +45,24 @@ var (
 		options.FrontProxyClientCertAndKeyName,
 	}
 
+	karmadaRelease string
+
 	defaultEtcdImage                  = "etcd:3.5.3-0"
 	defaultKubeAPIServerImage         = "kube-apiserver:v1.25.2"
 	defaultKubeControllerManagerImage = "kube-controller-manager:v1.25.2"
+
+	// DefaultCrdURL Karmada crds resource
+	DefaultCrdURL string
+	// DefaultInitImage etcd init container image
+	DefaultInitImage string
+	// DefaultKarmadaSchedulerImage Karmada scheduler image
+	DefaultKarmadaSchedulerImage string
+	// DefaultKarmadaControllerManagerImage Karmada controller manager image
+	DefaultKarmadaControllerManagerImage string
+	// DefualtKarmadaWebhookImage Karmada webhook image
+	DefualtKarmadaWebhookImage string
+	// DefaultKarmadaAggregatedAPIServerImage Karmada aggregated apiserver image
+	DefaultKarmadaAggregatedAPIServerImage string
 )
 
 const (
@@ -55,8 +71,25 @@ const (
 	etcdStorageModeHostPath = "hostPath"
 )
 
+func init() {
+	releaseVer, err := version.ParseGitVersion(version.Get().GitVersion)
+	if err != nil {
+		klog.Infof("No default release version found. build version: %s", version.Get().String())
+		releaseVer = &version.ReleaseVersion{} // initialize to avoid panic
+	}
+	karmadaRelease = releaseVer.PatchRelease()
+
+	DefaultCrdURL = fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", releaseVer.FirstMinorRelease())
+	DefaultInitImage = "docker.io/alpine:3.15.1"
+	DefaultKarmadaSchedulerImage = fmt.Sprintf("docker.io/karmada/karmada-scheduler:%s", releaseVer.PatchRelease())
+	DefaultKarmadaControllerManagerImage = fmt.Sprintf("docker.io/karmada/karmada-controller-manager:%s", releaseVer.PatchRelease())
+	DefualtKarmadaWebhookImage = fmt.Sprintf("docker.io/karmada/karmada-webhook:%s", releaseVer.PatchRelease())
+	DefaultKarmadaAggregatedAPIServerImage = fmt.Sprintf("docker.io/karmada/karmada-aggregated-apiserver:%s", releaseVer.PatchRelease())
+}
+
 // CommandInitOption holds all flags options for init.
 type CommandInitOption struct {
+	ImageRegistry                      string
 	KubeImageRegistry                  string
 	KubeImageMirrorCountry             string
 	EtcdImage                          string
@@ -508,6 +541,9 @@ func (i *CommandInitOption) kubeRegistry() string {
 		}
 	}
 
+	if i.ImageRegistry != "" {
+		return i.ImageRegistry
+	}
 	return imageRepositories["global"]
 }
 
@@ -527,12 +563,52 @@ func (i *CommandInitOption) kubeControllerManagerImage() string {
 	return i.kubeRegistry() + "/" + defaultKubeControllerManagerImage
 }
 
+// get etcd-init image
+func (i *CommandInitOption) etcdInitImage() string {
+	if i.ImageRegistry != "" && i.EtcdInitImage == DefaultInitImage {
+		return i.ImageRegistry + "/alpine:3.15.1"
+	}
+	return i.EtcdInitImage
+}
+
 // get etcd image
 func (i *CommandInitOption) etcdImage() string {
 	if i.EtcdImage != "" {
 		return i.EtcdImage
 	}
 	return i.kubeRegistry() + "/" + defaultEtcdImage
+}
+
+// get karmada-scheduler image
+func (i *CommandInitOption) karmadaSchedulerImage() string {
+	if i.ImageRegistry != "" && i.KarmadaSchedulerImage == DefaultKarmadaSchedulerImage {
+		return i.ImageRegistry + "/karmada-scheduler:" + karmadaRelease
+	}
+	return i.KarmadaSchedulerImage
+}
+
+// get karmada-controller-manager
+func (i *CommandInitOption) karmadaControllerManagerImage() string {
+	if i.ImageRegistry != "" && i.KarmadaControllerManagerImage == DefaultKarmadaControllerManagerImage {
+		return i.ImageRegistry + "/karmada-controller-manager:" + karmadaRelease
+	}
+	return i.KarmadaControllerManagerImage
+}
+
+// get karmada-webhook image
+func (i *CommandInitOption) karmadaWebhookImage() string {
+	if i.ImageRegistry != "" && i.KarmadaWebhookImage == DefualtKarmadaWebhookImage {
+		return i.ImageRegistry + "/karmada-webhook:" + karmadaRelease
+	}
+	return i.KarmadaWebhookImage
+}
+
+// get karmada-aggregated-apiserver image
+func (i *CommandInitOption) karmadaAggregatedAPIServerImage() string {
+	if i.ImageRegistry != "" && i.KarmadaAggregatedAPIServerImage == DefaultKarmadaAggregatedAPIServerImage {
+		return i.ImageRegistry + "/karmada-aggregated-apiserver:" + karmadaRelease
+	}
+	return i.KarmadaAggregatedAPIServerImage
 }
 
 func generateServerURL(serverIP string, nodePort int32) (string, error) {

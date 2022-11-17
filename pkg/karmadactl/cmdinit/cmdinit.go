@@ -93,12 +93,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
-
-	releaseVer, err := version.ParseGitVersion(version.Get().GitVersion)
-	if err != nil {
-		klog.Infof("No default release version found. build version: %s", version.Get().String())
-		releaseVer = &version.ReleaseVersion{} // initialize to avoid panic
-	}
+	flags.StringVarP(&opts.ImageRegistry, "private-image-registry", "", "", "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
 	// kube image registry
 	flags.StringVarP(&opts.KubeImageMirrorCountry, "kube-image-mirror-country", "", "", "Country code of the kube image registry to be used. For Chinese mainland users, set it to cn")
 	flags.StringVarP(&opts.KubeImageRegistry, "kube-image-registry", "", "", "Kube image registry. For Chinese mainland users, you may use local gcr.io mirrors such as registry.cn-hangzhou.aliyuncs.com/google_containers to override default kube image registry")
@@ -114,29 +109,28 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVarP(&opts.EtcdStorageMode, "etcd-storage-mode", "", "hostPath",
 		fmt.Sprintf("etcd data storage mode(%s). value is PVC, specify --storage-classes-name", strings.Join(kubernetes.SupportedStorageMode(), ",")))
 	flags.StringVarP(&opts.EtcdImage, "etcd-image", "", "", "etcd image")
-	flags.StringVarP(&opts.EtcdInitImage, "etcd-init-image", "", "docker.io/alpine:3.15.1", "etcd init container image")
+	flags.StringVarP(&opts.EtcdInitImage, "etcd-init-image", "", kubernetes.DefaultInitImage, "etcd init container image")
 	flags.Int32VarP(&opts.EtcdReplicas, "etcd-replicas", "", 1, "etcd replica set, cluster 3,5...singular")
 	flags.StringVarP(&opts.EtcdHostDataPath, "etcd-data", "", "/var/lib/karmada-etcd", "etcd data path,valid in hostPath mode.")
 	flags.StringVarP(&opts.EtcdNodeSelectorLabels, "etcd-node-selector-labels", "", "", "etcd pod select the labels of the node. valid in hostPath mode ( e.g. --etcd-node-selector-labels karmada.io/etcd=true)")
 	flags.StringVarP(&opts.EtcdPersistentVolumeSize, "etcd-pvc-size", "", "5Gi", "etcd data path,valid in pvc mode.")
 	// karmada
-	crdURL := fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", releaseVer.FirstMinorRelease())
-	flags.StringVar(&opts.CRDs, "crds", crdURL, "Karmada crds resource.(local file e.g. --crds /root/crds.tar.gz)")
+	flags.StringVar(&opts.CRDs, "crds", kubernetes.DefaultCrdURL, "Karmada crds resource.(local file e.g. --crds /root/crds.tar.gz)")
 	flags.StringVarP(&opts.KarmadaAPIServerAdvertiseAddress, "karmada-apiserver-advertise-address", "", "", "The IP address the Karmada API Server will advertise it's listening on. If not set, the address on the master node will be used.")
 	flags.Int32VarP(&opts.KarmadaAPIServerNodePort, "port", "p", 32443, "Karmada apiserver service node port")
 	flags.StringVarP(&opts.KarmadaDataPath, "karmada-data", "d", "/etc/karmada", "Karmada data path. kubeconfig cert and crds files")
 	flags.StringVarP(&opts.KarmadaPkiPath, "karmada-pki", "", "/etc/karmada/pki", "Karmada pki path. Karmada cert files")
 	flags.StringVarP(&opts.KarmadaAPIServerImage, "karmada-apiserver-image", "", "", "Kubernetes apiserver image")
 	flags.Int32VarP(&opts.KarmadaAPIServerReplicas, "karmada-apiserver-replicas", "", 1, "Karmada apiserver replica set")
-	flags.StringVarP(&opts.KarmadaSchedulerImage, "karmada-scheduler-image", "", fmt.Sprintf("docker.io/karmada/karmada-scheduler:%s", releaseVer.PatchRelease()), "Karmada scheduler image")
+	flags.StringVarP(&opts.KarmadaSchedulerImage, "karmada-scheduler-image", "", kubernetes.DefaultKarmadaSchedulerImage, "Karmada scheduler image")
 	flags.Int32VarP(&opts.KarmadaSchedulerReplicas, "karmada-scheduler-replicas", "", 1, "Karmada scheduler replica set")
 	flags.StringVarP(&opts.KubeControllerManagerImage, "karmada-kube-controller-manager-image", "", "", "Kubernetes controller manager image")
 	flags.Int32VarP(&opts.KubeControllerManagerReplicas, "karmada-kube-controller-manager-replicas", "", 1, "Karmada kube controller manager replica set")
-	flags.StringVarP(&opts.KarmadaControllerManagerImage, "karmada-controller-manager-image", "", fmt.Sprintf("docker.io/karmada/karmada-controller-manager:%s", releaseVer.PatchRelease()), "Karmada controller manager image")
+	flags.StringVarP(&opts.KarmadaControllerManagerImage, "karmada-controller-manager-image", "", kubernetes.DefaultKarmadaControllerManagerImage, "Karmada controller manager image")
 	flags.Int32VarP(&opts.KarmadaControllerManagerReplicas, "karmada-controller-manager-replicas", "", 1, "Karmada controller manager replica set")
-	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", fmt.Sprintf("docker.io/karmada/karmada-webhook:%s", releaseVer.PatchRelease()), "Karmada webhook image")
+	flags.StringVarP(&opts.KarmadaWebhookImage, "karmada-webhook-image", "", kubernetes.DefualtKarmadaWebhookImage, "Karmada webhook image")
 	flags.Int32VarP(&opts.KarmadaWebhookReplicas, "karmada-webhook-replicas", "", 1, "Karmada webhook replica set")
-	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", fmt.Sprintf("docker.io/karmada/karmada-aggregated-apiserver:%s", releaseVer.PatchRelease()), "Karmada aggregated apiserver image")
+	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", kubernetes.DefaultKarmadaAggregatedAPIServerImage, "Karmada aggregated apiserver image")
 	flags.Int32VarP(&opts.KarmadaAggregatedAPIServerReplicas, "karmada-aggregated-apiserver-replicas", "", 1, "Karmada aggregated apiserver replica set")
 
 	return cmd

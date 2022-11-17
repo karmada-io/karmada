@@ -417,7 +417,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 		Containers: []corev1.Container{
 			{
 				Name:  schedulerDeploymentNameAndServiceAccountName,
-				Image: i.KarmadaSchedulerImage,
+				Image: i.karmadaSchedulerImage(),
 				Command: []string{
 					"/bin/karmada-scheduler",
 					"--kubeconfig=/etc/kubeconfig",
@@ -532,7 +532,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 		Containers: []corev1.Container{
 			{
 				Name:  controllerManagerDeploymentAndServiceName,
-				Image: i.KarmadaControllerManagerImage,
+				Image: i.karmadaControllerManagerImage(),
 				Command: []string{
 					"/bin/karmada-controller-manager",
 					"--kubeconfig=/etc/kubeconfig",
@@ -649,7 +649,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 		Containers: []corev1.Container{
 			{
 				Name:  webhookDeploymentAndServiceAccountAndServiceName,
-				Image: i.KarmadaWebhookImage,
+				Image: i.karmadaWebhookImage(),
 				Command: []string{
 					"/bin/karmada-webhook",
 					"--kubeconfig=/etc/kubeconfig",
@@ -794,7 +794,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		Containers: []corev1.Container{
 			{
 				Name:  karmadaAggregatedAPIServerDeploymentAndServiceName,
-				Image: i.KarmadaAggregatedAPIServerImage,
+				Image: i.karmadaAggregatedAPIServerImage(),
 				Command: []string{
 					"/bin/karmada-aggregated-apiserver",
 					"--kubeconfig=/etc/kubeconfig",

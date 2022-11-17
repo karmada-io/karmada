@@ -136,7 +136,7 @@ peer-transport-security:
 initial-cluster-state: new
 initial-cluster-token: etcd-cluster
 initial-cluster: %s
-listen-peer-urls: http://${%s}:%v 
+listen-peer-urls: http://${%s}:%v
 listen-client-urls: https://${%s}:%v,http://127.0.0.1:%v
 initial-advertise-peer-urls: http://${%s}:%v
 advertise-client-urls: https://${%s}.%s.%s.svc.cluster.local:%v
@@ -288,7 +288,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 	podSpec.InitContainers = []corev1.Container{
 		{
 			Name:    "etcd-init-conf",
-			Image:   i.EtcdInitImage,
+			Image:   i.etcdInitImage(),
 			Command: i.etcdInitContainerCommand(),
 			VolumeMounts: []corev1.VolumeMount{
 				{
