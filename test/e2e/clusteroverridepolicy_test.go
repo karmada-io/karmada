@@ -10,7 +10,7 @@ import (
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
-var _ = ginkgo.Describe("Test clusterOverridePolicy with nil resourceSelectors", func() {
+var _ = framework.SerialDescribe("Test clusterOverridePolicy with nil resourceSelectors", func() {
 	var deploymentNamespace, deploymentName string
 	var propagationPolicyNamespace, propagationPolicyName string
 	var clusterOverridePolicyName string
