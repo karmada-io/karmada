@@ -331,8 +331,6 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 		var deploymentNamespace, deploymentName string
 		var deployment *appsv1.Deployment
 		var policyHigherPriorityLabelSelector, policyLowerPriorityMatchName, policyImplicitPriorityMatchName *policyv1alpha1.ClusterPropagationPolicy
-		var priorityLabelKey = "priority"
-		var priorityLabelValue = "priority"
 
 		ginkgo.BeforeEach(func() {
 			higherPriorityLabelSelector = deploymentNamePrefix + "higherprioritylabelselector" + rand.String(RandomStrLength)
@@ -340,6 +338,8 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			implicitPriorityMatchName = deploymentNamePrefix + "implicitprioritymatchname" + rand.String(RandomStrLength)
 			deploymentNamespace = testNamespace
 			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+			var priorityLabelKey = "priority"
+			var priorityLabelValue = "priority" + rand.String(RandomStrLength)
 
 			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
 			deployment.SetLabels(map[string]string{priorityLabelKey: priorityLabelValue})
@@ -383,8 +383,9 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyLowerPriorityMatchName)
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyImplicitPriorityMatchName)
 
-			// Wait policy present in cache
-			time.Sleep(time.Second)
+			// Wait till the informer's cache is synced in karmada-controller.
+			// Note: We tested and find that it takes about 1s before cache synced.
+			time.Sleep(time.Second * 5)
 
 			framework.CreateDeployment(kubeClient, deployment)
 			ginkgo.DeferCleanup(func() {
@@ -413,14 +414,14 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 		var deploymentNamespace, deploymentName string
 		var deployment *appsv1.Deployment
 		var policyExplicitPriorityLabelSelector, policyExplicitPriorityMatchName *policyv1alpha1.ClusterPropagationPolicy
-		var priorityLabelKey = "priority"
-		var priorityLabelValue = "priority"
 
 		ginkgo.BeforeEach(func() {
 			explicitPriorityLabelSelector = deploymentNamePrefix + "explicitprioritylabelselector" + rand.String(RandomStrLength)
 			explicitPriorityMatchName = deploymentNamePrefix + "explicitprioritymatchname" + rand.String(RandomStrLength)
 			deploymentNamespace = testNamespace
 			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
+			var priorityLabelKey = "priority"
+			var priorityLabelValue = "priority" + rand.String(RandomStrLength)
 
 			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
 			deployment.SetLabels(map[string]string{priorityLabelKey: priorityLabelValue})
@@ -452,8 +453,9 @@ var _ = ginkgo.Describe("[ExplicitPriority] propagation testing", func() {
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyExplicitPriorityLabelSelector)
 			framework.CreateClusterPropagationPolicy(karmadaClient, policyExplicitPriorityMatchName)
 
-			// Wait policy present in cache
-			time.Sleep(time.Second)
+			// Wait till the informer's cache is synced in karmada-controller.
+			// Note: We tested and find that it takes about 1s before cache synced.
+			time.Sleep(time.Second * 5)
 
 			framework.CreateDeployment(kubeClient, deployment)
 			ginkgo.DeferCleanup(func() {
