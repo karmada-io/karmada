@@ -11,6 +11,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -21,222 +22,85 @@ const (
 	ClusterMember4 = "member4"
 )
 
-func Test_divideReplicasByStaticWeight(t *testing.T) {
-	type args struct {
-		clusters   []*clusterv1alpha1.Cluster
-		weightList []policyv1alpha1.StaticClusterWeight
-		replicas   int32
-	}
+func Test_dispenser_takeByWeight(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    args
-		want    []workv1alpha2.TargetCluster
-		wantErr bool
+		name        string
+		numReplicas int32
+		result      []workv1alpha2.TargetCluster
+		weightList  utilhelper.ClusterWeightInfoList
+		desired     []workv1alpha2.TargetCluster
+		done        bool
 	}{
 		{
-			name: "replica 12, weight 3:2:1",
-			args: args{
-				clusters: []*clusterv1alpha1.Cluster{
-					helper.NewCluster(ClusterMember1),
-					helper.NewCluster(ClusterMember2),
-					helper.NewCluster(ClusterMember3),
-				},
-				weightList: []policyv1alpha1.StaticClusterWeight{
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember1},
-						},
-						Weight: 3,
-					},
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember2},
-						},
-						Weight: 2,
-					},
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember3},
-						},
-						Weight: 1,
-					},
-				},
-				replicas: 12,
+			name:        "Scale up 6 replicas",
+			numReplicas: 6,
+			result: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 1},
+				{Name: "B", Replicas: 2},
+				{Name: "C", Replicas: 3},
 			},
-			want: []workv1alpha2.TargetCluster{
-				{
-					Name:     ClusterMember1,
-					Replicas: 6,
-				},
-				{
-					Name:     ClusterMember2,
-					Replicas: 4,
-				},
-				{
-					Name:     ClusterMember3,
-					Replicas: 2,
-				},
+			weightList: []utilhelper.ClusterWeightInfo{
+				{ClusterName: "A", Weight: 1},
+				{ClusterName: "B", Weight: 2},
+				{ClusterName: "C", Weight: 3},
 			},
-			wantErr: false,
+			desired: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 2},
+				{Name: "B", Replicas: 4},
+				{Name: "C", Replicas: 6},
+			},
+			done: true,
 		},
 		{
-			name: "replica 12, default weight",
-			args: struct {
-				clusters   []*clusterv1alpha1.Cluster
-				weightList []policyv1alpha1.StaticClusterWeight
-				replicas   int32
-			}{
-				clusters: []*clusterv1alpha1.Cluster{
-					helper.NewCluster(ClusterMember1),
-					helper.NewCluster(ClusterMember2),
-					helper.NewCluster(ClusterMember3),
-				},
-				replicas: 12,
+			name:        "Scale up 3 replicas",
+			numReplicas: 3,
+			result: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 1},
+				{Name: "B", Replicas: 2},
+				{Name: "C", Replicas: 3},
 			},
-			want: []workv1alpha2.TargetCluster{
-				{
-					Name:     ClusterMember1,
-					Replicas: 4,
-				},
-				{
-					Name:     ClusterMember2,
-					Replicas: 4,
-				},
-				{
-					Name:     ClusterMember3,
-					Replicas: 4,
-				},
+			weightList: []utilhelper.ClusterWeightInfo{
+				{ClusterName: "A", Weight: 1},
+				{ClusterName: "B", Weight: 2},
+				{ClusterName: "C", Weight: 3},
 			},
-			wantErr: false,
+			desired: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 1},
+				{Name: "B", Replicas: 3},
+				{Name: "C", Replicas: 5},
+			},
+			done: true,
 		},
 		{
-			name: "replica 14, weight 3:2:1",
-			args: struct {
-				clusters   []*clusterv1alpha1.Cluster
-				weightList []policyv1alpha1.StaticClusterWeight
-				replicas   int32
-			}{
-				clusters: []*clusterv1alpha1.Cluster{
-					helper.NewCluster(ClusterMember1),
-					helper.NewCluster(ClusterMember2),
-					helper.NewCluster(ClusterMember3),
-				},
-				weightList: []policyv1alpha1.StaticClusterWeight{
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember1},
-						},
-						Weight: 3,
-					},
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember2},
-						},
-						Weight: 2,
-					},
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember3},
-						},
-						Weight: 1,
-					},
-				},
-				replicas: 14,
+			name:        "Scale up 2 replicas",
+			numReplicas: 2,
+			result: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 1},
+				{Name: "B", Replicas: 2},
+				{Name: "C", Replicas: 3},
 			},
-			want: []workv1alpha2.TargetCluster{
-				{
-					Name:     ClusterMember1,
-					Replicas: 8,
-				},
-				{
-					Name:     ClusterMember2,
-					Replicas: 4,
-				},
-				{
-					Name:     ClusterMember3,
-					Replicas: 2,
-				},
+			weightList: []utilhelper.ClusterWeightInfo{
+				{ClusterName: "A", Weight: 1},
+				{ClusterName: "B", Weight: 2},
+				{ClusterName: "C", Weight: 3},
 			},
-			wantErr: false,
-		},
-		{
-			name: "insufficient replica assignment should get 0 replica",
-			args: struct {
-				clusters   []*clusterv1alpha1.Cluster
-				weightList []policyv1alpha1.StaticClusterWeight
-				replicas   int32
-			}{
-				clusters: []*clusterv1alpha1.Cluster{
-					helper.NewCluster(ClusterMember1),
-					helper.NewCluster(ClusterMember2),
-				},
-				weightList: []policyv1alpha1.StaticClusterWeight{
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember1},
-						},
-						Weight: 1,
-					},
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember2},
-						},
-						Weight: 1,
-					},
-				},
-				replicas: 0,
+			desired: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 1},
+				{Name: "B", Replicas: 2},
+				{Name: "C", Replicas: 5},
 			},
-			want: []workv1alpha2.TargetCluster{
-				{
-					Name:     ClusterMember1,
-					Replicas: 0,
-				},
-				{
-					Name:     ClusterMember2,
-					Replicas: 0,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "selected cluster without weight should be ignored",
-			args: struct {
-				clusters   []*clusterv1alpha1.Cluster
-				weightList []policyv1alpha1.StaticClusterWeight
-				replicas   int32
-			}{
-				clusters: []*clusterv1alpha1.Cluster{
-					helper.NewCluster(ClusterMember1),
-					helper.NewCluster(ClusterMember2),
-				},
-				weightList: []policyv1alpha1.StaticClusterWeight{
-					{
-						TargetCluster: policyv1alpha1.ClusterAffinity{
-							ClusterNames: []string{ClusterMember1},
-						},
-						Weight: 1,
-					},
-				},
-				replicas: 2,
-			},
-			want: []workv1alpha2.TargetCluster{
-				{
-					Name:     ClusterMember1,
-					Replicas: 2,
-				},
-			},
-			wantErr: false,
+			done: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := divideReplicasByStaticWeight(tt.args.clusters, tt.args.weightList, tt.args.replicas)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("divideReplicasByStaticWeight() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			a := newDispenser(tt.numReplicas, tt.result)
+			a.takeByWeight(tt.weightList)
+			if a.done() != tt.done {
+				t.Errorf("expected after takeByWeight: %v, but got: %v", tt.done, a.done())
 			}
-			if !helper.IsScheduleResultEqual(got, tt.want) {
-				t.Errorf("divideReplicasByStaticWeight() got = %v, want %v", got, tt.want)
+			if !helper.IsScheduleResultEqual(a.result, tt.desired) {
+				t.Errorf("expected result after takeByWeight: %v, but got: %v", tt.desired, a.result)
 			}
 		})
 	}
