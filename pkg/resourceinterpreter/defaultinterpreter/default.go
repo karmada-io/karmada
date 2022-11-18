@@ -75,6 +75,7 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 func (e *DefaultInterpreter) GetReplicas(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+	klog.V(4).Infof("Get replicas for object: %v %s/%s with build-in interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	handler, exist := e.replicaHandlers[object.GroupVersionKind()]
 	if !exist {
 		return 0, &workv1alpha2.ReplicaRequirements{}, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretReplica, object.GroupVersionKind())
@@ -84,6 +85,7 @@ func (e *DefaultInterpreter) GetReplicas(object *unstructured.Unstructured) (int
 
 // ReviseReplica revises the replica of the given object.
 func (e *DefaultInterpreter) ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
+	klog.V(4).Infof("Revise replicas for object: %v %s/%s with build-in interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	handler, exist := e.reviseReplicaHandlers[object.GroupVersionKind()]
 	if !exist {
 		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationReviseReplica, object.GroupVersionKind())
@@ -93,6 +95,7 @@ func (e *DefaultInterpreter) ReviseReplica(object *unstructured.Unstructured, re
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 func (e *DefaultInterpreter) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error) {
+	klog.V(4).Infof("Retain object: %v %s/%s with build-in interpreter.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
 	handler, exist := e.retentionHandlers[desired.GroupVersionKind()]
 	if !exist {
 		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationRetain, desired.GroupVersionKind())
@@ -102,6 +105,7 @@ func (e *DefaultInterpreter) Retain(desired *unstructured.Unstructured, observed
 
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated.
 func (e *DefaultInterpreter) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	klog.V(4).Infof("Aggregate status of object: %v %s/%s with build-in interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	handler, exist := e.aggregateStatusHandlers[object.GroupVersionKind()]
 	if !exist {
 		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationAggregateStatus, object.GroupVersionKind())
@@ -111,6 +115,7 @@ func (e *DefaultInterpreter) AggregateStatus(object *unstructured.Unstructured, 
 
 // GetDependencies returns the dependent resources of the given object.
 func (e *DefaultInterpreter) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, err error) {
+	klog.V(4).Infof("Get dependencies of object: %v %s/%s with build-in interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	handler, exist := e.dependenciesHandlers[object.GroupVersionKind()]
 	if !exist {
 		return dependencies, fmt.Errorf("default interpreter for operation %s not found", configv1alpha1.InterpreterOperationInterpretDependency)
@@ -120,6 +125,7 @@ func (e *DefaultInterpreter) GetDependencies(object *unstructured.Unstructured) 
 
 // ReflectStatus returns the status of the object.
 func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, err error) {
+	klog.V(4).Infof("Reflect status of object: %v %s/%s with build-in interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	handler, exist := e.reflectStatusHandlers[object.GroupVersionKind()]
 	if exist {
 		return handler(object)
@@ -131,6 +137,7 @@ func (e *DefaultInterpreter) ReflectStatus(object *unstructured.Unstructured) (s
 
 // InterpretHealth returns the health state of the object.
 func (e *DefaultInterpreter) InterpretHealth(object *unstructured.Unstructured) (bool, error) {
+	klog.V(4).Infof("Get health status of object: %v %s/%s with build-in interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	handler, exist := e.healthHandlers[object.GroupVersionKind()]
 	if exist {
 		return handler(object)

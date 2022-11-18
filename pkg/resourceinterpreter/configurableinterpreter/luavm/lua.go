@@ -46,7 +46,7 @@ func (vm VM) GetReplicas(obj *unstructured.Unstructured, script string) (replica
 	f := l.GetGlobal("GetReplicas")
 
 	if f.Type() == lua.LTNil {
-		return 0, nil, fmt.Errorf("can't get function ReviseReplica pleace check the function name")
+		return 0, nil, fmt.Errorf("can't get function GetReplicas, please check the lua script")
 	}
 
 	args := make([]lua.LValue, 1)
@@ -107,7 +107,7 @@ func (vm VM) ReviseReplica(object *unstructured.Unstructured, replica int64, scr
 	}
 	reviseReplicaLuaFunc := l.GetGlobal("ReviseReplica")
 	if reviseReplicaLuaFunc.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function ReviseReplica pleace check the function name")
+		return nil, fmt.Errorf("can't get function ReviseReplica, please check the lua script")
 	}
 
 	args := make([]lua.LValue, 2)
@@ -183,7 +183,7 @@ func (vm VM) Retain(desired *unstructured.Unstructured, observed *unstructured.U
 	}
 	retainLuaFunc := l.GetGlobal("Retain")
 	if retainLuaFunc.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function Retatin pleace check the function ")
+		return nil, fmt.Errorf("can't get function Retatin, please check the lua script")
 	}
 
 	args := make([]lua.LValue, 2)
@@ -237,7 +237,7 @@ func (vm VM) AggregateStatus(object *unstructured.Unstructured, items []workv1al
 
 	f := l.GetGlobal("AggregateStatus")
 	if f.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function AggregateStatus pleace check the function ")
+		return nil, fmt.Errorf("can't get function AggregateStatus, please check the lua script")
 	}
 	args := make([]lua.LValue, 2)
 	args[0], err = decodeValue(l, object.Object)
@@ -289,7 +289,7 @@ func (vm VM) InterpretHealth(object *unstructured.Unstructured, script string) (
 	}
 	f := l.GetGlobal("InterpretHealth")
 	if f.Type() == lua.LTNil {
-		return false, fmt.Errorf("can't get function InterpretHealth pleace check the function ")
+		return false, fmt.Errorf("can't get function InterpretHealth, please check the lua script")
 	}
 
 	args := make([]lua.LValue, 1)
@@ -335,7 +335,7 @@ func (vm VM) ReflectStatus(object *unstructured.Unstructured, script string) (st
 	}
 	f := l.GetGlobal("ReflectStatus")
 	if f.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function ReflectStatus pleace check the function ")
+		return nil, fmt.Errorf("can't get function ReflectStatus, please check the lua script")
 	}
 
 	args := make([]lua.LValue, 1)
@@ -382,7 +382,7 @@ func (vm VM) GetDependencies(object *unstructured.Unstructured, script string) (
 	}
 	f := l.GetGlobal("GetDependencies")
 	if f.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function Retatin pleace check the function ")
+		return nil, fmt.Errorf("can't get function GetDependencies, please check the lua script")
 	}
 
 	args := make([]lua.LValue, 1)
