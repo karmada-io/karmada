@@ -1,14 +1,8 @@
 package utils
 
 import (
-	"context"
-	"fmt"
-
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 )
 
 // ClusterRoleFromRules ClusterRole Rules
@@ -44,46 +38,4 @@ func ClusterRoleBindingFromSubjects(clusterRoleBindingName, clusterRoleName stri
 		},
 		Subjects: sub,
 	}
-}
-
-// CreateIfNotExistClusterRole  create ClusterRole when it doesn't exist
-func CreateIfNotExistClusterRole(clientSet kubernetes.Interface, role *rbacv1.ClusterRole) error {
-	clusterRoleClient := clientSet.RbacV1().ClusterRoles()
-	_, err := clusterRoleClient.Get(context.TODO(), role.Name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			_, err = clusterRoleClient.Create(context.TODO(), role, metav1.CreateOptions{})
-			if err != nil {
-				return fmt.Errorf("create ClusterRole %s failed: %v", role.Name, err)
-			}
-
-			klog.Infof("CreateClusterRole %s success.", role.Name)
-			return nil
-		}
-		return fmt.Errorf("get ClusterRole %s failed: %v", role.Name, err)
-	}
-	klog.Infof("CreateClusterRole %s already exists.", role.Name)
-
-	return nil
-}
-
-// CreateIfNotExistClusterRoleBinding create ClusterRoleBinding when it doesn't exist
-func CreateIfNotExistClusterRoleBinding(clientSet kubernetes.Interface, binding *rbacv1.ClusterRoleBinding) error {
-	crbClient := clientSet.RbacV1().ClusterRoleBindings()
-	_, err := crbClient.Get(context.TODO(), binding.Name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			_, err = crbClient.Create(context.TODO(), binding, metav1.CreateOptions{})
-			if err != nil {
-				return fmt.Errorf("create ClusterRoleBinding %s failed: %v", binding.Name, err)
-			}
-
-			klog.Infof("CreateClusterRoleBinding %s success.", binding.Name)
-			return nil
-		}
-		return fmt.Errorf("get ClusterRoleBinding %s failed: %v", binding.Name, err)
-	}
-	klog.Infof("CreateClusterRoleBinding %s already exists.", binding.Name)
-
-	return nil
 }

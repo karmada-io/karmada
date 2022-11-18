@@ -90,17 +90,18 @@ func InitKarmadaResources(dir, caBase64, systemNamespace string) error {
 	// create webhook configuration
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/webhook-configuration.yaml
 	klog.Info("Create MutatingWebhookConfiguration mutating-config.")
-	if err = createMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64, systemNamespace)); err != nil {
+	if err = createOrUpdateMutatingWebhookConfiguration(clientSet, mutatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
 
 	klog.Info("Create ValidatingWebhookConfiguration validating-config.")
-	if err = createValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64, systemNamespace)); err != nil {
+	if err = createOrUpdateValidatingWebhookConfiguration(clientSet, validatingConfig(caBase64, systemNamespace)); err != nil {
 		klog.Exitln(err)
 	}
 
 	// karmada-aggregated-apiserver
-	if err = initAPIService(clientSet, restConfig, systemNamespace); err != nil {
+	klog.Info("Create Service 'karmada-aggregated-apiserver' and APIService 'v1alpha1.cluster.karmada.io'.")
+	if err = initAggregatedAPIService(clientSet, restConfig, systemNamespace); err != nil {
 		klog.Exitln(err)
 	}
 
@@ -250,7 +251,7 @@ func getName(str, start, end string) string {
 	return str
 }
 
-func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, systemNamespace string) error {
+func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, systemNamespace string) error {
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-aggregated-apiserver-apiservice.yaml
 	aaService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -299,7 +300,6 @@ func initAPIService(clientSet *kubernetes.Clientset, restConfig *rest.Config, sy
 		},
 	}
 
-	klog.Infof("Create APIService '%s'", aaAPIServiceObjName)
 	if err = cmdutil.CreateOrUpdateAPIService(apiRegistrationClient, aaAPIService); err != nil {
 		return err
 	}
