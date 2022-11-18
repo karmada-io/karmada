@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
@@ -160,10 +159,13 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 			binding.Spec.RemoveCluster(cluster)
 		}
 		if err = tc.Update(context.TODO(), binding); err != nil {
+			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, err)
 			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
 			return err
 		}
-		tc.emitClusterEvictionEventForResourceBinding(binding, cluster)
+		if !features.FeatureGate.Enabled(features.GracefulEviction) {
+			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, nil)
+		}
 	} else if tolerationTime > 0 {
 		tc.bindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 	}
@@ -209,10 +211,13 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 			binding.Spec.RemoveCluster(cluster)
 		}
 		if err = tc.Update(context.TODO(), binding); err != nil {
+			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, err)
 			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
 			return err
 		}
-		tc.emitClusterEvictionEventForClusterResourceBinding(binding, cluster)
+		if !features.FeatureGate.Enabled(features.GracefulEviction) {
+			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, nil)
+		}
 	} else if tolerationTime > 0 {
 		tc.clusterBindingEvictionWorker.AddAfter(fedKey, tolerationTime)
 		return nil
@@ -259,36 +264,4 @@ func (tc *NoExecuteTaintManager) SetupWithManager(mgr controllerruntime.Manager)
 		controllerruntime.NewControllerManagedBy(mgr).For(&clusterv1alpha1.Cluster{}).Complete(tc),
 		mgr.Add(tc),
 	})
-}
-
-func (tc *NoExecuteTaintManager) emitClusterEvictionEventForResourceBinding(binding *workv1alpha2.ResourceBinding, cluster string) {
-	if binding == nil {
-		return
-	}
-
-	ref := &corev1.ObjectReference{
-		Kind:       binding.Spec.Resource.Kind,
-		APIVersion: binding.Spec.Resource.APIVersion,
-		Namespace:  binding.Spec.Resource.Namespace,
-		Name:       binding.Spec.Resource.Name,
-		UID:        binding.Spec.Resource.UID,
-	}
-	tc.EventRecorder.Eventf(binding, corev1.EventTypeNormal, "TaintManagerEviction", "Evict from cluster %s", cluster)
-	tc.EventRecorder.Eventf(ref, corev1.EventTypeNormal, "TaintManagerEviction", "Evict from cluster %s", cluster)
-}
-
-func (tc *NoExecuteTaintManager) emitClusterEvictionEventForClusterResourceBinding(binding *workv1alpha2.ClusterResourceBinding, cluster string) {
-	if binding == nil {
-		return
-	}
-
-	ref := &corev1.ObjectReference{
-		Kind:       binding.Spec.Resource.Kind,
-		APIVersion: binding.Spec.Resource.APIVersion,
-		Namespace:  binding.Spec.Resource.Namespace,
-		Name:       binding.Spec.Resource.Name,
-		UID:        binding.Spec.Resource.UID,
-	}
-	tc.EventRecorder.Eventf(binding, corev1.EventTypeNormal, "TaintManagerEviction", "Evict from cluster %s", cluster)
-	tc.EventRecorder.Eventf(ref, corev1.EventTypeNormal, "TaintManagerEviction", "Evict from cluster %s", cluster)
 }
