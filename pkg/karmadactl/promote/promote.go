@@ -33,8 +33,14 @@ import (
 )
 
 var (
-	promoteShort   = `Promote resources from legacy clusters to karmada control plane`
-	promoteLong    = `Promote resources from legacy clusters to karmada control plane. Requires the cluster be joined or registered.`
+	promoteLong = templates.LongDesc(`
+	Promote resources from legacy clusters to Karmada control plane. 
+	Requires the cluster has been joined or registered.
+
+	If the resource already exists in Karmada control plane, 
+	please edit PropagationPolicy and OverridePolicy to propagate it.
+	`)
+
 	promoteExample = templates.Examples(`
 		# Promote deployment(default/nginx) from cluster1 to Karmada
 		%[1]s promote deployment nginx -n default -C cluster1
@@ -62,7 +68,7 @@ func NewCmdPromote(f util.Factory, parentCommand string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:                   "promote <RESOURCE_TYPE> <RESOURCE_NAME> -n <NAME_SPACE> -C <CLUSTER_NAME>",
-		Short:                 promoteShort,
+		Short:                 "Promote resources from legacy clusters to Karmada control plane",
 		Long:                  promoteLong,
 		Example:               fmt.Sprintf(promoteExample, parentCommand),
 		SilenceUsage:          true,

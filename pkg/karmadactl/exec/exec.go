@@ -19,6 +19,9 @@ const (
 )
 
 var (
+	execLong = templates.LongDesc(`
+		Execute a command in a container in a cluster.`)
+
 	execExample = templates.Examples(`
 		# Get output from running the 'date' command from pod mypod, using the first container by default in cluster(member1)
 		%[1]s exec mypod -C=member1 -- date
@@ -54,7 +57,7 @@ func NewCmdExec(f util.Factory, parentCommand string, streams genericclioptions.
 	cmd := &cobra.Command{
 		Use:                   "exec (POD | TYPE/NAME) [-c CONTAINER] (-C CLUSTER) -- COMMAND [args...]",
 		Short:                 "Execute a command in a container in a cluster",
-		Long:                  "Execute a command in a container in a cluster",
+		Long:                  execLong,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(execExample, parentCommand),

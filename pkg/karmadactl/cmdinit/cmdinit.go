@@ -13,12 +13,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
-const (
-	initShort = `Install Karmada in Kubernetes`
-	initLong  = `Install Karmada in Kubernetes.`
-)
-
 var (
+	initLong = templates.LongDesc(`
+		Install the Karmada control plane in a Kubernetes cluster.
+
+		By default, the images and CRD tarball are downloaded remotely.
+		For offline installation, you can set '--private-image-registry' and '--crds'.`)
+
 	initExamples = templates.Examples(`
 		# Install Karmada in Kubernetes cluster
 		# The karmada-apiserver binds the master node's IP by default
@@ -63,7 +64,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	opts := kubernetes.CommandInitOption{}
 	cmd := &cobra.Command{
 		Use:                   "init",
-		Short:                 initShort,
+		Short:                 "Install the Karmada control plane in a Kubernetes cluster",
 		Long:                  initLong,
 		Example:               initExample(parentCommand),
 		SilenceUsage:          true,
