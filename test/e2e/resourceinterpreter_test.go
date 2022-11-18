@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -15,6 +19,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -269,6 +274,152 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				SetReadyReplicas(1)
 				gomega.Eventually(CheckResult(workv1alpha2.ResourceUnhealthy), pollTimeout, pollInterval).Should(gomega.BeTrue())
 			})
+		})
+	})
+})
+
+var _ = framework.SerialDescribe("Resource interpreter customization testing", func() {
+	var customization *configv1alpha1.ResourceInterpreterCustomization
+	var deployment *appsv1.Deployment
+	var policy *policyv1alpha1.PropagationPolicy
+	// We only need to test any one of the member clusters.
+	var targetCluster string
+
+	ginkgo.BeforeEach(func() {
+		targetCluster = framework.ClusterNames()[rand.Intn(len(framework.ClusterNames()))]
+		deployment = testhelper.NewDeployment(testNamespace, deploymentNamePrefix+rand.String(RandomStrLength))
+		policy = testhelper.NewPropagationPolicy(testNamespace, deployment.Name, []policyv1alpha1.ResourceSelector{
+			{
+				APIVersion: deployment.APIVersion,
+				Kind:       deployment.Kind,
+				Name:       deployment.Name,
+			},
+		}, policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{targetCluster},
+			},
+		})
+	})
+
+	ginkgo.JustBeforeEach(func() {
+		framework.CreateResourceInterpreterCustomization(karmadaClient, customization)
+		// Wait for resource interpreter informer synced.
+		time.Sleep(time.Second)
+
+		framework.CreatePropagationPolicy(karmadaClient, policy)
+		framework.CreateDeployment(kubeClient, deployment)
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			framework.DeleteResourceInterpreterCustomization(karmadaClient, customization.Name)
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation InterpretReplica testing", func() {
+		ginkgo.BeforeEach(func() {
+			customization = testhelper.NewResourceInterpreterCustomization(
+				"interpreter-customization"+rand.String(RandomStrLength),
+				configv1alpha1.CustomizationTarget{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				configv1alpha1.CustomizationRules{
+					ReplicaResource: &configv1alpha1.ReplicaResourceRequirement{
+						LuaScript: `
+function GetReplicas(desiredObj)
+  replica = desiredObj.spec.replicas + 1
+  requirement = {}
+  requirement.nodeClaim = {}
+  requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+  requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+  requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+  return replica, requirement
+end`,
+					},
+				})
+		})
+
+		ginkgo.It("InterpretReplica testing", func() {
+			ginkgo.By("check if workload's replica is interpreted", func() {
+				resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+				// Just for the current test case to distinguish the build-in logic.
+				expectedReplicas := *deployment.Spec.Replicas + 1
+				expectedReplicaRequirements := &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU: resource.MustParse("100m"),
+					}}
+
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+					resourceBinding, err := karmadaClient.WorkV1alpha2().ResourceBindings(deployment.Namespace).Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
+					g.Expect(err).NotTo(gomega.HaveOccurred())
+
+					klog.Infof(fmt.Sprintf("ResourceBinding(%s/%s)'s replicas is %d, expected: %d.",
+						resourceBinding.Namespace, resourceBinding.Name, resourceBinding.Spec.Replicas, expectedReplicas))
+					if resourceBinding.Spec.Replicas != expectedReplicas {
+						return false, nil
+					}
+
+					klog.Infof(fmt.Sprintf("ResourceBinding(%s/%s)'s replicaRequirements is %+v, expected: %+v.",
+						resourceBinding.Namespace, resourceBinding.Name, resourceBinding.Spec.ReplicaRequirements, expectedReplicaRequirements))
+					return reflect.DeepEqual(resourceBinding.Spec.ReplicaRequirements, expectedReplicaRequirements), nil
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation ReviseReplica testing", func() {
+		ginkgo.BeforeEach(func() {
+			customization = testhelper.NewResourceInterpreterCustomization(
+				"interpreter-customization"+rand.String(RandomStrLength),
+				configv1alpha1.CustomizationTarget{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				configv1alpha1.CustomizationRules{
+					ReplicaRevision: &configv1alpha1.ReplicaRevision{
+						LuaScript: `
+function ReviseReplica(obj, desiredReplica)
+  obj.spec.replicas = desiredReplica + 1
+  return obj
+end`,
+					},
+				})
+		})
+
+		ginkgo.BeforeEach(func() {
+			sumWeight := 0
+			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
+			for index, clusterName := range framework.ClusterNames() {
+				staticWeightList := policyv1alpha1.StaticClusterWeight{
+					TargetCluster: policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{clusterName},
+					},
+					Weight: int64(index + 1),
+				}
+				sumWeight += index + 1
+				staticWeightLists = append(staticWeightLists, staticWeightList)
+			}
+			deployment.Spec.Replicas = pointer.Int32Ptr(int32(sumWeight))
+			policy.Spec.Placement = policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: staticWeightLists,
+					},
+				},
+			}
+		})
+
+		ginkgo.It("ReviseReplica testing", func() {
+			for index, clusterName := range framework.ClusterNames() {
+				framework.WaitDeploymentPresentOnClusterFitWith(clusterName, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool {
+					return *deployment.Spec.Replicas == int32(index+1)+1
+				})
+			}
 		})
 	})
 })
