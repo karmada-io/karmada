@@ -16,7 +16,8 @@ import (
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 )
 
-// CreateService creates a Service if the target resource doesn't exist. If the resource exists already, return directly
+// CreateService creates a Service if the target resource doesn't exist.
+// If the resource exists already, return directly
 func CreateService(client kubeclient.Interface, service *corev1.Service) error {
 	if _, err := client.CoreV1().Services(service.ObjectMeta.Namespace).Create(context.TODO(), service, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -28,7 +29,8 @@ func CreateService(client kubeclient.Interface, service *corev1.Service) error {
 	return nil
 }
 
-// CreateOrUpdateSecret creates a Secret if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+// CreateOrUpdateSecret creates a Secret if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) error {
 	if _, err := client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -49,7 +51,8 @@ func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) er
 	return nil
 }
 
-// CreateOrUpdateDeployment creates a Deployment if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+// CreateOrUpdateDeployment creates a Deployment if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deployment) error {
 	if _, err := client.AppsV1().Deployments(deploy.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -70,7 +73,8 @@ func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deploy
 	return nil
 }
 
-// CreateOrUpdateAPIService creates a ApiService if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+// CreateOrUpdateAPIService creates a ApiService if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apiservice *apiregistrationv1.APIService) error {
 	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), apiservice, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -93,7 +97,8 @@ func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apise
 	return nil
 }
 
-// CreateOrUpdateRole creates a Role if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+// CreateOrUpdateRole creates a Role if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateRole(client kubeclient.Interface, role *rbacv1.Role) error {
 	if _, err := client.RbacV1().Roles(role.ObjectMeta.Namespace).Create(context.TODO(), role, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -111,12 +116,13 @@ func CreateOrUpdateRole(client kubeclient.Interface, role *rbacv1.Role) error {
 			return fmt.Errorf("unable to update RBAC role: %v", err)
 		}
 	}
-	klog.V(2).Infof("Role %s%s has been created or updated.", role.ObjectMeta.Namespace, role.ObjectMeta.Name)
+	klog.V(2).Infof("Role %s/%s has been created or updated.", role.ObjectMeta.Namespace, role.ObjectMeta.Name)
 
 	return nil
 }
 
-// CreateOrUpdateRoleBinding creates a RoleBinding if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+// CreateOrUpdateRoleBinding creates a RoleBinding if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateRoleBinding(client kubeclient.Interface, roleBinding *rbacv1.RoleBinding) error {
 	if _, err := client.RbacV1().RoleBindings(roleBinding.ObjectMeta.Namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -139,7 +145,56 @@ func CreateOrUpdateRoleBinding(client kubeclient.Interface, roleBinding *rbacv1.
 	return nil
 }
 
-// CreateOrUpdateConfigMap creates a ConfigMap if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+// CreateOrUpdateClusterRole creates a ClusterRole if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateClusterRole(client kubeclient.Interface, clusterRole *rbacv1.ClusterRole) error {
+	if _, err := client.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{}); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("unable to create ClusterRole: %v", err)
+		}
+
+		existClusterRole, err := client.RbacV1().ClusterRoles().Get(context.TODO(), clusterRole.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		clusterRole.ResourceVersion = existClusterRole.ResourceVersion
+
+		if _, err := client.RbacV1().ClusterRoles().Update(context.TODO(), clusterRole, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("unable to update ClusterRole: %v", err)
+		}
+	}
+	klog.V(2).Infof("ClusterRole %s has been created or updated.", clusterRole.Name)
+
+	return nil
+}
+
+// CreateOrUpdateClusterRoleBinding creates a ClusterRoleBinding if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateClusterRoleBinding(client kubernetes.Interface, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
+	if _, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{}); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("unable to create ClusterRoleBinding: %v", err)
+		}
+
+		existCrb, err := client.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterRoleBinding.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		clusterRoleBinding.ResourceVersion = existCrb.ResourceVersion
+
+		if _, err := client.RbacV1().ClusterRoleBindings().Update(context.TODO(), clusterRoleBinding, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("unable to update ClusterRolebinding: %v", err)
+		}
+	}
+	klog.V(2).Infof("ClusterRolebinding %s has been created or updated.", clusterRoleBinding.Name)
+
+	return nil
+}
+
+// CreateOrUpdateConfigMap creates a ConfigMap if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateConfigMap(client *kubeclient.Clientset, cm *corev1.ConfigMap) error {
 	if _, err := client.CoreV1().ConfigMaps(cm.ObjectMeta.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -171,7 +226,8 @@ func NewNamespace(name string) *corev1.Namespace {
 	}
 }
 
-// CreateOrUpdateNamespace creates a Namespaces if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+// CreateOrUpdateNamespace creates a Namespaces if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateNamespace(client kubeclient.Interface, ns *corev1.Namespace) error {
 	if _, err := client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -194,7 +250,8 @@ func CreateOrUpdateNamespace(client kubeclient.Interface, ns *corev1.Namespace) 
 	return nil
 }
 
-// CreateOrUpdateService creates a Service if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+// CreateOrUpdateService creates a Service if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateService(client kubernetes.Interface, svc *corev1.Service) error {
 	if _, err := client.CoreV1().Services(svc.Namespace).Create(context.TODO(), svc, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {

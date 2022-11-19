@@ -3,8 +3,10 @@ package karmada
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -21,7 +23,7 @@ func grantProxyPermissionToAdmin(clientSet kubernetes.Interface) error {
 			Verbs:     []string{"*"},
 		},
 	}, nil)
-	err := utils.CreateIfNotExistClusterRole(clientSet, proxyAdminClusterRole)
+	err := cmdutil.CreateOrUpdateClusterRole(clientSet, proxyAdminClusterRole)
 	if err != nil {
 		return err
 	}
@@ -32,7 +34,9 @@ func grantProxyPermissionToAdmin(clientSet kubernetes.Interface) error {
 				Kind: "User",
 				Name: clusterProxyAdminUser,
 			}}, nil)
-	err = utils.CreateIfNotExistClusterRoleBinding(clientSet, proxyAdminClusterRoleBinding)
+
+	klog.V(1).Info("grant cluster proxy permission to 'system:admin'")
+	err = cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, proxyAdminClusterRoleBinding)
 	if err != nil {
 		return err
 	}
@@ -40,7 +44,7 @@ func grantProxyPermissionToAdmin(clientSet kubernetes.Interface) error {
 	return nil
 }
 
-// grantAccessPermissionToAgent grants the limited access permmission to 'karmada-agent'
+// grantAccessPermissionToAgent grants the limited access permission to 'karmada-agent'
 func grantAccessPermissionToAgent(clientSet kubernetes.Interface) error {
 	clusterRole := utils.ClusterRoleFromRules(karmadaAgentAccessClusterRole, []rbacv1.PolicyRule{
 		{
@@ -104,7 +108,7 @@ func grantAccessPermissionToAgent(clientSet kubernetes.Interface) error {
 			Verbs:     []string{"create", "patch", "update"},
 		},
 	}, nil)
-	err := utils.CreateIfNotExistClusterRole(clientSet, clusterRole)
+	err := cmdutil.CreateOrUpdateClusterRole(clientSet, clusterRole)
 	if err != nil {
 		return err
 	}
@@ -115,7 +119,9 @@ func grantAccessPermissionToAgent(clientSet kubernetes.Interface) error {
 				Kind: rbacv1.GroupKind,
 				Name: karmadaAgentGroup,
 			}}, nil)
-	err = utils.CreateIfNotExistClusterRoleBinding(clientSet, clusterRoleBinding)
+
+	klog.V(1).Info("grant the limited access permission to 'karmada-agent'")
+	err = cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, clusterRoleBinding)
 	if err != nil {
 		return err
 	}

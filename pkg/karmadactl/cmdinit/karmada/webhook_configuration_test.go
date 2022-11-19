@@ -7,24 +7,24 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func Test_createValidatingWebhookConfiguration(t *testing.T) {
+func Test_createOrUpdateValidatingWebhookConfiguration(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	cfg := validatingConfig(base64.StdEncoding.EncodeToString([]byte("foo")), "bar")
 	if cfg == "" {
 		t.Errorf("validatingConfig() return = %v, want yaml config", cfg)
 	}
-	if err := createValidatingWebhookConfiguration(client, cfg); err != nil {
-		t.Errorf("createValidatingWebhookConfiguration() return = %v, want no error", err)
+	if err := createOrUpdateValidatingWebhookConfiguration(client, cfg); err != nil {
+		t.Errorf("createOrUpdateValidatingWebhookConfiguration() return = %v, want no error", err)
 	}
 }
 
-func Test_createMutatingWebhookConfiguration(t *testing.T) {
+func Test_createOrUpdateMutatingWebhookConfiguration(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	cfg := mutatingConfig(base64.StdEncoding.EncodeToString([]byte("foo")), "bar")
 	if cfg == "" {
 		t.Errorf("mutatingConfig() return = %v, want yaml config", cfg)
 	}
-	if err := createMutatingWebhookConfiguration(client, cfg); err != nil {
-		t.Errorf("createMutatingWebhookConfiguration() return = %v, want no error", err)
+	if err := createOrUpdateMutatingWebhookConfiguration(client, cfg); err != nil {
+		t.Errorf("createOrUpdateMutatingWebhookConfiguration() return = %v, want no error", err)
 	}
 }

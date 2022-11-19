@@ -6,6 +6,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 const (
@@ -38,7 +39,7 @@ func AllowBootstrapTokensToPostCSRs(clientSet *kubernetes.Clientset) error {
 				Name: KarmadaAgentBootstrapTokenAuthGroup,
 			},
 		}, nil)
-	return utils.CreateIfNotExistClusterRoleBinding(clientSet, clusterRoleBinding)
+	return cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, clusterRoleBinding)
 }
 
 // AutoApproveKarmadaAgentBootstrapTokens creates RBAC rules in a way that makes Karmada Agent Bootstrap Tokens' CSR auto-approved by the csrapprover controller
@@ -52,7 +53,7 @@ func AutoApproveKarmadaAgentBootstrapTokens(clientSet *kubernetes.Clientset) err
 				Name: KarmadaAgentBootstrapTokenAuthGroup,
 			},
 		}, nil)
-	return utils.CreateIfNotExistClusterRoleBinding(clientSet, clusterRoleBinding)
+	return cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, clusterRoleBinding)
 }
 
 // AutoApproveAgentCertificateRotation creates RBAC rules in a way that makes Agent certificate rotation CSR auto-approved by the csrapprover controller
@@ -66,5 +67,5 @@ func AutoApproveAgentCertificateRotation(clientSet *kubernetes.Clientset) error 
 				Name: KarmadaAgentGroup,
 			},
 		}, nil)
-	return utils.CreateIfNotExistClusterRoleBinding(clientSet, clusterRoleBinding)
+	return cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, clusterRoleBinding)
 }

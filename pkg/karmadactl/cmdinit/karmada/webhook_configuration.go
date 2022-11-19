@@ -160,7 +160,7 @@ webhooks:
     timeoutSeconds: 3`, systemNamespace, caBundle)
 }
 
-func createValidatingWebhookConfiguration(c kubernetes.Interface, staticYaml string) error {
+func createOrUpdateValidatingWebhookConfiguration(c kubernetes.Interface, staticYaml string) error {
 	obj := admissionregistrationv1.ValidatingWebhookConfiguration{}
 
 	if err := json.Unmarshal(utils.StaticYamlToJSONByte(staticYaml), &obj); err != nil {
@@ -172,15 +172,24 @@ func createValidatingWebhookConfiguration(c kubernetes.Interface, staticYaml str
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
-		klog.Infof("ValidatingWebhookConfiguration %s already exists, skipping.", obj.Name)
-		return nil
+
+		existVwc, err := c.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(context.TODO(), obj.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		obj.ResourceVersion = existVwc.ResourceVersion
+
+		if _, err := c.AdmissionregistrationV1().ValidatingWebhookConfigurations().Update(context.TODO(), &obj, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
 	}
-	klog.Infof("Create ValidatingWebhookConfiguration %s successfully.", obj.Name)
+	klog.Infof("ValidatingWebhookConfiguration %s has been created or updated successfully.", obj.Name)
 
 	return nil
 }
 
-func createMutatingWebhookConfiguration(c kubernetes.Interface, staticYaml string) error {
+func createOrUpdateMutatingWebhookConfiguration(c kubernetes.Interface, staticYaml string) error {
 	obj := admissionregistrationv1.MutatingWebhookConfiguration{}
 
 	if err := json.Unmarshal(utils.StaticYamlToJSONByte(staticYaml), &obj); err != nil {
@@ -192,10 +201,19 @@ func createMutatingWebhookConfiguration(c kubernetes.Interface, staticYaml strin
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
-		klog.Infof("MutatingWebhookConfiguration %s already exists, skipping.", obj.Name)
-		return nil
-	}
 
-	klog.Infof("Create MutatingWebhookConfiguration %s successfully.", obj.Name)
+		existMwc, err := c.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), obj.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		obj.ResourceVersion = existMwc.ResourceVersion
+
+		if _, err := c.AdmissionregistrationV1().MutatingWebhookConfigurations().Update(context.TODO(), &obj, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+	}
+	klog.Infof("MutatingWebhookConfiguration %s has been created or updated successfully.", obj.Name)
+
 	return nil
 }
