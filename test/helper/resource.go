@@ -56,6 +56,11 @@ func NewDeployment(namespace string, name string) *appsv1.Deployment {
 					Containers: []corev1.Container{{
 						Name:  "nginx",
 						Image: "nginx:1.19.0",
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU: resource.MustParse("100m"),
+							},
+						},
 					}},
 				},
 			},

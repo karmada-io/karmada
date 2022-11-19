@@ -71,6 +71,8 @@ func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, oper
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 // return matched value to indicate whether there is a matching hook.
 func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *webhook.RequestAttributes) (replica int32, requires *workv1alpha2.ReplicaRequirements, matched bool, err error) {
+	klog.V(4).Infof("Get replicas for object: %v %s/%s with webhook interpreter.",
+		attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	var response *webhook.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
