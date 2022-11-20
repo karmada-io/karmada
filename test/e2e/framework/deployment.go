@@ -28,6 +28,36 @@ func CreateDeployment(client kubernetes.Interface, deployment *appsv1.Deployment
 	})
 }
 
+// UpdateDeploymentPaused update deployment's paused.
+func UpdateDeploymentPaused(client kubernetes.Interface, deployment *appsv1.Deployment, paused bool) {
+	ginkgo.By(fmt.Sprintf("Update Deployment(%s/%s)", deployment.Namespace, deployment.Name), func() {
+		gomega.Eventually(func() error {
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			deploy.Spec.Paused = paused
+			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// UpdateDeploymentStatus updates the Deployment status.
+func UpdateDeploymentStatus(client kubernetes.Interface, deployment *appsv1.Deployment) {
+	ginkgo.By(fmt.Sprintf("Update Deployment(%s/%s) status", deployment.Namespace, deployment.Name), func() {
+		gomega.Eventually(func() error {
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			deploy.Status = deployment.Status
+			_, err = client.AppsV1().Deployments(deploy.Namespace).UpdateStatus(context.TODO(), deploy, metav1.UpdateOptions{})
+			return err
+		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
 // RemoveDeployment delete Deployment.
 func RemoveDeployment(client kubernetes.Interface, namespace, name string) {
 	ginkgo.By(fmt.Sprintf("Removing Deployment(%s/%s)", namespace, name), func() {
@@ -92,9 +122,13 @@ func WaitDeploymentDisappearOnClusters(clusters []string, namespace, name string
 // UpdateDeploymentReplicas update deployment's replicas.
 func UpdateDeploymentReplicas(client kubernetes.Interface, deployment *appsv1.Deployment, replicas int32) {
 	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s replicas to %d", deployment.Namespace, deployment.Name, replicas), func() {
-		deployment.Spec.Replicas = &replicas
 		gomega.Eventually(func() error {
-			_, err := client.AppsV1().Deployments(deployment.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			deploy.Spec.Replicas = &replicas
+			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
@@ -103,9 +137,13 @@ func UpdateDeploymentReplicas(client kubernetes.Interface, deployment *appsv1.De
 // UpdateDeploymentAnnotations update deployment's annotations.
 func UpdateDeploymentAnnotations(client kubernetes.Interface, deployment *appsv1.Deployment, annotations map[string]string) {
 	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s annotations to %v", deployment.Namespace, deployment.Name, annotations), func() {
-		deployment.Annotations = annotations
 		gomega.Eventually(func() error {
-			_, err := client.AppsV1().Deployments(deployment.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			deploy.Annotations = annotations
+			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
@@ -114,9 +152,13 @@ func UpdateDeploymentAnnotations(client kubernetes.Interface, deployment *appsv1
 // UpdateDeploymentVolumes update Deployment's volumes.
 func UpdateDeploymentVolumes(client kubernetes.Interface, deployment *appsv1.Deployment, volumes []corev1.Volume) {
 	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s volumes", deployment.Namespace, deployment.Name), func() {
-		deployment.Spec.Template.Spec.Volumes = volumes
 		gomega.Eventually(func() error {
-			_, err := client.AppsV1().Deployments(deployment.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			deploy.Spec.Template.Spec.Volumes = volumes
+			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
@@ -125,9 +167,13 @@ func UpdateDeploymentVolumes(client kubernetes.Interface, deployment *appsv1.Dep
 // UpdateDeploymentServiceAccountName update Deployment's serviceAccountName.
 func UpdateDeploymentServiceAccountName(client kubernetes.Interface, deployment *appsv1.Deployment, serviceAccountName string) {
 	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s serviceAccountName", deployment.Namespace, deployment.Name), func() {
-		deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 		gomega.Eventually(func() error {
-			_, err := client.AppsV1().Deployments(deployment.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			deploy.Spec.Template.Spec.ServiceAccountName = serviceAccountName
+			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
