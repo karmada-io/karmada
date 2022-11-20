@@ -47,9 +47,7 @@ var (
 
 	karmadaRelease string
 
-	defaultEtcdImage                  = "etcd:3.5.3-0"
-	defaultKubeAPIServerImage         = "kube-apiserver:v1.25.2"
-	defaultKubeControllerManagerImage = "kube-controller-manager:v1.25.2"
+	defaultEtcdImage = "etcd:3.5.3-0"
 
 	// DefaultCrdURL Karmada crds resource
 	DefaultCrdURL string
@@ -92,6 +90,7 @@ type CommandInitOption struct {
 	ImageRegistry                      string
 	KubeImageRegistry                  string
 	KubeImageMirrorCountry             string
+	KubeImageTag                       string
 	EtcdImage                          string
 	EtcdReplicas                       int32
 	EtcdInitImage                      string
@@ -552,7 +551,8 @@ func (i *CommandInitOption) kubeAPIServerImage() string {
 	if i.KarmadaAPIServerImage != "" {
 		return i.KarmadaAPIServerImage
 	}
-	return i.kubeRegistry() + "/" + defaultKubeAPIServerImage
+
+	return i.kubeRegistry() + "/kube-apiserver:" + i.KubeImageTag
 }
 
 // get kube-controller-manager image
@@ -560,7 +560,8 @@ func (i *CommandInitOption) kubeControllerManagerImage() string {
 	if i.KubeControllerManagerImage != "" {
 		return i.KubeControllerManagerImage
 	}
-	return i.kubeRegistry() + "/" + defaultKubeControllerManagerImage
+
+	return i.kubeRegistry() + "/kube-controller-manager:" + i.KubeImageTag
 }
 
 // get etcd-init image
