@@ -390,10 +390,14 @@ Return the proper karmada kubectl image name
 {{ include "common.images.image" (dict "imageRoot" .Values.kubectl.image "global" .Values.global) }}
 {{- end -}}
 
-{{- define "karmada.controllerManager.featureGates" -}}
-     {{- if (not (empty .Values.controllerManager.featureGates)) }}
+{{/*
+Return the proper featureGates
+{{ include "karmada.common.featureGates" ( dict "featureGates" .Values.path.to.the.featureGates $) }}
+*/}}
+{{- define "karmada.common.featureGates" -}}
+     {{- if (not (empty .featureGates)) }}
           {{- $featureGatesFlag := "" -}}
-          {{- range $key, $value := .Values.controllerManager.featureGates -}}
+          {{- range $key, $value := .featureGates -}}
                {{- if not (empty (toString $value)) }}
                     {{- $featureGatesFlag = cat $featureGatesFlag $key "=" $value ","  -}}
                {{- end -}}
