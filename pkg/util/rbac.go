@@ -173,7 +173,7 @@ func CreateOrUpdateClusterRole(client kubeclient.Interface, clusterRole *rbacv1.
 			return fmt.Errorf("unable to update RBAC clusterrole: %v", err)
 		}
 	}
-	klog.V(1).Infof("ClusterRole %s has been created or updated.", clusterRole.ObjectMeta.Name)
+	klog.V(1).Infof("ClusterRole %s has been created or updated.", clusterRole.Name)
 
 	return nil
 }
@@ -189,7 +189,7 @@ func CreateOrUpdateClusterRoleBinding(client kubeclient.Interface, clusterRoleBi
 			return fmt.Errorf("unable to update RBAC clusterrolebinding: %v", err)
 		}
 	}
-	klog.V(1).Infof("ClusterRoleBinding %s has been created or updated.", clusterRoleBinding.ObjectMeta.Name)
+	klog.V(1).Infof("ClusterRoleBinding %s has been created or updated.", clusterRoleBinding.Name)
 
 	return nil
 }
