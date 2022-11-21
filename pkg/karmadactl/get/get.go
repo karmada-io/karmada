@@ -53,8 +53,6 @@ var (
 	}
 	eventColumn = metav1.TableColumnDefinition{Name: "EVENT", Type: "string", Format: "", Priority: 0}
 
-	getShort = `Display one or many resources`
-
 	getLong = templates.LongDesc(`
 		Display one or many resources in member clusters.
 
@@ -97,7 +95,7 @@ func NewCmdGet(f util.Factory, parentCommand string, streams genericclioptions.I
 	o := NewCommandGetOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   "get [NAME | -l label | -n namespace]",
-		Short:                 getShort,
+		Short:                 "Display one or many resources",
 		Long:                  getLong,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,

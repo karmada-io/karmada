@@ -46,11 +46,11 @@ import (
 )
 
 var (
-	registerShort = `Register a cluster to Karmada control plane with PULL mode`
-	registerLong  = `Register a cluster to Karmada control plane with PULL mode.`
+	registerLong = templates.LongDesc(`
+		Register a cluster to Karmada control plane with Pull mode.`)
 
 	registerExample = templates.Examples(`
-		# Register cluster into karmada control plane with PULL mode.
+		# Register cluster into karmada control plane with Pull mode.
 		# If '--cluster-name' isn't specified, the cluster of current-context will be used by default.
 		%[1]s register [karmada-apiserver-endpoint] --cluster-name=<CLUSTER_NAME> --token=<TOKEN>  --discovery-token-ca-cert-hash=<CA-CERT-HASH>
 		
@@ -131,7 +131,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:                   "register [karmada-apiserver-endpoint]",
-		Short:                 registerShort,
+		Short:                 "Register a cluster to Karmada control plane with Pull mode",
 		Long:                  registerLong,
 		Example:               fmt.Sprintf(registerExample, parentCommand),
 		SilenceUsage:          true,

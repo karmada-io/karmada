@@ -11,6 +11,15 @@ import (
 )
 
 var (
+	addonsLong = templates.LongDesc(`
+		Enable or disable a Karmada addon.
+
+		These addons are currently supported: 
+		
+		1. karmada-descheduler
+		2. karmada-scheduler-estimator
+		3. karmada-search`)
+
 	addonsExamples = templates.Examples(`
 	# Enable or disable Karmada addons to the karmada-host cluster
 	%[1]s addons enable karmada-search
@@ -26,7 +35,7 @@ func NewCmdAddons(parentCommand string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "addons",
 		Short:   "Enable or disable a Karmada addon",
-		Long:    "Enable or disable a Karmada addon",
+		Long:    addonsLong,
 		Example: fmt.Sprintf(addonsExamples, parentCommand),
 		Annotations: map[string]string{
 			util.TagCommandGroup: util.GroupClusterRegistration,

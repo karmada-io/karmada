@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	joinShort = `Register a cluster to control plane`
-	joinLong  = `Join registers a cluster to control plane.`
+	joinLong = templates.LongDesc(`
+		Register a cluster to Karmada control plane with Push mode.`)
 
 	joinExample = templates.Examples(`
 		# Join cluster into karmada control plane, if '--cluster-context' not specified, take the cluster name as the context
@@ -35,7 +35,7 @@ func NewCmdJoin(f cmdutil.Factory, parentCommand string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:                   "join CLUSTER_NAME --cluster-kubeconfig=<KUBECONFIG>",
-		Short:                 joinShort,
+		Short:                 "Register a cluster to Karmada control plane with Push mode",
 		Long:                  joinLong,
 		Example:               fmt.Sprintf(joinExample, parentCommand),
 		SilenceUsage:          true,

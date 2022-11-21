@@ -22,6 +22,9 @@ const (
 )
 
 var (
+	deInitLong = templates.LongDesc(`
+		Remove the Karmada control plane from the Kubernetes cluster.`)
+
 	deInitExample = templates.Examples(`
 		# Remove Karmada from the Kubernetes cluster.
 		%[1]s deinit`)
@@ -46,8 +49,8 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 	opts := CommandDeInitOption{}
 	cmd := &cobra.Command{
 		Use:                   "deinit",
-		Short:                 "Removes Karmada from Kubernetes",
-		Long:                  "Removes Karmada from Kubernetes",
+		Short:                 "Remove the Karmada control plane from the Kubernetes cluster.",
+		Long:                  deInitLong,
 		Example:               fmt.Sprintf(deInitExample, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
