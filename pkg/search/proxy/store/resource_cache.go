@@ -16,7 +16,6 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/storage"
 	cacherstorage "k8s.io/apiserver/pkg/storage/cacher"
-	"k8s.io/apiserver/pkg/storage/etcd3"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
 	"k8s.io/apiserver/pkg/storage/storagebackend/factory"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -120,7 +119,7 @@ var (
 	restCreateStrategyForNamespaced = &simpleRESTCreateStrategy{namespaced: true}
 	restCreateStrategyForCluster    = &simpleRESTCreateStrategy{namespaced: false}
 	restDeleteStrategy              = &simpleRESTDeleteStrategy{RESTDeleteStrategy: runtime.NewScheme()}
-	defaultVersioner                = etcd3.APIObjectVersioner{}
+	defaultVersioner                = storage.APIObjectVersioner{}
 )
 
 type simpleRESTDeleteStrategy struct {

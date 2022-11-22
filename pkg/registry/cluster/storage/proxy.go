@@ -58,3 +58,9 @@ func (r *ProxyREST) Connect(ctx context.Context, id string, options runtime.Obje
 	}
 	return proxy.ConnectCluster(ctx, cluster, proxyOpts.Path, secretGetter, responder)
 }
+
+// Destroy cleans up its resources on shutdown.
+func (r *ProxyREST) Destroy() {
+	// Given no underlying store, so we don't
+	// need to destroy anything.
+}

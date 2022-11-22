@@ -92,3 +92,9 @@ func (r *SearchREST) Connect(ctx context.Context, id string, _ runtime.Object, r
 		return nil, fmt.Errorf("connect with unrecognized search category %s", id)
 	}
 }
+
+// Destroy cleans up its resources on shutdown.
+func (r *SearchREST) Destroy() {
+	// Given no underlying store, so we don't
+	// need to destroy anything.
+}

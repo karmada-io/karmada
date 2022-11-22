@@ -98,6 +98,12 @@ func (r *StandardREST) Watch(ctx context.Context, options *metainternalversion.L
 	return nil, nil
 }
 
+// Destroy cleans up its resources on shutdown.
+func (r *StandardREST) Destroy() {
+	// Given no underlying store, so we don't
+	// need to destroy anything.
+}
+
 // GroupVersionKind implement GroupVersionKind interface.
 func (r *StatusREST) GroupVersionKind(containingGV schema.GroupVersion) schema.GroupVersionKind {
 	return r.cfg.gvk
@@ -118,6 +124,12 @@ func (r *StatusREST) Get(ctx context.Context, name string, options *metav1.GetOp
 	return r.New(), nil
 }
 
+// Destroy cleans up its resources on shutdown.
+func (r *StatusREST) Destroy() {
+	// Given no underlying store, so we don't
+	// need to destroy anything.
+}
+
 // New returns an empty cluster proxy subresource.
 func (r *ProxyREST) New() runtime.Object {
 	return &clusterv1alpha1.ClusterProxyOptions{}
@@ -136,6 +148,12 @@ func (r *ProxyREST) NewConnectOptions() (runtime.Object, bool, string) {
 // Connect implement Connect interface.
 func (r *ProxyREST) Connect(ctx context.Context, id string, options runtime.Object, responder rest.Responder) (http.Handler, error) {
 	return nil, nil
+}
+
+// Destroy cleans up its resources on shutdown.
+func (r *ProxyREST) Destroy() {
+	// Given no underlying store, so we don't
+	// need to destroy anything.
 }
 
 // ResourceInfo is content of StandardREST.
