@@ -145,3 +145,8 @@ func (c *ConfigurableInterpreter) getInterpreter(kind schema.GroupVersionKind, o
 	}
 	return script, len(script) > 0
 }
+
+// LoadConfig loads and stores rules from customizations
+func (c *ConfigurableInterpreter) LoadConfig(customizations []*configv1alpha1.ResourceInterpreterCustomization) {
+	c.configManager.LoadConfig(customizations)
+}
