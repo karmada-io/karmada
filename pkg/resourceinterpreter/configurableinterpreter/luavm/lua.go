@@ -404,6 +404,25 @@ func (vm VM) GetDependencies(object *unstructured.Unstructured, script string) (
 	return
 }
 
+// NewWithContext creates a lua VM with the given context.
+func NewWithContext(ctx context.Context) (*lua.LState, error) {
+	vm := VM{}
+	l := lua.NewState(lua.Options{
+		SkipOpenLibs: !vm.UseOpenLibs,
+	})
+	// Opens table library to allow access to functions to manipulate tables
+	err := vm.setLib(l)
+	if err != nil {
+		return nil, err
+	}
+	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
+	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
+	if ctx != nil {
+		l.SetContext(ctx)
+	}
+	return l, nil
+}
+
 // nolint:gocyclo
 func decodeValue(L *lua.LState, value interface{}) (lua.LValue, error) {
 	// We handle simple type without json for better performance.
