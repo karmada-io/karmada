@@ -2,6 +2,7 @@ package configmanager
 
 import (
 	"fmt"
+	"sort"
 	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -82,17 +83,34 @@ func (configManager *interpreterConfigManager) updateConfiguration() {
 		utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))
 		return
 	}
-	configs := make(map[schema.GroupVersionKind]CustomAccessor, len(configurations))
 
-	for _, c := range configurations {
+	configs := make([]*configv1alpha1.ResourceInterpreterCustomization, len(configurations))
+	for index, c := range configurations {
 		config := &configv1alpha1.ResourceInterpreterCustomization{}
 		if err = helper.ConvertToTypedObject(c, config); err != nil {
 			klog.Errorf("Failed to transform ResourceInterpreterCustomization: %w", err)
 			return
 		}
-		key := schema.FromAPIVersionAndKind(config.Spec.Target.APIVersion, config.Spec.Target.Kind)
-		configs[key] = NewResourceCustomAccessorAccessor(config)
+		configs[index] = config
 	}
-	configManager.configuration.Store(configs)
+
+	sort.Slice(configs, func(i, j int) bool {
+		return configs[i].Name < configs[j].Name
+	})
+
+	accessors := make(map[schema.GroupVersionKind]CustomAccessor)
+	for _, config := range configs {
+		key := schema.FromAPIVersionAndKind(config.Spec.Target.APIVersion, config.Spec.Target.Kind)
+
+		var accessor CustomAccessor
+		var ok bool
+		if accessor, ok = accessors[key]; !ok {
+			accessor = NewResourceCustomAccessor()
+		}
+		accessor.Merge(config.Spec.Customizations)
+		accessors[key] = accessor
+	}
+
+	configManager.configuration.Store(accessors)
 	configManager.initialSynced.Store(true)
 }
