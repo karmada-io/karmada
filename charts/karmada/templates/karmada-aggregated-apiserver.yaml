@@ -15,7 +15,7 @@ spec:
   replicas: {{ .Values.aggregatedApiServer.replicaCount }}
   {{- with .Values.aggregatedApiServer.strategy }}
   strategy:
-  {{- toYaml . | nindent 8 }}
+  {{- toYaml . | nindent 4 }}
   {{- end }}
   template:
     metadata:
