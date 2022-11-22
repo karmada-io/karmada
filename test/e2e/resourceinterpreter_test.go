@@ -422,4 +422,190 @@ end`,
 			}
 		})
 	})
+
+	ginkgo.Context("InterpreterOperation Retain testing", func() {
+		var waitTime time.Duration
+		var updatedPaused bool
+
+		ginkgo.BeforeEach(func() {
+			waitTime = 5 * time.Second
+			updatedPaused = true
+			customization = testhelper.NewResourceInterpreterCustomization(
+				"interpreter-customization"+rand.String(RandomStrLength),
+				configv1alpha1.CustomizationTarget{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				configv1alpha1.CustomizationRules{
+					Retention: &configv1alpha1.LocalValueRetention{
+						LuaScript: `
+function Retain(desiredObj, observedObj)
+  desiredObj.spec.paused = observedObj.spec.paused
+  return desiredObj
+end`,
+					},
+				})
+		})
+
+		ginkgo.It("Retain testing", func() {
+			ginkgo.By("update deployment's spec.paused to true", func() {
+				clusterClient := framework.GetClusterClient(targetCluster)
+				gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+				var memberDeploy *appsv1.Deployment
+				framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						memberDeploy = deployment
+						return true
+					})
+				framework.UpdateDeploymentPaused(clusterClient, memberDeploy, updatedPaused)
+			})
+
+			// Wait executeController to reconcile then check if it is retained
+			time.Sleep(waitTime)
+			ginkgo.By("check if deployment's spec.paused is retained", func() {
+				gomega.Eventually(func(g gomega.Gomega) bool {
+					var memberDeployment *appsv1.Deployment
+					framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
+						func(deployment *appsv1.Deployment) bool {
+							memberDeployment = deployment
+							return true
+						})
+					return memberDeployment.Spec.Paused
+				}, pollTimeout, pollInterval).Should(gomega.Equal(updatedPaused))
+			})
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation AggregateStatus testing", func() {
+		ginkgo.BeforeEach(func() {
+			customization = testhelper.NewResourceInterpreterCustomization(
+				"interpreter-customization"+rand.String(RandomStrLength),
+				configv1alpha1.CustomizationTarget{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				configv1alpha1.CustomizationRules{
+					StatusAggregation: &configv1alpha1.StatusAggregation{
+						LuaScript: `
+function AggregateStatus(desiredObj, statusItems)
+	if statusItems == nil then
+		return desiredObj
+	end
+	if desiredObj.status == nil then
+		desiredObj.status = {}
+	end
+	replicas = 0
+	for i = 1, #statusItems do
+		if statusItems[i].status ~= nil and statusItems[i].status.replicas ~= nil  then
+			replicas = replicas + statusItems[i].status.replicas + 1
+		end 
+	end
+	desiredObj.status.replicas = replicas
+	return desiredObj
+end`,
+					},
+				})
+		})
+		ginkgo.It("AggregateStatus testing", func() {
+			ginkgo.By("check whether the deployment status can be correctly collected", func() {
+				// Only in the current case, a special example is constructed to distinguish the build-in logic.
+				wantedReplicas := *deployment.Spec.Replicas + 1
+				gomega.Eventually(func() bool {
+					var currentDeployment *appsv1.Deployment
+					framework.WaitDeploymentGetByClientFitWith(kubeClient, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool {
+						currentDeployment = deployment
+						return true
+					})
+					klog.Infof("deployment(%s/%s) replicas: %d, wanted replicas: %d", deployment.Namespace, deployment.Name, currentDeployment.Status.Replicas, wantedReplicas)
+					return currentDeployment.Status.Replicas == wantedReplicas
+				}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+			})
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation InterpretStatus testing", func() {
+		ginkgo.BeforeEach(func() {
+			customization = testhelper.NewResourceInterpreterCustomization(
+				"interpreter-customization"+rand.String(RandomStrLength),
+				configv1alpha1.CustomizationTarget{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				configv1alpha1.CustomizationRules{
+					StatusReflection: &configv1alpha1.StatusReflection{
+						LuaScript: `
+function ReflectStatus (observedObj)
+	if observedObj.status == nil then
+		return nil
+	end
+	return observedObj.status
+end`,
+					},
+				})
+		})
+		ginkgo.It("InterpretStatus testing", func() {
+			gomega.Eventually(func(g gomega.Gomega) bool {
+				deploy, err := kubeClient.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+				g.Expect(err).NotTo(gomega.HaveOccurred())
+				return deploy.Status.ReadyReplicas == *deploy.Spec.Replicas
+			}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation InterpretHealth testing", func() {
+		ginkgo.BeforeEach(func() {
+			customization = testhelper.NewResourceInterpreterCustomization(
+				"interpreter-customization"+rand.String(RandomStrLength),
+				configv1alpha1.CustomizationTarget{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				configv1alpha1.CustomizationRules{
+					HealthInterpretation: &configv1alpha1.HealthInterpretation{
+						LuaScript: `
+function InterpretHealth(observedObj)
+	return observedObj.status.readyReplicas == observedObj.spec.replicas
+end `,
+					},
+				})
+		})
+		ginkgo.It("InterpretHealth testing", func() {
+			resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+			SetReadyReplicas := func(readyReplicas int32) {
+				clusterClient := framework.GetClusterClient(targetCluster)
+				gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+				var memberDeployment *appsv1.Deployment
+				framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						memberDeployment = deployment
+						return true
+					})
+				memberDeployment.Status.ReadyReplicas = readyReplicas
+				framework.UpdateDeploymentStatus(clusterClient, memberDeployment)
+			}
+
+			CheckResult := func(result workv1alpha2.ResourceHealth) interface{} {
+				return func(g gomega.Gomega) (bool, error) {
+					rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(deployment.Namespace).Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
+					g.Expect(err).NotTo(gomega.HaveOccurred())
+					if len(rb.Status.AggregatedStatus) != 1 {
+						return false, nil
+					}
+					for _, status := range rb.Status.AggregatedStatus {
+						klog.Infof("resourceBinding(%s/%s) on cluster %s got %s, want %s ", deployment.Namespace, resourceBindingName, status.ClusterName, status.Health, result)
+						if status.Health != result {
+							return false, nil
+						}
+					}
+					return true, nil
+				}
+			}
+
+			ginkgo.By("deployment healthy", func() {
+				SetReadyReplicas(*deployment.Spec.Replicas)
+				gomega.Eventually(CheckResult(workv1alpha2.ResourceHealthy), pollTimeout, pollInterval).Should(gomega.BeTrue())
+			})
+		})
+	})
 })
