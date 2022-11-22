@@ -151,6 +151,9 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 		Annotations: map[string]string{
 			cmdutil.TagCommandGroup: cmdutil.GroupClusterRegistration,
 		},
+
+		// We accept the control-plane location as an required positional argument karmada apiserver endpoint
+		Args: cobra.ExactArgs(1),
 	}
 	flags := cmd.Flags()
 
@@ -238,9 +241,6 @@ type CommandRegisterOption struct {
 // Complete ensures that options are valid and marshals them if necessary.
 func (o *CommandRegisterOption) Complete(args []string) error {
 	// Get karmada apiserver endpoint from the command args.
-	if len(args) == 0 {
-		return fmt.Errorf("karmada apiserver endpoint is required")
-	}
 	o.BootstrapToken.APIServerEndpoint = args[0]
 
 	restConfig, err := apiclient.RestConfig(o.Context, o.KubeConfig)
