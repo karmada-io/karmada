@@ -421,7 +421,23 @@ var XDescribe = PDescribe
 var Context, FContext, PContext, XContext = Describe, FDescribe, PDescribe, XDescribe
 
 /* When is an alias for Describe - it generates the exact same kind of Container node */
-var When, FWhen, PWhen, XWhen = Describe, FDescribe, PDescribe, XDescribe
+func When(text string, args ...interface{}) bool {
+	return pushNode(internal.NewNode(deprecationTracker, types.NodeTypeContainer, "when "+text, args...))
+}
+
+/* When is an alias for Describe - it generates the exact same kind of Container node */
+func FWhen(text string, args ...interface{}) bool {
+	args = append(args, internal.Focus)
+	return pushNode(internal.NewNode(deprecationTracker, types.NodeTypeContainer, "when "+text, args...))
+}
+
+/* When is an alias for Describe - it generates the exact same kind of Container node */
+func PWhen(text string, args ...interface{}) bool {
+	args = append(args, internal.Pending)
+	return pushNode(internal.NewNode(deprecationTracker, types.NodeTypeContainer, "when "+text, args...))
+}
+
+var XWhen = PWhen
 
 /*
 It nodes are Subject nodes that contain your spec code and assertions.
@@ -614,7 +630,7 @@ func JustAfterEach(args ...interface{}) bool {
 }
 
 /*
-BeforeAll nodes are Setup nodes that can occur inside Ordered contaienrs.  They run just once before any specs in the Ordered container run.
+BeforeAll nodes are Setup nodes that can occur inside Ordered containers.  They run just once before any specs in the Ordered container run.
 
 Multiple BeforeAll nodes can be defined in a given Ordered container however they cannot be nested inside any other container.
 
@@ -627,7 +643,7 @@ func BeforeAll(args ...interface{}) bool {
 }
 
 /*
-AfterAll nodes are Setup nodes that can occur inside Ordered contaienrs.  They run just once after all specs in the Ordered container have run.
+AfterAll nodes are Setup nodes that can occur inside Ordered containers.  They run just once after all specs in the Ordered container have run.
 
 Multiple AfterAll nodes can be defined in a given Ordered container however they cannot be nested inside any other container.
 
