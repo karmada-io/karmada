@@ -30,10 +30,13 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 	}
 
 	// Set default namespace for all resource selector if not set.
+	// We need to get the default namespace from the request because for kube-apiserver < v1.24,
+	// the namespace of the object with namespace unset in the mutating webook chain of a create request
+	// is not populated yet. See https://github.com/kubernetes/kubernetes/pull/94637 for more details.
 	for i := range policy.Spec.ResourceSelectors {
 		if len(policy.Spec.ResourceSelectors[i].Namespace) == 0 {
-			klog.Infof("Setting resource selector default namespace for policy: %s/%s", policy.Namespace, policy.Name)
-			policy.Spec.ResourceSelectors[i].Namespace = policy.Namespace
+			klog.Infof("Setting resource selector default namespace for policy: %s/%s", req.Namespace, policy.Name)
+			policy.Spec.ResourceSelectors[i].Namespace = req.Namespace
 		}
 	}
 
