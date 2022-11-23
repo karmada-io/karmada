@@ -61,17 +61,18 @@ type Descheduler struct {
 func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts *options.Options) *Descheduler {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	desched := &Descheduler{
-		KarmadaClient:           karmadaClient,
-		KubeClient:              kubeClient,
-		informerFactory:         factory,
-		bindingInformer:         factory.Work().V1alpha2().ResourceBindings().Informer(),
-		bindingLister:           factory.Work().V1alpha2().ResourceBindings().Lister(),
-		clusterInformer:         factory.Cluster().V1alpha1().Clusters().Informer(),
-		clusterLister:           factory.Cluster().V1alpha1().Clusters().Lister(),
-		schedulerEstimatorCache: estimatorclient.NewSchedulerEstimatorCache(),
-		schedulerEstimatorPort:  opts.SchedulerEstimatorPort,
-		unschedulableThreshold:  opts.UnschedulableThreshold.Duration,
-		deschedulingInterval:    opts.DeschedulingInterval.Duration,
+		KarmadaClient:                   karmadaClient,
+		KubeClient:                      kubeClient,
+		informerFactory:                 factory,
+		bindingInformer:                 factory.Work().V1alpha2().ResourceBindings().Informer(),
+		bindingLister:                   factory.Work().V1alpha2().ResourceBindings().Lister(),
+		clusterInformer:                 factory.Cluster().V1alpha1().Clusters().Informer(),
+		clusterLister:                   factory.Cluster().V1alpha1().Clusters().Lister(),
+		schedulerEstimatorCache:         estimatorclient.NewSchedulerEstimatorCache(),
+		schedulerEstimatorPort:          opts.SchedulerEstimatorPort,
+		schedulerEstimatorServicePrefix: opts.SchedulerEstimatorServicePrefix,
+		unschedulableThreshold:          opts.UnschedulableThreshold.Duration,
+		deschedulingInterval:            opts.DeschedulingInterval.Duration,
 	}
 	// ignore the error here because the informers haven't been started
 	_ = desched.bindingInformer.SetTransform(fedinformer.StripUnusedFields)
