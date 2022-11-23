@@ -70,3 +70,9 @@ func (r *ProxyingREST) Connect(ctx context.Context, _ string, _ runtime.Object, 
 	klog.V(4).Infof("ProxyingREST connect %v", proxyPath)
 	return r.ctl.Connect(ctx, proxyPath, responder)
 }
+
+// Destroy cleans up its resources on shutdown.
+func (r *ProxyingREST) Destroy() {
+	// Given no underlying store, so we don't
+	// need to destroy anything.
+}

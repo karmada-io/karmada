@@ -79,7 +79,7 @@ func NewCmdApply(f util.Factory, parentCommand string, streams genericclioptions
 			if err := o.Complete(f, cmd, parentCommand, args); err != nil {
 				return err
 			}
-			if err := o.Validate(cmd, args); err != nil {
+			if err := o.Validate(); err != nil {
 				return err
 			}
 			return o.Run()
@@ -115,7 +115,7 @@ func (o *CommandApplyOptions) Complete(f util.Factory, cmd *cobra.Command, paren
 }
 
 // Validate verifies if CommandApplyOptions are valid and without conflicts.
-func (o *CommandApplyOptions) Validate(cmd *cobra.Command, args []string) error {
+func (o *CommandApplyOptions) Validate() error {
 	if o.AllClusters && len(o.Clusters) > 0 {
 		return fmt.Errorf("--all-clusters and --cluster cannot be used together")
 	}
@@ -136,7 +136,7 @@ func (o *CommandApplyOptions) Validate(cmd *cobra.Command, args []string) error 
 		}
 		return utilerrors.NewAggregate(errs)
 	}
-	return o.kubectlApplyOptions.Validate(cmd, args)
+	return o.kubectlApplyOptions.Validate()
 }
 
 // Run executes the `apply` command.

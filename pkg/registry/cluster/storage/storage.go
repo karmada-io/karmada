@@ -128,3 +128,9 @@ func (r *StatusREST) Update(ctx context.Context, name string, objInfo rest.Updat
 func (r *StatusREST) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 	return r.store.GetResetFields()
 }
+
+// Destroy cleans up its resources on shutdown.
+func (r *StatusREST) Destroy() {
+	// Given that underlying 'store' is shared with REST,
+	// we don't have anything else need to be destroyed.
+}
