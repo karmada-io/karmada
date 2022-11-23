@@ -336,21 +336,22 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 })
 
 /*
-	ReplicaScheduling focus on dealing with the number of replicas testing when propagating resources that have replicas
-	in spec (e.g. deployments, statefulsets) to member clusters with ReplicaSchedulingStrategy.
-	Test Case Overview:
-		Case 1:
-			`ReplicaSchedulingType` value is `Duplicated`.
-		Case 2:
-			`ReplicaSchedulingType` value is `Duplicated`, trigger rescheduling when replicas have changed.
-		Case 3:
-			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` is nil.
-		Case 4:
-			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` is nil, trigger rescheduling when replicas have changed.
-		Case 5:
-			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` isn't nil.
-		Case 6:
-			`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` isn't nil, trigger rescheduling when replicas have changed.
+ReplicaScheduling focus on dealing with the number of replicas testing when propagating resources that have replicas
+in spec (e.g. deployments, statefulsets) to member clusters with ReplicaSchedulingStrategy.
+Test Case Overview:
+
+	Case 1:
+		`ReplicaSchedulingType` value is `Duplicated`.
+	Case 2:
+		`ReplicaSchedulingType` value is `Duplicated`, trigger rescheduling when replicas have changed.
+	Case 3:
+		`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` is nil.
+	Case 4:
+		`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` is nil, trigger rescheduling when replicas have changed.
+	Case 5:
+		`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` isn't nil.
+	Case 6:
+		`ReplicaSchedulingType` value is `Divided`, `ReplicaDivisionPreference` value is `Weighted`, `WeightPreference` isn't nil, trigger rescheduling when replicas have changed.
 */
 var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing", func() {
 	var policyNamespace, policyName string

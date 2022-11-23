@@ -447,6 +447,7 @@ func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
 }
 
 // tryUpdateClusterHealth checks a given cluster's conditions and tries to update it.
+//
 //nolint:gocyclo
 func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *clusterv1alpha1.Cluster) (*metav1.Condition, *metav1.Condition, error) {
 	// Step 1: Get the last cluster heath from `clusterHealthMap`.
