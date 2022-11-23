@@ -200,7 +200,7 @@ if [ "${HOST_CLUSTER_TYPE}" = "remote" ]; then
       KARMADA_APISERVER_IP=$(kubectl --context="${HOST_CLUSTER_NAME}" get pod -l app=karmada-apiserver -n "${KARMADA_SYSTEM_NAMESPACE}" -o=jsonpath='{.items[0].status.podIP}')
     ;;
     LoadBalancer)
-      if util::wait_service_external_ip "karmada-apiserver" "karmada-apiserver" "${KARMADA_SYSTEM_NAMESPACE}"; then
+      if util::wait_service_external_ip "${HOST_CLUSTER_NAME}" "karmada-apiserver" "${KARMADA_SYSTEM_NAMESPACE}"; then
         echo "Get service external IP: ${SERVICE_EXTERNAL_IP}, wait to check network connectivity"
         KARMADA_APISERVER_IP=$(util::get_load_balancer_ip) || KARMADA_APISERVER_IP=''
       else

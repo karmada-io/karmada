@@ -521,13 +521,15 @@ function util::wait_service_external_ip() {
   local tmp
   for tmp in {1..30}; do
     set +e
+    ## if .status.loadBalancer does not have `ingress` field, return "".
+    ## if .status.loadBalancer has `ingress` field but one of `ingress` field does not have `hostname` or `ip` field, return "<no value>".
     external_host=$(kubectl --context="$context_name" get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.hostname}} {{end}}" | xargs)
     external_ip=$(kubectl --context="$context_name" get service "${service_name}" -n "${namespace}" --template="{{range .status.loadBalancer.ingress}}{{.ip}} {{end}}" | xargs)
     set -e
-    if [[ ! -z "$external_host" ]]; then # Compatibility with hostname, such as AWS
+    if [[ ! -z "$external_host" && "$external_host" != "<no value>" ]]; then # Compatibility with hostname, such as AWS
       external_ip=$external_host
     fi
-    if [[ -z "$external_ip" ]]; then
+    if [[ -z "$external_ip" || "$external_ip" = "<no value>" ]]; then
       echo "wait the external ip of ${service_name} ready..."
       sleep 6
       continue
