@@ -77,3 +77,11 @@ const (
 	// EventReasonApplyOverridePolicySucceed indicates that apply override policy succeed.
 	EventReasonApplyOverridePolicySucceed = "ApplyOverridePolicySucceed"
 )
+
+// Define events for ServiceImport objects.
+const (
+	// EventReasonSyncDerivedServiceSucceed indicates that sync derived service succeed.
+	EventReasonSyncDerivedServiceSucceed = "SyncDerivedServiceSucceed"
+	// EventReasonSyncDerivedServiceFailed indicates that sync derived service failed.
+	EventReasonSyncDerivedServiceFailed = "SyncDerivedServiceFailed"
+)

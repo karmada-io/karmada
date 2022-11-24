@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -43,7 +44,12 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{}, nil
 	}
 
-	return c.deriveServiceFromServiceImport(svcImport)
+	if err := c.deriveServiceFromServiceImport(svcImport); err != nil {
+		c.EventRecorder.Eventf(svcImport, corev1.EventTypeWarning, events.EventReasonSyncDerivedServiceFailed, err.Error())
+		return controllerruntime.Result{Requeue: true}, err
+	}
+	c.EventRecorder.Eventf(svcImport, corev1.EventTypeNormal, events.EventReasonSyncDerivedServiceSucceed, "Sync derived service for serviceImport(%s) succeed.", svcImport.Name)
+	return controllerruntime.Result{}, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -75,7 +81,7 @@ func (c *ServiceImportController) deleteDerivedService(svcImport types.Namespace
 	return controllerruntime.Result{}, nil
 }
 
-func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv1alpha1.ServiceImport) (controllerruntime.Result, error) {
+func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv1alpha1.ServiceImport) error {
 	newDerivedService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: svcImport.Namespace,
@@ -96,13 +102,13 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 		if apierrors.IsNotFound(err) {
 			if err = c.Client.Create(context.TODO(), newDerivedService); err != nil {
 				klog.Errorf("Create derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
-				return controllerruntime.Result{Requeue: true}, err
+				return err
 			}
 
 			return c.updateServiceStatus(svcImport, newDerivedService)
 		}
 
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
 
 	// retain necessary fields with old service
@@ -111,14 +117,14 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 	err = c.Client.Update(context.TODO(), newDerivedService)
 	if err != nil {
 		klog.Errorf("Update derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
 
 	return c.updateServiceStatus(svcImport, newDerivedService)
 }
 
 // updateServiceStatus update loadbalanacer status with provided clustersetIPs
-func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.ServiceImport, derivedService *corev1.Service) (controllerruntime.Result, error) {
+func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.ServiceImport, derivedService *corev1.Service) error {
 	ingress := make([]corev1.LoadBalancerIngress, 0)
 	for _, ip := range svcImport.Spec.IPs {
 		ingress = append(ingress, corev1.LoadBalancerIngress{
@@ -149,9 +155,9 @@ func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.Ser
 
 	if err != nil {
 		klog.Errorf("Update derived service(%s/%s) status failed, Error: %v", derivedService.Namespace, derivedService.Name, err)
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
-	return controllerruntime.Result{}, nil
+	return nil
 }
 
 func servicePorts(svcImport *mcsv1alpha1.ServiceImport) []corev1.ServicePort {
