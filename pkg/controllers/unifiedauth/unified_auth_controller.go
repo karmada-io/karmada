@@ -265,8 +265,9 @@ func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
 }
 
 // found out which clusters need to sync impersonation config from rules like:
-//   resources: ["cluster/proxy"]
-//   resourceNames: ["cluster1", "cluster2"]
+//
+//	resources: ["cluster/proxy"]
+//	resourceNames: ["cluster1", "cluster2"]
 func (c *Controller) generateRequestsFromClusterRole(clusterRole *rbacv1.ClusterRole) []reconcile.Request {
 	var requests []reconcile.Request
 	for i := range clusterRole.Rules {

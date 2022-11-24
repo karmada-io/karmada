@@ -16,10 +16,10 @@ const (
 // is usually part of a help message. E.g.:
 //
 // Available Commands:
-//   karmada-controller-manager completion                      generate the autocompletion script for the specified shell
-//   karmada-controller-manager help                            Help about any command
-//   karmada-controller-manager version                         Print the version information.
 //
+//	karmada-controller-manager completion                      generate the autocompletion script for the specified shell
+//	karmada-controller-manager help                            Help about any command
+//	karmada-controller-manager version                         Print the version information.
 func generatesAvailableSubCommands(cmd *cobra.Command) []string {
 	if !cmd.HasAvailableSubCommands() {
 		return nil

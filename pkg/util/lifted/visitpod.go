@@ -103,6 +103,7 @@ func VisitContainers(podSpec *corev1.PodSpec, mask ContainerType, visitor Contai
 // referenced by the pod spec. If visitor returns false, visiting is short-circuited.
 // Transitive references (e.g. pod -> pvc -> pv -> secret) are not visited.
 // Returns true if visiting completed, false if visiting was short-circuited.
+//
 //nolint:gocyclo
 func VisitPodSecretNames(pod *corev1.Pod, visitor Visitor) bool {
 	visitor = skipEmptyNames(visitor)

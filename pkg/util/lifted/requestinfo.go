@@ -66,6 +66,7 @@ var grouplessAPIPrefixes = sets.NewString("api")
 // /api
 // /healthz
 // /
+//
 //nolint:gocyclo
 func NewRequestInfo(req *http.Request) *apirequest.RequestInfo {
 	// start with a non-resource request until proven otherwise

@@ -14,6 +14,7 @@ import (
 )
 
 // ParsingJobStatus generates new status of given 'AggregatedStatusItem'.
+//
 //nolint:gocyclo
 func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusItem) (*batchv1.JobStatus, error) {
 	var jobFailed []string
