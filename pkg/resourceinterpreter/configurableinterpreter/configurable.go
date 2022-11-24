@@ -17,6 +17,7 @@ import (
 type ConfigurableInterpreter struct {
 	// configManager caches all ResourceInterpreterCustomizations.
 	configManager configmanager.ConfigManager
+	luaVM         *luavm.VM
 }
 
 // NewConfigurableInterpreter builds a new interpreter by registering the
@@ -24,6 +25,8 @@ type ConfigurableInterpreter struct {
 func NewConfigurableInterpreter(informer genericmanager.SingleClusterInformerManager) *ConfigurableInterpreter {
 	return &ConfigurableInterpreter{
 		configManager: configmanager.NewInterpreterConfigManager(informer),
+		// TODO: set an appropriate pool size.
+		luaVM: luavm.New(false, 10),
 	}
 }
 
@@ -40,8 +43,7 @@ func (c *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured)
 	if !enabled {
 		return
 	}
-	vm := luavm.VM{UseOpenLibs: false}
-	replicas, requires, err = vm.GetReplicas(object, luaScript)
+	replicas, requires, err = c.luaVM.GetReplicas(object, luaScript)
 	return
 }
 
@@ -52,8 +54,7 @@ func (c *ConfigurableInterpreter) ReviseReplica(object *unstructured.Unstructure
 	if !enabled {
 		return
 	}
-	vm := luavm.VM{UseOpenLibs: false}
-	revised, err = vm.ReviseReplica(object, replica, luaScript)
+	revised, err = c.luaVM.ReviseReplica(object, replica, luaScript)
 	return
 }
 
@@ -64,8 +65,7 @@ func (c *ConfigurableInterpreter) Retain(desired *unstructured.Unstructured, obs
 	if !enabled {
 		return
 	}
-	vm := luavm.VM{UseOpenLibs: false}
-	retained, err = vm.Retain(desired, observed, luaScript)
+	retained, err = c.luaVM.Retain(desired, observed, luaScript)
 	return
 }
 
@@ -76,8 +76,7 @@ func (c *ConfigurableInterpreter) AggregateStatus(object *unstructured.Unstructu
 	if !enabled {
 		return
 	}
-	vm := luavm.VM{UseOpenLibs: false}
-	status, err = vm.AggregateStatus(object, aggregatedStatusItems, luaScript)
+	status, err = c.luaVM.AggregateStatus(object, aggregatedStatusItems, luaScript)
 	return
 }
 
@@ -88,8 +87,7 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 	if !enabled {
 		return
 	}
-	vm := luavm.VM{UseOpenLibs: false}
-	dependencies, err = vm.GetDependencies(object, luaScript)
+	dependencies, err = c.luaVM.GetDependencies(object, luaScript)
 	return
 }
 
@@ -100,8 +98,7 @@ func (c *ConfigurableInterpreter) ReflectStatus(object *unstructured.Unstructure
 	if !enabled {
 		return
 	}
-	vm := luavm.VM{UseOpenLibs: false}
-	status, err = vm.ReflectStatus(object, luaScript)
+	status, err = c.luaVM.ReflectStatus(object, luaScript)
 	return
 }
 
@@ -112,8 +109,7 @@ func (c *ConfigurableInterpreter) InterpretHealth(object *unstructured.Unstructu
 	if !enabled {
 		return
 	}
-	vm := luavm.VM{UseOpenLibs: false}
-	health, err = vm.InterpretHealth(object, luaScript)
+	health, err = c.luaVM.InterpretHealth(object, luaScript)
 	return
 }
 
