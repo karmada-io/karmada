@@ -139,7 +139,7 @@ func (e *workloadInterpreter) responseWithExploreInterpretStatus(workload *workl
 
 	res := interpreter.Succeeded("")
 	res.RawStatus = &runtime.RawExtension{
-		Raw:    marshaledBytes,
+		Raw: marshaledBytes,
 	}
 
 	return res
