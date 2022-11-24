@@ -249,6 +249,8 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 	}
 
 	if len(o.ClusterName) == 0 {
+		o.KubeConfig = apiclient.KubeConfigPath(o.KubeConfig)
+
 		configBytes, err := os.ReadFile(o.KubeConfig)
 		if err != nil {
 			return fmt.Errorf("failed to read kubeconfig file %s, err: %w", o.KubeConfig, err)

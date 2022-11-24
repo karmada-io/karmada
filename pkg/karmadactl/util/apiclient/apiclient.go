@@ -24,6 +24,23 @@ var (
 `)
 )
 
+// KubeConfigPath is to return kubeconfig file path in the following order:
+// 1. Via the command-line flag --kubeconfig
+// 2. Via the KUBECONFIG environment variable
+// 3. In your home directory as ~/.kube/config
+func KubeConfigPath(kubeconfigPath string) string {
+	if kubeconfigPath == "" {
+		env := os.Getenv("KUBECONFIG")
+		if env != "" {
+			kubeconfigPath = env
+		} else {
+			kubeconfigPath = defaultKubeConfig
+		}
+	}
+
+	return kubeconfigPath
+}
+
 // RestConfig is to create a rest config from the context and kubeconfig passed as arguments.
 func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
 	if kubeconfigPath == "" {
@@ -34,7 +51,6 @@ func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
 			kubeconfigPath = defaultKubeConfig
 		}
 	}
-
 	if !Exists(kubeconfigPath) {
 		return nil, ErrEmptyConfig
 	}
