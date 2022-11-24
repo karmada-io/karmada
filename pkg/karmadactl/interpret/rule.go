@@ -237,7 +237,7 @@ func (h *healthInterpretationRule) Name() string {
 
 func (h *healthInterpretationRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
 	if c.Spec.Customizations.HealthInterpretation != nil {
-		return c.Spec.Customizations.Retention.LuaScript
+		return c.Spec.Customizations.HealthInterpretation.LuaScript
 	}
 	return ""
 }
@@ -278,7 +278,7 @@ func (d *dependencyInterpretationRule) Name() string {
 
 func (d *dependencyInterpretationRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
 	if c.Spec.Customizations.DependencyInterpretation != nil {
-		return c.Spec.Customizations.Retention.LuaScript
+		return c.Spec.Customizations.DependencyInterpretation.LuaScript
 	}
 	return ""
 }
