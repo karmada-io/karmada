@@ -2,13 +2,11 @@ package util
 
 import (
 	"context"
-	"fmt"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclient "k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 )
 
 // IsClusterRoleExist tells if specific ClusterRole already exists.
@@ -160,36 +158,4 @@ func GenerateImpersonationRules(allSubjects []rbacv1.Subject) []rbacv1.PolicyRul
 	}
 
 	return rules
-}
-
-// CreateOrUpdateClusterRole creates a ClusterRole if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateClusterRole(client kubeclient.Interface, clusterRole *rbacv1.ClusterRole) error {
-	if _, err := client.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create RBAC clusterrole: %v", err)
-		}
-
-		if _, err := client.RbacV1().ClusterRoles().Update(context.TODO(), clusterRole, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update RBAC clusterrole: %v", err)
-		}
-	}
-	klog.V(1).Infof("ClusterRole %s has been created or updated.", clusterRole.Name)
-
-	return nil
-}
-
-// CreateOrUpdateClusterRoleBinding creates a ClusterRoleBinding if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateClusterRoleBinding(client kubeclient.Interface, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
-	if _, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create RBAC clusterrolebinding: %v", err)
-		}
-
-		if _, err := client.RbacV1().ClusterRoleBindings().Update(context.TODO(), clusterRoleBinding, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update RBAC clusterrolebinding: %v", err)
-		}
-	}
-	klog.V(1).Infof("ClusterRoleBinding %s has been created or updated.", clusterRoleBinding.Name)
-
-	return nil
 }

@@ -48,6 +48,8 @@ func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) er
 			return fmt.Errorf("unable to update Secret: %v", err)
 		}
 	}
+	klog.V(2).Infof("Secret %s/%s has been created or updated.", secret.Namespace, secret.Name)
+
 	return nil
 }
 
@@ -70,6 +72,8 @@ func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deploy
 			return fmt.Errorf("unable to update Deployment: %v", err)
 		}
 	}
+	klog.V(2).Infof("Deployment %s/%s has been created or updated.", deploy.Namespace, deploy.Name)
+
 	return nil
 }
 
@@ -86,7 +90,7 @@ func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apise
 			return err
 		}
 
-		apiservice.ObjectMeta.ResourceVersion = existAPIService.ObjectMeta.ResourceVersion
+		apiservice.ResourceVersion = existAPIService.ResourceVersion
 
 		if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), apiservice, metav1.UpdateOptions{}); err != nil {
 			return fmt.Errorf("unable to update APIService: %v", err)

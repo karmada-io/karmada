@@ -26,20 +26,6 @@ func CreateServiceAccount(client kubeclient.Interface, saObj *corev1.ServiceAcco
 	return saObj, nil
 }
 
-// IsServiceAccountExist tells if specific service account already exists.
-func IsServiceAccountExist(client kubeclient.Interface, namespace string, name string) (bool, error) {
-	_, err := client.CoreV1().ServiceAccounts(namespace).Get(context.Background(), name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
 // DeleteServiceAccount just try to delete the ServiceAccount.
 func DeleteServiceAccount(client kubeclient.Interface, namespace, name string) error {
 	err := client.CoreV1().ServiceAccounts(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
@@ -53,14 +39,6 @@ func DeleteServiceAccount(client kubeclient.Interface, namespace, name string) e
 // If service account not exit, just create it.
 func EnsureServiceAccountExist(client kubeclient.Interface, serviceAccountObj *corev1.ServiceAccount, dryRun bool) (*corev1.ServiceAccount, error) {
 	if dryRun {
-		return serviceAccountObj, nil
-	}
-
-	exist, err := IsServiceAccountExist(client, serviceAccountObj.Namespace, serviceAccountObj.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check if service account exist. service account: %s/%s, error: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
-	}
-	if exist {
 		return serviceAccountObj, nil
 	}
 
