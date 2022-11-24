@@ -1,24 +1,12 @@
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
-LDFLAGS='$(shell hack/version.sh)'
+VERSION ?= '$(shell hack/version.sh)'
 
 # Images management
 REGISTRY?="docker.io/karmada"
 REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
-
-# Set your version by env or using latest tags from git
-VERSION?=""
-ifeq ($(VERSION), "")
-    LATEST_TAG=$(shell git describe --tags)
-    ifeq ($(LATEST_TAG),)
-        # Forked repo may not sync tags from upstream, so give it a default tag to make CI happy.
-        VERSION="unknown"
-    else
-        VERSION=$(LATEST_TAG)
-    endif
-endif
 
 TARGETS := karmada-aggregated-apiserver \
 			karmada-controller-manager \
@@ -50,7 +38,7 @@ all: $(CMD_TARGET)
 
 .PHONY: $(CMD_TARGET)
 $(CMD_TARGET):
-	LDFLAGS=$(LDFLAGS) BUILD_PLATFORMS=$(GOOS)/$(GOARCH) hack/build.sh $@
+	BUILD_PLATFORMS=$(GOOS)/$(GOARCH) hack/build.sh $@
 
 # Build image.
 #
