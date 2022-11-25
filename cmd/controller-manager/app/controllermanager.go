@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
@@ -43,6 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
@@ -153,6 +155,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 		klog.Errorf("failed to add health check endpoint: %v", err)
 		return err
 	}
+
+	crtlmetrics.Registry.MustRegister(metrics.ClusterCollectors()...)
 
 	setupControllers(controllerManager, opts, ctx.Done())
 
