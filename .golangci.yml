@@ -13,10 +13,12 @@ run:
   # on Windows.
   skip-dirs:
   - hack/tools/preferredimports # This code is directly lifted from the Kubernetes codebase, skip checking
+  - (^|/)vendor($|/)
+  - (^|/)third_party($|/)
 
   # default is true. Enables skipping of directories:
   #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
-  skip-dirs-use-default: true
+  skip-dirs-use-default: false
 
   # One of 'readonly' and 'vendor'.
   #  - readonly: the go command is disallowed from the implicit automatic updating of go.mod described above.
