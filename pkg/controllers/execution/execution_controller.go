@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,6 +23,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -110,7 +112,9 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 }
 
 func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+	start := time.Now()
 	err := c.syncToClusters(clusterName, work)
+	metrics.ObserveSyncWorkloadLatency(work.ObjectMeta, err, start)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, clusterName, err)
 		klog.Errorf(msg)

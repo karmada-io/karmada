@@ -30,6 +30,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -369,9 +370,11 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
 func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) (err error) {
+	start := time.Now()
 	klog.Infof("Applying policy(%s%s) for object: %s", policy.Namespace, policy.Name, objectKey)
 	var operationResult controllerutil.OperationResult
 	defer func() {
+		metrics.ObserveApplyPolicyAttemptAndLatency(object, policy.ObjectMeta, err, start)
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, events.EventReasonApplyPolicyFailed, "Apply policy(%s/%s) failed: %v", policy.Namespace, policy.Name, err)
 		} else if operationResult != controllerutil.OperationResultNone {
@@ -430,13 +433,15 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 
 // ApplyClusterPolicy starts propagate the object referenced by object key according to ClusterPropagationPolicy.
 func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
+	start := time.Now()
 	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
 	var operationResult controllerutil.OperationResult
 	defer func() {
+		metrics.ObserveApplyPolicyAttemptAndLatency(object, policy.ObjectMeta, err, start)
 		if err != nil {
 			d.EventRecorder.Eventf(object, corev1.EventTypeWarning, events.EventReasonApplyPolicyFailed, "Apply cluster policy(%s) failed: %v", policy.Name, err)
 		} else if operationResult != controllerutil.OperationResultNone {
-			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, events.EventReasonApplyPolicySucceed, "Apply cluster policy(%s/%s) succeed", policy.Name)
+			d.EventRecorder.Eventf(object, corev1.EventTypeNormal, events.EventReasonApplyPolicySucceed, "Apply cluster policy(%s) succeed", policy.Name)
 		}
 	}()
 
