@@ -53,6 +53,18 @@ func TestValidateCluster(t *testing.T) {
 			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, ProxyURL: "^Invalid"}},
 			expectError: true,
 		},
+		"invalid provider": {
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Provider: "Invalid Provider"}},
+			expectError: true,
+		},
+		"invalid region": {
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Region: "Invalid Region"}},
+			expectError: true,
+		},
+		"invalid zone": {
+			cluster:     api.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Spec: api.ClusterSpec{SyncMode: api.Push, Provider: "Invalid Zone"}},
+			expectError: true,
+		},
 		"unsupported taint effect": {
 			cluster: api.Cluster{
 				ObjectMeta: metav1.ObjectMeta{Name: "foo"},

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"strings"
 
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -91,6 +92,8 @@ func ValidateClusterSpec(spec *api.ClusterSpec, fldPath *field.Path) field.Error
 		allErrs = append(allErrs, ValidateClusterProxyURL(fldPath.Child("proxyURL"), spec.ProxyURL)...)
 	}
 
+	allErrs = append(allErrs, validateClusterSpecForFieldSelector(spec, fldPath)...)
+
 	if len(spec.Taints) > 0 {
 		allErrs = append(allErrs, lifted.ValidateClusterTaints(spec.Taints, fldPath.Child("taints"))...)
 	}
@@ -141,6 +144,21 @@ func ValidateClusterProxyURL(fldPath *field.Path, proxyURL string) field.ErrorLi
 		default:
 			allErrs = append(allErrs, field.Invalid(fldPath, proxyURL, fmt.Sprintf("unsupported scheme %q, must be http, https, or socks5", u.Scheme)))
 		}
+	}
+	return allErrs
+}
+
+// validateClusterSpecForFieldSelector validates cluster's field value.
+func validateClusterSpecForFieldSelector(spec *api.ClusterSpec, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if errs := kubevalidation.IsValidLabelValue(spec.Provider); len(errs) != 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("provider"), spec.Provider, strings.Join(errs, "; ")))
+	}
+	if errs := kubevalidation.IsValidLabelValue(spec.Region); len(errs) != 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("region"), spec.Region, strings.Join(errs, "; ")))
+	}
+	if errs := kubevalidation.IsValidLabelValue(spec.Zone); len(errs) != 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("zone"), spec.Zone, strings.Join(errs, "; ")))
 	}
 	return allErrs
 }
