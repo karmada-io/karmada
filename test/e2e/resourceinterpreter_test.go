@@ -22,6 +22,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -81,41 +82,37 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 	})
 
 	ginkgo.Context("InterpreterOperation Retain testing", func() {
-		var waitTime time.Duration
-		var updatedPaused bool
-
-		ginkgo.BeforeEach(func() {
-			waitTime = 5 * time.Second
-			updatedPaused = true
-
-			policy.Spec.Placement.ClusterAffinity.ClusterNames = framework.ClusterNames()
-		})
-
 		ginkgo.It("Retain testing", func() {
-			ginkgo.By("update workload's spec.paused to true", func() {
-				for _, cluster := range framework.ClusterNames() {
-					clusterDynamicClient := framework.GetClusterDynamicClient(cluster)
-					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
-
-					memberWorkload := framework.GetWorkload(clusterDynamicClient, workloadNamespace, workloadName)
-					memberWorkload.Spec.Paused = updatedPaused
-					framework.UpdateWorkload(clusterDynamicClient, memberWorkload, cluster)
+			ginkgo.By("wait workload exist on the member clusters", func() {
+				for _, clusterName := range framework.ClusterNames() {
+					framework.WaitWorkloadPresentOnClusterFitWith(clusterName, workload.Namespace, workload.Name,
+						func(_ *workloadv1alpha1.Workload) bool {
+							return true
+						})
 				}
 			})
 
-			// Wait executeController to reconcile then check if it is retained
-			time.Sleep(waitTime)
+			ginkgo.By("update workload on the control plane", func() {
+				gomega.Eventually(func(g gomega.Gomega) error {
+					curWorkload := framework.GetWorkload(dynamicClient, workloadNamespace, workloadName)
+					// construct two values that need to be changed, and only one value is retained.
+					curWorkload.Spec.Replicas = pointer.Int32Ptr(2)
+					curWorkload.Spec.Paused = true
+
+					newUnstructuredObj, err := helper.ToUnstructured(curWorkload)
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					workloadGVR := workloadv1alpha1.SchemeGroupVersion.WithResource("workloads")
+					_, err = dynamicClient.Resource(workloadGVR).Namespace(curWorkload.Namespace).Update(context.TODO(), newUnstructuredObj, metav1.UpdateOptions{})
+					return err
+				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
+			})
+
 			ginkgo.By("check if workload's spec.paused is retained", func() {
-				for _, cluster := range framework.ClusterNames() {
-					clusterDynamicClient := framework.GetClusterDynamicClient(cluster)
-					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
-
-					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-						memberWorkload := framework.GetWorkload(clusterDynamicClient, workloadNamespace, workloadName)
-
-						return memberWorkload.Spec.Paused, nil
-					}, pollTimeout, pollInterval).Should(gomega.Equal(updatedPaused))
-				}
+				framework.WaitWorkloadPresentOnClustersFitWith(framework.ClusterNames(), workload.Namespace, workload.Name,
+					func(workload *workloadv1alpha1.Workload) bool {
+						return *workload.Spec.Replicas == 2 && !workload.Spec.Paused
+					})
 			})
 		})
 	})
@@ -424,12 +421,7 @@ end`,
 	})
 
 	ginkgo.Context("InterpreterOperation Retain testing", func() {
-		var waitTime time.Duration
-		var updatedPaused bool
-
 		ginkgo.BeforeEach(func() {
-			waitTime = 5 * time.Second
-			updatedPaused = true
 			customization = testhelper.NewResourceInterpreterCustomization(
 				"interpreter-customization"+rand.String(RandomStrLength),
 				configv1alpha1.CustomizationTarget{
@@ -448,30 +440,24 @@ end`,
 		})
 
 		ginkgo.It("Retain testing", func() {
-			ginkgo.By("update deployment's spec.paused to true", func() {
-				clusterClient := framework.GetClusterClient(targetCluster)
-				gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-				var memberDeploy *appsv1.Deployment
+			ginkgo.By("wait deployment exist on the member clusters", func() {
 				framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
-					func(deployment *appsv1.Deployment) bool {
-						memberDeploy = deployment
+					func(_ *appsv1.Deployment) bool {
 						return true
 					})
-				framework.UpdateDeploymentPaused(clusterClient, memberDeploy, updatedPaused)
 			})
 
-			// Wait executeController to reconcile then check if it is retained
-			time.Sleep(waitTime)
+			ginkgo.By("update deployment on the control plane", func() {
+				// construct two values that need to be changed, and only one value is retained.
+				framework.UpdateDeploymentPaused(kubeClient, deployment, true)
+				framework.UpdateDeploymentReplicas(kubeClient, deployment, 2)
+			})
+
 			ginkgo.By("check if deployment's spec.paused is retained", func() {
-				gomega.Eventually(func(g gomega.Gomega) bool {
-					var memberDeployment *appsv1.Deployment
-					framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
-						func(deployment *appsv1.Deployment) bool {
-							memberDeployment = deployment
-							return true
-						})
-					return memberDeployment.Spec.Paused
-				}, pollTimeout, pollInterval).Should(gomega.Equal(updatedPaused))
+				framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return *deployment.Spec.Replicas == 2 && !deployment.Spec.Paused
+					})
 			})
 		})
 	})
