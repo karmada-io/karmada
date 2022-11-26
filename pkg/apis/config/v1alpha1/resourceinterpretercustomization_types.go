@@ -108,7 +108,9 @@ type CustomizationRules struct {
 // LocalValueRetention holds the scripts for retention.
 // Now only supports Lua.
 type LocalValueRetention struct {
-	// LuaScript holds the Lua script that is used to retain runtime values to the desired specification.
+	// LuaScript holds the Lua script that is used to retain runtime values
+	// to the desired specification.
+	//
 	// The script should implement a function as follows:
 	//     luaScript: >
 	//         function Retain(desiredObj, observedObj)
@@ -116,8 +118,17 @@ type LocalValueRetention struct {
 	//             return desiredObj
 	//         end
 	//
-	// LuaScript only holds the function body part, take the `desiredObj` and `observedObj` as the function
-	// parameters or global variables, and finally returns a retained specification.
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - desiredObj: the object represents the configuration to be applied
+	//       to the member cluster.
+	//   - observedObj: the object represents the configuration that is observed
+	//       from a specific member cluster.
+	//
+	// The returned object should be a retained configuration which will be
+	// applied to member cluster eventually.
 	// +required
 	LuaScript string `json:"luaScript"`
 }
@@ -127,25 +138,31 @@ type LocalValueRetention struct {
 type ReplicaResourceRequirement struct {
 	// LuaScript holds the Lua script that is used to discover the resource's
 	// replica as well as resource requirements
+	//
 	// The script should implement a function as follows:
 	//     luaScript: >
 	//         function GetReplicas(desiredObj)
-	//             nodeClaim = {}
-	//             resourceRequest = {}
-	//             result = {}
-	//
-	//             result.replica = desiredObj.spec.replicas
-	//             result.resourceRequest = desiredObj.spec.template.spec.containers[0].resources.limits
-	//
-	//             nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
-	//             nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
-	//             result.nodeClaim = nodeClaim
-	//
-	//             return result
+	//             replica = desiredObj.spec.replicas
+	//             requirement = {}
+	//             requirement.nodeClaim = {}
+	//             requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+	//             requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+	//             requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+	//             return replica, requirement
 	//         end
 	//
-	// LuaScript only holds the function body part, take the `desiredObj` as the function
-	// parameters or global variable, and finally returns the replica number and required resources.
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - desiredObj: the object represents the configuration to be applied
+	//       to the member cluster.
+	//
+	// The function expects two return values:
+	//   - replica: the declared replica number
+	//   - requirement: the resource required by each replica expressed with a
+	//       ResourceBindingSpec.ReplicaRequirements.
+	// The returned values will be set into a ResourceBinding or ClusterResourceBinding.
 	// +required
 	LuaScript string `json:"luaScript"`
 }
@@ -160,8 +177,16 @@ type ReplicaRevision struct {
 	//             return desiredObj
 	//         end
 	//
-	// LuaScript only holds the function body part, take the `desiredObj` and `desiredReplica` as the function
-	// parameters or global variables, and finally returns a revised specification.
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - desiredObj: the object represents the configuration to be applied
+	//       to the member cluster.
+	//   - desiredReplica: the replica number should be applied with.
+	//
+	// The returned object should be a revised configuration which will be
+	// applied to member cluster eventually.
 	// +required
 	LuaScript string `json:"luaScript"`
 }
@@ -177,8 +202,15 @@ type StatusReflection struct {
 	//             return status
 	//         end
 	//
-	// LuaScript only holds the function body part, take the `observedObj` as the function
-	// parameters or global variables, and finally returns the status.
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - observedObj: the object represents the configuration that is observed
+	//       from a specific member cluster.
+	//
+	// The returned status could be the whole status or part of it and will
+	// be set into both Work and ResourceBinding(ClusterResourceBinding).
 	// +required
 	LuaScript string `json:"luaScript"`
 }
@@ -190,14 +222,21 @@ type StatusAggregation struct {
 	// The script should implement a function as follows:
 	//     luaScript: >
 	//         function AggregateStatus(desiredObj, statusItems)
-	//             for i = 1, #items do
+	//             for i = 1, #statusItems do
 	//                 desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas
 	//             end
 	//             return desiredObj
 	//         end
 	//
-	// LuaScript only holds the function body part, take the `desiredObj` and `statusItems` as the function
-	// parameters or global variables, and finally returns the desiredObj.
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - desiredObj: the object represents a resource template.
+	//   - statusItems: the slice of status expressed with AggregatedStatusItem.
+	//
+	// The returned object should be a whole object with status aggregated.
+	//
 	// +required
 	LuaScript string `json:"luaScript"`
 }
@@ -214,8 +253,15 @@ type HealthInterpretation struct {
 	//             end
 	//         end
 	//
-	// LuaScript only holds the function body part, take the `observedObj` as the function
-	// parameters or global variables, and finally returns the boolean health state.
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - observedObj: the object represents the configuration that is observed
+	//       from a specific member cluster.
+	//
+	// The returned boolean value indicates the health status.
+	//
 	// +required
 	LuaScript string `json:"luaScript"`
 }
@@ -235,14 +281,20 @@ type DependencyInterpretation struct {
 	//                 dependency.kind = "ServiceAccount"
 	//                 dependency.name = desiredObj.spec.serviceAccountName
 	//                 dependency.namespace = desiredObj.namespace
-	//                 dependencies[0] = {}
-	//                 dependencies[0] = dependency
+	//                 dependencies[1] = {}
+	//                 dependencies[1] = dependency
 	//             end
 	//             return dependencies
 	//         end
 	//
-	// LuaScript only holds the function body part, take the `desiredObj` as the function
-	// parameters or global variables, and finally returns the dependent resources.
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - desiredObj: the object represents the configuration to be applied
+	//       to the member cluster.
+	//
+	// The returned value should be expressed by a slice of DependentObjectReference.
 	// +required
 	LuaScript string `json:"luaScript"`
 }
