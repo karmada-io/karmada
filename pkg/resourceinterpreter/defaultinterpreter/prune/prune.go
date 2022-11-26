@@ -46,6 +46,8 @@ func RemoveIrrelevantField(workload *unstructured.Unstructured, extraHooks ...fu
 
 	unstructured.RemoveNestedField(workload.Object, "metadata", "ownerReferences")
 
+	unstructured.RemoveNestedField(workload.Object, "metadata", "finalizers")
+
 	unstructured.RemoveNestedField(workload.Object, "status")
 
 	if workload.GetKind() == util.ServiceKind {
