@@ -75,7 +75,7 @@ func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []p
 		var weight int64
 		for _, staticWeightRule := range weightList {
 			if util.ClusterMatches(cluster, staticWeightRule.TargetCluster) {
-				weight += staticWeightRule.Weight
+				weight = util.MaxInt64(weight, staticWeightRule.Weight)
 			}
 		}
 		if weight > 0 {

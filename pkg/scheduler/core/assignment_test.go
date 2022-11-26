@@ -194,6 +194,47 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "cluster with multiple weights",
+			clusters: []*clusterv1alpha1.Cluster{
+				helper.NewCluster(ClusterMember1),
+				helper.NewCluster(ClusterMember2),
+			},
+			weightPreference: &policyv1alpha1.ClusterPreferences{
+				StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember1},
+						},
+						Weight: 1,
+					},
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember2},
+						},
+						Weight: 1,
+					},
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember1},
+						},
+						Weight: 2,
+					},
+				},
+			},
+			replicas: 3,
+			want: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 2,
+				},
+				{
+					Name:     ClusterMember2,
+					Replicas: 1,
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
