@@ -622,9 +622,13 @@ function util::get_macos_ipaddress() {
   fi
 }
 
-function util::get_GO_LDFLAGS() {
+function util::get_version() {
+  git describe --tags --dirty
+}
+
+function util::version_ldflags() {
   # Git information
-  GIT_VERSION=$(git describe --tags --dirty)
+  GIT_VERSION=$(util::get_version)
   GIT_COMMIT_HASH=$(git rev-parse HEAD)
   if git_status=$(git status --porcelain 2>/dev/null) && [[ -z ${git_status} ]]; then
     GIT_TREESTATE="clean"
