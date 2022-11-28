@@ -594,4 +594,63 @@ end `,
 			})
 		})
 	})
+
+	ginkgo.Context("InterpreterOperation DependencyInterpretation testing", func() {
+		var saName string
+		var sa *corev1.ServiceAccount
+		ginkgo.BeforeEach(func() {
+			saName = saNamePrefix + rand.String(RandomStrLength)
+			sa = testhelper.NewServiceaccount(testNamespace, saName)
+			deployment = testhelper.NewDeploymentWithServiceAccount(testNamespace, deployment.Name, saName)
+			policy.Spec.PropagateDeps = true
+			customization = testhelper.NewResourceInterpreterCustomization(
+				"interpreter-customization"+rand.String(RandomStrLength),
+				configv1alpha1.CustomizationTarget{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				configv1alpha1.CustomizationRules{
+					DependencyInterpretation: &configv1alpha1.DependencyInterpretation{
+						LuaScript: `
+function GetDependencies(desiredObj)
+		dependentSas = {}
+		refs = {}
+		if desiredObj.spec.template.spec.serviceAccountName ~= '' and desiredObj.spec.template.spec.serviceAccountName ~= 'default' then
+			dependentSas[desiredObj.spec.template.spec.serviceAccountName] = true
+		end
+	local idx = 1
+	for key, value in pairs(dependentSas) do    
+		dependObj = {}    
+		dependObj.apiVersion = 'v1'   
+		dependObj.kind = 'ServiceAccount'    
+		dependObj.name = key    
+		dependObj.namespace = desiredObj.metadata.namespace
+		refs[idx] = dependObj    
+		idx = idx + 1
+	end
+	return refs
+end `,
+					},
+				})
+		})
+		ginkgo.It("DependencyInterpretation testing", func() {
+			ginkgo.By("check if the serviceAccount is propagated automatically", func() {
+				framework.CreateServiceAccount(kubeClient, sa)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveServiceAccount(kubeClient, sa.GetNamespace(), sa.GetName())
+				})
+				framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						return true
+					})
+
+				framework.WaitServiceAccountPresentOnClusterFitWith(targetCluster, deployment.Namespace, sa.GetName(),
+					func(sa *corev1.ServiceAccount) bool {
+						return true
+					})
+			})
+		})
+
+	})
+
 })
