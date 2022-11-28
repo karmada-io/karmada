@@ -157,7 +157,22 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
-    timeoutSeconds: 3`, systemNamespace, caBundle)
+    timeoutSeconds: 3
+  - name: resourceinterpretercustomization.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["config.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["resourceexploringwebhookconfigurations"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://karmada-webhook.%[1]s.svc:443/validate-resourceinterpretercustomization
+      caBundle: %[2]s
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
+`, systemNamespace, caBundle)
 }
 
 func createOrUpdateValidatingWebhookConfiguration(c kubernetes.Interface, staticYaml string) error {
