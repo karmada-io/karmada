@@ -28,7 +28,7 @@ var (
 	DefaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 		Failover:                          {Default: false, PreRelease: featuregate.Alpha},
 		GracefulEviction:                  {Default: false, PreRelease: featuregate.Alpha},
-		PropagateDeps:                     {Default: false, PreRelease: featuregate.Alpha},
+		PropagateDeps:                     {Default: true, PreRelease: featuregate.Beta},
 		CustomizedClusterResourceModeling: {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
