@@ -27,6 +27,7 @@ var resourceInterpreterCustomizationsGVR = schema.GroupVersionResource{
 type ConfigManager interface {
 	LuaScriptAccessors() map[schema.GroupVersionKind]CustomAccessor
 	HasSynced() bool
+	LoadConfig(customizations []*configv1alpha1.ResourceInterpreterCustomization)
 }
 
 // interpreterConfigManager collects the resource interpreter customization.
@@ -61,19 +62,24 @@ func (configManager *interpreterConfigManager) HasSynced() bool {
 
 // NewInterpreterConfigManager watches ResourceInterpreterCustomization and organizes
 // the configurations in the cache.
-func NewInterpreterConfigManager(inform genericmanager.SingleClusterInformerManager) ConfigManager {
+func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerManager) ConfigManager {
 	manager := &interpreterConfigManager{
-		lister:        inform.Lister(resourceInterpreterCustomizationsGVR),
 		initialSynced: &atomic.Value{},
 		configuration: &atomic.Value{},
 	}
 	manager.configuration.Store(make(map[schema.GroupVersionKind]CustomAccessor))
 	manager.initialSynced.Store(false)
-	configHandlers := fedinformer.NewHandlerOnEvents(
-		func(_ interface{}) { manager.updateConfiguration() },
-		func(_, _ interface{}) { manager.updateConfiguration() },
-		func(_ interface{}) { manager.updateConfiguration() })
-	inform.ForResource(resourceInterpreterCustomizationsGVR, configHandlers)
+
+	// In interpret command, rules are not loaded from server, so we don't start informer for it.
+	if informer != nil {
+		manager.lister = informer.Lister(resourceInterpreterCustomizationsGVR)
+		configHandlers := fedinformer.NewHandlerOnEvents(
+			func(_ interface{}) { manager.updateConfiguration() },
+			func(_, _ interface{}) { manager.updateConfiguration() },
+			func(_ interface{}) { manager.updateConfiguration() })
+		informer.ForResource(resourceInterpreterCustomizationsGVR, configHandlers)
+	}
+
 	return manager
 }
 
@@ -94,6 +100,10 @@ func (configManager *interpreterConfigManager) updateConfiguration() {
 		configs[index] = config
 	}
 
+	configManager.LoadConfig(configs)
+}
+
+func (configManager *interpreterConfigManager) LoadConfig(configs []*configv1alpha1.ResourceInterpreterCustomization) {
 	sort.Slice(configs, func(i, j int) bool {
 		return configs[i].Name < configs[j].Name
 	})

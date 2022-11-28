@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -13,9 +14,12 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/genericresource"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 var (
@@ -32,18 +36,30 @@ var (
 	interpretExample = templates.Examples(`
         # Check the customizations in file
         %[1]s interpret -f customization.json --check
-		# Execute the retention rule for
+
+		# Execute the retention rule
         %[1]s interpret -f customization.yml --operation retain --desired-file desired.yml --observed-file observed.yml
-		# Execute the replicaRevision rule for
+
+		# Execute the replicaResource rule
+        %[1]s interpret -f customization.yml --operation interpretReplica --observed-file observed.yml
+
+		# Execute the replicaRevision rule
         %[1]s interpret -f customization.yml --operation reviseReplica --observed-file observed.yml --desired-replica 2
-		# Execute the statusReflection rule for
+
+		# Execute the statusReflection rule
         %[1]s interpret -f customization.yml --operation interpretStatus --observed-file observed.yml
+
 		# Execute the healthInterpretation rule
         %[1]s interpret -f customization.yml --operation interpretHealth --observed-file observed.yml
+
 		# Execute the dependencyInterpretation rule 
         %[1]s interpret -f customization.yml --operation interpretDependency --observed-file observed.yml
+
 		# Execute the statusAggregation rule
-        %[1]s interpret -f customization.yml --operation aggregateStatus --status-file status1.yml --status-file status2.yml
+        %[1]s interpret -f customization.yml --operation aggregateStatus --observed-file observed.yml --status-file status.yml
+
+		# Fetch observed object from url, and status items from stdin (specified with -)
+        %[1]s interpret -f customization.yml --operation aggregateStatus --observed-file https://example.com/observed.yml --status-file -
 
 `)
 )
@@ -81,7 +97,7 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericcliopt
 	flags.BoolVar(&o.Check, "check", false, "Validates the given ResourceInterpreterCustomization configuration(s)")
 	flags.StringVar(&o.DesiredFile, "desired-file", o.DesiredFile, "Filename, directory, or URL to files identifying the resource to use as desiredObj argument in rule script.")
 	flags.StringVar(&o.ObservedFile, "observed-file", o.ObservedFile, "Filename, directory, or URL to files identifying the resource to use as observedObj argument in rule script.")
-	flags.StringSliceVar(&o.StatusFile, "status-file", o.StatusFile, "Filename, directory, or URL to files identifying the resource to use as statusItems argument in rule script.")
+	flags.StringVar(&o.StatusFile, "status-file", o.StatusFile, "Filename, directory, or URL to files identifying the resource to use as statusItems argument in rule script.")
 	flags.Int32Var(&o.DesiredReplica, "desired-replica", o.DesiredReplica, "The desiredReplica argument in rule script.")
 	cmdutil.AddJsonFilenameFlag(flags, &o.FilenameOptions.Filenames, "Filename, directory, or URL to files containing the customizations")
 	flags.BoolVarP(&o.FilenameOptions.Recursive, "recursive", "R", false, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
@@ -99,10 +115,13 @@ type Options struct {
 	// args
 	DesiredFile    string
 	ObservedFile   string
-	StatusFile     []string
+	StatusFile     string
 	DesiredReplica int32
 
 	CustomizationResult *resource.Result
+	DesiredResult       *resource.Result
+	ObservedResult      *resource.Result
+	StatusResult        *genericresource.Result
 
 	Rules Rules
 
@@ -122,12 +141,18 @@ func (o *Options) Complete(f util.Factory, cmd *cobra.Command, args []string) er
 
 	var errs []error
 	errs = append(errs, o.CustomizationResult.Err())
-	errs = append(errs, o.completeExecute(f, cmd, args)...)
+	errs = append(errs, o.completeExecute(f)...)
 	return errors.NewAggregate(errs)
 }
 
-// Validate checks the EditOptions to see if there is sufficient information to run the command.
+// Validate validates Options.
 func (o *Options) Validate() error {
+	if o.Operation != "" {
+		r := o.Rules.GetByOperation(o.Operation)
+		if r == nil {
+			return fmt.Errorf("operation %s is not supported. Use one of: %s", o.Operation, strings.Join(o.Rules.Names(), ", "))
+		}
+	}
 	return nil
 }
 
@@ -139,6 +164,56 @@ func (o *Options) Run() error {
 	default:
 		return o.runExecute()
 	}
+}
+
+func (o *Options) getCustomizationObject() ([]*configv1alpha1.ResourceInterpreterCustomization, error) {
+	infos, err := o.CustomizationResult.Infos()
+	if err != nil {
+		return nil, err
+	}
+
+	customizations := make([]*configv1alpha1.ResourceInterpreterCustomization, len(infos))
+	for i, info := range infos {
+		c, err := asResourceInterpreterCustomization(info.Object)
+		if err != nil {
+			return nil, err
+		}
+		customizations[i] = c
+	}
+	return customizations, nil
+}
+
+func (o *Options) getAggregatedStatusItems() ([]workv1alpha2.AggregatedStatusItem, error) {
+	if o.StatusResult == nil {
+		return nil, nil
+	}
+
+	objs, err := o.StatusResult.Objects()
+	if err != nil {
+		return nil, err
+	}
+	items := make([]workv1alpha2.AggregatedStatusItem, len(objs))
+	for i, obj := range objs {
+		items[i] = *(obj.(*workv1alpha2.AggregatedStatusItem))
+	}
+	return items, nil
+}
+
+func getUnstructuredObjectFromResult(result *resource.Result) (*unstructured.Unstructured, error) {
+	if result == nil {
+		return nil, nil
+	}
+
+	infos, err := result.Infos()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(infos) > 1 {
+		return nil, fmt.Errorf("get %v objects, expect one at most", len(infos))
+	}
+
+	return helper.ToUnstructured(infos[0].Object)
 }
 
 func asResourceInterpreterCustomization(o runtime.Object) (*configv1alpha1.ResourceInterpreterCustomization, error) {

@@ -2,6 +2,7 @@ package interpret
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -218,14 +219,19 @@ func (s *statusAggregationRule) Run(interpreter *configurableinterpreter.Configu
 	if err != nil {
 		return newRuleResultWithError(err)
 	}
-	aggregateStatus, enabled, err := interpreter.AggregateStatus(obj, args.Status)
+
+	status := args.Status
+	if status == nil {
+		status = []workv1alpha2.AggregatedStatusItem{}
+	}
+	aggregateStatus, enabled, err := interpreter.AggregateStatus(obj, status)
 	if err != nil {
 		return newRuleResultWithError(err)
 	}
 	if !enabled {
 		return newRuleResultWithError(fmt.Errorf("rule is not enabled"))
 	}
-	return newRuleResult().add("aggregateStatus", aggregateStatus)
+	return newRuleResult().add("aggregatedStatus", aggregateStatus)
 }
 
 type healthInterpretationRule struct {
@@ -334,6 +340,21 @@ func (r Rules) Names() []string {
 	return names
 }
 
+// GetByOperation returns the matched rule by operation name, ignoring case. Return nil if none is matched.
+func (r Rules) GetByOperation(operation string) Rule {
+	if operation == "" {
+		return nil
+	}
+	operation = strings.ToLower(operation)
+	for _, rule := range r {
+		ruleName := strings.ToLower(rule.Name())
+		if ruleName == operation {
+			return rule
+		}
+	}
+	return nil
+}
+
 // Get returns the rule with the name. If not found, return nil.
 func (r Rules) Get(name string) Rule {
 	for _, rr := range r {
@@ -367,10 +388,10 @@ func (r ruleArgs) getObservedObjectOrError() (*unstructured.Unstructured, error)
 
 func (r ruleArgs) getObjectOrError() (*unstructured.Unstructured, error) {
 	if r.Desired == nil && r.Observed == nil {
-		return nil, fmt.Errorf("desired, desired-file, observed, observed-file options are not set")
+		return nil, fmt.Errorf("desired-file, observed-file options are not set")
 	}
 	if r.Desired != nil && r.Observed != nil {
-		return nil, fmt.Errorf("you can not specify multiple object by desired, desired-file, observed, observed-file options")
+		return nil, fmt.Errorf("you can not specify both desired-file and observed-file options")
 	}
 	if r.Desired != nil {
 		return r.Desired, nil
