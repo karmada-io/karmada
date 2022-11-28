@@ -29,7 +29,6 @@ spec:
             - --bind-address=0.0.0.0
             - --cluster-status-update-frequency=10s
             - --secure-port=10357
-            - --feature-gates=CustomizedClusterResourceModeling=true
             - --failover-eviction-timeout=30s
             - --v=4
           livenessProbe:
