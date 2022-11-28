@@ -15,6 +15,7 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/fixedpool"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -22,46 +23,104 @@ import (
 type VM struct {
 	// UseOpenLibs flag to enable open libraries. Libraries are disabled by default while running, but enabled during testing to allow the use of print statements.
 	UseOpenLibs bool
+	Pool        *fixedpool.FixedPool
 }
 
-// GetReplicas returns the desired replicas of the object as well as the requirements of each replica by lua script.
-func (vm VM) GetReplicas(obj *unstructured.Unstructured, script string) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
+// New creates a manager for lua VM
+func New(useOpenLibs bool, poolSize int) *VM {
+	vm := &VM{
+		UseOpenLibs: useOpenLibs,
+	}
+	vm.Pool = fixedpool.New(
+		func() (any, error) { return vm.NewLuaState() },
+		func(a any) { a.(*lua.LState).Close() },
+		poolSize)
+	return vm
+}
+
+// NewLuaState creates a new lua state.
+func (vm *VM) NewLuaState() (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
-	defer l.Close()
 	// Opens table library to allow access to functions to manipulate tables
-	err = vm.setLib(l)
+	err := vm.setLib(l)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
+	return l, err
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+// RunScript got a lua vm from pool, and execute script with given arguments.
+func (vm *VM) RunScript(script string, fnName string, nRets int, args ...interface{}) ([]lua.LValue, error) {
+	a, err := vm.Pool.Get()
+	if err != nil {
+		return nil, err
+	}
+	defer vm.Pool.Put(a)
+
+	l := a.(*lua.LState)
+	l.Pop(l.GetTop())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	l.SetContext(ctx)
 
 	err = l.DoString(script)
-	f := l.GetGlobal("GetReplicas")
-
-	if f.Type() == lua.LTNil {
-		return 0, nil, fmt.Errorf("can't get function GetReplicas, please check the lua script")
-	}
-
-	args := make([]lua.LValue, 1)
-	args[0], err = decodeValue(l, obj.Object)
 	if err != nil {
-		return
+		return nil, err
 	}
-	err = l.CallByParam(lua.P{Fn: f, NRet: 2, Protect: true}, args...)
+
+	vArgs := make([]lua.LValue, len(args))
+	for i, arg := range args {
+		vArgs[i], err = decodeValue(l, arg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	f := l.GetGlobal(fnName)
+	if f.Type() == lua.LTNil {
+		return nil, fmt.Errorf("not found function %v", fnName)
+	}
+	if f.Type() != lua.LTFunction {
+		return nil, fmt.Errorf("%s is not a function: %s", fnName, f.Type())
+	}
+
+	err = l.CallByParam(lua.P{
+		Fn:      f,
+		NRet:    nRets,
+		Protect: true,
+	}, vArgs...)
+	if err != nil {
+		return nil, err
+	}
+
+	// get rets from stack: [ret1, ret2, ret3 ...]
+	rets := make([]lua.LValue, nRets)
+	for i := range rets {
+		rets[i] = l.Get(i + 1)
+	}
+	// pop all the values in stack
+	l.Pop(l.GetTop())
+	return rets, nil
+}
+
+// GetReplicas returns the desired replicas of the object as well as the requirements of each replica by lua script.
+func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
+	results, err := vm.RunScript(script, "GetReplicas", 2, obj)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	replicaRequirementResult := l.Get(l.GetTop())
-	l.Pop(1)
+	replica, err = ConvertLuaResultToInt(results[0])
+	if err != nil {
+		return 0, nil, err
+	}
 
+	replicaRequirementResult := results[1]
 	requires = &workv1alpha2.ReplicaRequirements{}
 	if replicaRequirementResult.Type() == lua.LTTable {
 		err = ConvertLuaResultInto(replicaRequirementResult, requires)
@@ -75,56 +134,17 @@ func (vm VM) GetReplicas(obj *unstructured.Unstructured, script string) (replica
 		return 0, nil, fmt.Errorf("expect the returned requires type is table but got %s", replicaRequirementResult.Type())
 	}
 
-	luaReplica := l.Get(l.GetTop())
-	replica, err = ConvertLuaResultToInt(luaReplica)
-	if err != nil {
-		return 0, nil, err
-	}
 	return
 }
 
 // ReviseReplica revises the replica of the given object by lua.
-func (vm VM) ReviseReplica(object *unstructured.Unstructured, replica int64, script string) (*unstructured.Unstructured, error) {
-	l := lua.NewState(lua.Options{
-		SkipOpenLibs: !vm.UseOpenLibs,
-	})
-	defer l.Close()
-	// Opens table library to allow access to functions to manipulate tables
-	err := vm.setLib(l)
-	if err != nil {
-		return nil, err
-	}
-	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	l.SetContext(ctx)
-
-	err = l.DoString(script)
-	if err != nil {
-		return nil, err
-	}
-	reviseReplicaLuaFunc := l.GetGlobal("ReviseReplica")
-	if reviseReplicaLuaFunc.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function ReviseReplica, please check the lua script")
-	}
-
-	args := make([]lua.LValue, 2)
-	args[0], err = decodeValue(l, object.Object)
-	if err != nil {
-		return nil, err
-	}
-	args[1], err = decodeValue(l, replica)
-	if err != nil {
-		return nil, err
-	}
-	err = l.CallByParam(lua.P{Fn: reviseReplicaLuaFunc, NRet: 1, Protect: true}, args...)
+func (vm *VM) ReviseReplica(object *unstructured.Unstructured, replica int64, script string) (*unstructured.Unstructured, error) {
+	results, err := vm.RunScript(script, "ReviseReplica", 1, object, replica)
 	if err != nil {
 		return nil, err
 	}
 
-	luaResult := l.Get(l.GetTop())
+	luaResult := results[0]
 	reviseReplicaResult := &unstructured.Unstructured{}
 	if luaResult.Type() == lua.LTTable {
 		err := ConvertLuaResultInto(luaResult, reviseReplicaResult)
@@ -137,7 +157,7 @@ func (vm VM) ReviseReplica(object *unstructured.Unstructured, replica int64, scr
 	return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
 }
 
-func (vm VM) setLib(l *lua.LState) error {
+func (vm *VM) setLib(l *lua.LState) error {
 	for _, pair := range []struct {
 		n string
 		f lua.LGFunction
@@ -160,47 +180,13 @@ func (vm VM) setLib(l *lua.LState) error {
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object by lua.
-func (vm VM) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured, script string) (retained *unstructured.Unstructured, err error) {
-	l := lua.NewState(lua.Options{
-		SkipOpenLibs: !vm.UseOpenLibs,
-	})
-	defer l.Close()
-	// Opens table library to allow access to functions to manipulate tables
-	err = vm.setLib(l)
-	if err != nil {
-		return nil, err
-	}
-	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	l.SetContext(ctx)
-
-	err = l.DoString(script)
-	if err != nil {
-		return nil, err
-	}
-	retainLuaFunc := l.GetGlobal("Retain")
-	if retainLuaFunc.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function Retatin, please check the lua script")
-	}
-
-	args := make([]lua.LValue, 2)
-	args[0], err = decodeValue(l, desired.Object)
-	if err != nil {
-		return
-	}
-	args[1], err = decodeValue(l, observed.Object)
-	if err != nil {
-		return
-	}
-	err = l.CallByParam(lua.P{Fn: retainLuaFunc, NRet: 1, Protect: true}, args...)
+func (vm *VM) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured, script string) (retained *unstructured.Unstructured, err error) {
+	results, err := vm.RunScript(script, "Retain", 1, desired, observed)
 	if err != nil {
 		return nil, err
 	}
 
-	luaResult := l.Get(l.GetTop())
+	luaResult := results[0]
 	retainResult := &unstructured.Unstructured{}
 	if luaResult.Type() == lua.LTTable {
 		err := ConvertLuaResultInto(luaResult, retainResult)
@@ -213,47 +199,13 @@ func (vm VM) Retain(desired *unstructured.Unstructured, observed *unstructured.U
 }
 
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated by lua.
-func (vm VM) AggregateStatus(object *unstructured.Unstructured, items []workv1alpha2.AggregatedStatusItem, script string) (*unstructured.Unstructured, error) {
-	l := lua.NewState(lua.Options{
-		SkipOpenLibs: !vm.UseOpenLibs,
-	})
-	defer l.Close()
-	// Opens table library to allow access to functions to manipulate tables
-	err := vm.setLib(l)
-	if err != nil {
-		return nil, err
-	}
-	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	l.SetContext(ctx)
-
-	err = l.DoString(script)
+func (vm *VM) AggregateStatus(object *unstructured.Unstructured, items []workv1alpha2.AggregatedStatusItem, script string) (*unstructured.Unstructured, error) {
+	results, err := vm.RunScript(script, "AggregateStatus", 1, object, items)
 	if err != nil {
 		return nil, err
 	}
 
-	f := l.GetGlobal("AggregateStatus")
-	if f.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function AggregateStatus, please check the lua script")
-	}
-	args := make([]lua.LValue, 2)
-	args[0], err = decodeValue(l, object.Object)
-	if err != nil {
-		return nil, err
-	}
-	args[1], err = decodeValue(l, items)
-	if err != nil {
-		return nil, err
-	}
-	err = l.CallByParam(lua.P{Fn: f, NRet: 1, Protect: true}, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	luaResult := l.Get(l.GetTop())
+	luaResult := results[0]
 	aggregateStatus := &unstructured.Unstructured{}
 	if luaResult.Type() == lua.LTTable {
 		err := ConvertLuaResultInto(luaResult, aggregateStatus)
@@ -266,45 +218,14 @@ func (vm VM) AggregateStatus(object *unstructured.Unstructured, items []workv1al
 }
 
 // InterpretHealth returns the health state of the object by lua.
-func (vm VM) InterpretHealth(object *unstructured.Unstructured, script string) (bool, error) {
-	l := lua.NewState(lua.Options{
-		SkipOpenLibs: !vm.UseOpenLibs,
-	})
-	defer l.Close()
-	// Opens table library to allow access to functions to manipulate tables
-	err := vm.setLib(l)
-	if err != nil {
-		return false, err
-	}
-	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	l.SetContext(ctx)
-
-	err = l.DoString(script)
-	if err != nil {
-		return false, err
-	}
-	f := l.GetGlobal("InterpretHealth")
-	if f.Type() == lua.LTNil {
-		return false, fmt.Errorf("can't get function InterpretHealth, please check the lua script")
-	}
-
-	args := make([]lua.LValue, 1)
-	args[0], err = decodeValue(l, object.Object)
-	if err != nil {
-		return false, err
-	}
-	err = l.CallByParam(lua.P{Fn: f, NRet: 1, Protect: true}, args...)
+func (vm *VM) InterpretHealth(object *unstructured.Unstructured, script string) (bool, error) {
+	results, err := vm.RunScript(script, "InterpretHealth", 1, object)
 	if err != nil {
 		return false, err
 	}
 
 	var health bool
-	luaResult := l.Get(l.GetTop())
-	health, err = ConvertLuaResultToBool(luaResult)
+	health, err = ConvertLuaResultToBool(results[0])
 	if err != nil {
 		return false, err
 	}
@@ -312,43 +233,13 @@ func (vm VM) InterpretHealth(object *unstructured.Unstructured, script string) (
 }
 
 // ReflectStatus returns the status of the object by lua.
-func (vm VM) ReflectStatus(object *unstructured.Unstructured, script string) (status *runtime.RawExtension, err error) {
-	l := lua.NewState(lua.Options{
-		SkipOpenLibs: !vm.UseOpenLibs,
-	})
-	defer l.Close()
-	// Opens table library to allow access to functions to manipulate tables
-	err = vm.setLib(l)
+func (vm *VM) ReflectStatus(object *unstructured.Unstructured, script string) (status *runtime.RawExtension, err error) {
+	results, err := vm.RunScript(script, "ReflectStatus", 1, object)
 	if err != nil {
 		return nil, err
 	}
-	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	l.SetContext(ctx)
-
-	err = l.DoString(script)
-	if err != nil {
-		return nil, err
-	}
-	f := l.GetGlobal("ReflectStatus")
-	if f.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function ReflectStatus, please check the lua script")
-	}
-
-	args := make([]lua.LValue, 1)
-	args[0], err = decodeValue(l, object.Object)
-	if err != nil {
-		return
-	}
-	err = l.CallByParam(lua.P{Fn: f, NRet: 1, Protect: true}, args...)
-	if err != nil {
-		return nil, err
-	}
-	luaStatusResult := l.Get(l.GetTop())
-	l.Pop(1)
+	luaStatusResult := results[0]
 	if luaStatusResult.Type() != lua.LTTable {
 		return nil, fmt.Errorf("expect the returned replica type is table but got %s", luaStatusResult.Type())
 	}
@@ -359,43 +250,13 @@ func (vm VM) ReflectStatus(object *unstructured.Unstructured, script string) (st
 }
 
 // GetDependencies returns the dependent resources of the given object by lua.
-func (vm VM) GetDependencies(object *unstructured.Unstructured, script string) (dependencies []configv1alpha1.DependentObjectReference, err error) {
-	l := lua.NewState(lua.Options{
-		SkipOpenLibs: !vm.UseOpenLibs,
-	})
-	defer l.Close()
-	// Opens table library to allow access to functions to manipulate tables
-	err = vm.setLib(l)
-	if err != nil {
-		return nil, err
-	}
-	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
-	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	l.SetContext(ctx)
-
-	err = l.DoString(script)
-	if err != nil {
-		return nil, err
-	}
-	f := l.GetGlobal("GetDependencies")
-	if f.Type() == lua.LTNil {
-		return nil, fmt.Errorf("can't get function GetDependencies, please check the lua script")
-	}
-
-	args := make([]lua.LValue, 1)
-	args[0], err = decodeValue(l, object.Object)
-	if err != nil {
-		return
-	}
-	err = l.CallByParam(lua.P{Fn: f, NRet: 1, Protect: true}, args...)
+func (vm *VM) GetDependencies(object *unstructured.Unstructured, script string) (dependencies []configv1alpha1.DependentObjectReference, err error) {
+	results, err := vm.RunScript(script, "GetDependencies", 1, object)
 	if err != nil {
 		return nil, err
 	}
 
-	luaResult := l.Get(l.GetTop())
+	luaResult := results[0]
 
 	if luaResult.Type() != lua.LTTable {
 		return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())

@@ -20,7 +20,7 @@ import (
 
 func TestGetReplicas(t *testing.T) {
 	var replicas int32 = 1
-	vm := VM{UseOpenLibs: false}
+	vm := New(false, 1)
 	tests := []struct {
 		name         string
 		deploy       *appsv1.Deployment
@@ -150,7 +150,7 @@ func TestReviseDeploymentReplica(t *testing.T) {
 						end`,
 		},
 	}
-	vm := VM{UseOpenLibs: false}
+	vm := New(false, 1)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -217,7 +217,7 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 									end`,
 		},
 	}
-	vm := VM{UseOpenLibs: false}
+	vm := New(false, 1)
 
 	for _, tt := range tests {
 		actualObj, _ := vm.AggregateStatus(tt.curObj, tt.aggregatedStatusItems, tt.luaScript)
@@ -265,7 +265,7 @@ func TestHealthDeploymentStatus(t *testing.T) {
                         end `,
 		},
 	}
-	vm := VM{UseOpenLibs: false}
+	vm := New(false, 1)
 
 	for _, tt := range tests {
 		flag, err := vm.InterpretHealth(tt.curObj, tt.luaScript)
@@ -349,7 +349,7 @@ func TestRetainDeployment(t *testing.T) {
 						end`,
 		},
 	}
-	vm := VM{UseOpenLibs: false}
+	vm := New(false, 1)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -397,7 +397,7 @@ func TestStatusReflection(t *testing.T) {
 		},
 	}
 
-	vm := VM{UseOpenLibs: false}
+	vm := New(false, 1)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := vm.ReflectStatus(tt.args.object, tt.luaScript)
@@ -470,7 +470,7 @@ func TestGetDeployPodDependencies(t *testing.T) {
 		},
 	}
 
-	vm := VM{UseOpenLibs: false}
+	vm := New(false, 1)
 
 	for _, tt := range tests {
 		res, err := vm.GetDependencies(tt.curObj, tt.luaScript)
