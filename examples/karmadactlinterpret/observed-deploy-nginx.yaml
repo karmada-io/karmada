@@ -15,9 +15,14 @@ spec:
       labels:
         app: nginx
     spec:
+      nodeSelector:
+        foo: bar
       containers:
       - image: nginx
         name: nginx
+        resources:
+          limits:
+            cpu: 100m
 status:
   availableReplicas: 2
   observedGeneration: 1

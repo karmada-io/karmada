@@ -9,9 +9,10 @@ spec:
   customizations:
     replicaResource:
       luaScript: >
+        local kube = require("kube")
         function GetReplicas(obj)
           replica = obj.spec.replicas
-          requirement = {}
+          requirement = kube.accuratePodRequirements(obj.spec.template)
           return replica, requirement
         end
     replicaRevision:

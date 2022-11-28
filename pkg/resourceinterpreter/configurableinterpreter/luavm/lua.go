@@ -51,6 +51,8 @@ func (vm *VM) NewLuaState() (*lua.LState, error) {
 	}
 	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
+	// preload kube library. Allows the 'local kube = require("kube")' to work
+	l.PreloadModule(KubeLibName, KubeLoader)
 	return l, err
 }
 
@@ -279,6 +281,8 @@ func NewWithContext(ctx context.Context) (*lua.LState, error) {
 	}
 	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, lifted.SafeOsLoader)
+	// preload kube library. Allows the 'local kube = require("kube")' to work
+	l.PreloadModule(KubeLibName, KubeLoader)
 	if ctx != nil {
 		l.SetContext(ctx)
 	}
