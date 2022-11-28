@@ -18,6 +18,7 @@ import (
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // RBGracefulEvictionControllerName is the controller name that will be used when reporting events.
@@ -61,7 +62,7 @@ func (c *RBGracefulEvictionController) Reconcile(ctx context.Context, req contro
 }
 
 func (c *RBGracefulEvictionController) syncBinding(binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
-	keptTask := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, c.GracefulEvictionTimeout, metav1.Now())
+	keptTask, evictedCluster := assessEvictionTasks(binding.Spec, binding.Status.AggregatedStatus, c.GracefulEvictionTimeout, metav1.Now())
 	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
 		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
 	}
@@ -74,6 +75,9 @@ func (c *RBGracefulEvictionController) syncBinding(binding *workv1alpha2.Resourc
 		return 0, err
 	}
 
+	for _, cluster := range evictedCluster {
+		helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, c.EventRecorder, err)
+	}
 	return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
 }
 

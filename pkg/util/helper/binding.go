@@ -15,11 +15,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -261,4 +263,50 @@ func ConstructClusterWideKey(resource workv1alpha2.ObjectReference) (keys.Cluste
 		Namespace: resource.Namespace,
 		Name:      resource.Name,
 	}, nil
+}
+
+// EmitClusterEvictionEventForResourceBinding records the eviction event for resourceBinding and its objectReference.
+func EmitClusterEvictionEventForResourceBinding(binding *workv1alpha2.ResourceBinding, cluster string, eventRecorder record.EventRecorder, err error) {
+	if binding == nil {
+		return
+	}
+
+	ref := &corev1.ObjectReference{
+		Kind:       binding.Spec.Resource.Kind,
+		APIVersion: binding.Spec.Resource.APIVersion,
+		Namespace:  binding.Spec.Resource.Namespace,
+		Name:       binding.Spec.Resource.Name,
+		UID:        binding.Spec.Resource.UID,
+	}
+
+	if err != nil {
+		eventRecorder.Eventf(binding, corev1.EventTypeWarning, events.EventReasonEvictWorkloadFromClusterFailed, "Evict from cluster %s failed.", cluster)
+		eventRecorder.Eventf(ref, corev1.EventTypeWarning, events.EventReasonEvictWorkloadFromClusterFailed, "Evict from cluster %s failed.", cluster)
+	} else {
+		eventRecorder.Eventf(binding, corev1.EventTypeNormal, events.EventReasonEvictWorkloadFromClusterSucceed, "Evict from cluster %s succeed.", cluster)
+		eventRecorder.Eventf(ref, corev1.EventTypeNormal, events.EventReasonEvictWorkloadFromClusterSucceed, "Evict from cluster %s succeed.", cluster)
+	}
+}
+
+// EmitClusterEvictionEventForClusterResourceBinding records the eviction event for clusterResourceBinding and its objectReference.
+func EmitClusterEvictionEventForClusterResourceBinding(binding *workv1alpha2.ClusterResourceBinding, cluster string, eventRecorder record.EventRecorder, err error) {
+	if binding == nil {
+		return
+	}
+
+	ref := &corev1.ObjectReference{
+		Kind:       binding.Spec.Resource.Kind,
+		APIVersion: binding.Spec.Resource.APIVersion,
+		Namespace:  binding.Spec.Resource.Namespace,
+		Name:       binding.Spec.Resource.Name,
+		UID:        binding.Spec.Resource.UID,
+	}
+
+	if err != nil {
+		eventRecorder.Eventf(binding, corev1.EventTypeWarning, events.EventReasonEvictWorkloadFromClusterFailed, "Evict from cluster %s failed.", cluster)
+		eventRecorder.Eventf(ref, corev1.EventTypeWarning, events.EventReasonEvictWorkloadFromClusterFailed, "Evict from cluster %s failed.", cluster)
+	} else {
+		eventRecorder.Eventf(binding, corev1.EventTypeNormal, events.EventReasonEvictWorkloadFromClusterSucceed, "Evict from cluster %s succeed.", cluster)
+		eventRecorder.Eventf(ref, corev1.EventTypeNormal, events.EventReasonEvictWorkloadFromClusterSucceed, "Evict from cluster %s succeed.", cluster)
+	}
 }

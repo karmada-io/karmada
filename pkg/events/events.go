@@ -64,6 +64,10 @@ const (
 	EventReasonDescheduleBindingFailed = "DescheduleBindingFailed"
 	// EventReasonDescheduleBindingSucceed indicates that deschedule binding succeed.
 	EventReasonDescheduleBindingSucceed = "DescheduleBindingSucceed"
+	// EventReasonEvictWorkloadFromClusterSucceed indicates that evict workload from cluster succeed.
+	EventReasonEvictWorkloadFromClusterSucceed = "EvictWorkloadFromClusterSucceed"
+	// EventReasonEvictWorkloadFromClusterFailed indicates that evict workload from cluster failed.
+	EventReasonEvictWorkloadFromClusterFailed = "EvictWorkloadFromClusterFailed"
 )
 
 // Define events for FederatedResourceQuota.

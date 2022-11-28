@@ -20,8 +20,9 @@ func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
 	observedStatus []workv1alpha2.AggregatedStatusItem,
 	timeout time.Duration,
 	now metav1.Time,
-) []workv1alpha2.GracefulEvictionTask {
+) ([]workv1alpha2.GracefulEvictionTask, []string) {
 	var keptTasks []workv1alpha2.GracefulEvictionTask
+	var evictedClusters []string
 
 	for _, task := range bindingSpec.GracefulEvictionTasks {
 		// set creation timestamp for new task
@@ -39,9 +40,11 @@ func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
 		})
 		if kt != nil {
 			keptTasks = append(keptTasks, *kt)
+		} else {
+			evictedClusters = append(evictedClusters, task.FromCluster)
 		}
 	}
-	return keptTasks
+	return keptTasks, evictedClusters
 }
 
 func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOption) *workv1alpha2.GracefulEvictionTask {
