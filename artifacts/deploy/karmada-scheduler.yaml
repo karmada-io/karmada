@@ -38,7 +38,6 @@ spec:
             - --bind-address=0.0.0.0
             - --secure-port=10351
             - --enable-scheduler-estimator=true
-            - --feature-gates=CustomizedClusterResourceModeling=true
             - --v=4
           volumeMounts:
             - name: kubeconfig

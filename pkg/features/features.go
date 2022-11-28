@@ -29,7 +29,7 @@ var (
 		Failover:                          {Default: true, PreRelease: featuregate.Beta},
 		GracefulEviction:                  {Default: true, PreRelease: featuregate.Beta},
 		PropagateDeps:                     {Default: true, PreRelease: featuregate.Beta},
-		CustomizedClusterResourceModeling: {Default: false, PreRelease: featuregate.Alpha},
+		CustomizedClusterResourceModeling: {Default: true, PreRelease: featuregate.Beta},
 	}
 )
 
