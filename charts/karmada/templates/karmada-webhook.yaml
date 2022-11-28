@@ -15,7 +15,7 @@ spec:
       {{- include "karmada.webhook.labels" . | nindent 6 }}
   {{- with .Values.webhook.strategy }}
   strategy:
-  {{- toYaml . | nindent 8 }}
+  {{- toYaml . | nindent 4 }}
   {{- end }}
   template:
     metadata:

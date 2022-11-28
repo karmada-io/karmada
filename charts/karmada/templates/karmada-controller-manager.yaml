@@ -17,7 +17,7 @@ spec:
       {{- include "karmada.cm.labels" . | nindent 6 }}
   {{- with .Values.controllerManager.strategy }}
   strategy:
-  {{- toYaml . | nindent 8 }}
+  {{- toYaml . | nindent 4 }}
   {{- end }}
   template:
     metadata:
