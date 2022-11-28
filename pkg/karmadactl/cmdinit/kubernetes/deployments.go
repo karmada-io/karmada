@@ -423,7 +423,6 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					"--kubeconfig=/etc/kubeconfig",
 					"--bind-address=0.0.0.0",
 					"--secure-port=10351",
-					"--feature-gates=Failover=true",
 					"--enable-scheduler-estimator=true",
 					"--leader-elect=true",
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),

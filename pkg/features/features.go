@@ -26,8 +26,8 @@ var (
 
 	// DefaultFeatureGates is the default feature gates of Karmada.
 	DefaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
-		Failover:                          {Default: false, PreRelease: featuregate.Alpha},
-		GracefulEviction:                  {Default: false, PreRelease: featuregate.Alpha},
+		Failover:                          {Default: true, PreRelease: featuregate.Beta},
+		GracefulEviction:                  {Default: true, PreRelease: featuregate.Beta},
 		PropagateDeps:                     {Default: true, PreRelease: featuregate.Beta},
 		CustomizedClusterResourceModeling: {Default: false, PreRelease: featuregate.Alpha},
 	}
