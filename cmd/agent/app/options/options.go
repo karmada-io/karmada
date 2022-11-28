@@ -11,22 +11,10 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
-)
-
-const (
-	// DefaultKarmadaClusterNamespace defines the default namespace where the member cluster secrets are stored.
-	DefaultKarmadaClusterNamespace = "karmada-cluster"
-	defaultBindAddress             = "0.0.0.0"
-	defaultPort                    = 10357
-)
-
-var (
-	defaultElectionLeaseDuration = metav1.Duration{Duration: 15 * time.Second}
-	defaultElectionRenewDeadline = metav1.Duration{Duration: 10 * time.Second}
-	defaultElectionRetryPeriod   = metav1.Duration{Duration: 2 * time.Second}
 )
 
 // Options contains everything necessary to create and run controller-manager.
@@ -127,11 +115,37 @@ type Options struct {
 // NewOptions builds an default scheduler options.
 func NewOptions() *Options {
 	return &Options{
+		BindAddress:                        "0.0.0.0",
+		CertRotationCheckingInterval:       5 * time.Minute,
+		CertRotationRemainingTimeThreshold: 0.2,
+		ClusterAPIBurst:                    60,
+		ClusterAPIQPS:                      40.0,
+		ClusterCacheSyncTimeout:            metav1.Duration{Duration: util.CacheSyncTimeout},
+		ClusterFailureThreshold:            metav1.Duration{Duration: 30 * time.Second},
+		ClusterLeaseDuration:               metav1.Duration{Duration: 40 * time.Second},
+		ClusterLeaseRenewIntervalFraction:  0.25,
+		ClusterNamespace:                   options.DefaultKarmadaClusterNamespace,
+		ClusterStatusUpdateFrequency:       metav1.Duration{Duration: 10 * time.Second},
+		ClusterSuccessThreshold:            metav1.Duration{Duration: 30 * time.Second},
+		ConcurrentClusterSyncs:             5,
+		ConcurrentWorkSyncs:                5,
+		Controllers:                        []string{"*"},
+		EnableClusterResourceModeling:      true,
+		KarmadaKubeconfigNamespace:         "karmada-system",
+		KubeAPIBurst:                       60,
+		KubeAPIQPS:                         40.0,
 		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
 			LeaderElect:       true,
+			LeaseDuration:     metav1.Duration{Duration: 15 * time.Second},
+			RenewDeadline:     metav1.Duration{Duration: 10 * time.Second},
 			ResourceLock:      resourcelock.LeasesResourceLock,
 			ResourceNamespace: util.NamespaceKarmadaSystem,
+			RetryPeriod:       metav1.Duration{Duration: 2 * time.Second},
 		},
+		MetricsBindAddress: ":8080",
+		ReportSecrets:      []string{"KubeCredentials", "KubeImpersonator"},
+		ResyncPeriod:       metav1.Duration{Duration: 0},
+		SecurePort:         10357,
 	}
 }
 
@@ -141,60 +155,60 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 		return
 	}
 
-	fs.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, fmt.Sprintf(
+	fs.StringSliceVar(&o.Controllers, "controllers", o.Controllers, fmt.Sprintf(
 		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. All controllers: %s.",
 		strings.Join(allControllers, ", "),
 	))
-	fs.StringVar(&o.BindAddress, "bind-address", defaultBindAddress,
+	fs.StringVar(&o.BindAddress, "bind-address", o.BindAddress,
 		"The IP address on which to listen for the --secure-port port.")
-	fs.IntVar(&o.SecurePort, "secure-port", defaultPort,
+	fs.IntVar(&o.SecurePort, "secure-port", o.SecurePort,
 		"The secure port on which to serve HTTPS.")
-	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
-	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", util.NamespaceKarmadaSystem, "The namespace of resource object that is used for locking during leader election.")
-	fs.DurationVar(&o.LeaderElection.LeaseDuration.Duration, "leader-elect-lease-duration", defaultElectionLeaseDuration.Duration, ""+
+	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", o.LeaderElection.LeaderElect, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
+	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", o.LeaderElection.ResourceNamespace, "The namespace of resource object that is used for locking during leader election.")
+	fs.DurationVar(&o.LeaderElection.LeaseDuration.Duration, "leader-elect-lease-duration", o.LeaderElection.LeaseDuration.Duration, ""+
 		"The duration that non-leader candidates will wait after observing a leadership "+
 		"renewal until attempting to acquire leadership of a led but unrenewed leader "+
 		"slot. This is effectively the maximum duration that a leader can be stopped "+
 		"before it is replaced by another candidate. This is only applicable if leader "+
 		"election is enabled.")
-	fs.DurationVar(&o.LeaderElection.RenewDeadline.Duration, "leader-elect-renew-deadline", defaultElectionRenewDeadline.Duration, ""+
+	fs.DurationVar(&o.LeaderElection.RenewDeadline.Duration, "leader-elect-renew-deadline", o.LeaderElection.RenewDeadline.Duration, ""+
 		"The interval between attempts by the acting master to renew a leadership slot "+
 		"before it stops leading. This must be less than or equal to the lease duration. "+
 		"This is only applicable if leader election is enabled.")
-	fs.DurationVar(&o.LeaderElection.RetryPeriod.Duration, "leader-elect-retry-period", defaultElectionRetryPeriod.Duration, ""+
+	fs.DurationVar(&o.LeaderElection.RetryPeriod.Duration, "leader-elect-retry-period", o.LeaderElection.RetryPeriod.Duration, ""+
 		"The duration the clients should wait between attempting acquisition and renewal "+
 		"of a leadership. This is only applicable if leader election is enabled.")
 	fs.StringVar(&o.KarmadaKubeConfig, "karmada-kubeconfig", o.KarmadaKubeConfig, "Path to karmada control plane kubeconfig file.")
-	fs.StringVar(&o.KarmadaContext, "karmada-context", "", "Name of the cluster context in karmada control plane kubeconfig file.")
+	fs.StringVar(&o.KarmadaContext, "karmada-context", o.KarmadaContext, "Name of the cluster context in karmada control plane kubeconfig file.")
 	fs.StringVar(&o.ClusterName, "cluster-name", o.ClusterName, "Name of member cluster that the agent serves for.")
-	fs.StringVar(&o.ClusterNamespace, "cluster-namespace", DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
-	fs.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", 10*time.Second, "Specifies how often karmada-agent posts cluster status to karmada-apiserver. Note: be cautious when changing the constant, it must work with ClusterMonitorGracePeriod in karmada-controller-manager.")
-	fs.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", 40*time.Second,
+	fs.StringVar(&o.ClusterNamespace, "cluster-namespace", o.ClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
+	fs.DurationVar(&o.ClusterStatusUpdateFrequency.Duration, "cluster-status-update-frequency", o.ClusterStatusUpdateFrequency.Duration, "Specifies how often karmada-agent posts cluster status to karmada-apiserver. Note: be cautious when changing the constant, it must work with ClusterMonitorGracePeriod in karmada-controller-manager.")
+	fs.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", o.ClusterLeaseDuration.Duration,
 		"Specifies the expiration period of a cluster lease.")
-	fs.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
+	fs.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", o.ClusterLeaseRenewIntervalFraction,
 		"Specifies the cluster lease renew interval fraction.")
-	fs.DurationVar(&o.ClusterSuccessThreshold.Duration, "cluster-success-threshold", 30*time.Second, "The duration of successes for the cluster to be considered healthy after recovery.")
-	fs.DurationVar(&o.ClusterFailureThreshold.Duration, "cluster-failure-threshold", 30*time.Second, "The duration of failure for the cluster to be considered unhealthy.")
-	fs.Float32Var(&o.ClusterAPIQPS, "cluster-api-qps", 40.0, "QPS to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
-	fs.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", 60, "Burst to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
-	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", 40.0, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
-	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", 60, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
-	fs.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", util.CacheSyncTimeout, "Timeout period waiting for cluster cache to sync.")
+	fs.DurationVar(&o.ClusterSuccessThreshold.Duration, "cluster-success-threshold", o.ClusterSuccessThreshold.Duration, "The duration of successes for the cluster to be considered healthy after recovery.")
+	fs.DurationVar(&o.ClusterFailureThreshold.Duration, "cluster-failure-threshold", o.ClusterFailureThreshold.Duration, "The duration of failure for the cluster to be considered unhealthy.")
+	fs.Float32Var(&o.ClusterAPIQPS, "cluster-api-qps", o.ClusterAPIQPS, "QPS to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	fs.IntVar(&o.ClusterAPIBurst, "cluster-api-burst", o.ClusterAPIBurst, "Burst to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	fs.Float32Var(&o.KubeAPIQPS, "kube-api-qps", o.KubeAPIQPS, "QPS to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	fs.IntVar(&o.KubeAPIBurst, "kube-api-burst", o.KubeAPIBurst, "Burst to use while talking with karmada-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")
+	fs.DurationVar(&o.ClusterCacheSyncTimeout.Duration, "cluster-cache-sync-timeout", o.ClusterCacheSyncTimeout.Duration, "Timeout period waiting for cluster cache to sync.")
 	fs.StringVar(&o.ClusterAPIEndpoint, "cluster-api-endpoint", o.ClusterAPIEndpoint, "APIEndpoint of the cluster.")
 	fs.StringVar(&o.ProxyServerAddress, "proxy-server-address", o.ProxyServerAddress, "Address of the proxy server that is used to proxy to the cluster.")
-	fs.DurationVar(&o.ResyncPeriod.Duration, "resync-period", 0, "Base frequency the informers are resynced.")
-	fs.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", 5, "The number of Clusters that are allowed to sync concurrently.")
-	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
-	fs.StringSliceVar(&o.ReportSecrets, "report-secrets", []string{"KubeCredentials", "KubeImpersonator"}, "The secrets that are allowed to be reported to the Karmada control plane during registering. Valid values are 'KubeCredentials', 'KubeImpersonator' and 'None'. e.g 'KubeCredentials,KubeImpersonator' or 'None'.")
-	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8088, :8088)")
-	fs.StringVar(&o.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
-	fs.StringVar(&o.ClusterRegion, "cluster-region", "", "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
-	fs.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
+	fs.DurationVar(&o.ResyncPeriod.Duration, "resync-period", o.ResyncPeriod.Duration, "Base frequency the informers are resynced.")
+	fs.IntVar(&o.ConcurrentClusterSyncs, "concurrent-cluster-syncs", o.ConcurrentClusterSyncs, "The number of Clusters that are allowed to sync concurrently.")
+	fs.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", o.ConcurrentWorkSyncs, "The number of Works that are allowed to sync concurrently.")
+	fs.StringSliceVar(&o.ReportSecrets, "report-secrets", o.ReportSecrets, "The secrets that are allowed to be reported to the Karmada control plane during registering. Valid values are 'KubeCredentials', 'KubeImpersonator' and 'None'. e.g 'KubeCredentials,KubeImpersonator' or 'None'.")
+	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", o.MetricsBindAddress, "The TCP address that the controller should bind to for serving prometheus metrics(e.g. 127.0.0.1:8088, :8088)")
+	fs.StringVar(&o.ClusterProvider, "cluster-provider", o.ClusterProvider, "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
+	fs.StringVar(&o.ClusterRegion, "cluster-region", o.ClusterRegion, "The region of the joining cluster. The Karmada scheduler can use this information to spread workloads across regions for higher availability.")
+	fs.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", o.EnableClusterResourceModeling, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
 		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
 		"Disable if it does not fit your cases for better performance.")
-	fs.DurationVar(&o.CertRotationCheckingInterval, "cert-rotation-checking-interval", 5*time.Minute, "The interval of checking if the certificate need to be rotated. This is only applicable if cert rotation is enabled")
-	fs.Float64Var(&o.CertRotationRemainingTimeThreshold, "cert-rotation-remaining-time-threshold", 0.2, "The threshold of remaining time of the valid certificate. This is only applicable if cert rotation is enabled.")
-	fs.StringVar(&o.KarmadaKubeconfigNamespace, "karmada-kubeconfig-namespace", "karmada-system", "Namespace of the secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
+	fs.DurationVar(&o.CertRotationCheckingInterval, "cert-rotation-checking-interval", o.CertRotationCheckingInterval, "The interval of checking if the certificate need to be rotated. This is only applicable if cert rotation is enabled")
+	fs.Float64Var(&o.CertRotationRemainingTimeThreshold, "cert-rotation-remaining-time-threshold", o.CertRotationRemainingTimeThreshold, "The threshold of remaining time of the valid certificate. This is only applicable if cert rotation is enabled.")
+	fs.StringVar(&o.KarmadaKubeconfigNamespace, "karmada-kubeconfig-namespace", o.KarmadaKubeconfigNamespace, "Namespace of the secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
 	o.RateLimiterOpts.AddFlags(fs)
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
