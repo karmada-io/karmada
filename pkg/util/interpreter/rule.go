@@ -28,6 +28,15 @@ func (r *retentionRule) Name() string {
 	return string(configv1alpha1.InterpreterOperationRetain)
 }
 
+func (r *retentionRule) Document() string {
+	return `This rule is used to retain runtime values to the desired specification.
+The script should implement a function as follows:
+function Retain(desiredObj, observedObj)
+  desiredObj.spec.fieldFoo = observedObj.spec.fieldFoo
+  return desiredObj
+end`
+}
+
 func (r *retentionRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
 	if c.Spec.Customizations.Retention != nil {
 		return c.Spec.Customizations.Retention.LuaScript
@@ -73,6 +82,19 @@ func (r *replicaResourceRule) Name() string {
 	return string(configv1alpha1.InterpreterOperationInterpretReplica)
 }
 
+func (r *replicaResourceRule) Document() string {
+	return `This rule is used to discover the resource's replica as well as resource requirements.
+The script should implement a function as follows:
+function GetReplicas(desiredObj)
+  replica = desiredObj.spec.replicas
+  nodeClaim = {}
+  nodeClaim.hardNodeAffinity = {}
+  nodeClaim.nodeSelector = {}
+  nodeClaim.tolerations = {}
+  return replica, nodeClaim
+end`
+}
+
 func (r *replicaResourceRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
 	if c.Spec.Customizations.ReplicaResource != nil {
 		return c.Spec.Customizations.ReplicaResource.LuaScript
@@ -112,6 +134,15 @@ type replicaRevisionRule struct {
 
 func (r *replicaRevisionRule) Name() string {
 	return string(configv1alpha1.InterpreterOperationReviseReplica)
+}
+
+func (r *replicaRevisionRule) Document() string {
+	return `This rule is used to revise replicas in the desired specification.
+The script should implement a function as follows:
+function ReviseReplica(desiredObj, desiredReplica)
+  desiredObj.spec.replicas = desiredReplica
+  return desiredObj
+end`
 }
 
 func (r *replicaRevisionRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
@@ -155,6 +186,16 @@ func (s *statusReflectionRule) Name() string {
 	return string(configv1alpha1.InterpreterOperationInterpretStatus)
 }
 
+func (s *statusReflectionRule) Document() string {
+	return `This rule is used to get the status from the observed specification.
+The script should implement a function as follows:
+function ReflectStatus(observedObj)
+  status = {}
+  status.readyReplicas = observedObj.status.observedObj
+  return status
+end`
+}
+
 func (s *statusReflectionRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
 	if c.Spec.Customizations.StatusReflection != nil {
 		return c.Spec.Customizations.StatusReflection.LuaScript
@@ -194,6 +235,17 @@ type statusAggregationRule struct {
 
 func (s *statusAggregationRule) Name() string {
 	return string(configv1alpha1.InterpreterOperationAggregateStatus)
+}
+
+func (s *statusAggregationRule) Document() string {
+	return `This rule is used to aggregate decentralized statuses to the desired specification.
+The script should implement a function as follows:
+function AggregateStatus(desiredObj, statusItems)
+  for i = 1, #items do
+    desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas
+  end
+  return desiredObj
+end`
 }
 
 func (s *statusAggregationRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
@@ -242,6 +294,17 @@ func (h *healthInterpretationRule) Name() string {
 	return string(configv1alpha1.InterpreterOperationInterpretHealth)
 }
 
+func (h *healthInterpretationRule) Document() string {
+	return `This rule is used to assess the health state of a specific resource.
+The script should implement a function as follows:
+luaScript: >
+function InterpretHealth(observedObj)
+  if observedObj.status.readyReplicas == observedObj.spec.replicas then
+    return true
+  end
+end`
+}
+
 func (h *healthInterpretationRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
 	if c.Spec.Customizations.HealthInterpretation != nil {
 		return c.Spec.Customizations.HealthInterpretation.LuaScript
@@ -283,6 +346,24 @@ func (d *dependencyInterpretationRule) Name() string {
 	return string(configv1alpha1.InterpreterOperationInterpretDependency)
 }
 
+func (d *dependencyInterpretationRule) Document() string {
+	return ` This rule is used to interpret the dependencies of a specific resource.
+The script should implement a function as follows:
+function GetDependencies(desiredObj)
+  dependencies = {}
+  if desiredObj.spec.serviceAccountName ~= "" and desiredObj.spec.serviceAccountName ~= "default" then
+    dependency = {}
+    dependency.apiVersion = "v1"
+    dependency.kind = "ServiceAccount"
+    dependency.name = desiredObj.spec.serviceAccountName
+    dependency.namespace = desiredObj.namespace
+    dependencies[0] = {}
+    dependencies[0] = dependency
+  end
+  return dependencies
+end`
+}
+
 func (d *dependencyInterpretationRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
 	if c.Spec.Customizations.DependencyInterpretation != nil {
 		return c.Spec.Customizations.DependencyInterpretation.LuaScript
@@ -321,6 +402,8 @@ func (d *dependencyInterpretationRule) Run(interpreter *configurableinterpreter.
 type Rule interface {
 	// Name returns the name of the rule.
 	Name() string
+	// Document explains detail of rule.
+	Document() string
 	// GetScript returns the script for the rule from customization. If not enabled, return empty
 	GetScript(*configv1alpha1.ResourceInterpreterCustomization) string
 	// SetScript set the script for the rule. If script is empty, disable the rule.
