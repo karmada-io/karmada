@@ -550,6 +550,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			InformerManager:     controlPlaneInformerManager,
 			ResourceInterpreter: resourceInterpreter,
 			RESTMapper:          mgr.GetRESTMapper(),
+			EventRecorder:       mgr.GetEventRecorderFor("dependencies-distributor"),
 		}
 		if err := mgr.Add(dependenciesDistributor); err != nil {
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)

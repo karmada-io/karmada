@@ -44,6 +44,10 @@ const (
 const (
 	// EventReasonCleanupWorkFailed indicates that Cleanup work failed.
 	EventReasonCleanupWorkFailed = "CleanupWorkFailed"
+	// EventReasonSyncScheduleResultToDependenciesSucceed indicates sync schedule result to attached bindings succeed.
+	EventReasonSyncScheduleResultToDependenciesSucceed = "SyncScheduleResultToDependenciesSucceed"
+	// EventReasonSyncScheduleResultToDependenciesFailed indicates sync schedule result to attached bindings failed.
+	EventReasonSyncScheduleResultToDependenciesFailed = "SyncScheduleResultToDependenciesFailed"
 )
 
 // Define events for ResourceBinding, ClusterResourceBinding objects and their associated resources.
@@ -92,6 +96,10 @@ const (
 	EventReasonApplyOverridePolicyFailed = "ApplyOverridePolicyFailed"
 	// EventReasonApplyOverridePolicySucceed indicates that apply override policy succeed.
 	EventReasonApplyOverridePolicySucceed = "ApplyOverridePolicySucceed"
+	// EventReasonGetDependenciesSucceed indicates get dependencies of resource template succeed.
+	EventReasonGetDependenciesSucceed = "GetDependenciesSucceed"
+	// EventReasonGetDependenciesFailed indicates get dependencies of resource template failed.
+	EventReasonGetDependenciesFailed = "GetDependenciesFailed"
 )
 
 // Define events for ServiceImport objects.
