@@ -8,13 +8,8 @@ import (
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 	luajson "layeh.com/gopher-json"
 
-	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/fixedpool"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
@@ -108,55 +103,6 @@ func (vm *VM) RunScript(script string, fnName string, nRets int, args ...interfa
 	return rets, nil
 }
 
-// GetReplicas returns the desired replicas of the object as well as the requirements of each replica by lua script.
-func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
-	results, err := vm.RunScript(script, "GetReplicas", 2, obj)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	replica, err = ConvertLuaResultToInt(results[0])
-	if err != nil {
-		return 0, nil, err
-	}
-
-	replicaRequirementResult := results[1]
-	requires = &workv1alpha2.ReplicaRequirements{}
-	if replicaRequirementResult.Type() == lua.LTTable {
-		err = ConvertLuaResultInto(replicaRequirementResult, requires)
-		if err != nil {
-			klog.Errorf("ConvertLuaResultToReplicaRequirements err %v", err.Error())
-			return 0, nil, err
-		}
-	} else if replicaRequirementResult.Type() == lua.LTNil {
-		requires = nil
-	} else {
-		return 0, nil, fmt.Errorf("expect the returned requires type is table but got %s", replicaRequirementResult.Type())
-	}
-
-	return
-}
-
-// ReviseReplica revises the replica of the given object by lua.
-func (vm *VM) ReviseReplica(object *unstructured.Unstructured, replica int64, script string) (*unstructured.Unstructured, error) {
-	results, err := vm.RunScript(script, "ReviseReplica", 1, object, replica)
-	if err != nil {
-		return nil, err
-	}
-
-	luaResult := results[0]
-	reviseReplicaResult := &unstructured.Unstructured{}
-	if luaResult.Type() == lua.LTTable {
-		err := ConvertLuaResultInto(luaResult, reviseReplicaResult)
-		if err != nil {
-			return nil, err
-		}
-		return reviseReplicaResult, nil
-	}
-
-	return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
-}
-
 func (vm *VM) setLib(l *lua.LState) error {
 	for _, pair := range []struct {
 		n string
@@ -177,92 +123,6 @@ func (vm *VM) setLib(l *lua.LState) error {
 		}
 	}
 	return nil
-}
-
-// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object by lua.
-func (vm *VM) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured, script string) (retained *unstructured.Unstructured, err error) {
-	results, err := vm.RunScript(script, "Retain", 1, desired, observed)
-	if err != nil {
-		return nil, err
-	}
-
-	luaResult := results[0]
-	retainResult := &unstructured.Unstructured{}
-	if luaResult.Type() == lua.LTTable {
-		err := ConvertLuaResultInto(luaResult, retainResult)
-		if err != nil {
-			return nil, err
-		}
-		return retainResult, nil
-	}
-	return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
-}
-
-// AggregateStatus returns the objects that based on the 'object' but with status aggregated by lua.
-func (vm *VM) AggregateStatus(object *unstructured.Unstructured, items []workv1alpha2.AggregatedStatusItem, script string) (*unstructured.Unstructured, error) {
-	results, err := vm.RunScript(script, "AggregateStatus", 1, object, items)
-	if err != nil {
-		return nil, err
-	}
-
-	luaResult := results[0]
-	aggregateStatus := &unstructured.Unstructured{}
-	if luaResult.Type() == lua.LTTable {
-		err := ConvertLuaResultInto(luaResult, aggregateStatus)
-		if err != nil {
-			return nil, err
-		}
-		return aggregateStatus, nil
-	}
-	return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
-}
-
-// InterpretHealth returns the health state of the object by lua.
-func (vm *VM) InterpretHealth(object *unstructured.Unstructured, script string) (bool, error) {
-	results, err := vm.RunScript(script, "InterpretHealth", 1, object)
-	if err != nil {
-		return false, err
-	}
-
-	var health bool
-	health, err = ConvertLuaResultToBool(results[0])
-	if err != nil {
-		return false, err
-	}
-	return health, nil
-}
-
-// ReflectStatus returns the status of the object by lua.
-func (vm *VM) ReflectStatus(object *unstructured.Unstructured, script string) (status *runtime.RawExtension, err error) {
-	results, err := vm.RunScript(script, "ReflectStatus", 1, object)
-	if err != nil {
-		return nil, err
-	}
-
-	luaStatusResult := results[0]
-	if luaStatusResult.Type() != lua.LTTable {
-		return nil, fmt.Errorf("expect the returned replica type is table but got %s", luaStatusResult.Type())
-	}
-
-	status = &runtime.RawExtension{}
-	err = ConvertLuaResultInto(luaStatusResult, status)
-	return status, err
-}
-
-// GetDependencies returns the dependent resources of the given object by lua.
-func (vm *VM) GetDependencies(object *unstructured.Unstructured, script string) (dependencies []configv1alpha1.DependentObjectReference, err error) {
-	results, err := vm.RunScript(script, "GetDependencies", 1, object)
-	if err != nil {
-		return nil, err
-	}
-
-	luaResult := results[0]
-
-	if luaResult.Type() != lua.LTTable {
-		return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
-	}
-	err = ConvertLuaResultInto(luaResult, &dependencies)
-	return
 }
 
 // NewWithContext creates a lua VM with the given context.

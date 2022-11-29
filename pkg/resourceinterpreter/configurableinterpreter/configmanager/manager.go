@@ -2,7 +2,6 @@ package configmanager
 
 import (
 	"fmt"
-	"sort"
 	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -25,50 +24,23 @@ var resourceInterpreterCustomizationsGVR = schema.GroupVersionResource{
 
 // ConfigManager can list custom resource interpreter.
 type ConfigManager interface {
-	LuaScriptAccessors() map[schema.GroupVersionKind]CustomAccessor
-	HasSynced() bool
+	GetInterpreter(kind schema.GroupVersionKind) *configv1alpha1.CustomizationRules
 	LoadConfig(customizations []*configv1alpha1.ResourceInterpreterCustomization)
 }
 
 // interpreterConfigManager collects the resource interpreter customization.
 type interpreterConfigManager struct {
-	initialSynced *atomic.Value
 	lister        cache.GenericLister
 	configuration *atomic.Value
-}
-
-// LuaScriptAccessors returns all cached configurations.
-func (configManager *interpreterConfigManager) LuaScriptAccessors() map[schema.GroupVersionKind]CustomAccessor {
-	return configManager.configuration.Load().(map[schema.GroupVersionKind]CustomAccessor)
-}
-
-// HasSynced returns true when the cache is synced.
-func (configManager *interpreterConfigManager) HasSynced() bool {
-	if configManager.initialSynced.Load().(bool) {
-		return true
-	}
-
-	if configuration, err := configManager.lister.List(labels.Everything()); err == nil && len(configuration) == 0 {
-		// the empty list we initially stored is valid to use.
-		// Setting initialSynced to true, so subsequent checks
-		// would be able to take the fast path on the atomic boolean in a
-		// cluster without any customization configured.
-		configManager.initialSynced.Store(true)
-		// the informer has synced, and we don't have any items
-		return true
-	}
-	return false
 }
 
 // NewInterpreterConfigManager watches ResourceInterpreterCustomization and organizes
 // the configurations in the cache.
 func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerManager) ConfigManager {
 	manager := &interpreterConfigManager{
-		initialSynced: &atomic.Value{},
 		configuration: &atomic.Value{},
 	}
-	manager.configuration.Store(make(map[schema.GroupVersionKind]CustomAccessor))
-	manager.initialSynced.Store(false)
+	manager.configuration.Store(make(map[schema.GroupVersionKind]*configv1alpha1.CustomizationRules))
 
 	// In interpret command, rules are not loaded from server, so we don't start informer for it.
 	if informer != nil {
@@ -81,6 +53,36 @@ func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerMa
 	}
 
 	return manager
+}
+
+func (configManager *interpreterConfigManager) IsEnabled(operationType configv1alpha1.InterpreterOperation, kind schema.GroupVersionKind) bool {
+	rules := configManager.GetInterpreter(kind)
+	if rules == nil {
+		return false
+	}
+
+	switch operationType {
+	case configv1alpha1.InterpreterOperationAggregateStatus:
+		return rules.StatusAggregation != nil
+	case configv1alpha1.InterpreterOperationInterpretHealth:
+		return rules.HealthInterpretation != nil
+	case configv1alpha1.InterpreterOperationInterpretDependency:
+		return rules.DependencyInterpretation != nil
+	case configv1alpha1.InterpreterOperationInterpretReplica:
+		return rules.ReplicaResource != nil
+	case configv1alpha1.InterpreterOperationInterpretStatus:
+		return rules.StatusReflection != nil
+	case configv1alpha1.InterpreterOperationRetain:
+		return rules.Retention != nil
+	case configv1alpha1.InterpreterOperationReviseReplica:
+		return rules.ReplicaRevision != nil
+	}
+	return false
+}
+
+func (configManager *interpreterConfigManager) GetInterpreter(kind schema.GroupVersionKind) *configv1alpha1.CustomizationRules {
+	configs := configManager.configuration.Load().(map[schema.GroupVersionKind]*configv1alpha1.CustomizationRules)
+	return configs[kind]
 }
 
 func (configManager *interpreterConfigManager) updateConfiguration() {
@@ -103,24 +105,41 @@ func (configManager *interpreterConfigManager) updateConfiguration() {
 	configManager.LoadConfig(configs)
 }
 
-func (configManager *interpreterConfigManager) LoadConfig(configs []*configv1alpha1.ResourceInterpreterCustomization) {
-	sort.Slice(configs, func(i, j int) bool {
-		return configs[i].Name < configs[j].Name
-	})
+func (configManager *interpreterConfigManager) LoadConfig(configurations []*configv1alpha1.ResourceInterpreterCustomization) {
+	configs := make(map[schema.GroupVersionKind]*configv1alpha1.CustomizationRules, len(configurations))
+	for _, config := range configurations {
+		kind := schema.FromAPIVersionAndKind(config.Spec.Target.APIVersion, config.Spec.Target.Kind)
 
-	accessors := make(map[schema.GroupVersionKind]CustomAccessor)
-	for _, config := range configs {
-		key := schema.FromAPIVersionAndKind(config.Spec.Target.APIVersion, config.Spec.Target.Kind)
-
-		var accessor CustomAccessor
-		var ok bool
-		if accessor, ok = accessors[key]; !ok {
-			accessor = NewResourceCustomAccessor()
+		rules, ok := configs[kind]
+		if !ok {
+			rules = &configv1alpha1.CustomizationRules{}
+			configs[kind] = rules
 		}
-		accessor.Merge(config.Spec.Customizations)
-		accessors[key] = accessor
+		mergeConfigInto(&config.Spec.Customizations, rules)
 	}
+	configManager.configuration.Store(configs)
+}
 
-	configManager.configuration.Store(accessors)
-	configManager.initialSynced.Store(true)
+func mergeConfigInto(from, to *configv1alpha1.CustomizationRules) {
+	if r := from.Retention; r != nil {
+		to.Retention = r.DeepCopy()
+	}
+	if r := from.ReplicaResource; r != nil {
+		to.ReplicaResource = r.DeepCopy()
+	}
+	if r := from.ReplicaRevision; r != nil {
+		to.ReplicaRevision = r.DeepCopy()
+	}
+	if r := from.StatusReflection; r != nil {
+		to.StatusReflection = r.DeepCopy()
+	}
+	if r := from.StatusAggregation; r != nil {
+		to.StatusAggregation = r.DeepCopy()
+	}
+	if r := from.HealthInterpretation; r != nil {
+		to.HealthInterpretation = r.DeepCopy()
+	}
+	if r := from.DependencyInterpretation; r != nil {
+		to.DependencyInterpretation = r.DeepCopy()
+	}
 }
