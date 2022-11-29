@@ -30,7 +30,7 @@ import (
 
 var (
 	imageRepositories = map[string]string{
-		"global": "k8s.gcr.io",
+		"global": "registry.k8s.io",
 		"cn":     "registry.cn-hangzhou.aliyuncs.com/google_containers",
 	}
 

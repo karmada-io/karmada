@@ -13,7 +13,7 @@ import (
 // fictional.registry.example:10443/karmada/karmada-controller-manager:v1.0.0 or
 // fictional.registry.example:10443/karmada/karmada-controller-manager@sha256:50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c
 type Components struct {
-	// hostname is the prefix of referencing image, like "k8s.gcr.io".
+	// hostname is the prefix of referencing image, like "registry.k8s.io".
 	// It may optionally be followed by a port number, like "fictional.registry.example:10443".
 	hostname string
 	// repository is the short name of referencing image, like "karmada-controller-manager".
@@ -162,7 +162,7 @@ func Parse(image string) (*Components, error) {
 	return comp, nil
 }
 
-// SplitHostname splits a repository name(ie: k8s.gcr.io/kube-apiserver) to hostname(k8s.gcr.io) and remotename(kube-apiserver) string.
+// SplitHostname splits a repository name(ie: registry.k8s.io/kube-apiserver) to hostname(registry.k8s.io) and remotename(kube-apiserver) string.
 func SplitHostname(name string) (hostname, remoteName string) {
 	i := strings.IndexRune(name, '/')
 	if i == -1 || (!strings.ContainsAny(name[:i], ".:") && name[:i] != "localhost") {

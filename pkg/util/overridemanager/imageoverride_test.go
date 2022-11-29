@@ -183,7 +183,7 @@ func generateDeploymentYamlWithTwoContainer() *unstructured.Unstructured {
 								"name":  "nginx",
 							},
 							map[string]interface{}{
-								"image": "k8s.gcr.io/nginx-slim:0.8",
+								"image": "registry.k8s.io/nginx-slim:0.8",
 								"name":  "nginx",
 							}}}}}}}
 }
@@ -225,14 +225,14 @@ func TestParseJSONPatchesByImageOverrider(t *testing.T) {
 				imageOverrider: &policyv1alpha1.ImageOverrider{
 					Component: "Registry",
 					Operator:  "add",
-					Value:     "k8s.gcr.io",
+					Value:     "registry.k8s.io",
 				},
 			},
 			want: []overrideOption{
 				{
 					Op:    "replace",
 					Path:  "/spec/template/spec/containers/0/image",
-					Value: "k8s.gcr.io/perl:5.34.0",
+					Value: "registry.k8s.io/perl:5.34.0",
 				},
 			},
 			wantErr: false,
@@ -247,14 +247,14 @@ func TestParseJSONPatchesByImageOverrider(t *testing.T) {
 					},
 					Component: "Registry",
 					Operator:  "add",
-					Value:     "k8s.gcr.io",
+					Value:     "registry.k8s.io",
 				},
 			},
 			want: []overrideOption{
 				{
 					Op:    "replace",
 					Path:  "/spec/template/spec/containers/0/image",
-					Value: "k8s.gcr.io/perl:5.34.0",
+					Value: "registry.k8s.io/perl:5.34.0",
 				},
 			},
 			wantErr: false,
@@ -525,7 +525,7 @@ func TestParseJSONPatchesByImageOverrider(t *testing.T) {
 				{
 					Op:    "replace",
 					Path:  "/spec/template/spec/containers/1/image",
-					Value: "k8s.gcr.io/nginx:0.8",
+					Value: "registry.k8s.io/nginx:0.8",
 				},
 			},
 			wantErr: false,
@@ -569,7 +569,7 @@ func TestParseJSONPatchesByImageOverrider(t *testing.T) {
 				{
 					Op:    "replace",
 					Path:  "/spec/template/spec/containers/1/image",
-					Value: "k8s.gcr.io/nginx:0.8",
+					Value: "registry.k8s.io/nginx:0.8",
 				},
 			},
 			wantErr: false,

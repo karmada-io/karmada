@@ -671,14 +671,14 @@ function util:host_platform() {
 function util::set_mirror_registry_for_china_mainland() {
   local repo_root=${1}
   export GOPROXY=https://goproxy.cn,direct # set domestic go proxy
-  # set mirror registry of k8s.gcr.io
-  registry_files=( # Yaml files that contain image host 'k8s.gcr.io' need to be replaced
+  # set mirror registry of registry.k8s.io
+  registry_files=( # Yaml files that contain image host 'registry.k8s.io' need to be replaced
     "artifacts/deploy/karmada-etcd.yaml"
     "artifacts/deploy/karmada-apiserver.yaml"
     "artifacts/deploy/kube-controller-manager.yaml"
   )
   for registry_file in "${registry_files[@]}"; do
-    sed -i'' -e "s#k8s.gcr.io#registry.aliyuncs.com/google_containers#g" ${repo_root}/${registry_file}
+    sed -i'' -e "s#registry.k8s.io#registry.aliyuncs.com/google_containers#g" ${repo_root}/${registry_file}
   done
 
   # set mirror registry in the dockerfile of components of karmada

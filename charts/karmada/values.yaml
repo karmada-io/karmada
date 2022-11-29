@@ -313,7 +313,7 @@ apiServer:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: k8s.gcr.io
+    registry: registry.k8s.io
     repository: kube-apiserver
     tag: "v1.25.2"
     ## Specify a imagePullPolicy
@@ -453,7 +453,7 @@ kubeControllerManager:
   ## @param image.pullSecrets Specify docker-registry secret names as an array
   ##
   image:
-    registry: k8s.gcr.io
+    registry: registry.k8s.io
     repository: kube-controller-manager
     tag: "v1.25.2"
     ## Specify a imagePullPolicy
@@ -529,7 +529,7 @@ etcd:
     ## @param image.pullPolicy etcd image pull policy
     ##
     image:
-      registry: k8s.gcr.io
+      registry: registry.k8s.io
       repository: etcd
       tag: "3.5.3-0"
       ## Specify a imagePullPolicy

@@ -148,7 +148,7 @@ type ImageOverrider struct {
 	// Component is part of image name.
 	// Basically we presume an image can be made of '[registry/]repository[:tag]'.
 	// The registry could be:
-	// - k8s.gcr.io
+	// - registry.k8s.io
 	// - fictional.registry.example:10443
 	// The repository could be:
 	// - kube-apiserver
