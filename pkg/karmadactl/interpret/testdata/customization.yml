@@ -1,0 +1,65 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: customization
+spec:
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+  customizations:
+    retention:
+      luaScript: >
+        function Retain(desiredObj, runtimeObj)
+          desiredObj.metadata.annotations.cluster = runtimeObj.metadata.annotations.cluster
+          return desiredObj
+        end
+    replicaResource:
+      luaScript: >
+        function GetReplicas(obj)
+          replica = obj.spec.replicas
+          requirement = {
+            resourceRequest = obj.spec.template.spec.containers[1].resources.limits,
+            nodeClaim = {
+              nodeSelector = obj.spec.template.spec.nodeSelector,
+              tolerations = obj.spec.template.spec.tolerations
+            }
+          }
+          return replica, requirement
+        end
+    replicaRevision:
+      luaScript: >
+        function ReviseReplica(obj, desiredReplica)
+          obj.spec.replicas = desiredReplica
+          return obj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          return observedObj.status
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, items)
+          desiredObj.status.readyReplicas = 0
+          for i = 1, #items do
+            desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].status.readyReplicas
+          end
+          return desiredObj
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          return observedObj.status.readyReplicas == observedObj.spec.replicas
+        end
+    dependencyInterpretation:
+      luaScript: >
+        function GetDependencies(desiredObj)
+          dependencies = {}
+          dependencies[1] = {
+            apiVersion = "v1",
+            kind       = "ServiceAccount",
+            name       = desiredObj.metadata.name,
+            namespace  = desiredObj.metadata.namespace,
+          }
+          return dependencies
+        end
