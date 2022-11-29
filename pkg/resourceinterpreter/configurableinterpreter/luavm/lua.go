@@ -32,6 +32,7 @@ func New(useOpenLibs bool, poolSize int) *VM {
 		UseOpenLibs: useOpenLibs,
 	}
 	vm.Pool = fixedpool.New(
+		"luavm",
 		func() (any, error) { return vm.NewLuaState() },
 		func(a any) { a.(*lua.LState).Close() },
 		poolSize)
