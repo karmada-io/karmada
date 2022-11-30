@@ -3,6 +3,7 @@ package genericresource
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -176,7 +177,7 @@ func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 	for {
 		ext := runtime.RawExtension{}
 		if err := d.Decode(&ext); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			return fmt.Errorf("error parsing %s: %v", v.Source, err)
