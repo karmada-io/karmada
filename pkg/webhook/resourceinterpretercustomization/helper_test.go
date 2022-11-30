@@ -256,7 +256,7 @@ func Test_validateCustomizationRule(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

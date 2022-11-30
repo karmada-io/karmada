@@ -122,7 +122,7 @@ func Test_interpreterConfigManager_LuaScriptAccessors(t *testing.T) {
 				t.Errorf("informer has not been synced")
 			}
 
-			gotAccessors := configManager.LuaScriptAccessors()
+			gotAccessors := configManager.CustomAccessors()
 			for gvk, gotAccessor := range gotAccessors {
 				wantAccessor, ok := tt.want[gvk]
 				if !ok {

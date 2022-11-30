@@ -25,7 +25,7 @@ var resourceInterpreterCustomizationsGVR = schema.GroupVersionResource{
 
 // ConfigManager can list custom resource interpreter.
 type ConfigManager interface {
-	LuaScriptAccessors() map[schema.GroupVersionKind]CustomAccessor
+	CustomAccessors() map[schema.GroupVersionKind]CustomAccessor
 	HasSynced() bool
 	LoadConfig(customizations []*configv1alpha1.ResourceInterpreterCustomization)
 }
@@ -37,8 +37,8 @@ type interpreterConfigManager struct {
 	configuration atomic.Value
 }
 
-// LuaScriptAccessors returns all cached configurations.
-func (configManager *interpreterConfigManager) LuaScriptAccessors() map[schema.GroupVersionKind]CustomAccessor {
+// CustomAccessors returns all cached configurations.
+func (configManager *interpreterConfigManager) CustomAccessors() map[schema.GroupVersionKind]CustomAccessor {
 	return configManager.configuration.Load().(map[schema.GroupVersionKind]CustomAccessor)
 }
 

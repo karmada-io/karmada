@@ -16,6 +16,10 @@ func validateCustomizationRule(oldRules, newRules *configv1alpha1.ResourceInterp
 		return nil
 	}
 	for _, rule := range interpreter.AllResourceInterpreterCustomizationRules {
+		// skip InterpretDependency operation because it supports multiple rules.
+		if rule.Name() == string(configv1alpha1.InterpreterOperationInterpretDependency) {
+			continue
+		}
 		oldScript := rule.GetScript(oldRules)
 		newScript := rule.GetScript(newRules)
 		if oldScript != "" && newScript != "" {
