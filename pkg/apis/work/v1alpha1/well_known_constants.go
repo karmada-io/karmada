@@ -15,4 +15,8 @@ const (
 
 	// WorkNameLabel is added to objects to specify associated Work's name.
 	WorkNameLabel = "work.karmada.io/name"
+
+	// AnnotationMetadataName is the annotation name which is used to automatically annotation namespaces
+	// so they can indicate that the namespace was created by karmada to avoid accidental deletion.
+	AnnotationMetadataName = "karmada.io/metadata.name"
 )

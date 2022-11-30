@@ -143,6 +143,8 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 		util.MergeLabel(clonedNamespaced, workv1alpha1.WorkNamespaceLabel, workNamespace)
 		util.MergeLabel(clonedNamespaced, workv1alpha1.WorkNameLabel, workName)
 
+		util.MergeAnnotation(clonedNamespaced, workv1alpha1.AnnotationMetadataName, namespaceObj.GetName())
+		
 		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, clonedNamespaced); err != nil {
 			return err
 		}
