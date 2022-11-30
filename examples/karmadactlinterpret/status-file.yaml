@@ -1,0 +1,17 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  availableReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
+---
+applied: true
+clusterName: member2
+health: Healthy
+status:
+  availableReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
