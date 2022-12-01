@@ -59,6 +59,15 @@ func SortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
 	return p
 }
 
+// GetWeightSum returns the sum of the weight info.
+func (p ClusterWeightInfoList) GetWeightSum() int64 {
+	var res int64
+	for i := range p {
+		res += p[i].Weight
+	}
+	return res
+}
+
 // IsBindingScheduled will check if resourceBinding/clusterResourceBinding is successfully scheduled.
 func IsBindingScheduled(status *workv1alpha2.ResourceBindingStatus) bool {
 	return meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled)

@@ -20,6 +20,82 @@ func (a TargetClustersList) Len() int           { return len(a) }
 func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
+type dispenser struct {
+	numReplicas int32
+	result      []workv1alpha2.TargetCluster
+}
+
+func newDispenser(numReplicas int32, init []workv1alpha2.TargetCluster) *dispenser {
+	cp := make([]workv1alpha2.TargetCluster, len(init))
+	copy(cp, init)
+	return &dispenser{numReplicas: numReplicas, result: cp}
+}
+
+func (a *dispenser) done() bool {
+	return a.numReplicas == 0 && len(a.result) != 0
+}
+
+func (a *dispenser) takeByWeight(w helper.ClusterWeightInfoList) {
+	if a.done() {
+		return
+	}
+	sum := w.GetWeightSum()
+	if sum == 0 {
+		return
+	}
+
+	sort.Sort(w)
+
+	result := make([]workv1alpha2.TargetCluster, 0, w.Len())
+	remain := a.numReplicas
+	for _, info := range w {
+		replicas := int32(info.Weight * int64(a.numReplicas) / sum)
+		result = append(result, workv1alpha2.TargetCluster{
+			Name:     info.ClusterName,
+			Replicas: replicas,
+		})
+		remain -= replicas
+	}
+	// TODO(Garrybest): take rest replicas by fraction part
+	for i := range result {
+		if remain == 0 {
+			break
+		}
+		result[i].Replicas++
+		remain--
+	}
+
+	a.numReplicas = remain
+	a.result = util.MergeTargetClusters(a.result, result)
+}
+
+func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight) helper.ClusterWeightInfoList {
+	list := make(helper.ClusterWeightInfoList, 0)
+	for _, cluster := range clusters {
+		var weight int64
+		for _, staticWeightRule := range weightList {
+			if util.ClusterMatches(cluster, staticWeightRule.TargetCluster) {
+				weight = util.MaxInt64(weight, staticWeightRule.Weight)
+			}
+		}
+		if weight > 0 {
+			list = append(list, helper.ClusterWeightInfo{
+				ClusterName: cluster.Name,
+				Weight:      weight,
+			})
+		}
+	}
+	if list.GetWeightSum() == 0 {
+		for _, cluster := range clusters {
+			list = append(list, helper.ClusterWeightInfo{
+				ClusterName: cluster.Name,
+				Weight:      1,
+			})
+		}
+	}
+	return list
+}
+
 // divideReplicasByDynamicWeight assigns a total number of replicas to the selected clusters by the dynamic weight list.
 func divideReplicasByDynamicWeight(clusters []*clusterv1alpha1.Cluster, dynamicWeight policyv1alpha1.DynamicWeightFactor, spec *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
 	switch dynamicWeight {
@@ -61,61 +137,6 @@ func divideReplicasByResource(
 	} else {
 		return scheduledClusters, nil
 	}
-}
-
-// divideReplicasByStaticWeight assigns a total number of replicas to the selected clusters by the weight list.
-// For example, we want to assign replicas to two clusters named A and B.
-// | Total | Weight(A:B) | Assignment(A:B) |
-// |   9   |   1:2       |     3:6         |
-// |   9   |   1:3       |     2:7         | Approximate assignment
-// Note:
-// 1. If any selected cluster which not present on the weight list will be ignored(different with '0' replica).
-// 2. In case of not enough replica for specific cluster which will get '0' replica.
-func divideReplicasByStaticWeight(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight,
-	replicas int32) ([]workv1alpha2.TargetCluster, error) {
-	weightSum := int64(0)
-	matchClusters := make(map[string]int64)
-	desireReplicaInfos := make(map[string]int64)
-
-	for _, cluster := range clusters {
-		for _, staticWeightRule := range weightList {
-			if util.ClusterMatches(cluster, staticWeightRule.TargetCluster) {
-				weightSum += staticWeightRule.Weight
-				matchClusters[cluster.Name] = staticWeightRule.Weight
-				break
-			}
-		}
-	}
-
-	if weightSum == 0 {
-		for _, cluster := range clusters {
-			weightSum++
-			matchClusters[cluster.Name] = 1
-		}
-	}
-
-	allocatedReplicas := int32(0)
-	for clusterName, weight := range matchClusters {
-		desireReplicaInfos[clusterName] = weight * int64(replicas) / weightSum
-		allocatedReplicas += int32(desireReplicaInfos[clusterName])
-	}
-
-	clusterWeights := helper.SortClusterByWeight(matchClusters)
-
-	var clusterNames []string
-	for _, clusterWeightInfo := range clusterWeights {
-		clusterNames = append(clusterNames, clusterWeightInfo.ClusterName)
-	}
-
-	divideRemainingReplicas(int(replicas-allocatedReplicas), desireReplicaInfos, clusterNames)
-
-	targetClusters := make([]workv1alpha2.TargetCluster, len(desireReplicaInfos))
-	i := 0
-	for key, value := range desireReplicaInfos {
-		targetClusters[i] = workv1alpha2.TargetCluster{Name: key, Replicas: int32(value)}
-		i++
-	}
-	return targetClusters, nil
 }
 
 // divideReplicasByPreference assigns a total number of replicas to the selected clusters by preference according to the resource.
