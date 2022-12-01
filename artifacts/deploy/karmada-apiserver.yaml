@@ -64,7 +64,7 @@ spec:
             - --tls-cert-file=/etc/karmada/pki/apiserver.crt
             - --tls-private-key-file=/etc/karmada/pki/apiserver.key
           name: karmada-apiserver
-          image: k8s.gcr.io/kube-apiserver:v1.25.2
+          image: registry.k8s.io/kube-apiserver:v1.25.2
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 8
