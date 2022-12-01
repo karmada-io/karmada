@@ -31,9 +31,9 @@ type ConfigManager interface {
 
 // interpreterConfigManager collect the resource interpreter webhook configuration.
 type interpreterConfigManager struct {
-	configuration *atomic.Value
+	configuration atomic.Value
 	lister        cache.GenericLister
-	initialSynced *atomic.Bool
+	initialSynced atomic.Bool
 }
 
 // HookAccessors return all configured resource interpreter webhook.
@@ -62,13 +62,10 @@ func (m *interpreterConfigManager) HasSynced() bool {
 // NewExploreConfigManager return a new interpreterConfigManager with resourceinterpreterwebhookconfigurations handlers.
 func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager) ConfigManager {
 	manager := &interpreterConfigManager{
-		configuration: &atomic.Value{},
-		lister:        inform.Lister(resourceExploringWebhookConfigurationsGVR),
-		initialSynced: &atomic.Bool{},
+		lister: inform.Lister(resourceExploringWebhookConfigurationsGVR),
 	}
 
 	manager.configuration.Store([]WebhookAccessor{})
-	manager.initialSynced.Store(false)
 
 	configHandlers := fedinformer.NewHandlerOnEvents(
 		func(_ interface{}) { manager.updateConfiguration() },
