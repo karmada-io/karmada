@@ -1,14 +1,17 @@
 package configmanager
 
 import (
+	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/tools/cache"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -88,7 +91,7 @@ func Test_interpreterConfigManager_LuaScriptAccessors(t *testing.T) {
 			},
 		},
 		{
-			name: "multi ResourceInterpreterCustomization with redundant operation ",
+			name: "multi ResourceInterpreterCustomization with redundant operation",
 			args: args{[]runtime.Object{customization03, customization02, customization01}},
 			want: map[schema.GroupVersionKind]CustomAccessor{
 				deploymentGVK: &resourceCustomAccessor{
@@ -102,8 +105,9 @@ func Test_interpreterConfigManager_LuaScriptAccessors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
+			defer cancel()
+			stopCh := ctx.Done()
 
 			client := fake.NewSimpleDynamicClient(gclient.NewSchema(), tt.args.customizations...)
 			informer := genericmanager.NewSingleClusterInformerManager(client, 0, stopCh)
@@ -114,9 +118,10 @@ func Test_interpreterConfigManager_LuaScriptAccessors(t *testing.T) {
 
 			informer.WaitForCacheSync()
 
-			if !configManager.HasSynced() {
+			if !cache.WaitForCacheSync(stopCh, configManager.HasSynced) {
 				t.Errorf("informer has not been synced")
 			}
+
 			gotAccessors := configManager.LuaScriptAccessors()
 			for gvk, gotAccessor := range gotAccessors {
 				wantAccessor, ok := tt.want[gvk]
