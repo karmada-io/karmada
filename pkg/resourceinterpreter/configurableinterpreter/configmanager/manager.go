@@ -32,7 +32,7 @@ type ConfigManager interface {
 
 // interpreterConfigManager collects the resource interpreter customization.
 type interpreterConfigManager struct {
-	initialSynced *atomic.Value
+	initialSynced *atomic.Bool
 	lister        cache.GenericLister
 	configuration *atomic.Value
 }
@@ -44,7 +44,7 @@ func (configManager *interpreterConfigManager) LuaScriptAccessors() map[schema.G
 
 // HasSynced returns true when the cache is synced.
 func (configManager *interpreterConfigManager) HasSynced() bool {
-	if configManager.initialSynced.Load().(bool) {
+	if configManager.initialSynced.Load() {
 		return true
 	}
 
@@ -64,7 +64,7 @@ func (configManager *interpreterConfigManager) HasSynced() bool {
 // the configurations in the cache.
 func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerManager) ConfigManager {
 	manager := &interpreterConfigManager{
-		initialSynced: &atomic.Value{},
+		initialSynced: &atomic.Bool{},
 		configuration: &atomic.Value{},
 	}
 	manager.configuration.Store(make(map[schema.GroupVersionKind]CustomAccessor))
