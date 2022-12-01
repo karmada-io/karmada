@@ -32,9 +32,9 @@ type ConfigManager interface {
 
 // interpreterConfigManager collects the resource interpreter customization.
 type interpreterConfigManager struct {
-	initialSynced *atomic.Bool
+	initialSynced atomic.Bool
 	lister        cache.GenericLister
-	configuration *atomic.Value
+	configuration atomic.Value
 }
 
 // LuaScriptAccessors returns all cached configurations.
@@ -63,12 +63,8 @@ func (configManager *interpreterConfigManager) HasSynced() bool {
 // NewInterpreterConfigManager watches ResourceInterpreterCustomization and organizes
 // the configurations in the cache.
 func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerManager) ConfigManager {
-	manager := &interpreterConfigManager{
-		initialSynced: &atomic.Bool{},
-		configuration: &atomic.Value{},
-	}
+	manager := &interpreterConfigManager{}
 	manager.configuration.Store(make(map[schema.GroupVersionKind]CustomAccessor))
-	manager.initialSynced.Store(false)
 
 	// In interpret command, rules are not loaded from server, so we don't start informer for it.
 	if informer != nil {
