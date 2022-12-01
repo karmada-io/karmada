@@ -3,6 +3,7 @@ package utils
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -84,7 +85,7 @@ func DeCompress(file, targetPath string) error {
 	tr := tar.NewReader(gr)
 	for {
 		header, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -116,7 +117,7 @@ func DeCompress(file, targetPath string) error {
 func ioCopyN(outFile *os.File, tr *tar.Reader) error {
 	for {
 		if _, err := io.CopyN(outFile, tr, 1024); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return err
