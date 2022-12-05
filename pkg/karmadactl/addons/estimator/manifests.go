@@ -71,7 +71,7 @@ spec:
 )
 
 // DeploymentReplace is a struct to help to concrete
-// the karamda-estimator deployment bytes with the deployment template
+// the karmada-estimator deployment bytes with the deployment template
 type DeploymentReplace struct {
 	Namespace         string
 	Replicas          *int32
@@ -80,7 +80,7 @@ type DeploymentReplace struct {
 }
 
 // ServiceReplace is a struct to help to concrete
-// the karamda-estimator Service bytes with the Service template
+// the karmada-estimator Service bytes with the Service template
 type ServiceReplace struct {
 	Namespace         string
 	MemberClusterName string

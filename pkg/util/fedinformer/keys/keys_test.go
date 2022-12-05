@@ -214,7 +214,7 @@ func ExampleClusterWideKey_String() {
 
 func ExampleFederatedKey_String() {
 	key := FederatedKey{
-		Cluster: "karamda",
+		Cluster: "karmada",
 		ClusterWideKey: ClusterWideKey{
 			Group:     "apps",
 			Version:   "v1",
@@ -230,10 +230,10 @@ func ExampleFederatedKey_String() {
 	fmt.Printf("%v\n", pKey)
 	fmt.Printf("%s\n", pKey.String())
 	// Output:
-	// cluster=karamda, apps/v1, kind=Namespace, default/foo
-	// cluster=karamda, apps/v1, kind=Namespace, default/foo
-	// cluster=karamda, apps/v1, kind=Namespace, default/foo
-	// cluster=karamda, apps/v1, kind=Namespace, default/foo
-	// cluster=karamda, apps/v1, kind=Namespace, default/foo
-	// cluster=karamda, apps/v1, kind=Namespace, default/foo
+	// cluster=karmada, apps/v1, kind=Namespace, default/foo
+	// cluster=karmada, apps/v1, kind=Namespace, default/foo
+	// cluster=karmada, apps/v1, kind=Namespace, default/foo
+	// cluster=karmada, apps/v1, kind=Namespace, default/foo
+	// cluster=karmada, apps/v1, kind=Namespace, default/foo
+	// cluster=karmada, apps/v1, kind=Namespace, default/foo
 }

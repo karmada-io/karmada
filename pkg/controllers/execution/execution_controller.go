@@ -154,7 +154,7 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 
 		// Avoid deleting resources that not managed by karmada.
 		if util.GetLabelValue(clusterObj.GetLabels(), workv1alpha1.WorkNameLabel) != util.GetLabelValue(workload.GetLabels(), workv1alpha1.WorkNameLabel) {
-			klog.Infof("Abort deleting the resource(kind=%s, %s/%s) exists in cluster %v but not managed by karamda", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName)
+			klog.Infof("Abort deleting the resource(kind=%s, %s/%s) exists in cluster %v but not managed by karmada", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName)
 			return nil
 		}
 
