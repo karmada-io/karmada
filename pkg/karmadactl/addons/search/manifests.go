@@ -120,7 +120,7 @@ spec:
 )
 
 // DeploymentReplace is a struct to help to concrete
-// the karamda-search deployment bytes with the deployment template
+// the karmada-search deployment bytes with the deployment template
 type DeploymentReplace struct {
 	Namespace  string
 	Replicas   *int32
@@ -129,20 +129,20 @@ type DeploymentReplace struct {
 }
 
 // ServiceReplace is a struct to help to concrete
-// the karamda-search Service bytes with the Service template
+// the karmada-search Service bytes with the Service template
 type ServiceReplace struct {
 	Namespace string
 }
 
 // AAApiServiceReplace is a struct to help to concrete
-// the karamda-search ApiService bytes with the AAApiService template
+// the karmada-search ApiService bytes with the AAApiService template
 type AAApiServiceReplace struct {
 	Name      string
 	Namespace string
 }
 
 // AAServiceReplace is a struct to help to concrete
-// the karamda-search AA Service bytes with the AAService template
+// the karmada-search AA Service bytes with the AAService template
 type AAServiceReplace struct {
 	Namespace string
 }

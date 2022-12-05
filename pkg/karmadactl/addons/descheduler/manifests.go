@@ -52,7 +52,7 @@ spec:
 `
 
 // DeploymentReplace is a struct to help to concrete
-// the karamda-descheduler deployment bytes with the deployment template
+// the karmada-descheduler deployment bytes with the deployment template
 type DeploymentReplace struct {
 	Namespace string
 	Replicas  *int32
