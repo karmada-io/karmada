@@ -1,48 +1,68 @@
 apiVersion: v1
 entries:
   karmada:
-    - apiVersion: v2
-      appVersion: v1.1.0
-      created: "2022-09-01T00:01:49.111981+08:00"
-      description: A Helm chart for karmada
-      digest: 77be5718adc58c0858205bfdcacc7462dec2d553fb1af65d4516e2d405ffec4e
-      kubeVersion: '>= 1.16.0-0'
-      name: karmada
-      type: application
-      urls:
-        - https://github.com/karmada-io/karmada/releases/download/v1.3.0/karmada-chart-v1.3.0.tgz
-      version: v1.3.0
-    - apiVersion: v2
-      appVersion: v1.1.0
-      created: "2022-09-08T09:43:02.368944862+08:00"
-      description: A Helm chart for karmada
-      digest: b0b6b9ac31a80de5f4d8dfbc9eea45071f5a9356faadedc35d46ea7bdc0b7608
-      kubeVersion: '>= 1.16.0-0'
-      name: karmada
-      type: application
-      urls:
-        - https://github.com/karmada-io/karmada/releases/download/v1.2.2/karmada-chart-v1.2.2.tgz
-      version: v1.2.2
-    - apiVersion: v2
-      appVersion: v1.1.0
-      created: "2022-09-08T09:41:58.829736088+08:00"
-      description: A Helm chart for karmada
-      digest: 123206216e77bd53d1471778e883c8e3639a0af3623a9172534b40f1b3c8a5a2
-      kubeVersion: '>= 1.16.0-0'
-      name: karmada
-      type: application
-      urls:
-        - https://github.com/karmada-io/karmada/releases/download/v1.2.1/karmada-chart-v1.2.1.tgz
-      version: v1.2.1
-    - apiVersion: v2
-      appVersion: v1.1.0
-      created: "2022-05-30T15:00:42.216255031+08:00"
-      description: A Helm chart for karmada
-      digest: 054340c4f2e428f4f51ec30652f40ba827d0bfe397ea10f06db387c88a32aa6d
-      kubeVersion: '>= 1.16.0-0'
-      name: karmada
-      type: application
-      urls:
-        - https://github.com/karmada-io/karmada/releases/download/v1.2.0/karmada-chart-v1.2.0.tgz
-      version: v1.2.0
-generated: "2022-09-08T09:43:02.364660099+08:00"
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2022-12-05T15:51:42.955792838+08:00"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 1.x.x
+    description: A Helm chart for karmada
+    digest: 61a31080e012991f8a316302f1338b76926f40782f74ffd0b014a3bd7085fb8a
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: jrkeen@hotmail.com
+      name: jrkeen
+    - email: jackson.cloudnative@gmail.com
+      name: pidb
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.4.0/karmada-chart-v1.4.0.tgz
+    version: v1.4.0
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2022-09-01T00:01:49.111981+08:00"
+    description: A Helm chart for karmada
+    digest: 77be5718adc58c0858205bfdcacc7462dec2d553fb1af65d4516e2d405ffec4e
+    kubeVersion: '>= 1.16.0-0'
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.3.0/karmada-chart-v1.3.0.tgz
+    version: v1.3.0
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2022-09-08T09:43:02.368944862+08:00"
+    description: A Helm chart for karmada
+    digest: b0b6b9ac31a80de5f4d8dfbc9eea45071f5a9356faadedc35d46ea7bdc0b7608
+    kubeVersion: '>= 1.16.0-0'
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.2.2/karmada-chart-v1.2.2.tgz
+    version: v1.2.2
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2022-09-08T09:41:58.829736088+08:00"
+    description: A Helm chart for karmada
+    digest: 123206216e77bd53d1471778e883c8e3639a0af3623a9172534b40f1b3c8a5a2
+    kubeVersion: '>= 1.16.0-0'
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.2.1/karmada-chart-v1.2.1.tgz
+    version: v1.2.1
+  - apiVersion: v2
+    appVersion: v1.1.0
+    created: "2022-05-30T15:00:42.216255031+08:00"
+    description: A Helm chart for karmada
+    digest: 054340c4f2e428f4f51ec30652f40ba827d0bfe397ea10f06db387c88a32aa6d
+    kubeVersion: '>= 1.16.0-0'
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.2.0/karmada-chart-v1.2.0.tgz
+    version: v1.2.0
+generated: "2022-12-05T15:51:42.951063778+08:00"
