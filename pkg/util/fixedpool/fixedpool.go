@@ -2,11 +2,14 @@ package fixedpool
 
 import (
 	"sync"
+
+	"github.com/karmada-io/karmada/pkg/metrics"
 )
 
 // A FixedPool like sync.Pool. But it's limited capacity.
 // When pool is full, Put will abandon and call destroyFunc to destroy the object.
 type FixedPool struct {
+	name     string
 	lock     sync.Mutex
 	pool     []any
 	capacity int
@@ -16,8 +19,9 @@ type FixedPool struct {
 }
 
 // New return a FixedPool
-func New(newFunc func() (any, error), destroyFunc func(any), capacity int) *FixedPool {
+func New(name string, newFunc func() (any, error), destroyFunc func(any), capacity int) *FixedPool {
 	return &FixedPool{
+		name:        name,
 		pool:        make([]any, 0, capacity),
 		capacity:    capacity,
 		newFunc:     newFunc,
@@ -35,9 +39,11 @@ func New(newFunc func() (any, error), destroyFunc func(any), capacity int) *Fixe
 func (p *FixedPool) Get() (any, error) {
 	o, ok := p.pop()
 	if ok {
+		metrics.RecordPoolGet(p.name, false)
 		return o, nil
 	}
 
+	metrics.RecordPoolGet(p.name, true)
 	return p.newFunc()
 }
 
@@ -45,8 +51,10 @@ func (p *FixedPool) Get() (any, error) {
 // and it's destroy function will be called.
 func (p *FixedPool) Put(x any) {
 	if p.push(x) {
+		metrics.RecordPoolPut(p.name, false)
 		return
 	}
+	metrics.RecordPoolPut(p.name, true)
 	p.destroyFunc(x)
 }
 
