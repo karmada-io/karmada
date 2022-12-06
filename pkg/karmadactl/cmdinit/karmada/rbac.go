@@ -61,7 +61,7 @@ func grantAccessPermissionToAgent(clientSet *kubernetes.Clientset) error {
 		{
 			APIGroups: []string{"work.karmada.io"},
 			Resources: []string{"works"},
-			Verbs:     []string{"create", "get", "list", "watch", "update"},
+			Verbs:     []string{"create", "get", "list", "watch", "update", "delete"},
 		},
 		{
 			APIGroups: []string{"work.karmada.io"},
