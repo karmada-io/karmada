@@ -48,6 +48,7 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			},
 		},
 	}
+	// high implicit priority
 	overridePolicy1 := &policyv1alpha1.OverridePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
@@ -77,6 +78,7 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			},
 		},
 	}
+	// low implicit priority
 	overridePolicy2 := &policyv1alpha1.OverridePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
@@ -138,14 +140,14 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			cluster:  cluster1,
 			wantedOverriders: []policyOverriders{
 				{
-					name:       overridePolicy1.Name,
-					namespace:  overridePolicy1.Namespace,
-					overriders: overriders1,
-				},
-				{
 					name:       overridePolicy2.Name,
 					namespace:  overridePolicy2.Namespace,
 					overriders: overriders3,
+				},
+				{
+					name:       overridePolicy1.Name,
+					namespace:  overridePolicy1.Namespace,
+					overriders: overriders1,
 				},
 			},
 		},
@@ -156,6 +158,11 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			cluster:  cluster2,
 			wantedOverriders: []policyOverriders{
 				{
+					name:       overridePolicy2.Name,
+					namespace:  overridePolicy2.Namespace,
+					overriders: overriders3,
+				},
+				{
 					name:       overridePolicy1.Name,
 					namespace:  overridePolicy1.Namespace,
 					overriders: overriders1,
@@ -164,11 +171,6 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 					name:       overridePolicy1.Name,
 					namespace:  overridePolicy1.Namespace,
 					overriders: overriders2,
-				},
-				{
-					name:       overridePolicy2.Name,
-					namespace:  overridePolicy2.Namespace,
-					overriders: overriders3,
 				},
 			},
 		},
