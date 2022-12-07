@@ -148,10 +148,10 @@ webhooks:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["config.karmada.io"]
         apiVersions: ["*"]
-        resources: ["resourceexploringwebhookconfigurations"]
+        resources: ["resourceinterpreterwebhookconfigurations"]
         scope: "Cluster"
     clientConfig:
-      url: https://karmada-webhook.%s.svc:443/validate-resourceexploringwebhookconfiguration
+      url: https://karmada-webhook.%s.svc:443/validate-resourceinterpreterwebhookconfiguration
       caBundle: %s
     failurePolicy: Fail
     sideEffects: None
