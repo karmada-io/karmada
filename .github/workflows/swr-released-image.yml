@@ -19,7 +19,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.3
+          go-version: 1.19.4
       - name: build images
         env:
           REGISTRY: ${{secrets.SWR_REGISTRY}}
