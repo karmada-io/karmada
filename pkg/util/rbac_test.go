@@ -237,6 +237,24 @@ func TestGenerateImpersonationRules(t *testing.T) {
 				{Verbs: []string{"impersonate"}, Resources: []string{"groups"}, APIGroups: []string{""}, ResourceNames: []string{"group1", "group2"}},
 			},
 		},
+		{
+			name: "generate and deduplicate subject success",
+			args: args{
+				allSubjects: []rbacv1.Subject{
+					{Kind: rbacv1.UserKind, Name: "user1"},
+					{Kind: rbacv1.UserKind, Name: "user1"},
+					{Kind: rbacv1.ServiceAccountKind, Name: "sa1"},
+					{Kind: rbacv1.ServiceAccountKind, Name: "sa1"},
+					{Kind: rbacv1.GroupKind, Name: "group1"},
+					{Kind: rbacv1.GroupKind, Name: "group1"},
+				},
+			},
+			want: []rbacv1.PolicyRule{
+				{Verbs: []string{"impersonate"}, Resources: []string{"users"}, APIGroups: []string{""}, ResourceNames: []string{"user1"}},
+				{Verbs: []string{"impersonate"}, Resources: []string{"serviceaccounts"}, APIGroups: []string{""}, ResourceNames: []string{"sa1"}},
+				{Verbs: []string{"impersonate"}, Resources: []string{"groups"}, APIGroups: []string{""}, ResourceNames: []string{"group1"}},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
