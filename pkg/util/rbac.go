@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"k8s.io/utils/strings/slices"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -136,11 +137,17 @@ func GenerateImpersonationRules(allSubjects []rbacv1.Subject) []rbacv1.PolicyRul
 	for _, subject := range allSubjects {
 		switch subject.Kind {
 		case rbacv1.UserKind:
-			users = append(users, subject.Name)
+			if !slices.Contains(users, subject.Name) {
+				users = append(users, subject.Name)
+			}
 		case rbacv1.ServiceAccountKind:
-			serviceAccounts = append(serviceAccounts, subject.Name)
+			if !slices.Contains(serviceAccounts, subject.Name) {
+				serviceAccounts = append(serviceAccounts, subject.Name)
+			}
 		case rbacv1.GroupKind:
-			groups = append(groups, subject.Name)
+			if !slices.Contains(groups, subject.Name) {
+				groups = append(groups, subject.Name)
+			}
 		}
 	}
 
