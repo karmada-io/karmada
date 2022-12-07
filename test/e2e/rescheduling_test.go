@@ -319,3 +319,112 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 		})
 	})
 })
+
+// reschedule testing while policy matches, triggered by label changes.
+var _ = ginkgo.Describe("[cluster labels changed] reschedule testing while policy matches", func() {
+	var deployment *appsv1.Deployment
+	var targetMember string
+	var labelKey string
+	var policyNamespace string
+	var policyName string
+
+	ginkgo.BeforeEach(func() {
+		targetMember = framework.ClusterNames()[0]
+		policyNamespace = testNamespace
+		policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+		labelKey = "cluster" + rand.String(RandomStrLength)
+
+		deployment = testhelper.NewDeployment(testNamespace, policyName)
+		framework.CreateDeployment(kubeClient, deployment)
+
+		labels := map[string]string{labelKey: "ok"}
+		framework.UpdateClusterLabels(karmadaClient, targetMember, labels)
+
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			framework.DeleteClusterLabels(karmadaClient, targetMember, labels)
+		})
+	})
+
+	ginkgo.Context("Changes cluster labels to test reschedule while pp matches", func() {
+		var policy *policyv1alpha1.PropagationPolicy
+
+		ginkgo.BeforeEach(func() {
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{labelKey: "ok"},
+					},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+		})
+
+		ginkgo.It("change labels to testing deployment reschedule", func() {
+			labelsUpdate := map[string]string{labelKey: "not_ok"}
+			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
+			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
+
+			labelsUpdate = map[string]string{labelKey: "ok"}
+			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+		})
+	})
+
+	ginkgo.Context("Changes cluster labels to test reschedule while cpp matches", func() {
+		var policy *policyv1alpha1.ClusterPropagationPolicy
+
+		ginkgo.BeforeEach(func() {
+			policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{labelKey: "ok"},
+					},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+			})
+
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+		})
+
+		ginkgo.It("change labels to testing deployment reschedule", func() {
+			labelsUpdate := map[string]string{labelKey: "not_ok"}
+			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
+			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
+
+			labelsUpdate = map[string]string{labelKey: "ok"}
+			framework.UpdateClusterLabels(karmadaClient, targetMember, labelsUpdate)
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
+		})
+	})
+})
