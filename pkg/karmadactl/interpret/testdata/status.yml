@@ -1,0 +1,9 @@
+clusterName: cluster1
+status:
+  readyReplicas: 2
+applied: true
+---
+clusterName: cluster2
+status:
+  readyReplicas: 3
+applied: true

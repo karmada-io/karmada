@@ -220,7 +220,7 @@ func getUnstructuredObjectFromResult(result *resource.Result) (*unstructured.Uns
 func asResourceInterpreterCustomization(o runtime.Object) (*configv1alpha1.ResourceInterpreterCustomization, error) {
 	c, ok := o.(*configv1alpha1.ResourceInterpreterCustomization)
 	if !ok {
-		return nil, fmt.Errorf("not a ResourceInterpreterCustomization: %#v", o)
+		return nil, fmt.Errorf("not a ResourceInterpreterCustomization, got %v", o.GetObjectKind().GroupVersionKind())
 	}
 	return c, nil
 }
