@@ -230,6 +230,50 @@ func setClusterLabel(c client.Client, clusterName string) error {
 	return err
 }
 
+// UpdateClusterLabels updates cluster labels.
+func UpdateClusterLabels(client karmada.Interface, clusterName string, labels map[string]string) {
+	gomega.Eventually(func() (bool, error) {
+		cluster, err := client.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		if cluster.Labels == nil {
+			cluster.Labels = map[string]string{}
+		}
+		for key, value := range labels {
+			cluster.Labels[key] = value
+		}
+		_, err = client.ClusterV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
+// DeleteClusterLabels deletes cluster labels if it exists.
+func DeleteClusterLabels(client karmada.Interface, clusterName string, labels map[string]string) {
+	gomega.Eventually(func() (bool, error) {
+		cluster, err := client.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		if cluster.Labels == nil {
+			return true, nil
+		}
+		for key := range labels {
+			delete(cluster.Labels, key)
+		}
+		_, err = client.ClusterV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+}
+
 // GetClusterNamesFromClusters will get Clusters' names form Clusters Object.
 func GetClusterNamesFromClusters(clusters []*clusterv1alpha1.Cluster) []string {
 	clusterNames := make([]string, 0, len(clusters))
