@@ -62,8 +62,10 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
+
+	// Short path for case no cluster fit.
 	if len(feasibleClusters) == 0 {
-		return result, fmt.Errorf("no clusters fit")
+		return result, framework.ErrNoClusterFit
 	}
 	klog.V(4).Infof("feasible clusters found: %v", feasibleClusters)
 
