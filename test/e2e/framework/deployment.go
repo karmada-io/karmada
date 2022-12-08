@@ -84,9 +84,13 @@ func WaitDeploymentDisappearOnClusters(clusters []string, namespace, name string
 // UpdateDeploymentReplicas update deployment's replicas.
 func UpdateDeploymentReplicas(client kubernetes.Interface, deployment *appsv1.Deployment, replicas int32) {
 	ginkgo.By(fmt.Sprintf("Updating Deployment(%s/%s)'s replicas to %d", deployment.Namespace, deployment.Name, replicas), func() {
-		deployment.Spec.Replicas = &replicas
 		gomega.Eventually(func() error {
-			_, err := client.AppsV1().Deployments(deployment.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			deploy.Spec.Replicas = &replicas
+			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
 		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
 	})
