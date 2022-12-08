@@ -163,7 +163,7 @@ webhooks:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["config.karmada.io"]
         apiVersions: ["*"]
-        resources: ["resourceexploringwebhookconfigurations"]
+        resources: ["resourceinterpretercustomizations"]
         scope: "Cluster"
     clientConfig:
       url: https://karmada-webhook.%[1]s.svc:443/validate-resourceinterpretercustomization
