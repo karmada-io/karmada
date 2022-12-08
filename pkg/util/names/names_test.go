@@ -413,6 +413,13 @@ func TestGeneratePolicyName(t *testing.T) {
 			gvk:          "rand",
 			expected:     "foo-b4978784",
 		},
+		{
+			name:         "generate policy name with :",
+			namespace:    "ns-foo",
+			resourcename: "system:foo",
+			gvk:          "rand",
+			expected:     "system.foo-b4978784",
+		},
 	}
 	for _, test := range tests {
 		got := GeneratePolicyName(test.namespace, test.resourcename, test.gvk)

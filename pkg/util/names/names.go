@@ -154,5 +154,15 @@ func GeneratePolicyName(namespace, name, gvk string) string {
 	hash := fnv.New32a()
 	hashutil.DeepHashObject(hash, namespace+gvk)
 
+	// The name of resources, like 'Role'/'ClusterRole'/'RoleBinding'/'ClusterRoleBinding',
+	// may contain symbols(like ':') that are not allowed by CRD resources which require the
+	// name can be used as a DNS subdomain name. So, we need to replace it.
+	// These resources may also allow for other characters(like '&','$') that are not allowed
+	// by CRD resources, we only handle the most common ones now for performance concerns.
+	// For more information about the DNS subdomain name, please refer to
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names.
+	if strings.Contains(name, ":") {
+		name = strings.ReplaceAll(name, ":", ".")
+	}
 	return strings.ToLower(fmt.Sprintf("%s-%s", name, rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))))
 }
