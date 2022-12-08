@@ -83,6 +83,7 @@ function deploy_weave_cni() {
 
 #generate for kindClusterConfig
 TEMP_PATH=$(mktemp -d)
+trap '{ rm -rf ${TEMP_PATH}; }' EXIT
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/general-config.yaml "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 sed -i'' -e "s#{{disable_cni}}#true#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 sed -i'' -e "s#{{pod_cidr}}#${POD_CIDR}#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
