@@ -28,6 +28,7 @@ func Test_interpretDeploymentHealth(t *testing.T) {
 						"replicas": 3,
 					},
 					"status": map[string]interface{}{
+						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 1,
 					},
@@ -50,6 +51,7 @@ func Test_interpretDeploymentHealth(t *testing.T) {
 						"replicas": 3,
 					},
 					"status": map[string]interface{}{
+						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 2,
 					},
@@ -73,6 +75,29 @@ func Test_interpretDeploymentHealth(t *testing.T) {
 					},
 					"status": map[string]interface{}{
 						"updatedReplicas":    1,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "availableReplicas not equal to updatedReplicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":       "fake-deployment",
+						"generation": 1,
+					},
+					"spec": map[string]interface{}{
+						"replicas": 3,
+					},
+					"status": map[string]interface{}{
+						"availableReplicas":  0,
+						"updatedReplicas":    3,
 						"observedGeneration": 1,
 					},
 				},
@@ -115,6 +140,7 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 						"replicas": 3,
 					},
 					"status": map[string]interface{}{
+						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 1,
 					},
@@ -137,6 +163,7 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 						"replicas": 3,
 					},
 					"status": map[string]interface{}{
+						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 2,
 					},
@@ -160,6 +187,29 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 					},
 					"status": map[string]interface{}{
 						"updatedReplicas":    1,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "availableReplicas not equal to updatedReplicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]interface{}{
+						"name":       "fake-statefulSet",
+						"generation": 1,
+					},
+					"spec": map[string]interface{}{
+						"replicas": 3,
+					},
+					"status": map[string]interface{}{
+						"availableReplicas":  1,
+						"updatedReplicas":    3,
 						"observedGeneration": 1,
 					},
 				},
@@ -195,7 +245,11 @@ func Test_interpretReplicaSetHealth(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"generation": 1,
 					},
+					"spec": map[string]interface{}{
+						"replicas": 3,
+					},
 					"status": map[string]interface{}{
+						"availableReplicas":  3,
 						"observedGeneration": 1,
 					},
 				},
@@ -210,7 +264,11 @@ func Test_interpretReplicaSetHealth(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"generation": 1,
 					},
+					"spec": map[string]interface{}{
+						"replicas": 3,
+					},
 					"status": map[string]interface{}{
+						"availableReplicas":  3,
 						"observedGeneration": 2,
 					},
 				},
@@ -222,11 +280,15 @@ func Test_interpretReplicaSetHealth(t *testing.T) {
 			name: "replicas not equal to availableReplicas",
 			object: &unstructured.Unstructured{
 				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"generation": 1,
+					},
 					"spec": map[string]interface{}{
 						"replicas": 3,
 					},
 					"status": map[string]interface{}{
-						"availableReplicas": 2,
+						"availableReplicas":  2,
+						"observedGeneration": 2,
 					},
 				},
 			},
@@ -290,6 +352,19 @@ func Test_interpretDaemonSetHealth(t *testing.T) {
 					"status": map[string]interface{}{
 						"updatedNumberScheduled": 3,
 						"desiredNumberScheduled": 5,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "numberAvailable < updatedNumberScheduled",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{
+						"updatedNumberScheduled": 5,
+						"numberAvailable":        3,
 					},
 				},
 			},
