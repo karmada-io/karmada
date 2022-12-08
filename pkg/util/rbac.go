@@ -7,6 +7,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclient "k8s.io/client-go/kubernetes"
+	stringslices "k8s.io/utils/strings/slices"
 )
 
 // IsClusterRoleExist tells if specific ClusterRole already exists.
@@ -136,11 +137,17 @@ func GenerateImpersonationRules(allSubjects []rbacv1.Subject) []rbacv1.PolicyRul
 	for _, subject := range allSubjects {
 		switch subject.Kind {
 		case rbacv1.UserKind:
-			users = append(users, subject.Name)
+			if !stringslices.Contains(users, subject.Name) {
+				users = append(users, subject.Name)
+			}
 		case rbacv1.ServiceAccountKind:
-			serviceAccounts = append(serviceAccounts, subject.Name)
+			if !stringslices.Contains(serviceAccounts, subject.Name) {
+				serviceAccounts = append(serviceAccounts, subject.Name)
+			}
 		case rbacv1.GroupKind:
-			groups = append(groups, subject.Name)
+			if !stringslices.Contains(groups, subject.Name) {
+				groups = append(groups, subject.Name)
+			}
 		}
 	}
 
