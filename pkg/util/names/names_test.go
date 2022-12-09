@@ -344,3 +344,34 @@ func TestGenerateImpersonationSecretName(t *testing.T) {
 		}
 	}
 }
+
+func TestGeneratePolicyName(t *testing.T) {
+	tests := []struct {
+		name         string
+		namespace    string
+		resourcename string
+		gvk          string
+		expected     string
+	}{
+		{
+			name:         "generate policy name",
+			namespace:    "ns-foo",
+			resourcename: "foo",
+			gvk:          "rand",
+			expected:     "foo-b4978784",
+		},
+		{
+			name:         "generate policy name with :",
+			namespace:    "ns-foo",
+			resourcename: "system:foo",
+			gvk:          "rand",
+			expected:     "system.foo-b4978784",
+		},
+	}
+	for _, test := range tests {
+		got := GeneratePolicyName(test.namespace, test.resourcename, test.gvk)
+		if got != test.expected {
+			t.Errorf("Test %s failed: expected %v, but got %v", test.name, test.expected, got)
+		}
+	}
+}
