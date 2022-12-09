@@ -82,7 +82,7 @@ func ConvertLuaResultInto(luaResult lua.LValue, obj interface{}) error {
 
 	err = json.Unmarshal(jsonBytes, obj)
 	if err != nil {
-		return fmt.Errorf("can not unmarshal %v to %#v", string(jsonBytes), obj)
+		return fmt.Errorf("can not unmarshal %v to %#v：%v", string(jsonBytes), obj, err)
 	}
 	return nil
 }

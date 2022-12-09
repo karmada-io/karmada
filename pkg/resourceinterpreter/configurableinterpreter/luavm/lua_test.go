@@ -8,6 +8,7 @@ import (
 	lua "github.com/yuin/gopher-lua"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,7 +20,6 @@ import (
 )
 
 func TestGetReplicas(t *testing.T) {
-	var replicas int32 = 1
 	vm := New(false, 1)
 	tests := []struct {
 		name         string
@@ -30,7 +30,7 @@ func TestGetReplicas(t *testing.T) {
 		wantRequires *workv1alpha2.ReplicaRequirements
 	}{
 		{
-			name: "Test GetReplica",
+			name: "Test GetReplica with kube.accuratePodRequirements",
 			deploy: &appsv1.Deployment{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Deployment",
@@ -41,31 +41,105 @@ func TestGetReplicas(t *testing.T) {
 					Name:      "bar",
 				},
 				Spec: appsv1.DeploymentSpec{
-					Replicas: &replicas,
+					Replicas: pointer.Int32(1),
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{"foo": "foo1"},
+							Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
 							Containers: []corev1.Container{
-								{},
+								{Resources: corev1.ResourceRequirements{Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("100M"),
+								}}},
+								{Resources: corev1.ResourceRequirements{Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("1.2"),
+									corev1.ResourceMemory: resource.MustParse("1.2G"),
+								}}},
 							},
 						},
 					},
 				},
 			},
 			expected: true,
-			luaScript: ` function GetReplicas(desiredObj) 
-							nodeClaim = {} 
-							resourceRequest = {} 
-							result = {} 
-							replica = desiredObj.spec.replicas 
-							result.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits 
-							nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector 
-							nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations 
-							result.nodeClaim = {} 
-							result.nodeClaim = nil
-							return replica, {} 
-						end`,
-			wantReplica:  1,
-			wantRequires: &workv1alpha2.ReplicaRequirements{},
+			luaScript: `
+local kube = require("kube")
+function GetReplicas(desiredObj)
+	replica = desiredObj.spec.replicas
+	requires = kube.accuratePodRequirements(desiredObj.spec.template)
+	return replica, requires 
+end`,
+			wantReplica: 1,
+			wantRequires: &workv1alpha2.ReplicaRequirements{
+				NodeClaim: &workv1alpha2.NodeClaim{
+					NodeSelector: map[string]string{"foo": "foo1"},
+					Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
+				},
+				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    resource.MustParse("1.3"),
+					corev1.ResourceMemory: resource.MustParse("1.3G"),
+				},
+			},
+		},
+		{
+			name: "Test GetReplica with kube.resourceAdd",
+			deploy: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Deployment",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "bar",
+				},
+				Spec: appsv1.DeploymentSpec{
+					Replicas: pointer.Int32(1),
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{"foo": "foo1"},
+							Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
+							Containers: []corev1.Container{
+								{Resources: corev1.ResourceRequirements{Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("100M"),
+								}}},
+								{Resources: corev1.ResourceRequirements{Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("1.2"),
+									corev1.ResourceMemory: resource.MustParse("1.2G"),
+								}}},
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+			luaScript: `
+local kube = require("kube")
+function GetReplicas(desiredObj)
+	replica = desiredObj.spec.replicas
+	requires = {
+		nodeClaim = {
+			nodeSelector = desiredObj.spec.template.spec.nodeSelector,
+			tolerations = desiredObj.spec.template.spec.tolerations
+    	},
+		resourceRequest = {},
+	}
+	for i = 1, #desiredObj.spec.template.spec.containers do
+		requires.resourceRequest.cpu = kube.resourceAdd(requires.resourceRequest.cpu, desiredObj.spec.template.spec.containers[i].resources.limits.cpu)
+		requires.resourceRequest.memory = kube.resourceAdd(requires.resourceRequest.memory, desiredObj.spec.template.spec.containers[i].resources.limits.memory)
+	end
+	return replica, requires 
+end`,
+			wantReplica: 1,
+			wantRequires: &workv1alpha2.ReplicaRequirements{
+				NodeClaim: &workv1alpha2.NodeClaim{
+					NodeSelector: map[string]string{"foo": "foo1"},
+					Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
+				},
+				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    resource.MustParse("1.3"),
+					corev1.ResourceMemory: resource.MustParse("1.3G"),
+				},
+			},
 		},
 	}
 
@@ -74,11 +148,20 @@ func TestGetReplicas(t *testing.T) {
 			toUnstructured, _ := helper.ToUnstructured(tt.deploy)
 			replicas, requires, err := vm.GetReplicas(toUnstructured, tt.luaScript)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Fatal(err.Error())
 			}
 			if !reflect.DeepEqual(replicas, tt.wantReplica) {
 				t.Errorf("GetReplicas() got = %v, want %v", replicas, tt.wantReplica)
 			}
+
+			if got, want := requires.ResourceRequest.Cpu(), tt.wantRequires.ResourceRequest.Cpu(); !got.Equal(*want) {
+				t.Errorf("GetReplicas() got Cpu = %s, want %s", got, want)
+			}
+			if got, want := requires.ResourceRequest.Memory(), tt.wantRequires.ResourceRequest.Memory(); !got.Equal(*want) {
+				t.Errorf("GetReplicas() got Memory = %s, want %s", got, want)
+			}
+
+			requires.ResourceRequest, tt.wantRequires.ResourceRequest = nil, nil
 			if !reflect.DeepEqual(requires, tt.wantRequires) {
 				t.Errorf("GetReplicas() got = %v, want %v", requires, tt.wantRequires)
 			}
