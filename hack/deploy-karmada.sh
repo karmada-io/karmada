@@ -185,6 +185,7 @@ fi
 
 # deploy karmada apiserver
 TEMP_PATH_APISERVER=$(mktemp -d)
+trap '{ rm -rf ${TEMP_PATH_APISERVER}; }' EXIT
 cp "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 sed -i'' -e "s/{{service_type}}/${KARMADA_APISERVER_SERVICE_TYPE}/g" "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 echo -e "\nApply dynamic rendered apiserver service in ${TEMP_PATH_APISERVER}/karmada-apiserver.yaml."
@@ -240,11 +241,11 @@ then
 fi
 
 TEMP_PATH_CRDS=$(mktemp -d)
+trap '{ rm -rf ${TEMP_PATH_CRDS}; }' EXIT
 cp -rf "${REPO_ROOT}"/charts/karmada/_crds "${TEMP_PATH_CRDS}"
 util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_resourcebindings.yaml"
 util::fill_cabundle "${ROOT_CA_FILE}" "${TEMP_PATH_CRDS}/_crds/patches/webhook_in_clusterresourcebindings.yaml"
 installCRDs "karmada-apiserver" "${TEMP_PATH_CRDS}"
-rm -rf "${TEMP_PATH_CRDS}"
 
 # deploy webhook configurations on karmada apiserver
 util::deploy_webhook_configuration "karmada-apiserver" "${ROOT_CA_FILE}" "${REPO_ROOT}/artifacts/deploy/webhook-configuration.yaml"

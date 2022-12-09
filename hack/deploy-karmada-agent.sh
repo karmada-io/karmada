@@ -77,6 +77,7 @@ MEMBER_CLUSTER_API_ENDPOINT=$(kubectl config view -o jsonpath='{.clusters[?(@.na
 
 # deploy karmada agent
 TEMP_PATH=$(mktemp -d)
+trap '{ rm -rf ${TEMP_PATH}; }' EXIT
 cp "${REPO_ROOT}"/artifacts/agent/karmada-agent.yaml "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s/{{karmada_context}}/${KARMADA_APISERVER_CONTEXT_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
 sed -i'' -e "s/{{member_cluster_name}}/${MEMBER_CLUSTER_NAME}/g" "${TEMP_PATH}"/karmada-agent.yaml
