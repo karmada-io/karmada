@@ -129,12 +129,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 				return
 			}
 
-			workNamespace, err := names.GenerateExecutionSpaceName(cluster.Name)
-			if err != nil {
-				klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
-				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
-				return
-			}
+			workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
 
 			workName := names.GenerateWorkName(namespaceObj.GetKind(), namespaceObj.GetName(), namespaceObj.GetNamespace())
 			objectMeta := metav1.ObjectMeta{

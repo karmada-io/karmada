@@ -299,11 +299,7 @@ func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *cluste
 
 // removeExecutionSpace deletes the given execution space
 func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) error {
-	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
-	if err != nil {
-		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
-		return err
-	}
+	executionSpaceName := names.GenerateExecutionSpaceName(cluster.Name)
 
 	executionSpaceObj := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -320,14 +316,10 @@ func (c *Controller) removeExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 
 // ExecutionSpaceExistForCluster determine whether the execution space exists in the cluster
 func (c *Controller) ExecutionSpaceExistForCluster(clusterName string) (bool, error) {
-	executionSpaceName, err := names.GenerateExecutionSpaceName(clusterName)
-	if err != nil {
-		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", clusterName, err)
-		return false, err
-	}
+	executionSpaceName := names.GenerateExecutionSpaceName(clusterName)
 
 	executionSpaceObj := &corev1.Namespace{}
-	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
+	err := c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if apierrors.IsNotFound(err) {
 		klog.V(2).Infof("execution space(%s) no longer exists", executionSpaceName)
 		return false, nil
@@ -369,15 +361,11 @@ func (c *Controller) ensureFinalizer(cluster *clusterv1alpha1.Cluster) (controll
 
 // createExecutionSpace creates member cluster execution space when member cluster joined
 func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) error {
-	executionSpaceName, err := names.GenerateExecutionSpaceName(cluster.Name)
-	if err != nil {
-		klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
-		return err
-	}
+	executionSpaceName := names.GenerateExecutionSpaceName(cluster.Name)
 
 	// create member cluster execution space when member cluster joined
 	executionSpaceObj := &corev1.Namespace{}
-	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
+	err := c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get namespace(%s): %v", executionSpaceName, err)
@@ -390,7 +378,7 @@ func (c *Controller) createExecutionSpace(cluster *clusterv1alpha1.Cluster) erro
 				Name: executionSpaceName,
 			},
 		}
-		err := c.Client.Create(context.TODO(), executionSpace)
+		err = c.Client.Create(context.TODO(), executionSpace)
 		if err != nil {
 			klog.Errorf("Failed to create execution space for cluster(%s): %v", cluster.Name, err)
 			return err

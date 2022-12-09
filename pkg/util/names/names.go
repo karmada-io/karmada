@@ -37,12 +37,8 @@ const derivedServicePrefix = "derived"
 const estimatorServicePrefix = "karmada-scheduler-estimator"
 
 // GenerateExecutionSpaceName generates execution space name for the given member cluster
-func GenerateExecutionSpaceName(clusterName string) (string, error) {
-	if clusterName == "" {
-		return "", fmt.Errorf("the member cluster name is empty")
-	}
-	executionSpace := ExecutionSpacePrefix + clusterName
-	return executionSpace, nil
+func GenerateExecutionSpaceName(clusterName string) string {
+	return ExecutionSpacePrefix + clusterName
 }
 
 // GetClusterName returns member cluster name for the given execution space

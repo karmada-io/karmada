@@ -21,23 +21,13 @@ func TestGenerateExecutionSpaceName(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "normal cluster name",
-			args:    args{clusterName: "member-cluster-normal"},
-			want:    "karmada-es-member-cluster-normal",
-			wantErr: false,
-		},
-		{name: "empty member cluster name",
-			args:    args{clusterName: ""},
-			want:    "",
-			wantErr: true,
+			args: args{clusterName: "member-cluster-normal"},
+			want: "karmada-es-member-cluster-normal",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateExecutionSpaceName(tt.args.clusterName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateExecutionSpaceName() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := GenerateExecutionSpaceName(tt.args.clusterName)
 			if got != tt.want {
 				t.Errorf("GenerateExecutionSpaceName() got = %v, want %v", got, tt.want)
 			}
