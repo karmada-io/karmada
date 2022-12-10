@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto" // auto-registry collectors in default registry
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
 )
@@ -33,21 +33,32 @@ const (
 )
 
 var (
-	requestCount = promauto.NewCounterVec(
+	requestCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem: SchedulerEstimatorSubsystem,
 			Name:      "estimating_request_total",
 			Help:      "Number of scheduler estimator requests",
 		}, []string{"result", "type"})
 
-	estimatingAlgorithmLatency = promauto.NewHistogramVec(
+	estimatingAlgorithmLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem: SchedulerEstimatorSubsystem,
 			Name:      "estimating_algorithm_duration_seconds",
 			Help:      "Estimating algorithm latency in seconds for each step",
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 10),
 		}, []string{"result", "type", "step"})
+
+	metrics = []prometheus.Collector{
+		requestCount,
+		estimatingAlgorithmLatency,
+	}
 )
+
+func init() {
+	for _, m := range metrics {
+		ctrlmetrics.Registry.MustRegister(m)
+	}
+}
 
 // CountRequests total number of scheduler estimator requests
 func CountRequests(err error, estimatingType string) {

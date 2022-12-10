@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
 )
@@ -42,14 +42,14 @@ const (
 )
 
 var (
-	scheduleAttempts = promauto.NewCounterVec(
+	scheduleAttempts = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "schedule_attempts_total",
 			Help:      "Number of attempts to schedule resourceBinding",
 		}, []string{"result", "schedule_type"})
 
-	e2eSchedulingLatency = promauto.NewHistogramVec(
+	e2eSchedulingLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "e2e_scheduling_duration_seconds",
@@ -57,7 +57,7 @@ var (
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 15),
 		}, []string{"result", "schedule_type"})
 
-	schedulingAlgorithmLatency = promauto.NewHistogramVec(
+	schedulingAlgorithmLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "scheduling_algorithm_duration_seconds",
@@ -66,7 +66,7 @@ var (
 		}, []string{"schedule_step"})
 
 	// SchedulerQueueIncomingBindings is the number of bindings added to scheduling queues by event type.
-	SchedulerQueueIncomingBindings = promauto.NewCounterVec(
+	SchedulerQueueIncomingBindings = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "queue_incoming_bindings_total",
@@ -74,7 +74,7 @@ var (
 		}, []string{"event"})
 
 	// FrameworkExtensionPointDuration is the metrics which indicates the latency for running all plugins of a specific extension point.
-	FrameworkExtensionPointDuration = promauto.NewHistogramVec(
+	FrameworkExtensionPointDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "framework_extension_point_duration_seconds",
@@ -85,7 +85,7 @@ var (
 		[]string{"extension_point", "result"})
 
 	// PluginExecutionDuration is the metrics which indicates the duration for running a plugin at a specific extension point.
-	PluginExecutionDuration = promauto.NewHistogramVec(
+	PluginExecutionDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "plugin_execution_duration_seconds",
@@ -95,7 +95,22 @@ var (
 			Buckets: prometheus.ExponentialBuckets(0.00001, 1.5, 20),
 		},
 		[]string{"plugin", "extension_point", "result"})
+
+	metrics = []prometheus.Collector{
+		scheduleAttempts,
+		e2eSchedulingLatency,
+		schedulingAlgorithmLatency,
+		SchedulerQueueIncomingBindings,
+		FrameworkExtensionPointDuration,
+		PluginExecutionDuration,
+	}
 )
+
+func init() {
+	for _, m := range metrics {
+		ctrlmetrics.Registry.MustRegister(m)
+	}
+}
 
 // BindingSchedule can record a scheduling attempt and the duration
 // since `start`.

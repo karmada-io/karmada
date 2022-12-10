@@ -77,3 +77,12 @@ issues:
     - path: cmd/controller-manager/controller-manager.go
       linters:
         - gci
+    - path: cmd/descheduler/main.go
+      linters:
+        - gci
+    - path: cmd/scheduler/main.go
+      linters:
+        - gci
+    - path: cmd/scheduler-estimator/main.go
+      linters:
+        - gci
