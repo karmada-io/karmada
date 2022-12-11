@@ -119,18 +119,21 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 			if err != nil {
 				klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedNamespaced.GetKind(), clonedNamespaced.GetNamespace(), clonedNamespaced.GetName(), err)
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
+				return
 			}
 
 			annotations, err := binding.RecordAppliedOverrides(cops, nil, nil)
 			if err != nil {
 				klog.Errorf("failed to record appliedOverrides, Error: %v", err)
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
+				return
 			}
 
 			workNamespace, err := names.GenerateExecutionSpaceName(cluster.Name)
 			if err != nil {
 				klog.Errorf("Failed to generate execution space name for member cluster %s, err is %v", cluster.Name, err)
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
+				return
 			}
 
 			workName := names.GenerateWorkName(namespaceObj.GetKind(), namespaceObj.GetName(), namespaceObj.GetNamespace())
@@ -149,6 +152,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 
 			if err = helper.CreateOrUpdateWork(c.Client, objectMeta, clonedNamespaced); err != nil {
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
+				return
 			}
 			ch <- nil
 		}(&clusters[i], errChan)
