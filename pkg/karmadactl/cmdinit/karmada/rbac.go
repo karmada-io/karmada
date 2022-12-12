@@ -78,11 +78,6 @@ func grantAccessPermissionToAgent(clientSet kubernetes.Interface) error {
 			Verbs:     []string{"get", "list", "watch"},
 		},
 		{
-			APIGroups: []string{"config.karmada.io"},
-			Resources: []string{"resourceinterpreterwebhookconfigurations"},
-			Verbs:     []string{"get", "list", "watch"},
-		},
-		{
 			APIGroups: []string{""},
 			Resources: []string{"namespaces"},
 			Verbs:     []string{"get", "list", "watch", "create"},
