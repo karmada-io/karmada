@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -617,18 +616,16 @@ var _ = framework.SerialDescribe("workload status synchronization testing", func
 					err := recoverCluster(controlPlaneClient, disabledCluster, originalAPIEndpoint)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					// wait for the disabled cluster recovered
-					err = wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 						currentCluster, err := util.GetCluster(controlPlaneClient, disabledCluster)
-						if err != nil {
-							return false, err
-						}
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 						if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.NotReadyTaintTemplate) {
 							fmt.Printf("cluster %s recovered\n", disabledCluster)
 							return true, nil
 						}
 						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				}
 			})
 
@@ -637,16 +634,15 @@ var _ = framework.SerialDescribe("workload status synchronization testing", func
 					clusterClient := framework.GetClusterClient(disabledCluster)
 					framework.UpdateDeploymentReplicas(clusterClient, deployment, updateDeploymentReplicas)
 					// wait for the status synchronization
-					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 						currentDeployment, err := clusterClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 						if *currentDeployment.Spec.Replicas == int32(originalReplicas) {
 							return true, nil
 						}
 						return false, nil
-					})
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				}
 			})
 		})
