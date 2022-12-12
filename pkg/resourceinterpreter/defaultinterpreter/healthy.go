@@ -32,8 +32,16 @@ func interpretDeploymentHealth(object *unstructured.Unstructured) (bool, error) 
 		return false, err
 	}
 
-	healthy := (deploy.Status.UpdatedReplicas == *deploy.Spec.Replicas) && (deploy.Generation == deploy.Status.ObservedGeneration)
-	return healthy, nil
+	if deploy.Status.ObservedGeneration != deploy.Generation {
+		return false, nil
+	}
+	if (deploy.Spec.Replicas != nil) && deploy.Status.UpdatedReplicas < *deploy.Spec.Replicas {
+		return false, nil
+	}
+	if deploy.Status.AvailableReplicas < deploy.Status.UpdatedReplicas {
+		return false, nil
+	}
+	return true, nil
 }
 
 func interpretStatefulSetHealth(object *unstructured.Unstructured) (bool, error) {
@@ -43,8 +51,16 @@ func interpretStatefulSetHealth(object *unstructured.Unstructured) (bool, error)
 		return false, err
 	}
 
-	healthy := (statefulSet.Status.UpdatedReplicas == *statefulSet.Spec.Replicas) && (statefulSet.Generation == statefulSet.Status.ObservedGeneration)
-	return healthy, nil
+	if statefulSet.Status.ObservedGeneration != statefulSet.Generation {
+		return false, nil
+	}
+	if (statefulSet.Spec.Replicas != nil) && statefulSet.Status.UpdatedReplicas < *statefulSet.Spec.Replicas {
+		return false, nil
+	}
+	if statefulSet.Status.AvailableReplicas < statefulSet.Status.UpdatedReplicas {
+		return false, nil
+	}
+	return true, nil
 }
 
 func interpretReplicaSetHealth(object *unstructured.Unstructured) (bool, error) {
@@ -54,10 +70,10 @@ func interpretReplicaSetHealth(object *unstructured.Unstructured) (bool, error) 
 		return false, err
 	}
 
-	if replicaSet.Generation != replicaSet.Status.ObservedGeneration {
+	if replicaSet.Status.ObservedGeneration != replicaSet.Generation {
 		return false, nil
 	}
-	if replicaSet.Spec.Replicas != nil && replicaSet.Status.AvailableReplicas < *replicaSet.Spec.Replicas {
+	if (replicaSet.Spec.Replicas != nil) && replicaSet.Status.AvailableReplicas < *replicaSet.Spec.Replicas {
 		return false, nil
 	}
 	return true, nil
@@ -70,13 +86,13 @@ func interpretDaemonSetHealth(object *unstructured.Unstructured) (bool, error) {
 		return false, err
 	}
 
-	if daemonSet.Generation != daemonSet.Status.ObservedGeneration {
+	if daemonSet.Status.ObservedGeneration != daemonSet.Generation {
 		return false, nil
 	}
 	if daemonSet.Status.UpdatedNumberScheduled < daemonSet.Status.DesiredNumberScheduled {
 		return false, nil
 	}
-	if daemonSet.Status.NumberAvailable < daemonSet.Status.DesiredNumberScheduled {
+	if daemonSet.Status.NumberAvailable < daemonSet.Status.UpdatedNumberScheduled {
 		return false, nil
 	}
 
