@@ -472,7 +472,7 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 }
 
 func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bool, err error) {
-	if features.FeatureGate.Enabled(features.Failover) && features.FeatureGate.Enabled(features.GracefulEviction) {
+	if features.FeatureGate.Enabled(features.GracefulEviction) {
 		rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
 			Client:                  ctx.Mgr.GetClient(),
 			EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
