@@ -119,7 +119,7 @@ func (j *CommandUnjoinOption) Validate(args []string) error {
 	if len(j.ClusterName) == 0 {
 		return fmt.Errorf("cluster name is required")
 	}
-	if j.Wait < 0 {
+	if j.Wait <= 0 {
 		return fmt.Errorf(" --wait %v  must be a positive duration, e.g. 1m0s ", j.Wait)
 	}
 	return nil
