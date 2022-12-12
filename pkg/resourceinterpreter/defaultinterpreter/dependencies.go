@@ -26,6 +26,7 @@ func getAllDefaultDependenciesInterpreter() map[schema.GroupVersionKind]dependen
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = getPodDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = getDaemonSetDependencies
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = getStatefulSetDependencies
+	s[appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind)] = getReplicaSetDependencies
 	return s
 }
 
@@ -106,6 +107,20 @@ func getStatefulSetDependencies(object *unstructured.Unstructured) ([]configv1al
 	}
 
 	podObj, err := lifted.GetPodFromTemplate(&statefulSetObj.Spec.Template, statefulSetObj, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return getDependenciesFromPodTemplate(podObj)
+}
+
+func getReplicaSetDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
+	replicaSetObj := &appsv1.ReplicaSet{}
+	if err := helper.ConvertToTypedObject(object, replicaSetObj); err != nil {
+		return nil, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %v", err)
+	}
+
+	podObj, err := lifted.GetPodFromTemplate(&replicaSetObj.Spec.Template, replicaSetObj, nil)
 	if err != nil {
 		return nil, err
 	}

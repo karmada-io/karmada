@@ -31,6 +31,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = aggregatePodStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeKind)] = aggregatePersistentVolumeStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = aggregatePersistentVolumeClaimStatus
+	s[appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind)] = aggregateReplicaSetStatus
 	return s
 }
 
@@ -454,4 +455,52 @@ func aggregatePersistentVolumeClaimStatus(object *unstructured.Unstructured, agg
 
 	pvc.Status = *newStatus
 	return helper.ToUnstructured(pvc)
+}
+
+func aggregateReplicaSetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	replicaSet := &appsv1.ReplicaSet{}
+	if err := helper.ConvertToTypedObject(object, replicaSet); err != nil {
+		return nil, err
+	}
+
+	oldStatus := &replicaSet.Status
+	newStatus := &appsv1.ReplicaSetStatus{}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+		temp := &appsv1.ReplicaSetStatus{}
+		if err := json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab replicaset(%s/%s) status from cluster(%s), replicas: %d, labeled: %d, ready: %d, available: %d",
+			replicaSet.Namespace, replicaSet.Name, item.ClusterName, temp.Replicas, temp.FullyLabeledReplicas, temp.ReadyReplicas, temp.AvailableReplicas)
+
+		// always set 'observedGeneration' with current generation(.metadata.generation)
+		// which is the generation Karmada 'observed'.
+		// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+		// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+		newStatus.ObservedGeneration = replicaSet.Generation
+		newStatus.Replicas += temp.Replicas
+		newStatus.FullyLabeledReplicas += temp.FullyLabeledReplicas
+		newStatus.ReadyReplicas += temp.ReadyReplicas
+		newStatus.AvailableReplicas += temp.AvailableReplicas
+	}
+
+	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
+		oldStatus.FullyLabeledReplicas == newStatus.FullyLabeledReplicas &&
+		oldStatus.Replicas == newStatus.Replicas &&
+		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
+		oldStatus.AvailableReplicas == newStatus.AvailableReplicas {
+		klog.V(3).Infof("ignore update replicaset(%s/%s) status as up to date", replicaSet.Namespace, replicaSet.Name)
+		return object, nil
+	}
+
+	oldStatus.ObservedGeneration = newStatus.ObservedGeneration
+	oldStatus.Replicas = newStatus.Replicas
+	oldStatus.FullyLabeledReplicas = newStatus.FullyLabeledReplicas
+	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
+	oldStatus.AvailableReplicas = newStatus.AvailableReplicas
+
+	return helper.ToUnstructured(replicaSet)
 }

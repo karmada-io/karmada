@@ -843,3 +843,47 @@ func TestAggregatePVStatus(t *testing.T) {
 		assert.Equal(t, tt.expectedObj, actualObj, tt.name)
 	}
 }
+
+func TestAggregateReplicaSetStatus(t *testing.T) {
+	statusMap := map[string]interface{}{
+		"replicas":             1,
+		"fullyLabeledReplicas": 1,
+		"readyReplicas":        1,
+		"availableReplicas":    1,
+	}
+	raw, _ := helper.BuildStatusRawExtension(statusMap)
+	aggregatedStatusItems := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: raw, Applied: true},
+		{ClusterName: "member2", Status: raw, Applied: true},
+	}
+
+	oldRs := &appsv1.ReplicaSet{}
+	newRs := &appsv1.ReplicaSet{Status: appsv1.ReplicaSetStatus{Replicas: 2, FullyLabeledReplicas: 2, ReadyReplicas: 2, AvailableReplicas: 2}}
+	oldObj, _ := helper.ToUnstructured(oldRs)
+	newObj, _ := helper.ToUnstructured(newRs)
+
+	tests := []struct {
+		name                  string
+		curObj                *unstructured.Unstructured
+		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
+		expectedObj           *unstructured.Unstructured
+	}{
+		{
+			name:                  "update replicaset status",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItems,
+			expectedObj:           newObj,
+		},
+		{
+			name:                  "ignore update replicaset status as up to date",
+			curObj:                newObj,
+			aggregatedStatusItems: aggregatedStatusItems,
+			expectedObj:           newObj,
+		},
+	}
+
+	for _, tt := range tests {
+		actualObj, _ := aggregateReplicaSetStatus(tt.curObj, tt.aggregatedStatusItems)
+		assert.Equal(t, tt.expectedObj, actualObj)
+	}
+}
