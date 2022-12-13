@@ -19,7 +19,7 @@ type LuaScriptAccessor interface {
 	GetStatusReflectionLuaScript() string
 	GetStatusAggregationLuaScript() string
 	GetHealthInterpretationLuaScript() string
-	GetDependencyInterpretationLuaScript() string
+	GetDependencyInterpretationLuaScripts() []string
 }
 
 // CustomAccessor provides a common interface to get custom interpreter configuration.
@@ -28,13 +28,13 @@ type CustomAccessor interface {
 }
 
 type resourceCustomAccessor struct {
-	retention                *configv1alpha1.LocalValueRetention
-	replicaResource          *configv1alpha1.ReplicaResourceRequirement
-	replicaRevision          *configv1alpha1.ReplicaRevision
-	statusReflection         *configv1alpha1.StatusReflection
-	statusAggregation        *configv1alpha1.StatusAggregation
-	healthInterpretation     *configv1alpha1.HealthInterpretation
-	dependencyInterpretation *configv1alpha1.DependencyInterpretation
+	retention                 *configv1alpha1.LocalValueRetention
+	replicaResource           *configv1alpha1.ReplicaResourceRequirement
+	replicaRevision           *configv1alpha1.ReplicaRevision
+	statusReflection          *configv1alpha1.StatusReflection
+	statusAggregation         *configv1alpha1.StatusAggregation
+	healthInterpretation      *configv1alpha1.HealthInterpretation
+	dependencyInterpretations []*configv1alpha1.DependencyInterpretation
 }
 
 // NewResourceCustomAccessor creates an accessor for resource interpreter customization.
@@ -63,7 +63,7 @@ func (a *resourceCustomAccessor) Merge(rules configv1alpha1.CustomizationRules) 
 		a.setHealthInterpretation(rules.HealthInterpretation)
 	}
 	if rules.DependencyInterpretation != nil {
-		a.setDependencyInterpretation(rules.DependencyInterpretation)
+		a.appendDependencyInterpretation(rules.DependencyInterpretation)
 	}
 }
 
@@ -109,11 +109,18 @@ func (a *resourceCustomAccessor) GetHealthInterpretationLuaScript() string {
 	return a.healthInterpretation.LuaScript
 }
 
-func (a *resourceCustomAccessor) GetDependencyInterpretationLuaScript() string {
-	if a.dependencyInterpretation == nil {
-		return ""
+func (a *resourceCustomAccessor) GetDependencyInterpretationLuaScripts() []string {
+	if a.dependencyInterpretations == nil {
+		return nil
 	}
-	return a.dependencyInterpretation.LuaScript
+
+	var scripts []string
+	for _, interpretation := range a.dependencyInterpretations {
+		if interpretation.LuaScript != "" {
+			scripts = append(scripts, interpretation.LuaScript)
+		}
+	}
+	return scripts
 }
 
 func (a *resourceCustomAccessor) setRetain(retention *configv1alpha1.LocalValueRetention) {
@@ -182,13 +189,6 @@ func (a *resourceCustomAccessor) setHealthInterpretation(healthInterpretation *c
 	}
 }
 
-func (a *resourceCustomAccessor) setDependencyInterpretation(dependencyInterpretation *configv1alpha1.DependencyInterpretation) {
-	if a.dependencyInterpretation == nil {
-		a.dependencyInterpretation = dependencyInterpretation
-		return
-	}
-
-	if dependencyInterpretation.LuaScript != "" && a.dependencyInterpretation.LuaScript == "" {
-		a.dependencyInterpretation.LuaScript = dependencyInterpretation.LuaScript
-	}
+func (a *resourceCustomAccessor) appendDependencyInterpretation(dependencyInterpretation *configv1alpha1.DependencyInterpretation) {
+	a.dependencyInterpretations = append(a.dependencyInterpretations, dependencyInterpretation)
 }
