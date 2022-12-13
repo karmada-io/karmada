@@ -1,0 +1,1320 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: karmadas.operator.karmada.io
+spec:
+  group: operator.karmada.io
+  names:
+    kind: Karmada
+    listKind: KarmadaList
+    plural: karmadas
+    singular: karmada
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.controlPlaneReady
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Karmada enables declarative installation of karmada.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired behavior of the Karmada.
+            properties:
+              components:
+                description: Components define all of karmada components. not all
+                  of these components need to be installed.
+                properties:
+                  KarmadaDescheduler:
+                    description: KarmadaDescheduler holds settings to karmada-descheduler
+                      component of the karmada.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the karmada-descheduler component or override. A key in
+                          this map is the flag name as it appears on the command line
+                          except without leading dash(es). \n Note: This is a temporary
+                          solution to allow for the configuration of the karmada-descheduler
+                          component. In the future, we will provide a more structured
+                          way to configure the component. Once that is done, this
+                          field will be discouraged to be used. Incorrect settings
+                          on this feild maybe lead to the corresponding component
+                          in an unhealthy state. Before you do it, please confirm
+                          that you understand the risks of this configuration. \n
+                          For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/descheduler/app/options/options.go
+                          for details."
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                    type: object
+                  etcd:
+                    description: Etcd holds configuration for etcd.
+                    properties:
+                      external:
+                        description: External describes how to connect to an external
+                          etcd cluster Local and External are mutually exclusive
+                        properties:
+                          caData:
+                            description: CAData is an SSL Certificate Authority file
+                              used to secure etcd communication. Required if using
+                              a TLS connection.
+                            format: byte
+                            type: string
+                          certData:
+                            description: CertData is an SSL certification file used
+                              to secure etcd communication. Required if using a TLS
+                              connection.
+                            format: byte
+                            type: string
+                          endpoints:
+                            description: Endpoints of etcd members. Required for ExternalEtcd.
+                            items:
+                              type: string
+                            type: array
+                          keyData:
+                            description: KeyData is an SSL key file used to secure
+                              etcd communication. Required if using a TLS connection.
+                            format: byte
+                            type: string
+                        required:
+                        - caData
+                        - certData
+                        - endpoints
+                        - keyData
+                        type: object
+                      local:
+                        description: Local provides configuration knobs for configuring
+                          the built-in etcd instance Local and External are mutually
+                          exclusive
+                        properties:
+                          imageRepository:
+                            description: ImageRepository sets the container registry
+                              to pull images from. if not set, the ImageRepository
+                              defined in KarmadaSpec will be used instead.
+                            type: string
+                          imageTag:
+                            description: ImageTag allows to specify a tag for the
+                              image. In case this value is set, operator does not
+                              change automatically the version of the above components
+                              during upgrades.
+                            type: string
+                          peerCertSANs:
+                            description: PeerCertSANs sets extra Subject Alternative
+                              Names for the etcd peer signing cert.
+                            items:
+                              type: string
+                            type: array
+                          serverCertSANs:
+                            description: ServerCertSANs sets extra Subject Alternative
+                              Names for the etcd server signing cert.
+                            items:
+                              type: string
+                            type: array
+                          volumeData:
+                            description: 'VolumeData describes the settings of etcd
+                              data store. We will support 3 modes: emtydir, hostPath,
+                              PVC. default by hostPath.'
+                            properties:
+                              emptyDir:
+                                description: 'EmptyDir represents a temporary directory
+                                  that shares a pod''s lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
+                                properties:
+                                  medium:
+                                    description: 'medium represents what type of storage
+                                      medium should back this directory. The default
+                                      is "" which means to use the node''s default
+                                      medium. Must be an empty string (default) or
+                                      Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
+                                    type: string
+                                  sizeLimit:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    description: 'sizeLimit is the total amount of
+                                      local storage required for this EmptyDir volume.
+                                      The size limit is also applicable for memory
+                                      medium. The maximum usage on memory medium EmptyDir
+                                      would be the minimum value between the SizeLimit
+                                      specified here and the sum of memory limits
+                                      of all containers in a pod. The default is nil
+                                      which means that the limit is undefined. More
+                                      info: http://kubernetes.io/docs/user-guide/volumes#emptydir'
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
+                                type: object
+                              hostPath:
+                                description: 'HostPath represents a pre-existing file
+                                  or directory on the host machine that is directly
+                                  exposed to the container. This is generally used
+                                  for system agents or other privileged things that
+                                  are allowed to see the host machine. Most containers
+                                  will NOT need this. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath
+                                  --- TODO(jonesdl) We need to restrict who can use
+                                  host directory mounts and who can/can not mount
+                                  host directories as read/write.'
+                                properties:
+                                  path:
+                                    description: 'path of the directory on the host.
+                                      If the path is a symlink, it will follow the
+                                      link to the real path. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath'
+                                    type: string
+                                  type:
+                                    description: 'type for HostPath Volume Defaults
+                                      to "" More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath'
+                                    type: string
+                                required:
+                                - path
+                                type: object
+                              volumeClaim:
+                                description: The specification for the PersistentVolumeClaim.
+                                  The entire content is copied unchanged into the
+                                  PVC that gets created from this template. The same
+                                  fields as in a PersistentVolumeClaim are also valid
+                                  here.
+                                properties:
+                                  metadata:
+                                    description: May contain labels and annotations
+                                      that will be copied into the PVC when creating
+                                      it. No other fields are allowed and will be
+                                      rejected during validation.
+                                    type: object
+                                  spec:
+                                    description: The specification for the PersistentVolumeClaim.
+                                      The entire content is copied unchanged into
+                                      the PVC that gets created from this template.
+                                      The same fields as in a PersistentVolumeClaim
+                                      are also valid here.
+                                    properties:
+                                      accessModes:
+                                        description: 'accessModes contains the desired
+                                          access modes the volume should have. More
+                                          info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
+                                        items:
+                                          type: string
+                                        type: array
+                                      dataSource:
+                                        description: 'dataSource field can be used
+                                          to specify either: * An existing VolumeSnapshot
+                                          object (snapshot.storage.k8s.io/VolumeSnapshot)
+                                          * An existing PVC (PersistentVolumeClaim)
+                                          If the provisioner or an external controller
+                                          can support the specified data source, it
+                                          will create a new volume based on the contents
+                                          of the specified data source. If the AnyVolumeDataSource
+                                          feature gate is enabled, this field will
+                                          always have the same contents as the DataSourceRef
+                                          field.'
+                                        properties:
+                                          apiGroup:
+                                            description: APIGroup is the group for
+                                              the resource being referenced. If APIGroup
+                                              is not specified, the specified Kind
+                                              must be in the core API group. For any
+                                              other third-party types, APIGroup is
+                                              required.
+                                            type: string
+                                          kind:
+                                            description: Kind is the type of resource
+                                              being referenced
+                                            type: string
+                                          name:
+                                            description: Name is the name of resource
+                                              being referenced
+                                            type: string
+                                        required:
+                                        - kind
+                                        - name
+                                        type: object
+                                      dataSourceRef:
+                                        description: 'dataSourceRef specifies the
+                                          object from which to populate the volume
+                                          with data, if a non-empty volume is desired.
+                                          This may be any local object from a non-empty
+                                          API group (non core object) or a PersistentVolumeClaim
+                                          object. When this field is specified, volume
+                                          binding will only succeed if the type of
+                                          the specified object matches some installed
+                                          volume populator or dynamic provisioner.
+                                          This field will replace the functionality
+                                          of the DataSource field and as such if both
+                                          fields are non-empty, they must have the
+                                          same value. For backwards compatibility,
+                                          both fields (DataSource and DataSourceRef)
+                                          will be set to the same value automatically
+                                          if one of them is empty and the other is
+                                          non-empty. There are two important differences
+                                          between DataSource and DataSourceRef: *
+                                          While DataSource only allows two specific
+                                          types of objects, DataSourceRef allows any
+                                          non-core object, as well as PersistentVolumeClaim
+                                          objects. * While DataSource ignores disallowed
+                                          values (dropping them), DataSourceRef preserves
+                                          all values, and generates an error if a
+                                          disallowed value is specified. (Beta) Using
+                                          this field requires the AnyVolumeDataSource
+                                          feature gate to be enabled.'
+                                        properties:
+                                          apiGroup:
+                                            description: APIGroup is the group for
+                                              the resource being referenced. If APIGroup
+                                              is not specified, the specified Kind
+                                              must be in the core API group. For any
+                                              other third-party types, APIGroup is
+                                              required.
+                                            type: string
+                                          kind:
+                                            description: Kind is the type of resource
+                                              being referenced
+                                            type: string
+                                          name:
+                                            description: Name is the name of resource
+                                              being referenced
+                                            type: string
+                                        required:
+                                        - kind
+                                        - name
+                                        type: object
+                                      resources:
+                                        description: 'resources represents the minimum
+                                          resources the volume should have. If RecoverVolumeExpansionFailure
+                                          feature is enabled users are allowed to
+                                          specify resource requirements that are lower
+                                          than previous value but must still be higher
+                                          than capacity recorded in the status field
+                                          of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                        properties:
+                                          limits:
+                                            additionalProperties:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            description: 'Limits describes the maximum
+                                              amount of compute resources allowed.
+                                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                            type: object
+                                          requests:
+                                            additionalProperties:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            description: 'Requests describes the minimum
+                                              amount of compute resources required.
+                                              If Requests is omitted for a container,
+                                              it defaults to Limits if that is explicitly
+                                              specified, otherwise to an implementation-defined
+                                              value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                            type: object
+                                        type: object
+                                      selector:
+                                        description: selector is a label query over
+                                          volumes to consider for binding.
+                                        properties:
+                                          matchExpressions:
+                                            description: matchExpressions is a list
+                                              of label selector requirements. The
+                                              requirements are ANDed.
+                                            items:
+                                              description: A label selector requirement
+                                                is a selector that contains values,
+                                                a key, and an operator that relates
+                                                the key and values.
+                                              properties:
+                                                key:
+                                                  description: key is the label key
+                                                    that the selector applies to.
+                                                  type: string
+                                                operator:
+                                                  description: operator represents
+                                                    a key's relationship to a set
+                                                    of values. Valid operators are
+                                                    In, NotIn, Exists and DoesNotExist.
+                                                  type: string
+                                                values:
+                                                  description: values is an array
+                                                    of string values. If the operator
+                                                    is In or NotIn, the values array
+                                                    must be non-empty. If the operator
+                                                    is Exists or DoesNotExist, the
+                                                    values array must be empty. This
+                                                    array is replaced during a strategic
+                                                    merge patch.
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            description: matchLabels is a map of {key,value}
+                                              pairs. A single {key,value} in the matchLabels
+                                              map is equivalent to an element of matchExpressions,
+                                              whose key field is "key", the operator
+                                              is "In", and the values array contains
+                                              only "value". The requirements are ANDed.
+                                            type: object
+                                        type: object
+                                      storageClassName:
+                                        description: 'storageClassName is the name
+                                          of the StorageClass required by the claim.
+                                          More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                                        type: string
+                                      volumeMode:
+                                        description: volumeMode defines what type
+                                          of volume is required by the claim. Value
+                                          of Filesystem is implied when not included
+                                          in claim spec.
+                                        type: string
+                                      volumeName:
+                                        description: volumeName is the binding reference
+                                          to the PersistentVolume backing this claim.
+                                        type: string
+                                    type: object
+                                required:
+                                - spec
+                                type: object
+                            type: object
+                        type: object
+                    type: object
+                  karmadaAPIServer:
+                    description: KarmadaAPIServer holds settings to kube-apiserver
+                      component. Currently, kube-apiserver is used as the apiserver
+                      of karmada. we had the same experience as k8s apiserver.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      certSANs:
+                        description: CertSANs sets extra Subject Alternative Names
+                          for the API Server signing cert.
+                        items:
+                          type: string
+                        type: array
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the kube-apiserver component or override. A key in this
+                          map is the flag name as it appears on the command line except
+                          without leading dash(es). \n Note: This is a temporary solution
+                          to allow for the configuration of the kube-apiserver component.
+                          In the future, we will provide a more structured way to
+                          configure the component. Once that is done, this field will
+                          be discouraged to be used. Incorrect settings on this feild
+                          maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand
+                          the risks of this configuration. \n For supported flags,
+                          please see https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+                          for details."
+                        type: object
+                      featureGates:
+                        additionalProperties:
+                          type: boolean
+                        description: 'FeatureGates enabled by the user. More info:
+                          https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/'
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                      serviceSubnet:
+                        description: ServiceSubnet is the subnet used by k8s services.
+                          Defaults to "10.96.0.0/12".
+                        type: string
+                    type: object
+                  karmadaAggregratedAPIServer:
+                    description: KarmadaAggregratedAPIServer holds settings to karmada-aggregated-apiserver
+                      component of the karmada.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      certSANs:
+                        description: CertSANs sets extra Subject Alternative Names
+                          for the API Server signing cert.
+                        items:
+                          type: string
+                        type: array
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the karmada-aggregated-apiserver component or override.
+                          A key in this map is the flag name as it appears on the
+                          command line except without leading dash(es). \n Note: This
+                          is a temporary solution to allow for the configuration of
+                          the karmada-aggregated-apiserver component. In the future,
+                          we will provide a more structured way to configure the component.
+                          Once that is done, this field will be discouraged to be
+                          used. Incorrect settings on this feild maybe lead to the
+                          corresponding component in an unhealthy state. Before you
+                          do it, please confirm that you understand the risks of this
+                          configuration. \n For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/aggregated-apiserver/app/options/options.go
+                          for details."
+                        type: object
+                      featureGates:
+                        additionalProperties:
+                          type: boolean
+                        description: 'FeatureGates enabled by the user. - CustomizedClusterResourceModeling:
+                          https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
+                          More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                      serviceType:
+                        description: ServiceType represents the service type of karmada
+                          apiserver. it is Nodeport by default.
+                        type: string
+                    type: object
+                  karmadaControllerManager:
+                    description: KarmadaControllerManager holds settings to karmada-controller-manager
+                      component of the karmada.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      controllers:
+                        description: "A list of controllers to enable. '*' enables
+                          all on-by-default controllers, 'foo' enables the controller
+                          named 'foo', '-foo' disables the controller named 'foo'.
+                          \n All controllers: binding, cluster, clusterStatus, endpointSlice,
+                          execution, federatedResourceQuotaStatus, federatedResourceQuotaSync,
+                          hpa, namespace, serviceExport, serviceImport, unifiedAuth,
+                          workStatus. Disabled-by-default controllers: hpa (default
+                          [*]) Actual Supported controllers depend on the version
+                          of Karmada. See https://karmada.io/docs/administrator/configuration/configure-controllers#configure-karmada-controllers
+                          for details."
+                        items:
+                          type: string
+                        type: array
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the karmada-controller-manager component or override. A
+                          key in this map is the flag name as it appears on the command
+                          line except without leading dash(es). \n Note: This is a
+                          temporary solution to allow for the configuration of the
+                          karmada-controller-manager component. In the future, we
+                          will provide a more structured way to configure the component.
+                          Once that is done, this field will be discouraged to be
+                          used. Incorrect settings on this feild maybe lead to the
+                          corresponding component in an unhealthy state. Before you
+                          do it, please confirm that you understand the risks of this
+                          configuration. \n For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/controller-manager/app/options/options.go
+                          for details."
+                        type: object
+                      featureGates:
+                        additionalProperties:
+                          type: boolean
+                        description: 'FeatureGates enabled by the user. - Failover:
+                          https://karmada.io/docs/userguide/failover/#failover - GracefulEviction:
+                          https://karmada.io/docs/userguide/failover/#graceful-eviction-feature
+                          - PropagateDeps: https://karmada.io/docs/userguide/scheduling/propagate-dependencies
+                          - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
+                          More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                    type: object
+                  karmadaScheduler:
+                    description: KarmadaScheduler holds settings to karmada-scheduler
+                      component of the karmada.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the karmada-scheduler component or override. A key in this
+                          map is the flag name as it appears on the command line except
+                          without leading dash(es). \n Note: This is a temporary solution
+                          to allow for the configuration of the karmada-scheduler
+                          component. In the future, we will provide a more structured
+                          way to configure the component. Once that is done, this
+                          field will be discouraged to be used. Incorrect settings
+                          on this feild maybe lead to the corresponding component
+                          in an unhealthy state. Before you do it, please confirm
+                          that you understand the risks of this configuration. \n
+                          For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/scheduler/app/options/options.go
+                          for details."
+                        type: object
+                      featureGates:
+                        additionalProperties:
+                          type: boolean
+                        description: 'FeatureGates enabled by the user. - CustomizedClusterResourceModeling:
+                          https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
+                          More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                    type: object
+                  karmadaSearch:
+                    description: KarmadaSearch holds settings to karmada search component
+                      of the karmada.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the karmada-descheduler component or override. A key in
+                          this map is the flag name as it appears on the command line
+                          except without leading dash(es). \n Note: This is a temporary
+                          solution to allow for the configuration of the karmada-descheduler
+                          component. In the future, we will provide a more structured
+                          way to configure the component. Once that is done, this
+                          field will be discouraged to be used. Incorrect settings
+                          on this feild maybe lead to the corresponding component
+                          in an unhealthy state. Before you do it, please confirm
+                          that you understand the risks of this configuration. \n
+                          For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/descheduler/app/options/options.go
+                          for details."
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                    type: object
+                  karmadaWebhook:
+                    description: KarmadaWebhook holds settings to karmada-webook component
+                      of the karmada.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the karmada-webhook component or override. A key in this
+                          map is the flag name as it appears on the command line except
+                          without leading dash(es). \n Note: This is a temporary solution
+                          to allow for the configuration of the karmada-webhook component.
+                          In the future, we will provide a more structured way to
+                          configure the component. Once that is done, this field will
+                          be discouraged to be used. Incorrect settings on this feild
+                          maybe lead to the corresponding component in an unhealthy
+                          state. Before you do it, please confirm that you understand
+                          the risks of this configuration. \n For supported flags,
+                          please see https://github.com/karmada-io/karmada/blob/master/cmd/webhook/app/options/options.go
+                          for details."
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                    type: object
+                  kubeControllerManager:
+                    description: KubeControllerManager holds settings to kube-controller-manager
+                      component of the karmada.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      controllers:
+                        description: "A list of controllers to enable. '*' enables
+                          all on-by-default controllers, 'foo' enables the controller
+                          named 'foo', '-foo' disables the controller named 'foo'.
+                          \n All controllers: attachdetach, bootstrapsigner, cloud-node-lifecycle,
+                          clusterrole-aggregation, cronjob, csrapproving, csrcleaner,
+                          csrsigning, daemonset, deployment, disruption, endpoint,
+                          endpointslice, endpointslicemirroring, ephemeral-volume,
+                          garbagecollector, horizontalpodautoscaling, job, namespace,
+                          nodeipam, nodelifecycle, persistentvolume-binder, persistentvolume-expander,
+                          podgc, pv-protection, pvc-protection, replicaset, replicationcontroller,
+                          resourcequota, root-ca-cert-publisher, route, service, serviceaccount,
+                          serviceaccount-token, statefulset, tokencleaner, ttl, ttl-after-finished
+                          Disabled-by-default controllers: bootstrapsigner, tokencleaner
+                          (default [*]) Actual Supported controllers depend on the
+                          version of Kubernetes. See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+                          for details. \n However, Karmada uses Kubernetes Native
+                          API definitions for federated resource template, so it doesn't
+                          need enable some resource related controllers like daemonset,
+                          deployment etc. On the other hand, Karmada leverages the
+                          capabilities of the Kubernetes controller to manage the
+                          lifecycle of the federated resource, so it needs to enable
+                          some controllers. For example, the `namespace` controller
+                          is used to manage the lifecycle of the namespace and the
+                          `garbagecollector` controller handles automatic clean-up
+                          of redundant items in your karmada. \n According to the
+                          user feedback and karmada requirements, the following controllers
+                          are enabled by default: namespace, garbagecollector, serviceaccount-token,
+                          ttl-after-finished, bootstrapsigner,csrapproving,csrcleaner,csrsigning.
+                          See https://karmada.io/docs/administrator/configuration/configure-controllers#kubernetes-controllers
+                          \n Others are disabled by default. If you want to enable
+                          or disable other controllers, you have to explicitly specify
+                          all the controllers that kube-controller-manager shoud enable
+                          at startup phase."
+                        items:
+                          type: string
+                        type: array
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: "ExtraArgs is an extra set of flags to pass to
+                          the kube-controller-manager component or override. A key
+                          in this map is the flag name as it appears on the command
+                          line except without leading dash(es). \n Note: This is a
+                          temporary solution to allow for the configuration of the
+                          kube-controller-manager component. In the future, we will
+                          provide a more structured way to configure the component.
+                          Once that is done, this field will be discouraged to be
+                          used. Incorrect settings on this feild maybe lead to the
+                          corresponding component in an unhealthy state. Before you
+                          do it, please confirm that you understand the risks of this
+                          configuration. \n For supported flags, please see https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+                          for details."
+                        type: object
+                      featureGates:
+                        additionalProperties:
+                          type: boolean
+                        description: 'FeatureGates enabled by the user. More info:
+                          https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/'
+                        type: object
+                      imageRepository:
+                        description: ImageRepository sets the container registry to
+                          pull images from. if not set, the ImageRepository defined
+                          in KarmadaSpec will be used instead.
+                        type: string
+                      imageTag:
+                        description: ImageTag allows to specify a tag for the image.
+                          In case this value is set, operator does not change automatically
+                          the version of the above components during upgrades.
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                      replicas:
+                        description: Number of desired pods. This is a pointer to
+                          distinguish between explicit zero and not specified. Defaults
+                          to 1.
+                        format: int32
+                        type: integer
+                      resources:
+                        description: 'Compute Resources required by this component.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                    type: object
+                type: object
+              featureGates:
+                additionalProperties:
+                  type: boolean
+                description: 'FeatureGates enabled by the user. - Failover: https://karmada.io/docs/userguide/failover/#failover
+                  - GragscefulEviction: https://karmada.io/docs/userguide/failover/#graceful-eviction-feature
+                  - PropagateDeps: https://karmada.io/docs/userguide/scheduling/propagate-dependencies
+                  - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
+                  More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
+                type: object
+              hostCluster:
+                description: HostCluster represents the cluster where to install the
+                  Karmada control plane. If not set, the control plane will be installed
+                  on the cluster where running the operator.
+                properties:
+                  apiEndpoint:
+                    description: APIEndpoint is the API endpoint of the cluster where
+                      deploy Karmada control plane on. This can be a hostname, hostname:port,
+                      IP or IP:port.
+                    type: string
+                  networking:
+                    description: Networking holds configuration for the networking
+                      topology of the cluster.
+                    properties:
+                      dnsDomain:
+                        description: DNSDomain is the dns domain used by k8s services.
+                          Defaults to "cluster.local".
+                        type: string
+                    type: object
+                  secretRef:
+                    description: 'SecretRef represents the secret contains mandatory
+                      credentials to access the cluster. The secret should hold credentials
+                      as follows: - secret.data.token - secret.data.caBundle'
+                    properties:
+                      name:
+                        description: Name is the name of resource being referenced.
+                        type: string
+                      namespace:
+                        description: Namespace is the namespace for the resource being
+                          referenced.
+                        type: string
+                    type: object
+                type: object
+              privateRegistry:
+                description: PrivateRegistry is the global image registry. If set,
+                  the operator will pull all required images from it, no matter the
+                  image is maintained by Karmada or Kubernetes. It will be useful
+                  for offline installation to specify an accessible registry.
+                properties:
+                  registry:
+                    description: 'Registry is the image registry hostname, like: -
+                      docker.io - fictional.registry.example'
+                    type: string
+                required:
+                - registry
+                type: object
+            type: object
+          status:
+            description: Most recently observed status of the Karmada.
+            properties:
+              conditions:
+                description: Conditions represents the latest available observations
+                  of a karmada's current state.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              karmadaVersion:
+                description: KarmadaVersion represente the karmada version.
+                type: string
+              kubernetesVersion:
+                description: KubernetesVersion represente the karmada-apiserver version.
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the last observed generation.
+                format: int64
+                type: integer
+              secretRef:
+                description: after the karmada installed, restore the kubeconfig to
+                  secret.
+                properties:
+                  name:
+                    description: Name is the name of resource being referenced.
+                    type: string
+                  namespace:
+                    description: Namespace is the namespace for the resource being
+                      referenced.
+                    type: string
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
