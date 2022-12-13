@@ -128,7 +128,7 @@ func NewStatefulSet(namespace string, name string) *appsv1.StatefulSet {
 }
 
 // NewService will build a service object.
-func NewService(namespace string, name string) *corev1.Service {
+func NewService(namespace string, name string, svcType corev1.ServiceType) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -139,6 +139,7 @@ func NewService(namespace string, name string) *corev1.Service {
 			Name:      name,
 		},
 		Spec: corev1.ServiceSpec{
+			Type: svcType,
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "http",
@@ -147,7 +148,6 @@ func NewService(namespace string, name string) *corev1.Service {
 					TargetPort: intstr.IntOrString{IntVal: 8080},
 				},
 			},
-			Type: corev1.ServiceTypeClusterIP,
 		},
 	}
 }

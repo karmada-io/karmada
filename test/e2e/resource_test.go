@@ -18,11 +18,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
-	"github.com/karmada-io/karmada/test/helper"
+	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
 var _ = ginkgo.Describe("[resource-status collection] resource status collection testing", func() {
@@ -46,8 +48,8 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			deploymentNamespace = testNamespace
 			deploymentName = policyName
 
-			deployment = helper.NewDeployment(deploymentNamespace, deploymentName)
-			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: deployment.APIVersion,
 					Kind:       deployment.Kind,
@@ -123,9 +125,8 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			serviceNamespace = testNamespace
 			serviceName = policyName
 
-			service = helper.NewService(serviceNamespace, serviceName)
-			service.Spec.Type = corev1.ServiceTypeLoadBalancer
-			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			service = testhelper.NewService(serviceNamespace, serviceName, corev1.ServiceTypeLoadBalancer)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: service.APIVersion,
 					Kind:       service.Kind,
@@ -196,9 +197,8 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			serviceNamespace = testNamespace
 			serviceName = policyName
 
-			service = helper.NewService(serviceNamespace, serviceName)
-			service.Spec.Type = corev1.ServiceTypeNodePort
-			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			service = testhelper.NewService(serviceNamespace, serviceName, corev1.ServiceTypeNodePort)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: service.APIVersion,
 					Kind:       service.Kind,
@@ -266,8 +266,8 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			ingNamespace = testNamespace
 			ingName = policyName
 
-			ingress = helper.NewIngress(ingNamespace, ingName)
-			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			ingress = testhelper.NewIngress(ingNamespace, ingName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: ingress.APIVersion,
 					Kind:       ingress.Kind,
@@ -338,8 +338,8 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			jobNamespace = testNamespace
 			jobName = policyName
 
-			job = helper.NewJob(jobNamespace, jobName)
-			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			job = testhelper.NewJob(jobNamespace, jobName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: job.APIVersion,
 					Kind:       job.Kind,
@@ -392,8 +392,8 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			daemonSetNamespace = testNamespace
 			daemonSetName = policyName
 
-			daemonSet = helper.NewDaemonSet(daemonSetNamespace, daemonSetName)
-			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			daemonSet = testhelper.NewDaemonSet(daemonSetNamespace, daemonSetName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: daemonSet.APIVersion,
 					Kind:       daemonSet.Kind,
@@ -479,8 +479,8 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 			statefulSetNamespace = testNamespace
 			statefulSetName = policyName
 
-			statefulSet = helper.NewStatefulSet(statefulSetNamespace, statefulSetName)
-			policy = helper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+			statefulSet = testhelper.NewStatefulSet(statefulSetNamespace, statefulSetName)
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: statefulSet.APIVersion,
 					Kind:       statefulSet.Kind,
@@ -541,6 +541,115 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					return false, nil
 				})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+	})
+})
+
+var _ = framework.SerialDescribe("workload status synchronization testing", func() {
+	ginkgo.Context("Deployment status synchronization when cluster failed and recovered soon", func() {
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.PropagationPolicy
+		var originalReplicas, numOfFailedClusters int
+
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			numOfFailedClusters = 1
+			originalReplicas = 3
+
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					LabelSelector: &metav1.LabelSelector{
+						// only test push mode clusters
+						// because pull mode clusters cannot be disabled by changing APIEndpoint
+						MatchLabels: pushModeClusterLabels,
+					},
+				},
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
+
+		ginkgo.It("deployment status synchronization testing", func() {
+			var disabledClusters []string
+			targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+
+			ginkgo.By("set one cluster condition status to false", func() {
+				temp := numOfFailedClusters
+				for _, targetClusterName := range targetClusterNames {
+					if temp > 0 {
+						klog.Infof("Set cluster %s to disable.", targetClusterName)
+						err := disableCluster(controlPlaneClient, targetClusterName)
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						// wait for the current cluster status changing to false
+						framework.WaitClusterFitWith(controlPlaneClient, targetClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
+							return !util.IsClusterReady(&cluster.Status)
+						})
+						disabledClusters = append(disabledClusters, targetClusterName)
+						temp--
+					}
+				}
+			})
+
+			ginkgo.By("recover not ready cluster", func() {
+				for _, disabledCluster := range disabledClusters {
+					fmt.Printf("cluster %s is waiting for recovering\n", disabledCluster)
+					originalAPIEndpoint := getClusterAPIEndpoint(disabledCluster)
+
+					err := recoverCluster(controlPlaneClient, disabledCluster, originalAPIEndpoint)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					// wait for the disabled cluster recovered
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+						currentCluster, err := util.GetCluster(controlPlaneClient, disabledCluster)
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						if util.IsClusterReady(&currentCluster.Status) {
+							fmt.Printf("cluster %s recovered\n", disabledCluster)
+							return true, nil
+						}
+						return false, nil
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				}
+			})
+
+			ginkgo.By("edit deployment in disabled cluster", func() {
+				for _, disabledCluster := range disabledClusters {
+					clusterClient := framework.GetClusterClient(disabledCluster)
+					framework.UpdateDeploymentReplicas(clusterClient, deployment, updateDeploymentReplicas)
+					// wait for the status synchronization
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+						currentDeployment, err := clusterClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+						if *currentDeployment.Spec.Replicas == int32(originalReplicas) {
+							return true, nil
+						}
+						return false, nil
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				}
 			})
 		})
 	})
