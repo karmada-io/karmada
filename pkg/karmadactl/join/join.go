@@ -98,11 +98,6 @@ func (j *CommandJoinOption) Complete(args []string) error {
 		j.ClusterName = args[0]
 	}
 
-	// If '--cluster-context' not specified, take the cluster name as the context.
-	if len(j.ClusterContext) == 0 {
-		j.ClusterContext = j.ClusterName
-	}
-
 	return nil
 }
 
@@ -127,9 +122,8 @@ func (j *CommandJoinOption) Validate(args []string) error {
 // AddFlags adds flags to the specified FlagSet.
 func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
-
 	flags.StringVar(&j.ClusterContext, "cluster-context", "",
-		"Context name of cluster in kubeconfig. Only works when there are multiple contexts in the kubeconfig.")
+		"Name of cluster context in kubeconfig. The current context is used by default.")
 	flags.StringVar(&j.ClusterKubeConfig, "cluster-kubeconfig", "",
 		"Path of the cluster's kubeconfig.")
 	flags.StringVar(&j.ClusterProvider, "cluster-provider", "", "Provider of the joining cluster. The Karmada scheduler can use this information to spread workloads across providers for higher availability.")
