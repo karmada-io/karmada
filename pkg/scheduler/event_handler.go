@@ -229,13 +229,13 @@ func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 	case !equality.Semantic.DeepEqual(oldCluster.Labels, newCluster.Labels):
 		fallthrough
 	case !equality.Semantic.DeepEqual(oldCluster.Spec, newCluster.Spec):
-		s.enqueueAffectedPolicy(newCluster)
-		s.enqueueAffectedClusterPolicy(newCluster)
+		s.enqueueAffectedPolicy(oldCluster, newCluster)
+		s.enqueueAffectedClusterPolicy(oldCluster, newCluster)
 	}
 }
 
 // enqueueAffectedPolicy find all propagation policies related to the cluster and reschedule the RBs
-func (s *Scheduler) enqueueAffectedPolicy(newCluster *clusterv1alpha1.Cluster) {
+func (s *Scheduler) enqueueAffectedPolicy(oldCluster, newCluster *clusterv1alpha1.Cluster) {
 	policies, _ := s.policyLister.List(labels.Everything())
 	for _, policy := range policies {
 		selector := labels.SelectorFromSet(labels.Set{
@@ -245,10 +245,13 @@ func (s *Scheduler) enqueueAffectedPolicy(newCluster *clusterv1alpha1.Cluster) {
 		affinity := policy.Spec.Placement.ClusterAffinity
 		switch {
 		case affinity == nil:
-			// If no clusters specified, add it in queue
+			// If no clusters specified, add it to the queue
 			fallthrough
 		case util.ClusterMatches(newCluster, *affinity):
-			// If specific cluster matches the affinity. add it in queue
+			// If the new cluster manifest match the affinity, add it to the queue, trigger rescheduling
+			fallthrough
+		case util.ClusterMatches(oldCluster, *affinity):
+			// If the old cluster manifest match the affinity, add it to the queue, trigger rescheduling
 			err := s.requeueResourceBindings(selector, metrics.ClusterChanged)
 			if err != nil {
 				klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
@@ -258,7 +261,7 @@ func (s *Scheduler) enqueueAffectedPolicy(newCluster *clusterv1alpha1.Cluster) {
 }
 
 // enqueueAffectedClusterPolicy find all cluster propagation policies related to the cluster and reschedule the RBs/CRBs
-func (s *Scheduler) enqueueAffectedClusterPolicy(newCluster *clusterv1alpha1.Cluster) {
+func (s *Scheduler) enqueueAffectedClusterPolicy(oldCluster, newCluster *clusterv1alpha1.Cluster) {
 	clusterPolicies, _ := s.clusterPolicyLister.List(labels.Everything())
 	for _, policy := range clusterPolicies {
 		selector := labels.SelectorFromSet(labels.Set{
@@ -267,10 +270,13 @@ func (s *Scheduler) enqueueAffectedClusterPolicy(newCluster *clusterv1alpha1.Clu
 		affinity := policy.Spec.Placement.ClusterAffinity
 		switch {
 		case affinity == nil:
-			// If no clusters specified, add it in queue
+			// If no clusters specified, add it to the queue
 			fallthrough
 		case util.ClusterMatches(newCluster, *affinity):
-			// If specific cluster matches the affinity. add it in queue
+			// If the new cluster manifest match the affinity, add it to the queue, trigger rescheduling
+			fallthrough
+		case util.ClusterMatches(oldCluster, *affinity):
+			// If the old cluster manifest match the affinity, add it to the queue, trigger rescheduling
 			err := s.requeueClusterResourceBindings(selector, metrics.ClusterChanged)
 			if err != nil {
 				klog.Errorf("Failed to requeue ClusterResourceBinding, error: %v", err)

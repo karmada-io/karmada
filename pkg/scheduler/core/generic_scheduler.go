@@ -63,6 +63,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
 
+	// Short path for case no cluster fit.
 	if len(feasibleClusters) == 0 {
 		return result, &framework.FitError{
 			NumAllClusters: clusterInfoSnapshot.NumOfClusters(),
