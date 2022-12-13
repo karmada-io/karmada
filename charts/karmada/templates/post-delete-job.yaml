@@ -35,8 +35,8 @@ spec:
             - |
               bash <<'EOF'
               set -ex
-              kubectl delete -f /opt/mount/
-              kubectl delete cm/{{ $name }}-config -n {{ $namespace }}
+              kubectl delete -f /opt/mount/ --ignore-not-found=true
+              kubectl delete cm/{{ $name }}-config -n {{ $namespace }} --ignore-not-found=true
               EOF
           volumeMounts:
             - name: mount
