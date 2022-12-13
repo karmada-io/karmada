@@ -1,6 +1,8 @@
 package configurableinterpreter
 
 import (
+	"sort"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -11,6 +13,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter/configmanager"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter/luavm"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/hashset"
 )
 
 // ConfigurableInterpreter interprets resources with resource interpreter customizations.
@@ -150,7 +153,7 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 		return
 	}
 
-	referenceSet := newDependencySet()
+	refs := hashset.Make[configv1alpha1.DependentObjectReference]()
 	for _, luaScript := range scripts {
 		var references []configv1alpha1.DependentObjectReference
 		references, err = c.luaVM.GetDependencies(object, luaScript)
@@ -159,9 +162,23 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 				object.GroupVersionKind(), object.GetNamespace(), object.GetName(), err)
 			return
 		}
-		referenceSet.insert(references...)
+		refs.Insert(references...)
 	}
-	dependencies = referenceSet.list()
+	dependencies = refs.List()
+
+	// keep returned items in the same order between each call.
+	sort.Slice(dependencies, func(i, j int) bool {
+		if dependencies[i].APIVersion != dependencies[j].APIVersion {
+			return dependencies[i].APIVersion < dependencies[j].APIVersion
+		}
+		if dependencies[i].Kind != dependencies[j].Kind {
+			return dependencies[i].Kind < dependencies[j].Kind
+		}
+		if dependencies[i].Namespace != dependencies[j].Namespace {
+			return dependencies[i].Namespace < dependencies[j].Namespace
+		}
+		return dependencies[i].Name < dependencies[j].Name
+	})
 	return
 }
 

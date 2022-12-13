@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -415,22 +414,6 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 }
 
 func (d *DependenciesDistributor) recordDependenciesForIndependentBinding(binding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) error {
-	sort.Slice(dependencies, func(i, j int) bool {
-		if dependencies[i].APIVersion != dependencies[j].APIVersion {
-			return dependencies[i].APIVersion < dependencies[j].APIVersion
-		}
-		if dependencies[i].Kind != dependencies[j].Kind {
-			return dependencies[i].Kind < dependencies[j].Kind
-		}
-		if dependencies[i].Namespace != dependencies[j].Namespace {
-			return dependencies[i].Namespace < dependencies[j].Namespace
-		}
-		if dependencies[i].Name != dependencies[j].Name {
-			return dependencies[i].Name < dependencies[j].Name
-		}
-		return false
-	})
-
 	dependenciesBytes, err := json.Marshal(dependencies)
 	if err != nil {
 		klog.Errorf("failed to marshal dependencies of binding(%s/%s): %v", binding.Namespace, binding.Name, err)
