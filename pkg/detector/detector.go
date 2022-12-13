@@ -537,9 +537,17 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 
 	object, err := d.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get object(%s), error: %v", objectKey, err)
+		if apierrors.IsNotFound(err) {
+			// If the target object is not found in the informer cache,
+			// use the DynamicClient to get the target object again.
+			var object *unstructured.Unstructured
+			object, err = d.DynamicClient.Resource(objectGVR).Namespace(objectKey.Namespace).
+				Get(context.TODO(), objectKey.Name, metav1.GetOptions{})
+			if err == nil {
+				return object, nil
+			}
 		}
+		klog.Errorf("Failed to get object(%s), error: %v", objectKey, err)
 		return nil, err
 	}
 
@@ -550,25 +558,6 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 	}
 
 	return unstructuredObj, nil
-}
-
-// GetObject retrieves object from local cache.
-func (d *ResourceDetector) GetObject(objectKey keys.ClusterWideKey) (runtime.Object, error) {
-	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GroupVersionKind())
-	if err != nil {
-		klog.Errorf("Failed to get GVK of object: %s, error: %v", objectKey, err)
-		return nil, err
-	}
-
-	object, err := d.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get object(%s), error: %v", objectKey, err)
-		}
-		return nil, err
-	}
-
-	return object, nil
 }
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
