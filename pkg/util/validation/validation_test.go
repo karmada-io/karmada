@@ -1,6 +1,8 @@
 package validation
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -114,6 +116,67 @@ func TestValidateOverrideSpec(t *testing.T) {
 		if err == nil && tc.expectError == true {
 			t.Fatalf("expect an error but got none")
 		}
+	}
+}
+
+func TestValidateSpreadConstraint(t *testing.T) {
+	tests := []struct {
+		name             string
+		spreadConstraint []policyv1alpha1.SpreadConstraint
+		expectedErr      error
+	}{
+		{
+			name: "spreadByLabel co-exist with spreadByField",
+			spreadConstraint: []policyv1alpha1.SpreadConstraint{
+				{
+					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+					SpreadByLabel: "foo",
+				},
+			},
+			expectedErr: fmt.Errorf("invalid constraints: SpreadByLabel(foo) should not co-exist with spreadByField(cluster)"),
+		},
+		{
+			name: "maxGroups lower than minGroups",
+			spreadConstraint: []policyv1alpha1.SpreadConstraint{
+				{
+					MaxGroups: 1,
+					MinGroups: 2,
+				},
+			},
+			expectedErr: fmt.Errorf("maxGroups(1) lower than minGroups(2) is not allowed"),
+		},
+		{
+			name: "spreadByFieldCluster must be included if using spreadByField",
+			spreadConstraint: []policyv1alpha1.SpreadConstraint{
+				{
+					SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+				},
+			},
+			expectedErr: fmt.Errorf("the cluster spread constraint must be enabled in one of the constraints in case of SpreadByField is enabled"),
+		},
+		{
+			name: "validate success",
+			spreadConstraint: []policyv1alpha1.SpreadConstraint{
+				{
+					MaxGroups:     2,
+					MinGroups:     1,
+					SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+				},
+				{
+					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+				},
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSpreadConstraint(tt.spreadConstraint)
+			if !reflect.DeepEqual(err, tt.expectedErr) {
+				t.Errorf("expected: %v, but got %v", tt.expectedErr, err)
+			}
+		})
 	}
 }
 

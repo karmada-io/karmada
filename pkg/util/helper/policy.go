@@ -2,11 +2,9 @@ package helper
 
 import (
 	"encoding/json"
-	"fmt"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -28,38 +26,6 @@ func SetDefaultSpreadConstraints(spreadConstraints []policyv1alpha1.SpreadConstr
 			spreadConstraints[i].MinGroups = 1
 		}
 	}
-}
-
-// ValidateSpreadConstraint tests if the constraints is valid.
-func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstraint) error {
-	spreadByFields := sets.NewString()
-
-	for _, constraint := range spreadConstraints {
-		// SpreadByField and SpreadByLabel should not co-exist
-		if len(constraint.SpreadByField) > 0 && len(constraint.SpreadByLabel) > 0 {
-			return fmt.Errorf("invalid constraints: SpreadByLabel(%s) should not co-exist with spreadByField(%s)", constraint.SpreadByLabel, constraint.SpreadByField)
-		}
-
-		// If MaxGroups provided, it should greater or equal than MinGroups.
-		if constraint.MaxGroups > 0 && constraint.MaxGroups < constraint.MinGroups {
-			return fmt.Errorf("maxGroups(%d) lower than minGroups(%d) is not allowed", constraint.MaxGroups, constraint.MinGroups)
-		}
-
-		if len(constraint.SpreadByField) > 0 {
-			spreadByFields.Insert(string(constraint.SpreadByField))
-		}
-	}
-
-	if spreadByFields.Len() > 0 {
-		// If one of spread constraints are using 'SpreadByField', the 'SpreadByFieldCluster' must be included.
-		// For example, when using 'SpreadByFieldRegion' to specify region groups, at the meantime, you must use
-		// 'SpreadByFieldCluster' to specify how many clusters should be selected.
-		if !spreadByFields.Has(string(policyv1alpha1.SpreadByFieldCluster)) {
-			return fmt.Errorf("the cluster spread constraint must be enabled in one of the constraints in case of SpreadByField is enabled")
-		}
-	}
-
-	return nil
 }
 
 // IsDependentOverridesPresent checks if a PropagationPolicy's dependent OverridePolicy all exist.
