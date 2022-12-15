@@ -18,6 +18,7 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/server"
@@ -112,7 +113,9 @@ func serveHealthzAndMetrics(address string) {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{
+		ErrorHandling: promhttp.HTTPErrorOnError,
+	}))
 
 	httpServer := http.Server{
 		Addr:              address,

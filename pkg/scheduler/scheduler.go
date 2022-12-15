@@ -178,7 +178,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	clusterBindingLister := factory.Work().V1alpha2().ClusterResourceBindings().Lister()
 	clusterPolicyLister := factory.Policy().V1alpha1().ClusterPropagationPolicies().Lister()
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "scheduler-queue")
 	schedulerCache := schedulercache.NewCache(clusterLister)
 
 	options := schedulerOptions{}
