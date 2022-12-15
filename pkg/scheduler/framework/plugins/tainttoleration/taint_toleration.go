@@ -52,5 +52,5 @@ func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.
 		return framework.NewResult(framework.Success)
 	}
 
-	return framework.NewResult(framework.Unschedulable, fmt.Sprintf("cluster(s) had untolerated taint {%s: %s}", taint.Key, taint.Value))
+	return framework.NewResult(framework.Unschedulable, fmt.Sprintf("cluster(s) had untolerated taint {%s}", taint.ToString()))
 }
