@@ -135,9 +135,16 @@ app: {{$name}}
 {{- end -}}
 
 {{- define "karmada.descheduler.kubeconfig.volume" -}}
+{{ $name :=  include "karmada.name" . }}
+{{- if eq .Values.installMode "host" -}}
 - name: kubeconfig-secret
   secret:
-    secretName: karmada-kubeconfig
+    secretName: {{ $name }}-kubeconfig
+{{- else -}}
+- name: kubeconfig-secret
+  secret:
+    secretName: {{ .Values.descheduler.kubeconfig }}
+{{- end -}}
 {{- end -}}
 
 
@@ -220,6 +227,25 @@ app: {{- include "karmada.name" .}}-search
 {{ $key }}: {{ $value }}
 {{- end }}
 {{- end }}
+{{- end -}}
+
+{{- define "karmada.search.kubeconfig.volume" -}}
+{{ $name :=  include "karmada.name" . }}
+{{- if eq .Values.installMode "host" -}}
+- name: k8s-certs
+  secret:
+    secretName: {{ $name }}-cert
+- name: kubeconfig-secret
+  secret:
+    secretName: {{ $name }}-kubeconfig
+{{- else -}}
+- name: k8s-certs
+  secret:
+    secretName: {{ .Values.search.certs }}
+- name: kubeconfig-secret
+  secret:
+    secretName: {{ .Values.search.kubeconfig }}
+{{- end -}}
 {{- end -}}
 
 {{/*
