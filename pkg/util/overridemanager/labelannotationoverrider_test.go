@@ -23,12 +23,35 @@ func Test_applyLabelsOverriders(t *testing.T) {
 		"foo": "foo",
 		"bar": "bar",
 	}
+	deployment2 := helper.NewDeployment(metav1.NamespaceDefault, "test")
+	deployment2.Labels = nil
 	tests := []struct {
 		name    string
 		args    args
 		want    map[string]string
 		wantErr bool
 	}{
+		{
+			name: "test empty labels",
+			args: args{
+				rawObj: func() *unstructured.Unstructured {
+					deploymentObj, _ := utilhelper.ToUnstructured(deployment2)
+					return deploymentObj
+				}(),
+				commandOverriders: []policyv1alpha1.LabelAnnotationOverrider{
+					{
+						Operator: policyv1alpha1.OverriderOpAdd,
+						Value: map[string]string{
+							"test2": "test2",
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"test2": "test2",
+			},
+			wantErr: false,
+		},
 		{
 			name: "test labels replace",
 			args: args{
@@ -122,6 +145,8 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 		"foo": "foo",
 		"bar": "bar",
 	}
+	deployment2 := helper.NewDeployment(metav1.NamespaceDefault, "test")
+	deployment2.Annotations = nil
 	tests := []struct {
 		name    string
 		args    args
@@ -129,7 +154,28 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test labels replace",
+			name: "test empty annotations",
+			args: args{
+				rawObj: func() *unstructured.Unstructured {
+					deploymentObj, _ := utilhelper.ToUnstructured(deployment2)
+					return deploymentObj
+				}(),
+				commandOverriders: []policyv1alpha1.LabelAnnotationOverrider{
+					{
+						Operator: policyv1alpha1.OverriderOpAdd,
+						Value: map[string]string{
+							"test2": "test2",
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"test2": "test2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "test annotations replace",
 			args: args{
 				rawObj: func() *unstructured.Unstructured {
 					deploymentObj, _ := utilhelper.ToUnstructured(deployment)
@@ -152,7 +198,7 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "test labels add",
+			name: "test annotations add",
 			args: args{
 				rawObj: func() *unstructured.Unstructured {
 					deploymentObj, _ := utilhelper.ToUnstructured(deployment)
@@ -175,7 +221,7 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "test labels remove",
+			name: "test annotations remove",
 			args: args{
 				rawObj: func() *unstructured.Unstructured {
 					deploymentObj, _ := utilhelper.ToUnstructured(deployment)
@@ -197,7 +243,7 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "test labels remain the same",
+			name: "test annotations remain the same",
 			args: args{
 				rawObj: func() *unstructured.Unstructured {
 					deploymentObj, _ := utilhelper.ToUnstructured(deployment)
@@ -217,7 +263,7 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "test labels remain the same",
+			name: "test annotations remain the same",
 			args: args{
 				rawObj: func() *unstructured.Unstructured {
 					deploymentObj, _ := utilhelper.ToUnstructured(deployment)
@@ -239,7 +285,7 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "test labels remain the same",
+			name: "test annotations remain the same",
 			args: args{
 				rawObj: func() *unstructured.Unstructured {
 					deploymentObj, _ := utilhelper.ToUnstructured(deployment)
