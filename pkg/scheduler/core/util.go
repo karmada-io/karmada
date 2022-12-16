@@ -15,6 +15,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
+type calculator func([]*clusterv1alpha1.Cluster, *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster
+
 func getDefaultWeightPreference(clusters []*clusterv1alpha1.Cluster) *policyv1alpha1.ClusterPreferences {
 	staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
 	for _, cluster := range clusters {
@@ -71,52 +73,6 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 	klog.V(4).Infof("Target cluster: %v", availableTargetClusters)
 	return availableTargetClusters
-}
-
-// findOutScheduledCluster will return a slice of clusters
-// which are a part of `TargetClusters` and have non-zero replicas.
-func findOutScheduledCluster(tcs []workv1alpha2.TargetCluster, candidates []*clusterv1alpha1.Cluster) []workv1alpha2.TargetCluster {
-	validTarget := make([]workv1alpha2.TargetCluster, 0)
-	if len(tcs) == 0 {
-		return validTarget
-	}
-
-	for _, targetCluster := range tcs {
-		// must have non-zero replicas
-		if targetCluster.Replicas <= 0 {
-			continue
-		}
-		// must in `candidates`
-		for _, cluster := range candidates {
-			if targetCluster.Name == cluster.Name {
-				validTarget = append(validTarget, targetCluster)
-				break
-			}
-		}
-	}
-
-	return validTarget
-}
-
-// resortClusterList is used to make sure scheduledClusterNames are in front of the other clusters in the list of
-// clusterAvailableReplicas so that we can assign new replicas to them preferentially when scale up.
-// Note that scheduledClusterNames have none items during first scheduler
-func resortClusterList(clusterAvailableReplicas []workv1alpha2.TargetCluster, scheduledClusterNames sets.String) []workv1alpha2.TargetCluster {
-	if scheduledClusterNames.Len() == 0 {
-		return clusterAvailableReplicas
-	}
-	var preUsedCluster []workv1alpha2.TargetCluster
-	var unUsedCluster []workv1alpha2.TargetCluster
-	for i := range clusterAvailableReplicas {
-		if scheduledClusterNames.Has(clusterAvailableReplicas[i].Name) {
-			preUsedCluster = append(preUsedCluster, clusterAvailableReplicas[i])
-		} else {
-			unUsedCluster = append(unUsedCluster, clusterAvailableReplicas[i])
-		}
-	}
-	clusterAvailableReplicas = append(preUsedCluster, unUsedCluster...)
-	klog.V(4).Infof("Resorted target cluster: %v", clusterAvailableReplicas)
-	return clusterAvailableReplicas
 }
 
 // attachZeroReplicasCluster  attach cluster in clusters into targetCluster

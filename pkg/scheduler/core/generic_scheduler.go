@@ -180,35 +180,14 @@ func (g *genericScheduler) assignReplicas(
 	}
 
 	if object.Replicas > 0 && replicaSchedulingStrategy != nil {
-		var strategy string
-
-		switch replicaSchedulingStrategy.ReplicaSchedulingType {
-		case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
-			strategy = DuplicatedStrategy
-		case policyv1alpha1.ReplicaSchedulingTypeDivided:
-			switch replicaSchedulingStrategy.ReplicaDivisionPreference {
-			case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
-				strategy = AggregatedStrategy
-			case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
-				if replicaSchedulingStrategy.WeightPreference != nil && len(replicaSchedulingStrategy.WeightPreference.DynamicWeight) != 0 {
-					strategy = DynamicWeightStrategy
-				} else {
-					strategy = StaticWeightStrategy
-				}
-			}
-		}
-
-		assign, ok := assignFuncMap[strategy]
+		state := newAssignState(clusters, replicaSchedulingStrategy, object)
+		assignFunc, ok := assignFuncMap[state.strategyType]
 		if !ok {
 			// should never happen at present
 			return nil, fmt.Errorf("unsupported replica scheduling strategy, replicaSchedulingType: %s, replicaDivisionPreference: %s, "+
 				"please try another scheduling strategy", replicaSchedulingStrategy.ReplicaSchedulingType, replicaSchedulingStrategy.ReplicaDivisionPreference)
 		}
-		return assign(&assignState{
-			candidates: clusters,
-			strategy:   replicaSchedulingStrategy,
-			object:     object,
-		})
+		return assignFunc(state)
 	}
 
 	// If not workload, assign all clusters without considering replicas.

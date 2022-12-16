@@ -1,26 +1,24 @@
 package core
 
 import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 var (
 	assignFuncMap = map[string]func(*assignState) ([]workv1alpha2.TargetCluster, error){
 		DuplicatedStrategy:    assignByDuplicatedStrategy,
-		AggregatedStrategy:    assignByAggregatedStrategy,
+		AggregatedStrategy:    assignByDynamicStrategy,
 		StaticWeightStrategy:  assignByStaticWeightStrategy,
-		DynamicWeightStrategy: assignByDynamicWeightStrategy,
+		DynamicWeightStrategy: assignByDynamicStrategy,
 	}
 )
-
-// assignState is a wrapper of the input for assigning function.
-type assignState struct {
-	candidates []*clusterv1alpha1.Cluster
-	strategy   *policyv1alpha1.ReplicaSchedulingStrategy
-	object     *workv1alpha2.ResourceBindingSpec
-}
 
 const (
 	// DuplicatedStrategy indicates each candidate member cluster will directly apply the original replicas.
@@ -34,18 +32,94 @@ const (
 	DynamicWeightStrategy = "DynamicWeight"
 )
 
+// assignState is a wrapper of the input for assigning function.
+type assignState struct {
+	candidates []*clusterv1alpha1.Cluster
+	strategy   *policyv1alpha1.ReplicaSchedulingStrategy
+	spec       *workv1alpha2.ResourceBindingSpec
+
+	// fields below are indirect results
+	strategyType string
+
+	scheduledClusters []workv1alpha2.TargetCluster
+	assignedReplicas  int32
+	availableClusters []workv1alpha2.TargetCluster
+	availableReplicas int32
+
+	// targetReplicas is the replicas that we need to schedule in this round
+	targetReplicas int32
+}
+
+func newAssignState(candidates []*clusterv1alpha1.Cluster, strategy *policyv1alpha1.ReplicaSchedulingStrategy, obj *workv1alpha2.ResourceBindingSpec) *assignState {
+	var strategyType string
+
+	switch strategy.ReplicaSchedulingType {
+	case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
+		strategyType = DuplicatedStrategy
+	case policyv1alpha1.ReplicaSchedulingTypeDivided:
+		switch strategy.ReplicaDivisionPreference {
+		case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
+			strategyType = AggregatedStrategy
+		case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
+			if strategy.WeightPreference != nil && len(strategy.WeightPreference.DynamicWeight) != 0 {
+				strategyType = DynamicWeightStrategy
+			} else {
+				strategyType = StaticWeightStrategy
+			}
+		}
+	}
+
+	return &assignState{candidates: candidates, strategy: strategy, spec: obj, strategyType: strategyType}
+}
+
+func (as *assignState) buildScheduledClusters() {
+	as.scheduledClusters = as.spec.Clusters
+	as.assignedReplicas = util.GetSumOfReplicas(as.scheduledClusters)
+}
+
+func (as *assignState) buildAvailableClusters(c calculator) {
+	as.availableClusters = c(as.candidates, as.spec)
+	as.availableReplicas = util.GetSumOfReplicas(as.availableClusters)
+}
+
+// resortAvailableClusters is used to make sure scheduledClusters are at the front of availableClusters
+// list so that we can assign new replicas to them preferentially when scale up.
+func (as *assignState) resortAvailableClusters() []workv1alpha2.TargetCluster {
+	// get the previous scheduled clusters
+	prior := sets.NewString()
+	for _, cluster := range as.scheduledClusters {
+		if cluster.Replicas > 0 {
+			prior.Insert(cluster.Name)
+		}
+	}
+
+	if len(prior) == 0 {
+		return as.availableClusters
+	}
+
+	var (
+		prev = make([]workv1alpha2.TargetCluster, 0, len(prior))
+		left = make([]workv1alpha2.TargetCluster, 0, len(as.scheduledClusters)-len(prior))
+	)
+
+	for _, cluster := range as.availableClusters {
+		if prior.Has(cluster.Name) {
+			prev = append(prev, cluster)
+		} else {
+			left = append(left, cluster)
+		}
+	}
+	as.availableClusters = append(prev, left...)
+	return as.availableClusters
+}
+
 // assignByDuplicatedStrategy assigns replicas by DuplicatedStrategy.
 func assignByDuplicatedStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	targetClusters := make([]workv1alpha2.TargetCluster, len(state.candidates))
 	for i, cluster := range state.candidates {
-		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: state.object.Replicas}
+		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: state.spec.Replicas}
 	}
 	return targetClusters, nil
-}
-
-// assignByAggregatedStrategy assigns replicas by AggregatedStrategy.
-func assignByAggregatedStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
-	return divideReplicasByResource(state.candidates, state.object, policyv1alpha1.ReplicaDivisionPreferenceAggregated)
 }
 
 /*
@@ -66,13 +140,30 @@ func assignByStaticWeightStrategy(state *assignState) ([]workv1alpha2.TargetClus
 	}
 	weightList := getStaticWeightInfoList(state.candidates, state.strategy.WeightPreference.StaticWeightList)
 
-	acc := newDispenser(state.object.Replicas, nil)
-	acc.takeByWeight(weightList)
+	disp := newDispenser(state.spec.Replicas, nil)
+	disp.takeByWeight(weightList)
 
-	return acc.result, nil
+	return disp.result, nil
 }
 
-// assignByDynamicWeightStrategy assigns replicas by assignByDynamicWeightStrategy.
-func assignByDynamicWeightStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
-	return divideReplicasByDynamicWeight(state.candidates, state.strategy.WeightPreference.DynamicWeight, state.object)
+func assignByDynamicStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
+	state.buildScheduledClusters()
+	if state.assignedReplicas > state.spec.Replicas {
+		// We need to reduce the replicas in terms of the previous result.
+		result, err := dynamicScaleDown(state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scale down: %v", err)
+		}
+		return result, nil
+	} else if state.assignedReplicas < state.spec.Replicas {
+		// We need to enlarge the replicas in terms of the previous result (if exists).
+		// First scheduling is considered as a special kind of scaling up.
+		result, err := dynamicScaleUp(state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scale up: %v", err)
+		}
+		return result, nil
+	} else {
+		return state.scheduledClusters, nil
+	}
 }
