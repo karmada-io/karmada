@@ -247,7 +247,7 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 	}
 
 	if found {
-		targetClusters = util.DivideReplicasByTargetCluster(clusters, int32(completions))
+		targetClusters = helper.SpreadReplicasByTargetClusters(int32(completions), clusters, nil)
 	}
 
 	return targetClusters, nil

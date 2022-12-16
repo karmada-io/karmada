@@ -18,55 +18,6 @@ func (a TargetClustersList) Len() int           { return len(a) }
 func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
-type dispenser struct {
-	numReplicas int32
-	result      []workv1alpha2.TargetCluster
-}
-
-func newDispenser(numReplicas int32, init []workv1alpha2.TargetCluster) *dispenser {
-	cp := make([]workv1alpha2.TargetCluster, len(init))
-	copy(cp, init)
-	return &dispenser{numReplicas: numReplicas, result: cp}
-}
-
-func (a *dispenser) done() bool {
-	return a.numReplicas == 0 && len(a.result) != 0
-}
-
-func (a *dispenser) takeByWeight(w helper.ClusterWeightInfoList) {
-	if a.done() {
-		return
-	}
-	sum := w.GetWeightSum()
-	if sum == 0 {
-		return
-	}
-
-	sort.Sort(w)
-
-	result := make([]workv1alpha2.TargetCluster, 0, w.Len())
-	remain := a.numReplicas
-	for _, info := range w {
-		replicas := int32(info.Weight * int64(a.numReplicas) / sum)
-		result = append(result, workv1alpha2.TargetCluster{
-			Name:     info.ClusterName,
-			Replicas: replicas,
-		})
-		remain -= replicas
-	}
-	// TODO(Garrybest): take rest replicas by fraction part
-	for i := range result {
-		if remain == 0 {
-			break
-		}
-		result[i].Replicas++
-		remain--
-	}
-
-	a.numReplicas = remain
-	a.result = util.MergeTargetClusters(a.result, result)
-}
-
 func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight) helper.ClusterWeightInfoList {
 	list := make(helper.ClusterWeightInfoList, 0)
 	for _, cluster := range clusters {
@@ -94,17 +45,6 @@ func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []p
 	return list
 }
 
-func getStaticWeightInfoListByTargetClusters(tcs []workv1alpha2.TargetCluster) helper.ClusterWeightInfoList {
-	weightList := make(helper.ClusterWeightInfoList, 0, len(tcs))
-	for _, result := range tcs {
-		weightList = append(weightList, helper.ClusterWeightInfo{
-			ClusterName: result.Name,
-			Weight:      int64(result.Replicas),
-		})
-	}
-	return weightList
-}
-
 // dynamicDivideReplicas assigns a total number of replicas to the selected clusters by preference according to the resource.
 func dynamicDivideReplicas(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	if state.availableReplicas < state.targetReplicas {
@@ -125,10 +65,7 @@ func dynamicDivideReplicas(state *assignState) ([]workv1alpha2.TargetCluster, er
 	case DynamicWeightStrategy:
 		// Set the availableClusters as the weight, scheduledClusters as init result, target as the dispenser object.
 		// After dispensing, the target cluster will be the combination of init result and weighted result for target replicas.
-		weightList := getStaticWeightInfoListByTargetClusters(state.availableClusters)
-		disp := newDispenser(state.targetReplicas, state.scheduledClusters)
-		disp.takeByWeight(weightList)
-		return disp.result, nil
+		return helper.SpreadReplicasByTargetClusters(state.targetReplicas, state.availableClusters, state.scheduledClusters), nil
 	default:
 		// should never happen
 		return nil, fmt.Errorf("undefined strategy type: %s", state.strategyType)

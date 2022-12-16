@@ -87,13 +87,13 @@ func Test_dispenser_takeByWeight(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := newDispenser(tt.numReplicas, tt.result)
-			a.takeByWeight(tt.weightList)
-			if a.done() != tt.done {
-				t.Errorf("expected after takeByWeight: %v, but got: %v", tt.done, a.done())
+			a := utilhelper.NewDispenser(tt.numReplicas, tt.result)
+			a.TakeByWeight(tt.weightList)
+			if a.Done() != tt.done {
+				t.Errorf("expected after takeByWeight: %v, but got: %v", tt.done, a.Done())
 			}
-			if !helper.IsScheduleResultEqual(a.result, tt.desired) {
-				t.Errorf("expected result after takeByWeight: %v, but got: %v", tt.desired, a.result)
+			if !helper.IsScheduleResultEqual(a.Result, tt.desired) {
+				t.Errorf("expected result after takeByWeight: %v, but got: %v", tt.desired, a.Result)
 			}
 		})
 	}
