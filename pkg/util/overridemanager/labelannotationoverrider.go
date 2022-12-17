@@ -39,6 +39,13 @@ func buildLabelAnnotationOverriderPatches(rawObj *unstructured.Unstructured, ove
 				continue
 			}
 		case policyv1alpha1.OverriderOpAdd:
+			_, exist, _ := unstructured.NestedStringMap(rawObj.Object, path...)
+			if exist {
+				break
+			}
+			if err := unstructured.SetNestedStringMap(rawObj.Object, map[string]string{}, path...); err != nil {
+				continue
+			}
 		}
 		patches = append(patches, overrideOption{
 			Op:    string(overrider.Operator),
