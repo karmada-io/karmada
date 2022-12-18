@@ -1385,6 +1385,7 @@ k8s.io/code-generator/third_party/forked/golang/reflect
 k8s.io/component-base/cli
 k8s.io/component-base/cli/flag
 k8s.io/component-base/config
+k8s.io/component-base/config/options
 k8s.io/component-base/config/v1alpha1
 k8s.io/component-base/featuregate
 k8s.io/component-base/logs

@@ -86,3 +86,6 @@ issues:
     - path: cmd/scheduler-estimator/main.go
       linters:
         - gci
+    - path: operator/cmd/operator/operator.go
+      linters:
+        - gci
