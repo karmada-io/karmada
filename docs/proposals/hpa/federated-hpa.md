@@ -57,10 +57,10 @@ bogged down.
 -->
 
 #### Story 1
-For a platform developer using Kubernetes, now I want to use Karmada to run apps on multiclusters. But the CD ecosystem is built based on the single cluster and the original HPA is heavilly used. So I want to migrate the HPA resources to multiclusters without too much efforts. It is better to be compatible with the schema of HPA used in single cluster. 
+For a platform developer using Kubernetes, now I want to use Karmada to run apps on multiclusters. But the CD ecosystem is built based on the single cluster and the original HPA is heavily used. So I want to migrate the HPA resources to multiclusters without too much efforts. It is better to be compatible with the schema of HPA used in single cluster. 
 
 #### Story 2
-For an application developer, I create a HPA CR for the application running on Karmada with FederatedHPA enabled.
+For an application developer, I create an HPA CR for the application running on Karmada with FederatedHPA enabled.
 ```
 target cpu util 30%
 min replica 3
@@ -69,7 +69,7 @@ max replica 100
 Suddenly, one of the member clusters which my application running on stops working and can't scale up new pods. Unfortunately, a request burst is coming into the application. The CPU util of pods becomes higher than 30%. It will need 100 Pods totally to take the request burst. I hope the Karmada FederatedHPA can scale up new pods in other healthy clusters.
 
 #### Story 3
-As an administrator of the Karmada&Kubernetes platform, I receive an alert that the Karmada control plane stops working and any requests to the Karmada control plane are failed. There are many applications running on the platform heavilly depend on the HPA to handle the unpredictable burst of requests. The chance of RCA occurred becomes really high if the system can't tolerate the failure of federation control plane. So I hope the Karmada FederatedHPA can scale in the member clusters even if the Karmada control plane is down.
+As an administrator of the Karmada&Kubernetes platform, I receive an alert that the Karmada control plane stops working and any requests to the Karmada control plane are failed. There are many applications running on the platform heavily depend on the HPA to handle the unpredictable burst of requests. The chance of RCA occurred becomes really high if the system can't tolerate the failure of federation control plane. So I hope the Karmada FederatedHPA can scale in the member clusters even if the Karmada control plane is down.
 
 ### Notes/Constraints/Caveats (Optional)
 1. The workloads/pods in different member clusters selected by the same HPA CR/resource share the load of the application equally. For example, 10 pods of the application are spread into two member clusters with distribution `cluster1: 3 pods, cluster2: 7 pods`, so the 3 pods in cluster1 take 3/10 of total requests and 7 pods in cluster2 take 7/10 of total requests. Scenarios don't meet the restriction are not considered in this proposal.
@@ -108,13 +108,13 @@ There are no new CRDs or resources introduced in this design. All the core funct
 ### How FederatedHPAController learn the propagation information corresponding to the Workload
 When a new HPA resource created or changed, the `FederatedHPAController` should know the propagation and weight information of the corresponding `Workload`. How does the `FederatedHPAController` know it? The `FederatedHPAController` will easily find the corresponding `Workload` based on the field `ScaleTargetRef` and then will find the `PropagationPolicy` resource based on the matching of `ResourceSelectors`. 
 
-For the weight information, because the karmada scheduler already plays the role to schedule the replicas, the `FederatedHPAController` can simplely reuse the scheduling result to learn the weight. The `HPAController` in the member cluster scale the `Workload` in the member cluster directly, it will conflict between the karmada scheduler. We can retain `replicas` in the member cluster by using feature [resource interpreter webhook](https://github.com/karmada-io/karmada/tree/master/docs/proposals/resource-interpreter-webhook). 
+For the weight information, because the karmada scheduler already plays the role to schedule the replicas, the `FederatedHPAController` can simply reuse the scheduling result to learn the weight. The `HPAController` in the member cluster scale the `Workload` in the member cluster directly, it will conflict between the karmada scheduler. We can retain `replicas` in the member cluster by using feature [resource interpreter webhook](https://github.com/karmada-io/karmada/tree/master/docs/proposals/resource-interpreter-webhook).
 
 ### How to deal with the `spec.replicas` of the Workload in the control plane
 In the original Kubernetes HPA and Workload(Deployment, for example), HPA scale the workload through the `scale` subresource of Workload. Then, the field `replicas` will be modified to the desired number. But in this design, HPAController in the member cluster work standalone and don't scale workloads through control plane so that the actual number of pods in the member clusters don't match the `spec.replicas` of Workload in the control plane. This mismatch would cause incident when `spec.replicas` in control plane is much smaller than in member clusters and user delete the HPA resource. To solve this problem, `FederatedHPAController` can collect the sum of `spec.replicas` values from member clusters and set it to the `scale` subresource of Workload in the control plane.
 
-Even the `spec.replicas` of Workload in the control plane matches the actual total replicas in the member clusers, every time the `spec.replicas` of Workload in the control plane is modified, the replicas distribution in the `Work` re-calculated by Karmada scheduler most probably don't match the actual distribution in the member clusters. The mismatch also would cause incident mentioned above. To solve this problem, we can split it into two sub-problems
-* How to gracefully shift workload in member clusters when desired distribution calculated by the karmada scheduler and actual distribution among member clusters differ substaintially. This may caused by modification of the `PropagationPolicy` or the remove of HPA resources controlled by the FederatedHPAController. Without the graceful shifting progress, the service may get out of capacity. In the future, features such as `Federated Pod Disruption Budget` may are needed to solve the problem here.
+Even the `spec.replicas` of Workload in the control plane matches the actual total replicas in the member clusters, every time the `spec.replicas` of Workload in the control plane is modified, the replicas distribution in the `Work` re-calculated by Karmada scheduler most probably don't match the actual distribution in the member clusters. The mismatch also would cause incident mentioned above. To solve this problem, we can split it into two sub-problems
+* How to gracefully shift workload in member clusters when desired distribution calculated by the karmada scheduler and actual distribution among member clusters differ substantially. This may be caused by modification of the `PropagationPolicy` or the remove of HPA resources controlled by the FederatedHPAController. Without the graceful shifting progress, the service may get out of capacity. In the future, features such as `Federated Pod Disruption Budget` may are needed to solve the problem here.
 * How to control the difference between the actual distribution in member clusters and the desired state the karmada scheduler calculated even the FederatedHPA is enabled. But this problem will not be too critical if the first problem is solved.
 
 It is better to solve the first sub-problem in another proposal. So we will leave this problem until the first one is solved.
@@ -241,7 +241,7 @@ spec:
 
 </details>
 
-The `FederatedHPAController` continuously watchs the events of HPA and Karmada relevant resources(`ClusterPropagationPolicy/PropagationPolicy` or `ClusterResourceBinding/ResourceBinding`) to learn 
+The `FederatedHPAController` continuously watches the events of HPA and Karmada relevant resources(`ClusterPropagationPolicy/PropagationPolicy` or `ClusterResourceBinding/ResourceBinding`) to learn
 * Which clusters the HPA resources should be propagated to
 * What weight the workload should be spread to clusters. The weight will be used to spread the `min/max` of HPA to clusters
 
@@ -258,7 +258,7 @@ Consider the following in developing a test plan for this enhancement:
 - Will there be e2e and integration tests, in addition to unit tests?
 - How will it be tested in isolation vs with other components?
 
-No need to outline all of the test cases, just the general strategy. Anything
+No need to outline all the test cases, just the general strategy. Anything
 that would count as tricky in the implementation, and anything particularly
 challenging to test, should be called out.
 
