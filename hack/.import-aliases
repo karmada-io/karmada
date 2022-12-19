@@ -57,5 +57,6 @@
     "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1": "policyv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1": "searchv1alpha1",
     "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1": "workv1alpha1",
-    "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2": "workv1alpha2"
+    "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2": "workv1alpha2",
+    "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1": "operatorv1alpha1"
 }
