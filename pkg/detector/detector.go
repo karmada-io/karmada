@@ -400,6 +400,12 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	bindingCopy := binding.DeepCopy()
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+			// If this binding exists and its owner is not the input object, return error and let garbage collector
+			// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
+			if ownerRef := metav1.GetControllerOfNoCopy(bindingCopy); ownerRef != nil && ownerRef.UID != object.GetUID() {
+				return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
+					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
+			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
@@ -432,6 +438,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 }
 
 // ApplyClusterPolicy starts propagate the object referenced by object key according to ClusterPropagationPolicy.
+// nolint:gocyclo
 func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
 	start := time.Now()
 	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
@@ -466,6 +473,12 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		bindingCopy := binding.DeepCopy()
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+				// If this binding exists and its owner is not the input object, return error and let garbage collector
+				// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
+				if ownerRef := metav1.GetControllerOfNoCopy(bindingCopy); ownerRef != nil && ownerRef.UID != object.GetUID() {
+					return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
+						"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
+				}
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 				bindingCopy.Labels = binding.Labels
 				bindingCopy.OwnerReferences = binding.OwnerReferences
@@ -501,6 +514,12 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		}
 		bindingCopy := binding.DeepCopy()
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
+			// If this binding exists and its owner is not the input object, return error and let garbage collector
+			// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
+			if ownerRef := metav1.GetControllerOfNoCopy(bindingCopy); ownerRef != nil && ownerRef.UID != object.GetUID() {
+				return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
+					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
+			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = binding.Labels
 			bindingCopy.OwnerReferences = binding.OwnerReferences
