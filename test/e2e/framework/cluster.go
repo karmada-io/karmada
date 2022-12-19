@@ -314,3 +314,25 @@ func LoadRESTClientConfig(kubeconfig string, context string) (*rest.Config, erro
 		loader,
 	).ClientConfig()
 }
+
+// SetClusterRegion sets .Spec.Region field for Cluster object.
+func SetClusterRegion(c client.Client, clusterName string, regionName string) error {
+	return wait.PollImmediate(2*time.Second, 10*time.Second, func() (done bool, err error) {
+		clusterObj := &clusterv1alpha1.Cluster{}
+		if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err != nil {
+			if apierrors.IsConflict(err) {
+				return false, nil
+			}
+			return false, err
+		}
+
+		clusterObj.Spec.Region = regionName
+		if err := c.Update(context.TODO(), clusterObj); err != nil {
+			if apierrors.IsConflict(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
+}
