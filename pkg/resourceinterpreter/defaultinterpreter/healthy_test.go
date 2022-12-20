@@ -568,3 +568,56 @@ func Test_interpretPersistentVolumeClaimHealth(t *testing.T) {
 		})
 	}
 }
+
+func Test_interpretPodDisruptionBudgetHealth(t *testing.T) {
+	tests := []struct {
+		name   string
+		object *unstructured.Unstructured
+		want   bool
+	}{
+		{
+			name: "podDisruptionBudget healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{
+						"desiredHealthy": 2,
+						"currentHealthy": 3,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "podDisruptionBudget healthy when desired healthy equals to current healthy pods",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{
+						"desiredHealthy": 2,
+						"currentHealthy": 2,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "podDisruptionBudget does not allow further disruption when number of healthy pods is less than desired",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{
+						"desiredHealthy": 2,
+						"currentHealthy": 1,
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := interpretPodDisruptionBudgetHealth(tt.object)
+			if got != tt.want {
+				t.Errorf("interpretPodDisruptionBudgetHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

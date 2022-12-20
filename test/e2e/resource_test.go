@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
 
 	"github.com/onsi/ginkgo/v2"
@@ -11,8 +12,10 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
@@ -530,6 +533,72 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 						currentStatefulSet.Status.ReadyReplicas == wantedReplicas &&
 						currentStatefulSet.Status.CurrentReplicas == wantedReplicas &&
 						currentStatefulSet.Status.UpdatedReplicas == wantedReplicas {
+						return true, nil
+					}
+
+					return false, nil
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
+		})
+	})
+
+	ginkgo.Context("PodDisruptionBudget collection testing", func() {
+		var pdbNamespace, pdbName string
+		var pdb *policyv1.PodDisruptionBudget
+		var deployment *appsv1.Deployment
+
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = podDisruptionBudgetNamePrefix + rand.String(RandomStrLength)
+			pdbNamespace = testNamespace
+			pdbName = policyName
+			deploymentName := policyName
+
+			deployment = testhelper.NewDeployment(pdbNamespace, deploymentName)
+			pdb = testhelper.NewPodDisruptionBudget(pdbNamespace, pdbName, intstr.FromString("50%"))
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: pdb.APIVersion,
+					Kind:       pdb.Kind,
+					Name:       pdb.Name,
+				},
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateDeployment(kubeClient, deployment)
+			framework.CreatePodDisruptionBudget(kubeClient, pdb)
+
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePodDisruptionBudget(kubeClient, pdbNamespace, pdbName)
+			})
+		})
+
+		ginkgo.It("pdb status collection testing", func() {
+			ginkgo.By("check whether the pdb status can be correctly collected", func() {
+				klog.Infof("Waiting for PodDisruptionBudget(%s/%s) collecting correctly status", pdbNamespace, pdbName)
+				maxUnavailable := 0.5 // 50%
+				numOfClusters := int32(len(framework.Clusters()))
+				wantedExpectedPods := *deployment.Spec.Replicas * numOfClusters
+				wantedDisruptionAllowed := int32(math.Ceil(float64(*deployment.Spec.Replicas)*maxUnavailable)) * numOfClusters
+
+				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+					currentPodDisruptionBudget, err := kubeClient.PolicyV1().PodDisruptionBudgets(pdbNamespace).Get(context.TODO(), pdbName, metav1.GetOptions{})
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+					klog.Infof("PodDisruptionBudget(%s/%s) Disruption Allowed: %d, wanted: %d", pdbNamespace, pdbName, currentPodDisruptionBudget.Status.DisruptionsAllowed, wantedDisruptionAllowed)
+					klog.Infof("PodDisruptionBudget(%s/%s) Expected Pods: %d, wanted: %d", pdbNamespace, pdbName, currentPodDisruptionBudget.Status.ExpectedPods, wantedExpectedPods)
+					if currentPodDisruptionBudget.Status.DisruptionsAllowed == wantedDisruptionAllowed &&
+						currentPodDisruptionBudget.Status.ExpectedPods == wantedExpectedPods {
 						return true, nil
 					}
 

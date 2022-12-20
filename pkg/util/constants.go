@@ -98,8 +98,10 @@ const (
 	PersistentVolumeClaimKind = "PersistentVolumeClaim"
 	// PersistentVolumeKind indicates the target resource is a persistentvolume
 	PersistentVolumeKind = "PersistentVolume"
-	// HorizontalPodAutoscalerKind indicated the target resource is a horizontalpodautoscaler
+	// HorizontalPodAutoscalerKind indicates the target resource is a horizontalpodautoscaler
 	HorizontalPodAutoscalerKind = "HorizontalPodAutoscaler"
+	// PodDisruptionBudgetKind indicates the target resource is a poddisruptionbudget
+	PodDisruptionBudgetKind = "PodDisruptionBudget"
 
 	// ServiceExportKind indicates the target resource is a serviceexport crd
 	ServiceExportKind = "ServiceExport"

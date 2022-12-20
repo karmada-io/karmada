@@ -7,6 +7,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -26,6 +27,7 @@ func getAllDefaultReflectStatusInterpreter() map[schema.GroupVersionKind]reflect
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = reflectJobStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = reflectDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = reflectStatefulSetStatus
+	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = reflectPodDisruptionBudgetStatus
 	return s
 }
 
@@ -185,6 +187,35 @@ func reflectStatefulSetStatus(object *unstructured.Unstructured) (*runtime.RawEx
 		ReadyReplicas:     statefulSetStatus.ReadyReplicas,
 		Replicas:          statefulSetStatus.Replicas,
 		UpdatedReplicas:   statefulSetStatus.UpdatedReplicas,
+	}
+	return helper.BuildStatusRawExtension(grabStatus)
+}
+
+func reflectPodDisruptionBudgetStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
+	statusMap, exist, err := unstructured.NestedMap(object.Object, "status")
+	if err != nil {
+		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v",
+			object.GetKind(), object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
+	if !exist {
+		klog.Errorf("Failed to grab status from %s(%s/%s) which should have status field.",
+			object.GetKind(), object.GetNamespace(), object.GetName())
+		return nil, nil
+	}
+
+	pdbStatus := &policyv1.PodDisruptionBudgetStatus{}
+	err = helper.ConvertToTypedObject(statusMap, pdbStatus)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert PodDisruptionBudget from map[string]interface{}: %v", err)
+	}
+
+	grabStatus := policyv1.PodDisruptionBudgetStatus{
+		DisruptionsAllowed: pdbStatus.DisruptionsAllowed,
+		ExpectedPods:       pdbStatus.ExpectedPods,
+		DesiredHealthy:     pdbStatus.DesiredHealthy,
+		CurrentHealthy:     pdbStatus.CurrentHealthy,
+		DisruptedPods:      pdbStatus.DisruptedPods,
 	}
 	return helper.BuildStatusRawExtension(grabStatus)
 }

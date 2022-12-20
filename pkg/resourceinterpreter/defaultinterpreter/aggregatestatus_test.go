@@ -9,6 +9,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -841,5 +842,98 @@ func TestAggregatePVStatus(t *testing.T) {
 	for _, tt := range tests {
 		actualObj, _ := aggregatePersistentVolumeStatus(tt.curObj, tt.aggregatedStatusItems)
 		assert.Equal(t, tt.expectedObj, actualObj, tt.name)
+	}
+}
+
+func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
+	currPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+		Status: policyv1.PodDisruptionBudgetStatus{
+			CurrentHealthy:     1,
+			DesiredHealthy:     1,
+			DisruptionsAllowed: 1,
+			ExpectedPods:       1,
+		},
+	})
+
+	expectedPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+		Status: policyv1.PodDisruptionBudgetStatus{
+			CurrentHealthy:     2,
+			DesiredHealthy:     2,
+			DisruptionsAllowed: 2,
+			ExpectedPods:       2,
+		},
+	})
+
+	healthyStatusRaw, _ := helper.BuildStatusRawExtension(map[string]interface{}{
+		"currentHealthy":     1,
+		"desiredHealthy":     1,
+		"disruptionsAllowed": 1,
+		"expectedPods":       1,
+	})
+
+	evictionTime := metav1.Now()
+
+	unHealthyStatusRaw, _ := helper.BuildStatusRawExtension(map[string]interface{}{
+		"currentHealthy":     0,
+		"desiredHealthy":     1,
+		"disruptionsAllowed": 0,
+		"expectedPods":       1,
+		"disruptedPods": map[string]metav1.Time{
+			"pod-1234": evictionTime,
+		},
+	})
+
+	expectedUnhealthyPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+		Status: policyv1.PodDisruptionBudgetStatus{
+			CurrentHealthy:     0,
+			DesiredHealthy:     2,
+			DisruptionsAllowed: 0,
+			ExpectedPods:       2,
+			DisruptedPods: map[string]metav1.Time{
+				"member1/pod-1234": evictionTime,
+				"member2/pod-1234": evictionTime,
+			},
+		},
+	})
+
+	aggregateStatusItems := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: healthyStatusRaw, Applied: true},
+		{ClusterName: "member2", Status: healthyStatusRaw, Applied: true},
+	}
+
+	unhealthyAggregateStatusItems := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: unHealthyStatusRaw, Applied: true},
+		{ClusterName: "member2", Status: unHealthyStatusRaw, Applied: true},
+	}
+
+	for _, tt := range []struct {
+		name                  string
+		curObj                *unstructured.Unstructured
+		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
+		expectedObj           *unstructured.Unstructured
+	}{
+		{
+			name:                  "update pdb status",
+			curObj:                currPdbObj,
+			aggregatedStatusItems: aggregateStatusItems,
+			expectedObj:           expectedPdbObj,
+		},
+		{
+			name:                  "update pdb status with disrupted pods",
+			curObj:                currPdbObj,
+			aggregatedStatusItems: unhealthyAggregateStatusItems,
+			expectedObj:           expectedUnhealthyPdbObj,
+		},
+		{
+			name:                  "ignore update pdb status as up to date",
+			curObj:                expectedPdbObj,
+			aggregatedStatusItems: aggregateStatusItems,
+			expectedObj:           expectedPdbObj,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			actualObj, _ := aggregatePodDisruptionBudgetStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
