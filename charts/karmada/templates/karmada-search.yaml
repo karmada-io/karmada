@@ -44,7 +44,7 @@ spec:
             - name: k8s-certs
               mountPath: /etc/kubernetes/pki
               readOnly: true
-            - name: kubeconfig
+            - name: kubeconfig-secret
               subPath: kubeconfig
               mountPath: /etc/kubeconfig
           command:
@@ -74,12 +74,7 @@ spec:
           resources:
           {{- toYaml .Values.apiServer.resources | nindent 12 }}
       volumes:
-        - name: k8s-certs
-          secret:
-            secretName: karmada-cert
-        - name: kubeconfig
-          secret:
-            secretName: {{ $name }}-kubeconfig
+      {{- include "karmada.search.kubeconfig.volume" . | nindent 8 }}
 ---
 apiVersion: v1
 kind: Service
@@ -95,4 +90,65 @@ spec:
       targetPort: 443
   selector:
     {{- include "karmada.search.labels" . | nindent 4 }}
+{{- if eq .Values.installMode "component" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-search-apiservice
+  namespace: {{ include "karmada.namespace" . }}
+data:
+  {{- print "karmada-search-apiservice.yaml: " | nindent 2 }} |-
+    {{- include "karmada.apiservice" . | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ $name }}-search-post-install"
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ $name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      name: {{ $name }}
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ $name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: post-install
+          image: {{ template "karmada.kubectl.image" . }}
+          imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              bash <<'EOF'
+              set -ex
+              kubectl apply -f /search-apiservice --kubeconfig /etc/kubeconfig
+              EOF
+          volumeMounts:
+            - name: {{ $name }}-search-apiservice
+              mountPath: /search-apiservice
+            {{ include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
+      volumes:
+        - name: {{ $name }}-search-apiservice
+          configMap:
+            name: {{ $name }}-search-apiservice
+        {{ include "karmada.search.kubeconfig.volume" . | nindent 8 }}
+{{- end }}
 {{- end }}

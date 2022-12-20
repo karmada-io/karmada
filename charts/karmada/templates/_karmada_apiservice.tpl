@@ -1,5 +1,6 @@
 {{- define "karmada.apiservice" -}}
 {{- $name := include "karmada.name" . -}}
+{{- if eq .Values.installMode "host" }}
 ---
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService
@@ -26,8 +27,8 @@ metadata:
 spec:
   type: ExternalName
   externalName: {{ $name }}-aggregated-apiserver.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}
-
-{{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "search" .Values.components) }}
+{{- end }}
+{{- if has "search" .Values.components }}
 ---
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService

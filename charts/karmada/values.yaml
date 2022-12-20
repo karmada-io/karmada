@@ -772,6 +772,8 @@ descheduler:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  ## @param descheduler.kubeconfig kubeconfig of the descheduler
+  kubeconfig: karmada-kubeconfig
 
 ## karmada-search config
 search:
@@ -829,3 +831,7 @@ search:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  ## @param search.certs certs of the search
+  certs: karmada-cert
+  ## @param search.kubeconfig kubeconfig of the search
+  kubeconfig: karmada-kubeconfig
