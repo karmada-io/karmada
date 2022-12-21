@@ -63,6 +63,14 @@ var (
 	endpointSliceGVR = discoveryv1.SchemeGroupVersion.WithResource("endpointslices")
 )
 
+// federatedKeyWrapper wraps the federated key by the object
+type federatedKeyWrapper struct {
+	keys.FederatedKey
+
+	// used to get the associated work name for endpoint slice
+	object *unstructured.Unstructured
+}
+
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
@@ -141,7 +149,7 @@ func (c *ServiceExportController) RunWorkQueue() {
 }
 
 func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.QueueKey) error {
-	fedKey, ok := key.(keys.FederatedKey)
+	fedKey, ok := key.(federatedKeyWrapper)
 	if !ok {
 		klog.Errorf("Failed to sync serviceExport as invalid key: %v", key)
 		return fmt.Errorf("invalid key")
@@ -151,7 +159,7 @@ func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.Queu
 
 	switch fedKey.Kind {
 	case util.ServiceExportKind:
-		if err := c.handleServiceExportEvent(fedKey); err != nil {
+		if err := c.handleServiceExportEvent(fedKey.FederatedKey); err != nil {
 			klog.Errorf("Failed to handle serviceExport(%s) event, Error: %v",
 				fedKey.NamespaceKey(), err)
 			return err
@@ -241,26 +249,26 @@ func (c *ServiceExportController) getEventHandler(clusterName string) cache.Reso
 
 func (c *ServiceExportController) genHandlerAddFunc(clusterName string) func(obj interface{}) {
 	return func(obj interface{}) {
-		curObj := obj.(runtime.Object)
+		curObj := obj.(*unstructured.Unstructured)
 		key, err := keys.FederatedKeyFunc(clusterName, curObj)
 		if err != nil {
-			klog.Warningf("Failed to generate key for obj: %s", curObj.GetObjectKind().GroupVersionKind())
+			klog.Warningf("Failed to generate key for obj: %s", curObj.GetKind())
 			return
 		}
-		c.worker.Add(key)
+		c.worker.Add(federatedKeyWrapper{FederatedKey: key, object: curObj})
 	}
 }
 
 func (c *ServiceExportController) genHandlerUpdateFunc(clusterName string) func(oldObj, newObj interface{}) {
 	return func(oldObj, newObj interface{}) {
-		curObj := newObj.(runtime.Object)
+		curObj := newObj.(*unstructured.Unstructured)
 		if !reflect.DeepEqual(oldObj, newObj) {
 			key, err := keys.FederatedKeyFunc(clusterName, curObj)
 			if err != nil {
 				klog.Warningf("Failed to generate key for obj: %s", curObj.GetObjectKind().GroupVersionKind())
 				return
 			}
-			c.worker.Add(key)
+			c.worker.Add(federatedKeyWrapper{FederatedKey: key, object: curObj})
 		}
 	}
 }
@@ -274,13 +282,13 @@ func (c *ServiceExportController) genHandlerDeleteFunc(clusterName string) func(
 				return
 			}
 		}
-		oldObj := obj.(runtime.Object)
+		oldObj := obj.(*unstructured.Unstructured)
 		key, err := keys.FederatedKeyFunc(clusterName, oldObj)
 		if err != nil {
 			klog.Warningf("Failed to generate key for obj: %s", oldObj.GetObjectKind().GroupVersionKind())
 			return
 		}
-		c.worker.Add(key)
+		c.worker.Add(federatedKeyWrapper{FederatedKey: key, object: oldObj})
 	}
 }
 
@@ -312,11 +320,11 @@ func (c *ServiceExportController) handleServiceExportEvent(serviceExportKey keys
 // handleEndpointSliceEvent syncs EndPointSlice objects to control-plane according to EndpointSlice event.
 // For EndpointSlice create or update event, reports the EndpointSlice when referencing service has been exported.
 // For EndpointSlice delete event, cleanup the previously reported EndpointSlice.
-func (c *ServiceExportController) handleEndpointSliceEvent(endpointSliceKey keys.FederatedKey) error {
-	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey)
+func (c *ServiceExportController) handleEndpointSliceEvent(endpointSliceKey federatedKeyWrapper) error {
+	endpointSliceObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, endpointSliceKey.FederatedKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return cleanupWorkWithEndpointSliceDelete(c.Client, endpointSliceKey)
+			return c.cleanupWorkWithEndpointSliceDelete(endpointSliceKey)
 		}
 		return err
 	}
@@ -351,7 +359,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ser
 	}
 
 	for index := range endpointSliceObjects {
-		if err = reportEndpointSlice(c.Client, endpointSliceObjects[index].(*unstructured.Unstructured), serviceExportKey.Cluster); err != nil {
+		if err = c.reportEndpointSlice(endpointSliceObjects[index].(*unstructured.Unstructured), serviceExportKey.Cluster); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -378,15 +386,25 @@ func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUp
 		return err
 	}
 
-	return reportEndpointSlice(c.Client, endpointSlice, clusterName)
+	return c.reportEndpointSlice(endpointSlice, clusterName)
 }
 
 // reportEndpointSlice report EndPointSlice objects to control-plane.
-func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
+func (c *ServiceExportController) reportEndpointSlice(endpointSlice *unstructured.Unstructured, clusterName string) error {
 	executionSpace := names.GenerateExecutionSpaceName(clusterName)
 
+	dynamicClient, err := c.ClusterDynamicClientSetFunc(clusterName, c.Client)
+	if err != nil {
+		return err
+	}
+
+	workName, err := names.GenerateWorkName(context.TODO(), c.Client, dynamicClient.DynamicClientSet, executionSpace, endpointSlice, endpointSlice, c.RESTMapper)
+	if err != nil {
+		return err
+	}
+
 	workMeta := metav1.ObjectMeta{
-		Name:      names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace()),
+		Name:      workName,
 		Namespace: executionSpace,
 		Labels: map[string]string{
 			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
@@ -396,7 +414,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		},
 	}
 
-	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
+	if err = helper.CreateOrUpdateWork(c.Client, workMeta, endpointSlice); err != nil {
 		return err
 	}
 
@@ -429,12 +447,20 @@ func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.F
 	return utilerrors.NewAggregate(errs)
 }
 
-func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.FederatedKey) error {
+func (c *ServiceExportController) cleanupWorkWithEndpointSliceDelete(endpointSliceKey federatedKeyWrapper) error {
 	executionSpace := names.GenerateExecutionSpaceName(endpointSliceKey.Cluster)
-
+	dynamicClient, err := c.ClusterDynamicClientSetFunc(endpointSliceKey.Cluster, c.Client)
+	if err != nil {
+		return err
+	}
+	workName, err := names.GenerateWorkName(context.TODO(), c.Client, dynamicClient.DynamicClientSet,
+		executionSpace, endpointSliceKey.object, endpointSliceKey.object, c.RESTMapper)
+	if err != nil {
+		return err
+	}
 	workNamespaceKey := types.NamespacedName{
 		Namespace: executionSpace,
-		Name:      names.GenerateWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace),
+		Name:      workName,
 	}
 	work := &workv1alpha1.Work{}
 	if err := c.Get(context.TODO(), workNamespaceKey, work); err != nil {

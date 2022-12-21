@@ -232,7 +232,7 @@ func Test_mergeLabel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeLabel(tt.workload, tt.workNamespace, tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
+			if got := mergeLabel(tt.workload, tt.workNamespace, "", tt.binding, tt.scope); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("mergeLabel() = %v, want %v", got, tt.want)
 			}
 		})

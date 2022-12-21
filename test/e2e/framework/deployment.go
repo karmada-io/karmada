@@ -181,7 +181,7 @@ func UpdateDeploymentServiceAccountName(client kubernetes.Interface, deployment 
 
 // ExtractTargetClustersFrom extract the target cluster names from deployment's related resourceBinding Information.
 func ExtractTargetClustersFrom(c client.Client, deployment *appsv1.Deployment) []string {
-	bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+	bindingName := names.GenerateBasicBindingName(deployment.Kind, deployment.Name)
 	binding := &workv1alpha2.ResourceBinding{}
 	gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 		err := c.Get(context.TODO(), client.ObjectKey{Namespace: deployment.Namespace, Name: bindingName}, binding)

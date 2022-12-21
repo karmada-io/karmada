@@ -404,7 +404,11 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 			continue
 		}
 
-		attachedBinding := buildAttachedBinding(binding, rawObject)
+		attachedBinding, err := d.buildAttachedBinding(binding, rawObject)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
 		if err := d.createOrUpdateAttachedBinding(attachedBinding); err != nil {
 			errs = append(errs, err)
 		}
@@ -536,7 +540,7 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 	return utilerrors.NewAggregate(errs)
 }
 
-func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) *workv1alpha2.ResourceBinding {
+func (d *DependenciesDistributor) buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) (*workv1alpha2.ResourceBinding, error) {
 	labels := generateBindingDependedByLabel(binding.Namespace, binding.Name)
 
 	var result []workv1alpha2.BindingSnapshot
@@ -546,9 +550,15 @@ func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstruc
 		Clusters:  binding.Spec.Clusters,
 	})
 
+	name, err := names.GenerateBindingName(context.TODO(), d.Client, d.DynamicClient, object, d.RESTMapper)
+	if err != nil {
+		klog.Errorf("Failed to generate binding name for (%s/%s): %v", object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
+
 	return &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.GenerateBindingName(object.GetKind(), object.GetName()),
+			Name:      name,
 			Namespace: binding.GetNamespace(),
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, object.GroupVersionKind()),
@@ -566,7 +576,7 @@ func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstruc
 			},
 			RequiredBy: result,
 		},
-	}
+	}, nil
 }
 
 func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding *workv1alpha2.ResourceBinding) error {

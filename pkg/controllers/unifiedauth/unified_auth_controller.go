@@ -6,10 +6,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -42,6 +44,8 @@ const (
 // Controller is to sync impersonation config to member clusters for unified authentication.
 type Controller struct {
 	client.Client // used to operate Cluster resources.
+	RESTMapper    meta.RESTMapper
+	DynamicClient dynamic.Interface // used to generate Work names.
 	EventRecorder record.EventRecorder
 }
 
@@ -192,7 +196,11 @@ func (c *Controller) buildImpersonationClusterRoleBinding(cluster *clusterv1alph
 func (c *Controller) buildWorks(cluster *clusterv1alpha1.Cluster, obj *unstructured.Unstructured) error {
 	workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
 
-	clusterRoleBindingWorkName := names.GenerateWorkName(obj.GetKind(), obj.GetName(), obj.GetNamespace())
+	clusterRoleBindingWorkName, err := names.GenerateWorkName(context.TODO(), c.Client, c.DynamicClient, workNamespace, obj, obj, c.RESTMapper)
+	if err != nil {
+		klog.Errorf("Failed to generate work name for member cluster %s, err is %v", cluster.Name, err)
+		return err
+	}
 	objectMeta := metav1.ObjectMeta{
 		Name:       clusterRoleBindingWorkName,
 		Namespace:  workNamespace,

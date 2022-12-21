@@ -66,7 +66,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 	ginkgo.Context("InterpreterOperation InterpretReplica testing", func() {
 		ginkgo.It("InterpretReplica testing", func() {
 			ginkgo.By("check if workload's replica is interpreted", func() {
-				resourceBindingName := names.GenerateBindingName(workload.Kind, workload.Name)
+				resourceBindingName := names.GenerateBasicBindingName(workload.Kind, workload.Name)
 				expectedReplicas := *workload.Spec.Replicas
 
 				gomega.Eventually(func(g gomega.Gomega) (int32, error) {
@@ -201,7 +201,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				memberWorkload.Status.ReadyReplicas = *workload.Spec.Replicas
 				framework.UpdateWorkload(clusterDynamicClient, memberWorkload, cluster, "status")
 
-				workName := names.GenerateWorkName(workload.Kind, workload.Name, workload.Namespace)
+				workName := names.GenerateBasicWorkName(workload.Kind, workload.Name, workload.Namespace)
 				workNamespace := names.GenerateExecutionSpaceName(cluster)
 
 				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
@@ -231,7 +231,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 
 	ginkgo.Context("InterpreterOperation InterpretHealth testing", func() {
 		ginkgo.It("InterpretHealth testing", func() {
-			resourceBindingName := names.GenerateBindingName(workload.Kind, workload.Name)
+			resourceBindingName := names.GenerateBasicBindingName(workload.Kind, workload.Name)
 
 			SetReadyReplicas := func(readyReplicas int32) {
 				for _, cluster := range framework.ClusterNames() {
@@ -382,7 +382,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 
 			ginkgo.It("InterpretReplica testing", func() {
 				ginkgo.By("check if workload's replica is interpreted", func() {
-					resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+					resourceBindingName := names.GenerateBasicBindingName(deployment.Kind, deployment.Name)
 					// Just for the current test case to distinguish the build-in logic.
 					expectedReplicas := *deployment.Spec.Replicas + 1
 					expectedReplicaRequirements := &workv1alpha2.ReplicaRequirements{
@@ -594,14 +594,14 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 					configv1alpha1.CustomizationRules{
 						HealthInterpretation: &configv1alpha1.HealthInterpretation{
 							LuaScript: `
-	function InterpretHealth(observedObj)
-		return observedObj.status.readyReplicas == observedObj.spec.replicas
-	end `,
+function InterpretHealth(observedObj)
+	return observedObj.status.readyReplicas == observedObj.spec.replicas
+end `,
 						},
 					})
 			})
 			ginkgo.It("InterpretHealth testing", func() {
-				resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+				resourceBindingName := names.GenerateBasicBindingName(deployment.Kind, deployment.Name)
 				SetReadyReplicas := func(readyReplicas int32) {
 					clusterClient := framework.GetClusterClient(targetCluster)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
