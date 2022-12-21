@@ -351,7 +351,7 @@ func WaitServiceAccountPresentOnClusterFitWith(cluster, namespace, name string, 
 
 // WaitServiceAccountPresentOnClustersFitWith wait sa present on cluster sync with fit func.
 func WaitServiceAccountPresentOnClustersFitWith(clusters []string, namespace, name string, fit func(sa *corev1.ServiceAccount) bool) {
-	ginkgo.By(fmt.Sprintf("Waiting for pod(%s/%s) synced on member clusters", namespace, name), func() {
+	ginkgo.By(fmt.Sprintf("Waiting for serviceAccount(%s/%s) synced on member clusters", namespace, name), func() {
 		for _, clusterName := range clusters {
 			WaitServiceAccountPresentOnClusterFitWith(clusterName, namespace, name, fit)
 		}
