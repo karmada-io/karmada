@@ -19,6 +19,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
@@ -148,14 +149,13 @@ func IsBindingScheduled(status *workv1alpha2.ResourceBindingStatus) bool {
 	return meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled)
 }
 
-// HasScheduledReplica checks if the scheduler has assigned replicas for a cluster.
-func HasScheduledReplica(scheduleResult []workv1alpha2.TargetCluster) bool {
-	for _, clusterResult := range scheduleResult {
-		if clusterResult.Replicas > 0 {
-			return true
-		}
+// IsBindingDividedScheduled checks if binding replicas are divided by scheduler.
+func IsBindingDividedScheduled(annotations map[string]string) (bool, error) {
+	placement, err := GetAppliedPlacement(annotations)
+	if err != nil {
+		return false, err
 	}
-	return false
+	return placement != nil && placement.ReplicaScheduling != nil && placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided, nil
 }
 
 // ObtainBindingSpecExistingClusters will obtain the cluster slice existing in the binding's spec field.

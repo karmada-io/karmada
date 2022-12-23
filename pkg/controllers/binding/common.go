@@ -54,34 +54,52 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 })
 
 // ensureWork ensure Work to be created or updated.
+// nolint:gocyclo
 func ensureWork(
 	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
-	var targetClusters []workv1alpha2.TargetCluster
-	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
+	var (
+		bindingSpec               *workv1alpha2.ResourceBindingSpec
+		targetClusters            []workv1alpha2.TargetCluster
+		requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
+		needReviseReplicas        bool
+		desireReplicaInfos        map[string]int64
+		jobCompletions            []workv1alpha2.TargetCluster
+		err                       error
+	)
+
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
-		bindingObj := binding.(*workv1alpha2.ResourceBinding)
-		targetClusters = bindingObj.Spec.Clusters
-		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
+		bindingSpec = &binding.(*workv1alpha2.ResourceBinding).Spec
 	case apiextensionsv1.ClusterScoped:
-		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
-		targetClusters = bindingObj.Spec.Clusters
-		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
+		bindingSpec = &binding.(*workv1alpha2.ClusterResourceBinding).Spec
 	}
+	targetClusters = bindingSpec.Clusters
+	requiredByBindingSnapshot = bindingSpec.RequiredBy
 
 	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
+	// If schedule has not finished yet, return and wait for next triggering.
+	if len(targetClusters) == 0 {
+		return nil
+	}
 
-	var jobCompletions []workv1alpha2.TargetCluster
-	var err error
-	if workload.GetKind() == util.JobKind {
-		jobCompletions, err = divideReplicasByJobCompletions(workload, targetClusters)
-		if err != nil {
-			return err
+	needReviseReplicas, err = helper.IsBindingDividedScheduled(binding.GetAnnotations())
+	if err != nil {
+		klog.ErrorS(err, "Failed to determine if binding replicas are divided by scheduler", "binding", klog.KObj(binding))
+		return err
+	}
+
+	// If binding has replicas, get revised replicas result and job completion field if necessary.
+	if needReviseReplicas {
+		desireReplicaInfos = transScheduleResultToMap(targetClusters)
+		if workload.GetKind() == util.JobKind {
+			jobCompletions, err = divideReplicasByJobCompletions(workload, targetClusters)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	hasScheduledReplica, desireReplicaInfos := getReplicaInfos(targetClusters)
 
 	for i := range targetClusters {
 		targetCluster := targetClusters[i]
@@ -93,7 +111,7 @@ func ensureWork(
 			return err
 		}
 
-		if hasScheduledReplica {
+		if needReviseReplicas {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
 				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name])
 				if err != nil {
@@ -163,13 +181,6 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 	}
 
 	return targetClusters
-}
-
-func getReplicaInfos(targetClusters []workv1alpha2.TargetCluster) (bool, map[string]int64) {
-	if helper.HasScheduledReplica(targetClusters) {
-		return true, transScheduleResultToMap(targetClusters)
-	}
-	return false, nil
 }
 
 func transScheduleResultToMap(scheduleResult []workv1alpha2.TargetCluster) map[string]int64 {

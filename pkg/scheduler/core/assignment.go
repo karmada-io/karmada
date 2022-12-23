@@ -19,6 +19,9 @@ var (
 		StaticWeightStrategy:  assignByStaticWeightStrategy,
 		DynamicWeightStrategy: assignByDynamicStrategy,
 	}
+	duplicatedStrategyTemplate = &policyv1alpha1.ReplicaSchedulingStrategy{
+		ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
+	}
 )
 
 const (
