@@ -68,6 +68,81 @@ func (p ClusterWeightInfoList) GetWeightSum() int64 {
 	return res
 }
 
+// Dispenser aims to divide replicas among clusters by different weights.
+type Dispenser struct {
+	// Target replicas, should be a positive integer.
+	NumReplicas int32
+	// Final result.
+	Result []workv1alpha2.TargetCluster
+}
+
+// NewDispenser will construct a dispenser with target replicas and a prescribed initial result.
+func NewDispenser(numReplicas int32, init []workv1alpha2.TargetCluster) *Dispenser {
+	cp := make([]workv1alpha2.TargetCluster, len(init))
+	copy(cp, init)
+	return &Dispenser{NumReplicas: numReplicas, Result: cp}
+}
+
+// Done indicates whether finish dispensing.
+func (a *Dispenser) Done() bool {
+	return a.NumReplicas == 0 && len(a.Result) != 0
+}
+
+// TakeByWeight divide replicas by a weight list and merge the result into previous result.
+func (a *Dispenser) TakeByWeight(w ClusterWeightInfoList) {
+	if a.Done() {
+		return
+	}
+	sum := w.GetWeightSum()
+	if sum == 0 {
+		return
+	}
+
+	sort.Sort(w)
+
+	result := make([]workv1alpha2.TargetCluster, 0, w.Len())
+	remain := a.NumReplicas
+	for _, info := range w {
+		replicas := int32(info.Weight * int64(a.NumReplicas) / sum)
+		result = append(result, workv1alpha2.TargetCluster{
+			Name:     info.ClusterName,
+			Replicas: replicas,
+		})
+		remain -= replicas
+	}
+	// TODO(Garrybest): take rest replicas by fraction part
+	for i := range result {
+		if remain == 0 {
+			break
+		}
+		result[i].Replicas++
+		remain--
+	}
+
+	a.NumReplicas = remain
+	a.Result = util.MergeTargetClusters(a.Result, result)
+}
+
+// GetStaticWeightInfoListByTargetClusters constructs a weight list by target cluster slice.
+func GetStaticWeightInfoListByTargetClusters(tcs []workv1alpha2.TargetCluster) ClusterWeightInfoList {
+	weightList := make(ClusterWeightInfoList, 0, len(tcs))
+	for _, result := range tcs {
+		weightList = append(weightList, ClusterWeightInfo{
+			ClusterName: result.Name,
+			Weight:      int64(result.Replicas),
+		})
+	}
+	return weightList
+}
+
+// SpreadReplicasByTargetClusters divides replicas by the weight of a target cluster list.
+func SpreadReplicasByTargetClusters(numReplicas int32, tcs, init []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+	weightList := GetStaticWeightInfoListByTargetClusters(tcs)
+	disp := NewDispenser(numReplicas, init)
+	disp.TakeByWeight(weightList)
+	return disp.Result
+}
+
 // IsBindingScheduled will check if resourceBinding/clusterResourceBinding is successfully scheduled.
 func IsBindingScheduled(status *workv1alpha2.ResourceBindingStatus) bool {
 	return meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled)

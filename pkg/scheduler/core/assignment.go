@@ -9,6 +9,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 var (
@@ -140,10 +141,10 @@ func assignByStaticWeightStrategy(state *assignState) ([]workv1alpha2.TargetClus
 	}
 	weightList := getStaticWeightInfoList(state.candidates, state.strategy.WeightPreference.StaticWeightList)
 
-	disp := newDispenser(state.spec.Replicas, nil)
-	disp.takeByWeight(weightList)
+	disp := helper.NewDispenser(state.spec.Replicas, nil)
+	disp.TakeByWeight(weightList)
 
-	return disp.result, nil
+	return disp.Result, nil
 }
 
 func assignByDynamicStrategy(state *assignState) ([]workv1alpha2.TargetCluster, error) {
