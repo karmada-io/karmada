@@ -17,6 +17,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	ctrlruntimecfg "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app/options"
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
@@ -90,6 +91,12 @@ func Run(ctx context.Context, o *options.Options) error {
 		return err
 	}
 
+	klog.Info("registering webhook to the manager")
+	if err := (&operatorv1alpha1.Karmada{}).SetupWebhookWithManager(manager); err != nil {
+		klog.Errorf("failed to add karmada resource webhook: %v", err)
+		return err
+	}
+
 	controllerCtx := ctrlctx.Context{
 		Controllers: o.Controllers,
 		Manager:     manager,
@@ -158,6 +165,13 @@ func createControllerManager(ctx context.Context, o *options.Options) (controlle
 			GroupKindConcurrency: map[string]int{
 				operatorv1alpha1.SchemeGroupVersion.WithKind("Karmada").GroupKind().String(): o.ConcurrentKarmadaSyncs,
 			},
+		},
+		WebhookServer: &webhook.Server{
+			Host:     o.BindAddress,
+			Port:     o.SecurePort,
+			CertDir:  o.CertDir,
+			CertName: o.CertName,
+			KeyName:  o.KeyName,
 		},
 	}
 	return controllerruntime.NewManager(config, opts)

@@ -28,6 +28,13 @@ type Options struct {
 	// SecurePort is the port that the the server serves at.
 	// Note: We hope support https in the future once controller-runtime provides the functionality.
 	SecurePort int
+	// CertDir is the directory that contains the server key and certificate.
+	// if not set, webhook server would look up the server key and certificate in {TempDir}/k8s-webhook-server/serving-certs.
+	CertDir string
+	// CertName is the server certificate name. Defaults to tls.crt.
+	CertName string
+	// KeyName is the server key name. Defaults to tls.key.
+	KeyName string
 	// KubeAPIQPS is the QPS to use while talking with karmada-apiserver.
 	KubeAPIQPS float32
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
@@ -76,6 +83,9 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string, disabledB
 		"named 'foo', '-foo' disables the controller named 'foo'.\nAll controllers: %s\nDisabled-by-default controllers: %s",
 		strings.Join(allControllers, ", "), strings.Join(disabledByDefaultControllers, ", ")))
 	fs.IntVar(&o.ConcurrentKarmadaSyncs, "concurrent-karmada-syncs", o.ConcurrentKarmadaSyncs, "The number of karmada objects that are allowed to sync concurrently..")
+	fs.StringVar(&o.CertDir, "cert-dir", "/tmp/k8s-webhook-server/serving-certs", "The directory that contains the server key and certificate.")
+	fs.StringVar(&o.CertName, "tls-cert-file-name", "tls.crt", "The name of server certificate.")
+	fs.StringVar(&o.KeyName, "tls-private-key-file-name", "tls.key", "The name of server key.")
 	options.BindLeaderElectionFlags(&o.LeaderElection, fs)
 }
 
