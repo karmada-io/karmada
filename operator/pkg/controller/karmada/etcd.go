@@ -32,17 +32,17 @@ import (
 	clientutil "github.com/karmada-io/karmada/operator/pkg/util/client"
 )
 
-func (ctrl *Controller) EnsureEtcd(karmada *operatorv1alpha1.Karmada) error {
-	if err := ctrl.EnsureEtcdService(karmada); err != nil {
+func (ctrl *Controller) ensureEtcd(karmada *operatorv1alpha1.Karmada) error {
+	if err := ctrl.ensureEtcdService(karmada); err != nil {
 		return err
 	}
-	if err := ctrl.EnsureEtcdStatefulSet(karmada); err != nil {
+	if err := ctrl.ensureEtcdStatefulSet(karmada); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (ctrl *Controller) EnsureEtcdService(karmada *operatorv1alpha1.Karmada) error {
+func (ctrl *Controller) ensureEtcdService(karmada *operatorv1alpha1.Karmada) error {
 	etcdName := constants.KarmadaComponentEtcd
 	svc := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -83,7 +83,7 @@ func (ctrl *Controller) EnsureEtcdService(karmada *operatorv1alpha1.Karmada) err
 	return clientutil.CreateOrUpdateService(ctrl, svc)
 }
 
-func (ctrl *Controller) EnsureEtcdStatefulSet(karmada *operatorv1alpha1.Karmada) error {
+func (ctrl *Controller) ensureEtcdStatefulSet(karmada *operatorv1alpha1.Karmada) error {
 	etcdName := constants.KarmadaComponentEtcd
 	etcd := karmada.Spec.Components.Etcd.Local
 	repository := karmada.Spec.PrivateRegistry.Registry

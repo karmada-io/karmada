@@ -4,16 +4,24 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetClientConfigFromKubeConfigSecret reads a kubeconfig from the given namespace and secretName and
 // returns a *rest.Config that the given user-agent is added.
-func GetClientConfigFromKubeConfigSecret(client kubernetes.Interface, namespace, secretName, clientUserAgent string) (*restclient.Config, error) {
-	kubeconfigSecret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+func GetClientConfigFromKubeConfigSecret(c client.Client, namespace, secretName string) (*restclient.Config, error) {
+	kubeconfigSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      secretName,
+		},
+	}
+
+	err := c.Get(context.TODO(), client.ObjectKeyFromObject(kubeconfigSecret), kubeconfigSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -27,9 +35,5 @@ func GetClientConfigFromKubeConfigSecret(client kubernetes.Interface, namespace,
 	if err != nil {
 		return nil, err
 	}
-	clientConfig, err := config.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-	return restclient.AddUserAgent(clientConfig, clientUserAgent), nil
+	return config.ClientConfig()
 }

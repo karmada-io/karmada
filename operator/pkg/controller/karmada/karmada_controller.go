@@ -4,7 +4,10 @@ import (
 	"context"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -25,6 +28,8 @@ const (
 // Controller controls the Karmada resource.
 type Controller struct {
 	client.Client
+
+	KubeClient kubernetes.Interface
 
 	EventRecorder record.EventRecorder
 }
@@ -96,8 +101,24 @@ func (ctrl *Controller) reconcile(karmada *operatorv1alpha1.Karmada) error {
 		return err
 	}
 
-	if err := ctrl.EnsureEtcd(karmada); err != nil {
+	if err := ctrl.ensureEtcd(karmada); err != nil {
 		klog.ErrorS(err, "Failed to ensure etcd cluster", "karmada", klog.KObj(karmada))
+		return err
+	}
+
+	kubeClient, err := ctrl.ensureKubeAPIServer(karmada)
+	if err != nil {
+		return err
+	}
+
+	klog.InfoS("karmada-apiserver is ready", "karmada", klog.KObj(karmada))
+
+	_, err = kubeClient.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "karmada-system"}}, metav1.CreateOptions{})
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	if err := ctrl.ensureKarmadaAggregatedAPIServer(karmada); err != nil {
 		return err
 	}
 

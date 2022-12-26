@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
@@ -121,6 +122,7 @@ func init() {
 func startKarmadaController(ctx ctrlctx.Context) (bool, error) {
 	ctrl := &karmada.Controller{
 		Client:        ctx.Manager.GetClient(),
+		KubeClient:    kubernetes.NewForConfigOrDie(ctx.Manager.GetConfig()),
 		EventRecorder: ctx.Manager.GetEventRecorderFor(karmada.ControllerName),
 	}
 	if err := ctrl.SetupWithManager(ctx.Manager); err != nil {
