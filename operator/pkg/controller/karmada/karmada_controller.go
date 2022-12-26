@@ -82,9 +82,20 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 
 	klog.V(2).InfoS("Reconciling karmada", "name", req.Name)
 
-	// do reconcile
+	if err := ctrl.reconcile(karmada); err != nil {
+		klog.ErrorS(err, "Failed to reconcile karmada", "karmada", klog.KObj(karmada))
+		return controllerruntime.Result{}, err
+	}
 
 	return controllerruntime.Result{}, nil
+}
+
+func (ctrl *Controller) reconcile(karmada *operatorv1alpha1.Karmada) error {
+	if err := ctrl.genCerts(karmada, nil); err != nil {
+		klog.ErrorS(err, "Failed to generate certs", "karmada", klog.KObj(karmada))
+		return err
+	}
+	return nil
 }
 
 func (ctrl *Controller) deleteUnableGCResources(karmada *operatorv1alpha1.Karmada) error {
