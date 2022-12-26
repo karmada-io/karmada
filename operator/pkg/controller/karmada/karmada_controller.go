@@ -108,6 +108,7 @@ func (ctrl *Controller) reconcile(karmada *operatorv1alpha1.Karmada) error {
 
 	kubeClient, err := ctrl.ensureKubeAPIServer(karmada)
 	if err != nil {
+		klog.ErrorS(err, "Failed to ensure karmada apiserver", "karmada", klog.KObj(karmada))
 		return err
 	}
 
@@ -115,10 +116,17 @@ func (ctrl *Controller) reconcile(karmada *operatorv1alpha1.Karmada) error {
 
 	_, err = kubeClient.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "karmada-system"}}, metav1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
+		klog.ErrorS(err, "Failed to create the karmada-system namespace on the karmada", "karmada", klog.KObj(karmada))
 		return err
 	}
 
 	if err := ctrl.ensureKarmadaAggregatedAPIServer(karmada); err != nil {
+		klog.ErrorS(err, "Failed to ensure karmada aggregated apiserver", "karmada", klog.KObj(karmada))
+		return err
+	}
+
+	if err := ctrl.ensureKarmadaCRDs(karmada); err != nil {
+		klog.ErrorS(err, "Failed to ensure karmada crds on the karmada", "karmada", klog.KObj(karmada))
 		return err
 	}
 
