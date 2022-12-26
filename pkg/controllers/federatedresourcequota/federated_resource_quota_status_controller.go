@@ -8,8 +8,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -167,26 +165,7 @@ func aggregatedStatusFormWorks(works []workv1alpha1.Work) ([]policyv1alpha1.Clus
 	var aggregatedStatuses []policyv1alpha1.ClusterQuotaStatus
 	for index := range works {
 		work := works[index]
-		var applied bool
-		if cond := meta.FindStatusCondition(work.Status.Conditions, workv1alpha1.WorkApplied); cond != nil {
-			switch cond.Status {
-			case metav1.ConditionTrue:
-				applied = true
-			case metav1.ConditionUnknown:
-				fallthrough
-			case metav1.ConditionFalse:
-				applied = false
-			default: // should not happen unless the condition api changed.
-				panic("unexpected status")
-			}
-		}
-		if !applied {
-			klog.Warningf("Work(%s) applied failed, skip aggregated status", klog.KObj(&work).String())
-			continue
-		}
-
 		if len(work.Status.ManifestStatuses) == 0 {
-			klog.Warningf("The ManifestStatuses length of work(%s) is zero", klog.KObj(&work).String())
 			continue
 		}
 

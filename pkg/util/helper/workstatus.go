@@ -183,22 +183,13 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 				panic("unexpected status")
 			}
 		}
-		if !applied {
-			aggregatedStatus := workv1alpha2.AggregatedStatusItem{
-				ClusterName:    clusterName,
-				Applied:        applied,
-				AppliedMessage: appliedMsg,
-				Health:         workv1alpha2.ResourceUnknown,
-			}
-			statuses = append(statuses, aggregatedStatus)
-			continue
-		}
 
 		// resources with no status,only record whether the propagation is successful in work
 		aggregatedStatus := workv1alpha2.AggregatedStatusItem{
-			ClusterName: clusterName,
-			Applied:     applied,
-			Health:      workv1alpha2.ResourceUnknown,
+			ClusterName:    clusterName,
+			Applied:        applied,
+			AppliedMessage: appliedMsg,
+			Health:         workv1alpha2.ResourceUnknown,
 		}
 
 		for _, manifestStatus := range work.Status.ManifestStatuses {
