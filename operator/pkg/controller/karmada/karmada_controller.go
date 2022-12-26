@@ -95,6 +95,12 @@ func (ctrl *Controller) reconcile(karmada *operatorv1alpha1.Karmada) error {
 		klog.ErrorS(err, "Failed to generate certs", "karmada", klog.KObj(karmada))
 		return err
 	}
+
+	if err := ctrl.EnsureEtcd(karmada); err != nil {
+		klog.ErrorS(err, "Failed to ensure etcd cluster", "karmada", klog.KObj(karmada))
+		return err
+	}
+
 	return nil
 }
 

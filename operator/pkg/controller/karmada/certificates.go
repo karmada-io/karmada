@@ -15,7 +15,7 @@ import (
 	netutils "k8s.io/utils/net"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	operatorapi "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/scheme"
 	"github.com/karmada-io/karmada/operator/pkg/util"
@@ -33,7 +33,7 @@ var certList = []string{
 	"front-proxy-client",
 }
 
-func (ctrl *Controller) genCerts(karmada *operatorapi.Karmada, karmadaAPIServerIP []net.IP) error {
+func (ctrl *Controller) genCerts(karmada *operatorv1alpha1.Karmada, karmadaAPIServerIP []net.IP) error {
 	notAfter := time.Now().Add(certs.Duration365d).UTC()
 
 	var etcdServerCertDNS = []string{
