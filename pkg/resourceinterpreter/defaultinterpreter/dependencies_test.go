@@ -44,8 +44,10 @@ func TestGetSecretNames(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res := getSecretNames(tt.pod)
 			if !reflect.DeepEqual(res, tt.expected) {
 				t.Errorf("getSecretNames() = %v, want %v", res, tt.expected)
@@ -91,8 +93,10 @@ func TestGetConfigMapNames(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res := getConfigMapNames(tt.pod)
 			if !reflect.DeepEqual(res, tt.expected) {
 				t.Errorf("getConfigMapNames() = %v, want %v", res, tt.expected)
@@ -136,8 +140,10 @@ func TestGetPVCNames(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res := getPVCNames(tt.pod)
 			if !reflect.DeepEqual(res, tt.expected) {
 				t.Errorf("getPVCNames() = %v, want %v", res, tt.expected)
@@ -194,8 +200,10 @@ func TestGetDependenciesFromPodTemplate(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res, _ := getDependenciesFromPodTemplate(tt.pod)
 			if !reflect.DeepEqual(res, tt.expected) {
 				t.Errorf("getDependenciesFromPodTemplate() = %v, want %v", res, tt.expected)
@@ -224,8 +232,10 @@ func Test_getServiceAccountNames(t *testing.T) {
 			want: sets.NewString(),
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := getServiceAccountNames(tt.args.pod); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getServiceAccountNames() = %v, want %v", got, tt.want)
 			}

@@ -57,8 +57,10 @@ func Test_getEntireStatus(t *testing.T) {
 			false,
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := reflectWholeStatus(tt.args.object)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("reflectWholeStatus() error = %v, wantErr %v", err, tt.wantErr)

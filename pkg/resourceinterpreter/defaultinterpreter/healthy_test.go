@@ -106,8 +106,10 @@ func Test_interpretDeploymentHealth(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := interpretDeploymentHealth(tt.object)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpretDeploymentHealth() err = %v, wantErr %v", err, tt.wantErr)
@@ -218,8 +220,10 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := interpretStatefulSetHealth(tt.object)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpretStatefulSetHealth() err = %v, wantErr %v", err, tt.wantErr)
@@ -294,8 +298,10 @@ func Test_interpretReplicaSetHealth(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := interpretReplicaSetHealth(tt.object)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpretReplicaSetHealth() error = %v, wantErr %v", err, tt.wantErr)
@@ -372,8 +378,10 @@ func Test_interpretDaemonSetHealth(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := interpretDaemonSetHealth(tt.object)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpretDaemonSetHealth() error = %v, wantErr %v", err, tt.wantErr)
@@ -445,8 +453,10 @@ func Test_interpretServiceHealth(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := interpretServiceHealth(tt.object)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpretServiceHealth() error = %v, wantErr %v", err, tt.wantErr)
@@ -495,8 +505,10 @@ func Test_interpretIngressHealth(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := interpretIngressHealth(tt.object)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpretIngressHealth() error = %v, wantErr %v", err, tt.wantErr)
@@ -541,8 +553,10 @@ func Test_interpretPersistentVolumeClaimHealth(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := interpretPersistentVolumeClaimHealth(tt.object)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpretPersistentVolumeClaimHealth() error = %v, wantErr %v", err, tt.wantErr)
