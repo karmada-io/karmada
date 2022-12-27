@@ -12,6 +12,10 @@ spec:
     matchLabels:
     {{- include "karmada.search.labels" . | nindent 6 }}
   replicas: {{ .Values.search.replicaCount }}
+  {{- with .Values.search.strategy }}
+  strategy:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.search.podAnnotations }}
