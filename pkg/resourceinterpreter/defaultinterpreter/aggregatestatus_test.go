@@ -55,9 +55,13 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		actualObj, _ := aggregateDeploymentStatus(tt.curObj, tt.aggregatedStatusItems)
-		assert.Equal(t, tt.expectedObj, actualObj)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregateDeploymentStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 
@@ -126,9 +130,13 @@ func TestAggregateServiceStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		actualObj, _ := aggregateServiceStatus(tt.curObj, tt.aggregatedStatusItems)
-		assert.Equal(t, tt.expectedObj, actualObj)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregateServiceStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 
@@ -166,9 +174,13 @@ func TestAggregateIngressStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		actualObj, _ := aggregateIngressStatus(tt.curObj, tt.aggregatedStatusItems)
-		assert.Equal(t, tt.expectedObj, actualObj)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregateIngressStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 
@@ -237,11 +249,15 @@ func TestAggregateJobStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		actualObj, _ := aggregateJobStatus(tt.curObj, tt.aggregatedStatusItems)
-		// Clean condition time before compare, due to issue: https://github.com/karmada-io/karmada/issues/1767
-		actualObj = cleanUnstructuredJobConditionTime(actualObj)
-		assert.Equal(t, tt.expectedObj, actualObj)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregateJobStatus(tt.curObj, tt.aggregatedStatusItems)
+			// Clean condition time before compare, due to issue: https://github.com/karmada-io/karmada/issues/1767
+			actualObj = cleanUnstructuredJobConditionTime(actualObj)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 
@@ -286,9 +302,13 @@ func TestAggregateDaemonSetStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		actualObj, _ := aggregateDaemonSetStatus(tt.curObj, tt.aggregatedStatusItems)
-		assert.Equal(t, tt.expectedObj, actualObj)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregateDaemonSetStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 
@@ -331,9 +351,13 @@ func TestAggregateStatefulSetStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		actualObj, _ := aggregateStatefulSetStatus(tt.curObj, tt.aggregatedStatusItems)
-		assert.Equal(t, tt.expectedObj, actualObj)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregateStatefulSetStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 
@@ -622,9 +646,13 @@ func TestAggregatePodStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		actualObj, _ := aggregatePodStatus(tt.curObj, tt.aggregatedStatusItems)
-		assert.Equal(t, tt.expectedObj, actualObj)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregatePodStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 
@@ -709,9 +737,13 @@ func TestAggregatePVCStatus(t *testing.T) {
 			expectedObj:           newBoundPVCObj,
 		},
 	}
-	for _, tt := range tests {
-		actualObj, _ := aggregatePersistentVolumeClaimStatus(tt.curObj, tt.aggregatedStatusItems)
-		assert.Equal(t, tt.expectedObj, actualObj)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregatePersistentVolumeClaimStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 
@@ -838,8 +870,12 @@ func TestAggregatePVStatus(t *testing.T) {
 			expectedObj:           newAvailablePvObj,
 		},
 	}
-	for _, tt := range tests {
-		actualObj, _ := aggregatePersistentVolumeStatus(tt.curObj, tt.aggregatedStatusItems)
-		assert.Equal(t, tt.expectedObj, actualObj, tt.name)
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actualObj, _ := aggregatePersistentVolumeStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
