@@ -235,20 +235,11 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 }
 
 func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
-	strategy := placement.ReplicaScheduling
 	spreadConstraints := placement.SpreadConstraints
 
 	if len(spreadConstraints) == 0 || (len(spreadConstraints) == 1 && spreadConstraints[0].SpreadByField == policyv1alpha1.SpreadByFieldCluster) {
 		return true
 	}
 
-	// If the replica division preference is 'static weighted', ignore the declaration specified by spread constraints.
-	if strategy != nil && strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
-		strategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
-		(strategy.WeightPreference == nil ||
-			len(strategy.WeightPreference.StaticWeightList) != 0 && strategy.WeightPreference.DynamicWeight == "") {
-		return true
-	}
-
-	return false
+	return shouldIgnoreSpreadConstraint(placement)
 }
