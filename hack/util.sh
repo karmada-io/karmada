@@ -36,6 +36,7 @@ KARMADA_TARGET_SOURCE=(
   karmada-scheduler-estimator=cmd/scheduler-estimator
   karmada-interpreter-webhook-example=examples/customresourceinterpreter/webhook
   karmada-search=cmd/karmada-search
+  karmada-operator=operator/cmd/operator
 )
 
 #https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KARMADA
