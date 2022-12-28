@@ -342,7 +342,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 			//make a copy, so we don't mutate the shared cache
 			workCopy = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated work %s/%s: %v", workCopy.Namespace, workCopy.Name, err)
+			klog.Errorf("Failed to get updated work %s/%s: %v", workCopy.Namespace, workCopy.Name, err)
 		}
 		return updateErr
 	})

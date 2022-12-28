@@ -65,7 +65,7 @@ func (wh *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		wh.writeResponse(w, res)
 		return
 	}
-	klog.V(1).Infof("received request UID: %q, kind: %s", request.UID, request.Kind)
+	klog.V(1).Infof("Received request UID: %q, kind: %s", request.UID, request.Kind)
 
 	res = wh.Handle(ctx, request)
 	wh.writeResponse(w, res)
@@ -86,9 +86,9 @@ func (wh *Webhook) writeResourceInterpreterResponse(w io.Writer, interpreterCont
 	} else {
 		response := interpreterContext.Response
 		if response.Successful {
-			klog.V(4).Infof("wrote response UID: %q, successful: %t", response.UID, response.Successful)
+			klog.V(4).Infof("Wrote response UID: %q, successful: %t", response.UID, response.Successful)
 		} else {
-			klog.V(4).Infof("wrote response UID: %q, successful: %t, response.status.code: %d, response.status.message: %s",
+			klog.V(4).Infof("Wrote response UID: %q, successful: %t, response.status.code: %d, response.status.message: %s",
 				response.UID, response.Successful, response.Status.Code, response.Status.Message)
 		}
 	}

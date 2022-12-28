@@ -76,18 +76,18 @@ func Run(ctx context.Context, opts *options.Options) error {
 		LeaderElection: false,
 	})
 	if err != nil {
-		klog.Errorf("failed to build webhook server: %v", err)
+		klog.Errorf("Failed to build webhook server: %v", err)
 		return err
 	}
 
-	klog.Info("registering webhooks to the webhook server")
+	klog.Info("Registering webhooks to the webhook server")
 	hookServer := hookManager.GetWebhookServer()
 	hookServer.Register("/interpreter-workload", interpreter.NewWebhook(&workloadInterpreter{}, interpreter.NewDecoder(gclient.NewSchema())))
 	hookServer.WebhookMux.Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	// blocks until the context is done.
 	if err := hookManager.Start(ctx); err != nil {
-		klog.Errorf("webhook server exits unexpectedly: %v", err)
+		klog.Errorf("Webhook server exits unexpectedly: %v", err)
 		return err
 	}
 

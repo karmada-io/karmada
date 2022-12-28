@@ -147,7 +147,7 @@ func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.Ser
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: derivedService.Namespace, Name: derivedService.Name}, updated); err == nil {
 			derivedService = updated
 		} else {
-			klog.Errorf("failed to get updated service %s/%s: %v", derivedService.Namespace, derivedService.Name, err)
+			klog.Errorf("Failed to get updated service %s/%s: %v", derivedService.Namespace, derivedService.Name, err)
 		}
 
 		return updateErr

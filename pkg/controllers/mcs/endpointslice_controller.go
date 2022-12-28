@@ -94,7 +94,7 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 		endpointSlice := &discoveryv1.EndpointSlice{}
 		err = helper.ConvertToTypedObject(unstructObj, endpointSlice)
 		if err != nil {
-			klog.Errorf("failed to convert unstructured to typed object: %v", err)
+			klog.Errorf("Failed to convert unstructured to typed object: %v", err)
 			return controllerruntime.Result{Requeue: true}, err
 		}
 

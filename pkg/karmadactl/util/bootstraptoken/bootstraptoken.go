@@ -85,7 +85,7 @@ type Token struct {
 
 // GenerateRegisterCommand generate register command that will be printed
 func GenerateRegisterCommand(kubeConfig, parentCommand, token string, karmadaContext string) (string, error) {
-	klog.V(1).Info("print register command")
+	klog.V(1).Info("Print register command")
 	// load the kubeconfig file to get the CA certificate and endpoint
 	config, err := clientcmd.LoadFromFile(kubeConfig)
 	if err != nil {

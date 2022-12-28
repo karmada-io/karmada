@@ -168,7 +168,7 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 		for _, selector := range registry.Spec.ResourceSelectors {
 			gvr, err := restmapper.GetGroupVersionResource(ctl.restMapper, schema.FromAPIVersionAndKind(selector.APIVersion, selector.Kind))
 			if err != nil {
-				klog.Errorf("failed to get gvr: %v", err)
+				klog.Errorf("Failed to get gvr: %v", err)
 				continue
 			}
 			matchedResources[gvr] = struct{}{}

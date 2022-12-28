@@ -140,8 +140,8 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 
 // Run is the implementation of the 'unjoin' command.
 func (j *CommandUnjoinOption) Run(f cmdutil.Factory) error {
-	klog.V(1).Infof("unjoining cluster. cluster name: %s", j.ClusterName)
-	klog.V(1).Infof("unjoining cluster. cluster namespace: %s", j.ClusterNamespace)
+	klog.V(1).Infof("Unjoining cluster. cluster name: %s", j.ClusterName)
+	klog.V(1).Infof("Unjoining cluster. cluster namespace: %s", j.ClusterNamespace)
 
 	// Get control plane kube-apiserver client
 	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
@@ -156,7 +156,7 @@ func (j *CommandUnjoinOption) Run(f cmdutil.Factory) error {
 		// Get cluster config
 		clusterConfig, err = apiclient.RestConfig(j.ClusterContext, j.ClusterKubeConfig)
 		if err != nil {
-			klog.V(1).Infof("failed to get unjoining cluster config. error: %v", err)
+			klog.V(1).Infof("Failed to get unjoining cluster config. error: %v", err)
 			return err
 		}
 	}
@@ -180,7 +180,7 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 	if clusterConfig != nil {
 		clusterKubeClient := kubeclient.NewForConfigOrDie(clusterConfig)
 
-		klog.V(1).Infof("unjoining cluster config. endpoint: %s", clusterConfig.Host)
+		klog.V(1).Infof("Unjoining cluster config. endpoint: %s", clusterConfig.Host)
 
 		// delete RBAC resource from unjoining cluster
 		err = deleteRBACResources(clusterKubeClient, j.ClusterName, j.forceDeletion, j.DryRun)

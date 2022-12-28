@@ -297,8 +297,8 @@ func (o *CommandRegisterOption) Validate() error {
 
 // Run is the implementation of the 'register' command.
 func (o *CommandRegisterOption) Run(parentCommand string) error {
-	klog.V(1).Infof("registering cluster. cluster name: %s", o.ClusterName)
-	klog.V(1).Infof("registering cluster. cluster namespace: %s", o.ClusterNamespace)
+	klog.V(1).Infof("Registering cluster. cluster name: %s", o.ClusterName)
+	klog.V(1).Infof("Registering cluster. cluster namespace: %s", o.ClusterNamespace)
 
 	fmt.Println("[preflight] Running pre-flight checks")
 	errlist := o.preflight()
@@ -410,7 +410,7 @@ func appendError(errlist []error, err error) []error {
 
 // checkFileIfExist validates if the given file already exist.
 func checkFileIfExist(filePath string) error {
-	klog.V(1).Infof("validating the existence of file %s", filePath)
+	klog.V(1).Infof("Validating the existence of file %s", filePath)
 
 	if _, err := os.Stat(filePath); err == nil {
 		return fmt.Errorf("%s already exists", filePath)
@@ -499,7 +499,7 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 		return nil, err
 	}
 
-	klog.V(1).Infof("waiting for the client certificate to be issued")
+	klog.V(1).Infof("Waiting for the client certificate to be issued")
 	err = wait.Poll(1*time.Second, o.Timeout, func() (done bool, err error) {
 		csrOK, err := bootstrapClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csrName, metav1.GetOptions{})
 		if err != nil {
@@ -507,12 +507,12 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 		}
 
 		if csrOK.Status.Certificate != nil {
-			klog.V(1).Infof("signing certificate successfully")
+			klog.V(1).Infof("Signing certificate successfully")
 			cert = csrOK.Status.Certificate
 			return true, nil
 		}
 
-		klog.V(1).Infof("waiting for the client certificate to be issued")
+		klog.V(1).Infof("Waiting for the client certificate to be issued")
 		return false, nil
 	})
 	if err != nil {

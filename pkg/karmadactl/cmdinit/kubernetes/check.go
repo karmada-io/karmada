@@ -38,7 +38,7 @@ func isPodReady(c *kubernetes.Clientset, n, p string) wait.ConditionFunc {
 		}
 
 		if pod.Status.Phase == corev1.PodPending && len(pod.Status.ContainerStatuses) == 0 {
-			klog.Warningf("pod: %s not ready. status: %v", pod.Name, corev1.PodPending)
+			klog.Warningf("Pod: %s not ready. status: %v", pod.Name, corev1.PodPending)
 			return false, nil
 		}
 
@@ -49,7 +49,7 @@ func isPodReady(c *kubernetes.Clientset, n, p string) wait.ConditionFunc {
 					klog.Infof("pod: %s is ready. status: %v", pod.Name, podStatus(pod))
 					return true, nil
 				}
-				klog.Warningf("pod: %s not ready. status: %v", pod.Name, podStatus(pod))
+				klog.Warningf("Pod: %s not ready. status: %v", pod.Name, podStatus(pod))
 				return false, nil
 			default:
 				continue
@@ -95,10 +95,10 @@ func WaitEtcdReplicasetInDesired(replicas int32, c *kubernetes.Clientset, namesp
 			return false, nil
 		}
 		if int32(len(pods.Items)) == replicas {
-			klog.Infof("etcd desired replicaset is %v, currently: %v", replicas, len(pods.Items))
+			klog.Infof("Etcd desired replicaset is %v, currently: %v", replicas, len(pods.Items))
 			return true, nil
 		}
-		klog.Warningf("etcd desired replicaset is %v, currently: %v", replicas, len(pods.Items))
+		klog.Warningf("Etcd desired replicaset is %v, currently: %v", replicas, len(pods.Items))
 		return false, nil
 	}); err != nil {
 		return err

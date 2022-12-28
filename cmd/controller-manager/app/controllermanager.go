@@ -147,12 +147,12 @@ func Run(ctx context.Context, opts *options.Options) error {
 		}),
 	})
 	if err != nil {
-		klog.Errorf("failed to build controller manager: %v", err)
+		klog.Errorf("Failed to build controller manager: %v", err)
 		return err
 	}
 
 	if err := controllerManager.AddHealthzCheck("ping", healthz.Ping); err != nil {
-		klog.Errorf("failed to add health check endpoint: %v", err)
+		klog.Errorf("Failed to add health check endpoint: %v", err)
 		return err
 	}
 

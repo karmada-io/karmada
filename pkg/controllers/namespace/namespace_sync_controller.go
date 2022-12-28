@@ -124,7 +124,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 
 			annotations, err := binding.RecordAppliedOverrides(cops, nil, nil)
 			if err != nil {
-				klog.Errorf("failed to record appliedOverrides, Error: %v", err)
+				klog.Errorf("Failed to record appliedOverrides, Error: %v", err)
 				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}

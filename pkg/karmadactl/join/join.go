@@ -134,8 +134,8 @@ func (j *CommandJoinOption) AddFlags(flags *pflag.FlagSet) {
 
 // Run is the implementation of the 'join' command.
 func (j *CommandJoinOption) Run(f cmdutil.Factory) error {
-	klog.V(1).Infof("joining cluster. cluster name: %s", j.ClusterName)
-	klog.V(1).Infof("joining cluster. cluster namespace: %s", j.ClusterNamespace)
+	klog.V(1).Infof("Joining cluster. cluster name: %s", j.ClusterName)
+	klog.V(1).Infof("Joining cluster. cluster namespace: %s", j.ClusterNamespace)
 
 	// Get control plane karmada-apiserver client
 	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
@@ -159,7 +159,7 @@ func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig
 	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 	clusterKubeClient := kubeclient.NewForConfigOrDie(clusterConfig)
 
-	klog.V(1).Infof("joining cluster config. endpoint: %s", clusterConfig.Host)
+	klog.V(1).Infof("Joining cluster config. endpoint: %s", clusterConfig.Host)
 
 	registerOption := util.ClusterRegisterOption{
 		ClusterNamespace:   j.ClusterNamespace,

@@ -194,7 +194,7 @@ func (c *ResourceBindingController) updateResourceStatus(binding *workv1alpha2.R
 		return err
 	}
 	if reflect.DeepEqual(obj, newObj) {
-		klog.V(3).Infof("ignore update resource(%s/%s/%s) status as up to date", resource.Kind, resource.Namespace, resource.Name)
+		klog.V(3).Infof("Ignore update resource(%s/%s/%s) status as up to date", resource.Kind, resource.Namespace, resource.Name)
 		return nil
 	}
 
@@ -202,7 +202,7 @@ func (c *ResourceBindingController) updateResourceStatus(binding *workv1alpha2.R
 		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
 		return err
 	}
-	klog.V(3).Infof("update resource status successfully for resource(%s/%s/%s)", resource.Kind, resource.Namespace, resource.Name)
+	klog.V(3).Infof("Update resource status successfully for resource(%s/%s/%s)", resource.Kind, resource.Namespace, resource.Name)
 	return nil
 }
 

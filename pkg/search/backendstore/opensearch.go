@@ -163,7 +163,7 @@ func (os *OpenSearch) delete(obj interface{}) {
 		klog.Errorf("cannot delete: %v", err)
 		return
 	}
-	klog.V(4).Infof("delete response: %v", resp.String())
+	klog.V(4).Infof("Delete response: %v", resp.String())
 }
 
 // TODO: bulk upsert
@@ -203,13 +203,13 @@ func (os *OpenSearch) upsert(obj interface{}) {
 
 	body, err := json.Marshal(doc)
 	if err != nil {
-		klog.Errorf("cannot marshal to json: %v", err)
+		klog.Errorf("Cannot marshal to json: %v", err)
 		return
 	}
 
 	indexName, err := os.indexName(us)
 	if err != nil {
-		klog.Errorf("cannot get index name: %v", err)
+		klog.Errorf("Cannot get index name: %v", err)
 		return
 	}
 
@@ -220,14 +220,14 @@ func (os *OpenSearch) upsert(obj interface{}) {
 	}
 	resp, err := req.Do(context.Background(), os.client)
 	if err != nil {
-		klog.Errorf("cannot upsert: %v", err)
+		klog.Errorf("Cannot upsert: %v", err)
 		return
 	}
 	if resp.IsError() {
-		klog.Errorf("upsert error: %s", resp.String())
+		klog.Errorf("Upsert error: %s", resp.String())
 		return
 	}
-	klog.V(4).Infof("upsert response: %s", resp.String())
+	klog.V(4).Infof("Upsert response: %s", resp.String())
 }
 
 // TODO: apply mapping
@@ -240,12 +240,12 @@ func (os *OpenSearch) indexName(us *unstructured.Unstructured) (string, error) {
 		return name, nil
 	}
 
-	klog.Infof("try to create index: %s", name)
+	klog.Infof("Try to create index: %s", name)
 	res := opensearchapi.IndicesCreateRequest{Index: name, Body: strings.NewReader(mapping)}
 	resp, err := res.Do(context.Background(), os.client)
 	if err != nil {
 		if strings.Contains(err.Error(), "resource_already_exists_exception") {
-			klog.Info("index already exists")
+			klog.Info("Index already exists")
 			os.indices[name] = struct{}{}
 			return name, nil
 		}
@@ -253,7 +253,7 @@ func (os *OpenSearch) indexName(us *unstructured.Unstructured) (string, error) {
 	}
 	if resp.IsError() {
 		if strings.Contains(resp.String(), "resource_already_exists_exception") {
-			klog.Info("index already exists")
+			klog.Info("Index already exists")
 			os.indices[name] = struct{}{}
 			return name, nil
 		}
@@ -278,13 +278,13 @@ func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 
 	user, pwd := func(secretRef clusterv1alpha1.LocalSecretReference) (user, pwd string) {
 		if secretRef.Namespace == "" || secretRef.Name == "" {
-			klog.Warningf("not found secret for opensearch, try to without auth")
+			klog.Warningf("Not found secret for opensearch, try to without auth")
 			return
 		}
 
 		secret, err := k8sClient.CoreV1().Secrets(secretRef.Namespace).Get(context.TODO(), secretRef.Name, metav1.GetOptions{})
 		if err != nil {
-			klog.Warningf("can not get secret %s/%s: %v, try to without auth", secretRef.Namespace, secretRef.Name, err)
+			klog.Warningf("Can not get secret %s/%s: %v, try to without auth", secretRef.Namespace, secretRef.Name, err)
 			return
 		}
 
@@ -306,7 +306,7 @@ func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 		return fmt.Errorf("cannot get opensearch info: %v", err)
 	}
 
-	klog.V(4).Infof("opensearch client: %v", info)
+	klog.V(4).Infof("Opensearch client: %v", info)
 	os.client = client
 	return nil
 }

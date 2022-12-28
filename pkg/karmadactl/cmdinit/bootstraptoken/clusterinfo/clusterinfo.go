@@ -60,7 +60,7 @@ func CreateBootstrapConfigMapIfNotExists(clientSet *kubernetes.Clientset, file s
 
 // CreateClusterInfoRBACRules creates the RBAC rules for exposing the cluster-info ConfigMap in the kube-public namespace to unauthenticated users
 func CreateClusterInfoRBACRules(clientSet *kubernetes.Clientset) error {
-	klog.V(1).Info("creating the RBAC rules for exposing the cluster-info ConfigMap in the kube-public namespace")
+	klog.V(1).Info("Creating the RBAC rules for exposing the cluster-info ConfigMap in the kube-public namespace")
 	err := cmdutil.CreateOrUpdateRole(clientSet, &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      BootstrapSignerClusterRoleName,

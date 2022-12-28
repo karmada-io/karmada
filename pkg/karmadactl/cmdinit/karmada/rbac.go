@@ -35,7 +35,7 @@ func grantProxyPermissionToAdmin(clientSet kubernetes.Interface) error {
 				Name: clusterProxyAdminUser,
 			}}, nil)
 
-	klog.V(1).Info("grant cluster proxy permission to 'system:admin'")
+	klog.V(1).Info("Grant cluster proxy permission to 'system:admin'")
 	err = cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, proxyAdminClusterRoleBinding)
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func grantAccessPermissionToAgent(clientSet kubernetes.Interface) error {
 				Name: karmadaAgentGroup,
 			}}, nil)
 
-	klog.V(1).Info("grant the limited access permission to 'karmada-agent'")
+	klog.V(1).Info("Grant the limited access permission to 'karmada-agent'")
 	err = cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, clusterRoleBinding)
 	if err != nil {
 		return err

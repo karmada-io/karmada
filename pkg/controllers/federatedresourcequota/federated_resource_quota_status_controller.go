@@ -156,7 +156,7 @@ func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedRes
 			// make a copy, so we don't mutate the shared cache
 			quota = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated  federatedResourceQuota(%s): %v", klog.KObj(quota).String(), err)
+			klog.Errorf("Failed to get updated  federatedResourceQuota(%s): %v", klog.KObj(quota).String(), err)
 		}
 
 		return updateErr
