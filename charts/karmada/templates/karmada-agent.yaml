@@ -57,7 +57,6 @@ stringData:
         name: {{ $name }}-apiserver
     current-context: {{ $name }}-apiserver
 ---
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -72,7 +71,7 @@ spec:
       {{- include "karmada.agent.labels" . | indent 6 }}
   {{- with .Values.agent.strategy }}
   strategy:
-  {{- toYaml . | nindent 8 }}
+  {{- toYaml . | nindent 4 }}
   {{- end }}
   template:
     metadata:
