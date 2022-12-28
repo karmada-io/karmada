@@ -27,7 +27,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "already exist",
+			name: "service account already exist",
 			args: args{
 				client: fake.NewSimpleClientset(makeServiceAccount("test")),
 				sa:     makeServiceAccount("test"),
@@ -36,7 +36,7 @@ func TestCreateServiceAccount(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "create error",
+			name: "service account create error",
 			args: args{
 				client: alwaysErrorKubeClient,
 				sa:     makeServiceAccount("test"),
@@ -45,7 +45,7 @@ func TestCreateServiceAccount(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "create success",
+			name: "service account create success",
 			args: args{
 				client: fake.NewSimpleClientset(),
 				sa:     makeServiceAccount("test"),
@@ -80,7 +80,7 @@ func TestDeleteServiceAccount(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "not found",
+			name: "service account not found",
 			args: args{
 				client:    fake.NewSimpleClientset(),
 				namespace: metav1.NamespaceDefault,
@@ -89,7 +89,7 @@ func TestDeleteServiceAccount(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "error",
+			name: "service account delete failed",
 			args: args{
 				client:    alwaysErrorKubeClient,
 				namespace: metav1.NamespaceDefault,
@@ -98,7 +98,7 @@ func TestDeleteServiceAccount(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "success",
+			name: "service account delete success",
 			args: args{
 				client:    fake.NewSimpleClientset(makeServiceAccount("test")),
 				namespace: metav1.NamespaceDefault,
@@ -139,7 +139,7 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "exist",
+			name: "service account already exist",
 			args: args{
 				client:            fake.NewSimpleClientset(makeServiceAccount("test")),
 				serviceAccountObj: makeServiceAccount("test"),
@@ -149,7 +149,7 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "not exist",
+			name: "service account not exists",
 			args: args{
 				client:            fake.NewSimpleClientset(),
 				serviceAccountObj: makeServiceAccount("test"),
@@ -159,7 +159,21 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "create error",
+			name: "get service account error",
+			args: args{
+				client: func() kubernetes.Interface {
+					c := fake.NewSimpleClientset()
+					c.PrependReactor("get", "*", errorAction)
+					return c
+				}(),
+				serviceAccountObj: makeServiceAccount("test"),
+				dryRun:            false,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "create service account error",
 			args: args{
 				client: func() kubernetes.Interface {
 					c := fake.NewSimpleClientset()
@@ -182,6 +196,63 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("EnsureServiceAccountExist() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsServiceAccountExist(t *testing.T) {
+	type args struct {
+		client    kubernetes.Interface
+		namespace string
+		name      string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "service account not found",
+			args: args{
+				client:    fake.NewSimpleClientset(),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "kube client return error",
+			args: args{
+				client:    alwaysErrorKubeClient,
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "service account already exist",
+			args: args{
+				client:    fake.NewSimpleClientset(makeServiceAccount("test")),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := IsServiceAccountExist(tt.args.client, tt.args.namespace, tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsServiceAccountExist() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("IsServiceAccountExist() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
