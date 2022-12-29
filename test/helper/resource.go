@@ -44,7 +44,7 @@ func NewDeployment(namespace string, name string) *appsv1.Deployment {
 			Name:      name,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32Ptr(3),
+			Replicas: pointer.Int32(3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},
@@ -64,6 +64,50 @@ func NewDeployment(namespace string, name string) *appsv1.Deployment {
 					}},
 				},
 			},
+		},
+	}
+}
+
+// NewDeploymentWithStatus will build a deployment object with status.
+func NewDeploymentWithStatus(namespace string, name string) *appsv1.Deployment {
+	podLabels := map[string]string{"app": "nginx"}
+
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: pointer.Int32(3),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podLabels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "nginx",
+						Image: "nginx:1.19.0",
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU: resource.MustParse("100m"),
+							},
+						},
+					}},
+				},
+			},
+		},
+		Status: appsv1.DeploymentStatus{
+			Replicas:          3,
+			UpdatedReplicas:   3,
+			ReadyReplicas:     3,
+			AvailableReplicas: 3,
 		},
 	}
 }
