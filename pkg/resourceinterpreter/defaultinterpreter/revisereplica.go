@@ -15,11 +15,19 @@ type reviseReplicaInterpreter func(object *unstructured.Unstructured, replica in
 func getAllDefaultReviseReplicaInterpreter() map[schema.GroupVersionKind]reviseReplicaInterpreter {
 	s := make(map[schema.GroupVersionKind]reviseReplicaInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = reviseDeploymentReplica
+	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = reviseStatefulSetReplica
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = reviseJobReplica
 	return s
 }
 
 func reviseDeploymentReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
+	if err := helper.ApplyReplica(object, replica, util.ReplicasField); err != nil {
+		return nil, err
+	}
+	return object, nil
+}
+
+func reviseStatefulSetReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
 	if err := helper.ApplyReplica(object, replica, util.ReplicasField); err != nil {
 		return nil, err
 	}
