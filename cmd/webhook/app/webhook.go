@@ -107,11 +107,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 		HealthProbeBindAddress: opts.HealthProbeBindAddress,
 	})
 	if err != nil {
-		klog.Errorf("failed to build webhook server: %v", err)
+		klog.Errorf("Failed to build webhook server: %v", err)
 		return err
 	}
 
-	klog.Info("registering webhooks to the webhook server")
+	klog.Info("Registering webhooks to the webhook server")
 	hookServer := hookManager.GetWebhookServer()
 	hookServer.Register("/mutate-propagationpolicy", &webhook.Admission{Handler: propagationpolicy.NewMutatingHandler(
 		opts.DefaultNotReadyTolerationSeconds, opts.DefaultUnreachableTolerationSeconds)})

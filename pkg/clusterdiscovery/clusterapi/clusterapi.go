@@ -109,7 +109,7 @@ func (d *ClusterDetector) OnDelete(obj interface{}) {
 func (d *ClusterDetector) Reconcile(key util.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
-		klog.Errorf("invalid key")
+		klog.Errorf("Invalid key")
 		return fmt.Errorf("invalid key")
 	}
 	klog.Infof("Reconciling cluster-api object: %s", clusterWideKey)

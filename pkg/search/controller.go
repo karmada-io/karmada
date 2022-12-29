@@ -190,7 +190,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 
 	// STEP2: added/updated cluster, builds an informer manager for a specific cluster.
 	if !c.InformerManager.IsManagerExist(cluster) {
-		klog.Info("try to build informer manager for cluster ", cluster)
+		klog.Info("Try to build informer manager for cluster ", cluster)
 		controlPlaneClient := gclient.NewForConfigOrDie(c.restConfig)
 
 		clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, controlPlaneClient)
@@ -402,7 +402,7 @@ func (c *Controller) getClusters(affinity policyv1alpha1.ClusterAffinity) []stri
 	clusters := make([]string, 0)
 	lst, err := c.clusterLister.List(labels.Everything())
 	if err != nil {
-		klog.Errorf("failed to list clusters: %v", err)
+		klog.Errorf("Failed to list clusters: %v", err)
 		return clusters
 	}
 	for _, cls := range lst {
@@ -421,7 +421,7 @@ func (c *Controller) getResources(selectors []searchv1alpha1.ResourceSelector) [
 			c.restMapper, schema.FromAPIVersionAndKind(rs.APIVersion, rs.Kind),
 		)
 		if err != nil {
-			klog.Errorf("failed to get gvr: %v", err)
+			klog.Errorf("Failed to get gvr: %v", err)
 			continue
 		}
 		resources = append(resources, gvr)

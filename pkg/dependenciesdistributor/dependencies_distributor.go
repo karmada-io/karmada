@@ -165,7 +165,7 @@ func (d *DependenciesDistributor) OnDelete(obj interface{}) {
 func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
-		klog.Error("invalid key")
+		klog.Error("Invalid key")
 		return fmt.Errorf("invalid key")
 	}
 	klog.V(4).Infof("DependenciesDistributor start to reconcile object: %s", clusterWideKey)
@@ -188,18 +188,18 @@ func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 
 		matched, err := dependentObjectReferenceMatches(clusterWideKey, binding)
 		if err != nil {
-			klog.Errorf("failed to evaluate if binding(%s/%s) need to sync dependencies: %v", binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to evaluate if binding(%s/%s) need to sync dependencies: %v", binding.Namespace, binding.Name, err)
 			errs = append(errs, err)
 			continue
 		} else if !matched {
-			klog.V(4).Infof("no need to sync binding(%s/%s)", binding.Namespace, binding.Name)
+			klog.V(4).Infof("No need to sync binding(%s/%s)", binding.Namespace, binding.Name)
 			continue
 		}
 
-		klog.V(4).Infof("resource binding(%s/%s) is matched for resource(%s/%s)", binding.Namespace, binding.Name, clusterWideKey.Namespace, clusterWideKey.Name)
+		klog.V(4).Infof("Resource binding(%s/%s) is matched for resource(%s/%s)", binding.Namespace, binding.Name, clusterWideKey.Namespace, clusterWideKey.Name)
 		bindingKey, err := detector.ClusterWideKeyFunc(binding)
 		if err != nil {
-			klog.Errorf("failed to generate cluster wide key for binding %s/%s: %v", binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to generate cluster wide key for binding %s/%s: %v", binding.Namespace, binding.Name, err)
 			errs = append(errs, err)
 			continue
 		}
@@ -243,13 +243,13 @@ func dependentObjectReferenceMatches(objectKey keys.ClusterWideKey, referenceBin
 func (d *DependenciesDistributor) OnResourceBindingUpdate(oldObj, newObj interface{}) {
 	oldBindingObject := &workv1alpha2.ResourceBinding{}
 	if err := helper.ConvertToTypedObject(oldObj, oldBindingObject); err != nil {
-		klog.Warningf("convert to resource binding failed: %v", err)
+		klog.Warningf("Convert to resource binding failed: %v", err)
 		return
 	}
 
 	newBindingObject := &workv1alpha2.ResourceBinding{}
 	if err := helper.ConvertToTypedObject(newObj, newBindingObject); err != nil {
-		klog.Warningf("convert to resource binding failed: %v", err)
+		klog.Warningf("Convert to resource binding failed: %v", err)
 		return
 	}
 
@@ -280,7 +280,7 @@ func (d *DependenciesDistributor) OnResourceBindingUpdate(oldObj, newObj interfa
 func (d *DependenciesDistributor) OnResourceBindingDelete(obj interface{}) {
 	bindingObject := &workv1alpha2.ResourceBinding{}
 	if err := helper.ConvertToTypedObject(obj, bindingObject); err != nil {
-		klog.Warningf("convert to resource binding failed: %v", err)
+		klog.Warningf("Convert to resource binding failed: %v", err)
 		return
 	}
 
@@ -416,7 +416,7 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 func (d *DependenciesDistributor) recordDependenciesForIndependentBinding(binding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) error {
 	dependenciesBytes, err := json.Marshal(dependencies)
 	if err != nil {
-		klog.Errorf("failed to marshal dependencies of binding(%s/%s): %v", binding.Namespace, binding.Name, err)
+		klog.Errorf("Failed to marshal dependencies of binding(%s/%s): %v", binding.Namespace, binding.Name, err)
 		return err
 	}
 
@@ -444,7 +444,7 @@ func (d *DependenciesDistributor) recordDependenciesForIndependentBinding(bindin
 			//make a copy, so we don't mutate the shared cache
 			binding = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
 		}
 		return updateErr
 	})
@@ -572,14 +572,14 @@ func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstruc
 func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding *workv1alpha2.ResourceBinding) error {
 	if err := d.Client.Create(context.TODO(), attachedBinding); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			klog.Infof("failed to create resource binding(%s/%s): %v", attachedBinding.Namespace, attachedBinding.Name, err)
+			klog.Infof("Failed to create resource binding(%s/%s): %v", attachedBinding.Namespace, attachedBinding.Name, err)
 			return err
 		}
 
 		existBinding := &workv1alpha2.ResourceBinding{}
 		key := client.ObjectKeyFromObject(attachedBinding)
 		if err := d.Client.Get(context.TODO(), key, existBinding); err != nil {
-			klog.Infof("failed to get resource binding(%s/%s): %v", attachedBinding.Namespace, attachedBinding.Name, err)
+			klog.Infof("Failed to get resource binding(%s/%s): %v", attachedBinding.Namespace, attachedBinding.Name, err)
 			return err
 		}
 
@@ -589,7 +589,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 		existBinding.Spec.Resource = attachedBinding.Spec.Resource
 
 		if err := d.Client.Update(context.TODO(), existBinding); err != nil {
-			klog.Errorf("failed to update resource binding(%s/%s): %v", existBinding.Namespace, existBinding.Name, err)
+			klog.Errorf("Failed to update resource binding(%s/%s): %v", existBinding.Namespace, existBinding.Name, err)
 			return err
 		}
 	}

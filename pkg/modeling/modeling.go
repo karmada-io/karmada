@@ -260,7 +260,7 @@ func (rs *ResourceSummary) GetNodeNumFromModel(model *resourceModels) int {
 	} else if model.linkedlist == nil && model.redblackTree == nil {
 		return 0
 	} else if model.linkedlist != nil && model.redblackTree != nil {
-		klog.Info("getNodeNum: unknow error")
+		klog.Info("GetNodeNum: unknow error")
 	}
 	return 0
 }

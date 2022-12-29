@@ -16,7 +16,7 @@ func SelectBestClusters(placement *policyv1alpha1.Placement, groupClustersInfo *
 		for _, cluster := range groupClustersInfo.Clusters {
 			clusters = append(clusters, cluster.Cluster)
 		}
-		klog.V(4).Infof("select all clusters")
+		klog.V(4).Infof("Select all clusters")
 		return clusters, nil
 	}
 

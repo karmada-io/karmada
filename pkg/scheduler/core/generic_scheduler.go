@@ -70,19 +70,19 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 			Diagnosis:      diagnosis,
 		}
 	}
-	klog.V(4).Infof("feasible clusters found: %v", feasibleClusters)
+	klog.V(4).Infof("Feasible clusters found: %v", feasibleClusters)
 
 	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, spec, feasibleClusters)
 	if err != nil {
 		return result, fmt.Errorf("failed to prioritizeClusters: %v", err)
 	}
-	klog.V(4).Infof("feasible clusters scores: %v", clustersScore)
+	klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
 
 	clusters, err := g.selectClusters(clustersScore, placement, spec)
 	if err != nil {
 		return result, fmt.Errorf("failed to select clusters: %v", err)
 	}
-	klog.V(4).Infof("selected clusters: %v", clusters)
+	klog.V(4).Infof("Selected clusters: %v", clusters)
 
 	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
 	if err != nil {
@@ -116,7 +116,7 @@ func (g *genericScheduler) findClustersThatFit(
 	clusters := clusterInfo.GetClusters()
 	for _, c := range clusters {
 		if result := fwk.RunFilterPlugins(ctx, placement, bindingSpec, c.Cluster()); !result.IsSuccess() {
-			klog.V(4).Infof("cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
+			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
 			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
 		} else {
 			out = append(out, c.Cluster())

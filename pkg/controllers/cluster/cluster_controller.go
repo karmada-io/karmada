@@ -329,7 +329,7 @@ func (c *Controller) ExecutionSpaceExistForCluster(clusterName string) (bool, er
 	executionSpaceObj := &corev1.Namespace{}
 	err = c.Client.Get(context.TODO(), types.NamespacedName{Name: executionSpaceName}, executionSpaceObj)
 	if apierrors.IsNotFound(err) {
-		klog.V(2).Infof("execution space(%s) no longer exists", executionSpaceName)
+		klog.V(2).Infof("Execution space(%s) no longer exists", executionSpaceName)
 		return false, nil
 	}
 	if err != nil {
@@ -548,7 +548,7 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 					LastTransitionTime: nowTimestamp,
 				})
 			} else {
-				klog.V(2).Infof("cluster %v hasn't been updated for %+v. Last %v is: %+v",
+				klog.V(2).Infof("Cluster %v hasn't been updated for %+v. Last %v is: %+v",
 					cluster.Name, metav1.Now().Time.Sub(clusterHealth.probeTimestamp.Time), clusterConditionType, currentCondition)
 				if currentCondition.Status != metav1.ConditionUnknown {
 					currentCondition.Status = metav1.ConditionUnknown

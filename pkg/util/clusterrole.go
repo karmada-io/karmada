@@ -20,7 +20,7 @@ func EnsureClusterRoleExist(client kubeclient.Interface, clusterRole *rbacv1.Clu
 		return nil, fmt.Errorf("failed to check if ClusterRole exist. ClusterRole: %s, error: %v", clusterRole.Name, err)
 	}
 	if exist {
-		klog.V(1).Infof("ensure ClusterRole succeed as already exist. ClusterRole: %s", clusterRole.Name)
+		klog.V(1).Infof("Ensure ClusterRole succeed as already exist. ClusterRole: %s", clusterRole.Name)
 		return clusterRole, nil
 	}
 
@@ -44,7 +44,7 @@ func EnsureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 		return nil, fmt.Errorf("failed to check if ClusterRole exist. ClusterRole: %s, error: %v", clusterRoleBinding.Name, err)
 	}
 	if exist {
-		klog.V(1).Infof("ensure ClusterRole succeed as already exist. ClusterRole: %s", clusterRoleBinding.Name)
+		klog.V(1).Infof("Ensure ClusterRole succeed as already exist. ClusterRole: %s", clusterRoleBinding.Name)
 		return clusterRoleBinding, nil
 	}
 

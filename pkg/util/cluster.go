@@ -95,7 +95,7 @@ func CreateClusterObject(controlPlaneClient karmadaclientset.Interface, clusterO
 	}
 
 	if cluster, err = createCluster(controlPlaneClient, clusterObj); err != nil {
-		klog.Warningf("failed to create cluster(%s). error: %v", clusterObj.Name, err)
+		klog.Warningf("Failed to create cluster(%s). error: %v", clusterObj.Name, err)
 		return nil, err
 	}
 
@@ -111,13 +111,13 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 	}
 	if exist {
 		if reflect.DeepEqual(cluster.Spec, clusterObj.Spec) {
-			klog.Warningf("cluster(%s) already exist and newest", clusterObj.Name)
+			klog.Warningf("Cluster(%s) already exist and newest", clusterObj.Name)
 			return cluster, nil
 		}
 		mutate(cluster)
 		cluster, err = updateCluster(controlPlaneClient, cluster)
 		if err != nil {
-			klog.Warningf("failed to create cluster(%s). error: %v", clusterObj.Name, err)
+			klog.Warningf("Failed to create cluster(%s). error: %v", clusterObj.Name, err)
 			return nil, err
 		}
 		return cluster, nil
@@ -126,7 +126,7 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 	mutate(clusterObj)
 
 	if cluster, err = createCluster(controlPlaneClient, clusterObj); err != nil {
-		klog.Warningf("failed to create cluster(%s). error: %v", clusterObj.Name, err)
+		klog.Warningf("Failed to create cluster(%s). error: %v", clusterObj.Name, err)
 		return nil, err
 	}
 	return cluster, nil
@@ -140,7 +140,7 @@ func GetClusterWithKarmadaClient(client karmadaclientset.Interface, name string)
 			return nil, false, nil
 		}
 
-		klog.Warningf("failed to retrieve cluster(%s). error: %v", name, err)
+		klog.Warningf("Failed to retrieve cluster(%s). error: %v", name, err)
 		return nil, false, err
 	}
 
@@ -150,7 +150,7 @@ func GetClusterWithKarmadaClient(client karmadaclientset.Interface, name string)
 func createCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
 	newCluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
-		klog.Warningf("failed to create cluster(%s). error: %v", cluster.Name, err)
+		klog.Warningf("Failed to create cluster(%s). error: %v", cluster.Name, err)
 		return nil, err
 	}
 
@@ -160,7 +160,7 @@ func createCluster(controlPlaneClient karmadaclientset.Interface, cluster *clust
 func updateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
 	newCluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Warningf("failed to update cluster(%s). error: %v", cluster.Name, err)
+		klog.Warningf("Failed to update cluster(%s). error: %v", cluster.Name, err)
 		return nil, err
 	}
 

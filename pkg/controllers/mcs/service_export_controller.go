@@ -113,7 +113,7 @@ func isWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifests[index].Raw)
 		if err != nil {
-			klog.Errorf("failed to unmarshal work manifests index %d, error is: %v", index, err)
+			klog.Errorf("Failed to unmarshal work manifests index %d, error is: %v", index, err)
 			continue
 		}
 

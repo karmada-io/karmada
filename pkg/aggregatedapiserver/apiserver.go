@@ -99,7 +99,7 @@ func (c completedConfig) New(kubeClient kubernetes.Interface) (*APIServer, error
 
 	clusterStorage, err := clusterstorage.NewStorage(Scheme, kubeClient, c.GenericConfig.RESTOptionsGetter)
 	if err != nil {
-		klog.Errorf("unable to create REST storage for a resource due to %v, will die", err)
+		klog.Errorf("Unable to create REST storage for a resource due to %v, will die", err)
 		return nil, err
 	}
 	v1alpha1cluster := map[string]rest.Storage{}

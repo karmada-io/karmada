@@ -207,7 +207,7 @@ func (d *ResourceDetector) NeedLeaderElection() bool {
 func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
-		klog.Error("invalid key")
+		klog.Error("Invalid key")
 		return fmt.Errorf("invalid key")
 	}
 	klog.Infof("Reconciling object: %s", clusterWideKey)
@@ -318,14 +318,14 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 		return nil, nil
 	}
 
-	klog.V(2).Infof("attempts to match policy for resource(%s)", objectKey)
+	klog.V(2).Infof("Attempts to match policy for resource(%s)", objectKey)
 	policyObjects, err := d.propagationPolicyLister.ByNamespace(objectKey.Namespace).List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Failed to list propagation policy: %v", err)
 		return nil, err
 	}
 	if len(policyObjects) == 0 {
-		klog.V(2).Infof("no propagationpolicy find in namespace(%s).", objectKey.Namespace)
+		klog.V(2).Infof("No propagationpolicy find in namespace(%s).", objectKey.Namespace)
 		return nil, nil
 	}
 
@@ -344,14 +344,14 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 
 // LookForMatchedClusterPolicy tries to find a ClusterPropagationPolicy for object referenced by object key.
 func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) (*policyv1alpha1.ClusterPropagationPolicy, error) {
-	klog.V(2).Infof("attempts to match cluster policy for resource(%s)", objectKey)
+	klog.V(2).Infof("Attempts to match cluster policy for resource(%s)", objectKey)
 	policyObjects, err := d.clusterPropagationPolicyLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Failed to list cluster propagation policy: %v", err)
 		return nil, err
 	}
 	if len(policyObjects) == 0 {
-		klog.V(2).Infof("no clusterpropagationpolicy find.")
+		klog.V(2).Infof("No clusterpropagationpolicy find.")
 		return nil, nil
 	}
 
@@ -1079,7 +1079,7 @@ func (d *ResourceDetector) CleanupResourceBindingLabels(rb *workv1alpha2.Resourc
 			//make a copy, so we don't mutate the shared cache
 			rb = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated resource binding %s/%s: %v", rb.GetNamespace(), rb.GetName(), err)
+			klog.Errorf("Failed to get updated resource binding %s/%s: %v", rb.GetNamespace(), rb.GetName(), err)
 		}
 		return updateErr
 	})
@@ -1104,7 +1104,7 @@ func (d *ResourceDetector) CleanupClusterResourceBindingLabels(crb *workv1alpha2
 			//make a copy, so we don't mutate the shared cache
 			crb = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated cluster resource binding %s: %v", crb.GetName(), err)
+			klog.Errorf("Failed to get updated cluster resource binding %s: %v", crb.GetName(), err)
 		}
 		return updateErr
 	})

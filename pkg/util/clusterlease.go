@@ -28,7 +28,7 @@ func SetLeaseOwnerFunc(c client.Client, clusterName string) func(lease *coordina
 					},
 				}
 			} else {
-				klog.Errorf("failed to get cluster %q when trying to set owner ref to the cluster lease: %v", clusterName, err)
+				klog.Errorf("Failed to get cluster %q when trying to set owner ref to the cluster lease: %v", clusterName, err)
 				return err
 			}
 		}

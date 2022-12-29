@@ -123,13 +123,13 @@ func (c *Controller) syncImpersonationConfig(cluster *clusterv1alpha1.Cluster) e
 
 	// step5: sync clusterrole to cluster for impersonation
 	if err := c.buildImpersonationClusterRole(cluster, rules); err != nil {
-		klog.Errorf("failed to sync impersonate clusterrole to cluster(%s): %v", cluster.Name, err)
+		klog.Errorf("Failed to sync impersonate clusterrole to cluster(%s): %v", cluster.Name, err)
 		return err
 	}
 
 	// step6: sync clusterrolebinding to cluster for impersonation
 	if err := c.buildImpersonationClusterRoleBinding(cluster); err != nil {
-		klog.Errorf("failed to sync impersonate clusterrolebinding to cluster(%s): %v", cluster.Name, err)
+		klog.Errorf("Failed to sync impersonate clusterrolebinding to cluster(%s): %v", cluster.Name, err)
 		return err
 	}
 

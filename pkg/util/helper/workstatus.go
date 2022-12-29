@@ -72,7 +72,7 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 			// make a copy, so we don't mutate the shared cache
 			binding = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
 		}
 
 		return updateErr
@@ -123,7 +123,7 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 			// make a copy, so we don't mutate the shared cache
 			binding = updated.DeepCopy()
 		} else {
-			klog.Errorf("failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
+			klog.Errorf("Failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
 		}
 
 		return updateErr

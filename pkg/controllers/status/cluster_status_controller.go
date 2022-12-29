@@ -133,7 +133,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 	// start syncing status only when the finalizer is present on the given Cluster to
 	// avoid conflict with cluster controller.
 	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
-		klog.V(2).Infof("waiting finalizer present for member cluster: %s", cluster.Name)
+		klog.V(2).Infof("Waiting finalizer present for member cluster: %s", cluster.Name)
 		return controllerruntime.Result{Requeue: true}, nil
 	}
 
@@ -275,7 +275,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 				// make a copy, so we don't mutate the shared cache
 				cluster = updated.DeepCopy()
 			} else {
-				klog.Errorf("failed to get updated cluster %s: %v", cluster.Name, err)
+				klog.Errorf("Failed to get updated cluster %s: %v", cluster.Name, err)
 			}
 			return updateErr
 		})

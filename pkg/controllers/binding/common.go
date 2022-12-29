@@ -97,7 +97,7 @@ func ensureWork(
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
 				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name])
 				if err != nil {
-					klog.Errorf("failed to revise replica for %s/%s/%s in cluster %s, err is: %v",
+					klog.Errorf("Failed to revise replica for %s/%s/%s in cluster %s, err is: %v",
 						workload.GetKind(), workload.GetNamespace(), workload.GetName(), targetCluster.Name, err)
 					return err
 				}
@@ -109,7 +109,7 @@ func ensureWork(
 			// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
 			if len(jobCompletions) > 0 {
 				if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
-					klog.Errorf("failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
+					klog.Errorf("Failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
 						clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
 					return err
 				}
@@ -127,7 +127,7 @@ func ensureWork(
 		annotations := mergeAnnotations(clonedWorkload, binding, scope)
 		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
-			klog.Errorf("failed to record appliedOverrides, Error: %v", err)
+			klog.Errorf("Failed to record appliedOverrides, Error: %v", err)
 			return err
 		}
 

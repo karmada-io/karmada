@@ -81,12 +81,12 @@ func Run(ctx context.Context, o *options.Options) error {
 
 	manager, err := createControllerManager(ctx, o)
 	if err != nil {
-		klog.Errorf("failed to build controller manager: %v", err)
+		klog.Errorf("Failed to build controller manager: %v", err)
 		return err
 	}
 
 	if err := manager.AddHealthzCheck("ping", healthz.Ping); err != nil {
-		klog.Errorf("failed to add health check endpoint: %v", err)
+		klog.Errorf("Failed to add health check endpoint: %v", err)
 		return err
 	}
 
@@ -95,7 +95,7 @@ func Run(ctx context.Context, o *options.Options) error {
 		Manager:     manager,
 	}
 	if err := controllers.StartControllers(controllerCtx, controllersDisabledByDefault); err != nil {
-		klog.Errorf("failed to start controllers: %v", err)
+		klog.Errorf("Failed to start controllers: %v", err)
 		return err
 	}
 

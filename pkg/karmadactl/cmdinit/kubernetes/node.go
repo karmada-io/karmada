@@ -39,7 +39,7 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 	}
 
 	if len(masterNodes.Items) == 0 {
-		klog.Warning("the kubernetes cluster does not have a Master role.")
+		klog.Warning("The kubernetes cluster does not have a Master role.")
 	} else {
 		for _, v := range masterNodes.Items {
 			i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(v.Status.Addresses[0].Address))
@@ -47,7 +47,7 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 		return nil
 	}
 
-	klog.Info("randomly select 3 Node IPs in the kubernetes cluster.")
+	klog.Info("Randomly select 3 Node IPs in the kubernetes cluster.")
 	nodes, err := nodeClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err

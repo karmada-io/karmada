@@ -72,7 +72,7 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 		oldStatus.UpdatedReplicas == newStatus.UpdatedReplicas &&
 		oldStatus.AvailableReplicas == newStatus.AvailableReplicas &&
 		oldStatus.UnavailableReplicas == newStatus.UnavailableReplicas {
-		klog.V(3).Infof("ignore update deployment(%s/%s) status as up to date", deploy.Namespace, deploy.Name)
+		klog.V(3).Infof("Ignore update deployment(%s/%s) status as up to date", deploy.Namespace, deploy.Name)
 		return object, nil
 	}
 
@@ -122,7 +122,7 @@ func aggregateServiceStatus(object *unstructured.Unstructured, aggregatedStatusI
 	}
 
 	if reflect.DeepEqual(service.Status, *newStatus) {
-		klog.V(3).Infof("ignore update service(%s/%s) status as up to date", service.Namespace, service.Name)
+		klog.V(3).Infof("Ignore update service(%s/%s) status as up to date", service.Namespace, service.Name)
 		return object, nil
 	}
 
@@ -161,7 +161,7 @@ func aggregateIngressStatus(object *unstructured.Unstructured, aggregatedStatusI
 	}
 
 	if reflect.DeepEqual(ingress.Status, *newStatus) {
-		klog.V(3).Infof("ignore update ingress(%s/%s) status as up to date", ingress.Namespace, ingress.Name)
+		klog.V(3).Infof("Ignore update ingress(%s/%s) status as up to date", ingress.Namespace, ingress.Name)
 		return object, nil
 	}
 
@@ -187,7 +187,7 @@ func aggregateJobStatus(object *unstructured.Unstructured, aggregatedStatusItems
 	}
 
 	if reflect.DeepEqual(job.Status, *newStatus) {
-		klog.V(3).Infof("ignore update job(%s/%s) status as up to date", job.Namespace, job.Name)
+		klog.V(3).Infof("Ignore update job(%s/%s) status as up to date", job.Namespace, job.Name)
 		return object, nil
 	}
 
@@ -237,7 +237,7 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 		oldStatus.NumberReady == newStatus.NumberReady &&
 		oldStatus.UpdatedNumberScheduled == newStatus.UpdatedNumberScheduled &&
 		oldStatus.NumberUnavailable == newStatus.NumberUnavailable {
-		klog.V(3).Infof("ignore update daemonSet(%s/%s) status as up to date", daemonSet.Namespace, daemonSet.Name)
+		klog.V(3).Infof("Ignore update daemonSet(%s/%s) status as up to date", daemonSet.Namespace, daemonSet.Name)
 		return object, nil
 	}
 
@@ -290,7 +290,7 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
 		oldStatus.Replicas == newStatus.Replicas &&
 		oldStatus.UpdatedReplicas == newStatus.UpdatedReplicas {
-		klog.V(3).Infof("ignore update statefulSet(%s/%s) status as up to date", statefulSet.Namespace, statefulSet.Name)
+		klog.V(3).Infof("Ignore update statefulSet(%s/%s) status as up to date", statefulSet.Namespace, statefulSet.Name)
 		return object, nil
 	}
 
@@ -357,7 +357,7 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 	}
 
 	if reflect.DeepEqual(pod.Status, *newStatus) {
-		klog.V(3).Infof("ignore update pod(%s/%s) status as up to date", pod.Namespace, pod.Name)
+		klog.V(3).Infof("Ignore update pod(%s/%s) status as up to date", pod.Namespace, pod.Name)
 		return object, nil
 	}
 
@@ -410,7 +410,7 @@ func aggregatePersistentVolumeStatus(object *unstructured.Unstructured, aggregat
 	}
 
 	if reflect.DeepEqual(pv.Status, *newStatus) {
-		klog.V(3).Infof("ignore update persistentVolume(%s/%s) status as up to date", pv.Namespace, pv.Name)
+		klog.V(3).Infof("Ignore update persistentVolume(%s/%s) status as up to date", pv.Namespace, pv.Name)
 		return object, nil
 	}
 
@@ -448,7 +448,7 @@ func aggregatePersistentVolumeClaimStatus(object *unstructured.Unstructured, agg
 	}
 
 	if reflect.DeepEqual(pvc.Status, *newStatus) {
-		klog.V(3).Infof("ignore update pvc(%s/%s) status as up to date", pvc.Namespace, pvc.Name)
+		klog.V(3).Infof("Ignore update pvc(%s/%s) status as up to date", pvc.Namespace, pvc.Name)
 		return object, nil
 	}
 
