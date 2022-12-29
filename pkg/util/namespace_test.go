@@ -14,6 +14,70 @@ import (
 	coretesting "k8s.io/client-go/testing"
 )
 
+func TestIsNamespaceExist(t *testing.T) {
+	type args struct {
+		client    *fake.Clientset
+		namespace string
+		reactor   coretesting.ReactionFunc
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "query namespace error",
+			args: args{
+				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
+				namespace: metav1.NamespaceDefault,
+				reactor: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &corev1.Namespace{}, errors.New("failed to get namespace")
+				},
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "namespace not exists",
+			args: args{
+				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default-1"}}),
+				namespace: metav1.NamespaceDefault,
+				reactor:   nil,
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "namespace already exists",
+			args: args{
+				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
+				namespace: metav1.NamespaceDefault,
+				reactor:   nil,
+			},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.args.reactor != nil {
+				tt.args.client.PrependReactor("get", "namespaces", tt.args.reactor)
+			}
+
+			got, err := IsNamespaceExist(tt.args.client, tt.args.namespace)
+			if (err == nil && tt.wantErr == true) || (err != nil && tt.wantErr == false) {
+				t.Errorf("IsNamespaceExist() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("IsNamespaceExist() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCreateNamespace(t *testing.T) {
 	type args struct {
 		client       *fake.Clientset
@@ -135,6 +199,7 @@ func TestEnsureNamespaceExist(t *testing.T) {
 		client        *fake.Clientset
 		namespace     string
 		dryRun        bool
+		reactorGet    coretesting.ReactionFunc
 		reactorCreate coretesting.ReactionFunc
 	}
 	tests := []struct {
@@ -163,10 +228,21 @@ func TestEnsureNamespaceExist(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "check namespace exists error",
+			args: args{
+				client:    fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}),
+				namespace: metav1.NamespaceDefault,
+				reactorGet: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
+					return true, nil, errors.New("failed to get namespace")
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "create namespace error",
 			args: args{
 				client:    fake.NewSimpleClientset(),
-				namespace: "default",
+				namespace: metav1.NamespaceDefault,
 				reactorCreate: func(action coretesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, errors.New("failed to create namespace")
 				},
@@ -176,6 +252,10 @@ func TestEnsureNamespaceExist(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.args.reactorGet != nil {
+				tt.args.client.PrependReactor("get", "namespaces", tt.args.reactorGet)
+			}
+
 			if tt.args.reactorCreate != nil {
 				tt.args.client.PrependReactor("create", "namespaces", tt.args.reactorCreate)
 			}
