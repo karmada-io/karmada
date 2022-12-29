@@ -414,7 +414,7 @@ func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.F
 			util.ServiceNameLabel:      serviceExportKey.Name,
 		}),
 	}); err != nil {
-		klog.Error("Failed to list workList reported by ServiceExport(%s) in namespace(%s), Error: %v",
+		klog.Errorf("Failed to list workList reported by ServiceExport(%s) in executionSpace(%s), Error: %v",
 			serviceExportKey.NamespaceKey(), executionSpace, err)
 		return err
 	}
@@ -442,7 +442,7 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 			return nil
 		}
 
-		klog.Error("Failed to get work(%s), Error: %v", workNamespaceKey, executionSpace, err)
+		klog.Errorf("Failed to get work(%s) in executionSpace(%s), Error: %v", workNamespaceKey.String(), executionSpace, err)
 		return err
 	}
 
