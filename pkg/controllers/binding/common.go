@@ -87,11 +87,7 @@ func ensureWork(
 		targetCluster := targetClusters[i]
 		clonedWorkload := workload.DeepCopy()
 
-		workNamespace, err := names.GenerateExecutionSpaceName(targetCluster.Name)
-		if err != nil {
-			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", targetCluster.Name, err)
-			return err
-		}
+		workNamespace := names.GenerateExecutionSpaceName(targetCluster.Name)
 
 		if hasScheduledReplica {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {

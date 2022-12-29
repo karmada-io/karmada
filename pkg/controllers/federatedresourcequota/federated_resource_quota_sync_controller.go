@@ -144,12 +144,7 @@ func (c *SyncController) cleanUpWorks(namespace, name string) error {
 func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota, clusters []clusterv1alpha1.Cluster) error {
 	var errs []error
 	for _, cluster := range clusters {
-		workNamespace, err := names.GenerateExecutionSpaceName(cluster.Name)
-		if err != nil {
-			klog.Errorf("Failed to generate execution space name for cluster(%s), error: %v", cluster.Name, err)
-			errs = append(errs, err)
-			continue
-		}
+		workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
 		workName := names.GenerateWorkName("ResourceQuota", quota.Name, quota.Namespace)
 
 		resourceQuota := &corev1.ResourceQuota{}

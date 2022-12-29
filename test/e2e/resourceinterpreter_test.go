@@ -202,8 +202,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				framework.UpdateWorkload(clusterDynamicClient, memberWorkload, cluster, "status")
 
 				workName := names.GenerateWorkName(workload.Kind, workload.Name, workload.Namespace)
-				workNamespace, err := names.GenerateExecutionSpaceName(cluster)
-				gomega.Expect(err).Should(gomega.BeNil())
+				workNamespace := names.GenerateExecutionSpaceName(cluster)
 
 				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					work, err := karmadaClient.WorkV1alpha1().Works(workNamespace).Get(context.TODO(), workName, metav1.GetOptions{})

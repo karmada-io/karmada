@@ -383,10 +383,7 @@ func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUp
 
 // reportEndpointSlice report EndPointSlice objects to control-plane.
 func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructured, clusterName string) error {
-	executionSpace, err := names.GenerateExecutionSpaceName(clusterName)
-	if err != nil {
-		return err
-	}
+	executionSpace := names.GenerateExecutionSpaceName(clusterName)
 
 	workMeta := metav1.ObjectMeta{
 		Name:      names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace()),
@@ -399,7 +396,7 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 		},
 	}
 
-	if err = helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
+	if err := helper.CreateOrUpdateWork(c, workMeta, endpointSlice); err != nil {
 		return err
 	}
 
@@ -407,13 +404,10 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 }
 
 func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.FederatedKey) error {
-	executionSpace, err := names.GenerateExecutionSpaceName(serviceExportKey.Cluster)
-	if err != nil {
-		return err
-	}
+	executionSpace := names.GenerateExecutionSpaceName(serviceExportKey.Cluster)
 
 	workList := &workv1alpha1.WorkList{}
-	if err = c.List(context.TODO(), workList, &client.ListOptions{
+	if err := c.List(context.TODO(), workList, &client.ListOptions{
 		Namespace: executionSpace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			util.ServiceNamespaceLabel: serviceExportKey.Namespace,
@@ -427,7 +421,7 @@ func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.F
 
 	var errs []error
 	for index, work := range workList.Items {
-		if err = c.Delete(context.TODO(), &workList.Items[index]); err != nil {
+		if err := c.Delete(context.TODO(), &workList.Items[index]); err != nil {
 			klog.Errorf("Failed to delete work(%s/%s), Error: %v", work.Namespace, work.Name, err)
 			errs = append(errs, err)
 		}
@@ -436,17 +430,14 @@ func cleanupWorkWithServiceExportDelete(c client.Client, serviceExportKey keys.F
 }
 
 func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.FederatedKey) error {
-	executionSpace, err := names.GenerateExecutionSpaceName(endpointSliceKey.Cluster)
-	if err != nil {
-		return err
-	}
+	executionSpace := names.GenerateExecutionSpaceName(endpointSliceKey.Cluster)
 
 	workNamespaceKey := types.NamespacedName{
 		Namespace: executionSpace,
 		Name:      names.GenerateWorkName(endpointSliceKey.Kind, endpointSliceKey.Name, endpointSliceKey.Namespace),
 	}
 	work := &workv1alpha1.Work{}
-	if err = c.Get(context.TODO(), workNamespaceKey, work); err != nil {
+	if err := c.Get(context.TODO(), workNamespaceKey, work); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
@@ -455,7 +446,7 @@ func cleanupWorkWithEndpointSliceDelete(c client.Client, endpointSliceKey keys.F
 		return err
 	}
 
-	if err = c.Delete(context.TODO(), work); err != nil {
+	if err := c.Delete(context.TODO(), work); err != nil {
 		klog.Errorf("Failed to delete work(%s), Error: %v", workNamespaceKey, err)
 		return err
 	}

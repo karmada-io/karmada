@@ -219,7 +219,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 
 	if len(errs) > 0 {
 		total := len(work.Spec.Workload.Manifests)
-		message := fmt.Sprintf("Failed to apply all manifests (%v/%v): %v", syncSucceedNum, total, errors.NewAggregate(errs).Error())
+		message := fmt.Sprintf("Failed to apply all manifests (%d/%d): %s", syncSucceedNum, total, errors.NewAggregate(errs).Error())
 		err := c.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message)
 		if err != nil {
 			klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)

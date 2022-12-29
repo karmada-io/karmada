@@ -242,7 +242,7 @@ var _ = ginkgo.Describe("Karmadactl promote testing", func() {
 			serviceName = serviceNamePrefix + rand.String(RandomStrLength)
 			service = helper.NewService(serviceNamespace, serviceName, corev1.ServiceTypeNodePort)
 			workName = names.GenerateWorkName(util.ServiceKind, serviceName, serviceNamespace)
-			esName, _ = names.GenerateExecutionSpaceName(member1)
+			esName = names.GenerateExecutionSpaceName(member1)
 		})
 
 		ginkgo.AfterEach(func() {

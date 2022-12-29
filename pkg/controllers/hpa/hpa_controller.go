@@ -87,11 +87,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 		return nil
 	}
 	for _, clusterName := range clusters {
-		workNamespace, err := names.GenerateExecutionSpaceName(clusterName)
-		if err != nil {
-			klog.Errorf("Failed to ensure Work for cluster: %s. Error: %v.", clusterName, err)
-			return err
-		}
+		workNamespace := names.GenerateExecutionSpaceName(clusterName)
 		workName := names.GenerateWorkName(hpaObj.GetKind(), hpaObj.GetName(), hpa.GetNamespace())
 		objectMeta := metav1.ObjectMeta{
 			Name:       workName,
