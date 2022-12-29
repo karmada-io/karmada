@@ -419,7 +419,7 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 				}, pollTimeout, pollInterval).Should(gomega.Equal(1))
 			})
 
-			klog.Infof(fmt.Sprintf("Update Deployment's replicas in %s cluster", serviceExportClusterName))
+			klog.Infof("Update Deployment's replicas in %s cluster", serviceExportClusterName)
 			framework.UpdateDeploymentReplicas(exportClusterClient, &demoDeployment, 2)
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlice update in %s cluster", serviceImportClusterName), func() {
