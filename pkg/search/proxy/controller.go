@@ -182,6 +182,12 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 			if !util.ClusterMatches(cluster, registry.Spec.TargetCluster) {
 				continue
 			}
+
+			if !util.IsClusterReady(&cluster.Status) {
+				klog.Warningf("cluster %s is notReady", cluster.Name)
+				continue
+			}
+
 			if _, exist := resourcesByClusters[cluster.Name]; !exist {
 				resourcesByClusters[cluster.Name] = make(map[schema.GroupVersionResource]struct{})
 			}
