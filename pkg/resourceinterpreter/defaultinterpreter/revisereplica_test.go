@@ -63,8 +63,10 @@ func TestReviseDeploymentReplica(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res, err := reviseDeploymentReplica(tt.object, tt.replica)
 			if err == nil && tt.expectError == true {
 				t.Fatal("expect an error but got none")
@@ -137,8 +139,10 @@ func TestReviseJobReplica(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res, err := reviseJobReplica(tt.object, tt.replica)
 			if err == nil && tt.expectError == true {
 				t.Fatal("expect an error but got none")
