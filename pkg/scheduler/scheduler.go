@@ -511,6 +511,9 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 	if err != nil {
 		return fmt.Errorf("failed to create a merge patch: %v", err)
 	}
+	if "{}" == string(patchBytes) {
+		return nil
+	}
 
 	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(newBinding.Namespace).Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	return err
@@ -564,6 +567,9 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
 	if err != nil {
 		return fmt.Errorf("failed to create a merge patch: %v", err)
+	}
+	if "{}" == string(patchBytes) {
+		return nil
 	}
 
 	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
