@@ -16,7 +16,8 @@ TARGETS := karmada-aggregated-apiserver \
 			karmada-agent \
 			karmada-scheduler-estimator \
 			karmada-interpreter-webhook-example \
-			karmada-search
+			karmada-search \
+			karmada-operator
 
 CTL_TARGETS := karmadactl kubectl-karmada
 
