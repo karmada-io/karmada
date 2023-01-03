@@ -37,6 +37,7 @@ type Karmada struct {
 
 	// Spec defines the desired behavior of the Karmada.
 	// +optional
+	// +kubebuilder:default:={spec: {}}
 	Spec KarmadaSpec `json:"spec,omitempty"`
 
 	// Most recently observed status of the Karmada.
@@ -49,7 +50,9 @@ type KarmadaSpec struct {
 	// HostCluster represents the cluster where to install the Karmada control plane.
 	// If not set, the control plane will be installed on the cluster where
 	// running the operator.
-	// +optional
+	// +required
+	// +kubebuilder:default:={hostCluster: {}}
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf", message="The value is immutable"
 	HostCluster *HostCluster `json:"hostCluster,omitempty"`
 
 	// PrivateRegistry is the global image registry.
@@ -61,7 +64,8 @@ type KarmadaSpec struct {
 
 	// Components define all of karmada components.
 	// not all of these components need to be installed.
-	// +optional
+	// +required
+	// +kubebuilder:default={components: {}}
 	Components *KarmadaComponents `json:"components,omitempty"`
 
 	// FeatureGates enabled by the user.
@@ -89,31 +93,38 @@ type ImageRegistry struct {
 type KarmadaComponents struct {
 	// Etcd holds configuration for etcd.
 	// +required
+	// +kubebuilder:default:={etcd: {}}
 	Etcd *Etcd `json:"etcd,omitempty"`
 
 	// KarmadaAPIServer holds settings to kube-apiserver component. Currently, kube-apiserver
 	// is used as the apiserver of karmada. we had the same experience as k8s apiserver.
 	// +optional
+	// +kubebuilder:default:={imageRepository: "registry.k8s.io", imageTag: "v1.25.2", replicas: 1}
 	KarmadaAPIServer *KarmadaAPIServer `json:"karmadaAPIServer,omitempty"`
 
 	// KarmadaAggregratedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.
 	// +optional
+	// +kubebuilder:default:={imageRepository: "docker.io", imageTag: "v1.4.0", replicas: 1}
 	KarmadaAggregratedAPIServer *KarmadaAggregratedAPIServer `json:"karmadaAggregratedAPIServer,omitempty"`
 
 	// KubeControllerManager holds settings to kube-controller-manager component of the karmada.
 	// +optional
+	// +kubebuilder:default:={imageRepository: "registry.k8s.io", imageTag: "v1.25.2", replicas: 1}
 	KubeControllerManager *KubeControllerManager `json:"kubeControllerManager,omitempty"`
 
 	// KarmadaControllerManager holds settings to karmada-controller-manager component of the karmada.
 	// +optional
+	// +kubebuilder:default:={imageRepository: "docker.io", imageTag: "v1.4.0", replicas: 1}
 	KarmadaControllerManager *KarmadaControllerManager `json:"karmadaControllerManager,omitempty"`
 
 	// KarmadaScheduler holds settings to karmada-scheduler component of the karmada.
 	// +optional
+	// +kubebuilder:default:={imageRepository: "docker.io", imageTag: "v1.4.0", replicas: 1}
 	KarmadaScheduler *KarmadaScheduler `json:"karmadaScheduler,omitempty"`
 
 	// KarmadaWebhook holds settings to karmada-webook component of the karmada.
 	// +optional
+	// +kubebuilder:default:={imageRepository: "docker.io", imageTag: "v1.4.0", replicas: 1}
 	KarmadaWebhook *KarmadaWebhook `json:"karmadaWebhook,omitempty"`
 
 	// KarmadaDescheduler holds settings to karmada-descheduler component of the karmada.
@@ -128,7 +139,8 @@ type KarmadaComponents struct {
 // Networking contains elements describing cluster's networking configuration
 type Networking struct {
 	// DNSDomain is the dns domain used by k8s services. Defaults to "cluster.local".
-	// +optional
+	// +required
+	// +kubebuilder:default:="cluster.local"
 	DNSDomain *string `json:"dnsDomain,omitempty"`
 }
 
@@ -137,10 +149,11 @@ type Etcd struct {
 	// Local provides configuration knobs for configuring the built-in etcd instance
 	// Local and External are mutually exclusive
 	// +optional
+	// +kubebuilder:default:={imageRepository:"registry.k8s.io", imageTag: "3.5.3-0"}
 	Local *LocalEtcd `json:"local,omitempty"`
 
 	// External describes how to connect to an external etcd cluster
-	// Local and External are mutually exclusive
+	// Local and External are mutually exclusive.
 	// +optional
 	External *ExternalEtcd `json:"external,omitempty"`
 }
@@ -153,6 +166,7 @@ type LocalEtcd struct {
 	// VolumeData describes the settings of etcd data store.
 	// We will support 3 modes: emtydir, hostPath, PVC. default by hostPath.
 	// +optional
+	// +kubebuilder:default:={volumeData: {}}
 	VolumeData *VolumeData `json:"volumeData,omitempty"`
 
 	// ServerCertSANs sets extra Subject Alternative Names for the etcd server signing cert.
@@ -187,6 +201,7 @@ type VolumeData struct {
 	// EmptyDir represents a temporary directory that shares a pod's lifetime.
 	// More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
 	// +optional
+	// +kubebuilder:default:={emptyDir: {}}
 	EmptyDir *corev1.EmptyDirVolumeSource `json:"emptyDir,omitempty"`
 }
 
@@ -217,6 +232,7 @@ type KarmadaAPIServer struct {
 
 	// ServiceSubnet is the subnet used by k8s services. Defaults to "10.96.0.0/12".
 	// +optional
+	// +kubebuilder:default:="10.96.0.0/12"
 	ServiceSubnet *string `json:"serviceSubnet,omitempty"`
 
 	// ExtraArgs is an extra set of flags to pass to the kube-apiserver component or
@@ -226,7 +242,7 @@ type KarmadaAPIServer struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// kube-apiserver component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -257,7 +273,7 @@ type KarmadaAggregratedAPIServer struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// karmada-aggregated-apiserver component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -273,6 +289,8 @@ type KarmadaAggregratedAPIServer struct {
 	// ServiceType represents the service type of karmada apiserver.
 	// it is Nodeport by default.
 	// +optional
+	// +kubebuilder:default:="NodePort"
+	// +kubebuilder:validation:Enum:={"ClusterIP", "NodePort", "LoadBalancer"}
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
 
 	// FeatureGates enabled by the user.
@@ -333,7 +351,7 @@ type KubeControllerManager struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// kube-controller-manager component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -375,7 +393,7 @@ type KarmadaControllerManager struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// karmada-controller-manager component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -406,7 +424,7 @@ type KarmadaScheduler struct {
 	// Note: This is a temporary solution to allow for the configuration of the karmada-scheduler
 	// component. In the future, we will provide a more structured way to configure the component.
 	// Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -434,7 +452,7 @@ type KarmadaDescheduler struct {
 	// Note: This is a temporary solution to allow for the configuration of the karmada-descheduler
 	// component. In the future, we will provide a more structured way to configure the component.
 	// Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -456,7 +474,7 @@ type KarmadaSearch struct {
 	// Note: This is a temporary solution to allow for the configuration of the karmada-descheduler
 	// component. In the future, we will provide a more structured way to configure the component.
 	// Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -478,7 +496,7 @@ type KarmadaWebhook struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// karmada-webhook component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -550,6 +568,7 @@ type HostCluster struct {
 
 	// Networking holds configuration for the networking topology of the cluster.
 	// +optional
+	// +kubebuilder:default:={networking:{}}
 	Networking *Networking `json:"networking,omitempty"`
 }
 
@@ -592,6 +611,7 @@ type KarmadaStatus struct {
 // namespace.
 type LocalSecretReference struct {
 	// Namespace is the namespace for the resource being referenced.
+	// +optional
 	Namespace string `json:"namespace,omitempty"`
 
 	// Name is the name of resource being referenced.

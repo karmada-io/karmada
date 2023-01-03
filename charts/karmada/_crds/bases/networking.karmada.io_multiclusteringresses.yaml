@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
+    controller-gen.kubebuilder.io/version: v0.11.0
   creationTimestamp: null
   name: multiclusteringresses.networking.karmada.io
 spec:
@@ -70,6 +70,7 @@ spec:
                     - kind
                     - name
                     type: object
+                    x-kubernetes-map-type: atomic
                   service:
                     description: Service references a Service as a Backend. This is
                       a mutually exclusive setting with "Resource".
@@ -191,6 +192,7 @@ spec:
                                     - kind
                                     - name
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   service:
                                     description: Service references a Service as a
                                       Backend. This is a mutually exclusive setting
@@ -361,9 +363,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
