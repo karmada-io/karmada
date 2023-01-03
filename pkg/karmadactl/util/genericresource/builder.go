@@ -1,6 +1,7 @@
 package genericresource
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -158,7 +159,7 @@ func expandIfFilePattern(pattern string) ([]string, error) {
 		if err == nil && len(matches) == 0 {
 			return nil, fmt.Errorf("the path %q does not exist", pattern)
 		}
-		if err == filepath.ErrBadPattern {
+		if errors.Is(err, filepath.ErrBadPattern) {
 			return nil, fmt.Errorf("pattern %q is not valid: %v", pattern, err)
 		}
 		return matches, err
