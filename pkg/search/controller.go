@@ -171,7 +171,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 		return nil
 	}
 
-	// STEP1: stop informer manager for the cluster which does not exist anymore.
+	// STEP1: stop informer manager for the cluster which does not exist anymore or is not ready.
 	cls, err := c.clusterLister.Get(cluster)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -184,6 +184,12 @@ func (c *Controller) doCacheCluster(cluster string) error {
 
 	if !cls.DeletionTimestamp.IsZero() {
 		klog.Infof("try to stop cluster informer %s", cluster)
+		c.InformerManager.Stop(cluster)
+		return nil
+	}
+
+	if !util.IsClusterReady(&cls.Status) {
+		klog.Warningf("cluster %s is notReady try to stop this cluster informer", cluster)
 		c.InformerManager.Stop(cluster)
 		return nil
 	}

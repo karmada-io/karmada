@@ -29,6 +29,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
 	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 func TestController(t *testing.T) {
@@ -493,5 +494,8 @@ func TestController_Connect_Error(t *testing.T) {
 func newCluster(name string) *clusterv1alpha1.Cluster {
 	c := &clusterv1alpha1.Cluster{}
 	c.Name = name
+	conditions := make([]metav1.Condition, 0, 1)
+	conditions = append(conditions, util.NewCondition(clusterv1alpha1.ClusterConditionReady, "", "", metav1.ConditionTrue))
+	c.Status.Conditions = conditions
 	return c
 }
