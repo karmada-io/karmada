@@ -158,3 +158,77 @@ func TestReviseJobReplica(t *testing.T) {
 		})
 	}
 }
+
+func TestReviseStatefulSetReplica(t *testing.T) {
+	tests := []struct {
+		name        string
+		object      *unstructured.Unstructured
+		replica     int64
+		expected    *unstructured.Unstructured
+		expectError bool
+	}{
+		{
+			name: "StatefulSet .spec.replicas accessor error, expected int64",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]interface{}{
+						"name": "fake-statefulset",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 1,
+					},
+				},
+			},
+			replica:     3,
+			expectError: true,
+		},
+		{
+			name: "revise statefulset replica",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]interface{}{
+						"name": "fake-statefulset",
+					},
+					"spec": map[string]interface{}{
+						"replicas": int64(1),
+					},
+				},
+			},
+			replica: 3,
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]interface{}{
+						"name": "fake-statefulset",
+					},
+					"spec": map[string]interface{}{
+						"replicas": int64(3),
+					},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := reviseStatefulSetReplica(tt.object, tt.replica)
+			if err == nil && tt.expectError == true {
+				t.Fatal("expect an error but got none")
+			}
+			if err != nil && tt.expectError != true {
+				t.Fatalf("expect no error but got: %v", err)
+			}
+			if err == nil && tt.expectError == false {
+				if !reflect.DeepEqual(res, tt.expected) {
+					t.Errorf("reviseStatefulSetReplica() = %v, want %v", res, tt.expected)
+				}
+			}
+		})
+	}
+}
