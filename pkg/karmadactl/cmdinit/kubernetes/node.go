@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -26,43 +27,32 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 		return nil
 	}
 
-	nodeClient := i.KubeClientSet.CoreV1().Nodes()
-	masterNodes, err := nodeClient.List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/master"})
-	if err != nil {
-		return err
-	}
-	if len(masterNodes.Items) == 0 {
-		masterNodes, err = nodeClient.List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/control-plane"})
-		if err != nil {
-			return err
-		}
-	}
-
-	if len(masterNodes.Items) == 0 {
-		klog.Warning("The kubernetes cluster does not have a Master role.")
-	} else {
-		for _, v := range masterNodes.Items {
-			i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(v.Status.Addresses[0].Address))
-		}
-		return nil
-	}
-
-	klog.Info("Randomly select 3 Node IPs in the kubernetes cluster.")
-	nodes, err := nodeClient.List(context.TODO(), metav1.ListOptions{})
+	nodes, err := i.KubeClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	for number := 0; number < 3; number++ {
-		if number >= len(nodes.Items) {
-			break
+	TempKarmadaAPIServerIP := make([]net.IP, 0)
+	for ni := range nodes.Items {
+		if isMasterNode(&nodes.Items[ni]) {
+			i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(nodes.Items[ni].Status.Addresses[0].Address))
 		}
-		i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(nodes.Items[number].Status.Addresses[0].Address))
+
+		if ni < 3 {
+			TempKarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(nodes.Items[ni].Status.Addresses[0].Address))
+		}
 	}
 
 	if len(i.KarmadaAPIServerIP) == 0 {
+		if len(TempKarmadaAPIServerIP) != 0 {
+			klog.Warning("The kubernetes cluster does not have a Master role.")
+			klog.Info("Randomly select 3 Node IPs in the kubernetes cluster.")
+			i.KarmadaAPIServerIP = TempKarmadaAPIServerIP
+			return nil
+		}
 		return fmt.Errorf("karmada apiserver ip is empty")
 	}
+
 	return nil
 }
 
@@ -141,4 +131,17 @@ func (i *CommandInitOption) isNodeExist(labels string) bool {
 	}
 	klog.Infof("Find the node [ %s ] by label %s", node.Items[0].Name, labels)
 	return true
+}
+
+// see https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.20.md#urgent-upgrade-notes
+func isMasterNode(node *corev1.Node) bool {
+	if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
+		return ok
+	}
+
+	if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
+		return ok
+	}
+
+	return false
 }
