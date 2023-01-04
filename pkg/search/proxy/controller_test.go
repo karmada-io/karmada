@@ -21,6 +21,7 @@ import (
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	karmadainformers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 var (
@@ -245,6 +246,9 @@ func TestController_reconcile(t *testing.T) {
 func newCluster(name string) *clusterv1alpha1.Cluster {
 	c := &clusterv1alpha1.Cluster{}
 	c.Name = name
+	conditions := make([]metav1.Condition, 0, 1)
+	conditions = append(conditions, util.NewCondition(clusterv1alpha1.ClusterConditionReady, "", "", metav1.ConditionTrue))
+	c.Status.Conditions = conditions
 	return c
 }
 
