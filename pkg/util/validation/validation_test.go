@@ -110,7 +110,7 @@ func TestValidateOverrideSpec(t *testing.T) {
 	for _, test := range tests {
 		tc := test
 		err := ValidateOverrideSpec(&tc.overrideSpec)
-		if err != nil && tc.expectError != true {
+		if err != nil && tc.expectError == false {
 			t.Fatalf("expect no error but got: %v", err)
 		}
 		if err == nil && tc.expectError == true {
@@ -272,7 +272,7 @@ func TestValidatePolicyFieldSelector(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidatePolicyFieldSelector(tt.filedSelector)
-			if err != nil && tt.expectError != true {
+			if err != nil && tt.expectError == false {
 				t.Fatalf("expect no error but got: %v", err)
 			}
 			if err == nil && tt.expectError == true {

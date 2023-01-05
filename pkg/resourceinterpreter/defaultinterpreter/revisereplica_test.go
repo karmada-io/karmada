@@ -71,7 +71,7 @@ func TestReviseDeploymentReplica(t *testing.T) {
 			if err == nil && tt.expectError == true {
 				t.Fatal("expect an error but got none")
 			}
-			if err != nil && tt.expectError != true {
+			if err != nil && tt.expectError == false {
 				t.Fatalf("expect no error but got: %v", err)
 			}
 			if err == nil && tt.expectError == false {
@@ -147,7 +147,7 @@ func TestReviseJobReplica(t *testing.T) {
 			if err == nil && tt.expectError == true {
 				t.Fatal("expect an error but got none")
 			}
-			if err != nil && tt.expectError != true {
+			if err != nil && tt.expectError == false {
 				t.Fatalf("expect no error but got: %v", err)
 			}
 			if err == nil && tt.expectError == false {
@@ -221,7 +221,7 @@ func TestReviseStatefulSetReplica(t *testing.T) {
 			if err == nil && tt.expectError == true {
 				t.Fatal("expect an error but got none")
 			}
-			if err != nil && tt.expectError != true {
+			if err != nil && tt.expectError == false {
 				t.Fatalf("expect no error but got: %v", err)
 			}
 			if err == nil && tt.expectError == false {

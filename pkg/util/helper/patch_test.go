@@ -88,7 +88,7 @@ func TestGenMergePatch(t *testing.T) {
 			patch, err := GenMergePatch(testObj, tc.modifyFunc())
 			if err != nil && tc.expectErr == false {
 				t.Fatalf("unexpect error, but got: %v", err)
-			} else if err == nil && tc.expectErr == true {
+			} else if err == nil && tc.expectErr {
 				t.Fatalf("expect error, but got none")
 			}
 			if string(patch) != tc.expectedPatch {
