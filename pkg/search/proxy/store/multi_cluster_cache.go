@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -57,6 +58,13 @@ func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error),
 
 // UpdateCache update cache for multi clusters
 func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error {
+	if klog.V(3).Enabled() {
+		start := time.Now()
+		defer func() {
+			klog.Infof("MultiClusterCache update cache takes %v", time.Since(start))
+		}()
+	}
+
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
