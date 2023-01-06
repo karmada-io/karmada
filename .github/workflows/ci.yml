@@ -40,6 +40,11 @@ jobs:
           go-version: 1.19.4
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
+        with:
+          version: '3.x'
+          # Use the automatic token, so that this task can be run in the forked repo.
+          # https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: verify codegen
         run: hack/verify-codegen.sh
       - name: verify crdgen
