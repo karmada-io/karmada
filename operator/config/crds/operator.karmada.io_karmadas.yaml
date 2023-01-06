@@ -656,6 +656,10 @@ spec:
                         description: ServiceSubnet is the subnet used by k8s services.
                           Defaults to "10.96.0.0/12".
                         type: string
+                      serviceType:
+                        description: ServiceType represents the service type of karmada
+                          apiserver. it is Nodeport by default.
+                        type: string
                     type: object
                   karmadaAggregratedAPIServer:
                     description: KarmadaAggregratedAPIServer holds settings to karmada-aggregated-apiserver
@@ -774,10 +778,6 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                             type: object
                         type: object
-                      serviceType:
-                        description: ServiceType represents the service type of karmada
-                          apiserver. it is Nodeport by default.
-                        type: string
                     type: object
                   karmadaControllerManager:
                     description: KarmadaControllerManager holds settings to karmada-controller-manager
