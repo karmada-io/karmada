@@ -91,6 +91,11 @@ type ResourceBindingSpec struct {
 	// RequiredBy represents the list of Bindings that depend on the referencing resource.
 	// +optional
 	RequiredBy []BindingSnapshot `json:"requiredBy,omitempty"`
+
+	// SchedulerName represents which scheduler to proceed the scheduling.
+	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
+	// +optional
+	SchedulerName string `json:"schedulerName,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.

@@ -61,6 +61,11 @@ const (
 	scheduleSuccessMessage = "Binding has been scheduled"
 )
 
+const (
+	// DefaultScheduler defines the name of default scheduler.
+	DefaultScheduler = "default-scheduler"
+)
+
 // Scheduler is the scheduler schema, which is used to schedule a specific resource to specific clusters
 type Scheduler struct {
 	DynamicClient        dynamic.Interface
@@ -87,6 +92,7 @@ type Scheduler struct {
 	schedulerEstimatorServicePrefix     string
 	schedulerEstimatorPort              int
 	schedulerEstimatorWorker            util.AsyncWorker
+	schedulerName                       string
 
 	enableEmptyWorkloadPropagation bool
 }
@@ -102,6 +108,8 @@ type schedulerOptions struct {
 	schedulerEstimatorServicePrefix string
 	// schedulerEstimatorPort is the port that the accurate scheduler estimator server serves at.
 	schedulerEstimatorPort int
+	// schedulerName is the name of the scheduler. Default is "default-scheduler".
+	schedulerName string
 	//enableEmptyWorkloadPropagation represents whether allow workload with replicas 0 propagated to member clusters should be enabled
 	enableEmptyWorkloadPropagation bool
 	// outOfTreeRegistry represents the registry of out-of-tree plugins
@@ -145,6 +153,13 @@ func WithSchedulerEstimatorServicePrefix(schedulerEstimatorServicePrefix string)
 func WithSchedulerEstimatorPort(schedulerEstimatorPort int) Option {
 	return func(o *schedulerOptions) {
 		o.schedulerEstimatorPort = schedulerEstimatorPort
+	}
+}
+
+// WithSchedulerName sets the schedulerName for scheduler
+func WithSchedulerName(schedulerName string) Option {
+	return func(o *schedulerOptions) {
+		o.schedulerName = schedulerName
 	}
 }
 
@@ -227,6 +242,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		estimatorclient.RegisterSchedulerEstimator(schedulerEstimator)
 	}
 	sched.enableEmptyWorkloadPropagation = options.enableEmptyWorkloadPropagation
+	sched.schedulerName = options.schedulerName
 
 	sched.addAllEventHandlers()
 	return sched, nil
