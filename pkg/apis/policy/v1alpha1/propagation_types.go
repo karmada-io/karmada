@@ -255,6 +255,7 @@ type ReplicaSchedulingStrategy struct {
 	// "Divided" divides replicas into parts according to number of valid candidate member
 	// clusters, and exact replicas for each cluster are determined by ReplicaDivisionPreference.
 	// +kubebuilder:validation:Enum=Duplicated;Divided
+	// +kubebuilder:default=Divided
 	// +optional
 	ReplicaSchedulingType ReplicaSchedulingType `json:"replicaSchedulingType,omitempty"`
 

@@ -224,6 +224,7 @@ spec:
                         - Weighted
                         type: string
                       replicaSchedulingType:
+                        default: Divided
                         description: ReplicaSchedulingType determines how the replicas
                           is scheduled when karmada propagating a resource. Valid
                           options are Duplicated and Divided. "Duplicated" duplicates

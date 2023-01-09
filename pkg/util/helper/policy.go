@@ -130,3 +130,11 @@ func GetAppliedPlacement(annotations map[string]string) (*policyv1alpha1.Placeme
 	}
 	return placement, nil
 }
+
+// SetReplicaDivisionPreferenceWeighted Set the default value of ReplicaDivisionPreference to Weighted
+func SetReplicaDivisionPreferenceWeighted(strategy *policyv1alpha1.ReplicaSchedulingStrategy) {
+	if strategy == nil || strategy.ReplicaSchedulingType != policyv1alpha1.ReplicaSchedulingTypeDivided || strategy.ReplicaDivisionPreference != "" {
+		return
+	}
+	strategy.ReplicaDivisionPreference = policyv1alpha1.ReplicaDivisionPreferenceWeighted
+}
