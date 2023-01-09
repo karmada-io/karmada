@@ -4,6 +4,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -22,6 +23,7 @@ func getAllDefaultHealthInterpreter() map[schema.GroupVersionKind]healthInterpre
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = interpretServiceHealth
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = interpretIngressHealth
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = interpretPersistentVolumeClaimHealth
+	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = interpretPodDisruptionBudgetHealth
 	return s
 }
 
@@ -143,4 +145,14 @@ func interpretPersistentVolumeClaimHealth(object *unstructured.Unstructured) (bo
 	}
 
 	return pvc.Status.Phase == corev1.ClaimBound, nil
+}
+
+func interpretPodDisruptionBudgetHealth(object *unstructured.Unstructured) (bool, error) {
+	pdb := &policyv1.PodDisruptionBudget{}
+	err := helper.ConvertToTypedObject(object, pdb)
+	if err != nil {
+		return false, err
+	}
+
+	return pdb.Status.CurrentHealthy >= pdb.Status.DesiredHealthy, nil
 }

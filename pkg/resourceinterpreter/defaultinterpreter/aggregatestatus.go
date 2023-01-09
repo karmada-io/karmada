@@ -8,6 +8,8 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -31,6 +33,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = aggregatePodStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeKind)] = aggregatePersistentVolumeStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = aggregatePersistentVolumeClaimStatus
+	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = aggregatePodDisruptionBudgetStatus
 	return s
 }
 
@@ -454,4 +457,47 @@ func aggregatePersistentVolumeClaimStatus(object *unstructured.Unstructured, agg
 
 	pvc.Status = *newStatus
 	return helper.ToUnstructured(pvc)
+}
+
+func aggregatePodDisruptionBudgetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	pdb := &policyv1.PodDisruptionBudget{}
+	err := helper.ConvertToTypedObject(object, pdb)
+	if err != nil {
+		return nil, err
+	}
+
+	newStatus := &policyv1.PodDisruptionBudgetStatus{
+		DisruptedPods: make(map[string]metav1.Time),
+	}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+
+		temp := &policyv1.PodDisruptionBudgetStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof(
+			"Grab pdb(%s/%s) status from cluster(%s), desired healthy: %d, current healthy: %d, disrupted allowed: %d, expected: %d",
+			pdb.Namespace, pdb.Name, item.ClusterName,
+			temp.DesiredHealthy, temp.CurrentHealthy, temp.DisruptionsAllowed, temp.ExpectedPods,
+		)
+
+		newStatus.CurrentHealthy += temp.CurrentHealthy
+		newStatus.DesiredHealthy += temp.DesiredHealthy
+		newStatus.ExpectedPods += temp.ExpectedPods
+		newStatus.DisruptionsAllowed += temp.DisruptionsAllowed
+		for podName, evictionTime := range temp.DisruptedPods {
+			newStatus.DisruptedPods[item.ClusterName+"/"+podName] = evictionTime
+		}
+	}
+
+	if reflect.DeepEqual(pdb.Status, *newStatus) {
+		klog.V(3).Infof("ignore update pdb(%s/%s) status as up to date", pdb.Namespace, pdb.Name)
+		return object, nil
+	}
+
+	pdb.Status = *newStatus
+	return helper.ToUnstructured(pdb)
 }

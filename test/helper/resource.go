@@ -7,6 +7,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -741,4 +742,26 @@ func NewIngress(namespace, name string) *networkingv1.Ingress {
 											},
 										},
 									}}}}}}}}}
+}
+
+// NewPodDisruptionBudget will build a new PodDisruptionBudget object.
+func NewPodDisruptionBudget(namespace, name string, maxUnAvailable intstr.IntOrString) *policyv1.PodDisruptionBudget {
+	podLabels := map[string]string{"app": "nginx"}
+
+	return &policyv1.PodDisruptionBudget{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "policy/v1",
+			Kind:       "PodDisruptionBudget",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MaxUnavailable: &maxUnAvailable,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podLabels,
+			},
+		},
+	}
 }
