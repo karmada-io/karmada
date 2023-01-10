@@ -147,6 +147,13 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 	}
 	deployment2 := helper.NewDeployment(metav1.NamespaceDefault, "test")
 	deployment2.Annotations = nil
+
+	deployment3 := helper.NewDeployment(metav1.NamespaceDefault, "test")
+	deployment3.Annotations = map[string]string{
+		"testannotation/projectId": "c-m-lfx9lk92:p-v86cf",
+		"foo":                      "foo",
+	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -304,6 +311,48 @@ func Test_applyAnnotationsOverriders(t *testing.T) {
 				"bar": "bar",
 				"foo": "foo",
 			},
+			wantErr: false,
+		},
+		{
+			name: "test add composed annotation",
+			args: args{
+				rawObj: func() *unstructured.Unstructured {
+					deploymentObj, _ := utilhelper.ToUnstructured(deployment)
+					return deploymentObj
+				}(),
+				commandOverriders: []policyv1alpha1.LabelAnnotationOverrider{
+					{
+						Operator: policyv1alpha1.OverriderOpAdd,
+						Value: map[string]string{
+							"testannotation/projectId": "c-m-lfx9lk92:p-v86cf",
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"foo":                      "foo",
+				"bar":                      "bar",
+				"testannotation/projectId": "c-m-lfx9lk92:p-v86cf",
+			},
+			wantErr: false,
+		},
+		{
+			name: "test remove composed annotation",
+			args: args{
+				rawObj: func() *unstructured.Unstructured {
+					deploymentObj, _ := utilhelper.ToUnstructured(deployment3)
+					return deploymentObj
+				}(),
+				commandOverriders: []policyv1alpha1.LabelAnnotationOverrider{
+					{
+						Operator: policyv1alpha1.OverriderOpRemove,
+						Value: map[string]string{
+							"testannotation/projectId": "c-m-lfx9lk92:p-v86cf",
+						},
+					},
+				},
+			},
+			want:    map[string]string{"foo": "foo"},
 			wantErr: false,
 		},
 	}
