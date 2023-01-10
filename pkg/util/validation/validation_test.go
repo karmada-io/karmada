@@ -105,6 +105,48 @@ func TestValidateOverrideSpec(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "invalid annotation should not be allowed",
+			overrideSpec: policyv1alpha1.OverrideSpec{
+				OverrideRules: []policyv1alpha1.RuleWithCluster{
+					{
+						TargetCluster: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster-name"},
+						},
+						Overriders: policyv1alpha1.Overriders{
+							AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+								{
+									Operator: "add",
+									Value:    map[string]string{"testannotation~projectId": "c-m-lfx9lk92p-v86cf"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "invalid label should not be allowed",
+			overrideSpec: policyv1alpha1.OverrideSpec{
+				OverrideRules: []policyv1alpha1.RuleWithCluster{
+					{
+						TargetCluster: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster-name"},
+						},
+						Overriders: policyv1alpha1.Overriders{
+							LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+								{
+									Operator: "add",
+									Value:    map[string]string{"testannotation~projectId": "c-m-lfx9lk92p-v86cf"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
 	}
 
 	for _, test := range tests {
