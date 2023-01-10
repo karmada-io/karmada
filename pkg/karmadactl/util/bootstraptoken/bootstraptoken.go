@@ -9,6 +9,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
@@ -318,7 +319,10 @@ func CreateNewToken(client kubeclient.Interface, token *BootstrapToken) error {
 func UpdateOrCreateToken(client kubeclient.Interface, failIfExists bool, token *BootstrapToken) error {
 	secretName := bootstraputil.BootstrapTokenSecretName(token.Token.ID)
 	secret, err := client.CoreV1().Secrets(metav1.NamespaceSystem).Get(context.TODO(), secretName, metav1.GetOptions{})
-	if secret != nil && err == nil && failIfExists {
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if secret != nil && failIfExists {
 		return fmt.Errorf("a token with id %q already exists", token.Token.ID)
 	}
 
