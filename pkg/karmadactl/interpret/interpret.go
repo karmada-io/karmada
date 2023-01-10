@@ -11,6 +11,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/cmd/util/editor"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -25,13 +26,14 @@ import (
 
 var (
 	interpretLong = templates.LongDesc(`
-        Validate and test interpreter customization before applying it to the control plane.
+        Validate, test and edit interpreter customization before applying it to the control plane.
 
         1. Validate the ResourceInterpreterCustomization configuration as per API schema
            and try to load the scripts for syntax check.
 
         2. Run the rules locally and test if the result is expected. Similar to the dry run.
 
+		3. Edit customization. Similar to the kubectl edit.
 `)
 
 	interpretExample = templates.Examples(`
@@ -62,6 +64,8 @@ var (
 		# Fetch observed object from url, and status items from stdin (specified with -)
         %[1]s interpret -f customization.yml --operation aggregateStatus --observed-file https://example.com/observed.yml --status-file -
 
+		# Edit customization
+		%[1]s interpret -f customization.yml --edit
 `)
 )
 
@@ -71,13 +75,17 @@ const (
 
 // NewCmdInterpret new interpret command.
 func NewCmdInterpret(f util.Factory, parentCommand string, streams genericclioptions.IOStreams) *cobra.Command {
+	editorFlags := editor.NewEditOptions(editor.NormalEditMode, streams)
+	editorFlags.PrintFlags = editorFlags.PrintFlags.WithTypeSetter(gclient.NewSchema())
+
 	o := &Options{
-		IOStreams: streams,
-		Rules:     interpreter.AllResourceInterpreterCustomizationRules,
+		EditOptions: editorFlags,
+		IOStreams:   streams,
+		Rules:       interpreter.AllResourceInterpreterCustomizationRules,
 	}
 	cmd := &cobra.Command{
 		Use:                   "interpret (-f FILENAME) (--operation OPERATION) [--ARGS VALUE]... ",
-		Short:                 "Validate and test interpreter customization before applying it to the control plane",
+		Short:                 "Validate, test and edit interpreter customization before applying it to the control plane",
 		Long:                  interpretLong,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
@@ -94,8 +102,12 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericcliopt
 
 	flags := cmd.Flags()
 	options.AddKubeConfigFlags(flags)
+	o.EditOptions.RecordFlags.AddFlags(cmd)
+	o.EditOptions.PrintFlags.AddFlags(cmd)
 	flags.StringVar(&o.Operation, "operation", o.Operation, "The interpret operation to use. One of: ("+strings.Join(o.Rules.Names(), ",")+")")
 	flags.BoolVar(&o.Check, "check", false, "Validates the given ResourceInterpreterCustomization configuration(s)")
+	flags.BoolVar(&o.Edit, "edit", false, "Edit customizations")
+	flags.BoolVar(&o.ShowDoc, "show-doc", false, "Show document of rules when editing")
 	flags.StringVar(&o.DesiredFile, "desired-file", o.DesiredFile, "Filename, directory, or URL to files identifying the resource to use as desiredObj argument in rule script.")
 	flags.StringVar(&o.ObservedFile, "observed-file", o.ObservedFile, "Filename, directory, or URL to files identifying the resource to use as observedObj argument in rule script.")
 	flags.StringVar(&o.StatusFile, "status-file", o.StatusFile, "Filename, directory, or URL to files identifying the resource to use as statusItems argument in rule script.")
@@ -109,9 +121,12 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericcliopt
 // Options contains the input to the interpret command.
 type Options struct {
 	resource.FilenameOptions
+	*editor.EditOptions
 
 	Operation string
 	Check     bool
+	Edit      bool
+	ShowDoc   bool
 
 	// args
 	DesiredFile    string
@@ -131,6 +146,10 @@ type Options struct {
 
 // Complete ensures that options are valid and marshals them if necessary
 func (o *Options) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
+	if o.Check && o.Edit {
+		return fmt.Errorf("you can't set both --check and --edit options")
+	}
+
 	scheme := gclient.NewSchema()
 	o.CustomizationResult = f.NewBuilder().
 		WithScheme(scheme, scheme.PrioritizedVersionsAllGroups()...).
@@ -143,6 +162,7 @@ func (o *Options) Complete(f util.Factory, cmd *cobra.Command, args []string) er
 	var errs []error
 	errs = append(errs, o.CustomizationResult.Err())
 	errs = append(errs, o.completeExecute(f)...)
+	errs = append(errs, o.completeEdit())
 	return errors.NewAggregate(errs)
 }
 
@@ -154,6 +174,12 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("operation %s is not supported. Use one of: %s", o.Operation, strings.Join(o.Rules.Names(), ", "))
 		}
 	}
+	if o.Edit {
+		err := o.EditOptions.Validate()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -162,6 +188,8 @@ func (o *Options) Run() error {
 	switch {
 	case o.Check:
 		return o.runCheck()
+	case o.Edit:
+		return o.runEdit()
 	default:
 		return o.runExecute()
 	}
