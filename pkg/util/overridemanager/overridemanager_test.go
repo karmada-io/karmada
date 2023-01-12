@@ -7,12 +7,229 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/gclient"
 	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/helper"
 )
+
+func Test_overrideManagerImpl_ApplyOverridePolicies(t *testing.T) {
+	deployment := helper.NewDeployment(metav1.NamespaceDefault, "test1")
+	deployment.Labels = map[string]string{
+		"testLabel": "testLabel",
+	}
+	deployment.Annotations = map[string]string{
+		"testAnnotation": "testAnnotation",
+	}
+	deploymentObj, _ := utilhelper.ToUnstructured(deployment)
+
+	clusterRole := helper.NewClusterRole("test2", nil)
+	clusterRole.Labels = map[string]string{
+		"testLabel": "testLabel",
+	}
+	clusterRole.Annotations = map[string]string{
+		"testAnnotation": "testAnnotation",
+	}
+	clusterRoleObj, _ := utilhelper.ToUnstructured(clusterRole)
+	type fields struct {
+		Client        client.Client
+		EventRecorder record.EventRecorder
+	}
+	type args struct {
+		rawObj      *unstructured.Unstructured
+		clusterName string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantCOP *AppliedOverrides
+		wantOP  *AppliedOverrides
+		wantErr bool
+	}{
+		{
+			name: "test overridePolicies",
+			fields: fields{
+				Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(helper.NewCluster("test1"),
+					&policyv1alpha1.OverridePolicy{
+						ObjectMeta: metav1.ObjectMeta{Name: "test1", Namespace: metav1.NamespaceDefault},
+						Spec: policyv1alpha1.OverrideSpec{
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "apps/v1",
+									Kind:       "Deployment",
+									Namespace:  "default",
+									Name:       "test1",
+								},
+							},
+							OverrideRules: []policyv1alpha1.RuleWithCluster{
+								{
+									TargetCluster: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"test1"}},
+									Overriders: policyv1alpha1.Overriders{
+										LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+											{
+												Operator: policyv1alpha1.OverriderOpAdd,
+												Value: map[string]string{
+													"testAddLabel": "testAddLabel",
+												},
+											},
+										},
+										AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+											{
+												Operator: policyv1alpha1.OverriderOpAdd,
+												Value: map[string]string{
+													"testAddAnnotation": "testAddAnnotation",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				).Build(),
+				EventRecorder: &record.FakeRecorder{},
+			},
+			args: args{
+				rawObj:      deploymentObj,
+				clusterName: "test1",
+			},
+			wantCOP: nil,
+			wantOP: &AppliedOverrides{
+				AppliedItems: []OverridePolicyShadow{
+					{
+						PolicyName: "test1",
+						Overriders: policyv1alpha1.Overriders{
+							LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+								{
+									Operator: policyv1alpha1.OverriderOpAdd,
+									Value: map[string]string{
+										"testAddLabel": "testAddLabel",
+									},
+								},
+							},
+							AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+								{
+									Operator: policyv1alpha1.OverriderOpAdd,
+									Value: map[string]string{
+										"testAddAnnotation": "testAddAnnotation",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test clusterOverridePolicy",
+			fields: fields{
+				Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(helper.NewCluster("test2"),
+					&policyv1alpha1.ClusterOverridePolicy{
+						ObjectMeta: metav1.ObjectMeta{Name: "test2", Namespace: metav1.NamespaceDefault},
+						Spec: policyv1alpha1.OverrideSpec{
+							ResourceSelectors: []policyv1alpha1.ResourceSelector{
+								{
+									APIVersion: "rbac.authorization.k8s.io/v1",
+									Kind:       "ClusterRole",
+									Name:       "test2",
+								},
+							},
+							OverrideRules: []policyv1alpha1.RuleWithCluster{
+								{
+									TargetCluster: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"test2"}},
+									Overriders: policyv1alpha1.Overriders{
+										LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+											{
+												Operator: policyv1alpha1.OverriderOpAdd,
+												Value: map[string]string{
+													"testAddLabel": "testAddLabel",
+												},
+											},
+										},
+										AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+											{
+												Operator: policyv1alpha1.OverriderOpAdd,
+												Value: map[string]string{
+													"testAddAnnotation": "testAddAnnotation",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				).Build(),
+				EventRecorder: &record.FakeRecorder{},
+			},
+			args: args{
+				rawObj:      clusterRoleObj,
+				clusterName: "test2",
+			},
+			wantCOP: &AppliedOverrides{
+				AppliedItems: []OverridePolicyShadow{
+					{
+						PolicyName: "test2",
+						Overriders: policyv1alpha1.Overriders{
+							LabelsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+								{
+									Operator: policyv1alpha1.OverriderOpAdd,
+									Value: map[string]string{
+										"testAddLabel": "testAddLabel",
+									},
+								},
+							},
+							AnnotationsOverrider: []policyv1alpha1.LabelAnnotationOverrider{
+								{
+									Operator: policyv1alpha1.OverriderOpAdd,
+									Value: map[string]string{
+										"testAddAnnotation": "testAddAnnotation",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantOP:  nil,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &overrideManagerImpl{
+				Client:        tt.fields.Client,
+				EventRecorder: tt.fields.EventRecorder,
+			}
+			gotCOP, gotOP, err := o.ApplyOverridePolicies(tt.args.rawObj, tt.args.clusterName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ApplyOverridePolicies() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotCOP, tt.wantCOP) {
+				t.Errorf("ApplyOverridePolicies() gotCOP = %v, wantCOP %v", gotCOP, tt.wantCOP)
+			}
+			if !reflect.DeepEqual(gotOP, tt.wantOP) {
+				t.Errorf("ApplyOverridePolicies() gotOP = %v, wantOP %v", gotOP, tt.wantOP)
+			}
+			wantLabels := map[string]string{"testLabel": "testLabel", "testAddLabel": "testAddLabel"}
+			if !reflect.DeepEqual(tt.args.rawObj.GetLabels(), wantLabels) {
+				t.Errorf("ApplyOverridePolicies() gotLabels = %v, wantLabels %v", tt.args.rawObj.GetLabels(), wantLabels)
+			}
+			wantAnnotations := map[string]string{"testAnnotation": "testAnnotation", "testAddAnnotation": "testAddAnnotation"}
+			if !reflect.DeepEqual(tt.args.rawObj.GetAnnotations(), wantAnnotations) {
+				t.Errorf("ApplyOverridePolicies() gotAnnotations = %v, wantAnnotations %v", tt.args.rawObj.GetAnnotations(), wantAnnotations)
+			}
+		})
+	}
+}
 
 func TestGetMatchingOverridePolicies(t *testing.T) {
 	cluster1 := helper.NewCluster("cluster1")
