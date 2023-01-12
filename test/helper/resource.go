@@ -302,6 +302,29 @@ func NewCustomResource(apiVersion, kind, namespace, name string) *unstructured.U
 	}
 }
 
+// NewCustomResourceWithConfigMap will build a CR object depended on across ns ConfigMap.
+func NewCustomResourceWithConfigMap(apiVersion, kind, namespace, name, configMapName string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": apiVersion,
+			"kind":       kind,
+			"metadata": map[string]string{
+				"namespace": namespace,
+				"name":      name,
+			},
+			"spec": map[string]interface{}{
+				"resource": map[string]string{
+					"apiVersion": "v1",
+					"kind":       "ConfigMap",
+					"name":       configMapName,
+					"namespace":  "default",
+				},
+				"clusters": []map[string]string{},
+			},
+		},
+	}
+}
+
 // NewJob will build a job object.
 func NewJob(namespace string, name string) *batchv1.Job {
 	return &batchv1.Job{

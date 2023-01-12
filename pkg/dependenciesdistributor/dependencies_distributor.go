@@ -2,10 +2,12 @@ package dependenciesdistributor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -15,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -34,6 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	hashutil "github.com/karmada-io/karmada/pkg/util/hash"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -42,9 +46,9 @@ const (
 	// bindingDependedByLabelKeyPrefix is the prefix to a label key specifying an attached binding referred by which independent binding.
 	// the key is in the label of an attached binding which should be unique, because resource like secret can be referred by multiple deployments.
 	bindingDependedByLabelKeyPrefix = "resourcebinding.karmada.io/depended-by-"
-	// bindingDependenciesAnnotationKey represents the key of dependencies data (json serialized)
-	// in the annotations of an independent binding.
-	bindingDependenciesAnnotationKey = "resourcebinding.karmada.io/dependencies"
+	//bindingDependedOnLabelKeyPrefix is the prefix to a label key specifying a binding depended on one object
+	// the key is in the label of a binding which should be unique
+	bindingDependedOnLabelKeyPrefix = "resourcebinding.karmada.io/depended-on-"
 )
 
 var supportedTypes = []schema.GroupVersionResource{
@@ -170,7 +174,9 @@ func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 	}
 	klog.V(4).Infof("DependenciesDistributor start to reconcile object: %s", clusterWideKey)
 
-	bindingObjectList, err := d.resourceBindingLister.ByNamespace(clusterWideKey.Namespace).List(labels.Everything())
+	bindingDependedLabelKey := generateBindingDependedLabelKey(clusterWideKey.Kind, clusterWideKey.Version, clusterWideKey.Name, clusterWideKey.Namespace)
+	selector := labels.SelectorFromSet(map[string]string{bindingDependedLabelKey: "true"})
+	bindingObjectList, err := d.resourceBindingLister.List(selector)
 	if err != nil {
 		return err
 	}
@@ -185,17 +191,6 @@ func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 		if !binding.DeletionTimestamp.IsZero() {
 			continue
 		}
-
-		matched, err := dependentObjectReferenceMatches(clusterWideKey, binding)
-		if err != nil {
-			klog.Errorf("Failed to evaluate if binding(%s/%s) need to sync dependencies: %v", binding.Namespace, binding.Name, err)
-			errs = append(errs, err)
-			continue
-		} else if !matched {
-			klog.V(4).Infof("No need to sync binding(%s/%s)", binding.Namespace, binding.Name)
-			continue
-		}
-
 		klog.V(4).Infof("Resource binding(%s/%s) is matched for resource(%s/%s)", binding.Namespace, binding.Name, clusterWideKey.Namespace, clusterWideKey.Name)
 		bindingKey, err := detector.ClusterWideKeyFunc(binding)
 		if err != nil {
@@ -208,35 +203,6 @@ func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 	}
 
 	return utilerrors.NewAggregate(errs)
-}
-
-// dependentObjectReferenceMatches tells if the given object is referred by current resource binding.
-func dependentObjectReferenceMatches(objectKey keys.ClusterWideKey, referenceBinding *workv1alpha2.ResourceBinding) (bool, error) {
-	dependencies, exist := referenceBinding.Annotations[bindingDependenciesAnnotationKey]
-	if !exist {
-		return false, nil
-	}
-
-	var dependenciesSlice []configv1alpha1.DependentObjectReference
-	err := json.Unmarshal([]byte(dependencies), &dependenciesSlice)
-	if err != nil {
-		return false, err
-	}
-
-	if len(dependenciesSlice) == 0 {
-		return false, nil
-	}
-
-	for _, dependence := range dependenciesSlice {
-		if objectKey.Version == dependence.APIVersion &&
-			objectKey.Kind == dependence.Kind &&
-			objectKey.Namespace == dependence.Namespace &&
-			objectKey.Name == dependence.Name {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 // OnResourceBindingUpdate handles object update event and push the object to queue.
@@ -414,26 +380,30 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 }
 
 func (d *DependenciesDistributor) recordDependenciesForIndependentBinding(binding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) error {
-	dependenciesBytes, err := json.Marshal(dependencies)
-	if err != nil {
-		klog.Errorf("Failed to marshal dependencies of binding(%s/%s): %v", binding.Namespace, binding.Name, err)
-		return err
+	objectLabels := binding.GetLabels()
+	if objectLabels == nil {
+		objectLabels = make(map[string]string)
 	}
 
-	objectAnnotation := binding.GetAnnotations()
-	if objectAnnotation == nil {
-		objectAnnotation = make(map[string]string, 1)
+	newObjectLabels := make(map[string]string)
+	for k, v := range objectLabels {
+		if !strings.HasPrefix(k, bindingDependedOnLabelKeyPrefix) {
+			newObjectLabels[k] = v
+		}
 	}
 
-	// dependencies are not updated, no need to update annotation.
-	if oldDependencies, exist := objectAnnotation[bindingDependenciesAnnotationKey]; exist && oldDependencies == string(dependenciesBytes) {
+	for _, dependence := range dependencies {
+		dependencyKey := generateBindingDependedLabelKey(dependence.Kind, dependence.APIVersion, dependence.Name, dependence.Namespace)
+		newObjectLabels[dependencyKey] = "true"
+	}
+
+	// labels are not updated, no need to update binding.
+	if cmp.Equal(objectLabels, newObjectLabels) {
 		return nil
 	}
 
-	objectAnnotation[bindingDependenciesAnnotationKey] = string(dependenciesBytes)
-
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		binding.SetAnnotations(objectAnnotation)
+		binding.SetLabels(newObjectLabels)
 		updateErr := d.Client.Update(context.TODO(), binding)
 		if updateErr == nil {
 			return nil
@@ -495,6 +465,13 @@ func generateBindingDependedByLabelKey(bindingNamespace, bindingName string) str
 	return fmt.Sprintf(bindingDependedByLabelKeyPrefix + bindHashKey)
 }
 
+func generateBindingDependedLabelKey(kind, apiVersion, name, namespace string) string {
+	dependedName := generateDependencyKey(kind, apiVersion, name, namespace)
+	hash := fnv.New32a()
+	hashutil.DeepHashObject(hash, dependedName)
+	return fmt.Sprintf(bindingDependedOnLabelKeyPrefix + rand.SafeEncodeString(fmt.Sprint(hash.Sum32())))
+}
+
 func generateDependencyKey(kind, apiVersion, name, namespace string) string {
 	if len(namespace) == 0 {
 		return kind + "-" + apiVersion + "-" + name
@@ -549,7 +526,7 @@ func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstruc
 	return &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.GenerateBindingName(object.GetKind(), object.GetName()),
-			Namespace: binding.GetNamespace(),
+			Namespace: object.GetNamespace(),
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, object.GroupVersionKind()),
 			},
