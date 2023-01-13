@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
+	"k8s.io/utils/env"
 )
 
 var (
@@ -30,12 +31,7 @@ var (
 // 3. In your home directory as ~/.kube/config
 func KubeConfigPath(kubeconfigPath string) string {
 	if kubeconfigPath == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			kubeconfigPath = env
-		} else {
-			kubeconfigPath = defaultKubeConfig
-		}
+		kubeconfigPath = env.GetString("KUBECONFIG", defaultKubeConfig)
 	}
 
 	return kubeconfigPath
@@ -44,12 +40,7 @@ func KubeConfigPath(kubeconfigPath string) string {
 // RestConfig is to create a rest config from the context and kubeconfig passed as arguments.
 func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
 	if kubeconfigPath == "" {
-		env := os.Getenv("KUBECONFIG")
-		if env != "" {
-			kubeconfigPath = env
-		} else {
-			kubeconfigPath = defaultKubeConfig
-		}
+		kubeconfigPath = env.GetString("KUBECONFIG", defaultKubeConfig)
 	}
 	if !Exists(kubeconfigPath) {
 		return nil, ErrEmptyConfig
