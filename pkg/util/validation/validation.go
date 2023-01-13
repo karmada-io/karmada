@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -35,7 +38,7 @@ func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) er
 	return nil
 }
 
-// ValidateOverrideSpec tests if the overrideRules and (overriders or targetCluster) co-exist
+// ValidateOverrideSpec validates that the overrider specification is correctly defined.
 func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) error {
 	if overrideSpec == nil {
 		return nil
@@ -51,6 +54,25 @@ func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) error {
 		return fmt.Errorf("overrideRules and (overriders or targetCluster) can't co-exist")
 	}
 
+	for overrideRuleIndex, rule := range overrideSpec.OverrideRules {
+		rulePath := field.NewPath("spec").Child("overrideRules").Index(overrideRuleIndex)
+
+		// validates provided annotations.
+		for annotationIndex, annotation := range rule.Overriders.AnnotationsOverrider {
+			annotationPath := rulePath.Child("overriders").Child("annotationsOverrider").Index(annotationIndex)
+			if err := apivalidation.ValidateAnnotations(annotation.Value, annotationPath.Child("value")).ToAggregate(); err != nil {
+				return err
+			}
+		}
+
+		// validates provided labels.
+		for labelIndex, label := range rule.Overriders.LabelsOverrider {
+			labelPath := rulePath.Child("overriders").Child("labelsOverrider").Index(labelIndex)
+			if err := metav1validation.ValidateLabels(label.Value, labelPath.Child("value")).ToAggregate(); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

@@ -47,6 +47,13 @@ func buildLabelAnnotationOverriderPatches(rawObj *unstructured.Unstructured, ove
 				continue
 			}
 		}
+		// If the key contains '/', we must replace(escape) it to '~1' according to the
+		// rule of jsonpath identifying a specific value.
+		// See https://jsonpatch.com/#json-pointer for more details.
+		// Note: here don't replace '~' because it is not a valid character for
+		// both annotations and labels, the key with '~' should be prevented at
+		// the validation phase.
+		key = strings.ReplaceAll(key, "/", "~1")
 		patches = append(patches, overrideOption{
 			Op:    string(overrider.Operator),
 			Path:  "/" + strings.Join(append(path, key), "/"),
