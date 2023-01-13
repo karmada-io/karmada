@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -80,7 +81,10 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 		return c.removeFinalizer(binding)
 	}
 
-	return c.syncBinding(binding)
+	if err := c.syncBindingAndCollectStatus(binding); err != nil {
+		return controllerruntime.Result{Requeue: true}, err
+	}
+	return controllerruntime.Result{}, nil
 }
 
 // removeFinalizer removes finalizer from the given ResourceBinding
@@ -97,55 +101,61 @@ func (c *ResourceBindingController) removeFinalizer(rb *workv1alpha2.ResourceBin
 	return controllerruntime.Result{}, nil
 }
 
-// syncBinding will sync resourceBinding to Works.
-func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
-	if err := c.removeOrphanWorks(binding); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
-	}
-
+func (c *ResourceBindingController) syncBindingAndCollectStatus(binding *workv1alpha2.ResourceBinding) error {
 	workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// It might happen when the resource template has been removed but the garbage collector hasn't removed
 			// the ResourceBinding which dependent on resource template.
 			// So, just return without retry(requeue) would save unnecessary loop.
-			return controllerruntime.Result{}, nil
+			return nil
 		}
 		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
+
 	var errs []error
+	if helper.IsBindingScheduled(&binding.Status) && binding.Status.SchedulerObservedGeneration == binding.Generation {
+		if err := c.syncBinding(binding, workload); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if err := helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload, c.EventRecorder); err != nil {
+		klog.Errorf("Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
+			binding.GetNamespace(), binding.GetName(), err)
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
+
+	return c.updateResourceStatus(binding, workload)
+}
+
+// syncBinding will sync resourceBinding to Works.
+func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBinding, workload *unstructured.Unstructured) error {
+	if err := c.removeOrphanWorks(binding); err != nil {
+		return err
+	}
+
 	start := time.Now()
-	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
+	err := ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
 	metrics.ObserveSyncWorkLatency(binding.ObjectMeta, err, start)
 	if err != nil {
 		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		c.EventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
-		errs = append(errs, err)
-	} else {
-		msg := fmt.Sprintf("Sync work of resourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
-		klog.V(4).Infof(msg)
-		c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
-		c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
-	}
-	if err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload, c.EventRecorder); err != nil {
-		klog.Errorf("Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
-		errs = append(errs, err)
-	}
-	if len(errs) > 0 {
-		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
+		return err
 	}
 
-	err = c.updateResourceStatus(binding)
-	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
-	}
-
-	return controllerruntime.Result{}, nil
+	msg := fmt.Sprintf("Sync work of resourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
+	klog.V(4).Infof(msg)
+	c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
+	c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
+	return nil
 }
 
 func (c *ResourceBindingController) removeOrphanWorks(binding *workv1alpha2.ResourceBinding) error {
@@ -170,18 +180,13 @@ func (c *ResourceBindingController) removeOrphanWorks(binding *workv1alpha2.Reso
 
 // updateResourceStatus will try to calculate the summary status and update to original object
 // that the ResourceBinding refer to.
-func (c *ResourceBindingController) updateResourceStatus(binding *workv1alpha2.ResourceBinding) error {
+func (c *ResourceBindingController) updateResourceStatus(binding *workv1alpha2.ResourceBinding, obj *unstructured.Unstructured) error {
 	resource := binding.Spec.Resource
 	gvr, err := restmapper.GetGroupVersionResource(
 		c.RESTMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind),
 	)
 	if err != nil {
 		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resource.APIVersion, resource.Kind, err)
-		return err
-	}
-	obj, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, resource)
-	if err != nil {
-		klog.Errorf("Failed to get resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
 		return err
 	}
 
