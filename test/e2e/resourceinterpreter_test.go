@@ -7,6 +7,8 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -187,6 +189,50 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					return false, nil
 				})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+	})
+
+	ginkgo.Context("InterpreterOperation InterpretDependency testing", func() {
+		var configMapNamespace, configMapName string
+
+		ginkgo.BeforeEach(func() {
+			configMapNamespace = testNamespace
+			configMapName = configMapNamePrefix + rand.String(RandomStrLength)
+
+			workload.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
+				ConfigMapRef: &corev1.ConfigMapEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+				}}}
+			// configmaps should be propagated automatically.
+			policy.Spec.PropagateDeps = true
+
+			cm := testhelper.NewConfigMap(configMapNamespace, configMapName, map[string]string{"RUN_ENV": "test"})
+
+			framework.CreateConfigMap(kubeClient, cm)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveConfigMap(kubeClient, configMapNamespace, configMapName)
+			})
+		})
+
+		ginkgo.It("InterpretDependency testing", func() {
+			ginkgo.By("check if workload's dependency is interpreted", func() {
+				clusterNames := framework.ClusterNames()
+				gomega.Eventually(func(g gomega.Gomega) (int, error) {
+					var configmapNum int
+					for _, clusterName := range clusterNames {
+						clusterClient := framework.GetClusterClient(clusterName)
+						gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+						if _, err := clusterClient.CoreV1().ConfigMaps(configMapNamespace).Get(context.TODO(), configMapName, metav1.GetOptions{}); err != nil {
+							if apierrors.IsNotFound(err) {
+								continue
+							}
+							g.Expect(err).NotTo(gomega.HaveOccurred())
+						}
+						configmapNum++
+					}
+					return configmapNum, nil
+				}, pollTimeout, pollInterval).Should(gomega.Equal(len(clusterNames)))
 			})
 		})
 	})
