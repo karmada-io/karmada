@@ -2,6 +2,7 @@ package binding
 
 import (
 	"reflect"
+	"strings"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +16,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/dependenciesdistributor"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -247,4 +249,14 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 	}
 
 	return targetClusters, nil
+}
+
+func isDependenciesDrivedResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) bool {
+	for labelKey := range resourceBinding.Labels {
+		if strings.HasPrefix(labelKey, dependenciesdistributor.BindingDependedByLabelKeyPrefix) {
+			return true
+		}
+	}
+
+	return false
 }

@@ -116,7 +116,9 @@ func (c *ResourceBindingController) syncBindingAndCollectStatus(binding *workv1a
 	}
 
 	var errs []error
-	if helper.IsBindingScheduled(&binding.Status) && binding.Status.SchedulerObservedGeneration == binding.Generation {
+	if (helper.IsBindingScheduled(&binding.Status) &&
+		binding.Status.SchedulerObservedGeneration == binding.Generation) ||
+		isDependenciesDrivedResourceBinding(binding) {
 		if err := c.syncBinding(binding, workload); err != nil {
 			errs = append(errs, err)
 		}
