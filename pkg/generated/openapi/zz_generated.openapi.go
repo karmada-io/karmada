@@ -70,6 +70,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImageOverrider":                              schema_pkg_apis_policy_v1alpha1_ImageOverrider(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImagePredicate":                              schema_pkg_apis_policy_v1alpha1_ImagePredicate(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider":                    schema_pkg_apis_policy_v1alpha1_LabelAnnotationOverrider(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OrderedClusterAffinityTerm":                  schema_pkg_apis_policy_v1alpha1_OrderedClusterAffinityTerm(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicy":                              schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicyList":                          schema_pkg_apis_policy_v1alpha1_OverridePolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec":                                schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref),
@@ -2858,6 +2859,80 @@ func schema_pkg_apis_policy_v1alpha1_LabelAnnotationOverrider(ref common.Referen
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_OrderedClusterAffinityTerm(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OrderedClusterAffinityTerm selects a set of cluster and indicates the order that Karmada scheduler should inspect with.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"affinityName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AffinityName is the name of the cluster group.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"order": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Order of the cluster group that Karmada scheduler should inspect with, in the range 1-100.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelSelector is a filter to select member clusters by labels. If non-nil and non-empty, only the clusters match this filter will be selected.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"fieldSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FieldSelector is a filter to select member clusters by fields. If non-nil and non-empty, only the clusters match this filter will be selected.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector"),
+						},
+					},
+					"clusterNames": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterNames is the list of clusters to be selected.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"exclude": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExcludedClusters is the list of clusters to be ignored.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"affinityName", "order"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3119,6 +3194,20 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
 						},
 					},
+					"orderedClusterAffinities": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OrderedClusterAffinities represents the scheduling order among multiple set of clusters that indicated by OrderedClusterAffinityTerm. Each term should have a unique order among all terms.\n\nThe scheduler will evaluate these groups one by one in strict order, the group that does not satisfy scheduling restrictions will be ignored that means all clusters in this group will not be selected unless it also belongs to the next group(a cluster could belong to multiple groups).\n\nIf none of the groups satisfy the scheduling restrictions, then scheduling fails, which means no cluster will be selected.\n\nNote: OrderedClusterAffinities can not co-exist with ClusterAffinity.\n\nPotential use case 1: The private clusters in the local data center could be the main group, and the managed clusters provided by cluster providers could be the secondary group. So that the Karmada scheduler would prefer to schedule workloads to the main group and the second group will only be considered in case of the main group does not satisfy restrictions(like, lack of resources).\n\nPotential use case 2: For the disaster recovery scenario, the clusters could be organized to primary and backup groups, the workloads would be scheduled to primary clusters firstly, and when primary cluster fails(like data center power off), Karmada scheduler could migrate workloads to the backup clusters.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OrderedClusterAffinityTerm"),
+									},
+								},
+							},
+						},
+					},
 					"clusterTolerations": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ClusterTolerations represents the tolerations.",
@@ -3157,7 +3246,7 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint", "k8s.io/api/core/v1.Toleration"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OrderedClusterAffinityTerm", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 

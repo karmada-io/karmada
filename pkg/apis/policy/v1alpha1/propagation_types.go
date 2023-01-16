@@ -150,6 +150,36 @@ type Placement struct {
 	// +optional
 	ClusterAffinity *ClusterAffinity `json:"clusterAffinity,omitempty"`
 
+	// OrderedClusterAffinities represents the scheduling order among multiple
+	// set of clusters that indicated by OrderedClusterAffinityTerm.
+	// Each term should have a unique order among all terms.
+	//
+	// The scheduler will evaluate these groups one by one in strict order, the
+	// group that does not satisfy scheduling restrictions will be ignored that
+	// means all clusters in this group will not be selected unless it also
+	// belongs to the next group(a cluster could belong to multiple groups).
+	//
+	// If none of the groups satisfy the scheduling restrictions, then scheduling
+	// fails, which means no cluster will be selected.
+	//
+	// Note: OrderedClusterAffinities can not co-exist with ClusterAffinity.
+	//
+	// Potential use case 1:
+	// The private clusters in the local data center could be the main group, and
+	// the managed clusters provided by cluster providers could be the secondary
+	// group. So that the Karmada scheduler would prefer to schedule workloads
+	// to the main group and the second group will only be considered in case of
+	// the main group does not satisfy restrictions(like, lack of resources).
+	//
+	// Potential use case 2:
+	// For the disaster recovery scenario, the clusters could be organized to
+	// primary and backup groups, the workloads would be scheduled to primary
+	// clusters firstly, and when primary cluster fails(like data center power off),
+	// Karmada scheduler could migrate workloads to the backup clusters.
+	//
+	// +optional
+	OrderedClusterAffinities []OrderedClusterAffinityTerm `json:"orderedClusterAffinities,omitempty"`
+
 	// ClusterTolerations represents the tolerations.
 	// +optional
 	ClusterTolerations []corev1.Toleration `json:"clusterTolerations,omitempty"`
@@ -223,6 +253,20 @@ type ClusterAffinity struct {
 	// ExcludedClusters is the list of clusters to be ignored.
 	// +optional
 	ExcludeClusters []string `json:"exclude,omitempty"`
+}
+
+// OrderedClusterAffinityTerm selects a set of cluster and indicates the order
+// that Karmada scheduler should inspect with.
+type OrderedClusterAffinityTerm struct {
+	// AffinityName is the name of the cluster group.
+	// +required
+	AffinityName string `json:"affinityName"`
+
+	// Order of the cluster group that Karmada scheduler should inspect with, in the range 1-100.
+	// +required
+	Order int32 `json:"order"`
+
+	ClusterAffinity `json:",inline"`
 }
 
 // ReplicaSchedulingType describes scheduling methods for the "replicas" in a resource.
