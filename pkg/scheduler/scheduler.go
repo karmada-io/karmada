@@ -504,7 +504,7 @@ func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.Resour
 
 	klog.V(4).Infof("ResourceBinding %s/%s scheduled to clusters %v", resourceBinding.Namespace, resourceBinding.Name, scheduleResult.SuggestedClusters)
 	scheduleErr := s.patchScheduleResultForResourceBinding(resourceBinding, placementStr, scheduleResult.SuggestedClusters)
-	return utilerrors.NewAggregate([]error{err, scheduleErr})
+	return scheduleErr
 }
 
 func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {

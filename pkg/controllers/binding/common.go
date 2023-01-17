@@ -251,7 +251,7 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 	return targetClusters, nil
 }
 
-func isDependenciesDrivedResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) bool {
+func isDependenciesDerivedResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) bool {
 	for labelKey := range resourceBinding.Labels {
 		if strings.HasPrefix(labelKey, dependenciesdistributor.BindingDependedByLabelKeyPrefix) {
 			return true
