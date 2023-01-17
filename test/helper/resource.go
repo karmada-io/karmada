@@ -506,7 +506,7 @@ func NewClusterWithResource(name string, allocatable, allocating, allocated core
 }
 
 // NewWorkload will build a workload object.
-func NewWorkload(namespace string, name string) *workloadv1alpha1.Workload {
+func NewWorkload(namespace, name string) *workloadv1alpha1.Workload {
 	podLabels := map[string]string{"app": "nginx"}
 
 	return &workloadv1alpha1.Workload{
