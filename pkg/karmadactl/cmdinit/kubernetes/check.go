@@ -30,7 +30,7 @@ func podStatus(pod *corev1.Pod) string {
 	return pod.Status.ContainerStatuses[0].State.Waiting.Reason
 }
 
-func isPodReady(c *kubernetes.Clientset, n, p string) wait.ConditionFunc {
+func isPodReady(c kubernetes.Interface, n, p string) wait.ConditionFunc {
 	return func() (done bool, err error) {
 		pod, err := c.CoreV1().Pods(n).Get(context.TODO(), p, metav1.GetOptions{})
 		if err != nil {
@@ -61,12 +61,12 @@ func isPodReady(c *kubernetes.Clientset, n, p string) wait.ConditionFunc {
 
 // waitPodReady  Poll up to timeout seconds for pod to enter running state.
 // Returns an error if the pod never enters the running state.
-func waitPodReady(c *kubernetes.Clientset, namespaces, podName string, timeout time.Duration) error {
+func waitPodReady(c kubernetes.Interface, namespaces, podName string, timeout time.Duration) error {
 	return wait.PollImmediate(time.Second, timeout, isPodReady(c, namespaces, podName))
 }
 
 // WaitPodReady wait pod ready
-func WaitPodReady(c *kubernetes.Clientset, namespace, selector string, timeout int) error {
+func WaitPodReady(c kubernetes.Interface, namespace, selector string, timeout int) error {
 	// Wait 3 second
 	time.Sleep(3 * time.Second)
 	pods, err := c.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
@@ -88,7 +88,7 @@ func WaitPodReady(c *kubernetes.Clientset, namespace, selector string, timeout i
 }
 
 // WaitEtcdReplicasetInDesired Wait Etcd Ready
-func WaitEtcdReplicasetInDesired(replicas int32, c *kubernetes.Clientset, namespace, selector string, timeout int) error {
+func WaitEtcdReplicasetInDesired(replicas int32, c kubernetes.Interface, namespace, selector string, timeout int) error {
 	if err := wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, func() (done bool, err error) {
 		pods, e := c.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
 		if e != nil {

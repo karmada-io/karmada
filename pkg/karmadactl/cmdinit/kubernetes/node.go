@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,11 +12,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
-)
-
-var (
-	etcdNodeName       string
-	etcdSelectorLabels map[string]string
 )
 
 func (i *CommandInitOption) getKarmadaAPIServerIP() error {
@@ -67,8 +61,8 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 }
 
 // nodeStatus Check the node status, if it is an unhealthy node, return false.
-func nodeStatus(node []corev1.NodeCondition) bool {
-	for _, v := range node {
+func nodeStatus(nodeConditions []corev1.NodeCondition) bool {
+	for _, v := range nodeConditions {
 		switch v.Type {
 		case corev1.NodeReady:
 			if v.Status != corev1.ConditionTrue {
@@ -103,6 +97,8 @@ func (i *CommandInitOption) AddNodeSelectorLabels() error {
 		return err
 	}
 
+	var etcdNodeName string
+	var etcdSelectorLabels map[string]string
 	for _, v := range nodes.Items {
 		if v.Spec.Taints != nil {
 			continue
@@ -111,6 +107,9 @@ func (i *CommandInitOption) AddNodeSelectorLabels() error {
 		if nodeStatus(v.Status.Conditions) {
 			etcdNodeName = v.Name
 			etcdSelectorLabels = v.Labels
+			if etcdSelectorLabels == nil {
+				etcdSelectorLabels = map[string]string{}
+			}
 			break
 		}
 	}
@@ -130,8 +129,7 @@ func (i *CommandInitOption) AddNodeSelectorLabels() error {
 }
 
 func (i *CommandInitOption) isNodeExist(labels string) bool {
-	l := strings.Split(labels, "=")
-	node, err := i.KubeClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: l[0]})
+	node, err := i.KubeClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labels})
 	if err != nil {
 		return false
 	}
