@@ -31,7 +31,7 @@ this KEP.  Describe why the change is important and the benefits to users.
 1. Bring HPA from single cluster to multiple clusters.
 1. Compatible with the HPA related resources in the single cluster.
 1. Tolerate the disaster of member cluster or karmada control plane.
-1. It is better to integrate well with the scenarios such as workloads shifting and cloud burst.
+1. It is better to integrate well with the scenarios such as workloads shifting and cloud bursting.
 1. It is better to support both Kubernetes HPA and customized HPA.
 
 ### Non-Goals
@@ -57,10 +57,10 @@ bogged down.
 -->
 
 #### Story 1
-For a platform developer using Kubernetes, now I want to use Karmada to run apps on multiclusters. But the CD ecosystem is built based on the single cluster and the original HPA is heavily used. So I want to migrate the HPA resources to multiclusters without too much efforts. It is better to be compatible with the schema of HPA used in single cluster. 
+As a platform developer using Kubernetes, I want to use Karmada to run apps on multiclusters, but my CD ecosystem is built based on a single cluster and the original HPA is heavily used. So I want to migrate the HPA resources to multiclusters without much effort. It is better to be compatible with the schema of HPA used in a single cluster. 
 
 #### Story 2
-For an application developer, I create an HPA CR for the application running on Karmada with FederatedHPA enabled.
+As an application developer, I create an HPA CR for the application running on Karmada with FederatedHPA enabled.
 ```
 target cpu util 30%
 min replica 3
@@ -99,8 +99,8 @@ Consider including folks who also work outside the SIG or subproject.
 
 There are no new CRDs or resources introduced in this design. All the core functions are implemented in the `FederatedHPAController`.
 1. The Kubernetes HPA components are still used in the member cluster and can work standalone.
-1. The FederatedHPAController is responsible for the purposes
-   1. Watch the HPA resource and `PropagationPolicy/ResourceBinding` corresponding to the `Workload`, to learn which clusters the HPA resource should propagated to and what weight the workloads should be spread between clusters.
+1. The FederatedHPAController is responsible for the following purposes:
+   1. Watch the HPA resource and `PropagationPolicy/ResourceBinding` corresponding to the `Workload`, to learn which clusters the HPA resource should be propagated to and at what weight the workloads should be spread between clusters.
    1. Create `Work` corresponding to HPA resource to spread the HPA to clusters. Distribute `min/max` fields of the HPA resources between member clusters based on the weight learned.
    1. Redistribute 'some' fields of the HPA resources after `PropagationPolicy/ResourceBinding` corresponding to `Workload` is changed.
 1. There will be `ResourceInterpreterWebhook`s provided for different types of `Workload`. They are responsible for retaining the `replicas` in the member clusters and aggregate statuses.

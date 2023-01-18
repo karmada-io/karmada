@@ -125,7 +125,7 @@ With these improvements, Karmada can easily manage hundreds of huge clusters. Th
 
 #### Dependencies
 - Karmada is now built with Golang 1.18.3. (@RainbowMango, [#2032](https://github.com/karmada-io/karmada/pull/2032))
-- Kubernetes dependencies are now updated to v1.24.2. (@RainbowMango, [#2050](https://github.com/karmada-io/karmada/pull/2050))
+- All Kubernetes dependencies are now updated to v1.24.2. (@RainbowMango, [#2050](https://github.com/karmada-io/karmada/pull/2050))
 
 #### Deprecation
 - `karmadactl`: Removed `--dry-run` flag from `describe`, `exec` and `log` commands. (@carlory, [#2023](https://github.com/karmada-io/karmada/pull/2023))
