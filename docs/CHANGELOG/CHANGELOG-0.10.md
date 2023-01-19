@@ -24,7 +24,7 @@ replicas during scheduling.
 ## Workloads Observation from Karmada Control Plane
 After workloads (e.g. Deployments) are propagated to member clusters, users may also want to get the overall workload 
 status across many clusters, especially the status of each `pod`. In this release, a `get` subcommand was introduced to 
-the `kubectl-karmada`. With this command, user are now able get all kinds of resources deployed in member clusters from 
+the `kubectl-karmada`. With this command, user are now able to get all kinds of resources deployed in member clusters from 
 the Karmada control plane.
 
 For example (get `deployment` and `pods` across clusters):

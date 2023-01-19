@@ -32,7 +32,7 @@ This document proposes a mechanism to specify that a member cluster resource sho
 
 ## Motivation
 
-When a cluster is unjoined, karmada should provide a mechanism to cleanup the resources propagated by karmada. Currently, when unjoin a cluster, `Karmada` first try to remove propagated resource, and will skip remove if the cluster not ready.  
+When a cluster is unjoined, Karmada should provide a mechanism to clean up the resources propagated by Karmada. Currently, when unjoining a cluster, `Karmada` first tries to remove the propagated resources, and will skip the removal if the cluster is not ready.  
 
 ### Goals
 
@@ -41,12 +41,12 @@ When a cluster is unjoined, karmada should provide a mechanism to cleanup the re
 
 ## Proposals
 
-The Cluster struct should be updated to contain a `RemoveStrategy` member. `RemoveStrategy` will initially support two values, `Needless` and  `Required`.
+The Cluster struct should be updated to contain a `RemoveStrategy` member. `RemoveStrategy` now supports `Needless` and `Required`.
 
-- The `Needless` strategy will not cleanup any propagated resources.
+- The `Needless` strategy will not clean up any propagated resources.
 - The `Required` strategy will halt the unjoin process and set the `Cluster resource` in a failed state when encountering errors. Unjoining is blocked until all propagated resources have been removed successfully.
 
-By default, `RemoveStrategy` will be  `needless` on all cluster. A user must explicitly set a removal strategy on the join cluster.
+`RemoveStrategy` defaults to `needless` on all cluster. A user must explicitly set a removal strategy for the joined cluster.
 
 
 ### Implementation details

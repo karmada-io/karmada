@@ -19,9 +19,9 @@ authors:
 
 With the widespread used of multi-clusters, the single-cluster quota management `ResourceQuota` in Kubernetes can no longer meet the administrator's resource management and restriction requirements for federated clusters. Resource administrators often need to stand on the global dimension to manage and control the total consumption of resources by each business.
 
-Creating a corresponding `namespace` and `ResourceQuotas` under each Kubernetes is the usual practice, and then Kubernetes will limit the resources by `ResourceQuotas`. However, with the growth of the number of businesses, the expansion and contraction of sub-clusters, the number of available resources and resource types of each cluster are different, which brings many problems to the administrator.
+Creating a corresponding `namespace` and `ResourceQuotas` under each Kubernetes cluster is a common practice, and then Kubernetes will limit the resources according to `ResourceQuotas`. However, today's administrators may be challenged by the exploding service volume, sub-cluster scaling needs, and resources of different amounts and types.
 
-In addition, Karmada supports the propagation of `ResourceQuota` objects to Kubernetes clusters through PropagationPolicy, so as to achieve the purpose of creating quotas on multi-clusters by k8s native interfaces. However, it is impossible to freely adjust and limit the global resource usage of a business by PropagationPolicy, and it is quite troublesome to expand such a requirement ont it. We need a global quota for Karmada, not just `ResourceQuota` on sub-clusters.
+In addition, Karmada supports the propagation of `ResourceQuota` objects to Kubernetes clusters through a PropagationPolicy to create quotas for multi-clusters using native K8s APIs. However, it is impossible to freely adjust and limit the global resource usage of a business by PropagationPolicies solely, and doing this could be really troublesome. We need a global quota for Karmada, not just `ResourceQuota` on sub-clusters.
 
 This document describes a quota system **`KarmadaQuota`** for Karmada. As a part of admission control, the **`KarmadaQuota`** enforcing hard resource usage limits per namespace.
 
@@ -77,10 +77,10 @@ Now we can create a total quota for business A (business representative) on karm
 
 ### Risks and Mitigations
 
-1. If a customer create a pod in member cluster itself, karmada is not able to perceive them, and then KarmadaQuota will not limit them too. It reverts the usage of single cluster.
+1. If a customer creates a pod in a member cluster, Karmada is not able to perceive it, and KarmadaQuota will not limit it too. It reverts the usage of a single cluster.
 
-2. If a customer use karmada to propagate a controller which can create pods in the member clusters, as the quota webhook can not check these pods's resources, these pod will be created in the member clusters lead to a customer may use resources more than the quota limit. There are currently no mitigation measures yet, please try to avoid this usage, and continue to pay attention to the karmada community.
-See [discuss about this situation](https://github.com/karmada-io/karmada/pull/632).
+2. If a customer use karmada to propagate a controller which can create pods in the member clusters, as the quota webhook can't check these pods' resources, these pods will be created in the member clusters, which leads to resource use more than limited. There are currently no mitigation measures. Please try to avoid such a use, and stay tuned for the updates from the Karmada community.
+See [discuss this situation](https://github.com/karmada-io/karmada/pull/632).
 
 ## Design Details
 

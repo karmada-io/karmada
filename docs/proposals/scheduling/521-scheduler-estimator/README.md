@@ -139,13 +139,13 @@ First, the existing plugins in Karmada Scheduler such as ClusterAffinity, APIIns
 
 Based on this prefilter result, when assigning replicas, the Karmada Scheduler could try to calculate cluster max available replicas by starting gRPC requests concurrently to the Cluster Accurate Scheduler Estimator. At last, the Cluster Accurate Scheduler Estimator will soon return how many available replicas that the cluster could produce. Then the Karmada Scheduler assgin replicas into different clusters in terms of the estimation result.
 
-We could implement this by modifying function calClusterAvailableReplicas to a interface. The previous estimation method, based on `ResourceSummary` in `Cluster.Status`, is able to be a default normal estimation approach. Now we could just add a switch to determine whether Cluster Accurate Scheduler Estimator is applied, while the estimator via `ResourceSummary` could be a default one that does not support disabled. In the future, after the scheduler profile is added, a user could customize the config by using a profile.
+We could implement this by modifying function calClusterAvailableReplicas to an interface. The previous estimation method, based on `ResourceSummary` in `Cluster.Status`, is able to be a default normal estimation approach. Now we could just add a switch to determine whether Cluster Accurate Scheduler Estimator is applied, while the estimator via `ResourceSummary` could be a default one that does not support disabled. In the future, after the scheduler profile is added, a user could customize the config by using a profile.
 
 Furthermore, replica estimation can be considered as a new scheduler plugin.
 
 ### Karmada Cluster Accurate Scheduler Estimator
 
-Cluster Accurate Scheduler Estimator is a independent component that works as a gRPC server. Before its server starts, a pod and node informer associated with a member cluster will be created as a cache. Once the cache has been synced, the gRPC server would start and serve the incoming scheduler request as a replica estimator. Each Cluster Accurate Scheduler Estimator serves for one cluster, as same as `karmada-agent`.
+Cluster Accurate Scheduler Estimator is an independent component that works as a gRPC server. Before its server starts, a pod and node informer associated with a member cluster will be created as a cache. Once the cache has been synced, the gRPC server would start and serve the incoming scheduler request as a replica estimator. Each Cluster Accurate Scheduler Estimator serves for one cluster, as same as `karmada-agent`.
 
 There are five steps for a scheduler estimation:
 
