@@ -302,26 +302,25 @@ spec:
                 properties:
                   ingress:
                     description: Ingress is a list containing ingress points for the
-                      load-balancer. Traffic intended for the service should be sent
-                      to these ingress points.
+                      load-balancer.
                     items:
-                      description: 'LoadBalancerIngress represents the status of a
-                        load-balancer ingress point: traffic intended for the service
-                        should be sent to an ingress point.'
+                      description: IngressLoadBalancerIngress represents the status
+                        of a load-balancer ingress point.
                       properties:
                         hostname:
                           description: Hostname is set for load-balancer ingress points
-                            that are DNS based (typically AWS load-balancers)
+                            that are DNS based.
                           type: string
                         ip:
                           description: IP is set for load-balancer ingress points
-                            that are IP based (typically GCE or OpenStack load-balancers)
+                            that are IP based.
                           type: string
                         ports:
-                          description: Ports is a list of records of service ports
-                            If used, every port defined in the service should have
-                            an entry in it
+                          description: Ports provides information about the ports
+                            exposed by this LoadBalancer.
                           items:
+                            description: IngressPortStatus represents the error condition
+                              of a service port
                             properties:
                               error:
                                 description: 'Error is to record the problem with
@@ -336,15 +335,14 @@ spec:
                                 pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                                 type: string
                               port:
-                                description: Port is the port number of the service
-                                  port of which status is recorded here
+                                description: Port is the port number of the ingress
+                                  port.
                                 format: int32
                                 type: integer
                               protocol:
                                 default: TCP
-                                description: 'Protocol is the protocol of the service
-                                  port of which status is recorded here The supported
-                                  values are: "TCP", "UDP", "SCTP"'
+                                description: 'Protocol is the protocol of the ingress
+                                  port. The supported values are: "TCP", "UDP", "SCTP"'
                                 type: string
                             required:
                             - port

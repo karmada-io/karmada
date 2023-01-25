@@ -18,7 +18,7 @@ package v1beta1
 
 import clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
-// Conditions and condition Reasons for the KubeadmConfig object
+// Conditions and condition Reasons for the KubeadmConfig object.
 
 const (
 	// DataSecretAvailableCondition documents the status of the bootstrap secret generation process.
@@ -56,6 +56,6 @@ const (
 	CertificatesGenerationFailedReason = "CertificatesGenerationFailed"
 
 	// CertificatesCorruptedReason (Severity=Error) documents a KubeadmConfig controller detecting
-	// an error while while retrieving certificates for a joining node.
+	// an error while retrieving certificates for a joining node.
 	CertificatesCorruptedReason = "CertificatesCorrupted"
 )

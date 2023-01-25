@@ -22,21 +22,25 @@ import (
 )
 
 const (
-	// ClusterLabelName is the label set on machines linked to a cluster and
+	// ClusterNameLabel is the label set on machines linked to a cluster and
 	// external objects(bootstrap and infrastructure providers).
-	ClusterLabelName = "cluster.x-k8s.io/cluster-name"
+	ClusterNameLabel = "cluster.x-k8s.io/cluster-name"
 
 	// ClusterTopologyOwnedLabel is the label set on all the object which are managed as part of a ClusterTopology.
 	ClusterTopologyOwnedLabel = "topology.cluster.x-k8s.io/owned"
 
-	// ClusterTopologyMachineDeploymentLabelName is the label set on the generated  MachineDeployment objects
+	// ClusterTopologyMachineDeploymentNameLabel is the label set on the generated  MachineDeployment objects
 	// to track the name of the MachineDeployment topology it represents.
-	ClusterTopologyMachineDeploymentLabelName = "topology.cluster.x-k8s.io/deployment-name"
+	ClusterTopologyMachineDeploymentNameLabel = "topology.cluster.x-k8s.io/deployment-name"
 
-	// ProviderLabelName is the label set on components in the provider manifest.
+	// ClusterTopologyUnsafeUpdateClassNameAnnotation can be used to disable the webhook check on
+	// update that disallows a pre-existing Cluster to be populated with Topology information and Class.
+	ClusterTopologyUnsafeUpdateClassNameAnnotation = "unsafe.topology.cluster.x-k8s.io/disable-update-class-name-check"
+
+	// ProviderNameLabel is the label set on components in the provider manifest.
 	// This label allows to easily identify all the components belonging to a provider; the clusterctl
 	// tool uses this label for implementing provider's lifecycle operations.
-	ProviderLabelName = "cluster.x-k8s.io/provider"
+	ProviderNameLabel = "cluster.x-k8s.io/provider"
 
 	// ClusterNameAnnotation is the annotation set on nodes identifying the name of the cluster the node belongs to.
 	ClusterNameAnnotation = "cluster.x-k8s.io/cluster-name"
@@ -60,10 +64,10 @@ const (
 	// on the reconciled object.
 	PausedAnnotation = "cluster.x-k8s.io/paused"
 
-	// DisableMachineCreate is an annotation that can be used to signal a MachineSet to stop creating new machines.
+	// DisableMachineCreateAnnotation is an annotation that can be used to signal a MachineSet to stop creating new machines.
 	// It is utilized in the OnDelete MachineDeploymentStrategy to allow the MachineDeployment controller to scale down
 	// older MachineSets when Machines are deleted and add the new replicas to the latest MachineSet.
-	DisableMachineCreate = "cluster.x-k8s.io/disable-machine-create"
+	DisableMachineCreateAnnotation = "cluster.x-k8s.io/disable-machine-create"
 
 	// WatchLabel is a label othat can be applied to any Cluster API object.
 	//
@@ -87,6 +91,8 @@ const (
 	MachineSkipRemediationAnnotation = "cluster.x-k8s.io/skip-remediation"
 
 	// ClusterSecretType defines the type of secret created by core components.
+	// Note: This is used by core CAPI, CAPBK, and KCP to determine whether a secret is created by the controllers
+	// themselves or supplied by the user (e.g. bring your own certificates).
 	ClusterSecretType corev1.SecretType = "cluster.x-k8s.io/secret" //nolint:gosec
 
 	// InterruptibleLabel is the label used to mark the nodes that run on interruptible instances.
@@ -99,6 +105,21 @@ const (
 	// An external controller must fulfill the contract of the InfraCluster resource.
 	// External infrastructure providers should ensure that the annotation, once set, cannot be removed.
 	ManagedByAnnotation = "cluster.x-k8s.io/managed-by"
+
+	// TopologyDryRunAnnotation is an annotation that gets set on objects by the topology controller
+	// only during a server side dry run apply operation. It is used for validating
+	// update webhooks for objects which get updated by template rotation (e.g. InfrastructureMachineTemplate).
+	// When the annotation is set and the admission request is a dry run, the webhook should
+	// deny validation due to immutability. By that the request will succeed (without
+	// any changes to the actual object because it is a dry run) and the topology controller
+	// will receive the resulting object.
+	TopologyDryRunAnnotation = "topology.cluster.x-k8s.io/dry-run"
+
+	// ReplicasManagedByAnnotation is an annotation that indicates external (non-Cluster API) management of infra scaling.
+	// The practical effect of this is that the capi "replica" count should be passively derived from the number of observed infra machines,
+	// instead of being a source of truth for eventual consistency.
+	// This annotation can be used to inform MachinePool status during in-progress scaling scenarios.
+	ReplicasManagedByAnnotation = "cluster.x-k8s.io/replicas-managed-by"
 )
 
 const (
@@ -125,7 +146,7 @@ const (
 
 // MachineAddress contains information for the node's address.
 type MachineAddress struct {
-	// Machine address type, one of Hostname, ExternalIP or InternalIP.
+	// Machine address type, one of Hostname, ExternalIP, InternalIP, ExternalDNS or InternalDNS.
 	Type MachineAddressType `json:"type"`
 
 	// The machine address.

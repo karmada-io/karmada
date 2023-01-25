@@ -23,13 +23,15 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/cluster-api/util/version"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"sigs.k8s.io/cluster-api/util/version"
 )
 
 func (m *MachineDeployment) SetupWebhookWithManager(mgr ctrl.Manager) error {
@@ -46,7 +48,64 @@ var _ webhook.Validator = &MachineDeployment{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (m *MachineDeployment) Default() {
-	PopulateDefaultsMachineDeployment(m)
+	if m.Labels == nil {
+		m.Labels = make(map[string]string)
+	}
+	m.Labels[ClusterNameLabel] = m.Spec.ClusterName
+
+	if m.Spec.MinReadySeconds == nil {
+		m.Spec.MinReadySeconds = pointer.Int32(0)
+	}
+
+	if m.Spec.RevisionHistoryLimit == nil {
+		m.Spec.RevisionHistoryLimit = pointer.Int32(1)
+	}
+
+	if m.Spec.ProgressDeadlineSeconds == nil {
+		m.Spec.ProgressDeadlineSeconds = pointer.Int32(600)
+	}
+
+	if m.Spec.Selector.MatchLabels == nil {
+		m.Spec.Selector.MatchLabels = make(map[string]string)
+	}
+
+	if m.Spec.Strategy == nil {
+		m.Spec.Strategy = &MachineDeploymentStrategy{}
+	}
+
+	if m.Spec.Strategy.Type == "" {
+		m.Spec.Strategy.Type = RollingUpdateMachineDeploymentStrategyType
+	}
+
+	if m.Spec.Template.Labels == nil {
+		m.Spec.Template.Labels = make(map[string]string)
+	}
+
+	// Default RollingUpdate strategy only if strategy type is RollingUpdate.
+	if m.Spec.Strategy.Type == RollingUpdateMachineDeploymentStrategyType {
+		if m.Spec.Strategy.RollingUpdate == nil {
+			m.Spec.Strategy.RollingUpdate = &MachineRollingUpdateDeployment{}
+		}
+		if m.Spec.Strategy.RollingUpdate.MaxSurge == nil {
+			ios1 := intstr.FromInt(1)
+			m.Spec.Strategy.RollingUpdate.MaxSurge = &ios1
+		}
+		if m.Spec.Strategy.RollingUpdate.MaxUnavailable == nil {
+			ios0 := intstr.FromInt(0)
+			m.Spec.Strategy.RollingUpdate.MaxUnavailable = &ios0
+		}
+	}
+
+	// If no selector has been provided, add label and selector for the
+	// MachineDeployment's name as a default way of providing uniqueness.
+	if len(m.Spec.Selector.MatchLabels) == 0 && len(m.Spec.Selector.MatchExpressions) == 0 {
+		m.Spec.Selector.MatchLabels[MachineDeploymentNameLabel] = m.Name
+		m.Spec.Template.Labels[MachineDeploymentNameLabel] = m.Name
+	}
+	// Make sure selector and template to be in the same cluster.
+	m.Spec.Selector.MatchLabels[ClusterNameLabel] = m.Spec.ClusterName
+	m.Spec.Template.Labels[ClusterNameLabel] = m.Spec.ClusterName
+
 	// tolerate version strings without a "v" prefix: prepend it if it's not there
 	if m.Spec.Template.Spec.Version != nil && !strings.HasPrefix(*m.Spec.Template.Spec.Version, "v") {
 		normalizedVersion := "v" + *m.Spec.Template.Spec.Version
@@ -75,18 +134,31 @@ func (m *MachineDeployment) ValidateDelete() error {
 
 func (m *MachineDeployment) validate(old *MachineDeployment) error {
 	var allErrs field.ErrorList
+	// The MachineDeployment name is used as a label value. This check ensures names which are not be valid label values are rejected.
+	if errs := validation.IsValidLabelValue(m.Name); len(errs) != 0 {
+		for _, err := range errs {
+			allErrs = append(
+				allErrs,
+				field.Invalid(
+					field.NewPath("metadata", "name"),
+					m.Name,
+					fmt.Sprintf("must be a valid label value: %s", err),
+				),
+			)
+		}
+	}
+	specPath := field.NewPath("spec")
 	selector, err := metav1.LabelSelectorAsSelector(&m.Spec.Selector)
 	if err != nil {
 		allErrs = append(
 			allErrs,
-			field.Invalid(field.NewPath("spec", "selector"), m.Spec.Selector, err.Error()),
+			field.Invalid(specPath.Child("selector"), m.Spec.Selector, err.Error()),
 		)
 	} else if !selector.Matches(labels.Set(m.Spec.Template.Labels)) {
 		allErrs = append(
 			allErrs,
-			field.Invalid(
-				field.NewPath("spec", "template", "labels"),
-				m.Spec.Template.Labels,
+			field.Forbidden(
+				specPath.Child("template", "metadata", "labels"),
 				fmt.Sprintf("must match spec.selector %q", selector.String()),
 			),
 		)
@@ -95,7 +167,10 @@ func (m *MachineDeployment) validate(old *MachineDeployment) error {
 	if old != nil && old.Spec.ClusterName != m.Spec.ClusterName {
 		allErrs = append(
 			allErrs,
-			field.Invalid(field.NewPath("spec", "clusterName"), m.Spec.ClusterName, "field is immutable"),
+			field.Forbidden(
+				specPath.Child("clusterName"),
+				"field is immutable",
+			),
 		)
 	}
 
@@ -109,7 +184,7 @@ func (m *MachineDeployment) validate(old *MachineDeployment) error {
 			if _, err := intstr.GetScaledValueFromIntOrPercent(m.Spec.Strategy.RollingUpdate.MaxSurge, total, true); err != nil {
 				allErrs = append(
 					allErrs,
-					field.Invalid(field.NewPath("spec", "strategy", "rollingUpdate", "maxSurge"),
+					field.Invalid(specPath.Child("strategy", "rollingUpdate", "maxSurge"),
 						m.Spec.Strategy.RollingUpdate.MaxSurge, fmt.Sprintf("must be either an int or a percentage: %v", err.Error())),
 				)
 			}
@@ -119,7 +194,7 @@ func (m *MachineDeployment) validate(old *MachineDeployment) error {
 			if _, err := intstr.GetScaledValueFromIntOrPercent(m.Spec.Strategy.RollingUpdate.MaxUnavailable, total, true); err != nil {
 				allErrs = append(
 					allErrs,
-					field.Invalid(field.NewPath("spec", "strategy", "rollingUpdate", "maxUnavailable"),
+					field.Invalid(specPath.Child("strategy", "rollingUpdate", "maxUnavailable"),
 						m.Spec.Strategy.RollingUpdate.MaxUnavailable, fmt.Sprintf("must be either an int or a percentage: %v", err.Error())),
 				)
 			}
@@ -128,7 +203,7 @@ func (m *MachineDeployment) validate(old *MachineDeployment) error {
 
 	if m.Spec.Template.Spec.Version != nil {
 		if !version.KubeSemver.MatchString(*m.Spec.Template.Spec.Version) {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "template", "spec", "version"), *m.Spec.Template.Spec.Version, "must be a valid semantic version"))
+			allErrs = append(allErrs, field.Invalid(specPath.Child("template", "spec", "version"), *m.Spec.Template.Spec.Version, "must be a valid semantic version"))
 		}
 	}
 
@@ -137,66 +212,4 @@ func (m *MachineDeployment) validate(old *MachineDeployment) error {
 	}
 
 	return apierrors.NewInvalid(GroupVersion.WithKind("MachineDeployment").GroupKind(), m.Name, allErrs)
-}
-
-// PopulateDefaultsMachineDeployment fills in default field values.
-// This is also called during MachineDeployment sync.
-func PopulateDefaultsMachineDeployment(d *MachineDeployment) {
-	if d.Labels == nil {
-		d.Labels = make(map[string]string)
-	}
-	d.Labels[ClusterLabelName] = d.Spec.ClusterName
-
-	if d.Spec.MinReadySeconds == nil {
-		d.Spec.MinReadySeconds = pointer.Int32Ptr(0)
-	}
-
-	if d.Spec.RevisionHistoryLimit == nil {
-		d.Spec.RevisionHistoryLimit = pointer.Int32Ptr(1)
-	}
-
-	if d.Spec.ProgressDeadlineSeconds == nil {
-		d.Spec.ProgressDeadlineSeconds = pointer.Int32Ptr(600)
-	}
-
-	if d.Spec.Selector.MatchLabels == nil {
-		d.Spec.Selector.MatchLabels = make(map[string]string)
-	}
-
-	if d.Spec.Strategy == nil {
-		d.Spec.Strategy = &MachineDeploymentStrategy{}
-	}
-
-	if d.Spec.Strategy.Type == "" {
-		d.Spec.Strategy.Type = RollingUpdateMachineDeploymentStrategyType
-	}
-
-	if d.Spec.Template.Labels == nil {
-		d.Spec.Template.Labels = make(map[string]string)
-	}
-
-	// Default RollingUpdate strategy only if strategy type is RollingUpdate.
-	if d.Spec.Strategy.Type == RollingUpdateMachineDeploymentStrategyType {
-		if d.Spec.Strategy.RollingUpdate == nil {
-			d.Spec.Strategy.RollingUpdate = &MachineRollingUpdateDeployment{}
-		}
-		if d.Spec.Strategy.RollingUpdate.MaxSurge == nil {
-			ios1 := intstr.FromInt(1)
-			d.Spec.Strategy.RollingUpdate.MaxSurge = &ios1
-		}
-		if d.Spec.Strategy.RollingUpdate.MaxUnavailable == nil {
-			ios0 := intstr.FromInt(0)
-			d.Spec.Strategy.RollingUpdate.MaxUnavailable = &ios0
-		}
-	}
-
-	// If no selector has been provided, add label and selector for the
-	// MachineDeployment's name as a default way of providing uniqueness.
-	if len(d.Spec.Selector.MatchLabels) == 0 && len(d.Spec.Selector.MatchExpressions) == 0 {
-		d.Spec.Selector.MatchLabels[MachineDeploymentLabelName] = d.Name
-		d.Spec.Template.Labels[MachineDeploymentLabelName] = d.Name
-	}
-	// Make sure selector and template to be in the same cluster.
-	d.Spec.Selector.MatchLabels[ClusterLabelName] = d.Spec.ClusterName
-	d.Spec.Template.Labels[ClusterLabelName] = d.Spec.ClusterName
 }
