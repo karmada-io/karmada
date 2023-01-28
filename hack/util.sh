@@ -689,7 +689,7 @@ function util::set_mirror_registry_for_china_mainland() {
   )
   for dockerfile in "${dockerfile_list[@]}"; do
     grep 'mirrors.ustc.edu.cn' ${repo_root}/${dockerfile} > /dev/null || sed -i'' -e "1a\\
-RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.15/main/ > /etc/apk/repositories" ${repo_root}/${dockerfile}
+RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.17/main/ > /etc/apk/repositories" ${repo_root}/${dockerfile}
   done
 }
 
