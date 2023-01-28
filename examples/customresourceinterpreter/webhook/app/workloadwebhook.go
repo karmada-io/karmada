@@ -47,6 +47,8 @@ func (e *workloadInterpreter) Handle(ctx context.Context, req interpreter.Reques
 		return e.responseWithExploreInterpretHealth(workload)
 	case configv1alpha1.InterpreterOperationInterpretStatus:
 		return e.responseWithExploreInterpretStatus(workload)
+	case configv1alpha1.InterpreterOperationInterpretDependency:
+		return e.responseWithExploreDependency(workload)
 	default:
 		return interpreter.Errored(http.StatusBadRequest, fmt.Errorf("wrong request operation type: %s", req.Operation))
 	}
@@ -60,6 +62,13 @@ func (e *workloadInterpreter) InjectDecoder(d *interpreter.Decoder) {
 func (e *workloadInterpreter) responseWithExploreReplica(workload *workloadv1alpha1.Workload) interpreter.Response {
 	res := interpreter.Succeeded("")
 	res.Replicas = workload.Spec.Replicas
+	return res
+}
+
+func (e *workloadInterpreter) responseWithExploreDependency(workload *workloadv1alpha1.Workload) interpreter.Response {
+	res := interpreter.Succeeded("")
+	res.Dependencies = []configv1alpha1.DependentObjectReference{{APIVersion: "v1", Kind: "ConfigMap",
+		Namespace: workload.Namespace, Name: workload.Spec.Template.Spec.Containers[0].EnvFrom[0].ConfigMapRef.Name}}
 	return res
 }
 
