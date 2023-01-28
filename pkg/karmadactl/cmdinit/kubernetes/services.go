@@ -177,18 +177,18 @@ func (i CommandInitOption) isNodePortExist() bool {
 		if v.Spec.Type != corev1.ServiceTypeNodePort {
 			continue
 		}
-		if !nodePort(i.KarmadaAPIServerNodePort, v) {
-			return false
+		if nodePortExistsInSVC(i.KarmadaAPIServerNodePort, v) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
-func nodePort(nodePort int32, service corev1.Service) bool {
+func nodePortExistsInSVC(nodePort int32, service corev1.Service) bool {
 	for _, v := range service.Spec.Ports {
 		if v.NodePort == nodePort {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }

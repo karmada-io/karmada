@@ -178,7 +178,7 @@ func (i *CommandInitOption) Complete() error {
 	}
 	i.KubeClientSet = clientSet
 
-	if !i.isNodePortExist() {
+	if i.isNodePortExist() {
 		return fmt.Errorf("nodePort of karmada apiserver %v already exist", i.KarmadaAPIServerNodePort)
 	}
 
