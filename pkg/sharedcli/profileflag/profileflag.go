@@ -27,8 +27,8 @@ const (
 type Options struct {
 	// EnableProfile is the flag about whether to enable pprof profiling.
 	EnableProfile bool
-	// ProfilePort is the TCP address for pprof profiling.
-	// Defaults to 127.0.0.1:6060 if unspecified.
+	// ProfilingBindAddress is the TCP address for pprof profiling.
+	// Defaults to :6060 if unspecified.
 	ProfilingBindAddress string
 }
 
