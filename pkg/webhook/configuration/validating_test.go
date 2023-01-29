@@ -233,7 +233,7 @@ func TestValidateWebhook(t *testing.T) {
 					URL: strPtr(""),
 				},
 			},
-			expectedError: "host must be provided",
+			expectedError: "host must be specified",
 		},
 		{
 			name: "ClientConfig: invalid service",
