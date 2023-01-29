@@ -65,6 +65,7 @@ func (v *ValidatingAdmission) InjectDecoder(d *admission.Decoder) error {
 var supportedInterpreterOperation = sets.NewString(
 	string(configv1alpha1.InterpreterOperationAll),
 	string(configv1alpha1.InterpreterOperationInterpretReplica),
+	string(configv1alpha1.InterpreterOperationInterpretDependency),
 	string(configv1alpha1.InterpreterOperationReviseReplica),
 	string(configv1alpha1.InterpreterOperationRetain),
 	string(configv1alpha1.InterpreterOperationAggregateStatus),
