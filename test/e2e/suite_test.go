@@ -23,10 +23,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/kind/pkg/cluster"
-	"sigs.k8s.io/kind/pkg/exec"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -88,7 +85,6 @@ var (
 	dynamicClient         dynamic.Interface
 	controlPlaneClient    client.Client
 	testNamespace         string
-	clusterProvider       *cluster.Provider
 	clusterLabels         = map[string]string{"location": "CHN"}
 	pushModeClusterLabels = map[string]string{"sync-mode": "Push"}
 )
@@ -112,7 +108,6 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	kubeconfig = os.Getenv("KUBECONFIG")
 	gomega.Expect(kubeconfig).ShouldNot(gomega.BeEmpty())
 
-	clusterProvider = cluster.NewProvider()
 	var err error
 	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, karmadaContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -172,45 +167,6 @@ func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface) err
 	}
 
 	return nil
-}
-
-//nolint:unused
-func createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext string) error {
-	err := clusterProvider.Create(clusterName, cluster.CreateWithKubeconfigPath(kubeConfigPath))
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command(
-		"docker", "inspect",
-		"--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
-		controlPlane,
-	)
-	lines, err := exec.OutputLines(cmd)
-	if err != nil {
-		return err
-	}
-
-	pathOptions := clientcmd.NewDefaultPathOptions()
-	pathOptions.LoadingRules.ExplicitPath = kubeConfigPath
-	pathOptions.EnvVar = ""
-	config, err := pathOptions.GetStartingConfig()
-	if err != nil {
-		return err
-	}
-
-	serverIP := fmt.Sprintf("https://%s:6443", lines[0])
-	config.Clusters[clusterContext].Server = serverIP
-	err = clientcmd.ModifyConfig(pathOptions, *config, true)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//nolint:unused
-func deleteCluster(clusterName, kubeConfigPath string) error {
-	return clusterProvider.Delete(clusterName, kubeConfigPath)
 }
 
 func createKwokCluster(clusterName string, kubeConfigPath string) (clusterContext string, err error) {
