@@ -364,6 +364,7 @@ func (c *ClusterStatusController) initLeaseController(cluster *clusterv1alpha1.C
 		int32(c.ClusterLeaseDuration.Seconds()),
 		nil,
 		renewInterval,
+		cluster.Name,
 		util.NamespaceClusterLease,
 		util.SetLeaseOwnerFunc(c.Client, cluster.Name))
 
