@@ -1,11 +1,16 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	osexec "os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -169,6 +174,7 @@ func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface) err
 	return nil
 }
 
+//nolint:unused
 func createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext string) error {
 	err := clusterProvider.Create(clusterName, cluster.CreateWithKubeconfigPath(kubeConfigPath))
 	if err != nil {
@@ -202,8 +208,137 @@ func createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext str
 	return nil
 }
 
+//nolint:unused
 func deleteCluster(clusterName, kubeConfigPath string) error {
 	return clusterProvider.Delete(clusterName, kubeConfigPath)
+}
+
+func createKwokCluster(clusterName string, kubeConfigPath string) (clusterContext string, err error) {
+	var nodeResource = `
+apiVersion: v1
+kind: Node
+metadata:
+  annotations:
+    node.alpha.kubernetes.io/ttl: "0"
+  labels:
+    beta.kubernetes.io/arch: ` + runtime.GOARCH + `
+    beta.kubernetes.io/os: linux
+    kubernetes.io/arch: ` + runtime.GOARCH + `
+    kubernetes.io/hostname: ` + clusterName + `-control-plane
+    kubernetes.io/os: linux
+    kubernetes.io/role: agent
+    node-role.kubernetes.io/agent: ""
+    type: kwok
+  name: ` + clusterName + `-control-plane
+status:
+  allocatable:
+    cpu: 32
+    memory: 256Gi
+    pods: 110
+  capacity:
+    cpu: 32
+    memory: 256Gi
+    pods: 110
+  nodeInfo:
+    architecture: ` + runtime.GOARCH + `
+    bootID: ""
+    containerRuntimeVersion: ""
+    kernelVersion: ""
+    kubeProxyVersion: fake
+    kubeletVersion: fake
+    machineID: ""
+    operatingSystem: linux
+    osImage: ""
+    systemUUID: ""
+  phase: Running
+`
+
+	kwokRuntime := "docker"
+	hostAddress := "host.docker.internal" // Require Docker 18.03
+	if runtime.GOOS == "linux" {
+		kwokRuntime = "binary"
+		hostAddress = "172.17.0.1" // For Docker running on Linux used 172.17.0.1 which is the Docker-host in Docker’s default-network.
+	}
+
+	// Create a kwok cluster
+	args := []string{
+		"--name=" + clusterName,
+		"create", "cluster",
+		"--quiet-pull=true",
+		"--runtime=" + kwokRuntime,
+		"--kube-authorization=true",
+	}
+	cmd := osexec.Command("kwokctl", args...)
+	err = runCommand(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Create a node for cluster
+	args = []string{
+		"--name=" + clusterName,
+		"kubectl", "apply", "-f", "-",
+	}
+	cmd = osexec.Command("kwokctl", args...)
+	cmd.Stdin = strings.NewReader(nodeResource)
+	err = runCommand(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Get kubeconfig of cluster
+	buf := bytes.NewBuffer(nil)
+	args = []string{
+		"--name=" + clusterName,
+		"get", "kubeconfig",
+	}
+	cmd = osexec.Command("kwokctl", args...)
+	cmd.Stdout = buf
+	err = runCommand(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	err = os.MkdirAll(filepath.Dir(kubeConfigPath), 0755)
+	if err != nil {
+		return "", err
+	}
+
+	config := buf.Bytes()
+
+	config = bytes.Replace(config, []byte("://127.0.0.1:"), []byte("://"+hostAddress+":"), -1)
+
+	err = os.WriteFile(kubeConfigPath, config, 0600)
+	if err != nil {
+		return "", err
+	}
+
+	clusterContext = fmt.Sprintf("kwok-%s", clusterName)
+	return clusterContext, nil
+}
+
+func deleteKwokCluster(clusterName, kubeConfigPath string) error {
+	args := []string{
+		"--name=" + clusterName,
+		"delete", "cluster",
+	}
+	cmd := osexec.Command("kwokctl", args...)
+	err := runCommand(cmd)
+	if err != nil {
+		return err
+	}
+	os.Remove(kubeConfigPath)
+	return nil
+}
+
+func runCommand(cmd *osexec.Cmd) error {
+	if cmd.Stderr == nil {
+		cmd.Stderr = os.Stderr
+	}
+	if cmd.Stdout == nil {
+		cmd.Stdout = os.Stdout
+	}
+	return cmd.Run()
 }
 
 // deleteClusterLabel delete cluster label of E2E

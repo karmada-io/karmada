@@ -81,3 +81,18 @@ export KUBECONFIG="${MEMBER_CLUSTER_KUBECONFIG}"
 kubectl --context="${MEMBER_CLUSTER_1_NAME}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
 kubectl --context="${MEMBER_CLUSTER_2_NAME}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
 kubectl --context="${PULL_MODE_CLUSTER_NAME}" apply -f "${REPO_ROOT}/examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml"
+
+BS_ARCH=$(go env GOARCH)
+BS_OS=$(go env GOOS)
+BS_PATH=$(go env GOPATH)
+
+# install kwok
+kwok_version=v0.1.0
+echo -n "Preparing: 'kwokctl' existence check - "
+if util::cmd_exist kwokctl; then
+  echo "passed"
+else
+  echo "not pass, kwokctl is not found, and will install it..."
+  wget -O "${BS_PATH}/bin/kwokctl" "https://github.com/kubernetes-sigs/kwok/releases/download/${kwok_version}/kwokctl-${BS_OS}-${BS_ARCH}" && \
+    chmod +x "${BS_PATH}/bin/kwokctl"
+fi

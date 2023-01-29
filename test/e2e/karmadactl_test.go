@@ -309,7 +309,6 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 		var homeDir string
 		var kubeConfigPath string
 		var clusterContext string
-		var controlPlane string
 		var deploymentName, deploymentNamespace string
 		var policyName, policyNamespace string
 		var deployment *appsv1.Deployment
@@ -320,8 +319,6 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 			clusterName = "member-e2e-" + rand.String(3)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-			clusterContext = fmt.Sprintf("kind-%s", clusterName)
-			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
 			deploymentName = deploymentNamePrefix + rand.String(RandomStrLength)
 			deploymentNamespace = testNamespace
 			policyName = deploymentName
@@ -346,14 +343,14 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Create cluster: %s", clusterName), func() {
-				err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
+				var err error
+				clusterContext, err = createKwokCluster(clusterName, kubeConfigPath)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.DeferCleanup(func() {
 				ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
-					err := deleteCluster(clusterName, kubeConfigPath)
+					err := deleteKwokCluster(clusterName, kubeConfigPath)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-					_ = os.Remove(kubeConfigPath)
 				})
 			})
 		})
@@ -442,7 +439,6 @@ var _ = framework.SerialDescribe("Karmadactl join/unjoin testing", ginkgo.Labels
 })
 
 var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.Labels{NeedCreateCluster}, func() {
-	var controlPlane string
 	var clusterName string
 	var homeDir string
 	var kubeConfigPath string
@@ -453,8 +449,6 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 		clusterName = "member-e2e-" + rand.String(3)
 		homeDir = os.Getenv("HOME")
 		kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-		controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
-		clusterContext = fmt.Sprintf("kind-%s", clusterName)
 
 		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 		defaultConfigFlags.Context = &karmadaContext
@@ -463,7 +457,8 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 
 	ginkgo.BeforeEach(func() {
 		ginkgo.By(fmt.Sprintf("Creating cluster: %s", clusterName), func() {
-			err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
+			var err error
+			clusterContext, err = createKwokCluster(clusterName, kubeConfigPath)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 		ginkgo.By(fmt.Sprintf("Joinning cluster: %s", clusterName), func() {
@@ -497,9 +492,8 @@ var _ = framework.SerialDescribe("Karmadactl cordon/uncordon testing", ginkgo.La
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
-				err := deleteCluster(clusterName, kubeConfigPath)
+				err := deleteKwokCluster(clusterName, kubeConfigPath)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				_ = os.Remove(kubeConfigPath)
 			})
 		})
 	})

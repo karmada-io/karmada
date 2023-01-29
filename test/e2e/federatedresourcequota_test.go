@@ -64,15 +64,12 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 		var clusterName string
 		var homeDir string
 		var kubeConfigPath string
-		var controlPlane string
 		var clusterContext string
 
 		ginkgo.BeforeEach(func() {
 			clusterName = "member-e2e-" + rand.String(3)
 			homeDir = os.Getenv("HOME")
 			kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-			controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
-			clusterContext = fmt.Sprintf("kind-%s", clusterName)
 		})
 
 		ginkgo.BeforeEach(func() {
@@ -81,7 +78,8 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Creating cluster: %s", clusterName), func() {
-				err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
+				var err error
+				clusterContext, err = createKwokCluster(clusterName, kubeConfigPath)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
@@ -103,9 +101,8 @@ var _ = ginkgo.Describe("FederatedResourceQuota auto-provision testing", func() 
 
 		ginkgo.AfterEach(func() {
 			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
-				err := deleteCluster(clusterName, kubeConfigPath)
+				err := deleteKwokCluster(clusterName, kubeConfigPath)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				_ = os.Remove(kubeConfigPath)
 			})
 		})
 

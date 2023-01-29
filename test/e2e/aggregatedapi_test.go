@@ -44,7 +44,6 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 		homeDir        string
 		kubeConfigPath string
 		clusterContext string
-		controlPlane   string
 
 		secretStoreNamespace string
 	)
@@ -53,8 +52,7 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 		clusterName = "member-e2e-" + rand.String(RandomStrLength)
 		homeDir = os.Getenv("HOME")
 		kubeConfigPath = fmt.Sprintf("%s/.kube/%s.config", homeDir, clusterName)
-		clusterContext = fmt.Sprintf("kind-%s", clusterName)
-		controlPlane = fmt.Sprintf("%s-control-plane", clusterName)
+
 		secretStoreNamespace = "test-" + rand.String(RandomStrLength)
 
 		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
@@ -64,14 +62,14 @@ var _ = framework.SerialDescribe("Aggregated Kubernetes API Endpoint testing", f
 
 	ginkgo.BeforeEach(func() {
 		ginkgo.By(fmt.Sprintf("Create cluster: %s", clusterName), func() {
-			err := createCluster(clusterName, kubeConfigPath, controlPlane, clusterContext)
+			var err error
+			clusterContext, err = createKwokCluster(clusterName, kubeConfigPath)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 		ginkgo.DeferCleanup(func() {
 			ginkgo.By(fmt.Sprintf("Deleting clusters: %s", clusterName), func() {
-				err := deleteCluster(clusterName, kubeConfigPath)
+				err := deleteKwokCluster(clusterName, kubeConfigPath)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				_ = os.Remove(kubeConfigPath)
 			})
 		})
 	})
