@@ -298,7 +298,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					clusterClient := framework.GetClusterClient(clusterName)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-					ingresses := []corev1.LoadBalancerIngress{{IP: fmt.Sprintf("172.19.2.%d", index+6)}}
+					ingresses := []networkingv1.IngressLoadBalancerIngress{{IP: fmt.Sprintf("172.19.2.%d", index+6)}}
 					for _, ingress := range ingresses {
 						ingLoadBalancer.Ingress = append(ingLoadBalancer.Ingress, corev1.LoadBalancerIngress{
 							IP:       ingress.IP,
@@ -310,7 +310,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 						memberIng, err := clusterClient.NetworkingV1().Ingresses(ingNamespace).Get(context.TODO(), ingName, metav1.GetOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())
 
-						memberIng.Status.LoadBalancer = corev1.LoadBalancerStatus{Ingress: ingresses}
+						memberIng.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{Ingress: ingresses}
 						_, err = clusterClient.NetworkingV1().Ingresses(ingNamespace).UpdateStatus(context.TODO(), memberIng, metav1.UpdateOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())
 					}, pollTimeout, pollInterval).Should(gomega.Succeed())
