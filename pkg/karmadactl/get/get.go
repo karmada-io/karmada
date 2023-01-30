@@ -187,15 +187,10 @@ func (g *CommandGetOptions) Complete(f util.Factory) error {
 	}
 	g.Namespace = namespace
 
-	templateArg := ""
-	if g.PrintFlags.TemplateFlags != nil && g.PrintFlags.TemplateFlags.TemplateArgument != nil {
-		templateArg = *g.PrintFlags.TemplateFlags.TemplateArgument
-	}
+	templateArg := *g.PrintFlags.TemplateFlags.TemplateArgument
 
 	// human readable printers have special conversion rules, so we determine if we're using one.
-	if (len(*g.PrintFlags.OutputFormat) == 0 && len(templateArg) == 0) || *g.PrintFlags.OutputFormat == "wide" {
-		g.IsHumanReadablePrinter = true
-	}
+	g.IsHumanReadablePrinter = len(*g.PrintFlags.OutputFormat) == 0 && len(templateArg) == 0 || *g.PrintFlags.OutputFormat == "wide"
 
 	g.ToPrinter = func(mapping *meta.RESTMapping, outputObjects *bool, withNamespace bool, withKind bool) (printers.ResourcePrinterFunc, error) {
 		// make a new copy of current flags / opts before mutating
@@ -230,11 +225,11 @@ func (g *CommandGetOptions) Complete(f util.Factory) error {
 
 		return printer.PrintObj, nil
 	}
-	karmadaClient, err := f.KarmadaClientSet()
+
+	g.karmadaClient, err = f.KarmadaClientSet()
 	if err != nil {
 		return err
 	}
-	g.karmadaClient = karmadaClient
 	return nil
 }
 
