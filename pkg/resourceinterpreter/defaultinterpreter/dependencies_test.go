@@ -35,12 +35,12 @@ func TestGetSecretNames(t *testing.T) {
 	tests := []struct {
 		name     string
 		pod      *corev1.Pod
-		expected sets.String
+		expected sets.Set[string]
 	}{
 		{
 			name:     "get secret names from pod",
 			pod:      fakePod,
-			expected: sets.NewString("fake-foo", "fake-bar"),
+			expected: sets.New("fake-foo", "fake-bar"),
 		},
 	}
 
@@ -49,7 +49,7 @@ func TestGetSecretNames(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			res := getSecretNames(tt.pod)
-			if !reflect.DeepEqual(res, tt.expected) {
+			if !res.Equal(tt.expected) {
 				t.Errorf("getSecretNames() = %v, want %v", res, tt.expected)
 			}
 		})
@@ -84,12 +84,12 @@ func TestGetConfigMapNames(t *testing.T) {
 	tests := []struct {
 		name     string
 		pod      *corev1.Pod
-		expected sets.String
+		expected sets.Set[string]
 	}{
 		{
 			name:     "get configMap names from pod",
 			pod:      fakePod,
-			expected: sets.NewString("fake-foo", "fake-bar"),
+			expected: sets.New("fake-foo", "fake-bar"),
 		},
 	}
 
@@ -98,7 +98,7 @@ func TestGetConfigMapNames(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			res := getConfigMapNames(tt.pod)
-			if !reflect.DeepEqual(res, tt.expected) {
+			if !res.Equal(tt.expected) {
 				t.Errorf("getConfigMapNames() = %v, want %v", res, tt.expected)
 			}
 		})
@@ -131,12 +131,12 @@ func TestGetPVCNames(t *testing.T) {
 	tests := []struct {
 		name     string
 		pod      *corev1.Pod
-		expected sets.String
+		expected sets.Set[string]
 	}{
 		{
 			name:     "get pvc names from pod",
 			pod:      fakePod,
-			expected: sets.NewString("fake-foo", "fake-bar"),
+			expected: sets.New("fake-foo", "fake-bar"),
 		},
 	}
 
@@ -145,7 +145,7 @@ func TestGetPVCNames(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			res := getPVCNames(tt.pod)
-			if !reflect.DeepEqual(res, tt.expected) {
+			if !res.Equal(tt.expected) {
 				t.Errorf("getPVCNames() = %v, want %v", res, tt.expected)
 			}
 		})
@@ -219,24 +219,24 @@ func Test_getServiceAccountNames(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want sets.String
+		want sets.Set[string]
 	}{
 		{
 			name: "get ServiceAccountName from pod ",
 			args: args{pod: &corev1.Pod{Spec: corev1.PodSpec{ServiceAccountName: "test"}}},
-			want: sets.NewString("test"),
+			want: sets.New("test"),
 		},
 		{
 			name: "get default ServiceAccountName from pod ",
 			args: args{pod: &corev1.Pod{Spec: corev1.PodSpec{ServiceAccountName: "default"}}},
-			want: sets.NewString(),
+			want: sets.New[string](),
 		},
 	}
 	for i := range tests {
 		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := getServiceAccountNames(tt.args.pod); !reflect.DeepEqual(got, tt.want) {
+			if got := getServiceAccountNames(tt.args.pod); !got.Equal(tt.want) {
 				t.Errorf("getServiceAccountNames() = %v, want %v", got, tt.want)
 			}
 		})

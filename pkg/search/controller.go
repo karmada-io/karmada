@@ -83,18 +83,25 @@ func NewController(restConfig *rest.Config, factory informerfactory.SharedInform
 // addAllEventHandlers adds all event handlers to the informer
 func (c *Controller) addAllEventHandlers() {
 	clusterInformer := c.informerFactory.Cluster().V1alpha1().Clusters().Informer()
-	clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.addCluster,
 		UpdateFunc: c.updateCluster,
 		DeleteFunc: c.deleteCluster,
 	})
+	if err != nil {
+		klog.Errorf("Failed to add handlers for Clusters: %v", err)
+	}
 
 	resourceRegistryInformer := c.informerFactory.Search().V1alpha1().ResourceRegistries().Informer()
-	resourceRegistryInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = resourceRegistryInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.addResourceRegistry,
 		UpdateFunc: c.updateResourceRegistry,
 		DeleteFunc: c.deleteResourceRegistry,
 	})
+	if err != nil {
+		klog.Errorf("Failed to add handlers for Clusters: %v", err)
+	}
+
 	// ignore the error here because the informers haven't been started
 	_ = clusterInformer.SetTransform(fedinformer.StripUnusedFields)
 	_ = resourceRegistryInformer.SetTransform(fedinformer.StripUnusedFields)

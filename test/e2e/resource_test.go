@@ -290,7 +290,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 		})
 
 		ginkgo.It("ingress status collection testing", func() {
-			ingLoadBalancer := corev1.LoadBalancerStatus{}
+			ingLoadBalancer := networkingv1.IngressLoadBalancerStatus{}
 
 			// simulate the update of the ingress status in member clusters.
 			ginkgo.By("Update ingress status in member clusters", func() {
@@ -300,7 +300,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 
 					ingresses := []networkingv1.IngressLoadBalancerIngress{{IP: fmt.Sprintf("172.19.2.%d", index+6)}}
 					for _, ingress := range ingresses {
-						ingLoadBalancer.Ingress = append(ingLoadBalancer.Ingress, corev1.LoadBalancerIngress{
+						ingLoadBalancer.Ingress = append(ingLoadBalancer.Ingress, networkingv1.IngressLoadBalancerIngress{
 							IP:       ingress.IP,
 							Hostname: clusterName,
 						})

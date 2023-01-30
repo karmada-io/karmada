@@ -42,8 +42,8 @@ func (s *Snapshot) GetReadyClusters() []*framework.ClusterInfo {
 }
 
 // GetReadyClusterNames returns the clusterNames in ready status.
-func (s *Snapshot) GetReadyClusterNames() sets.String {
-	readyClusterNames := sets.NewString()
+func (s *Snapshot) GetReadyClusterNames() sets.Set[string] {
+	readyClusterNames := sets.New[string]()
 	for _, c := range s.clusterInfoList {
 		if util.IsClusterReady(&c.Cluster().Status) {
 			readyClusterNames.Insert(c.Cluster().Name)

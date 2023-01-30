@@ -71,7 +71,7 @@ func TestContext_IsControllerEnabled(t *testing.T) {
 					Controllers: tt.controllers,
 				},
 			}
-			if got := c.IsControllerEnabled(tt.controllerName, sets.NewString(tt.disabledByDefaultControllers...)); got != tt.expected {
+			if got := c.IsControllerEnabled(tt.controllerName, sets.New(tt.disabledByDefaultControllers...)); got != tt.expected {
 				t.Errorf("expected %v, but got %v", tt.expected, got)
 			}
 		})

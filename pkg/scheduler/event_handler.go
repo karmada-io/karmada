@@ -23,41 +23,57 @@ import (
 // to add event handlers for various informers.
 func (s *Scheduler) addAllEventHandlers() {
 	bindingInformer := s.informerFactory.Work().V1alpha2().ResourceBindings().Informer()
-	bindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+	_, err := bindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: s.resourceBindingEventFilter,
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.onResourceBindingAdd,
 			UpdateFunc: s.onResourceBindingUpdate,
 		},
 	})
+	if err != nil {
+		klog.Errorf("Failed to add handlers for ResourceBindings: %v", err)
+	}
 
 	policyInformer := s.informerFactory.Policy().V1alpha1().PropagationPolicies().Informer()
-	policyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = policyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: s.onPropagationPolicyUpdate,
 	})
+	if err != nil {
+		klog.Errorf("Failed to add handlers for PropagationPolicies: %v", err)
+	}
 
 	clusterBindingInformer := s.informerFactory.Work().V1alpha2().ClusterResourceBindings().Informer()
-	clusterBindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+	_, err = clusterBindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: s.resourceBindingEventFilter,
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.onResourceBindingAdd,
 			UpdateFunc: s.onResourceBindingUpdate,
 		},
 	})
+	if err != nil {
+		klog.Errorf("Failed to add handlers for ClusterResourceBindings: %v", err)
+	}
 
 	clusterPolicyInformer := s.informerFactory.Policy().V1alpha1().ClusterPropagationPolicies().Informer()
-	clusterPolicyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = clusterPolicyInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: s.onClusterPropagationPolicyUpdate,
 	})
+	if err != nil {
+		klog.Errorf("Failed to add handlers for ClusterPropagationPolicies: %v", err)
+	}
 
 	memClusterInformer := s.informerFactory.Cluster().V1alpha1().Clusters().Informer()
-	memClusterInformer.AddEventHandler(
+	_, err = memClusterInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.addCluster,
 			UpdateFunc: s.updateCluster,
 			DeleteFunc: s.deleteCluster,
 		},
 	)
+	if err != nil {
+		klog.Errorf("Failed to add handlers for Clusters: %v", err)
+	}
+
 	// ignore the error here because the informers haven't been started
 	_ = bindingInformer.SetTransform(fedinformer.StripUnusedFields)
 	_ = policyInformer.SetTransform(fedinformer.StripUnusedFields)

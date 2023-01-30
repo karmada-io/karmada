@@ -43,6 +43,8 @@ type Snapshot struct {
 	havePodsWithRequiredAntiAffinityNodeInfoList []*framework.NodeInfo
 	// usedPVCSet contains a set of PVC names that have one or more scheduled pods using them,
 	// keyed in the format "namespace/name".
+	//nolint:staticcheck
+	// disable `deprecation` check for lifted code.
 	usedPVCSet sets.String
 	generation int64
 }
@@ -108,6 +110,9 @@ func createNodeInfoMap(pods []*corev1.Pod, nodes []*corev1.Node) map[string]*fra
 	return nodeNameToInfo
 }
 
+// disable `deprecation` check for lifted code.
+//
+//nolint:staticcheck
 func createUsedPVCSet(pods []*corev1.Pod) sets.String {
 	usedPVCSet := sets.NewString()
 	for _, pod := range pods {
@@ -128,6 +133,9 @@ func createUsedPVCSet(pods []*corev1.Pod) sets.String {
 }
 
 // getNodeImageStates returns the given node's image states based on the given imageExistence map.
+// disable `deprecation` check for lifted code.
+//
+//nolint:staticcheck
 func getNodeImageStates(node *corev1.Node, imageExistenceMap map[string]sets.String) map[string]*framework.ImageStateSummary {
 	imageStates := make(map[string]*framework.ImageStateSummary)
 
@@ -143,6 +151,10 @@ func getNodeImageStates(node *corev1.Node, imageExistenceMap map[string]sets.Str
 }
 
 // createImageExistenceMap returns a map recording on which nodes the images exist, keyed by the images' names.
+//
+// disable `deprecation` check for lifted code.
+//
+//nolint:staticcheck
 func createImageExistenceMap(nodes []*corev1.Node) map[string]sets.String {
 	imageExistenceMap := make(map[string]sets.String)
 	for _, node := range nodes {

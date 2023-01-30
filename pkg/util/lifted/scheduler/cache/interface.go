@@ -122,6 +122,8 @@ type Cache interface {
 
 // Dump is a dump of the cache state.
 type Dump struct {
+	//nolint:staticcheck
+	// disable `deprecation` check for lifted code.
 	AssumedPods sets.String
 	Nodes       map[string]*framework.NodeInfo
 }

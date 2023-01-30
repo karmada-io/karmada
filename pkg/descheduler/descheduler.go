@@ -93,11 +93,15 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 	}
 	desched.deschedulerWorker = util.NewAsyncWorker(deschedulerWorkerOptions)
 
-	desched.clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := desched.clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    desched.addCluster,
 		UpdateFunc: desched.updateCluster,
 		DeleteFunc: desched.deleteCluster,
 	})
+	if err != nil {
+		klog.Errorf("Failed add handler for Clusters: %v", err)
+		return nil
+	}
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartStructuredLogging(0)

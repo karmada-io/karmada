@@ -61,7 +61,7 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 	// Add the flag(--kubeconfig) that is added by controller-runtime
 	// (https://github.com/kubernetes-sigs/controller-runtime/blob/v0.11.1/pkg/client/config/config.go#L39).
 	genericFlagSet.AddGoFlagSet(flag.CommandLine)
-	o.AddFlags(genericFlagSet, controllers.ControllerNames(), controllersDisabledByDefault.List())
+	o.AddFlags(genericFlagSet, controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
 
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
@@ -112,7 +112,7 @@ func Run(ctx context.Context, o *options.Options) error {
 var controllers = make(ctrlctx.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.NewString()
+var controllersDisabledByDefault = sets.New[string]()
 
 func init() {
 	controllers["karmada"] = startKarmadaController

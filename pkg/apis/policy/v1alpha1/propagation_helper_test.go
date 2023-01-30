@@ -18,7 +18,7 @@ func TestPropagationPolicy_ExplicitPriority(t *testing.T) {
 		},
 		{
 			name:             "no priority declared should defaults to zero",
-			declaredPriority: pointer.Int32Ptr(20),
+			declaredPriority: pointer.Int32(20),
 			expectedPriority: 20,
 		},
 	}
@@ -46,7 +46,7 @@ func TestClusterPropagationPolicy_ExplicitPriority(t *testing.T) {
 		},
 		{
 			name:             "no priority declared should defaults to zero",
-			declaredPriority: pointer.Int32Ptr(20),
+			declaredPriority: pointer.Int32(20),
 			expectedPriority: 20,
 		},
 	}

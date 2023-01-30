@@ -438,7 +438,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 	}
 	type want struct {
 		resourceVersion string
-		names           sets.String
+		names           sets.Set[string]
 		errAssert       func(error) bool
 	}
 	tests := []struct {
@@ -460,7 +460,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 			want: want{
 				// fakeDynamic returns list with resourceVersion=""
 				resourceVersion: "",
-				names:           sets.NewString(),
+				names:           sets.New[string](),
 				errAssert:       noError,
 			},
 		},
@@ -478,7 +478,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 			want: want{
 				// fakeDynamic returns list with resourceVersion=""
 				resourceVersion: buildMultiClusterRV("cluster1", "", "cluster2", ""),
-				names:           sets.NewString("pod11", "pod12", "pod13", "pod14", "pod15", "pod21", "pod22", "pod23", "pod24", "pod25"),
+				names:           sets.New[string]("pod11", "pod12", "pod13", "pod14", "pod15", "pod21", "pod22", "pod23", "pod24", "pod25"),
 				errAssert:       noError,
 			},
 		},
@@ -498,7 +498,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 			want: want{
 				// fakeDynamic returns list with resourceVersion=""
 				resourceVersion: buildMultiClusterRV("cluster1", "", "cluster2", ""),
-				names:           sets.NewString("pod11", "pod13", "pod21", "pod23"),
+				names:           sets.New[string]("pod11", "pod13", "pod21", "pod23"),
 				errAssert:       noError,
 			},
 		},
@@ -531,7 +531,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 			if tt.want.resourceVersion != object.GetResourceVersion() {
 				t.Errorf("ResourceVersion want=%v, actual=%v", tt.want.resourceVersion, object.GetResourceVersion())
 			}
-			names := sets.NewString()
+			names := sets.New[string]()
 
 			err = meta.EachListItem(obj, func(o runtime.Object) error {
 				a, err := meta.Accessor(o)
@@ -547,7 +547,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 			}
 
 			if !tt.want.names.Equal(names) {
-				t.Errorf("List items want=%v, actual=%v", strings.Join(tt.want.names.List(), ","), strings.Join(names.List(), ","))
+				t.Errorf("List items want=%v, actual=%v", strings.Join(sets.List(tt.want.names), ","), strings.Join(sets.List(names), ","))
 			}
 		})
 	}
@@ -652,7 +652,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 		options *metainternalversion.ListOptions
 	}
 	type want struct {
-		gets sets.String
+		gets sets.Set[string]
 	}
 	tests := []struct {
 		name string
@@ -667,7 +667,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 				},
 			},
 			want: want{
-				gets: sets.NewString("pod11", "pod12", "pod13", "pod21", "pod22", "pod23"),
+				gets: sets.New[string]("pod11", "pod12", "pod13", "pod21", "pod22", "pod23"),
 			},
 		},
 		{
@@ -678,7 +678,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 				},
 			},
 			want: want{
-				gets: sets.NewString("pod13", "pod21", "pod22", "pod23"),
+				gets: sets.New[string]("pod13", "pod21", "pod22", "pod23"),
 			},
 		},
 		{
@@ -689,7 +689,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 				},
 			},
 			want: want{
-				gets: sets.NewString("pod13", "pod23"),
+				gets: sets.New[string]("pod13", "pod23"),
 			},
 		},
 	}
@@ -706,7 +706,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 			defer watcher.Stop()
 			timeout := time.After(time.Second * 5)
 
-			gets := sets.NewString()
+			gets := sets.New[string]()
 		LOOP:
 			for {
 				select {

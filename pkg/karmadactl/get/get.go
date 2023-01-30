@@ -624,7 +624,7 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 
 	info := infos[0]
 	mapping := info.ResourceMapping()
-	outputObjects := utilpointer.BoolPtr(!g.WatchOnly)
+	outputObjects := utilpointer.Bool(!g.WatchOnly)
 
 	printer, err := g.ToPrinter(mapping, outputObjects, g.AllNamespaces, false)
 	if err != nil {

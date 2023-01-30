@@ -565,10 +565,10 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 
 				ginkgo.It("could list nodes", func() {
 					fromM1 := framework.GetResourceNames(m1Dynamic.Resource(nodeGVR))
-					ginkgo.By("list nodes from member1: " + strings.Join(fromM1.List(), ","))
+					ginkgo.By("list nodes from member1: " + strings.Join(sets.List(fromM1), ","))
 					fromM2 := framework.GetResourceNames(m2Dynamic.Resource(nodeGVR))
-					ginkgo.By("list nodes from member2: " + strings.Join(fromM2.List(), ","))
-					fromMembers := sets.NewString().Union(fromM1).Union(fromM2)
+					ginkgo.By("list nodes from member2: " + strings.Join(sets.List(fromM2), ","))
+					fromMembers := sets.New[string]().Union(fromM1).Union(fromM2)
 
 					var proxyList *corev1.NodeList
 					gomega.Eventually(func(g gomega.Gomega) {
@@ -576,7 +576,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 						proxyList, err = proxyClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 						g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-						fromProxy := sets.NewString()
+						fromProxy := sets.New[string]()
 						for _, item := range proxyList.Items {
 							fromProxy.Insert(item.Name)
 						}
@@ -584,7 +584,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 
 					// assert cache source annotation
-					groupM1, groupM2 := sets.NewString(), sets.NewString()
+					groupM1, groupM2 := sets.New[string](), sets.New[string]()
 					for _, item := range proxyList.Items {
 						cluster := item.Annotations[clusterv1alpha1.CacheSourceAnnotationKey]
 						switch cluster {

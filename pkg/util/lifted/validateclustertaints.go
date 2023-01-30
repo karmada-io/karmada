@@ -38,6 +38,8 @@ import (
 func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.ErrorList {
 	allErrors := field.ErrorList{}
 
+	//nolint:staticcheck
+	// disable `deprecation` check for lifted code.
 	uniqueTaints := map[corev1.TaintEffect]sets.String{}
 
 	for i, currTaint := range taints {
@@ -61,6 +63,8 @@ func ValidateClusterTaints(taints []corev1.Taint, fldPath *field.Path) field.Err
 
 		// add taint to existingTaints for uniqueness check
 		if len(uniqueTaints[currTaint.Effect]) == 0 {
+			//nolint:staticcheck
+			// disable `deprecation` check for lifted code.
 			uniqueTaints[currTaint.Effect] = sets.String{}
 		}
 		uniqueTaints[currTaint.Effect].Insert(currTaint.Key)

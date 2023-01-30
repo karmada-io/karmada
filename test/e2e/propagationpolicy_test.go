@@ -392,7 +392,7 @@ var _ = ginkgo.Describe("[BasicPropagation] propagation testing", func() {
 					return true
 				})
 
-			patch := []map[string]interface{}{{"op": "replace", "path": "/spec/backoffLimit", "value": pointer.Int32Ptr(updateBackoffLimit)}}
+			patch := []map[string]interface{}{{"op": "replace", "path": "/spec/backoffLimit", "value": pointer.Int32(updateBackoffLimit)}}
 			bytes, err := json.Marshal(patch)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			framework.UpdateJobWithPatchBytes(kubeClient, job.Namespace, job.Name, bytes, types.JSONPatchType)

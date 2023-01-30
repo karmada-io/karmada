@@ -438,6 +438,9 @@ func TestPodSecrets(t *testing.T) {
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/api/v1/pod/util_test.go#L553-L591
 
 // collectResourcePaths traverses the object, computing all the struct paths that lead to fields with resourcename in the name.
+// disable `deprecation` check for lifted code.
+//
+//nolint:staticcheck
 func collectResourcePaths(t *testing.T, resourcename string, path *field.Path, name string, tp reflect.Type) sets.String {
 	resourcename = strings.ToLower(resourcename)
 	resourcePaths := sets.NewString()

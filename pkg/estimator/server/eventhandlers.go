@@ -15,7 +15,7 @@ import (
 
 func addAllEventHandlers(es *AccurateSchedulerEstimatorServer, informerFactory informers.SharedInformerFactory) {
 	// scheduled pod cache
-	informerFactory.Core().V1().Pods().Informer().AddEventHandler(
+	_, err := informerFactory.Core().V1().Pods().Informer().AddEventHandler(
 		cache.FilteringResourceEventHandler{
 			FilterFunc: func(obj interface{}) bool {
 				switch t := obj.(type) {
@@ -41,13 +41,20 @@ func addAllEventHandlers(es *AccurateSchedulerEstimatorServer, informerFactory i
 			},
 		},
 	)
-	informerFactory.Core().V1().Nodes().Informer().AddEventHandler(
+	if err != nil {
+		klog.Errorf("Failed to add handler for Pods: %v", err)
+	}
+
+	_, err = informerFactory.Core().V1().Nodes().Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    es.addNodeToCache,
 			UpdateFunc: es.updateNodeInCache,
 			DeleteFunc: es.deleteNodeFromCache,
 		},
 	)
+	if err != nil {
+		klog.Errorf("Failed to add handler for Pods: %v", err)
+	}
 }
 
 func (es *AccurateSchedulerEstimatorServer) addPodToCache(obj interface{}) {

@@ -89,7 +89,7 @@ to create regular Kubernetes resources.`,
 	// and update the flag usage.
 	genericFlagSet.AddGoFlagSet(flag.CommandLine)
 	genericFlagSet.Lookup("kubeconfig").Usage = "Path to karmada control plane kubeconfig file."
-	opts.AddFlags(genericFlagSet, controllers.ControllerNames(), controllersDisabledByDefault.List())
+	opts.AddFlags(genericFlagSet, controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
 
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
@@ -175,7 +175,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 var controllers = make(controllerscontext.Initializers)
 
 // controllersDisabledByDefault is the set of controllers which is disabled by default
-var controllersDisabledByDefault = sets.NewString(
+var controllersDisabledByDefault = sets.New(
 	"hpa",
 )
 
