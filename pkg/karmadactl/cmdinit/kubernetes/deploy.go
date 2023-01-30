@@ -121,7 +121,7 @@ type CommandInitOption struct {
 	CRDs                               string
 	ExternalIP                         string
 	ExternalDNS                        string
-	KubeClientSet                      *kubernetes.Clientset
+	KubeClientSet                      kubernetes.Interface
 	CertAndKeyFileData                 map[string][]byte
 	RestConfig                         *rest.Config
 	KarmadaAPIServerIP                 []net.IP
