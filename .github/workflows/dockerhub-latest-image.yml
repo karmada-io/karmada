@@ -34,7 +34,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.4
+          go-version: 1.19.5
       - name: install QEMU
         uses: docker/setup-qemu-action@v2
       - name: install Buildx
