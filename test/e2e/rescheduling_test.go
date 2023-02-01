@@ -72,7 +72,7 @@ var _ = ginkgo.Describe("[cluster unjoined] reschedule testing", func() {
 			deploymentNamespace = testNamespace
 			deploymentName = policyName
 			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-			deployment.Spec.Replicas = pointer.Int32Ptr(10)
+			deployment.Spec.Replicas = pointer.Int32(10)
 
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
@@ -200,7 +200,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				deploymentNamespace = testNamespace
 				deploymentName = policyName
 				deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-				deployment.Spec.Replicas = pointer.Int32Ptr(1)
+				deployment.Spec.Replicas = pointer.Int32(1)
 				// set ReplicaSchedulingType=Duplicated.
 				policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 					{
@@ -256,7 +256,7 @@ var _ = ginkgo.Describe("[cluster joined] reschedule testing", func() {
 				deploymentNamespace = testNamespace
 				deploymentName = policyName
 				deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
-				deployment.Spec.Replicas = pointer.Int32Ptr(1)
+				deployment.Spec.Replicas = pointer.Int32(1)
 				// set clusterAffinity for Placement.
 				policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 					{

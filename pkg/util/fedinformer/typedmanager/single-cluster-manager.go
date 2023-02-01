@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -131,7 +132,12 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 	}
 	s.lock.RUnlock()
 
-	resourceInformer.Informer().AddEventHandler(handler)
+	_, err = resourceInformer.Informer().AddEventHandler(handler)
+	if err != nil {
+		klog.Errorf("Failed to add handler for resource(%s): %v", resource.String(), err)
+		return err
+	}
+
 	s.appendHandler(resource, handler)
 	return nil
 }

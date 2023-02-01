@@ -19,15 +19,19 @@ package v1beta1
 import (
 	"fmt"
 	"strings"
-
-	"sigs.k8s.io/cluster-api/util/version"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"sigs.k8s.io/cluster-api/util/version"
 )
+
+const defaultNodeDeletionTimeout = 10 * time.Second
 
 func (m *Machine) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
@@ -46,19 +50,23 @@ func (m *Machine) Default() {
 	if m.Labels == nil {
 		m.Labels = make(map[string]string)
 	}
-	m.Labels[ClusterLabelName] = m.Spec.ClusterName
+	m.Labels[ClusterNameLabel] = m.Spec.ClusterName
 
-	if m.Spec.Bootstrap.ConfigRef != nil && len(m.Spec.Bootstrap.ConfigRef.Namespace) == 0 {
+	if m.Spec.Bootstrap.ConfigRef != nil && m.Spec.Bootstrap.ConfigRef.Namespace == "" {
 		m.Spec.Bootstrap.ConfigRef.Namespace = m.Namespace
 	}
 
-	if len(m.Spec.InfrastructureRef.Namespace) == 0 {
+	if m.Spec.InfrastructureRef.Namespace == "" {
 		m.Spec.InfrastructureRef.Namespace = m.Namespace
 	}
 
 	if m.Spec.Version != nil && !strings.HasPrefix(*m.Spec.Version, "v") {
 		normalizedVersion := "v" + *m.Spec.Version
 		m.Spec.Version = &normalizedVersion
+	}
+
+	if m.Spec.NodeDeletionTimeout == nil {
+		m.Spec.NodeDeletionTimeout = &metav1.Duration{Duration: defaultNodeDeletionTimeout}
 	}
 }
 
@@ -83,11 +91,12 @@ func (m *Machine) ValidateDelete() error {
 
 func (m *Machine) validate(old *Machine) error {
 	var allErrs field.ErrorList
+	specPath := field.NewPath("spec")
 	if m.Spec.Bootstrap.ConfigRef == nil && m.Spec.Bootstrap.DataSecretName == nil {
 		allErrs = append(
 			allErrs,
 			field.Required(
-				field.NewPath("spec", "bootstrap", "data"),
+				specPath.Child("bootstrap", "data"),
 				"expected either spec.bootstrap.dataSecretName or spec.bootstrap.configRef to be populated",
 			),
 		)
@@ -97,7 +106,7 @@ func (m *Machine) validate(old *Machine) error {
 		allErrs = append(
 			allErrs,
 			field.Invalid(
-				field.NewPath("spec", "bootstrap", "configRef", "namespace"),
+				specPath.Child("bootstrap", "configRef", "namespace"),
 				m.Spec.Bootstrap.ConfigRef.Namespace,
 				"must match metadata.namespace",
 			),
@@ -108,7 +117,7 @@ func (m *Machine) validate(old *Machine) error {
 		allErrs = append(
 			allErrs,
 			field.Invalid(
-				field.NewPath("spec", "infrastructureRef", "namespace"),
+				specPath.Child("infrastructureRef", "namespace"),
 				m.Spec.InfrastructureRef.Namespace,
 				"must match metadata.namespace",
 			),
@@ -118,13 +127,13 @@ func (m *Machine) validate(old *Machine) error {
 	if old != nil && old.Spec.ClusterName != m.Spec.ClusterName {
 		allErrs = append(
 			allErrs,
-			field.Invalid(field.NewPath("spec", "clusterName"), m.Spec.ClusterName, "field is immutable"),
+			field.Forbidden(specPath.Child("clusterName"), "field is immutable"),
 		)
 	}
 
 	if m.Spec.Version != nil {
 		if !version.KubeSemver.MatchString(*m.Spec.Version) {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "version"), *m.Spec.Version, "must be a valid semantic version"))
+			allErrs = append(allErrs, field.Invalid(specPath.Child("version"), *m.Spec.Version, "must be a valid semantic version"))
 		}
 	}
 

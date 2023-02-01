@@ -157,8 +157,8 @@ func getDependenciesFromPodTemplate(podObj *corev1.Pod) ([]configv1alpha1.Depend
 	return dependentObjectRefs, nil
 }
 
-func getSecretNames(pod *corev1.Pod) sets.String {
-	result := sets.NewString()
+func getSecretNames(pod *corev1.Pod) sets.Set[string] {
+	result := sets.New[string]()
 	lifted.VisitPodSecretNames(pod, func(name string) bool {
 		result.Insert(name)
 		return true
@@ -166,16 +166,16 @@ func getSecretNames(pod *corev1.Pod) sets.String {
 	return result
 }
 
-func getServiceAccountNames(pod *corev1.Pod) sets.String {
-	result := sets.NewString()
+func getServiceAccountNames(pod *corev1.Pod) sets.Set[string] {
+	result := sets.New[string]()
 	if pod.Spec.ServiceAccountName != "" && pod.Spec.ServiceAccountName != "default" {
 		result.Insert(pod.Spec.ServiceAccountName)
 	}
 	return result
 }
 
-func getConfigMapNames(pod *corev1.Pod) sets.String {
-	result := sets.NewString()
+func getConfigMapNames(pod *corev1.Pod) sets.Set[string] {
+	result := sets.New[string]()
 	lifted.VisitPodConfigmapNames(pod, func(name string) bool {
 		result.Insert(name)
 		return true
@@ -183,8 +183,8 @@ func getConfigMapNames(pod *corev1.Pod) sets.String {
 	return result
 }
 
-func getPVCNames(pod *corev1.Pod) sets.String {
-	result := sets.NewString()
+func getPVCNames(pod *corev1.Pod) sets.Set[string] {
+	result := sets.New[string]()
 	for i := range pod.Spec.Volumes {
 		volume := pod.Spec.Volumes[i]
 		if volume.PersistentVolumeClaim != nil {

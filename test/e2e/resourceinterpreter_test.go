@@ -96,7 +96,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				gomega.Eventually(func(g gomega.Gomega) error {
 					curWorkload := framework.GetWorkload(dynamicClient, workloadNamespace, workloadName)
 					// construct two values that need to be changed, and only one value is retained.
-					curWorkload.Spec.Replicas = pointer.Int32Ptr(2)
+					curWorkload.Spec.Replicas = pointer.Int32(2)
 					curWorkload.Spec.Paused = true
 
 					newUnstructuredObj, err := helper.ToUnstructured(curWorkload)
@@ -131,7 +131,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				sumWeight += index + 1
 				staticWeightLists = append(staticWeightLists, staticWeightList)
 			}
-			workload.Spec.Replicas = pointer.Int32Ptr(int32(sumWeight))
+			workload.Spec.Replicas = pointer.Int32(int32(sumWeight))
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: workload.APIVersion,
@@ -440,7 +440,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 					sumWeight += index + 1
 					staticWeightLists = append(staticWeightLists, staticWeightList)
 				}
-				deployment.Spec.Replicas = pointer.Int32Ptr(int32(sumWeight))
+				deployment.Spec.Replicas = pointer.Int32(int32(sumWeight))
 				policy.Spec.Placement = policyv1alpha1.Placement{
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 						ClusterNames: framework.ClusterNames(),

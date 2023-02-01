@@ -416,7 +416,7 @@ func (in FailureDomains) FilterControlPlane() FailureDomains {
 func (in FailureDomains) GetIDs() []*string {
 	ids := make([]*string, 0, len(in))
 	for id := range in {
-		ids = append(ids, pointer.StringPtr(id))
+		ids = append(ids, pointer.String(id))
 	}
 	return ids
 }

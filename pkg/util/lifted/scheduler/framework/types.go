@@ -105,6 +105,8 @@ type QueuedPodInfo struct {
 	// latency for a pod.
 	InitialAttemptTimestamp time.Time
 	// If a Pod failed in a scheduling cycle, record the plugin names it failed by.
+	//nolint:staticcheck
+	// disable `deprecation` check for lifted code.
 	UnschedulablePlugins sets.String
 }
 
@@ -192,6 +194,8 @@ func (pi *PodInfo) Update(pod *corev1.Pod) {
 
 // AffinityTerm is a processed version of v1.PodAffinityTerm.
 type AffinityTerm struct {
+	//nolint:staticcheck
+	// disable `deprecation` check for lifted code.
 	Namespaces        sets.String
 	Selector          labels.Selector
 	TopologyKey       string
@@ -299,6 +303,9 @@ func getPodAntiAffinityTerms(affinity *corev1.Affinity) (terms []corev1.PodAffin
 
 // returns a set of names according to the namespaces indicated in podAffinityTerm.
 // If namespaces is empty it considers the given pod's namespace.
+// disable `deprecation` check for lifted code.
+//
+//nolint:staticcheck
 func getNamespacesFromPodAffinityTerm(pod *corev1.Pod, podAffinityTerm *corev1.PodAffinityTerm) sets.String {
 	names := sets.String{}
 	if len(podAffinityTerm.Namespaces) == 0 && podAffinityTerm.NamespaceSelector == nil {

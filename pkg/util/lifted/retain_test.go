@@ -93,7 +93,7 @@ func TestRetainHealthCheckNodePortInServiceFields(t *testing.T) {
 				},
 			},
 			true,
-			pointer.Int64Ptr(1000),
+			pointer.Int64(1000),
 		},
 	}
 	for _, test := range tests {

@@ -55,7 +55,7 @@ func (cfg *Config) NewSignedCert(key *rsa.PrivateKey, caCert *x509.Certificate, 
 		return nil, errors.Wrap(err, "failed to generate random integer for signed cerficate")
 	}
 
-	if len(cfg.CommonName) == 0 {
+	if cfg.CommonName == "" {
 		return nil, errors.New("must specify a CommonName")
 	}
 

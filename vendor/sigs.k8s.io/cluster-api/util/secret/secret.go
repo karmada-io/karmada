@@ -53,7 +53,7 @@ func Name(cluster string, suffix Purpose) string {
 	return fmt.Sprintf("%s-%s", cluster, suffix)
 }
 
-// ParseSecretName return the cluster name and the suffix Purpose in name is a valid cluster secrets,
+// ParseSecretName return the cluster name and the suffix Purpose in name is a valid cluster secret,
 // otherwise it return error.
 func ParseSecretName(name string) (string, Purpose, error) {
 	separatorPos := strings.LastIndex(name, "-")

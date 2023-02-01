@@ -215,12 +215,12 @@ func TestConvertToClusterNames(t *testing.T) {
 	tests := []struct {
 		name     string
 		clusters []workv1alpha2.TargetCluster
-		expected sets.String
+		expected sets.Set[string]
 	}{
 		{
 			name:     "empty",
 			clusters: []workv1alpha2.TargetCluster{},
-			expected: sets.String{},
+			expected: sets.New[string](),
 		},
 		{
 			name: "not empty",
@@ -234,7 +234,7 @@ func TestConvertToClusterNames(t *testing.T) {
 					Replicas: 3,
 				},
 			},
-			expected: sets.NewString(ClusterMember1, ClusterMember2),
+			expected: sets.New(ClusterMember1, ClusterMember2),
 		},
 	}
 

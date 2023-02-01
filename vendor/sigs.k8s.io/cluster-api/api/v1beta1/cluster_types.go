@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -90,15 +91,20 @@ type Topology struct {
 	// for the cluster.
 	// +optional
 	Workers *WorkersTopology `json:"workers,omitempty"`
+
+	// Variables can be used to customize the Cluster through
+	// patches. They must comply to the corresponding
+	// VariableClasses defined in the ClusterClass.
+	// +optional
+	Variables []ClusterVariable `json:"variables,omitempty"`
 }
 
 // ControlPlaneTopology specifies the parameters for the control plane nodes in the cluster.
 type ControlPlaneTopology struct {
-	// Metadata is the metadata applied to the machines of the ControlPlane.
+	// Metadata is the metadata applied to the ControlPlane and the Machines of the ControlPlane
+	// if the ControlPlaneTemplate referenced by the ClusterClass is machine based. If not, it
+	// is applied only to the ControlPlane.
 	// At runtime this metadata is merged with the corresponding metadata from the ClusterClass.
-	//
-	// This field is supported if and only if the control plane provider template
-	// referenced in the ClusterClass is Machine based.
 	// +optional
 	Metadata ObjectMeta `json:"metadata,omitempty"`
 
@@ -108,6 +114,28 @@ type ControlPlaneTopology struct {
 	// When specified against a control plane provider that lacks support for this field, this value will be ignored.
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// MachineHealthCheck allows to enable, disable and override
+	// the MachineHealthCheck configuration in the ClusterClass for this control plane.
+	// +optional
+	MachineHealthCheck *MachineHealthCheckTopology `json:"machineHealthCheck,omitempty"`
+
+	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a node.
+	// The default value is 0, meaning that the node can be drained without any time limitations.
+	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// +optional
+	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
+
+	// NodeVolumeDetachTimeout is the total amount of time that the controller will spend on waiting for all volumes
+	// to be detached. The default value is 0, meaning that the volumes can be detached without any time limitations.
+	// +optional
+	NodeVolumeDetachTimeout *metav1.Duration `json:"nodeVolumeDetachTimeout,omitempty"`
+
+	// NodeDeletionTimeout defines how long the controller will attempt to delete the Node that the Machine
+	// hosts after the Machine is marked for deletion. A duration of 0 will retry deletion indefinitely.
+	// Defaults to 10 seconds.
+	// +optional
+	NodeDeletionTimeout *metav1.Duration `json:"nodeDeletionTimeout,omitempty"`
 }
 
 // WorkersTopology represents the different sets of worker nodes in the cluster.
@@ -120,7 +148,7 @@ type WorkersTopology struct {
 // MachineDeploymentTopology specifies the different parameters for a set of worker nodes in the topology.
 // This set of nodes is managed by a MachineDeployment object whose lifecycle is managed by the Cluster controller.
 type MachineDeploymentTopology struct {
-	// Metadata is the metadata applied to the machines of the MachineDeployment.
+	// Metadata is the metadata applied to the MachineDeployment and the machines of the MachineDeployment.
 	// At runtime this metadata is merged with the corresponding metadata from the ClusterClass.
 	// +optional
 	Metadata ObjectMeta `json:"metadata,omitempty"`
@@ -136,12 +164,98 @@ type MachineDeploymentTopology struct {
 	// the values are hashed together.
 	Name string `json:"name"`
 
+	// FailureDomain is the failure domain the machines will be created in.
+	// Must match a key in the FailureDomains map stored on the cluster object.
+	// +optional
+	FailureDomain *string `json:"failureDomain,omitempty"`
+
 	// Replicas is the number of worker nodes belonging to this set.
-	// If the value is nil, the MachineDeployment is created without the number of Replicas (defaulting to zero)
+	// If the value is nil, the MachineDeployment is created without the number of Replicas (defaulting to 1)
 	// and it's assumed that an external entity (like cluster autoscaler) is responsible for the management
 	// of this value.
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// MachineHealthCheck allows to enable, disable and override
+	// the MachineHealthCheck configuration in the ClusterClass for this MachineDeployment.
+	// +optional
+	MachineHealthCheck *MachineHealthCheckTopology `json:"machineHealthCheck,omitempty"`
+
+	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a node.
+	// The default value is 0, meaning that the node can be drained without any time limitations.
+	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// +optional
+	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
+
+	// NodeVolumeDetachTimeout is the total amount of time that the controller will spend on waiting for all volumes
+	// to be detached. The default value is 0, meaning that the volumes can be detached without any time limitations.
+	// +optional
+	NodeVolumeDetachTimeout *metav1.Duration `json:"nodeVolumeDetachTimeout,omitempty"`
+
+	// NodeDeletionTimeout defines how long the controller will attempt to delete the Node that the Machine
+	// hosts after the Machine is marked for deletion. A duration of 0 will retry deletion indefinitely.
+	// Defaults to 10 seconds.
+	// +optional
+	NodeDeletionTimeout *metav1.Duration `json:"nodeDeletionTimeout,omitempty"`
+
+	// Minimum number of seconds for which a newly created machine should
+	// be ready.
+	// Defaults to 0 (machine will be considered available as soon as it
+	// is ready)
+	// +optional
+	MinReadySeconds *int32 `json:"minReadySeconds,omitempty"`
+
+	// The deployment strategy to use to replace existing machines with
+	// new ones.
+	// +optional
+	Strategy *MachineDeploymentStrategy `json:"strategy,omitempty"`
+
+	// Variables can be used to customize the MachineDeployment through patches.
+	// +optional
+	Variables *MachineDeploymentVariables `json:"variables,omitempty"`
+}
+
+// MachineHealthCheckTopology defines a MachineHealthCheck for a group of machines.
+type MachineHealthCheckTopology struct {
+	// Enable controls if a MachineHealthCheck should be created for the target machines.
+	//
+	// If false: No MachineHealthCheck will be created.
+	//
+	// If not set(default): A MachineHealthCheck will be created if it is defined here or
+	//  in the associated ClusterClass. If no MachineHealthCheck is defined then none will be created.
+	//
+	// If true: A MachineHealthCheck is guaranteed to be created. Cluster validation will
+	// block if `enable` is true and no MachineHealthCheck definition is available.
+	// +optional
+	Enable *bool `json:"enable,omitempty"`
+
+	// MachineHealthCheckClass defines a MachineHealthCheck for a group of machines.
+	// If specified (any field is set), it entirely overrides the MachineHealthCheckClass defined in ClusterClass.
+	MachineHealthCheckClass `json:",inline"`
+}
+
+// ClusterVariable can be used to customize the Cluster through
+// patches. It must comply to the corresponding
+// ClusterClassVariable defined in the ClusterClass.
+type ClusterVariable struct {
+	// Name of the variable.
+	Name string `json:"name"`
+
+	// Value of the variable.
+	// Note: the value will be validated against the schema of the corresponding ClusterClassVariable
+	// from the ClusterClass.
+	// Note: We have to use apiextensionsv1.JSON instead of a custom JSON type, because controller-tools has a
+	// hard-coded schema for apiextensionsv1.JSON which cannot be produced by another type via controller-tools,
+	// i.e. it is not possible to have no type field.
+	// Ref: https://github.com/kubernetes-sigs/controller-tools/blob/d0e03a142d0ecdd5491593e941ee1d6b5d91dba6/pkg/crd/known_types.go#L106-L111
+	Value apiextensionsv1.JSON `json:"value"`
+}
+
+// MachineDeploymentVariables can be used to provide variables for a specific MachineDeployment.
+type MachineDeploymentVariables struct {
+	// Overrides can be used to override Cluster level variables.
+	// +optional
+	Overrides []ClusterVariable `json:"overrides,omitempty"`
 }
 
 // ANCHOR_END: ClusterSpec
@@ -178,8 +292,8 @@ type NetworkRanges struct {
 	CIDRBlocks []string `json:"cidrBlocks"`
 }
 
-func (n *NetworkRanges) String() string {
-	if n == nil {
+func (n NetworkRanges) String() string {
+	if len(n.CIDRBlocks) == 0 {
 		return ""
 	}
 	return strings.Join(n.CIDRBlocks, ",")
@@ -307,6 +421,8 @@ func (c *Cluster) SetConditions(conditions Conditions) {
 }
 
 // GetIPFamily returns a ClusterIPFamily from the configuration provided.
+// Note: IPFamily is not a concept in Kubernetes. It was originally introduced in CAPI for CAPD.
+// IPFamily may be dropped in a future release. More details at https://github.com/kubernetes-sigs/cluster-api/issues/7521
 func (c *Cluster) GetIPFamily() (ClusterIPFamily, error) {
 	var podCIDRs, serviceCIDRs []string
 	if c.Spec.ClusterNetwork != nil {
@@ -422,7 +538,7 @@ func (in FailureDomains) FilterControlPlane() FailureDomains {
 func (in FailureDomains) GetIDs() []*string {
 	ids := make([]*string, 0, len(in))
 	for id := range in {
-		ids = append(ids, pointer.StringPtr(id))
+		ids = append(ids, pointer.String(id))
 	}
 	return ids
 }

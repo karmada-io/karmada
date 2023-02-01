@@ -143,7 +143,7 @@ func TestAggregateIngressStatus(t *testing.T) {
 	}
 
 	oldIngress := &networkingv1.Ingress{}
-	newIngress := &networkingv1.Ingress{Status: networkingv1.IngressStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}}}
+	newIngress := &networkingv1.Ingress{Status: networkingv1.IngressStatus{LoadBalancer: networkingv1.IngressLoadBalancerStatus{Ingress: []networkingv1.IngressLoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}}}
 	oldObj, _ := helper.ToUnstructured(oldIngress)
 	newObj, _ := helper.ToUnstructured(newIngress)
 

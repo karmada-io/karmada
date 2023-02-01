@@ -93,7 +93,7 @@ type Context struct {
 }
 
 // IsControllerEnabled check if a specified controller enabled or not.
-func (c Context) IsControllerEnabled(name string, disabledByDefaultControllers sets.String) bool {
+func (c Context) IsControllerEnabled(name string, disabledByDefaultControllers sets.Set[string]) bool {
 	hasStar := false
 	for _, ctrl := range c.Opts.Controllers {
 		if ctrl == name {
@@ -129,7 +129,7 @@ func (i Initializers) ControllerNames() []string {
 }
 
 // StartControllers starts a set of controllers with a specified ControllerContext
-func (i Initializers) StartControllers(ctx Context, controllersDisabledByDefault sets.String) error {
+func (i Initializers) StartControllers(ctx Context, controllersDisabledByDefault sets.Set[string]) error {
 	for controllerName, initFn := range i {
 		if !ctx.IsControllerEnabled(controllerName, controllersDisabledByDefault) {
 			klog.Warningf("%q is disabled", controllerName)

@@ -35,6 +35,8 @@ import (
 // It also validates the spec. For example, the form `<key>` may be used to remove a taint, but not to add one.
 func ParseTaints(spec []string) ([]corev1.Taint, []corev1.Taint, error) {
 	var taints, taintsToRemove []corev1.Taint
+	//nolint:staticcheck
+	// disable `deprecation` check for lifted code.
 	uniqueTaints := map[corev1.TaintEffect]sets.String{}
 
 	for _, taintSpec := range spec {
@@ -59,6 +61,8 @@ func ParseTaints(spec []string) ([]corev1.Taint, []corev1.Taint, error) {
 			}
 			// add taint to existingTaints for uniqueness check
 			if len(uniqueTaints[newTaint.Effect]) == 0 {
+				//nolint:staticcheck
+				// disable `deprecation` check for lifted code.
 				uniqueTaints[newTaint.Effect] = sets.String{}
 			}
 			uniqueTaints[newTaint.Effect].Insert(newTaint.Key)

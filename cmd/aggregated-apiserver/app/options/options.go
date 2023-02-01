@@ -143,6 +143,9 @@ func (o *Options) Config() (*aggregatedapiserver.Config, error) {
 	return config, nil
 }
 
+// disable `deprecation` check until the underlying genericfilters.BasicLongRunningRequestCheck starts using generic Set.
+//
+//nolint:staticcheck
 func customLongRunningRequestCheck(longRunningVerbs, longRunningSubresources sets.String) apirequest.LongRunningRequestCheck {
 	return func(r *http.Request, requestInfo *apirequest.RequestInfo) bool {
 		reqClone := r.Clone(context.Background())

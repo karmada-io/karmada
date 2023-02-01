@@ -108,8 +108,16 @@ func NewController(option NewControllerOption) (*Controller, error) {
 		},
 	}
 
-	option.KarmadaFactory.Cluster().V1alpha1().Clusters().Informer().AddEventHandler(resourceEventHandler)
-	option.KarmadaFactory.Search().V1alpha1().ResourceRegistries().Informer().AddEventHandler(resourceEventHandler)
+	_, err = option.KarmadaFactory.Cluster().V1alpha1().Clusters().Informer().AddEventHandler(resourceEventHandler)
+	if err != nil {
+		klog.Errorf("Failed to add handler for Clusters: %v", err)
+		return nil, err
+	}
+	_, err = option.KarmadaFactory.Search().V1alpha1().ResourceRegistries().Informer().AddEventHandler(resourceEventHandler)
+	if err != nil {
+		klog.Errorf("Failed to add handler for ResourceRegistries: %v", err)
+		return nil, err
+	}
 
 	return ctl, nil
 }

@@ -209,6 +209,9 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 	return config, nil
 }
 
+// disable `deprecation` check until the underlying genericfilters.BasicLongRunningRequestCheck starts using generic Set.
+//
+//nolint:staticcheck
 func customLongRunningRequestCheck(longRunningVerbs, longRunningSubresources sets.String) request.LongRunningRequestCheck {
 	return func(r *http.Request, requestInfo *request.RequestInfo) bool {
 		if requestInfo.APIGroup == "search.karmada.io" && requestInfo.Resource == "proxying" {

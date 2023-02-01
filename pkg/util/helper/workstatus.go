@@ -259,7 +259,7 @@ func equalIdentifier(targetIdentifier *workv1alpha1.ResourceIdentifier, ordinal 
 }
 
 // worksFullyApplied checks if all works are applied according the scheduled result and collected status.
-func worksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem, targetClusters sets.String) bool {
+func worksFullyApplied(aggregatedStatuses []workv1alpha2.AggregatedStatusItem, targetClusters sets.Set[string]) bool {
 	// short path: not scheduled
 	if len(targetClusters) == 0 {
 		return false

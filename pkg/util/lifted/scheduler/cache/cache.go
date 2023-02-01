@@ -65,6 +65,8 @@ type cacheImpl struct {
 	mu sync.RWMutex
 	// a set of assumed pod keys.
 	// The key could further be used to get an entry in podStates.
+	//nolint:staticcheck
+	// disable `deprecation` check for lifted code.
 	assumedPods sets.String
 	// a map from pod key to podState.
 	podStates map[string]*podState
@@ -90,6 +92,8 @@ type imageState struct {
 	// Size of the image
 	size int64
 	// A set of node names for nodes having this image present
+	//nolint:staticcheck
+	// disable `deprecation` check for lifted code.
 	nodes sets.String
 }
 
@@ -107,8 +111,10 @@ func newCache(ttl, period time.Duration, stop <-chan struct{}) *cacheImpl {
 		period: period,
 		stop:   stop,
 
-		nodes:       make(map[string]*nodeInfoListItem),
-		nodeTree:    newNodeTree(nil),
+		nodes:    make(map[string]*nodeInfoListItem),
+		nodeTree: newNodeTree(nil),
+		//nolint:staticcheck
+		// disable `deprecation` check for lifted code.
 		assumedPods: make(sets.String),
 		podStates:   make(map[string]*podState),
 		imageStates: make(map[string]*imageState),

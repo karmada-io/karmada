@@ -12,11 +12,11 @@ import (
 )
 
 // GetResourceNames list resources and return their names.
-func GetResourceNames(client dynamic.ResourceInterface) sets.String {
+func GetResourceNames(client dynamic.ResourceInterface) sets.Set[string] {
 	list, err := client.List(context.TODO(), metav1.ListOptions{})
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	names := sets.NewString()
+	names := sets.New[string]()
 	for _, item := range list.Items {
 		names.Insert(item.GetName())
 	}

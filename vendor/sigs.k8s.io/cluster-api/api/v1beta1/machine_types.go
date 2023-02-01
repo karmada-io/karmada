@@ -19,6 +19,7 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	capierrors "sigs.k8s.io/cluster-api/errors"
 )
 
@@ -26,17 +27,25 @@ const (
 	// MachineFinalizer is set on PrepareForCreate callback.
 	MachineFinalizer = "machine.cluster.x-k8s.io"
 
-	// MachineControlPlaneLabelName is the label set on machines or related objects that are part of a control plane.
-	MachineControlPlaneLabelName = "cluster.x-k8s.io/control-plane"
+	// MachineControlPlaneLabel is the label set on machines or related objects that are part of a control plane.
+	MachineControlPlaneLabel = "cluster.x-k8s.io/control-plane"
 
 	// ExcludeNodeDrainingAnnotation annotation explicitly skips node draining if set.
 	ExcludeNodeDrainingAnnotation = "machine.cluster.x-k8s.io/exclude-node-draining"
 
-	// MachineSetLabelName is the label set on machines if they're controlled by MachineSet.
-	MachineSetLabelName = "cluster.x-k8s.io/set-name"
+	// ExcludeWaitForNodeVolumeDetachAnnotation annotation explicitly skips the waiting for node volume detaching if set.
+	ExcludeWaitForNodeVolumeDetachAnnotation = "machine.cluster.x-k8s.io/exclude-wait-for-node-volume-detach"
 
-	// MachineDeploymentLabelName is the label set on machines if they're controlled by MachineDeployment.
-	MachineDeploymentLabelName = "cluster.x-k8s.io/deployment-name"
+	// MachineSetNameLabel is the label set on machines if they're controlled by MachineSet.
+	// Note: The value of this label may be a hash if the MachineSet name is longer than 63 characters.
+	MachineSetNameLabel = "cluster.x-k8s.io/set-name"
+
+	// MachineDeploymentNameLabel is the label set on machines if they're controlled by MachineDeployment.
+	MachineDeploymentNameLabel = "cluster.x-k8s.io/deployment-name"
+
+	// MachineControlPlaneNameLabel is the label set on machines if they're controlled by a ControlPlane.
+	// Note: The value of this label may be a hash if the control plane name is longer than 63 characters.
+	MachineControlPlaneNameLabel = "cluster.x-k8s.io/control-plane-name"
 
 	// PreDrainDeleteHookAnnotationPrefix annotation specifies the prefix we
 	// search each annotation for during the pre-drain.delete lifecycle hook
@@ -49,6 +58,19 @@ const (
 	// to pause reconciliation of deletion. These hooks will prevent removal of
 	// an instance from an infrastructure provider until all are removed.
 	PreTerminateDeleteHookAnnotationPrefix = "pre-terminate.delete.hook.machine.cluster.x-k8s.io"
+
+	// MachineCertificatesExpiryDateAnnotation annotation specifies the expiry date of the machine certificates in RFC3339 format.
+	// This annotation can be used on control plane machines to trigger rollout before certificates expire.
+	// This annotation can be set on BootstrapConfig or Machine objects. The value set on the Machine object takes precedence.
+	// This annotation can only be used on Control Plane Machines.
+	MachineCertificatesExpiryDateAnnotation = "machine.cluster.x-k8s.io/certificates-expiry"
+
+	// NodeRoleLabelPrefix is one of the CAPI managed Node label prefixes.
+	NodeRoleLabelPrefix = "node-role.kubernetes.io"
+	// NodeRestrictionLabelDomain is one of the CAPI managed Node label domains.
+	NodeRestrictionLabelDomain = "node-restriction.kubernetes.io"
+	// ManagedNodeLabelDomain is one of the CAPI managed Node label domains.
+	ManagedNodeLabelDomain = "node.cluster.x-k8s.io"
 )
 
 // ANCHOR: MachineSpec
@@ -95,6 +117,17 @@ type MachineSpec struct {
 	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
 	// +optional
 	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
+
+	// NodeVolumeDetachTimeout is the total amount of time that the controller will spend on waiting for all volumes
+	// to be detached. The default value is 0, meaning that the volumes can be detached without any time limitations.
+	// +optional
+	NodeVolumeDetachTimeout *metav1.Duration `json:"nodeVolumeDetachTimeout,omitempty"`
+
+	// NodeDeletionTimeout defines how long the controller will attempt to delete the Node that the Machine
+	// hosts after the Machine is marked for deletion. A duration of 0 will retry deletion indefinitely.
+	// Defaults to 10 seconds.
+	// +optional
+	NodeDeletionTimeout *metav1.Duration `json:"nodeDeletionTimeout,omitempty"`
 }
 
 // ANCHOR_END: MachineSpec
@@ -163,6 +196,11 @@ type MachineStatus struct {
 	// E.g. Pending, Running, Terminating, Failed etc.
 	// +optional
 	Phase string `json:"phase,omitempty"`
+
+	// CertificatesExpiryDate is the expiry date of the machine certificates.
+	// This value is only set for control plane machines.
+	// +optional
+	CertificatesExpiryDate *metav1.Time `json:"certificatesExpiryDate,omitempty"`
 
 	// BootstrapReady is the state of the bootstrap provider.
 	// +optional

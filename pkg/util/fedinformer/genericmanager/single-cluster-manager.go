@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -91,7 +92,12 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 		return
 	}
 
-	s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
+	_, err := s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
+	if err != nil {
+		klog.Errorf("Failed to add handler for resource(%s): %v", resource.String(), err)
+		return
+	}
+
 	s.appendHandler(resource, handler)
 }
 

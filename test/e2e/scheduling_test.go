@@ -323,7 +323,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
 			})
 
-			patch := map[string]interface{}{"spec": map[string]interface{}{"parallelism": pointer.Int32Ptr(updateParallelism)}}
+			patch := map[string]interface{}{"spec": map[string]interface{}{"parallelism": pointer.Int32(updateParallelism)}}
 			bytes, err := json.Marshal(patch)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			framework.UpdateJobWithPatchBytes(kubeClient, job.Namespace, job.Name, bytes, types.StrategicMergePatchType)

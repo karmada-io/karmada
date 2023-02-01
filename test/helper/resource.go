@@ -45,7 +45,7 @@ func NewDeployment(namespace string, name string) *appsv1.Deployment {
 			Name:      name,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32Ptr(3),
+			Replicas: pointer.Int32(3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},
@@ -115,7 +115,7 @@ func NewStatefulSet(namespace string, name string) *appsv1.StatefulSet {
 			Name:      name,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			Replicas: pointer.Int32Ptr(3),
+			Replicas: pointer.Int32(3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},
@@ -327,7 +327,7 @@ func NewJob(namespace string, name string) *batchv1.Job {
 					RestartPolicy: corev1.RestartPolicyNever,
 				},
 			},
-			BackoffLimit: pointer.Int32Ptr(4),
+			BackoffLimit: pointer.Int32(4),
 		},
 	}
 }
@@ -519,7 +519,7 @@ func NewWorkload(namespace, name string) *workloadv1alpha1.Workload {
 			Name:      name,
 		},
 		Spec: workloadv1alpha1.WorkloadSpec{
-			Replicas: pointer.Int32Ptr(3),
+			Replicas: pointer.Int32(3),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: podLabels,
@@ -549,7 +549,7 @@ func NewDeploymentWithVolumes(namespace, deploymentName string, volumes []corev1
 			Name:      deploymentName,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32Ptr(3),
+			Replicas: pointer.Int32(3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},
@@ -584,7 +584,7 @@ func NewDeploymentWithServiceAccount(namespace, deploymentName string, serviceAc
 		},
 		Spec: appsv1.DeploymentSpec{
 
-			Replicas: pointer.Int32Ptr(3),
+			Replicas: pointer.Int32(3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels,
 			},

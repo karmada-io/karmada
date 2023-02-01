@@ -99,7 +99,7 @@ cluster and manifests to the Karmada control plane.`,
 
 var controllers = make(controllerscontext.Initializers)
 
-var controllersDisabledByDefault = sets.NewString(
+var controllersDisabledByDefault = sets.New(
 	"certRotation",
 )
 

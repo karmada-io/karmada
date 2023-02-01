@@ -159,7 +159,7 @@ func HasScheduledReplica(scheduleResult []workv1alpha2.TargetCluster) bool {
 }
 
 // ObtainBindingSpecExistingClusters will obtain the cluster slice existing in the binding's spec field.
-func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingSpec) sets.String {
+func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingSpec) sets.Set[string] {
 	clusterNames := util.ConvertToClusterNames(bindingSpec.Clusters)
 	for _, binding := range bindingSpec.RequiredBy {
 		for _, targetCluster := range binding.Clusters {
@@ -176,7 +176,7 @@ func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingS
 
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
-func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, expectClusters sets.String) ([]workv1alpha1.Work, error) {
+func FindOrphanWorks(c client.Client, bindingNamespace, bindingName string, expectClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
 	var needJudgeWorks []workv1alpha1.Work
 	workList, err := GetWorksByBindingNamespaceName(c, bindingNamespace, bindingName)
 	if err != nil {

@@ -15,4 +15,5 @@ limitations under the License.
 */
 
 // Package v1beta1 contains the v1beta1 API implementation.
+// +k8s:openapi-gen=true
 package v1beta1

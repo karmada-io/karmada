@@ -46,8 +46,8 @@ func GetSumOfReplicas(clusters []workv1alpha2.TargetCluster) int32 {
 }
 
 // ConvertToClusterNames will convert a cluster slice to clusterName's sets.String
-func ConvertToClusterNames(clusters []workv1alpha2.TargetCluster) sets.String {
-	clusterNames := sets.NewString()
+func ConvertToClusterNames(clusters []workv1alpha2.TargetCluster) sets.Set[string] {
+	clusterNames := sets.New[string]()
 	for _, cluster := range clusters {
 		clusterNames.Insert(cluster.Name)
 	}

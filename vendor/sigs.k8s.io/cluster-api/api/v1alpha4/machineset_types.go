@@ -21,6 +21,7 @@ import (
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
 	capierrors "sigs.k8s.io/cluster-api/errors"
 )
 
@@ -63,7 +64,7 @@ type MachineSetSpec struct {
 
 	// Template is the object that describes the machine that will be created if
 	// insufficient replicas are detected.
-	// Object references to custom resources resources are treated as templates.
+	// Object references to custom resources are treated as templates.
 	// +optional
 	Template MachineTemplateSpec `json:"template,omitempty"`
 }
@@ -176,7 +177,7 @@ func (m *MachineSet) Validate() field.ErrorList {
 
 	// validate spec.selector and spec.template.labels
 	fldPath := field.NewPath("spec")
-	errors = append(errors, metav1validation.ValidateLabelSelector(&m.Spec.Selector, fldPath.Child("selector"))...)
+	errors = append(errors, metav1validation.ValidateLabelSelector(&m.Spec.Selector, metav1validation.LabelSelectorValidationOptions{}, fldPath.Child("selector"))...)
 	if len(m.Spec.Selector.MatchLabels)+len(m.Spec.Selector.MatchExpressions) == 0 {
 		errors = append(errors, field.Invalid(fldPath.Child("selector"), m.Spec.Selector, "empty selector is not valid for MachineSet."))
 	}

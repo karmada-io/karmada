@@ -11,7 +11,7 @@ import (
 func TestWorksFullyApplied(t *testing.T) {
 	type args struct {
 		aggregatedStatuses []workv1alpha2.AggregatedStatusItem
-		targetClusters     sets.String
+		targetClusters     sets.Set[string]
 	}
 	tests := []struct {
 		name string
@@ -35,7 +35,7 @@ func TestWorksFullyApplied(t *testing.T) {
 			name: "no aggregatedStatuses",
 			args: args{
 				aggregatedStatuses: nil,
-				targetClusters:     sets.NewString("member1"),
+				targetClusters:     sets.New("member1"),
 			},
 			want: false,
 		},
@@ -48,7 +48,7 @@ func TestWorksFullyApplied(t *testing.T) {
 						Applied:     true,
 					},
 				},
-				targetClusters: sets.NewString("member1", "member2"),
+				targetClusters: sets.New("member1", "member2"),
 			},
 			want: false,
 		},
@@ -65,7 +65,7 @@ func TestWorksFullyApplied(t *testing.T) {
 						Applied:     true,
 					},
 				},
-				targetClusters: sets.NewString("member1", "member2"),
+				targetClusters: sets.New("member1", "member2"),
 			},
 			want: true,
 		},
@@ -82,7 +82,7 @@ func TestWorksFullyApplied(t *testing.T) {
 						Applied:     false,
 					},
 				},
-				targetClusters: sets.NewString("member1", "member2"),
+				targetClusters: sets.New("member1", "member2"),
 			},
 			want: false,
 		},
@@ -95,7 +95,7 @@ func TestWorksFullyApplied(t *testing.T) {
 						Applied:     true,
 					},
 				},
-				targetClusters: sets.NewString("member2"),
+				targetClusters: sets.New("member2"),
 			},
 			want: false,
 		},

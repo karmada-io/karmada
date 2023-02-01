@@ -253,7 +253,7 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 	tests := []struct {
 		name        string
 		bindingSpec workv1alpha2.ResourceBindingSpec
-		want        sets.String
+		want        sets.Set[string]
 	}{
 		{
 			name: "unique cluster name without GracefulEvictionTasks field",
@@ -279,7 +279,7 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 					},
 				},
 			},
-			want: sets.NewString("member1", "member2", "member3"),
+			want: sets.New("member1", "member2", "member3"),
 		},
 		{
 			name: "all spec fields do not contain duplicate cluster names",
@@ -310,7 +310,7 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 					},
 				},
 			},
-			want: sets.NewString("member1", "member2", "member3", "member4"),
+			want: sets.New("member1", "member2", "member3", "member4"),
 		},
 		{
 			name: "duplicate cluster name",
@@ -341,7 +341,7 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 					},
 				},
 			},
-			want: sets.NewString("member1", "member2", "member3"),
+			want: sets.New("member1", "member2", "member3"),
 		},
 	}
 	for _, tt := range tests {
@@ -412,7 +412,7 @@ func TestFindOrphanWorks(t *testing.T) {
 		c                client.Client
 		bindingNamespace string
 		bindingName      string
-		expectClusters   sets.String
+		expectClusters   sets.Set[string]
 	}
 	tests := []struct {
 		name    string
@@ -441,7 +441,7 @@ func TestFindOrphanWorks(t *testing.T) {
 				).Build(),
 				bindingNamespace: "default",
 				bindingName:      "binding",
-				expectClusters:   sets.NewString("clusterx"),
+				expectClusters:   sets.New("clusterx"),
 			},
 			want:    nil,
 			wantErr: true,
@@ -503,7 +503,7 @@ func TestFindOrphanWorks(t *testing.T) {
 				).Build(),
 				bindingNamespace: "default",
 				bindingName:      "binding",
-				expectClusters:   sets.NewString("clusterx"),
+				expectClusters:   sets.New("clusterx"),
 			},
 			want: []workv1alpha1.Work{
 				{
@@ -577,7 +577,7 @@ func TestFindOrphanWorks(t *testing.T) {
 				).Build(),
 				bindingNamespace: "",
 				bindingName:      "binding",
-				expectClusters:   sets.NewString("clusterx"),
+				expectClusters:   sets.New("clusterx"),
 			},
 			want: []workv1alpha1.Work{
 				{
