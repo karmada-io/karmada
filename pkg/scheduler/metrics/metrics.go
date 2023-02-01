@@ -47,7 +47,7 @@ var (
 			Subsystem: SchedulerSubsystem,
 			Name:      "schedule_attempts_total",
 			Help:      "Number of attempts to schedule resourceBinding",
-		}, []string{"result", "schedule_type"})
+		}, []string{"result", "schedule_type", "profile"})
 
 	e2eSchedulingLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -55,7 +55,7 @@ var (
 			Name:      "e2e_scheduling_duration_seconds",
 			Help:      "E2e scheduling latency in seconds",
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 15),
-		}, []string{"result", "schedule_type"})
+		}, []string{"result", "schedule_type", "profile"})
 
 	schedulingAlgorithmLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -63,7 +63,7 @@ var (
 			Name:      "scheduling_algorithm_duration_seconds",
 			Help:      "Scheduling algorithm latency in seconds(exclude scale scheduler)",
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 15),
-		}, []string{"schedule_step"})
+		}, []string{"schedule_step", "profile"})
 
 	// SchedulerQueueIncomingBindings is the number of bindings added to scheduling queues by event type.
 	SchedulerQueueIncomingBindings = prometheus.NewCounterVec(
@@ -82,7 +82,7 @@ var (
 			// Start with 0.1ms with the last bucket being [~200ms, Inf)
 			Buckets: prometheus.ExponentialBuckets(0.0001, 2, 12),
 		},
-		[]string{"extension_point", "result"})
+		[]string{"extension_point", "result", "profile"})
 
 	// PluginExecutionDuration is the metrics which indicates the duration for running a plugin at a specific extension point.
 	PluginExecutionDuration = prometheus.NewHistogramVec(
@@ -114,22 +114,22 @@ func init() {
 
 // BindingSchedule can record a scheduling attempt and the duration
 // since `start`.
-func BindingSchedule(scheduleType string, duration float64, err error) {
+func BindingSchedule(scheduleType, profile string, duration float64, err error) {
 	if err != nil {
-		observeScheduleAttemptAndLatency(errorResult, scheduleType, duration)
+		observeScheduleAttemptAndLatency(errorResult, scheduleType, profile, duration)
 	} else {
-		observeScheduleAttemptAndLatency(scheduledResult, scheduleType, duration)
+		observeScheduleAttemptAndLatency(scheduledResult, scheduleType, profile, duration)
 	}
 }
 
-func observeScheduleAttemptAndLatency(result, scheduleType string, duration float64) {
-	e2eSchedulingLatency.WithLabelValues(result, scheduleType).Observe(duration)
-	scheduleAttempts.WithLabelValues(result, scheduleType).Inc()
+func observeScheduleAttemptAndLatency(result, scheduleType, profile string, duration float64) {
+	e2eSchedulingLatency.WithLabelValues(result, scheduleType, profile).Observe(duration)
+	scheduleAttempts.WithLabelValues(result, scheduleType, profile).Inc()
 }
 
 // ScheduleStep can record each scheduling step duration.
-func ScheduleStep(action string, startTime time.Time) {
-	schedulingAlgorithmLatency.WithLabelValues(action).Observe(utilmetrics.DurationInSeconds(startTime))
+func ScheduleStep(action, profile string, startTime time.Time) {
+	schedulingAlgorithmLatency.WithLabelValues(action, profile).Observe(utilmetrics.DurationInSeconds(startTime))
 }
 
 // CountSchedulerBindings records the number of binding added to scheduling queues by event type.

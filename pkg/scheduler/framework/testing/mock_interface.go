@@ -38,6 +38,20 @@ func (m *MockFramework) EXPECT() *MockFrameworkMockRecorder {
 	return m.recorder
 }
 
+// ProfileName mocks base method.
+func (m *MockFramework) ProfileName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProfileName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ProfileName indicates an expected call of ProfileName.
+func (mr *MockFrameworkMockRecorder) ProfileName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProfileName", reflect.TypeOf((*MockFramework)(nil).ProfileName))
+}
+
 // RunFilterPlugins mocks base method.
 func (m *MockFramework) RunFilterPlugins(ctx context.Context, placement *v1alpha10.Placement, bindingSpec *v1alpha2.ResourceBindingSpec, clusterv1alpha1 *v1alpha1.Cluster) *framework.Result {
 	m.ctrl.T.Helper()

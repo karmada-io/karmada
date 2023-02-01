@@ -30,6 +30,9 @@ type Framework interface {
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin name to cores
 	RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, *Result)
+
+	// ProfileName returns the profile name associated to this framework.
+	ProfileName() string
 }
 
 // Plugin is the parent type for all the scheduling framework plugins.

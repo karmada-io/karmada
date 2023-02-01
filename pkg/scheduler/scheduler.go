@@ -206,7 +206,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		return nil, err
 	}
 	registry = registry.Filter(options.plugins)
-	algorithm, err := core.NewGenericScheduler(schedulerCache, registry)
+	algorithm, err := core.NewGenericScheduler(schedulerCache, registry, options.schedulerName)
 	if err != nil {
 		return nil, err
 	}
@@ -398,14 +398,14 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ResourceBinding(%s/%s) as placement changed", namespace, name)
 		err = s.scheduleResourceBinding(rb)
-		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		metrics.BindingSchedule(string(ReconcileSchedule), s.schedulerName, utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&rb.Spec, policyPlacement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ResourceBinding(%s/%s) as replicas scaled down or scaled up", namespace, name)
 		err = s.scheduleResourceBinding(rb)
-		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
+		metrics.BindingSchedule(string(ScaleSchedule), s.schedulerName, utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	if rb.Spec.Replicas == 0 ||
@@ -415,7 +415,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		// even if scheduling type is divided.
 		klog.V(3).Infof("Start to schedule ResourceBinding(%s/%s) as scheduling type is duplicated", namespace, name)
 		err = s.scheduleResourceBinding(rb)
-		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		metrics.BindingSchedule(string(ReconcileSchedule), s.schedulerName, utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	// TODO(dddddai): reschedule bindings on cluster change
@@ -460,14 +460,14 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ClusterResourceBinding(%s) as placement changed", name)
 		err = s.scheduleClusterResourceBinding(crb)
-		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		metrics.BindingSchedule(string(ReconcileSchedule), s.schedulerName, utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&crb.Spec, policyPlacement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as replicas scaled down or scaled up", name)
 		err = s.scheduleClusterResourceBinding(crb)
-		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
+		metrics.BindingSchedule(string(ScaleSchedule), s.schedulerName, utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	if crb.Spec.Replicas == 0 ||
@@ -477,7 +477,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		// even if scheduling type is divided.
 		klog.V(3).Infof("Start to schedule ClusterResourceBinding(%s) as scheduling type is duplicated", name)
 		err = s.scheduleClusterResourceBinding(crb)
-		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		metrics.BindingSchedule(string(ReconcileSchedule), s.schedulerName, utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	// TODO(dddddai): reschedule bindings on cluster change

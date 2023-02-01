@@ -67,7 +67,7 @@ func Test_frameworkImpl_RunFilterPlugins(t *testing.T) {
 				t.Errorf("create plugin factory error:%v", err)
 			}
 
-			frameWork, err := NewFramework(registry)
+			frameWork, err := NewFramework(registry, "default-scheduler")
 			if err != nil {
 				t.Errorf("create frame work error:%v", err)
 			}
@@ -154,7 +154,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 				t.Errorf("create plugin factory error:%v", err)
 			}
 
-			frameWork, err := NewFramework(registry)
+			frameWork, err := NewFramework(registry, "default-scheduler")
 			if err != nil {
 				t.Errorf("create frame work error:%v", err)
 			}

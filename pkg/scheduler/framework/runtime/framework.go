@@ -28,6 +28,7 @@ type frameworkImpl struct {
 	scorePlugins          []framework.ScorePlugin
 
 	metricsRecorder *metricsRecorder
+	profileName     string
 }
 
 var _ framework.Framework = &frameworkImpl{}
@@ -46,7 +47,7 @@ func defaultFrameworkOptions() frameworkOptions {
 }
 
 // NewFramework creates a scheduling framework by registry.
-func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
+func NewFramework(r Registry, profileName string, opts ...Option) (framework.Framework, error) {
 	options := defaultFrameworkOptions()
 	for _, opt := range opts {
 		opt(&options)
@@ -55,6 +56,7 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 	f := &frameworkImpl{
 		metricsRecorder: options.metricsRecorder,
 	}
+	f.profileName = profileName
 	filterPluginsList := reflect.ValueOf(&f.filterPlugins).Elem()
 	scorePluginsList := reflect.ValueOf(&f.scorePlugins).Elem()
 	filterType := filterPluginsList.Type().Elem()
@@ -78,7 +80,7 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (result *framework.Result) {
 	startTime := time.Now()
 	defer func() {
-		metrics.FrameworkExtensionPointDuration.WithLabelValues(filter, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
+		metrics.FrameworkExtensionPointDuration.WithLabelValues(filter, result.Code().String(), frw.profileName).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
 	for _, p := range frw.filterPlugins {
 		if result := frw.runFilterPlugin(ctx, p, placement, bindingSpec, cluster); !result.IsSuccess() {
@@ -100,7 +102,7 @@ func (frw *frameworkImpl) runFilterPlugin(ctx context.Context, pl framework.Filt
 func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (ps framework.PluginToClusterScores, result *framework.Result) {
 	startTime := time.Now()
 	defer func() {
-		metrics.FrameworkExtensionPointDuration.WithLabelValues(score, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
+		metrics.FrameworkExtensionPointDuration.WithLabelValues(score, result.Code().String(), frw.profileName).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
 	pluginToClusterScores := make(framework.PluginToClusterScores, len(frw.filterPlugins))
 	for _, p := range frw.scorePlugins {
@@ -151,6 +153,11 @@ func (frw *frameworkImpl) runScoreExtension(ctx context.Context, pl framework.Sc
 	result := pl.ScoreExtensions().NormalizeScore(ctx, scores)
 	frw.metricsRecorder.observePluginDurationAsync(scoreExtensionNormalize, pl.Name(), result, utilmetrics.DurationInSeconds(startTime))
 	return result
+}
+
+// ProfileName returns the profile name associated to this framework.
+func (frw *frameworkImpl) ProfileName() string {
+	return frw.profileName
 }
 
 func addPluginToList(plugin framework.Plugin, pluginType reflect.Type, pluginList *reflect.Value) {

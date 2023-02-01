@@ -41,8 +41,9 @@ type genericScheduler struct {
 func NewGenericScheduler(
 	schedCache cache.Cache,
 	registry runtime.Registry,
+	schedulerName string,
 ) (ScheduleAlgorithm, error) {
-	f, err := runtime.NewFramework(registry)
+	f, err := runtime.NewFramework(registry, schedulerName)
 	if err != nil {
 		return nil, err
 	}
@@ -78,13 +79,13 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	}
 	klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
 
-	clusters, err := g.selectClusters(clustersScore, placement, spec)
+	clusters, err := g.selectClusters(clustersScore, placement, spec, g.scheduleFramework.ProfileName())
 	if err != nil {
 		return result, fmt.Errorf("failed to select clusters: %v", err)
 	}
 	klog.V(4).Infof("Selected clusters: %v", clusters)
 
-	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
+	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec, g.scheduleFramework.ProfileName())
 	if err != nil {
 		return result, fmt.Errorf("failed to assignReplicas: %v", err)
 	}
@@ -105,7 +106,7 @@ func (g *genericScheduler) findClustersThatFit(
 	clusterInfo *cache.Snapshot,
 ) ([]*clusterv1alpha1.Cluster, framework.Diagnosis, error) {
 	startTime := time.Now()
-	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, startTime)
+	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, fwk.ProfileName(), startTime)
 
 	diagnosis := framework.Diagnosis{
 		ClusterToResultMap: make(framework.ClusterToResultMap),
@@ -134,7 +135,7 @@ func (g *genericScheduler) prioritizeClusters(
 	spec *workv1alpha2.ResourceBindingSpec,
 	clusters []*clusterv1alpha1.Cluster) (result framework.ClusterScoreList, err error) {
 	startTime := time.Now()
-	defer metrics.ScheduleStep(metrics.ScheduleStepScore, startTime)
+	defer metrics.ScheduleStep(metrics.ScheduleStepScore, fwk.ProfileName(), startTime)
 
 	scoresMap, runScorePluginsResult := fwk.RunScorePlugins(ctx, placement, spec, clusters)
 	if runScorePluginsResult != nil {
@@ -159,9 +160,9 @@ func (g *genericScheduler) prioritizeClusters(
 }
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
-	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, profileName string) ([]*clusterv1alpha1.Cluster, error) {
 	startTime := time.Now()
-	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, startTime)
+	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, profileName, startTime)
 
 	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, calAvailableReplicas)
 	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, spec.Replicas)
@@ -170,10 +171,10 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 func (g *genericScheduler) assignReplicas(
 	clusters []*clusterv1alpha1.Cluster,
 	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
-	object *workv1alpha2.ResourceBindingSpec,
+	object *workv1alpha2.ResourceBindingSpec, profileName string,
 ) ([]workv1alpha2.TargetCluster, error) {
 	startTime := time.Now()
-	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, startTime)
+	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, profileName, startTime)
 
 	if len(clusters) == 0 {
 		return nil, fmt.Errorf("no clusters available to schedule")

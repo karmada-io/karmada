@@ -56,7 +56,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 	karmadaClient := karmadafake.NewSimpleClientset()
 	kubeClient := fake.NewSimpleClientset()
 
-	sche, err := NewScheduler(dynamicClient, karmadaClient, kubeClient)
+	sche, err := NewScheduler(dynamicClient, karmadaClient, kubeClient, WithSchedulerName("default-scheduler"))
 	if err != nil {
 		t.Errorf("create scheduler error: %s", err)
 	}
