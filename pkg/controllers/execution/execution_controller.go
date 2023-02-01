@@ -206,7 +206,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			}
 		} else {
 			err = c.tryCreateWorkload(clusterName, workload)
-			if err != nil {
+			if err != nil && !apierrors.IsAlreadyExists(err) {
 				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 				c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 				errs = append(errs, err)
