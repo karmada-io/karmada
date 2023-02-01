@@ -15,7 +15,7 @@ func MergeAnnotation(obj *unstructured.Unstructured, annotationKey string, annot
 	}
 }
 
-// MergeAnnotations merges the annotations from 'src' to 'dst'.
+// MergeAnnotations merges the annotations from 'src' to 'dst', identical keys will not be merged.
 func MergeAnnotations(dst *unstructured.Unstructured, src *unstructured.Unstructured) {
 	for key, value := range src.GetAnnotations() {
 		MergeAnnotation(dst, key, value)

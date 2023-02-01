@@ -13,6 +13,20 @@ func GetLabelValue(labels map[string]string, labelKey string) string {
 	return labels[labelKey]
 }
 
+// MergeLabels merges the labels from 'src' to 'dst', identical keys will not be merged.
+func MergeLabels(dst *unstructured.Unstructured, src *unstructured.Unstructured) {
+	for key, value := range src.GetLabels() {
+		labels := dst.GetLabels()
+		if labels == nil {
+			labels = make(map[string]string, 1)
+		}
+		if _, exist := labels[key]; !exist {
+			labels[key] = value
+			dst.SetLabels(labels)
+		}
+	}
+}
+
 // MergeLabel adds label for the given object.
 func MergeLabel(obj *unstructured.Unstructured, labelKey string, labelValue string) {
 	labels := obj.GetLabels()

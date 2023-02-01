@@ -311,3 +311,144 @@ func TestRemoveLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeLabels(t *testing.T) {
+	tests := []struct {
+		name     string
+		dst      *unstructured.Unstructured
+		src      *unstructured.Unstructured
+		expected *unstructured.Unstructured
+	}{
+		{
+			name: "src has nil labels",
+			dst: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			src: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment-1",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "src has labels",
+			dst: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			src: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":   "demo-deployment-1",
+						"labels": map[string]interface{}{"foo": "bar"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":   "demo-deployment",
+						"labels": map[string]interface{}{"foo": "bar"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "src and dst have the same label key",
+			dst: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":   "demo-deployment",
+						"labels": map[string]interface{}{"foo": "foo"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			src: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":   "demo-deployment-1",
+						"labels": map[string]interface{}{"foo": "bar"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":   "demo-deployment",
+						"labels": map[string]interface{}{"foo": "foo"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			MergeLabels(tt.dst, tt.src)
+			if !reflect.DeepEqual(tt.dst, tt.expected) {
+				t.Errorf("MergeLabels() = %v, want %v", tt.dst, tt.expected)
+			}
+		})
+	}
+}
