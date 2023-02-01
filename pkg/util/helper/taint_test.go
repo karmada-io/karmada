@@ -4,9 +4,11 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -353,6 +355,286 @@ func TestGetNoExecuteTaints(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetNoExecuteTaints(tt.taints); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetNoExecuteTaints() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetMinTolerationTime(t *testing.T) {
+	timeAdded1 := metav1.NewTime(time.Unix(0, 0))
+	timeAdded2 := metav1.NewTime(timeAdded1.Add(5000))
+	type args struct {
+		noExecuteTaints []corev1.Taint
+		usedTolerations []corev1.Toleration
+	}
+	tests := []struct {
+		name string
+		args args
+		want time.Duration
+	}{
+		{
+			name: "the length of taints is 0",
+			args: args{
+				noExecuteTaints: nil,
+				usedTolerations: []corev1.Toleration{
+					{
+						Key:               "key",
+						Operator:          "Equal",
+						Value:             "value",
+						Effect:            "NoExecute",
+						TolerationSeconds: nil,
+					},
+				},
+			},
+			want: -1,
+		}, {
+			name: "the length of tolerations is 0",
+			args: args{
+				noExecuteTaints: []corev1.Taint{
+					{
+						Key:       "key",
+						Value:     "value",
+						Effect:    "NoExecute",
+						TimeAdded: nil,
+					},
+				},
+				usedTolerations: nil,
+			},
+			want: 0,
+		}, {
+			name: "test get minimal toleration time",
+			args: args{
+				noExecuteTaints: []corev1.Taint{
+					{
+						Key:       "key1",
+						Value:     "value1",
+						Effect:    "NoExecute",
+						TimeAdded: nil,
+					},
+					{
+						Key:       "key2",
+						Value:     "value2",
+						Effect:    "NoExecute",
+						TimeAdded: &timeAdded1,
+					},
+					{
+						Key:       "key3",
+						Value:     "value3",
+						Effect:    "NoExecute",
+						TimeAdded: &timeAdded2,
+					},
+				},
+				usedTolerations: []corev1.Toleration{
+					{
+						Key:               "key1",
+						Operator:          "Equal",
+						Value:             "value1",
+						Effect:            "NoExecute",
+						TolerationSeconds: nil,
+					},
+					{
+						Key:               "key2",
+						Operator:          "Equal",
+						Value:             "value2",
+						Effect:            "NoExecute",
+						TolerationSeconds: pointer.Int64(10000),
+					},
+					{
+						Key:               "key3",
+						Operator:          "Equal",
+						Value:             "value3",
+						Effect:            "NoExecute",
+						TolerationSeconds: pointer.Int64(20000),
+					},
+				},
+			},
+			want: 0,
+		}, {
+			name: "exist mismatch taint",
+			args: args{
+				noExecuteTaints: []corev1.Taint{
+					{
+						Key:       "key1",
+						Value:     "value1",
+						Effect:    "NoExecute",
+						TimeAdded: nil,
+					},
+					{
+						Key:       "key2",
+						Value:     "value2",
+						Effect:    "NoExecute",
+						TimeAdded: &timeAdded1,
+					},
+					{
+						Key:       "key3",
+						Value:     "value3",
+						Effect:    "NoExecute",
+						TimeAdded: &timeAdded2,
+					},
+				},
+				usedTolerations: []corev1.Toleration{
+					{
+						Key:               "key3",
+						Operator:          "Equal",
+						Value:             "value3",
+						Effect:            "NoExecute",
+						TolerationSeconds: nil,
+					},
+					{
+						Key:               "key4",
+						Operator:          "Equal",
+						Value:             "value4",
+						Effect:            "NoExecute",
+						TolerationSeconds: pointer.Int64(10000),
+					},
+					{
+						Key:               "key5",
+						Operator:          "Equal",
+						Value:             "value5",
+						Effect:            "NoExecute",
+						TolerationSeconds: pointer.Int64(20000),
+					},
+				},
+			},
+			want: -1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetMinTolerationTime(tt.args.noExecuteTaints, tt.args.usedTolerations); got != tt.want {
+				t.Errorf("GetMinTolerationTime() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetMatchingTolerations(t *testing.T) {
+	type args struct {
+		taints      []corev1.Taint
+		tolerations []corev1.Toleration
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  bool
+		want1 []corev1.Toleration
+	}{
+		{
+			name: "test no taints",
+			args: args{
+				taints: nil,
+				tolerations: []corev1.Toleration{
+					{
+						Key:               "key",
+						Operator:          "Equal",
+						Value:             "value",
+						Effect:            "NoExecute",
+						TolerationSeconds: nil,
+					},
+					{
+						Key:               "key",
+						Operator:          "Equal",
+						Value:             "value",
+						Effect:            "NoExecute",
+						TolerationSeconds: pointer.Int64(10000),
+					},
+				},
+			},
+			want:  true,
+			want1: []corev1.Toleration{},
+		}, {
+			name: "test no tolerations",
+			args: args{
+				taints: []corev1.Taint{
+					{
+						Key:       "key",
+						Value:     "value",
+						Effect:    "NoExecute",
+						TimeAdded: nil,
+					},
+				},
+				tolerations: nil,
+			},
+			want:  false,
+			want1: []corev1.Toleration{},
+		}, {
+			name: "exist mismatch taint",
+			args: args{
+				taints: []corev1.Taint{
+					{
+						Key:       "key",
+						Value:     "value",
+						Effect:    "NoExecute",
+						TimeAdded: nil,
+					},
+				},
+				tolerations: []corev1.Toleration{
+					{
+						Key:               "key",
+						Operator:          "Equal",
+						Value:             "value",
+						Effect:            "NoExecute",
+						TolerationSeconds: nil,
+					},
+					{
+						Key:               "key",
+						Operator:          "Equal",
+						Value:             "value",
+						Effect:            "NoExecute",
+						TolerationSeconds: pointer.Int64(10000),
+					},
+				},
+			},
+			want: true,
+			want1: []corev1.Toleration{
+				{
+					Key:               "key",
+					Operator:          "Equal",
+					Value:             "value",
+					Effect:            "NoExecute",
+					TolerationSeconds: nil,
+				},
+			},
+		}, {
+			name: "don't exist mismatch taint",
+			args: args{
+				taints: []corev1.Taint{
+					{
+						Key:       "key",
+						Value:     "value",
+						Effect:    "NoExecute",
+						TimeAdded: nil,
+					},
+				},
+				tolerations: []corev1.Toleration{
+					{
+						Key:               "key1",
+						Operator:          "Equal",
+						Value:             "value1",
+						Effect:            "NoExecute",
+						TolerationSeconds: nil,
+					},
+					{
+						Key:               "key2",
+						Operator:          "Equal",
+						Value:             "value2",
+						Effect:            "NoExecute",
+						TolerationSeconds: pointer.Int64(10000),
+					},
+				},
+			},
+			want:  false,
+			want1: []corev1.Toleration{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := GetMatchingTolerations(tt.args.taints, tt.args.tolerations)
+			if got != tt.want {
+				t.Errorf("GetMatchingTolerations() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("GetMatchingTolerations() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}
