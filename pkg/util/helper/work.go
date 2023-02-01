@@ -25,6 +25,8 @@ import (
 func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resource *unstructured.Unstructured) error {
 	workload := resource.DeepCopy()
 	util.MergeAnnotation(workload, workv1alpha2.ResourceTemplateUIDAnnotation, string(workload.GetUID()))
+	util.RecordManagedAnnotations(workload)
+	util.RecordManagedLabels(workload)
 	workloadJSON, err := workload.MarshalJSON()
 	if err != nil {
 		klog.Errorf("Failed to marshal workload(%s/%s), Error: %v", workload.GetNamespace(), workload.GetName(), err)

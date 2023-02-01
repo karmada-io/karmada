@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 func TestGetLabelValue(t *testing.T) {
@@ -312,16 +314,16 @@ func TestRemoveLabel(t *testing.T) {
 	}
 }
 
-func TestMergeLabels(t *testing.T) {
+func TestRetainLabels(t *testing.T) {
 	tests := []struct {
 		name     string
-		dst      *unstructured.Unstructured
-		src      *unstructured.Unstructured
+		desired  *unstructured.Unstructured
+		observed *unstructured.Unstructured
 		expected *unstructured.Unstructured
 	}{
 		{
-			name: "src has nil labels",
-			dst: &unstructured.Unstructured{
+			name: "observed has nil labels",
+			desired: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
@@ -333,7 +335,7 @@ func TestMergeLabels(t *testing.T) {
 					},
 				},
 			},
-			src: &unstructured.Unstructured{
+			observed: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
@@ -359,8 +361,8 @@ func TestMergeLabels(t *testing.T) {
 			},
 		},
 		{
-			name: "src has labels",
-			dst: &unstructured.Unstructured{
+			name: "observed has labels",
+			desired: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
@@ -372,7 +374,7 @@ func TestMergeLabels(t *testing.T) {
 					},
 				},
 			},
-			src: &unstructured.Unstructured{
+			observed: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
@@ -400,8 +402,8 @@ func TestMergeLabels(t *testing.T) {
 			},
 		},
 		{
-			name: "src and dst have the same label key",
-			dst: &unstructured.Unstructured{
+			name: "observed and desired have the same label key",
+			desired: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
@@ -414,7 +416,7 @@ func TestMergeLabels(t *testing.T) {
 					},
 				},
 			},
-			src: &unstructured.Unstructured{
+			observed: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
@@ -441,13 +443,148 @@ func TestMergeLabels(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "do not merge deleted labels",
+			desired: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "demo-deployment",
+						"annotations": map[string]interface{}{workv1alpha2.ManagedLabels: "foo"},
+						"labels":      map[string]interface{}{"foo": "foo"},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			observed: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "demo-deployment-1",
+						"annotations": map[string]interface{}{workv1alpha2.ManagedLabels: "foo,deleted"},
+						"labels": map[string]interface{}{
+							"foo":     "bar",
+							"deleted": "deleted",
+							"retain":  "retain",
+						},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":        "demo-deployment",
+						"annotations": map[string]interface{}{workv1alpha2.ManagedLabels: "foo"},
+						"labels": map[string]interface{}{
+							"foo":    "foo",
+							"retain": "retain",
+						},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			MergeLabels(tt.dst, tt.src)
-			if !reflect.DeepEqual(tt.dst, tt.expected) {
-				t.Errorf("MergeLabels() = %v, want %v", tt.dst, tt.expected)
+			RetainLabels(tt.desired, tt.observed)
+			if !reflect.DeepEqual(tt.desired, tt.expected) {
+				t.Errorf("RetainLabels() = %v, want %v", tt.desired, tt.expected)
+			}
+		})
+	}
+}
+
+func TestRecordManagedLabels(t *testing.T) {
+	tests := []struct {
+		name     string
+		object   *unstructured.Unstructured
+		expected *unstructured.Unstructured
+	}{
+		{
+			name: "nil label",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment-1",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment-1",
+						"annotations": map[string]interface{}{
+							workv1alpha2.ManagedLabels: "",
+						},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+		{
+			name: "object has has labels",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment-1",
+						"labels": map[string]interface{}{
+							"foo": "foo",
+						},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name": "demo-deployment-1",
+						"annotations": map[string]interface{}{
+							workv1alpha2.ManagedLabels: "foo",
+						},
+						"labels": map[string]interface{}{
+							"foo": "foo",
+						},
+					},
+					"spec": map[string]interface{}{
+						"replicas": 2,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RecordManagedLabels(tt.object)
+			if !reflect.DeepEqual(tt.object, tt.expected) {
+				t.Errorf("RecordManagedLabels() = %v, want %v", tt.object, tt.expected)
 			}
 		})
 	}

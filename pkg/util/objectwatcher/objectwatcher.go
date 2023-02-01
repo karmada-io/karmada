@@ -134,13 +134,13 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	// Retain ownerReferences since they will typically be set by controllers in a member cluster.
 	desired.SetOwnerReferences(observed.GetOwnerReferences())
 
-	// Merge annotations since they will typically be set by controllers in a member cluster
+	// Retain annotations since they will typically be set by controllers in a member cluster
 	// and be set by user in karmada-controller-plane.
-	util.MergeAnnotations(desired, observed)
+	util.RetainAnnotations(desired, observed)
 
-	// Merge labels since they will typically be set by controllers in a member cluster
+	// Retain labels since they will typically be set by controllers in a member cluster
 	// and be set by user in karmada-controller-plane.
-	util.MergeLabels(desired, observed)
+	util.RetainLabels(desired, observed)
 
 	if o.resourceInterpreter.HookEnabled(desired.GroupVersionKind(), configv1alpha1.InterpreterOperationRetain) {
 		return o.resourceInterpreter.Retain(desired, observed)
