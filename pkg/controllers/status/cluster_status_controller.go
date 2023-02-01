@@ -194,7 +194,9 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 		// 	We should move this logic to both `execution-controller` and `work-status-controller`.
 		//  After that the 'initializeGenericInformerManagerForCluster' function as well as 'c.GenericInformerManager'
 		//  can be safely removed from current controller.
-		c.initializeGenericInformerManagerForCluster(clusterClient)
+		if err := c.initializeGenericInformerManagerForCluster(clusterClient); err != nil {
+			return controllerruntime.Result{Requeue: true}, err
+		}
 
 		err := c.setCurrentClusterStatus(clusterClient, cluster, &currentClusterStatus)
 		if err != nil {
@@ -288,17 +290,18 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 	return controllerruntime.Result{RequeueAfter: c.ClusterStatusUpdateFrequency.Duration}, nil
 }
 
-func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clusterClient *util.ClusterClient) {
+func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clusterClient *util.ClusterClient) error {
 	if c.GenericInformerManager.IsManagerExist(clusterClient.ClusterName) {
-		return
+		return nil
 	}
 
 	dynamicClient, err := c.ClusterDynamicClientSetFunc(clusterClient.ClusterName, c.Client)
 	if err != nil {
-		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterClient.ClusterName)
-		return
+		klog.Errorf("Failed to build dynamic cluster client for cluster %s: %v", clusterClient.ClusterName, err)
+		return err
 	}
 	c.GenericInformerManager.ForCluster(clusterClient.ClusterName, dynamicClient.DynamicClientSet, 0)
+	return nil
 }
 
 // buildInformerForCluster builds informer manager for cluster if it doesn't exist, then constructs informers for node
@@ -395,7 +398,7 @@ func getClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy 
 	}
 
 	if healthStatus != http.StatusOK {
-		klog.Infof("Member cluster %v isn't healthy", clusterClient.ClusterName)
+		klog.Infof("Member cluster %v isn't healthy, the healthStatus is %d", clusterClient.ClusterName, healthStatus)
 		return true, false
 	}
 
