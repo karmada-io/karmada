@@ -25,6 +25,7 @@ func New(modifyOptions ModifyOptions) Options {
 		EnableSchedulerEstimator:  false,
 		SchedulerEstimatorTimeout: metav1.Duration{Duration: 1 * time.Second},
 		SchedulerEstimatorPort:    9001,
+		SchedulerName:             "default-scheduler",
 	}
 
 	if modifyOptions != nil {
@@ -45,10 +46,11 @@ func TestValidateKarmadaSchedulerConfiguration(t *testing.T) {
 			LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
 				LeaderElect: false,
 			},
-			BindAddress:  "127.0.0.1",
-			SecurePort:   9000,
-			KubeAPIQPS:   40,
-			KubeAPIBurst: 30,
+			BindAddress:   "127.0.0.1",
+			SecurePort:    9000,
+			KubeAPIQPS:    40,
+			KubeAPIBurst:  30,
+			SchedulerName: "default-scheduler",
 		},
 	}
 
@@ -86,6 +88,12 @@ func TestValidateKarmadaSchedulerConfiguration(t *testing.T) {
 				option.SchedulerEstimatorTimeout = metav1.Duration{Duration: -1 * time.Second}
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SchedulerEstimatorTimeout"), metav1.Duration{Duration: -1 * time.Second}, "must be greater than or equal to 0")},
+		},
+		"invalid SchedulerName": {
+			opt: New(func(option *Options) {
+				option.SchedulerName = ""
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SchedulerName"), "", "should not be empty")},
 		},
 	}
 
