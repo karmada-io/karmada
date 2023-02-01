@@ -16676,6 +16676,10 @@
           "description": "Resource represents the Kubernetes resource to be propagated.",
           "default": {},
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ObjectReference"
+        },
+        "schedulerName": {
+          "description": "SchedulerName represents which scheduler to proceed the scheduling. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
+          "type": "string"
         }
       }
     },

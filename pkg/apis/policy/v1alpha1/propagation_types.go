@@ -106,6 +106,7 @@ type PropagationSpec struct {
 	// SchedulerName represents which scheduler to proceed the scheduling.
 	// If specified, the policy will be dispatched by specified scheduler.
 	// If not specified, the policy will be dispatched by default scheduler.
+	// +kubebuilder:default="default-scheduler"
 	// +optional
 	SchedulerName string `json:"schedulerName,omitempty"`
 }

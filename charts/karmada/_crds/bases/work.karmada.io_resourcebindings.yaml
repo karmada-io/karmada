@@ -564,6 +564,11 @@ spec:
                 - kind
                 - name
                 type: object
+              schedulerName:
+                description: SchedulerName represents which scheduler to proceed the
+                  scheduling. It inherits directly from the associated PropagationPolicy(or
+                  ClusterPropagationPolicy).
+                type: string
             required:
             - resource
             type: object
