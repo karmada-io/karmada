@@ -27,5 +27,9 @@ func (o *Options) Validate() field.ErrorList {
 		errs = append(errs, field.Invalid(newPath.Child("SchedulerEstimatorTimeout"), o.SchedulerEstimatorTimeout, "must be greater than or equal to 0"))
 	}
 
+	if o.SchedulerName == "" {
+		errs = append(errs, field.Invalid(newPath.Child("SchedulerName"), o.SchedulerName, "should not be empty"))
+	}
+
 	return errs
 }
