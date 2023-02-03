@@ -78,9 +78,6 @@ type ResourceDetector struct {
 	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
 	// Larger number means responsive resource template syncing but more CPU(and network) load.
 	ConcurrentResourceTemplateSyncs int
-	// ConcurrentResourceBindingSyncs is the number of ResourceBinding that are allowed to sync concurrently.
-	// Larger number means responsive resource template syncing but more CPU(and network) load.
-	ConcurrentResourceBindingSyncs int
 
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
 	// the controller.

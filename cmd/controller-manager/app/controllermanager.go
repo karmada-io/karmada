@@ -537,7 +537,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		ResourceInterpreter:             resourceInterpreter,
 		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
 		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
-		ConcurrentResourceBindingSyncs:  opts.ConcurrentResourceBindingSyncs,
 		RateLimiterOptions:              opts.RateLimiterOpts,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
