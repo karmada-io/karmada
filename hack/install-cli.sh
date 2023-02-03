@@ -237,6 +237,8 @@ setup_binary() {
   info "Installing ${INSTALL_CLI_TYPE} to ${INSTALL_LOCATION}/${INSTALL_CLI_TYPE}"
   tar -xzof "${TMP_BIN}" -C "${TMP_DIR}" --no-same-owner
 
+  mkdir -p "${INSTALL_LOCATION}" &>/dev/null || sudo mkdir -p "${INSTALL_LOCATION}"
+
   local CMD_MOVE="mv -i \"${TMP_DIR}/${INSTALL_CLI_TYPE}\" \"${INSTALL_LOCATION}\""
   if [[ -w "${INSTALL_LOCATION}" ]]; then
     eval "${CMD_MOVE}"
