@@ -213,7 +213,11 @@ func (j *CommandUnjoinOption) deleteClusterObject(controlPlaneKarmadaClient *kar
 		return nil
 	}
 
-	err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Delete(context.TODO(), j.ClusterName, metav1.DeleteOptions{})
+	deleteBackground := metav1.DeletePropagationBackground
+	deleteOption := metav1.DeleteOptions{
+		PropagationPolicy: &deleteBackground,
+	}
+	err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Delete(context.TODO(), j.ClusterName, deleteOption)
 	if apierrors.IsNotFound(err) {
 		return fmt.Errorf("no cluster object %s found in karmada control Plane", j.ClusterName)
 	}
