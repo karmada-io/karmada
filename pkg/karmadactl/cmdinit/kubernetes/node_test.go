@@ -169,6 +169,7 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 		name    string
 		option  CommandInitOption
 		status  corev1.ConditionStatus
+		spec    corev1.NodeSpec
 		wantErr bool
 	}{
 		{
@@ -177,6 +178,7 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 				KubeClientSet: fake.NewSimpleClientset(),
 			},
 			status:  corev1.ConditionTrue,
+			spec:    corev1.NodeSpec{},
 			wantErr: false,
 		},
 		{
@@ -185,6 +187,22 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 				KubeClientSet: fake.NewSimpleClientset(),
 			},
 			status:  corev1.ConditionFalse,
+			spec:    corev1.NodeSpec{},
+			wantErr: true,
+		},
+		{
+			name: "there is taint node",
+			option: CommandInitOption{
+				KubeClientSet: fake.NewSimpleClientset(),
+			},
+			status: corev1.ConditionTrue,
+			spec: corev1.NodeSpec{
+				Taints: []corev1.Taint{
+					{
+						Effect: corev1.TaintEffectNoSchedule,
+					},
+				},
+			},
 			wantErr: true,
 		},
 	}
@@ -197,6 +215,7 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 						{Type: corev1.NodeReady, Status: tt.status},
 					},
 				},
+				Spec: tt.spec,
 			}, metav1.CreateOptions{})
 			if err != nil {
 				t.Errorf("create node error: %v", err)
