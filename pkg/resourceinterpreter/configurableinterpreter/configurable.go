@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -13,7 +14,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter/configmanager"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter/luavm"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
-	"github.com/karmada-io/karmada/pkg/util/hashset"
 )
 
 // ConfigurableInterpreter interprets resources with resource interpreter customizations.
@@ -153,7 +153,7 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 		return
 	}
 
-	refs := hashset.Make[configv1alpha1.DependentObjectReference]()
+	refs := sets.New[configv1alpha1.DependentObjectReference]()
 	for _, luaScript := range scripts {
 		var references []configv1alpha1.DependentObjectReference
 		references, err = c.luaVM.GetDependencies(object, luaScript)
@@ -164,7 +164,7 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 		}
 		refs.Insert(references...)
 	}
-	dependencies = refs.List()
+	dependencies = refs.UnsortedList()
 
 	// keep returned items in the same order between each call.
 	sort.Slice(dependencies, func(i, j int) bool {
