@@ -57,7 +57,7 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 
 		impersonatorSecret, err = WaitForServiceAccountSecretCreation(clusterKubeClient, impersonationSA)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get serviceAccount secret for impersonation from cluster(%s), error: %v", opts.ClusterName, err)
+			return nil, nil, fmt.Errorf("failed to get serviceAccount secret for impersonation from cluster(%s), error: %w", opts.ClusterName, err)
 		}
 	}
 	if opts.IsKubeCredentialsEnabled() {
@@ -87,7 +87,7 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 		}
 		clusterSecret, err = WaitForServiceAccountSecretCreation(clusterKubeClient, serviceAccountObj)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get serviceAccount secret from cluster(%s), error: %v", opts.ClusterName, err)
+			return nil, nil, fmt.Errorf("failed to get serviceAccount secret from cluster(%s), error: %w", opts.ClusterName, err)
 		}
 	}
 	if opts.DryRun {
@@ -120,7 +120,7 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 		}
 		impersonatorSecret, err = CreateSecret(controlPlaneKubeClient, impersonatorSecret)
 		if err != nil {
-			return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
+			return fmt.Errorf("failed to create impersonator secret in control plane. error: %w", err)
 		}
 		opts.ImpersonatorSecret = *impersonatorSecret
 	}
@@ -139,7 +139,7 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 
 		secret, err = CreateSecret(controlPlaneKubeClient, secret)
 		if err != nil {
-			return fmt.Errorf("failed to create secret in control plane. error: %v", err)
+			return fmt.Errorf("failed to create secret in control plane. error: %w", err)
 		}
 		opts.Secret = *secret
 	}
@@ -157,14 +157,14 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 	if opts.IsKubeImpersonatorEnabled() {
 		err = PatchSecret(controlPlaneKubeClient, impersonatorSecret.Namespace, impersonatorSecret.Name, types.MergePatchType, patchSecretBody)
 		if err != nil {
-			return fmt.Errorf("failed to patch impersonator secret %s/%s, error: %v", impersonatorSecret.Namespace, impersonatorSecret.Name, err)
+			return fmt.Errorf("failed to patch impersonator secret %s/%s, error: %w", impersonatorSecret.Namespace, impersonatorSecret.Name, err)
 		}
 	}
 
 	if opts.IsKubeCredentialsEnabled() {
 		err = PatchSecret(controlPlaneKubeClient, secret.Namespace, secret.Name, types.MergePatchType, patchSecretBody)
 		if err != nil {
-			return fmt.Errorf("failed to patch secret %s/%s, error: %v", secret.Namespace, secret.Name, err)
+			return fmt.Errorf("failed to patch secret %s/%s, error: %w", secret.Namespace, secret.Name, err)
 		}
 	}
 	return nil

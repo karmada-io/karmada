@@ -82,7 +82,7 @@ func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerMa
 func (configManager *interpreterConfigManager) updateConfiguration() {
 	configurations, err := configManager.lister.List(labels.Everything())
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))
+		utilruntime.HandleError(fmt.Errorf("error updating configuration: %w", err))
 		return
 	}
 

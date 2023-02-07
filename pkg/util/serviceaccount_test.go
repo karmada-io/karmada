@@ -288,7 +288,7 @@ func TestWaitForServiceAccountSecretCreation(t *testing.T) {
 		if secretVisitCount == 2 {
 			s, err := client.Tracker().Get(action.GetResource(), action.GetNamespace(), "test")
 			if err != nil {
-				return true, nil, fmt.Errorf("secret shall be found: %v", err)
+				return true, nil, fmt.Errorf("secret shall be found: %w", err)
 			}
 
 			// We inject token here, so that next round will see the token

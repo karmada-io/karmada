@@ -20,7 +20,7 @@ func Dial(path string, timeout time.Duration) (*grpc.ClientConn, error) {
 	}
 	cc, err := grpc.DialContext(ctx, path, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("dial %s error: %v", path, err)
+		return nil, fmt.Errorf("dial %s error: %w", path, err)
 	}
 
 	return cc, nil

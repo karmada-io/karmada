@@ -78,7 +78,7 @@ func DeCompress(file, targetPath string) error {
 
 	gr, err := gzip.NewReader(r)
 	if err != nil {
-		return fmt.Errorf("new reader failed. %v", err)
+		return fmt.Errorf("new reader failed. %w", err)
 	}
 	defer gr.Close()
 

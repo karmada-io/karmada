@@ -35,6 +35,7 @@ linters:
   - govet
   # linters default enabled by golangci-lint .
   - errcheck
+  - errorlint
   - gosimple
   - ineffassign
   - staticcheck

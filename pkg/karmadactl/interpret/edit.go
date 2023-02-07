@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -450,8 +451,9 @@ func (r *editResults) addError(err error, info *resource.Info) string {
 		reason := editReason{
 			head: fmt.Sprintf("%s %q was not valid", customizationResourceName, info.Name),
 		}
-		if err, ok := err.(apierrors.APIStatus); ok {
-			if details := err.Status().Details; details != nil {
+		var tErr apierrors.APIStatus
+		if errors.As(err, &tErr) {
+			if details := tErr.Status().Details; details != nil {
 				for _, cause := range details.Causes {
 					reason.other = append(reason.other, fmt.Sprintf("%s: %s", cause.Field, cause.Message))
 				}

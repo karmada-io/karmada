@@ -118,14 +118,14 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 			cops, _, err := c.OverrideManager.ApplyOverridePolicies(clonedNamespaced, cluster.Name)
 			if err != nil {
 				klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedNamespaced.GetKind(), clonedNamespaced.GetNamespace(), clonedNamespaced.GetName(), err)
-				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
+				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %w", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}
 
 			annotations, err := binding.RecordAppliedOverrides(cops, nil, nil)
 			if err != nil {
 				klog.Errorf("Failed to record appliedOverrides, Error: %v", err)
-				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
+				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %w", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}
 
@@ -146,7 +146,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 			util.MergeLabel(clonedNamespaced, workv1alpha1.WorkNameLabel, workName)
 
 			if err = helper.CreateOrUpdateWork(c.Client, objectMeta, clonedNamespaced); err != nil {
-				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
+				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %w", clonedNamespaced.GetName(), cluster.GetName(), err)
 				return
 			}
 			ch <- nil

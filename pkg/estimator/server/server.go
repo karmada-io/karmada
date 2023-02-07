@@ -126,7 +126,7 @@ func (es *AccurateSchedulerEstimatorServer) Start(ctx context.Context) error {
 	// Listen a port and register the gRPC server.
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", es.port))
 	if err != nil {
-		return fmt.Errorf("failed to listen port %d: %v", es.port, err)
+		return fmt.Errorf("failed to listen port %d: %w", es.port, err)
 	}
 	klog.Infof("Listening port: %d", es.port)
 	defer l.Close()
@@ -180,7 +180,7 @@ func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Con
 
 	maxReplicas, err := es.EstimateReplicas(ctx, object, request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to estimate replicas: %v", err)
+		return nil, fmt.Errorf("failed to estimate replicas: %w", err)
 	}
 	return &pb.MaxAvailableReplicasResponse{MaxReplicas: maxReplicas}, nil
 }

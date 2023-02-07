@@ -65,12 +65,12 @@ func EncodeCertPEM(cert *x509.Certificate) []byte {
 func NewCertificateAuthority(config *CertsConfig) (*x509.Certificate, crypto.Signer, error) {
 	key, err := NewPrivateKey(config.PublicKeyAlgorithm)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create private key while generating CA certificate %v", err)
+		return nil, nil, fmt.Errorf("unable to create private key while generating CA certificate %w", err)
 	}
 
 	cert, err := certutil.NewSelfSignedCACert(config.Config, key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create self-signed CA certificate %v", err)
+		return nil, nil, fmt.Errorf("unable to create self-signed CA certificate %w", err)
 	}
 
 	return cert, key, nil
@@ -84,7 +84,7 @@ func NewCACertAndKey(cn string) (*x509.Certificate, *crypto.Signer, error) {
 	}
 	caCert, caKey, err := NewCertificateAuthority(certCfg)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failure while generating CA certificate and key: %v", err)
+		return nil, nil, fmt.Errorf("failure while generating CA certificate and key: %w", err)
 	}
 
 	return caCert, &caKey, nil
@@ -163,12 +163,12 @@ func NewCertAndKey(caCert *x509.Certificate, caKey crypto.Signer, config *CertsC
 
 	key, err := NewPrivateKey(config.PublicKeyAlgorithm)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create private key %v", err)
+		return nil, nil, fmt.Errorf("unable to create private key %w", err)
 	}
 
 	cert, err := NewSignedCert(config, key, caCert, caKey, false)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to sign certificate. %v", err)
+		return nil, nil, fmt.Errorf("unable to sign certificate. %w", err)
 	}
 
 	return cert, key, nil
@@ -192,7 +192,7 @@ func WriteCert(pkiPath, name string, cert *x509.Certificate) error {
 
 	certificatePath := PathForCert(pkiPath, name)
 	if err := certutil.WriteCert(certificatePath, EncodeCertPEM(cert)); err != nil {
-		return fmt.Errorf("unable to write certificate to file %v", err)
+		return fmt.Errorf("unable to write certificate to file %w", err)
 	}
 
 	return nil
@@ -207,10 +207,10 @@ func WriteKey(pkiPath, name string, key crypto.Signer) error {
 	privateKeyPath := PathForKey(pkiPath, name)
 	encoded, err := keyutil.MarshalPrivateKeyToPEM(key)
 	if err != nil {
-		return fmt.Errorf("unable to marshal private key to PEM %v", err)
+		return fmt.Errorf("unable to marshal private key to PEM %w", err)
 	}
 	if err := keyutil.WriteKey(privateKeyPath, encoded); err != nil {
-		return fmt.Errorf("unable to write private key to file %v", err)
+		return fmt.Errorf("unable to write private key to file %w", err)
 	}
 
 	return nil

@@ -503,7 +503,7 @@ func (o *CommandRegisterOption) constructKarmadaAgentConfig(bootstrapClient *kub
 	err = wait.Poll(1*time.Second, o.Timeout, func() (done bool, err error) {
 		csrOK, err := bootstrapClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csrName, metav1.GetOptions{})
 		if err != nil {
-			return false, fmt.Errorf("failed to get the cluster csr %s. err: %v", o.ClusterName, err)
+			return false, fmt.Errorf("failed to get the cluster csr %s. err: %w", o.ClusterName, err)
 		}
 
 		if csrOK.Status.Certificate != nil {
@@ -561,7 +561,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 
 	// cerate karmada-kubeconfig secret to be used by karmada-agent component.
 	if err := cmdutil.CreateOrUpdateSecret(o.memberClusterClient, kubeConfigSecret); err != nil {
-		return fmt.Errorf("create secret %s failed: %v", kubeConfigSecret.Name, err)
+		return fmt.Errorf("create secret %s failed: %w", kubeConfigSecret.Name, err)
 	}
 
 	clusterRole := &rbacv1.ClusterRole{
@@ -741,7 +741,7 @@ func retrieveValidatedConfigInfo(client kubeclient.Interface, bootstrapTokenDisc
 	// Load the CACertHashes into a pubkeypin.Set
 	pubKeyPins := pubkeypin.NewSet()
 	if err = pubKeyPins.Allow(bootstrapTokenDiscovery.CACertHashes...); err != nil {
-		return nil, fmt.Errorf("invalid discovery token CA certificate hash: %v", err)
+		return nil, fmt.Errorf("invalid discovery token CA certificate hash: %w", err)
 	}
 
 	// Make sure the interval is not bigger than the duration

@@ -169,11 +169,11 @@ func (o *CommandApplyOptions) generateAndInjectPolices() error {
 		gvk := obj.GetObjectKind().GroupVersionKind()
 		mapping, err := o.kubectlApplyOptions.Mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
-			return fmt.Errorf("unable to recognize resource: %v", err)
+			return fmt.Errorf("unable to recognize resource: %w", err)
 		}
 		client, err := o.KubectlApplyFlags.Factory.UnstructuredClientForMapping(mapping)
 		if err != nil {
-			return fmt.Errorf("unable to connect to a server to handle %q: %v", mapping.Resource, err)
+			return fmt.Errorf("unable to connect to a server to handle %q: %w", mapping.Resource, err)
 		}
 		policyName, _ := metadataAccessor.Name(obj)
 		ret := &resource.Info{

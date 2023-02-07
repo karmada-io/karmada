@@ -17,7 +17,7 @@ func EnsureClusterRoleExist(client kubeclient.Interface, clusterRole *rbacv1.Clu
 
 	exist, err := IsClusterRoleExist(client, clusterRole.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if ClusterRole exist. ClusterRole: %s, error: %v", clusterRole.Name, err)
+		return nil, fmt.Errorf("failed to check if ClusterRole exist. ClusterRole: %s, error: %w", clusterRole.Name, err)
 	}
 	if exist {
 		klog.V(1).Infof("Ensure ClusterRole succeed as already exist. ClusterRole: %s", clusterRole.Name)
@@ -26,7 +26,7 @@ func EnsureClusterRoleExist(client kubeclient.Interface, clusterRole *rbacv1.Clu
 
 	createdObj, err := CreateClusterRole(client, clusterRole)
 	if err != nil {
-		return nil, fmt.Errorf("ensure ClusterRole failed due to create failed. ClusterRole: %s, error: %v", clusterRole.Name, err)
+		return nil, fmt.Errorf("ensure ClusterRole failed due to create failed. ClusterRole: %s, error: %w", clusterRole.Name, err)
 	}
 
 	return createdObj, nil
@@ -41,7 +41,7 @@ func EnsureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 
 	exist, err := IsClusterRoleBindingExist(client, clusterRoleBinding.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if ClusterRole exist. ClusterRole: %s, error: %v", clusterRoleBinding.Name, err)
+		return nil, fmt.Errorf("failed to check if ClusterRole exist. ClusterRole: %s, error: %w", clusterRoleBinding.Name, err)
 	}
 	if exist {
 		klog.V(1).Infof("Ensure ClusterRole succeed as already exist. ClusterRole: %s", clusterRoleBinding.Name)
@@ -50,7 +50,7 @@ func EnsureClusterRoleBindingExist(client kubeclient.Interface, clusterRoleBindi
 
 	createdObj, err := CreateClusterRoleBinding(client, clusterRoleBinding)
 	if err != nil {
-		return nil, fmt.Errorf("ensure ClusterRole failed due to create failed. ClusterRole: %s, error: %v", clusterRoleBinding.Name, err)
+		return nil, fmt.Errorf("ensure ClusterRole failed due to create failed. ClusterRole: %s, error: %w", clusterRoleBinding.Name, err)
 	}
 
 	return createdObj, nil

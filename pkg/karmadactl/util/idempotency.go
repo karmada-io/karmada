@@ -21,7 +21,7 @@ import (
 func CreateService(client kubeclient.Interface, service *corev1.Service) error {
 	if _, err := client.CoreV1().Services(service.Namespace).Create(context.TODO(), service, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create Service: %v", err)
+			return fmt.Errorf("unable to create Service: %w", err)
 		}
 
 		klog.Warningf("Service %s is existed, creation process will skip", service.Name)
@@ -34,7 +34,7 @@ func CreateService(client kubeclient.Interface, service *corev1.Service) error {
 func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) error {
 	if _, err := client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create Secret: %v", err)
+			return fmt.Errorf("unable to create Secret: %w", err)
 		}
 
 		existSecret, err := client.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
@@ -45,7 +45,7 @@ func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) er
 		secret.ResourceVersion = existSecret.ResourceVersion
 
 		if _, err := client.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update Secret: %v", err)
+			return fmt.Errorf("unable to update Secret: %w", err)
 		}
 	}
 	klog.V(2).Infof("Secret %s/%s has been created or updated.", secret.Namespace, secret.Name)
@@ -58,7 +58,7 @@ func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret) er
 func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deployment) error {
 	if _, err := client.AppsV1().Deployments(deploy.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create Deployment: %v", err)
+			return fmt.Errorf("unable to create Deployment: %w", err)
 		}
 
 		existDeployment, err := client.AppsV1().Deployments(deploy.Namespace).Get(context.TODO(), deploy.Name, metav1.GetOptions{})
@@ -69,7 +69,7 @@ func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deploy
 		deploy.ResourceVersion = existDeployment.ResourceVersion
 
 		if _, err := client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update Deployment: %v", err)
+			return fmt.Errorf("unable to update Deployment: %w", err)
 		}
 	}
 	klog.V(2).Infof("Deployment %s/%s has been created or updated.", deploy.Namespace, deploy.Name)
@@ -82,7 +82,7 @@ func CreateOrUpdateDeployment(client kubeclient.Interface, deploy *appsv1.Deploy
 func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apiservice *apiregistrationv1.APIService) error {
 	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), apiservice, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create APIService: %v", err)
+			return fmt.Errorf("unable to create APIService: %w", err)
 		}
 
 		existAPIService, err := apiRegistrationClient.ApiregistrationV1().APIServices().Get(context.TODO(), apiservice.Name, metav1.GetOptions{})
@@ -93,7 +93,7 @@ func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apise
 		apiservice.ResourceVersion = existAPIService.ResourceVersion
 
 		if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), apiservice, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update APIService: %v", err)
+			return fmt.Errorf("unable to update APIService: %w", err)
 		}
 	}
 
@@ -106,7 +106,7 @@ func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apise
 func CreateOrUpdateRole(client kubeclient.Interface, role *rbacv1.Role) error {
 	if _, err := client.RbacV1().Roles(role.Namespace).Create(context.TODO(), role, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create RBAC role: %v", err)
+			return fmt.Errorf("unable to create RBAC role: %w", err)
 		}
 
 		existRole, err := client.RbacV1().Roles(role.Namespace).Get(context.TODO(), role.Name, metav1.GetOptions{})
@@ -117,7 +117,7 @@ func CreateOrUpdateRole(client kubeclient.Interface, role *rbacv1.Role) error {
 		role.ResourceVersion = existRole.ResourceVersion
 
 		if _, err := client.RbacV1().Roles(role.Namespace).Update(context.TODO(), role, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update RBAC role: %v", err)
+			return fmt.Errorf("unable to update RBAC role: %w", err)
 		}
 	}
 	klog.V(2).Infof("Role %s/%s has been created or updated.", role.Namespace, role.Name)
@@ -130,7 +130,7 @@ func CreateOrUpdateRole(client kubeclient.Interface, role *rbacv1.Role) error {
 func CreateOrUpdateRoleBinding(client kubeclient.Interface, roleBinding *rbacv1.RoleBinding) error {
 	if _, err := client.RbacV1().RoleBindings(roleBinding.Namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create RBAC rolebinding: %v", err)
+			return fmt.Errorf("unable to create RBAC rolebinding: %w", err)
 		}
 
 		existRoleBinding, err := client.RbacV1().RoleBindings(roleBinding.Namespace).Get(context.TODO(), roleBinding.Name, metav1.GetOptions{})
@@ -141,7 +141,7 @@ func CreateOrUpdateRoleBinding(client kubeclient.Interface, roleBinding *rbacv1.
 		roleBinding.ResourceVersion = existRoleBinding.ResourceVersion
 
 		if _, err := client.RbacV1().RoleBindings(roleBinding.Namespace).Update(context.TODO(), roleBinding, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update RBAC rolebinding: %v", err)
+			return fmt.Errorf("unable to update RBAC rolebinding: %w", err)
 		}
 	}
 	klog.V(2).Infof("RoleBinding %s/%s has been created or updated.", roleBinding.Namespace, roleBinding.Name)
@@ -154,7 +154,7 @@ func CreateOrUpdateRoleBinding(client kubeclient.Interface, roleBinding *rbacv1.
 func CreateOrUpdateClusterRole(client kubeclient.Interface, clusterRole *rbacv1.ClusterRole) error {
 	if _, err := client.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create ClusterRole: %v", err)
+			return fmt.Errorf("unable to create ClusterRole: %w", err)
 		}
 
 		existClusterRole, err := client.RbacV1().ClusterRoles().Get(context.TODO(), clusterRole.Name, metav1.GetOptions{})
@@ -165,7 +165,7 @@ func CreateOrUpdateClusterRole(client kubeclient.Interface, clusterRole *rbacv1.
 		clusterRole.ResourceVersion = existClusterRole.ResourceVersion
 
 		if _, err := client.RbacV1().ClusterRoles().Update(context.TODO(), clusterRole, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update ClusterRole: %v", err)
+			return fmt.Errorf("unable to update ClusterRole: %w", err)
 		}
 	}
 	klog.V(2).Infof("ClusterRole %s has been created or updated.", clusterRole.Name)
@@ -178,7 +178,7 @@ func CreateOrUpdateClusterRole(client kubeclient.Interface, clusterRole *rbacv1.
 func CreateOrUpdateClusterRoleBinding(client kubernetes.Interface, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
 	if _, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create ClusterRoleBinding: %v", err)
+			return fmt.Errorf("unable to create ClusterRoleBinding: %w", err)
 		}
 
 		existCrb, err := client.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterRoleBinding.Name, metav1.GetOptions{})
@@ -189,7 +189,7 @@ func CreateOrUpdateClusterRoleBinding(client kubernetes.Interface, clusterRoleBi
 		clusterRoleBinding.ResourceVersion = existCrb.ResourceVersion
 
 		if _, err := client.RbacV1().ClusterRoleBindings().Update(context.TODO(), clusterRoleBinding, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update ClusterRolebinding: %v", err)
+			return fmt.Errorf("unable to update ClusterRolebinding: %w", err)
 		}
 	}
 	klog.V(2).Infof("ClusterRolebinding %s has been created or updated.", clusterRoleBinding.Name)
@@ -202,7 +202,7 @@ func CreateOrUpdateClusterRoleBinding(client kubernetes.Interface, clusterRoleBi
 func CreateOrUpdateConfigMap(client *kubeclient.Clientset, cm *corev1.ConfigMap) error {
 	if _, err := client.CoreV1().ConfigMaps(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create ConfigMap: %v", err)
+			return fmt.Errorf("unable to create ConfigMap: %w", err)
 		}
 
 		existCm, err := client.CoreV1().ConfigMaps(cm.Namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
@@ -213,7 +213,7 @@ func CreateOrUpdateConfigMap(client *kubeclient.Clientset, cm *corev1.ConfigMap)
 		cm.ResourceVersion = existCm.ResourceVersion
 
 		if _, err := client.CoreV1().ConfigMaps(cm.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update ConfigMap: %v", err)
+			return fmt.Errorf("unable to update ConfigMap: %w", err)
 		}
 	}
 	klog.V(2).Infof("ConfigMap %s/%s has been created or updated.", cm.Namespace, cm.Name)
@@ -235,7 +235,7 @@ func NewNamespace(name string) *corev1.Namespace {
 func CreateOrUpdateNamespace(client kubeclient.Interface, ns *corev1.Namespace) error {
 	if _, err := client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create Namespace: %v", err)
+			return fmt.Errorf("unable to create Namespace: %w", err)
 		}
 
 		existNs, err := client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{})
@@ -246,7 +246,7 @@ func CreateOrUpdateNamespace(client kubeclient.Interface, ns *corev1.Namespace) 
 		ns.ResourceVersion = existNs.ResourceVersion
 
 		if _, err := client.CoreV1().Namespaces().Update(context.TODO(), ns, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update Namespace: %v", err)
+			return fmt.Errorf("unable to update Namespace: %w", err)
 		}
 	}
 	klog.Infof("Namespace %s has been created or updated.", ns.Name)
@@ -259,7 +259,7 @@ func CreateOrUpdateNamespace(client kubeclient.Interface, ns *corev1.Namespace) 
 func CreateOrUpdateService(client kubernetes.Interface, svc *corev1.Service) error {
 	if _, err := client.CoreV1().Services(svc.Namespace).Create(context.TODO(), svc, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create Service: %v", err)
+			return fmt.Errorf("unable to create Service: %w", err)
 		}
 
 		existSvc, err := client.CoreV1().Services(svc.Namespace).Get(context.TODO(), svc.Name, metav1.GetOptions{})
@@ -270,7 +270,7 @@ func CreateOrUpdateService(client kubernetes.Interface, svc *corev1.Service) err
 		svc.ResourceVersion = existSvc.ResourceVersion
 
 		if _, err := client.CoreV1().Services(svc.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update Service: %v", err)
+			return fmt.Errorf("unable to update Service: %w", err)
 		}
 	}
 	klog.Infof("Service %s/%s has been created or updated.", svc.Namespace, svc.Name)

@@ -60,7 +60,7 @@ func RenderOpenAPISpec(cfg Config) (string, error) {
 	options.Admission = nil
 
 	if err := options.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{net.ParseIP("127.0.0.1")}); err != nil {
-		klog.Fatal(fmt.Errorf("error creating self-signed certificates: %v", err))
+		klog.Fatal(fmt.Errorf("error creating self-signed certificates: %w", err))
 	}
 
 	serverConfig := genericapiserver.NewRecommendedConfig(cfg.Codecs)

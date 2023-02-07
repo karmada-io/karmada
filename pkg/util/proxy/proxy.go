@@ -42,7 +42,7 @@ func ConnectCluster(ctx context.Context, cluster *clusterapis.Cluster, proxyPath
 
 	impersonateToken, err := getImpersonateToken(cluster.Name, secret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get impresonateToken for cluster %s: %v", cluster.Name, err)
+		return nil, fmt.Errorf("failed to get impresonateToken for cluster %s: %w", cluster.Name, err)
 	}
 
 	return newProxyHandler(location, transport, impersonateToken, responder)
@@ -77,7 +77,7 @@ func constructLocation(cluster *clusterapis.Cluster) (*url.URL, error) {
 
 	uri, err := url.Parse(apiEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse api endpoint %s: %v", apiEndpoint, err)
+		return nil, fmt.Errorf("failed to parse api endpoint %s: %w", apiEndpoint, err)
 	}
 	return uri, nil
 }
@@ -93,7 +93,7 @@ func createProxyTransport(cluster *clusterapis.Cluster) (*http.Transport, error)
 	if proxyURL := cluster.Spec.ProxyURL; proxyURL != "" {
 		u, err := url.Parse(proxyURL)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse url of proxy url %s: %v", proxyURL, err)
+			return nil, fmt.Errorf("failed to parse url of proxy url %s: %w", proxyURL, err)
 		}
 		trans.Proxy = http.ProxyURL(u)
 	}

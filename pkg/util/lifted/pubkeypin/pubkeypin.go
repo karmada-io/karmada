@@ -63,6 +63,8 @@ func (s *Set) Allow(pubKeyHashes ...string) error {
 
 		switch strings.ToLower(format) {
 		case "sha256":
+			//nolint:errorlint
+			// disable `error format` check for backward compatibility.
 			if err := s.allowSHA256(value); err != nil {
 				return fmt.Errorf("invalid hash %q, %v", pubKeyHash, err)
 			}

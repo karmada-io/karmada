@@ -61,7 +61,7 @@ func (b *Builder) Filename(recursive bool, filenames ...string) *Builder {
 		case strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://"):
 			u, err := url.Parse(s)
 			if err != nil {
-				b.errs = append(b.errs, fmt.Errorf("the URL passed to filename %q is not valid: %v", s, err))
+				b.errs = append(b.errs, fmt.Errorf("the URL passed to filename %q is not valid: %w", s, err))
 				continue
 			}
 			b.URL(defaultHTTPGetAttempts, u)
@@ -106,13 +106,13 @@ func (b *Builder) Path(recursive bool, paths ...string) *Builder {
 			continue
 		}
 		if err != nil {
-			b.errs = append(b.errs, fmt.Errorf("the path %q cannot be accessed: %v", p, err))
+			b.errs = append(b.errs, fmt.Errorf("the path %q cannot be accessed: %w", p, err))
 			continue
 		}
 
 		visitors, err := ExpandPathsToFileVisitors(b.mapper, p, recursive, resource.FileExtensions, b.schema)
 		if err != nil {
-			b.errs = append(b.errs, fmt.Errorf("error reading %q: %v", p, err))
+			b.errs = append(b.errs, fmt.Errorf("error reading %q: %w", p, err))
 		}
 
 		b.paths = append(b.paths, visitors...)
@@ -160,7 +160,7 @@ func expandIfFilePattern(pattern string) ([]string, error) {
 			return nil, fmt.Errorf("the path %q does not exist", pattern)
 		}
 		if errors.Is(err, filepath.ErrBadPattern) {
-			return nil, fmt.Errorf("pattern %q is not valid: %v", pattern, err)
+			return nil, fmt.Errorf("pattern %q is not valid: %w", pattern, err)
 		}
 		return matches, err
 	}

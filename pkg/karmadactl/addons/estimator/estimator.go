@@ -68,13 +68,13 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 	config.CurrentContext = opts.MemberContext
 	configBytes, err := clientcmd.Write(*config)
 	if err != nil {
-		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
+		return fmt.Errorf("failure while serializing admin kubeConfig. %w", err)
 	}
 
 	secretName := fmt.Sprintf("%s-kubeconfig", opts.Cluster)
 	secret := secretFromSpec(secretName, opts.Namespace, corev1.SecretTypeOpaque, map[string]string{secretName: string(configBytes)})
 	if err := cmdutil.CreateOrUpdateSecret(opts.KubeClientSet, secret); err != nil {
-		return fmt.Errorf("create or update scheduler estimator secret error: %v", err)
+		return fmt.Errorf("create or update scheduler estimator secret error: %w", err)
 	}
 
 	// init estimator service
@@ -83,15 +83,15 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 		MemberClusterName: opts.Cluster,
 	})
 	if err != nil {
-		return fmt.Errorf("error when parsing karmada scheduler estimator service template :%v", err)
+		return fmt.Errorf("error when parsing karmada scheduler estimator service template :%w", err)
 	}
 
 	karmadaEstimatorService := &corev1.Service{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaEstimatorServiceBytes, karmadaEstimatorService); err != nil {
-		return fmt.Errorf("decode karmada scheduler estimator service error: %v", err)
+		return fmt.Errorf("decode karmada scheduler estimator service error: %w", err)
 	}
 	if err := cmdutil.CreateService(opts.KubeClientSet, karmadaEstimatorService); err != nil {
-		return fmt.Errorf("create or update scheduler estimator service error: %v", err)
+		return fmt.Errorf("create or update scheduler estimator service error: %w", err)
 	}
 
 	// init estimator deployment
@@ -102,15 +102,15 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 		MemberClusterName: opts.Cluster,
 	})
 	if err != nil {
-		return fmt.Errorf("error when parsing karmada scheduler estimator deployment template :%v", err)
+		return fmt.Errorf("error when parsing karmada scheduler estimator deployment template :%w", err)
 	}
 
 	karmadaEstimatorDeployment := &appsv1.Deployment{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaEstimatorDeploymentBytes, karmadaEstimatorDeployment); err != nil {
-		return fmt.Errorf("decode karmada scheduler estimator deployment error: %v", err)
+		return fmt.Errorf("decode karmada scheduler estimator deployment error: %w", err)
 	}
 	if err := cmdutil.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaEstimatorDeployment); err != nil {
-		return fmt.Errorf("create or update scheduler estimator deployment error: %v", err)
+		return fmt.Errorf("create or update scheduler estimator deployment error: %w", err)
 	}
 
 	karmadaEstimatorLabels := map[string]string{"cluster": opts.Cluster}

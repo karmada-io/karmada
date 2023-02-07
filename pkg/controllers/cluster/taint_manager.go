@@ -135,7 +135,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("failed to get binding %s: %v", fedKey.NamespaceKey(), err)
+		return fmt.Errorf("failed to get binding %s: %w", fedKey.NamespaceKey(), err)
 	}
 
 	if !binding.DeletionTimestamp.IsZero() || !binding.Spec.TargetContains(cluster) {
@@ -187,7 +187,7 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("failed to get cluster binding %s: %v", fedKey.Name, err)
+		return fmt.Errorf("failed to get cluster binding %s: %w", fedKey.Name, err)
 	}
 
 	if !binding.DeletionTimestamp.IsZero() || !binding.Spec.TargetContains(cluster) {

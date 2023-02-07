@@ -55,22 +55,22 @@ func (o *Options) runExecute() error {
 
 	customizations, err := o.getCustomizationObject()
 	if err != nil {
-		return fmt.Errorf("fail to get customization object: %v", err)
+		return fmt.Errorf("fail to get customization object: %w", err)
 	}
 
 	desired, err := getUnstructuredObjectFromResult(o.DesiredResult)
 	if err != nil {
-		return fmt.Errorf("fail to get desired object: %v", err)
+		return fmt.Errorf("fail to get desired object: %w", err)
 	}
 
 	observed, err := getUnstructuredObjectFromResult(o.ObservedResult)
 	if err != nil {
-		return fmt.Errorf("fail to get observed object: %v", err)
+		return fmt.Errorf("fail to get observed object: %w", err)
 	}
 
 	status, err := o.getAggregatedStatusItems()
 	if err != nil {
-		return fmt.Errorf("fail to get status items: %v", err)
+		return fmt.Errorf("fail to get status items: %w", err)
 	}
 
 	args := interpreter.RuleArgs{

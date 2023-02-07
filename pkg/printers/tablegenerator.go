@@ -125,7 +125,7 @@ func (h *HumanReadableGenerator) GenerateTable(obj runtime.Object, options Gener
 func (h *HumanReadableGenerator) TableHandler(columnDefinitions []metav1.TableColumnDefinition, printFunc interface{}) error {
 	printFuncValue := reflect.ValueOf(printFunc)
 	if err := ValidateRowPrintHandlerFunc(printFuncValue); err != nil {
-		utilruntime.HandleError(fmt.Errorf("unable to register print function: %v", err))
+		utilruntime.HandleError(fmt.Errorf("unable to register print function: %w", err))
 		return err
 	}
 	entry := &handlerEntry{

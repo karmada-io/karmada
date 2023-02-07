@@ -58,7 +58,7 @@ func EnsureServiceAccountExist(client kubeclient.Interface, serviceAccountObj *c
 
 	exist, err := IsServiceAccountExist(client, serviceAccountObj.Namespace, serviceAccountObj.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if service account exist. service account: %s/%s, error: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
+		return nil, fmt.Errorf("failed to check if service account exist. service account: %s/%s, error: %w", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
 	}
 	if exist {
 		return serviceAccountObj, nil
@@ -66,7 +66,7 @@ func EnsureServiceAccountExist(client kubeclient.Interface, serviceAccountObj *c
 
 	createdObj, err := CreateServiceAccount(client, serviceAccountObj)
 	if err != nil {
-		return nil, fmt.Errorf("ensure service account failed due to create failed. service account: %s/%s, error: %v", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
+		return nil, fmt.Errorf("ensure service account failed due to create failed. service account: %s/%s, error: %w", serviceAccountObj.Namespace, serviceAccountObj.Name, err)
 	}
 
 	return createdObj, nil
@@ -81,7 +81,7 @@ func WaitForServiceAccountSecretCreation(client kubeclient.Interface, asObj *cor
 			if apierrors.IsNotFound(err) {
 				return false, nil
 			}
-			return false, fmt.Errorf("failed to retrieve service account(%s/%s) from cluster, err: %v", asObj.Namespace, asObj.Name, err)
+			return false, fmt.Errorf("failed to retrieve service account(%s/%s) from cluster, err: %w", asObj.Namespace, asObj.Name, err)
 		}
 		clusterSecret, err = GetSecret(client, serviceAccount.Namespace, serviceAccount.Name)
 		if apierrors.IsNotFound(err) {
@@ -106,7 +106,7 @@ func WaitForServiceAccountSecretCreation(client kubeclient.Interface, asObj *cor
 		return true, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get serviceAccount secret, error: %v", err)
+		return nil, fmt.Errorf("failed to get serviceAccount secret, error: %w", err)
 	}
 	return clusterSecret, nil
 }

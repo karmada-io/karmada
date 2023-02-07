@@ -40,7 +40,7 @@ func checkCustomizationsRule(customization *configv1alpha1.ResourceInterpreterCu
 	for _, rule := range interpreter.AllResourceInterpreterCustomizationRules {
 		if script := rule.GetScript(customization); script != "" {
 			if _, err = l.LoadString(script); err != nil {
-				return fmt.Errorf("InterpreterOperation(%s) Lua script error: %v", rule.Name(), err)
+				return fmt.Errorf("InterpreterOperation(%s) Lua script error: %w", rule.Name(), err)
 			}
 		}
 	}

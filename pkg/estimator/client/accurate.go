@@ -85,7 +85,7 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 	}
 	res, err := client.MaxAvailableReplicas(ctx, req)
 	if err != nil {
-		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableReplicas: %v", cluster, err)
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableReplicas: %w", cluster, err)
 	}
 	return res.MaxReplicas, nil
 }
@@ -113,7 +113,7 @@ func (se *SchedulerEstimator) maxUnscheduableReplicas(
 	}
 	res, err := client.GetUnschedulableReplicas(ctx, req)
 	if err != nil {
-		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling UnschedulableReplicas: %v", cluster, err)
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling UnschedulableReplicas: %w", cluster, err)
 	}
 	return res.UnschedulableReplicas, nil
 }

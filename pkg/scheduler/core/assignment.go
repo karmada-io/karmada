@@ -153,7 +153,7 @@ func assignByDynamicStrategy(state *assignState) ([]workv1alpha2.TargetCluster, 
 		// We need to reduce the replicas in terms of the previous result.
 		result, err := dynamicScaleDown(state)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scale down: %v", err)
+			return nil, fmt.Errorf("failed to scale down: %w", err)
 		}
 		return result, nil
 	} else if state.assignedReplicas < state.spec.Replicas {
@@ -161,7 +161,7 @@ func assignByDynamicStrategy(state *assignState) ([]workv1alpha2.TargetCluster, 
 		// First scheduling is considered as a special kind of scaling up.
 		result, err := dynamicScaleUp(state)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scale up: %v", err)
+			return nil, fmt.Errorf("failed to scale up: %w", err)
 		}
 		return result, nil
 	} else {

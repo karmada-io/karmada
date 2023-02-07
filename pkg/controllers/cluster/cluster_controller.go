@@ -648,20 +648,20 @@ func (c *Controller) collectIDForClusterObjectIfNeeded(ctx context.Context) (err
 
 		clusterClient, err := util.NewClusterClientSet(cluster.Name, c.Client, nil)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: %s", cluster.Name, err.Error()))
+			errs = append(errs, fmt.Errorf("%s: %w", cluster.Name, err))
 			continue
 		}
 
 		id, err := util.ObtainClusterID(clusterClient.KubeClient)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: %s", cluster.Name, err.Error()))
+			errs = append(errs, fmt.Errorf("%s: %w", cluster.Name, err))
 			continue
 		}
 		cluster.Spec.ID = id
 
 		err = c.Client.Update(ctx, cluster)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: %s", cluster.Name, err.Error()))
+			errs = append(errs, fmt.Errorf("%s: %w", cluster.Name, err))
 			continue
 		}
 	}

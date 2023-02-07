@@ -71,7 +71,7 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 
 	metaInfo, err := meta.Accessor(obj)
 	if err != nil { // should not happen
-		return key, fmt.Errorf("object has no meta: %v", err)
+		return key, fmt.Errorf("object has no meta: %w", err)
 	}
 
 	gvk := runtimeObject.GetObjectKind().GroupVersionKind()

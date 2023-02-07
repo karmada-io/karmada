@@ -75,6 +75,8 @@ func GetPodFromTemplate(template *corev1.PodTemplateSpec, parentObject runtime.O
 	desiredFinalizers := getPodsFinalizers(template)
 	desiredAnnotations := getPodsAnnotationSet(template)
 	accessor, err := meta.Accessor(parentObject)
+	//nolint:errorlint
+	// disable `error format` check for backward compatibility.
 	if err != nil {
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}

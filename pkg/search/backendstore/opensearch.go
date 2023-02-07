@@ -115,7 +115,7 @@ func NewOpenSearch(cluster string, cfg *searchv1alpha1.BackendStoreConfig) (*Ope
 		indices: make(map[string]struct{})}
 
 	if err := os.initClient(cfg); err != nil {
-		return nil, fmt.Errorf("cannot init client: %v", err)
+		return nil, fmt.Errorf("cannot init client: %w", err)
 	}
 
 	return os, nil
@@ -249,7 +249,7 @@ func (os *OpenSearch) indexName(us *unstructured.Unstructured) (string, error) {
 			os.indices[name] = struct{}{}
 			return name, nil
 		}
-		return name, fmt.Errorf("cannot create index: %v", err)
+		return name, fmt.Errorf("cannot create index: %w", err)
 	}
 	if resp.IsError() {
 		if strings.Contains(resp.String(), "resource_already_exists_exception") {
@@ -298,12 +298,12 @@ func (os *OpenSearch) initClient(bsc *searchv1alpha1.BackendStoreConfig) error {
 
 	client, err := opensearch.NewClient(cfg)
 	if err != nil {
-		return fmt.Errorf("cannot create opensearch client: %v", err)
+		return fmt.Errorf("cannot create opensearch client: %w", err)
 	}
 
 	info, err := client.Info()
 	if err != nil {
-		return fmt.Errorf("cannot get opensearch info: %v", err)
+		return fmt.Errorf("cannot get opensearch info: %w", err)
 	}
 
 	klog.V(4).Infof("Opensearch client: %v", info)

@@ -52,20 +52,20 @@ var enableDescheduler = func(opts *addoninit.CommandAddonsEnableOption) error {
 		Image:     opts.KarmadaDeschedulerImage,
 	})
 	if err != nil {
-		return fmt.Errorf("error when parsing karmada descheduler deployment template :%v", err)
+		return fmt.Errorf("error when parsing karmada descheduler deployment template :%w", err)
 	}
 
 	karmadaDeschedulerDeployment := &appsv1.Deployment{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaDeschedulerDeploymentBytes, karmadaDeschedulerDeployment); err != nil {
-		return fmt.Errorf("decode descheduler deployment error: %v", err)
+		return fmt.Errorf("decode descheduler deployment error: %w", err)
 	}
 
 	if err := cmdutil.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaDeschedulerDeployment); err != nil {
-		return fmt.Errorf("create karmada descheduler deployment error: %v", err)
+		return fmt.Errorf("create karmada descheduler deployment error: %w", err)
 	}
 
 	if err := kubernetes.WaitPodReady(opts.KubeClientSet, opts.Namespace, initutils.MapToString(karmadaDeschedulerLabels), opts.WaitPodReadyTimeout); err != nil {
-		return fmt.Errorf("wait karmada descheduler pod timeout: %v", err)
+		return fmt.Errorf("wait karmada descheduler pod timeout: %w", err)
 	}
 
 	klog.Infof("Install karmada descheduler deployment on host cluster successfully")

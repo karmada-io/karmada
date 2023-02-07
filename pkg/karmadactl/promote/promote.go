@@ -227,12 +227,12 @@ func (o *CommandPromoteOption) Run(f util.Factory, args []string) error {
 
 	mapper, err := restmapper.MapperProvider(controlPlaneRestConfig)
 	if err != nil {
-		return fmt.Errorf("failed to create restmapper: %v", err)
+		return fmt.Errorf("failed to create restmapper: %w", err)
 	}
 
 	gvr, err := restmapper.GetGroupVersionResource(mapper, o.gvk)
 	if err != nil {
-		return fmt.Errorf("failed to get gvr from %q: %v", o.gvk, err)
+		return fmt.Errorf("failed to get gvr from %q: %w", o.gvk, err)
 	}
 
 	return o.promote(controlPlaneRestConfig, obj, gvr)
@@ -240,7 +240,7 @@ func (o *CommandPromoteOption) Run(f util.Factory, args []string) error {
 
 func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured, gvr schema.GroupVersionResource) error {
 	if err := preprocessResource(obj); err != nil {
-		return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
+		return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %w", gvr, o.Namespace, o.name, err)
 	}
 
 	if o.OutputFormat != "" {
@@ -267,12 +267,12 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		}
 
 		if !apierrors.IsNotFound(err) {
-			return fmt.Errorf("failed to get resource %q(%s) in control plane: %v", gvr, o.name, err)
+			return fmt.Errorf("failed to get resource %q(%s) in control plane: %w", gvr, o.name, err)
 		}
 
 		_, err = controlPlaneDynamicClient.Resource(gvr).Create(context.TODO(), obj, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create resource %q(%s) in control plane: %v", gvr, o.name, err)
+			return fmt.Errorf("failed to create resource %q(%s) in control plane: %w", gvr, o.name, err)
 		}
 
 		err = o.createClusterPropagationPolicy(karmadaClient, gvr)
@@ -290,12 +290,12 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		}
 
 		if !apierrors.IsNotFound(err) {
-			return fmt.Errorf("failed to get resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
+			return fmt.Errorf("failed to get resource %q(%s/%s) in control plane: %w", gvr, o.Namespace, o.name, err)
 		}
 
 		_, err = controlPlaneDynamicClient.Resource(gvr).Namespace(o.Namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
+			return fmt.Errorf("failed to create resource %q(%s/%s) in control plane: %w", gvr, o.Namespace, o.name, err)
 		}
 
 		err = o.createPropagationPolicy(karmadaClient, gvr)
@@ -345,22 +345,22 @@ func (o *CommandPromoteOption) getObjInfo(f cmdutil.Factory, cluster string, arg
 func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) error {
 	printer, err := o.Printer(nil, nil, false, false)
 	if err != nil {
-		return fmt.Errorf("failed to initialize k8s printer. err: %v", err)
+		return fmt.Errorf("failed to initialize k8s printer. err: %w", err)
 	}
 
 	if err = printer.PrintObj(obj, os.Stdout); err != nil {
-		return fmt.Errorf("failed to print the resource template. err: %v", err)
+		return fmt.Errorf("failed to print the resource template. err: %w", err)
 	}
 
 	if len(obj.GetNamespace()) == 0 {
 		cpp := buildClusterPropagationPolicy(o.name, o.Cluster, gvr, o.gvk)
 		if err = printer.PrintObj(cpp, os.Stdout); err != nil {
-			return fmt.Errorf("failed to print the ClusterPropagationPolicy. err: %v", err)
+			return fmt.Errorf("failed to print the ClusterPropagationPolicy. err: %w", err)
 		}
 	} else {
 		pp := buildPropagationPolicy(o.name, o.Namespace, o.Cluster, gvr, o.gvk)
 		if err = printer.PrintObj(pp, os.Stdout); err != nil {
-			return fmt.Errorf("failed to print the PropagationPolicy. err: %v", err)
+			return fmt.Errorf("failed to print the PropagationPolicy. err: %w", err)
 		}
 	}
 
@@ -379,7 +379,7 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient *karmadacli
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("failed to get PropagationPolicy(%s/%s) in control plane: %v", o.Namespace, name, err)
+		return fmt.Errorf("failed to get PropagationPolicy(%s/%s) in control plane: %w", o.Namespace, name, err)
 	}
 
 	// PropagationPolicy already exists, not to create it
@@ -398,7 +398,7 @@ func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient *kar
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("failed to get ClusterPropagationPolicy(%s) in control plane: %v", name, err)
+		return fmt.Errorf("failed to get ClusterPropagationPolicy(%s) in control plane: %w", name, err)
 	}
 
 	// ClusterPropagationPolicy already exists, not to create it

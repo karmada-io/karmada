@@ -72,7 +72,7 @@ func ConvertLuaResultInto(luaResult lua.LValue, obj interface{}) error {
 
 	jsonBytes, err := luajson.Encode(luaResult)
 	if err != nil {
-		return fmt.Errorf("json Encode obj eroor %v", err)
+		return fmt.Errorf("json Encode obj eroor %w", err)
 	}
 
 	//  for lua an empty object by json encode be [] not {}
@@ -82,7 +82,7 @@ func ConvertLuaResultInto(luaResult lua.LValue, obj interface{}) error {
 
 	err = json.Unmarshal(jsonBytes, obj)
 	if err != nil {
-		return fmt.Errorf("can not unmarshal %v to %#v：%v", string(jsonBytes), obj, err)
+		return fmt.Errorf("can not unmarshal %v to %#v：%w", string(jsonBytes), obj, err)
 	}
 	return nil
 }

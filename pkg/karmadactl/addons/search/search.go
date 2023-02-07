@@ -128,16 +128,16 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		Namespace: opts.Namespace,
 	})
 	if err != nil {
-		return fmt.Errorf("error when parsing karmada search service template :%v", err)
+		return fmt.Errorf("error when parsing karmada search service template :%w", err)
 	}
 
 	karmadaSearchService := &corev1.Service{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaSearchServiceBytes, karmadaSearchService); err != nil {
-		return fmt.Errorf("decode karmada search service error: %v", err)
+		return fmt.Errorf("decode karmada search service error: %w", err)
 	}
 
 	if err := cmdutil.CreateService(opts.KubeClientSet, karmadaSearchService); err != nil {
-		return fmt.Errorf("create karmada search service error: %v", err)
+		return fmt.Errorf("create karmada search service error: %w", err)
 	}
 
 	etcdServers, err := etcdServers(opts)
@@ -155,19 +155,19 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		Image:      opts.KarmadaSearchImage,
 	})
 	if err != nil {
-		return fmt.Errorf("error when parsing karmada search deployment template :%v", err)
+		return fmt.Errorf("error when parsing karmada search deployment template :%w", err)
 	}
 
 	karmadaSearchDeployment := &appsv1.Deployment{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaSearchDeploymentBytes, karmadaSearchDeployment); err != nil {
-		return fmt.Errorf("decode karmada search deployment error: %v", err)
+		return fmt.Errorf("decode karmada search deployment error: %w", err)
 	}
 	if err := cmdutil.CreateOrUpdateDeployment(opts.KubeClientSet, karmadaSearchDeployment); err != nil {
-		return fmt.Errorf("create karmada search deployment error: %v", err)
+		return fmt.Errorf("create karmada search deployment error: %w", err)
 	}
 
 	if err := kubernetes.WaitPodReady(opts.KubeClientSet, opts.Namespace, initutils.MapToString(karmadaSearchLabels), opts.WaitPodReadyTimeout); err != nil {
-		return fmt.Errorf("wait karmada search pod status ready timeout: %v", err)
+		return fmt.Errorf("wait karmada search pod status ready timeout: %w", err)
 	}
 
 	klog.Infof("Install karmada search deployment on host cluster successfully")
@@ -180,15 +180,15 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 		Namespace: opts.Namespace,
 	})
 	if err != nil {
-		return fmt.Errorf("error when parsing karmada search AA service template :%v", err)
+		return fmt.Errorf("error when parsing karmada search AA service template :%w", err)
 	}
 
 	aaService := &corev1.Service{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), aaServiceBytes, aaService); err != nil {
-		return fmt.Errorf("decode karmada search AA service error: %v", err)
+		return fmt.Errorf("decode karmada search AA service error: %w", err)
 	}
 	if err := cmdutil.CreateService(opts.KarmadaKubeClientSet, aaService); err != nil {
-		return fmt.Errorf("create karmada search AA service error: %v", err)
+		return fmt.Errorf("create karmada search AA service error: %w", err)
 	}
 
 	// install karmada search apiservice on karmada control plane
@@ -197,16 +197,16 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 		Namespace: opts.Namespace,
 	})
 	if err != nil {
-		return fmt.Errorf("error when parsing karmada search AA apiservice template :%v", err)
+		return fmt.Errorf("error when parsing karmada search AA apiservice template :%w", err)
 	}
 
 	aaAPIService := &apiregistrationv1.APIService{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), aaAPIServiceBytes, aaAPIService); err != nil {
-		return fmt.Errorf("decode karmada search AA apiservice error: %v", err)
+		return fmt.Errorf("decode karmada search AA apiservice error: %w", err)
 	}
 
 	if err = cmdutil.CreateOrUpdateAPIService(opts.KarmadaAggregatorClientSet, aaAPIService); err != nil {
-		return fmt.Errorf("craete karmada search AA apiservice error: %v", err)
+		return fmt.Errorf("craete karmada search AA apiservice error: %w", err)
 	}
 
 	if err := initkarmada.WaitAPIServiceReady(opts.KarmadaAggregatorClientSet, aaAPIServiceName, time.Duration(opts.WaitAPIServiceReadyTimeout)*time.Second); err != nil {

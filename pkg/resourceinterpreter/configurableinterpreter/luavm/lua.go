@@ -341,12 +341,12 @@ func decodeValue(L *lua.LState, value interface{}) (lua.LValue, error) {
 	// Other types can't be handled, ask for help from json
 	data, err := json.Marshal(value)
 	if err != nil {
-		return nil, fmt.Errorf("json Marshal obj %#v error: %v", value, err)
+		return nil, fmt.Errorf("json Marshal obj %#v error: %w", value, err)
 	}
 
 	lv, err := luajson.Decode(L, data)
 	if err != nil {
-		return nil, fmt.Errorf("lua Decode obj %#v error: %v", value, err)
+		return nil, fmt.Errorf("lua Decode obj %#v error: %w", value, err)
 	}
 	return lv, nil
 }

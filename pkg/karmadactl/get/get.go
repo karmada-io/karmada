@@ -494,7 +494,7 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 	}
 
 	if err := r.Err(); err != nil {
-		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
+		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %w", cluster, err))
 		return
 	}
 
@@ -511,14 +511,14 @@ func (g *CommandGetOptions) getObjInfo(wg *sync.WaitGroup, mux *sync.Mutex, f cm
 
 	if !g.IsHumanReadablePrinter {
 		if err := g.printGeneric(r); err != nil {
-			*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
+			*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %w", cluster, err))
 		}
 		return
 	}
 
 	infos, err := r.Infos()
 	if err != nil {
-		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %s", cluster, err))
+		*allErrs = append(*allErrs, fmt.Errorf("cluster(%s): %w", cluster, err))
 		return
 	}
 
@@ -666,7 +666,7 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 			}
 
 			if err := printer.PrintObj(printObj, writer); err != nil {
-				return fmt.Errorf("unable to output the provided object: %v", err)
+				return fmt.Errorf("unable to output the provided object: %w", err)
 			}
 		}
 	}

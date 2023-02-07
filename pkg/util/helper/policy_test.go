@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -355,7 +356,7 @@ func TestGetAppliedPlacement(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := GetAppliedPlacement(tt.annotations)
-			if !reflect.DeepEqual(res, tt.expectedPlacement) || err != tt.expectedErr {
+			if !reflect.DeepEqual(res, tt.expectedPlacement) || !errors.Is(err, tt.expectedErr) {
 				t.Errorf("expected %v and %v, but got %v and %v", tt.expectedPlacement, tt.expectedErr, res, err)
 			}
 		})

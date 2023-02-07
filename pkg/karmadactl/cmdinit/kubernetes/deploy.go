@@ -210,7 +210,7 @@ func initializeDirectory(path string) error {
 		}
 	}
 	if err := os.MkdirAll(path, os.FileMode(0o755)); err != nil {
-		return fmt.Errorf("failed to create directory: %s, error: %v", path, err)
+		return fmt.Errorf("failed to create directory: %s, error: %w", path, err)
 	}
 
 	return nil
@@ -304,7 +304,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
 	configBytes, err := clientcmd.Write(*config)
 	if err != nil {
-		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
+		return fmt.Errorf("failure while serializing admin kubeConfig. %w", err)
 	}
 
 	kubeConfigSecret := i.SecretFromSpec(KubeConfigSecretAndMountName, corev1.SecretTypeOpaque, map[string]string{KubeConfigSecretAndMountName: string(configBytes)})
@@ -443,7 +443,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 func (i *CommandInitOption) RunInit(parentCommand string) error {
 	// generate certificate
 	if err := i.genCerts(); err != nil {
-		return fmt.Errorf("certificate generation failed.%v", err)
+		return fmt.Errorf("certificate generation failed.%w", err)
 	}
 
 	i.CertAndKeyFileData = map[string][]byte{}
@@ -451,31 +451,31 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 	for _, v := range certList {
 		certs, err := utils.FileToBytes(i.KarmadaPkiPath, fmt.Sprintf("%s.crt", v))
 		if err != nil {
-			return fmt.Errorf("'%s.crt' conversion failed. %v", v, err)
+			return fmt.Errorf("'%s.crt' conversion failed. %w", v, err)
 		}
 		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)] = certs
 
 		key, err := utils.FileToBytes(i.KarmadaPkiPath, fmt.Sprintf("%s.key", v))
 		if err != nil {
-			return fmt.Errorf("'%s.key' conversion failed. %v", v, err)
+			return fmt.Errorf("'%s.key' conversion failed. %w", v, err)
 		}
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)] = key
 	}
 
 	// prepare karmada CRD resources
 	if err := i.prepareCRD(); err != nil {
-		return fmt.Errorf("prepare karmada failed.%v", err)
+		return fmt.Errorf("prepare karmada failed. %w", err)
 	}
 
 	// Create karmada kubeconfig
 	err := i.createKarmadaConfig()
 	if err != nil {
-		return fmt.Errorf("create karmada kubeconfig failed.%v", err)
+		return fmt.Errorf("create karmada kubeconfig failed.%w", err)
 	}
 
 	// Create ns
 	if err := util.CreateOrUpdateNamespace(i.KubeClientSet, util.NewNamespace(i.Namespace)); err != nil {
-		return fmt.Errorf("create namespace %s failed: %v", i.Namespace, err)
+		return fmt.Errorf("create namespace %s failed: %w", i.Namespace, err)
 	}
 
 	// Create Secrets
@@ -518,7 +518,7 @@ func (i *CommandInitOption) createKarmadaConfig() error {
 	if err := utils.WriteKubeConfigFromSpec(serverURL, options.UserName, options.ClusterName, i.KarmadaDataPath, options.KarmadaKubeConfigName,
 		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]); err != nil {
-		return fmt.Errorf("failed to create karmada kubeconfig file. %v", err)
+		return fmt.Errorf("failed to create karmada kubeconfig file. %w", err)
 	}
 	klog.Info("Create karmada kubeconfig success.")
 	return err

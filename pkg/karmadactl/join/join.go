@@ -140,14 +140,14 @@ func (j *CommandJoinOption) Run(f cmdutil.Factory) error {
 	// Get control plane karmada-apiserver client
 	controlPlaneRestConfig, err := f.ToRawKubeConfigLoader().ClientConfig()
 	if err != nil {
-		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %v",
+		return fmt.Errorf("failed to get control plane rest config. context: %s, kube-config: %s, error: %w",
 			*options.DefaultConfigFlags.Context, *options.DefaultConfigFlags.KubeConfig, err)
 	}
 
 	// Get cluster config
 	clusterConfig, err := apiclient.RestConfig(j.ClusterContext, j.ClusterKubeConfig)
 	if err != nil {
-		return fmt.Errorf("failed to get joining cluster config. error: %v", err)
+		return fmt.Errorf("failed to get joining cluster config. error: %w", err)
 	}
 
 	return j.RunJoinCluster(controlPlaneRestConfig, clusterConfig)
@@ -242,7 +242,7 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 	if opts.ClusterConfig.Proxy != nil {
 		url, err := opts.ClusterConfig.Proxy(nil)
 		if err != nil {
-			return nil, fmt.Errorf("clusterConfig.Proxy error, %v", err)
+			return nil, fmt.Errorf("clusterConfig.Proxy error, %w", err)
 		}
 		clusterObj.Spec.ProxyURL = url.String()
 	}
@@ -250,7 +250,7 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(opts.ControlPlaneConfig)
 	cluster, err := util.CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster(%s) object. error: %v", opts.ClusterName, err)
+		return nil, fmt.Errorf("failed to create cluster(%s) object. error: %w", opts.ClusterName, err)
 	}
 
 	return cluster, nil

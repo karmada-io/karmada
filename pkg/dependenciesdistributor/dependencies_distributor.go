@@ -508,7 +508,7 @@ func convertObjectsToResourceBindings(bindingList []runtime.Object) ([]*workv1al
 	for _, obj := range bindingList {
 		binding := &workv1alpha2.ResourceBinding{}
 		if err := helper.ConvertToTypedObject(obj, binding); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured to typed object: %w", err)
 		}
 		bindings = append(bindings, binding)
 	}

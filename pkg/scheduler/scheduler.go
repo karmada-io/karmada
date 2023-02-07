@@ -501,15 +501,15 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 
 	oldData, err := json.Marshal(oldBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal the existing resource binding(%s/%s): %v", oldBinding.Namespace, oldBinding.Name, err)
+		return fmt.Errorf("failed to marshal the existing resource binding(%s/%s): %w", oldBinding.Namespace, oldBinding.Name, err)
 	}
 	newData, err := json.Marshal(newBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal the new resource binding(%s/%s): %v", newBinding.Namespace, newBinding.Name, err)
+		return fmt.Errorf("failed to marshal the new resource binding(%s/%s): %w", newBinding.Namespace, newBinding.Name, err)
 	}
 	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
 	if err != nil {
-		return fmt.Errorf("failed to create a merge patch: %v", err)
+		return fmt.Errorf("failed to create a merge patch: %w", err)
 	}
 	if "{}" == string(patchBytes) {
 		return nil
@@ -558,15 +558,15 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 
 	oldData, err := json.Marshal(oldBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal the existing cluster resource binding(%s): %v", oldBinding.Name, err)
+		return fmt.Errorf("failed to marshal the existing cluster resource binding(%s): %w", oldBinding.Name, err)
 	}
 	newData, err := json.Marshal(newBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal the new resource binding(%s): %v", newBinding.Name, err)
+		return fmt.Errorf("failed to marshal the new resource binding(%s): %w", newBinding.Name, err)
 	}
 	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
 	if err != nil {
-		return fmt.Errorf("failed to create a merge patch: %v", err)
+		return fmt.Errorf("failed to create a merge patch: %w", err)
 	}
 	if "{}" == string(patchBytes) {
 		return nil
@@ -644,7 +644,7 @@ func (s *Scheduler) patchBindingScheduleStatus(rb *workv1alpha2.ResourceBinding,
 
 	patchBytes, err := helper.GenMergePatch(rb, modifiedObj)
 	if err != nil {
-		return fmt.Errorf("failed to create a merge patch: %v", err)
+		return fmt.Errorf("failed to create a merge patch: %w", err)
 	}
 
 	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
@@ -678,7 +678,7 @@ func (s *Scheduler) patchClusterBindingScheduleStatus(crb *workv1alpha2.ClusterR
 
 	patchBytes, err := helper.GenMergePatch(crb, modifiedObj)
 	if err != nil {
-		return fmt.Errorf("failed to create a merge patch: %v", err)
+		return fmt.Errorf("failed to create a merge patch: %w", err)
 	}
 
 	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")

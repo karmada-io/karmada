@@ -60,7 +60,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 
 	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, spec, &clusterInfoSnapshot)
 	if err != nil {
-		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
+		return result, fmt.Errorf("failed to findClustersThatFit: %w", err)
 	}
 
 	// Short path for case no cluster fit.
@@ -74,19 +74,19 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 
 	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, spec, feasibleClusters)
 	if err != nil {
-		return result, fmt.Errorf("failed to prioritizeClusters: %v", err)
+		return result, fmt.Errorf("failed to prioritizeClusters: %w", err)
 	}
 	klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
 
 	clusters, err := g.selectClusters(clustersScore, placement, spec)
 	if err != nil {
-		return result, fmt.Errorf("failed to select clusters: %v", err)
+		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
 	klog.V(4).Infof("Selected clusters: %v", clusters)
 
 	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
 	if err != nil {
-		return result, fmt.Errorf("failed to assignReplicas: %v", err)
+		return result, fmt.Errorf("failed to assignReplicas: %w", err)
 	}
 	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
 		clustersWithReplicas = attachZeroReplicasCluster(clusters, clustersWithReplicas)

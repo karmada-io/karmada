@@ -366,7 +366,7 @@ func (c *MultiClusterCache) getResourceFromCache(ctx context.Context, gvr schema
 			continue
 		}
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("fail to get %v %v from %v: %v", namespace, name, clusterName, err)
+			return nil, "", nil, fmt.Errorf("fail to get %v %v from %v: %w", namespace, name, clusterName, err)
 		}
 		findObjects = append(findObjects, obj)
 		findCaches = append(findCaches, cache)

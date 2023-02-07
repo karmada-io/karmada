@@ -38,6 +38,8 @@ import (
 func GetDeletableResources(discoveryClient discovery.ServerResourcesInterface) map[schema.GroupVersionResource]struct{} {
 	preferredResources, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
+		//nolint:errorlint
+		// disable `error format` check for backward compatibility.
 		if discovery.IsGroupDiscoveryFailedError(err) {
 			klog.Warningf("Failed to discover some groups: %v", err.(*discovery.ErrGroupDiscoveryFailed).Groups)
 		} else {

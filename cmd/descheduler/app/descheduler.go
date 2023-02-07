@@ -101,7 +101,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 
 	restConfig, err := clientcmd.BuildConfigFromFlags(opts.Master, opts.KubeConfig)
 	if err != nil {
-		return fmt.Errorf("error building kubeconfig: %s", err.Error())
+		return fmt.Errorf("error building kubeconfig: %w", err)
 	}
 	restConfig.QPS, restConfig.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
 
@@ -126,7 +126,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
-		return fmt.Errorf("unable to get hostname: %v", err)
+		return fmt.Errorf("unable to get hostname: %w", err)
 	}
 	// add a uniquifier so that two processes on the same host don't accidentally both become active
 	id := hostname + "_" + string(uuid.NewUUID())
@@ -140,7 +140,7 @@ func run(opts *options.Options, stopChan <-chan struct{}) error {
 			Identity: id,
 		})
 	if err != nil {
-		return fmt.Errorf("couldn't create resource lock: %v", err)
+		return fmt.Errorf("couldn't create resource lock: %w", err)
 	}
 
 	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{

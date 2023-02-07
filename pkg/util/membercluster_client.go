@@ -68,7 +68,7 @@ func NewClusterClientSet(clusterName string, client client.Client, clientOption 
 func NewClusterClientSetForAgent(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
-		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
+		return nil, fmt.Errorf("error building kubeconfig of member cluster: %w", err)
 	}
 
 	var clusterClientSet = ClusterClient{ClusterName: clusterName}
@@ -101,7 +101,7 @@ func NewClusterDynamicClientSet(clusterName string, client client.Client) (*Dyna
 func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client) (*DynamicClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
-		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
+		return nil, fmt.Errorf("error building kubeconfig of member cluster: %w", err)
 	}
 	var clusterClientSet = DynamicClusterClient{ClusterName: clusterName}
 

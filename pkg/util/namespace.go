@@ -61,7 +61,7 @@ func EnsureNamespaceExist(client kubeclient.Interface, namespace string, dryRun 
 	// Sometimes the namespace is created in advance, to give less privilege to Karmada.
 	exist, err := IsNamespaceExist(client, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if namespace exist. namespace: %s, error: %v", namespace, err)
+		return nil, fmt.Errorf("failed to check if namespace exist. namespace: %s, error: %w", namespace, err)
 	}
 	if exist {
 		return namespaceObj, nil
@@ -69,7 +69,7 @@ func EnsureNamespaceExist(client kubeclient.Interface, namespace string, dryRun 
 
 	createdObj, err := CreateNamespace(client, namespaceObj)
 	if err != nil {
-		return nil, fmt.Errorf("ensure namespace failed due to create failed. namespace: %s, error: %v", namespace, err)
+		return nil, fmt.Errorf("ensure namespace failed due to create failed. namespace: %s, error: %w", namespace, err)
 	}
 
 	return createdObj, nil

@@ -180,7 +180,7 @@ func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
-			return fmt.Errorf("error parsing %s: %v", v.Source, err)
+			return fmt.Errorf("error parsing %s: %w", v.Source, err)
 		}
 		// TODO: This needs to be able to handle object in other encodings and schemas.
 		ext.Raw = bytes.TrimSpace(ext.Raw)
@@ -188,7 +188,7 @@ func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 			continue
 		}
 		if err := resource.ValidateSchema(ext.Raw, v.Schema); err != nil {
-			return fmt.Errorf("error validating %q: %v", v.Source, err)
+			return fmt.Errorf("error validating %q: %w", v.Source, err)
 		}
 		info, err := v.infoForData(ext.Raw, v.Source)
 		if err != nil {

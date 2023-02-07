@@ -99,7 +99,7 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 		// update the resource if a conflict resolution instruction is existed in annotation.
 		err = o.resourceConflictOverwrite(clusterName, desireObj, existObj)
 		if err != nil {
-			return fmt.Errorf("failed to update exist resource(kind=%s, %s/%s) in cluster %v: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+			return fmt.Errorf("failed to update exist resource(kind=%s, %s/%s) in cluster %v: %w", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		}
 	}
 

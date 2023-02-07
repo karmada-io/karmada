@@ -36,37 +36,37 @@ func buildPatchesWithEmptyPredicate(rawObj *unstructured.Unstructured, imageOver
 	case util.PodKind:
 		podObj := &corev1.Pod{}
 		if err := helper.ConvertToTypedObject(rawObj, podObj); err != nil {
-			return nil, fmt.Errorf("failed to convert Pod from unstructured object: %v", err)
+			return nil, fmt.Errorf("failed to convert Pod from unstructured object: %w", err)
 		}
 		return extractPatchesBy(podObj.Spec, podSpecPrefix, imageOverrider)
 	case util.ReplicaSetKind:
 		replicaSetObj := &appsv1.ReplicaSet{}
 		if err := helper.ConvertToTypedObject(rawObj, replicaSetObj); err != nil {
-			return nil, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %v", err)
+			return nil, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %w", err)
 		}
 		return extractPatchesBy(replicaSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.DeploymentKind:
 		deploymentObj := &appsv1.Deployment{}
 		if err := helper.ConvertToTypedObject(rawObj, deploymentObj); err != nil {
-			return nil, fmt.Errorf("failed to convert Deployment from unstructured object: %v", err)
+			return nil, fmt.Errorf("failed to convert Deployment from unstructured object: %w", err)
 		}
 		return extractPatchesBy(deploymentObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.DaemonSetKind:
 		daemonSetObj := &appsv1.DaemonSet{}
 		if err := helper.ConvertToTypedObject(rawObj, daemonSetObj); err != nil {
-			return nil, fmt.Errorf("failed to convert DaemonSet from unstructured object: %v", err)
+			return nil, fmt.Errorf("failed to convert DaemonSet from unstructured object: %w", err)
 		}
 		return extractPatchesBy(daemonSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.StatefulSetKind:
 		statefulSetObj := &appsv1.StatefulSet{}
 		if err := helper.ConvertToTypedObject(rawObj, statefulSetObj); err != nil {
-			return nil, fmt.Errorf("failed to convert StatefulSet from unstructured object: %v", err)
+			return nil, fmt.Errorf("failed to convert StatefulSet from unstructured object: %w", err)
 		}
 		return extractPatchesBy(statefulSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.JobKind:
 		jobObj := &batchv1.Job{}
 		if err := helper.ConvertToTypedObject(rawObj, jobObj); err != nil {
-			return nil, fmt.Errorf("failed to convert Job from unstructured object: %v", err)
+			return nil, fmt.Errorf("failed to convert Job from unstructured object: %w", err)
 		}
 		return extractPatchesBy(jobObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	}
@@ -98,7 +98,7 @@ func buildPatchesWithPredicate(rawObj *unstructured.Unstructured, imageOverrider
 
 	imageValue, err := obtainImageValue(rawObj, imageOverrider.Predicate.Path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to obtain imageValue with predicate path(%s), error: %v", imageOverrider.Predicate.Path, err)
+		return nil, fmt.Errorf("failed to obtain imageValue with predicate path(%s), error: %w", imageOverrider.Predicate.Path, err)
 	}
 
 	patch, err := acquireOverrideOption(imageOverrider.Predicate.Path, imageValue, imageOverrider)
@@ -160,7 +160,7 @@ func acquireOverrideOption(imagePath, curImage string, imageOverrider *policyv1a
 func overrideImage(curImage string, imageOverrider *policyv1alpha1.ImageOverrider) (string, error) {
 	imageComponent, err := imageparser.Parse(curImage)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse image value(%s), error: %v", curImage, err)
+		return "", fmt.Errorf("failed to parse image value(%s), error: %w", curImage, err)
 	}
 
 	switch imageOverrider.Component {

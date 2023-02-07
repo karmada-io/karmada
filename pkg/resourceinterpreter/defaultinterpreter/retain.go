@@ -31,13 +31,13 @@ func retainPodFields(desired, observed *unstructured.Unstructured) (*unstructure
 	desiredPod := &corev1.Pod{}
 	err := helper.ConvertToTypedObject(desired, desiredPod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert desiredPod from unstructured object: %v", err)
+		return nil, fmt.Errorf("failed to convert desiredPod from unstructured object: %w", err)
 	}
 
 	clusterPod := &corev1.Pod{}
 	err = helper.ConvertToTypedObject(observed, clusterPod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert clusterPod from unstructured object: %v", err)
+		return nil, fmt.Errorf("failed to convert clusterPod from unstructured object: %w", err)
 	}
 
 	desiredPod.Spec.NodeName = clusterPod.Spec.NodeName
@@ -55,7 +55,7 @@ func retainPodFields(desired, observed *unstructured.Unstructured) (*unstructure
 
 	unstructuredObj, err := helper.ToUnstructured(desiredPod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to transform Pod: %v", err)
+		return nil, fmt.Errorf("failed to transform Pod: %w", err)
 	}
 
 	return unstructuredObj, nil
@@ -79,11 +79,11 @@ func retainPersistentVolumeFields(desired, observed *unstructured.Unstructured) 
 	// claimRef is updated by kube-controller-manager.
 	claimRef, ok, err := unstructured.NestedFieldNoCopy(observed.Object, "spec", "claimRef")
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve claimRef from pv: %v", err)
+		return nil, fmt.Errorf("failed to retrieve claimRef from pv: %w", err)
 	}
 	if ok {
 		if err = unstructured.SetNestedField(desired.Object, claimRef, "spec", "claimRef"); err != nil {
-			return nil, fmt.Errorf("failed to set claimRef for pv: %v", err)
+			return nil, fmt.Errorf("failed to set claimRef for pv: %w", err)
 		}
 	}
 	return desired, nil

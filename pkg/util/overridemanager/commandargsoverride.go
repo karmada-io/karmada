@@ -39,7 +39,7 @@ func buildCommandArgsPatchesWithPath(target string, specContainersPath string, r
 	patches := make([]overrideOption, 0)
 	containers, ok, err := unstructured.NestedSlice(rawObj.Object, strings.Split(specContainersPath, pathSplit)...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieves path(%s) from rawObj, error: %v", specContainersPath, err)
+		return nil, fmt.Errorf("failed to retrieves path(%s) from rawObj, error: %w", specContainersPath, err)
 	}
 	if !ok || len(containers) == 0 {
 		return nil, nil

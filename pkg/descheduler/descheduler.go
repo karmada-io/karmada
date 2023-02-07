@@ -157,7 +157,7 @@ func (d *Descheduler) worker(key util.QueueKey) error {
 			klog.Infof("ResourceBinding(%s) in work queue no longer exists, ignore.", namespacedName)
 			return nil
 		}
-		return fmt.Errorf("get ResourceBinding(%s) error: %v", namespacedName, err)
+		return fmt.Errorf("get ResourceBinding(%s) error: %w", namespacedName, err)
 	}
 
 	h := core.NewSchedulingResultHelper(binding)

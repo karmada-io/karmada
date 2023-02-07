@@ -144,7 +144,7 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 
 	oldCert, err := certutil.ParseCertsPEM(oldCertData)
 	if err != nil {
-		return fmt.Errorf("unable to parse old certificate: %v", err)
+		return fmt.Errorf("unable to parse old certificate: %w", err)
 	}
 
 	// create a new private key
@@ -155,12 +155,12 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 
 	privateKey, err := keyutil.ParsePrivateKeyPEM(keyData)
 	if err != nil {
-		return fmt.Errorf("invalid private key for certificate request: %v", err)
+		return fmt.Errorf("invalid private key for certificate request: %w", err)
 	}
 
 	csr, err := c.createCSRInControlPlane(clusterName, privateKey, oldCert)
 	if err != nil {
-		return fmt.Errorf("failed to create csr in control plane, err is: %v", err)
+		return fmt.Errorf("failed to create csr in control plane, err is: %w", err)
 	}
 
 	var newCertData []byte
@@ -168,7 +168,7 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 	err = wait.Poll(1*time.Second, 5*time.Minute, func() (done bool, err error) {
 		csr, err := c.KubeClient.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), csr, metav1.GetOptions{})
 		if err != nil {
-			return false, fmt.Errorf("failed to get the cluster csr %s. err: %v", clusterName, err)
+			return false, fmt.Errorf("failed to get the cluster csr %s. err: %w", clusterName, err)
 		}
 
 		if csr.Status.Certificate != nil {
@@ -189,7 +189,7 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 
 	karmadaKubeconfigBytes, err := clientcmd.Write(*karmadaKubeconfig)
 	if err != nil {
-		return fmt.Errorf("failed to serialize karmada-agent kubeConfig. %v", err)
+		return fmt.Errorf("failed to serialize karmada-agent kubeConfig. %w", err)
 	}
 
 	secret.Data["karmada-kubeconfig"] = karmadaKubeconfigBytes
@@ -212,7 +212,7 @@ func (c *CertRotationController) syncCertRotation(secret *corev1.Secret) error {
 func (c *CertRotationController) createCSRInControlPlane(clusterName string, privateKey interface{}, oldCert []*x509.Certificate) (string, error) {
 	csrData, err := certutil.MakeCSR(privateKey, &oldCert[0].Subject, nil, nil)
 	if err != nil {
-		return "", fmt.Errorf("unable to generate certificate request: %v", err)
+		return "", fmt.Errorf("unable to generate certificate request: %w", err)
 	}
 
 	csrName := clusterName + "-" + k8srand.String(5)
@@ -238,7 +238,7 @@ func (c *CertRotationController) createCSRInControlPlane(clusterName string, pri
 
 	_, err = c.KubeClient.CertificatesV1().CertificateSigningRequests().Create(context.TODO(), certificateSigningRequest, metav1.CreateOptions{})
 	if err != nil {
-		return "", fmt.Errorf("unable to create certificate request in control plane: %v", err)
+		return "", fmt.Errorf("unable to create certificate request in control plane: %w", err)
 	}
 
 	return csrName, nil
@@ -286,7 +286,7 @@ func (c *CertRotationController) shouldRotateCert(certData []byte) (bool, error)
 func getCertValidityPeriod(certData []byte) (*time.Time, *time.Time, error) {
 	certs, err := certutil.ParseCertsPEM(certData)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to parse TLS certificates: %v", err)
+		return nil, nil, fmt.Errorf("unable to parse TLS certificates: %w", err)
 	}
 
 	if len(certs) == 0 {
