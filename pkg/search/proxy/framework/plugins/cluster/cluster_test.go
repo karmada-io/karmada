@@ -127,7 +127,7 @@ func TestModifyRequest(t *testing.T) {
 				}
 				body = buf
 			}
-			req, _ := http.NewRequest("PUT", "/api/v1/namespaces/default/pods/foo", body)
+			req, _ := http.NewRequest(http.MethodPut, "/api/v1/namespaces/default/pods/foo", body)
 			err := modifyRequest(req, tt.args.cluster)
 			if err != nil {
 				t.Error(err)
@@ -365,7 +365,7 @@ func Test_clusterProxy_connect(t *testing.T) {
 			args: args{
 				requestInfo: &request.RequestInfo{Verb: "update"},
 				request: (&http.Request{
-					Method:        "PUT",
+					Method:        http.MethodPut,
 					URL:           &url.URL{Scheme: "https", Host: "localhost", Path: "/test"},
 					Body:          io.NopCloser(&alwaysErrorReader{}),
 					ContentLength: 10,

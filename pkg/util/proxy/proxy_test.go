@@ -188,7 +188,7 @@ func TestConnectCluster(t *testing.T) {
 			if ctx == nil {
 				ctx = context.TODO()
 			}
-			req, err := http.NewRequestWithContext(ctx, "GET", "http://127.0.0.1/xxx", nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1/xxx", nil)
 			if err != nil {
 				t.Fatal(err)
 			}

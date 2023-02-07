@@ -200,7 +200,7 @@ func TestCacheProxy_connect(t *testing.T) {
 			// reset before each test
 			actual = want{}
 
-			req, err := http.NewRequest("GET", tt.args.url, nil)
+			req, err := http.NewRequest(http.MethodGet, tt.args.url, nil)
 			if err != nil {
 				t.Error(err)
 				return
