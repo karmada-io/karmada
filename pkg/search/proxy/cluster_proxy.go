@@ -38,7 +38,10 @@ func newClusterProxy(store store.Cache, clusterLister clusterlisters.ClusterList
 }
 
 func (c *clusterProxy) connect(ctx context.Context, requestInfo *request.RequestInfo, gvr schema.GroupVersionResource, proxyPath string, responder rest.Responder) (http.Handler, error) {
-	if requestInfo.Verb == "create" {
+	// For creating request, cluster proxy doesn't know which cluster to create, so responses MethodNotSupported error.
+	// While for subresource request, having resource name request (like pods attach, exec and port-forward),
+	// proxy it to the cluster the resource located.
+	if requestInfo.Verb == "create" && requestInfo.Name == "" {
 		return nil, apierrors.NewMethodNotSupported(gvr.GroupResource(), requestInfo.Verb)
 	}
 
