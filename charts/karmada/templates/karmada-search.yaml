@@ -56,10 +56,19 @@ spec:
             - --kubeconfig=/etc/kubeconfig
             - --authentication-kubeconfig=/etc/kubeconfig
             - --authorization-kubeconfig=/etc/kubeconfig
+            {{- if eq .Values.etcd.mode "external" }}
+            - --etcd-cafile=/etc/etcd/pki/ca.crt
+            - --etcd-certfile=/etc/etcd/pki/tls.crt
+            - --etcd-keyfile=/etc/etcd/pki/tls.key
+            - --etcd-servers={{ .Values.etcd.external.servers }}
+            - --etcd-prefix={{ .Values.etcd.external.registryPrefix }}
+            {{- end }}
+            {{- if eq .Values.etcd.mode "internal" }}
             - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
             - --etcd-cafile=/etc/kubernetes/pki/server-ca.crt
             - --etcd-certfile=/etc/kubernetes/pki/karmada.crt
             - --etcd-keyfile=/etc/kubernetes/pki/karmada.key
+            {{- end }}
             - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
             - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
             - --audit-log-path=-
