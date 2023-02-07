@@ -49,13 +49,6 @@ type PropagationSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	ResourceSelectors []ResourceSelector `json:"resourceSelectors"`
 
-	// Association tells if relevant resources should be selected automatically.
-	// e.g. a ConfigMap referred by a Deployment.
-	// default false.
-	// Deprecated: in favor of PropagateDeps.
-	// +optional
-	Association bool `json:"association,omitempty"`
-
 	// PropagateDeps tells if relevant resources should be propagated automatically.
 	// Take 'Deployment' which referencing 'ConfigMap' and 'Secret' as an example, when 'propagateDeps' is 'true',
 	// the referencing resources could be omitted(for saving config effort) from 'resourceSelectors' as they will be

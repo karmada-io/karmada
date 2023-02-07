@@ -44,11 +44,6 @@ spec:
           spec:
             description: Spec represents the desired behavior of ClusterPropagationPolicy.
             properties:
-              association:
-                description: 'Association tells if relevant resources should be selected
-                  automatically. e.g. a ConfigMap referred by a Deployment. default
-                  false. Deprecated: in favor of PropagateDeps.'
-                type: boolean
               dependentOverrides:
                 description: "DependentOverrides represents the list of overrides(OverridePolicy)
                   which must present before the current PropagationPolicy takes effect.
