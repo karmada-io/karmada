@@ -314,6 +314,10 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 		return nil, err
 	}
 
+	if aggregatedStatusItems == nil {
+		return helper.ToUnstructured(pod)
+	}
+
 	newStatus := &corev1.PodStatus{}
 	newStatus.ContainerStatuses = make([]corev1.ContainerStatus, 0)
 	podPhases := sets.NewString()
