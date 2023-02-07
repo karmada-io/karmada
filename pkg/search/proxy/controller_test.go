@@ -410,7 +410,7 @@ func TestController_Connect(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			req, err := http.NewRequest("GET", "/prefix/api/v1/pods", nil)
+			req, err := http.NewRequest(http.MethodGet, "/prefix/api/v1/pods", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -476,7 +476,7 @@ func TestController_Connect_Error(t *testing.T) {
 	}
 
 	response := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/api", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api", nil)
 	if err != nil {
 		t.Error(err)
 		return

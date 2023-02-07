@@ -46,7 +46,7 @@ func DownloadFile(url, filePath string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed download file. url: %s code: %v", url, resp.StatusCode)
 	}
 

@@ -114,7 +114,7 @@ func TestProxyREST_Connect(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, err := http.NewRequestWithContext(request.WithUser(request.NewContext(), &user.DefaultInfo{}), "GET", "http://127.0.0.1/xxx", nil)
+			req, err := http.NewRequestWithContext(request.WithUser(request.NewContext(), &user.DefaultInfo{}), http.MethodGet, "http://127.0.0.1/xxx", nil)
 			if err != nil {
 				t.Fatal(err)
 			}

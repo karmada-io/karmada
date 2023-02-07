@@ -58,7 +58,7 @@ func DoRequest(urlPath string, token string) (int, error) {
 	}
 	bearToken := fmt.Sprintf("Bearer %s", string(decodeToken))
 
-	res, err := http.NewRequest("GET", urlPath, nil)
+	res, err := http.NewRequest(http.MethodGet, urlPath, nil)
 	if err != nil {
 		return 0, err
 	}

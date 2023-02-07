@@ -83,7 +83,7 @@ func Test_karmadaProxy(t *testing.T) {
 				return
 			}
 
-			request, err := http.NewRequest("GET", "http://localhost", nil)
+			request, err := http.NewRequest(http.MethodGet, "http://localhost", nil)
 			if err != nil {
 				t.Error(err)
 				return
