@@ -39,13 +39,20 @@ const (
 
 // AggregateResourceBindingWorkStatus will collect all work statuses with current ResourceBinding objects,
 // then aggregate status info to current ResourceBinding status.
-func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ResourceBinding, workload *unstructured.Unstructured, eventRecorder record.EventRecorder) error {
+func AggregateResourceBindingWorkStatus(
+	c client.Client,
+	binding *workv1alpha2.ResourceBinding,
+	resourceTemplate *unstructured.Unstructured,
+	eventRecorder record.EventRecorder,
+) error {
+	binding.GetName()
+
 	workList, err := GetWorksByBindingNamespaceName(c, binding.Namespace, binding.Name)
 	if err != nil {
 		return err
 	}
 
-	aggregatedStatuses, err := assembleWorkStatus(workList.Items, workload)
+	aggregatedStatuses, err := assembleWorkStatus(workList.Items, resourceTemplate)
 	if err != nil {
 		return err
 	}
@@ -79,25 +86,30 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 	})
 	if err != nil {
 		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
-		eventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
+		eventRecorder.Event(resourceTemplate, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
 	msg := fmt.Sprintf("Update resourceBinding(%s/%s) with AggregatedStatus successfully.", binding.Namespace, binding.Name)
 	eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
-	eventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+	eventRecorder.Event(resourceTemplate, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
 	return nil
 }
 
 // AggregateClusterResourceBindingWorkStatus will collect all work statuses with current ClusterResourceBinding objects,
 // then aggregate status info to current ClusterResourceBinding status.
-func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.ClusterResourceBinding, workload *unstructured.Unstructured, eventRecorder record.EventRecorder) error {
+func AggregateClusterResourceBindingWorkStatus(
+	c client.Client,
+	binding *workv1alpha2.ClusterResourceBinding,
+	resourceTemplate *unstructured.Unstructured,
+	eventRecorder record.EventRecorder,
+) error {
 	workList, err := GetWorksByBindingNamespaceName(c, "", binding.Name)
 	if err != nil {
 		return err
 	}
 
-	aggregatedStatuses, err := assembleWorkStatus(workList.Items, workload)
+	aggregatedStatuses, err := assembleWorkStatus(workList.Items, resourceTemplate)
 	if err != nil {
 		return err
 	}
@@ -130,13 +142,13 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 	})
 	if err != nil {
 		eventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
-		eventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
+		eventRecorder.Event(resourceTemplate, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 		return err
 	}
 
 	msg := fmt.Sprintf("Update clusterResourceBinding(%s) with AggregatedStatus successfully.", binding.Name)
 	eventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
-	eventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
+	eventRecorder.Event(resourceTemplate, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, msg)
 	return nil
 }
 
