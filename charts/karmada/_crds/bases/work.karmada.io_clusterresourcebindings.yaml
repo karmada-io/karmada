@@ -324,6 +324,372 @@ spec:
                   - reason
                   type: object
                 type: array
+              placement:
+                description: Placement represents the rule for select clusters to
+                  propagate resources.
+                properties:
+                  clusterAffinity:
+                    description: ClusterAffinity represents scheduling restrictions
+                      to a certain set of clusters. If not set, any cluster can be
+                      scheduling candidate.
+                    properties:
+                      clusterNames:
+                        description: ClusterNames is the list of clusters to be selected.
+                        items:
+                          type: string
+                        type: array
+                      exclude:
+                        description: ExcludedClusters is the list of clusters to be
+                          ignored.
+                        items:
+                          type: string
+                        type: array
+                      fieldSelector:
+                        description: FieldSelector is a filter to select member clusters
+                          by fields. If non-nil and non-empty, only the clusters match
+                          this filter will be selected.
+                        properties:
+                          matchExpressions:
+                            description: A list of field selector requirements.
+                            items:
+                              description: A node selector requirement is a selector
+                                that contains values, a key, and an operator that
+                                relates the key and values.
+                              properties:
+                                key:
+                                  description: The label key that the selector applies
+                                    to.
+                                  type: string
+                                operator:
+                                  description: Represents a key's relationship to
+                                    a set of values. Valid operators are In, NotIn,
+                                    Exists, DoesNotExist. Gt, and Lt.
+                                  type: string
+                                values:
+                                  description: An array of string values. If the operator
+                                    is In or NotIn, the values array must be non-empty.
+                                    If the operator is Exists or DoesNotExist, the
+                                    values array must be empty. If the operator is
+                                    Gt or Lt, the values array must have a single
+                                    element, which will be interpreted as an integer.
+                                    This array is replaced during a strategic merge
+                                    patch.
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - key
+                              - operator
+                              type: object
+                            type: array
+                        type: object
+                      labelSelector:
+                        description: LabelSelector is a filter to select member clusters
+                          by labels. If non-nil and non-empty, only the clusters match
+                          this filter will be selected.
+                        properties:
+                          matchExpressions:
+                            description: matchExpressions is a list of label selector
+                              requirements. The requirements are ANDed.
+                            items:
+                              description: A label selector requirement is a selector
+                                that contains values, a key, and an operator that
+                                relates the key and values.
+                              properties:
+                                key:
+                                  description: key is the label key that the selector
+                                    applies to.
+                                  type: string
+                                operator:
+                                  description: operator represents a key's relationship
+                                    to a set of values. Valid operators are In, NotIn,
+                                    Exists and DoesNotExist.
+                                  type: string
+                                values:
+                                  description: values is an array of string values.
+                                    If the operator is In or NotIn, the values array
+                                    must be non-empty. If the operator is Exists or
+                                    DoesNotExist, the values array must be empty.
+                                    This array is replaced during a strategic merge
+                                    patch.
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - key
+                              - operator
+                              type: object
+                            type: array
+                          matchLabels:
+                            additionalProperties:
+                              type: string
+                            description: matchLabels is a map of {key,value} pairs.
+                              A single {key,value} in the matchLabels map is equivalent
+                              to an element of matchExpressions, whose key field is
+                              "key", the operator is "In", and the values array contains
+                              only "value". The requirements are ANDed.
+                            type: object
+                        type: object
+                    type: object
+                  clusterTolerations:
+                    description: ClusterTolerations represents the tolerations.
+                    items:
+                      description: The pod this Toleration is attached to tolerates
+                        any taint that matches the triple <key,value,effect> using
+                        the matching operator <operator>.
+                      properties:
+                        effect:
+                          description: Effect indicates the taint effect to match.
+                            Empty means match all taint effects. When specified, allowed
+                            values are NoSchedule, PreferNoSchedule and NoExecute.
+                          type: string
+                        key:
+                          description: Key is the taint key that the toleration applies
+                            to. Empty means match all taint keys. If the key is empty,
+                            operator must be Exists; this combination means to match
+                            all values and all keys.
+                          type: string
+                        operator:
+                          description: Operator represents a key's relationship to
+                            the value. Valid operators are Exists and Equal. Defaults
+                            to Equal. Exists is equivalent to wildcard for value,
+                            so that a pod can tolerate all taints of a particular
+                            category.
+                          type: string
+                        tolerationSeconds:
+                          description: TolerationSeconds represents the period of
+                            time the toleration (which must be of effect NoExecute,
+                            otherwise this field is ignored) tolerates the taint.
+                            By default, it is not set, which means tolerate the taint
+                            forever (do not evict). Zero and negative values will
+                            be treated as 0 (evict immediately) by the system.
+                          format: int64
+                          type: integer
+                        value:
+                          description: Value is the taint value the toleration matches
+                            to. If the operator is Exists, the value should be empty,
+                            otherwise just a regular string.
+                          type: string
+                      type: object
+                    type: array
+                  replicaScheduling:
+                    description: ReplicaScheduling represents the scheduling policy
+                      on dealing with the number of replicas when propagating resources
+                      that have replicas in spec (e.g. deployments, statefulsets)
+                      to member clusters.
+                    properties:
+                      replicaDivisionPreference:
+                        description: ReplicaDivisionPreference determines how the
+                          replicas is divided when ReplicaSchedulingType is "Divided".
+                          Valid options are Aggregated and Weighted. "Aggregated"
+                          divides replicas into clusters as few as possible, while
+                          respecting clusters' resource availabilities during the
+                          division. "Weighted" divides replicas by weight according
+                          to WeightPreference.
+                        enum:
+                        - Aggregated
+                        - Weighted
+                        type: string
+                      replicaSchedulingType:
+                        default: Divided
+                        description: ReplicaSchedulingType determines how the replicas
+                          is scheduled when karmada propagating a resource. Valid
+                          options are Duplicated and Divided. "Duplicated" duplicates
+                          the same replicas to each candidate member cluster from
+                          resource. "Divided" divides replicas into parts according
+                          to number of valid candidate member clusters, and exact
+                          replicas for each cluster are determined by ReplicaDivisionPreference.
+                        enum:
+                        - Duplicated
+                        - Divided
+                        type: string
+                      weightPreference:
+                        description: WeightPreference describes weight for each cluster
+                          or for each group of cluster If ReplicaDivisionPreference
+                          is set to "Weighted", and WeightPreference is not set, scheduler
+                          will weight all clusters the same.
+                        properties:
+                          dynamicWeight:
+                            description: DynamicWeight specifies the factor to generates
+                              dynamic weight list. If specified, StaticWeightList
+                              will be ignored.
+                            enum:
+                            - AvailableReplicas
+                            type: string
+                          staticWeightList:
+                            description: StaticWeightList defines the static cluster
+                              weight.
+                            items:
+                              description: StaticClusterWeight defines the static
+                                cluster weight.
+                              properties:
+                                targetCluster:
+                                  description: TargetCluster describes the filter
+                                    to select clusters.
+                                  properties:
+                                    clusterNames:
+                                      description: ClusterNames is the list of clusters
+                                        to be selected.
+                                      items:
+                                        type: string
+                                      type: array
+                                    exclude:
+                                      description: ExcludedClusters is the list of
+                                        clusters to be ignored.
+                                      items:
+                                        type: string
+                                      type: array
+                                    fieldSelector:
+                                      description: FieldSelector is a filter to select
+                                        member clusters by fields. If non-nil and
+                                        non-empty, only the clusters match this filter
+                                        will be selected.
+                                      properties:
+                                        matchExpressions:
+                                          description: A list of field selector requirements.
+                                          items:
+                                            description: A node selector requirement
+                                              is a selector that contains values,
+                                              a key, and an operator that relates
+                                              the key and values.
+                                            properties:
+                                              key:
+                                                description: The label key that the
+                                                  selector applies to.
+                                                type: string
+                                              operator:
+                                                description: Represents a key's relationship
+                                                  to a set of values. Valid operators
+                                                  are In, NotIn, Exists, DoesNotExist.
+                                                  Gt, and Lt.
+                                                type: string
+                                              values:
+                                                description: An array of string values.
+                                                  If the operator is In or NotIn,
+                                                  the values array must be non-empty.
+                                                  If the operator is Exists or DoesNotExist,
+                                                  the values array must be empty.
+                                                  If the operator is Gt or Lt, the
+                                                  values array must have a single
+                                                  element, which will be interpreted
+                                                  as an integer. This array is replaced
+                                                  during a strategic merge patch.
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                      type: object
+                                    labelSelector:
+                                      description: LabelSelector is a filter to select
+                                        member clusters by labels. If non-nil and
+                                        non-empty, only the clusters match this filter
+                                        will be selected.
+                                      properties:
+                                        matchExpressions:
+                                          description: matchExpressions is a list
+                                            of label selector requirements. The requirements
+                                            are ANDed.
+                                          items:
+                                            description: A label selector requirement
+                                              is a selector that contains values,
+                                              a key, and an operator that relates
+                                              the key and values.
+                                            properties:
+                                              key:
+                                                description: key is the label key
+                                                  that the selector applies to.
+                                                type: string
+                                              operator:
+                                                description: operator represents a
+                                                  key's relationship to a set of values.
+                                                  Valid operators are In, NotIn, Exists
+                                                  and DoesNotExist.
+                                                type: string
+                                              values:
+                                                description: values is an array of
+                                                  string values. If the operator is
+                                                  In or NotIn, the values array must
+                                                  be non-empty. If the operator is
+                                                  Exists or DoesNotExist, the values
+                                                  array must be empty. This array
+                                                  is replaced during a strategic merge
+                                                  patch.
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                        matchLabels:
+                                          additionalProperties:
+                                            type: string
+                                          description: matchLabels is a map of {key,value}
+                                            pairs. A single {key,value} in the matchLabels
+                                            map is equivalent to an element of matchExpressions,
+                                            whose key field is "key", the operator
+                                            is "In", and the values array contains
+                                            only "value". The requirements are ANDed.
+                                          type: object
+                                      type: object
+                                  type: object
+                                weight:
+                                  description: Weight expressing the preference to
+                                    the cluster(s) specified by 'TargetCluster'.
+                                  format: int64
+                                  minimum: 1
+                                  type: integer
+                              required:
+                              - targetCluster
+                              - weight
+                              type: object
+                            type: array
+                        type: object
+                    type: object
+                  spreadConstraints:
+                    description: SpreadConstraints represents a list of the scheduling
+                      constraints.
+                    items:
+                      description: SpreadConstraint represents the spread constraints
+                        on resources.
+                      properties:
+                        maxGroups:
+                          description: MaxGroups restricts the maximum number of cluster
+                            groups to be selected.
+                          type: integer
+                        minGroups:
+                          description: MinGroups restricts the minimum number of cluster
+                            groups to be selected. Defaults to 1.
+                          type: integer
+                        spreadByField:
+                          description: 'SpreadByField represents the fields on Karmada
+                            cluster API used for dynamically grouping member clusters
+                            into different groups. Resources will be spread among
+                            different cluster groups. Available fields for spreading
+                            are: cluster, region, zone, and provider. SpreadByField
+                            should not co-exist with SpreadByLabel. If both SpreadByField
+                            and SpreadByLabel are empty, SpreadByField will be set
+                            to "cluster" by system.'
+                          enum:
+                          - cluster
+                          - region
+                          - zone
+                          - provider
+                          type: string
+                        spreadByLabel:
+                          description: SpreadByLabel represents the label key used
+                            for grouping member clusters into different groups. Resources
+                            will be spread among different cluster groups. SpreadByLabel
+                            should not co-exist with SpreadByField.
+                          type: string
+                      type: object
+                    type: array
+                type: object
               propagateDeps:
                 description: PropagateDeps tells if relevant resources should be propagated
                   automatically. It is inherited from PropagationPolicy or ClusterPropagationPolicy.

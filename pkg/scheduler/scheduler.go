@@ -31,7 +31,6 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
-	policylister "github.com/karmada-io/karmada/pkg/generated/listers/policy/v1alpha1"
 	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
@@ -72,9 +71,7 @@ type Scheduler struct {
 	KarmadaClient        karmadaclientset.Interface
 	KubeClient           kubernetes.Interface
 	bindingLister        worklister.ResourceBindingLister
-	policyLister         policylister.PropagationPolicyLister
 	clusterBindingLister worklister.ClusterResourceBindingLister
-	clusterPolicyLister  policylister.ClusterPropagationPolicyLister
 	clusterLister        clusterlister.ClusterLister
 	informerFactory      informerfactory.SharedInformerFactory
 
@@ -189,9 +186,7 @@ func WithOutOfTreeRegistry(registry runtime.Registry) Option {
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts ...Option) (*Scheduler, error) {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 	bindingLister := factory.Work().V1alpha2().ResourceBindings().Lister()
-	policyLister := factory.Policy().V1alpha1().PropagationPolicies().Lister()
 	clusterBindingLister := factory.Work().V1alpha2().ClusterResourceBindings().Lister()
-	clusterPolicyLister := factory.Policy().V1alpha1().ClusterPropagationPolicies().Lister()
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "scheduler-queue")
 	schedulerCache := schedulercache.NewCache(clusterLister)
@@ -216,9 +211,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		KarmadaClient:        karmadaClient,
 		KubeClient:           kubeClient,
 		bindingLister:        bindingLister,
-		policyLister:         policyLister,
 		clusterBindingLister: clusterBindingLister,
-		clusterPolicyLister:  clusterPolicyLister,
 		clusterLister:        clusterLister,
 		informerFactory:      factory,
 		queue:                queue,
@@ -275,65 +268,43 @@ func (s *Scheduler) worker() {
 
 func (s *Scheduler) getPlacement(resourceBinding *workv1alpha2.ResourceBinding) (policyv1alpha1.Placement, string, error) {
 	var placement policyv1alpha1.Placement
-	var clusterPolicyName string
-	var policyName string
-	var policyNamespace string
 	var err error
-	if clusterPolicyName = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel); clusterPolicyName != "" {
-		var clusterPolicy *policyv1alpha1.ClusterPropagationPolicy
-		clusterPolicy, err = s.clusterPolicyLister.Get(clusterPolicyName)
-		if err != nil {
-			return placement, "", err
-		}
 
-		placement = clusterPolicy.Spec.Placement
+	placementPtr := resourceBinding.Spec.Placement
+	if placementPtr == nil {
+		err = fmt.Errorf("failed to get placement from resourceBinding(%s/%s)", resourceBinding.Namespace, resourceBinding.Name)
+		klog.Error(err)
+		return placement, "", err
 	}
 
-	if policyName = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNameLabel); policyName != "" {
-		policyNamespace = util.GetLabelValue(resourceBinding.Labels, policyv1alpha1.PropagationPolicyNamespaceLabel)
-		var policy *policyv1alpha1.PropagationPolicy
-		policy, err = s.policyLister.PropagationPolicies(policyNamespace).Get(policyName)
-		if err != nil {
-			return placement, "", err
-		}
-
-		placement = policy.Spec.Placement
-	}
-
+	placement = *placementPtr
 	var placementBytes []byte
 	placementBytes, err = json.Marshal(placement)
 	if err != nil {
 		return placement, "", err
 	}
 
-	defer func() {
-		if err != nil {
-			if clusterPolicyName != "" {
-				klog.Errorf("Failed to get placement of clusterPropagationPolicy %s, error: %v", clusterPolicyName, err)
-			} else {
-				klog.Errorf("Failed to get placement of propagationPolicy %s/%s, error: %v", policyNamespace, policyName, err)
-			}
-		}
-	}()
-
 	return placement, string(placementBytes), nil
 }
 
 func (s *Scheduler) getClusterPlacement(crb *workv1alpha2.ClusterResourceBinding) (policyv1alpha1.Placement, string, error) {
 	var placement policyv1alpha1.Placement
-	policyName := util.GetLabelValue(crb.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
+	var err error
 
-	policy, err := s.clusterPolicyLister.Get(policyName)
+	placementPtr := crb.Spec.Placement
+	if placementPtr == nil {
+		err = fmt.Errorf("failed to get placement from clusterResourceBinding(%s)", crb.Name)
+		klog.Error(err)
+		return placement, "", err
+	}
+
+	placement = *placementPtr
+	var placementBytes []byte
+	placementBytes, err = json.Marshal(placement)
 	if err != nil {
 		return placement, "", err
 	}
 
-	placement = policy.Spec.Placement
-	placementBytes, err := json.Marshal(placement)
-	if err != nil {
-		klog.Errorf("Failed to marshal placement of propagationPolicy %s/%s, error: %v", policy.Namespace, policy.Name, err)
-		return placement, "", err
-	}
 	return placement, string(placementBytes), nil
 }
 
@@ -397,14 +368,14 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	if appliedPlacement := util.GetLabelValue(rb.Annotations, util.PolicyPlacementAnnotation); policyPlacementStr != appliedPlacement {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ResourceBinding(%s/%s) as placement changed", namespace, name)
-		err = s.scheduleResourceBinding(rb)
+		err = s.scheduleResourceBinding(rb, policyPlacementStr)
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&rb.Spec, policyPlacement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ResourceBinding(%s/%s) as replicas scaled down or scaled up", namespace, name)
-		err = s.scheduleResourceBinding(rb)
+		err = s.scheduleResourceBinding(rb, policyPlacementStr)
 		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
@@ -414,7 +385,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
 		klog.V(3).Infof("Start to schedule ResourceBinding(%s/%s) as scheduling type is duplicated", namespace, name)
-		err = s.scheduleResourceBinding(rb)
+		err = s.scheduleResourceBinding(rb, policyPlacementStr)
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
@@ -459,14 +430,14 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	if appliedPlacement := util.GetLabelValue(crb.Annotations, util.PolicyPlacementAnnotation); policyPlacementStr != appliedPlacement {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ClusterResourceBinding(%s) as placement changed", name)
-		err = s.scheduleClusterResourceBinding(crb)
+		err = s.scheduleClusterResourceBinding(crb, policyPlacementStr)
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
 	if policyPlacement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&crb.Spec, policyPlacement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as replicas scaled down or scaled up", name)
-		err = s.scheduleClusterResourceBinding(crb)
+		err = s.scheduleClusterResourceBinding(crb, policyPlacementStr)
 		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
@@ -476,7 +447,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
 		klog.V(3).Infof("Start to schedule ClusterResourceBinding(%s) as scheduling type is duplicated", name)
-		err = s.scheduleClusterResourceBinding(crb)
+		err = s.scheduleClusterResourceBinding(crb, policyPlacementStr)
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
@@ -485,16 +456,11 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	return nil
 }
 
-func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) (err error) {
+func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding, placementStr string) (err error) {
 	klog.V(4).InfoS("Begin scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
 	defer klog.V(4).InfoS("End scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
 
-	placement, placementStr, err := s.getPlacement(resourceBinding)
-	if err != nil {
-		return err
-	}
-
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &placement, &resourceBinding.Spec, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &resourceBinding.Spec, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
 	var noClusterFit *framework.FitError
 	// in case of no cluster fit, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &noClusterFit) {
@@ -535,23 +501,11 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 	return err
 }
 
-func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) (err error) {
+func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, placementStr string) (err error) {
 	klog.V(4).InfoS("Begin scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
 	defer klog.V(4).InfoS("End scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
 
-	clusterPolicyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
-	policy, err := s.clusterPolicyLister.Get(clusterPolicyName)
-	if err != nil {
-		return err
-	}
-
-	placement, err := json.Marshal(policy.Spec.Placement)
-	if err != nil {
-		klog.Errorf("Failed to marshal placement of clusterPropagationPolicy %s, error: %v", policy.Name, err)
-		return err
-	}
-
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &clusterResourceBinding.Spec, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
 	var noClusterFit *framework.FitError
 	// in case of no cluster fit, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &noClusterFit) {
@@ -560,7 +514,7 @@ func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv
 	}
 
 	klog.V(4).Infof("ClusterResourceBinding %s scheduled to clusters %v", clusterResourceBinding.Name, scheduleResult.SuggestedClusters)
-	scheduleErr := s.patchScheduleResultForClusterResourceBinding(clusterResourceBinding, string(placement), scheduleResult.SuggestedClusters)
+	scheduleErr := s.patchScheduleResultForClusterResourceBinding(clusterResourceBinding, placementStr, scheduleResult.SuggestedClusters)
 	return utilerrors.NewAggregate([]error{err, scheduleErr})
 }
 

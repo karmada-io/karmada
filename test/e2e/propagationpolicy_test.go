@@ -939,13 +939,14 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 		})
 	})
 
-	ginkgo.Context("Edit PropagationPolicy PropagateDeps", func() {
+	ginkgo.Context("Edit PropagationPolicy fields other than resourceSelectors", func() {
 		var policy *policyv1alpha1.PropagationPolicy
 		var deployment *appsv1.Deployment
-		var targetMember string
+		var targetMember, updatedMember string
 
 		ginkgo.BeforeEach(func() {
 			targetMember = framework.ClusterNames()[0]
+			updatedMember = framework.ClusterNames()[1]
 			policyNamespace := testNamespace
 			policyName := deploymentNamePrefix + rand.String(RandomStrLength)
 
@@ -1006,6 +1007,24 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 				}
 				return bindings.Items[0].Spec.PropagateDeps == true
 			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("update policy placement", func() {
+			updatedPlacement := policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{updatedMember},
+				}}
+			patch := []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "/spec/placement",
+					"value": updatedPlacement,
+				},
+			}
+			framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policy.Name, patch, types.JSONPatchType)
+			framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
+			framework.WaitDeploymentPresentOnClusterFitWith(updatedMember, deployment.Namespace, deployment.Name,
+				func(deployment *appsv1.Deployment) bool { return true })
 		})
 	})
 })

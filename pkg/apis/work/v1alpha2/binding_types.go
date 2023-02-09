@@ -5,6 +5,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 const (
@@ -71,6 +73,10 @@ type ResourceBindingSpec struct {
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
+
+	// Placement represents the rule for select clusters to propagate resources.
+	// +optional
+	Placement *policyv1alpha1.Placement `json:"placement,omitempty"`
 
 	// GracefulEvictionTasks holds the eviction tasks that are expected to perform
 	// the eviction in a graceful way.

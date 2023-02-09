@@ -325,15 +325,16 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 		})
 	})
 
-	ginkgo.Context("Edit ClusterPropagationPolicy PropagateDeps", func() {
+	ginkgo.Context("Edit ClusterPropagationPolicy fields other than resourceSelector", func() {
 
 		ginkgo.When("namespace scope resource", func() {
 			var policy *policyv1alpha1.ClusterPropagationPolicy
 			var deployment *appsv1.Deployment
-			var targetMember string
+			var targetMember, updatedMember string
 
 			ginkgo.BeforeEach(func() {
 				targetMember = framework.ClusterNames()[0]
+				updatedMember = framework.ClusterNames()[1]
 				policyName := deploymentNamePrefix + rand.String(RandomStrLength)
 
 				deployment = testhelper.NewDeployment(testNamespace, policyName+"01")
@@ -391,6 +392,83 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 					}
 					return bindings.Items[0].Spec.PropagateDeps == true
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
+
+			ginkgo.It("update policy placement", func() {
+				updatedPlacement := policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{updatedMember},
+					}}
+				patch := []map[string]interface{}{
+					{
+						"op":    "replace",
+						"path":  "/spec/placement",
+						"value": updatedPlacement,
+					},
+				}
+				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
+				framework.WaitDeploymentDisappearOnCluster(targetMember, deployment.Namespace, deployment.Name)
+				framework.WaitDeploymentPresentOnClusterFitWith(updatedMember, deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool { return true })
+			})
+		})
+
+		ginkgo.When("cluster scope resource", func() {
+			var policy *policyv1alpha1.ClusterPropagationPolicy
+			var clusterRole *rbacv1.ClusterRole
+			var targetMember, updatedMember string
+
+			ginkgo.BeforeEach(func() {
+				targetMember = framework.ClusterNames()[0]
+				updatedMember = framework.ClusterNames()[1]
+				policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+
+				clusterRole = testhelper.NewClusterRole(fmt.Sprintf("system:test-%s-01", policyName), nil)
+
+				policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: clusterRole.APIVersion,
+						Kind:       clusterRole.Kind,
+						Name:       clusterRole.Name,
+					}}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetMember},
+					},
+				})
+			})
+
+			ginkgo.BeforeEach(func() {
+				framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+				framework.CreateClusterRole(kubeClient, clusterRole)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+					framework.RemoveClusterRole(kubeClient, clusterRole.Name)
+				})
+
+				framework.WaitClusterRolePresentOnClusterFitWith(targetMember, clusterRole.Name,
+					func(role *rbacv1.ClusterRole) bool {
+						return true
+					})
+			})
+
+			ginkgo.It("update policy placement", func() {
+				updatedPlacement := policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{updatedMember},
+					}}
+				patch := []map[string]interface{}{
+					{
+						"op":    "replace",
+						"path":  "/spec/placement",
+						"value": updatedPlacement,
+					},
+				}
+				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
+				framework.WaitClusterRoleDisappearOnCluster(targetMember, clusterRole.Name)
+				framework.WaitClusterRolePresentOnClusterFitWith(updatedMember, clusterRole.Name,
+					func(role *rbacv1.ClusterRole) bool {
+						return true
+					})
 			})
 		})
 	})
