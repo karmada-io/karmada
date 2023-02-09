@@ -29,7 +29,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
-	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 	tokenutil "github.com/karmada-io/karmada/pkg/karmadactl/util/bootstraptoken"
 )
@@ -267,7 +266,7 @@ func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.
 			ExternalName: fmt.Sprintf("%s.%s.svc", aggregatedApiserverServiceName, systemNamespace),
 		},
 	}
-	if err := cmdutil.CreateOrUpdateService(clientSet, aaService); err != nil {
+	if err := util.CreateOrUpdateService(clientSet, aaService); err != nil {
 		return err
 	}
 
@@ -300,7 +299,7 @@ func initAggregatedAPIService(clientSet *kubernetes.Clientset, restConfig *rest.
 		},
 	}
 
-	if err = cmdutil.CreateOrUpdateAPIService(apiRegistrationClient, aaAPIService); err != nil {
+	if err = util.CreateOrUpdateAPIService(apiRegistrationClient, aaAPIService); err != nil {
 		return err
 	}
 

@@ -19,7 +19,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/apis/cluster/mutation"
 	clusterscheme "github.com/karmada-io/karmada/pkg/apis/cluster/scheme"
 	"github.com/karmada-io/karmada/pkg/features"
-	_ "github.com/karmada-io/karmada/pkg/features"
 )
 
 func getValidCluster(name string) *clusterapis.Cluster {
