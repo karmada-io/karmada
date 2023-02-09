@@ -26,6 +26,24 @@ app: {{- include "karmada.name" .}}-apiserver
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.etcd.labels" -}}
+{{- if .Values.etcd.labels }}
+{{- range $key, $value := .Values.etcd.labels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- else}}
+app: etcd
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.etcd.podLabels" -}}
+{{- if .Values.etcd.podLabels }}
+{{- range $key, $value := .Values.etcd.podLabels }}
+{{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.aggregatedApiserver.labels" -}}
 {{- if .Values.aggregatedApiServer.labels }}
 {{- range $key, $value := .Values.aggregatedApiServer.labels }}
