@@ -1,15 +1,18 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
 
@@ -318,6 +321,76 @@ var _ = ginkgo.Describe("[AdvancedClusterPropagation] propagation testing", func
 						_, exist := clusterRole.Labels[policyv1alpha1.ClusterPropagationPolicyLabel]
 						return !exist
 					})
+			})
+		})
+	})
+
+	ginkgo.Context("Edit ClusterPropagationPolicy PropagateDeps", func() {
+
+		ginkgo.When("namespace scope resource", func() {
+			var policy *policyv1alpha1.ClusterPropagationPolicy
+			var deployment *appsv1.Deployment
+			var targetMember string
+
+			ginkgo.BeforeEach(func() {
+				targetMember = framework.ClusterNames()[0]
+				policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+
+				deployment = testhelper.NewDeployment(testNamespace, policyName+"01")
+
+				policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment.APIVersion,
+						Kind:       deployment.Kind,
+						Name:       deployment.Name,
+					}}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetMember},
+					},
+				})
+			})
+
+			ginkgo.BeforeEach(func() {
+				framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+				framework.CreateDeployment(kubeClient, deployment)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+					framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				})
+
+				gomega.Eventually(func() bool {
+					bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
+						LabelSelector: labels.SelectorFromSet(labels.Set{
+							policyv1alpha1.ClusterPropagationPolicyLabel: policy.Name,
+						}).String(),
+					})
+					if err != nil {
+						return false
+					}
+					return len(bindings.Items) != 0
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+			})
+
+			ginkgo.It("update policy propagateDeps", func() {
+				patch := []map[string]interface{}{
+					{
+						"op":    "replace",
+						"path":  "/spec/propagateDeps",
+						"value": true,
+					},
+				}
+				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
+				gomega.Eventually(func() bool {
+					bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
+						LabelSelector: labels.SelectorFromSet(labels.Set{
+							policyv1alpha1.ClusterPropagationPolicyLabel: policy.Name,
+						}).String(),
+					})
+					if err != nil {
+						return false
+					}
+					return bindings.Items[0].Spec.PropagateDeps == true
+				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 		})
 	})
