@@ -326,7 +326,7 @@ func (d *DependenciesDistributor) ReconcileResourceBinding(key util.QueueKey) er
 		return d.handleResourceBindingDeletion(ckey)
 	}
 
-	workload, err := helper.FetchWorkload(d.DynamicClient, d.InformerManager, d.RESTMapper, bindingObject.Spec.Resource)
+	workload, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, bindingObject.Spec.Resource)
 	if err != nil {
 		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", bindingObject.Namespace, bindingObject.Name, err)
 		return err
@@ -394,7 +394,7 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 			Name:       dependent.Name,
 		}
 
-		rawObject, err := helper.FetchWorkload(d.DynamicClient, d.InformerManager, d.RESTMapper, resource)
+		rawObject, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, resource)
 		if err != nil {
 			// do nothing if resource template not exist.
 			if apierrors.IsNotFound(err) {
