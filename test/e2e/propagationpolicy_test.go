@@ -938,4 +938,74 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 				})
 		})
 	})
+
+	ginkgo.Context("Edit PropagationPolicy PropagateDeps", func() {
+		var policy *policyv1alpha1.PropagationPolicy
+		var deployment *appsv1.Deployment
+		var targetMember string
+
+		ginkgo.BeforeEach(func() {
+			targetMember = framework.ClusterNames()[0]
+			policyNamespace := testNamespace
+			policyName := deploymentNamePrefix + rand.String(RandomStrLength)
+
+			deployment = testhelper.NewDeployment(testNamespace, policyName+"01")
+
+			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				}}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{targetMember},
+				},
+			})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+			})
+
+			gomega.Eventually(func() bool {
+				bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
+					LabelSelector: labels.SelectorFromSet(labels.Set{
+						policyv1alpha1.PropagationPolicyNamespaceLabel: policy.Namespace,
+						policyv1alpha1.PropagationPolicyNameLabel:      policy.Name,
+					}).String(),
+				})
+				if err != nil {
+					return false
+				}
+				return len(bindings.Items) != 0
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+
+		ginkgo.It("update policy propagateDeps", func() {
+			patch := []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "/spec/propagateDeps",
+					"value": true,
+				},
+			}
+			framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policy.Name, patch, types.JSONPatchType)
+			gomega.Eventually(func() bool {
+				bindings, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).List(context.TODO(), metav1.ListOptions{
+					LabelSelector: labels.SelectorFromSet(labels.Set{
+						policyv1alpha1.PropagationPolicyNamespaceLabel: policy.Namespace,
+						policyv1alpha1.PropagationPolicyNameLabel:      policy.Name,
+					}).String(),
+				})
+				if err != nil {
+					return false
+				}
+				return bindings.Items[0].Spec.PropagateDeps == true
+			}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+		})
+	})
 })

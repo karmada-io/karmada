@@ -152,30 +152,41 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 	return d.ApplyClusterPolicy(object, objectKey, matchedClusterPropagationPolicy)
 }
 
-func (d *ResourceDetector) cleanUnmatchedResourceBindings(policyNamespace, policyName string, selectors []policyv1alpha1.ResourceSelector) error {
-	var ls labels.Set
-	var removeLabels []string
-	if len(policyNamespace) == 0 {
-		ls = labels.Set{policyv1alpha1.ClusterPropagationPolicyLabel: policyName}
-		removeLabels = []string{policyv1alpha1.ClusterPropagationPolicyLabel}
-	} else {
-		ls = labels.Set{
-			policyv1alpha1.PropagationPolicyNamespaceLabel: policyNamespace,
-			policyv1alpha1.PropagationPolicyNameLabel:      policyName,
-		}
-		removeLabels = []string{
-			policyv1alpha1.PropagationPolicyNamespaceLabel,
-			policyv1alpha1.PropagationPolicyNameLabel,
-		}
-	}
-
-	bindings := &workv1alpha2.ResourceBindingList{}
-	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
-	err := d.Client.List(context.TODO(), bindings, listOpt)
+func (d *ResourceDetector) cleanPPUnmatchedResourceBindings(policyNamespace, policyName string, selectors []policyv1alpha1.ResourceSelector) error {
+	bindings, err := d.listPPDerivedRB(policyNamespace, policyName)
 	if err != nil {
-		klog.Errorf("Failed to list ResourceBinding with policy(%s/%s), error: %v", policyNamespace, policyName, err)
+		return err
 	}
 
+	removeLabels := []string{
+		policyv1alpha1.PropagationPolicyNamespaceLabel,
+		policyv1alpha1.PropagationPolicyNameLabel,
+	}
+	return d.removeResourceBindingsLabels(bindings, selectors, removeLabels)
+}
+
+func (d *ResourceDetector) cleanCPPUnmatchedResourceBindings(policyName string, selectors []policyv1alpha1.ResourceSelector) error {
+	bindings, err := d.listCPPDerivedRB(policyName)
+	if err != nil {
+		return err
+	}
+
+	removeLabels := []string{
+		policyv1alpha1.ClusterPropagationPolicyLabel,
+	}
+	return d.removeResourceBindingsLabels(bindings, selectors, removeLabels)
+}
+
+func (d *ResourceDetector) cleanUnmatchedClusterResourceBinding(policyName string, selectors []policyv1alpha1.ResourceSelector) error {
+	bindings, err := d.listCPPDerivedCRB(policyName)
+	if err != nil {
+		return err
+	}
+
+	return d.removeClusterResourceBindingsLabels(bindings, selectors)
+}
+
+func (d *ResourceDetector) removeResourceBindingsLabels(bindings *workv1alpha2.ResourceBindingList, selectors []policyv1alpha1.ResourceSelector, removeLabels []string) error {
 	var errs []error
 	for _, binding := range bindings.Items {
 		removed, err := d.removeResourceLabelsIfNotMatch(binding.Spec.Resource, selectors, removeLabels...)
@@ -202,20 +213,11 @@ func (d *ResourceDetector) cleanUnmatchedResourceBindings(policyNamespace, polic
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
 	}
+
 	return nil
 }
 
-func (d *ResourceDetector) cleanUnmatchedClusterResourceBinding(policyName string, selectors []policyv1alpha1.ResourceSelector) error {
-	bindings := &workv1alpha2.ClusterResourceBindingList{}
-	listOpt := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{
-			policyv1alpha1.ClusterPropagationPolicyLabel: policyName,
-		})}
-	err := d.Client.List(context.TODO(), bindings, listOpt)
-	if err != nil {
-		klog.Errorf("Failed to list ClusterResourceBinding with policy(%s), error: %v", policyName, err)
-	}
-
+func (d *ResourceDetector) removeClusterResourceBindingsLabels(bindings *workv1alpha2.ClusterResourceBindingList, selectors []policyv1alpha1.ResourceSelector) error {
 	var errs []error
 	for _, binding := range bindings.Items {
 		removed, err := d.removeResourceLabelsIfNotMatch(binding.Spec.Resource, selectors, []string{policyv1alpha1.ClusterPropagationPolicyLabel}...)
@@ -269,4 +271,52 @@ func (d *ResourceDetector) removeResourceLabelsIfNotMatch(objectReference workv1
 		return false, err
 	}
 	return true, nil
+}
+
+func (d *ResourceDetector) listPPDerivedRB(policyNamespace, policyName string) (*workv1alpha2.ResourceBindingList, error) {
+	bindings := &workv1alpha2.ResourceBindingList{}
+	listOpt := &client.ListOptions{
+		Namespace: policyNamespace,
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			policyv1alpha1.PropagationPolicyNamespaceLabel: policyNamespace,
+			policyv1alpha1.PropagationPolicyNameLabel:      policyName,
+		}),
+	}
+	err := d.Client.List(context.TODO(), bindings, listOpt)
+	if err != nil {
+		klog.Errorf("Failed to list ResourceBinding with policy(%s/%s), error: %v", policyNamespace, policyName, err)
+		return nil, err
+	}
+
+	return bindings, nil
+}
+
+func (d *ResourceDetector) listCPPDerivedRB(policyName string) (*workv1alpha2.ResourceBindingList, error) {
+	bindings := &workv1alpha2.ResourceBindingList{}
+	listOpt := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			policyv1alpha1.ClusterPropagationPolicyLabel: policyName,
+		})}
+	err := d.Client.List(context.TODO(), bindings, listOpt)
+	if err != nil {
+		klog.Errorf("Failed to list ResourceBinding with policy(%s), error: %v", policyName, err)
+		return nil, err
+	}
+
+	return bindings, nil
+}
+
+func (d *ResourceDetector) listCPPDerivedCRB(policyName string) (*workv1alpha2.ClusterResourceBindingList, error) {
+	bindings := &workv1alpha2.ClusterResourceBindingList{}
+	listOpt := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			policyv1alpha1.ClusterPropagationPolicyLabel: policyName,
+		})}
+	err := d.Client.List(context.TODO(), bindings, listOpt)
+	if err != nil {
+		klog.Errorf("Failed to list ClusterResourceBinding with policy(%s), error: %v", policyName, err)
+		return nil, err
+	}
+
+	return bindings, nil
 }

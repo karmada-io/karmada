@@ -368,7 +368,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
 func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) (err error) {
 	start := time.Now()
-	klog.Infof("Applying policy(%s%s) for object: %s", policy.Namespace, policy.Name, objectKey)
+	klog.Infof("Applying policy(%s/%s) for object: %s", policy.Namespace, policy.Name, objectKey)
 	var operationResult controllerutil.OperationResult
 	defer func() {
 		metrics.ObserveApplyPolicyAttemptAndLatency(object, policy.ObjectMeta, err, start)
@@ -756,7 +756,7 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{})
 		return
 	}
 
-	klog.V(2).Infof("Update PropagationPolicy(%s) resourceSelectors", key)
+	klog.V(2).Infof("Update PropagationPolicy(%s)", key)
 	d.policyReconcileWorker.Add(key)
 }
 
@@ -820,7 +820,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj inter
 		return
 	}
 
-	klog.V(2).Infof("Update ClusterPropagationPolicy(%s) resourceSelectors", key)
+	klog.V(2).Infof("Update ClusterPropagationPolicy(%s)", key)
 	d.clusterPolicyReconcileWorker.Add(key)
 }
 
@@ -969,9 +969,30 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyName str
 // And then check if object in waiting list matches the policy, if yes remove the object
 // from waiting list and throw the object to it's reconcile queue. If not, do nothing.
 func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *policyv1alpha1.PropagationPolicy) error {
-	err := d.cleanUnmatchedResourceBindings(policy.Namespace, policy.Name, policy.Spec.ResourceSelectors)
+	err := d.cleanPPUnmatchedResourceBindings(policy.Namespace, policy.Name, policy.Spec.ResourceSelectors)
 	if err != nil {
 		return err
+	}
+
+	// When updating fields other than ResourceSelector, should first find the corresponding ResourceBinding
+	// and add the bound object to the processor's queue for reconciliation to make sure that
+	// PropagationPolicy's updates can be synchronized to ResourceBinding.
+	resourceBindings, err := d.listPPDerivedRB(policy.Namespace, policy.Name)
+	if err != nil {
+		return err
+	}
+	for _, rb := range resourceBindings.Items {
+		gv, err := schema.ParseGroupVersion(rb.Spec.Resource.APIVersion)
+		if err != nil {
+			return err
+		}
+		d.Processor.Add(keys.ClusterWideKey{
+			Name:      rb.Spec.Resource.Name,
+			Namespace: rb.Spec.Resource.Namespace,
+			Kind:      rb.Spec.Resource.Kind,
+			Group:     gv.Group,
+			Version:   gv.Version,
+		})
 	}
 
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
@@ -1000,7 +1021,7 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 // And then check if object in waiting list matches the policy, if yes remove the object
 // from waiting list and throw the object to it's reconcile queue. If not, do nothing.
 func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy *policyv1alpha1.ClusterPropagationPolicy) error {
-	err := d.cleanUnmatchedResourceBindings("", policy.Name, policy.Spec.ResourceSelectors)
+	err := d.cleanCPPUnmatchedResourceBindings(policy.Name, policy.Spec.ResourceSelectors)
 	if err != nil {
 		return err
 	}
@@ -1008,6 +1029,44 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 	err = d.cleanUnmatchedClusterResourceBinding(policy.Name, policy.Spec.ResourceSelectors)
 	if err != nil {
 		return err
+	}
+
+	// When updating fields other than ResourceSelector, should first find the corresponding ResourceBinding/ClusterResourceBinding
+	// and add the bound object to the processor's queue for reconciliation to make sure that
+	// ClusterPropagationPolicy's updates can be synchronized to ResourceBinding/ClusterResourceBinding.
+	resourceBindings, err := d.listCPPDerivedRB(policy.Name)
+	if err != nil {
+		return err
+	}
+	clusterResourceBindings, err := d.listCPPDerivedCRB(policy.Name)
+	if err != nil {
+		return err
+	}
+	for _, rb := range resourceBindings.Items {
+		gv, err := schema.ParseGroupVersion(rb.Spec.Resource.APIVersion)
+		if err != nil {
+			return err
+		}
+		d.Processor.Add(keys.ClusterWideKey{
+			Name:      rb.Spec.Resource.Name,
+			Namespace: rb.Spec.Resource.Namespace,
+			Kind:      rb.Spec.Resource.Kind,
+			Group:     gv.Group,
+			Version:   gv.Version,
+		})
+	}
+	for _, crb := range clusterResourceBindings.Items {
+		gv, err := schema.ParseGroupVersion(crb.Spec.Resource.APIVersion)
+		if err != nil {
+			return err
+		}
+		d.Processor.Add(keys.ClusterWideKey{
+			Name:      crb.Spec.Resource.Name,
+			Namespace: crb.Spec.Resource.Namespace,
+			Kind:      crb.Spec.Resource.Kind,
+			Group:     gv.Group,
+			Version:   gv.Version,
+		})
 	}
 
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
