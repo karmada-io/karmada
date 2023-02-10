@@ -937,3 +937,91 @@ func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
 		})
 	}
 }
+
+func Test_aggregateCronJobStatus(t *testing.T) {
+	currCronJobObj, _ := helper.ToUnstructured(&batchv1.CronJob{
+		Status: batchv1.CronJobStatus{
+			Active:             []corev1.ObjectReference{},
+			LastScheduleTime:   nil,
+			LastSuccessfulTime: nil,
+		},
+	})
+
+	cronjobStatusRaw1, _ := helper.BuildStatusRawExtension(map[string]interface{}{
+		"active": []corev1.ObjectReference{
+			{
+				APIVersion:      "batch/v1",
+				Kind:            "Job",
+				Name:            "foo",
+				Namespace:       "default",
+				ResourceVersion: "1",
+				UID:             "1d5db04f-f2e8-4807-b6d4-7b78f402250d",
+			},
+		},
+		"lastScheduleTime":   "2023-02-08T07:16:00Z",
+		"lastSuccessfulTime": "2023-02-08T07:15:00Z",
+	})
+	cronjobStatusRaw2, _ := helper.BuildStatusRawExtension(map[string]interface{}{
+		"active": []corev1.ObjectReference{
+			{
+				APIVersion:      "batch/v1",
+				Kind:            "Job",
+				Name:            "foo",
+				Namespace:       "default",
+				ResourceVersion: "1",
+				UID:             "1d5db04f-f2e8-4807-b6d4-7b78f402250d",
+			},
+		},
+		"lastScheduleTime":   "2023-02-08T07:17:00Z",
+		"lastSuccessfulTime": "2023-02-08T07:17:00Z",
+	})
+	parse, _ := time.Parse("2006-01-02 15:04:05", "2023-02-08 07:17:00")
+	successfulTime := metav1.NewTime(parse)
+	expectedCronJobObj, _ := helper.ToUnstructured(&batchv1.CronJob{
+		Status: batchv1.CronJobStatus{
+			Active: []corev1.ObjectReference{
+				{
+					APIVersion:      "batch/v1",
+					Kind:            "Job",
+					Name:            "foo",
+					Namespace:       "default",
+					ResourceVersion: "1",
+					UID:             "1d5db04f-f2e8-4807-b6d4-7b78f402250d",
+				},
+				{
+					APIVersion:      "batch/v1",
+					Kind:            "Job",
+					Name:            "foo",
+					Namespace:       "default",
+					ResourceVersion: "1",
+					UID:             "1d5db04f-f2e8-4807-b6d4-7b78f402250d",
+				},
+			},
+			LastScheduleTime:   &successfulTime,
+			LastSuccessfulTime: &successfulTime,
+		},
+	})
+
+	aggregateStatusItems := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: cronjobStatusRaw1, Applied: true},
+		{ClusterName: "member2", Status: cronjobStatusRaw2, Applied: true},
+	}
+	for _, tt := range []struct {
+		name                  string
+		curObj                *unstructured.Unstructured
+		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
+		expectedObj           *unstructured.Unstructured
+	}{
+		{
+			name:                  "update cronjob status",
+			curObj:                currCronJobObj,
+			expectedObj:           expectedCronJobObj,
+			aggregatedStatusItems: aggregateStatusItems,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			actualObj, _ := aggregateCronJobStatus(tt.curObj, tt.aggregatedStatusItems)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
+	}
+}

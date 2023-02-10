@@ -28,6 +28,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = aggregateServiceStatus
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = aggregateIngressStatus
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = aggregateJobStatus
+	s[batchv1.SchemeGroupVersion.WithKind(util.CronJobKind)] = aggregateCronJobStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = aggregateDaemonSetStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = aggregateStatefulSetStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = aggregatePodStatus
@@ -196,6 +197,47 @@ func aggregateJobStatus(object *unstructured.Unstructured, aggregatedStatusItems
 
 	job.Status = *newStatus
 	return helper.ToUnstructured(job)
+}
+
+func aggregateCronJobStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	cronjob := &batchv1.CronJob{}
+	err := helper.ConvertToTypedObject(object, cronjob)
+	if err != nil {
+		return nil, err
+	}
+	newStatus := &batchv1.CronJobStatus{}
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+		temp := &batchv1.CronJobStatus{}
+		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab cronJob(%s/%s) status from cluster(%s), active: %+v, lastScheduleTime: %s, lastSuccessfulTime: %s",
+			cronjob.Namespace, cronjob.Name, item.ClusterName, temp.Active, temp.LastScheduleTime.String(), temp.LastSuccessfulTime.String())
+		newStatus.Active = append(newStatus.Active, temp.Active...)
+		if newStatus.LastScheduleTime == nil {
+			newStatus.LastScheduleTime = temp.LastScheduleTime
+		}
+		if newStatus.LastScheduleTime != nil && temp.LastScheduleTime != nil && newStatus.LastScheduleTime.Before(temp.LastScheduleTime) {
+			newStatus.LastScheduleTime = temp.LastScheduleTime
+		}
+		if newStatus.LastSuccessfulTime == nil {
+			newStatus.LastSuccessfulTime = temp.LastSuccessfulTime
+		}
+		if newStatus.LastSuccessfulTime != nil && temp.LastSuccessfulTime != nil && newStatus.LastSuccessfulTime.Before(temp.LastSuccessfulTime) {
+			newStatus.LastSuccessfulTime = temp.LastSuccessfulTime
+		}
+	}
+	if reflect.DeepEqual(cronjob.Status, *newStatus) {
+		klog.V(3).Infof("Ignore update cronjob(%s/%s) status as up to date", cronjob.Namespace, cronjob.Name)
+		return object, nil
+	}
+	cronjob.Status.Active = newStatus.Active
+	cronjob.Status.LastScheduleTime = newStatus.LastScheduleTime
+	cronjob.Status.LastSuccessfulTime = newStatus.LastSuccessfulTime
+	return helper.ToUnstructured(cronjob)
 }
 
 func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
