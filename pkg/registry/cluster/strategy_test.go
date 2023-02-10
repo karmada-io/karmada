@@ -276,23 +276,30 @@ func TestStrategy_AllowUnconditionalUpdate(t *testing.T) {
 
 func TestStrategy_Canonicalize(t *testing.T) {
 	clusterStrategy := NewStrategy(clusterscheme.Scheme)
-	clusterBefore := getValidCluster("cluster")
-	clusterAfter := getValidCluster("cluster")
-	clusterAfter.Spec.Taints = []corev1.Taint{
+	cluster := getValidCluster("cluster")
+	cluster.Spec.Taints = []corev1.Taint{
 		{
 			Key:    "foo",
-			Value:  "abc",
+			Value:  "bar",
 			Effect: corev1.TaintEffectNoSchedule,
 		},
 		{
-			Key:    "bar",
+			Key:    "foo1",
+			Value:  "bar1",
 			Effect: corev1.TaintEffectNoExecute,
 		},
 	}
 
-	clusterStrategy.Canonicalize(clusterBefore)
-	if !reflect.DeepEqual(clusterAfter, clusterAfter) {
-		t.Errorf("Object mismatch! Excepted: \n%#v \ngot: \n%#v", clusterAfter, clusterAfter)
+	clusterStrategy.Canonicalize(cluster)
+	success := true
+	for _, taint := range cluster.Spec.Taints {
+		if taint.Effect == corev1.TaintEffectNoExecute && taint.TimeAdded == nil {
+			success = false
+			break
+		}
+	}
+	if !success {
+		t.Errorf("cluster canonicalize error, got: \n%#v", cluster)
 	}
 }
 
