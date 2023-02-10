@@ -915,7 +915,7 @@ func (g *CommandGetOptions) getRBInKarmada() error {
 	if !g.AllNamespaces {
 		rbList, err = g.karmadaClient.WorkV1alpha2().ResourceBindings(*options.DefaultConfigFlags.Namespace).List(context.TODO(), metav1.ListOptions{})
 	} else {
-		rbList, err = g.karmadaClient.WorkV1alpha2().ResourceBindings("").List(context.TODO(), metav1.ListOptions{})
+		rbList, err = g.karmadaClient.WorkV1alpha2().ResourceBindings(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 	}
 	if err != nil {
 		return err

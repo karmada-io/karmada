@@ -93,7 +93,7 @@ func (o *CommandAddonsEnableOption) Validate(args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get nodes from cluster %s with member-kubeconfig and member-context. error: %v, Please check the Role or ClusterRole of the serviceAccount in your member-kubeconfig", o.Cluster, err)
 		}
-		_, err = memberKubeClient.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+		_, err = memberKubeClient.CoreV1().Pods(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get pods from cluster %s with member-kubeconfig and member-context. error: %v, Please check the Role or ClusterRole of the serviceAccount in your member-kubeconfig", o.Cluster, err)
 		}
