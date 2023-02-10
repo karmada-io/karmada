@@ -58,6 +58,23 @@ const (
 	// For more details about UID, please refer to:
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
 	ResourceTemplateUIDAnnotation = "resourcetemplate.karmada.io/uid"
+	// ManagedLabels is the annotation that is added to the manifest in the Work object.
+	// It is used to identify the label keys that are present in the resource template.
+	// With this annotation, Karmada is able to accurately synchronize label changes
+	// against resource template and avoid the problem of accidentally retaining
+	// the deleted labels.
+	// E.g. "resourcetemplate.karmada.io/managed-labels: bar,foo".
+	// Note: the keys will be sorted in alphabetical order.
+	ManagedLabels = "resourcetemplate.karmada.io/managed-labels"
+
+	// ManagedAnnotation is the annotation that is added to the manifest in the Work object.
+	// It is used to identify the annotation keys that are present in the resource template.
+	// With this annotation, Karmada is able to accurately synchronize annotation changes
+	// against resource template and avoid the problem of accidentally retaining
+	// the deleted annotations.
+	// E.g. "resourcetemplate.karmada.io/managed-annotations: bar,foo".
+	// Note: the keys will be sorted in alphabetical order.
+	ManagedAnnotation = "resourcetemplate.karmada.io/managed-annotations"
 )
 
 // Define eviction reasons.
