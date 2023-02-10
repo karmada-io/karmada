@@ -11,7 +11,7 @@ function usage() {
   echo "Example: hack/create-cluster.sh host /root/.kube/karmada.config"
 }
 
-CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.23.4"}
+CLUSTER_VERSION=${CLUSTER_VERSION:-"kindest/node:v1.26.0"}
 
 if [[ $# -lt 1 ]]; then
   usage
