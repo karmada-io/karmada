@@ -494,6 +494,11 @@ kubeControllerManager:
 
 ## etcd config
 etcd:
+  ## @param etcd.labels labels of the etcd statefulset
+  labels:
+    app: etcd
+  ## @param etcd.labels labels of the etcd pods
+  podLabels: {}
   ## @param etcd.mode "external" and "internal" are provided
   ## "external" means use external ectd
   ## "internal" means install a etcd in the cluster
