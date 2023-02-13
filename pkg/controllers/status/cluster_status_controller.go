@@ -305,9 +305,11 @@ func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clu
 // and pod and start it. If the informer manager exist, return it.
 func (c *ClusterStatusController) buildInformerForCluster(clusterClient *util.ClusterClient) (typedmanager.SingleClusterInformerManager, error) {
 	singleClusterInformerManager := c.TypedInformerManager.GetSingleClusterManager(clusterClient.ClusterName)
-	if singleClusterInformerManager == nil {
-		singleClusterInformerManager = c.TypedInformerManager.ForCluster(clusterClient.ClusterName, clusterClient.KubeClient, 0)
+	if singleClusterInformerManager != nil {
+		return singleClusterInformerManager, nil
 	}
+
+	singleClusterInformerManager = c.TypedInformerManager.ForCluster(clusterClient.ClusterName, clusterClient.KubeClient, 0)
 
 	gvrs := []schema.GroupVersionResource{nodeGVR, podGVR}
 
