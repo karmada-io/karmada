@@ -72,20 +72,10 @@ if [[ -z "${SERVICE_CIDR}" ]]; then
     SERVICE_CIDR=$(generate_cidr 100)
 fi
 
-function deploy_weave_cni() {
-  echo "Applying weave network..."
-  kubectl --kubeconfig=$1 apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl --kubeconfig=$1 version | base64 | tr -d '\n')&env.IPALLOC_RANGE=$2"
-  echo "Waiting for weave-net pods to be ready..."
-  kubectl --kubeconfig=$1 wait --for=condition=Ready pods -l name=weave-net -n kube-system --timeout=10m
-  echo "Waiting for core-dns deployment to be ready..."
-  kubectl --kubeconfig=$1 -n kube-system rollout status deploy/coredns --timeout=5m
-}
-
 #generate for kindClusterConfig
 TEMP_PATH=$(mktemp -d)
 trap '{ rm -rf ${TEMP_PATH}; }' EXIT
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/general-config.yaml "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
-sed -i'' -e "s#{{disable_cni}}#true#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 sed -i'' -e "s#{{pod_cidr}}#${POD_CIDR}#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 sed -i'' -e "s#{{service_cidr}}#${SERVICE_CIDR}#g" "${TEMP_PATH}"/"${CLUSTER_NAME}"-config.yaml
 
@@ -99,7 +89,5 @@ kubectl config rename-context "kind-${CLUSTER_NAME}" "${CLUSTER_NAME}" --kubecon
 # So we need to update endpoint with container IP.
 container_ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${CLUSTER_NAME}-control-plane")
 kubectl config set-cluster "kind-${CLUSTER_NAME}" --server="https://${container_ip}:6443" --kubeconfig="${KUBECONFIG}"
-
-deploy_weave_cni "${KUBECONFIG}" "${POD_CIDR}"
 
 echo "cluster \"${CLUSTER_NAME}\" is created successfully!"
