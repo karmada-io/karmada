@@ -34,17 +34,6 @@ func (s *Scheduler) addAllEventHandlers() {
 		klog.Errorf("Failed to add handlers for ResourceBindings: %v", err)
 	}
 
-	policyInformer := s.informerFactory.Policy().V1alpha1().PropagationPolicies().Informer()
-	_, err = policyInformer.AddEventHandler(cache.FilteringResourceEventHandler{
-		FilterFunc: s.policyEventFilter,
-		Handler: cache.ResourceEventHandlerFuncs{
-			UpdateFunc: s.onPropagationPolicyUpdate,
-		},
-	})
-	if err != nil {
-		klog.Errorf("Failed to add handlers for PropagationPolicies: %v", err)
-	}
-
 	clusterBindingInformer := s.informerFactory.Work().V1alpha2().ClusterResourceBindings().Informer()
 	_, err = clusterBindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: s.resourceBindingEventFilter,
@@ -55,17 +44,6 @@ func (s *Scheduler) addAllEventHandlers() {
 	})
 	if err != nil {
 		klog.Errorf("Failed to add handlers for ClusterResourceBindings: %v", err)
-	}
-
-	clusterPolicyInformer := s.informerFactory.Policy().V1alpha1().ClusterPropagationPolicies().Informer()
-	_, err = clusterPolicyInformer.AddEventHandler(cache.FilteringResourceEventHandler{
-		FilterFunc: s.policyEventFilter,
-		Handler: cache.ResourceEventHandlerFuncs{
-			UpdateFunc: s.onClusterPropagationPolicyUpdate,
-		},
-	})
-	if err != nil {
-		klog.Errorf("Failed to add handlers for ClusterPropagationPolicies: %v", err)
 	}
 
 	memClusterInformer := s.informerFactory.Cluster().V1alpha1().Clusters().Informer()
@@ -82,9 +60,7 @@ func (s *Scheduler) addAllEventHandlers() {
 
 	// ignore the error here because the informers haven't been started
 	_ = bindingInformer.SetTransform(fedinformer.StripUnusedFields)
-	_ = policyInformer.SetTransform(fedinformer.StripUnusedFields)
 	_ = clusterBindingInformer.SetTransform(fedinformer.StripUnusedFields)
-	_ = clusterPolicyInformer.SetTransform(fedinformer.StripUnusedFields)
 	_ = memClusterInformer.SetTransform(fedinformer.StripUnusedFields)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -112,17 +88,6 @@ func (s *Scheduler) resourceBindingEventFilter(obj interface{}) bool {
 
 	return util.GetLabelValue(accessor.GetLabels(), policyv1alpha1.PropagationPolicyNameLabel) != "" ||
 		util.GetLabelValue(accessor.GetLabels(), policyv1alpha1.ClusterPropagationPolicyLabel) != ""
-}
-
-func (s *Scheduler) policyEventFilter(obj interface{}) bool {
-	switch t := obj.(type) {
-	case *policyv1alpha1.PropagationPolicy:
-		return schedulerNameFilter(s.schedulerName, t.Spec.SchedulerName)
-	case *policyv1alpha1.ClusterPropagationPolicy:
-		return schedulerNameFilter(s.schedulerName, t.Spec.SchedulerName)
-	}
-
-	return true
 }
 
 func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
@@ -169,77 +134,6 @@ func (s *Scheduler) onClusterResourceBindingRequeue(clusterResourceBinding *work
 	metrics.CountSchedulerBindings(event)
 }
 
-func (s *Scheduler) onPropagationPolicyUpdate(old, cur interface{}) {
-	oldPropagationPolicy := old.(*policyv1alpha1.PropagationPolicy)
-	curPropagationPolicy := cur.(*policyv1alpha1.PropagationPolicy)
-	if equality.Semantic.DeepEqual(oldPropagationPolicy.Spec.Placement, curPropagationPolicy.Spec.Placement) {
-		klog.V(2).Infof("Ignore PropagationPolicy(%s/%s) which placement unchanged.", oldPropagationPolicy.Namespace, oldPropagationPolicy.Name)
-		return
-	}
-
-	selector := labels.SelectorFromSet(labels.Set{
-		policyv1alpha1.PropagationPolicyNamespaceLabel: oldPropagationPolicy.Namespace,
-		policyv1alpha1.PropagationPolicyNameLabel:      oldPropagationPolicy.Name,
-	})
-
-	err := s.requeueResourceBindings(selector, metrics.PolicyChanged)
-	if err != nil {
-		klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
-		return
-	}
-}
-
-// requeueClusterResourceBindings will retrieve all ClusterResourceBinding objects by the label selector and put them to queue.
-func (s *Scheduler) requeueClusterResourceBindings(selector labels.Selector, event string) error {
-	referenceClusterResourceBindings, err := s.clusterBindingLister.List(selector)
-	if err != nil {
-		klog.Errorf("Failed to list ClusterResourceBinding by selector: %s, error: %v", selector.String(), err)
-		return err
-	}
-
-	for _, clusterResourceBinding := range referenceClusterResourceBindings {
-		s.onClusterResourceBindingRequeue(clusterResourceBinding, event)
-	}
-	return nil
-}
-
-// requeueResourceBindings will retrieve all ResourceBinding objects by the label selector and put them to queue.
-func (s *Scheduler) requeueResourceBindings(selector labels.Selector, event string) error {
-	referenceBindings, err := s.bindingLister.List(selector)
-	if err != nil {
-		klog.Errorf("Failed to list ResourceBinding by selector: %s, error: %v", selector.String(), err)
-		return err
-	}
-
-	for _, binding := range referenceBindings {
-		s.onResourceBindingRequeue(binding, event)
-	}
-	return nil
-}
-
-func (s *Scheduler) onClusterPropagationPolicyUpdate(old, cur interface{}) {
-	oldClusterPropagationPolicy := old.(*policyv1alpha1.ClusterPropagationPolicy)
-	curClusterPropagationPolicy := cur.(*policyv1alpha1.ClusterPropagationPolicy)
-	if equality.Semantic.DeepEqual(oldClusterPropagationPolicy.Spec.Placement, curClusterPropagationPolicy.Spec.Placement) {
-		klog.V(2).Infof("Ignore ClusterPropagationPolicy(%s) which placement unchanged.", oldClusterPropagationPolicy.Name)
-		return
-	}
-
-	selector := labels.SelectorFromSet(labels.Set{
-		policyv1alpha1.ClusterPropagationPolicyLabel: oldClusterPropagationPolicy.Name,
-	})
-
-	err := s.requeueClusterResourceBindings(selector, metrics.PolicyChanged)
-	if err != nil {
-		klog.Errorf("Failed to requeue ClusterResourceBinding, error: %v", err)
-	}
-
-	err = s.requeueResourceBindings(selector, metrics.PolicyChanged)
-	if err != nil {
-		klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
-	}
-}
-
 func (s *Scheduler) addCluster(obj interface{}) {
 	cluster, ok := obj.(*clusterv1alpha1.Cluster)
 	if !ok {
@@ -273,20 +167,19 @@ func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 	case !equality.Semantic.DeepEqual(oldCluster.Labels, newCluster.Labels):
 		fallthrough
 	case !equality.Semantic.DeepEqual(oldCluster.Spec, newCluster.Spec):
-		s.enqueueAffectedPolicy(oldCluster, newCluster)
-		s.enqueueAffectedClusterPolicy(oldCluster, newCluster)
+		s.enqueueAffectedBindings(oldCluster, newCluster)
 	}
 }
 
-// enqueueAffectedPolicy find all propagation policies related to the cluster and reschedule the RBs
-func (s *Scheduler) enqueueAffectedPolicy(oldCluster, newCluster *clusterv1alpha1.Cluster) {
-	policies, _ := s.policyLister.List(labels.Everything())
-	for _, policy := range policies {
-		selector := labels.SelectorFromSet(labels.Set{
-			policyv1alpha1.PropagationPolicyNamespaceLabel: policy.Namespace,
-			policyv1alpha1.PropagationPolicyNameLabel:      policy.Name,
-		})
-		affinity := policy.Spec.Placement.ClusterAffinity
+// enqueueAffectedBinding find all RBs/CRBs related to the cluster and reschedule them
+func (s *Scheduler) enqueueAffectedBindings(oldCluster, newCluster *clusterv1alpha1.Cluster) {
+	bindings, _ := s.bindingLister.List(labels.Everything())
+	for _, binding := range bindings {
+		placementPtr := binding.Spec.Placement
+		if placementPtr == nil {
+			continue
+		}
+		affinity := placementPtr.ClusterAffinity
 		switch {
 		case affinity == nil:
 			// If no clusters specified, add it to the queue
@@ -296,22 +189,17 @@ func (s *Scheduler) enqueueAffectedPolicy(oldCluster, newCluster *clusterv1alpha
 			fallthrough
 		case util.ClusterMatches(oldCluster, *affinity):
 			// If the old cluster manifest match the affinity, add it to the queue, trigger rescheduling
-			err := s.requeueResourceBindings(selector, metrics.ClusterChanged)
-			if err != nil {
-				klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
-			}
+			s.onResourceBindingRequeue(binding, metrics.ClusterChanged)
 		}
 	}
-}
 
-// enqueueAffectedClusterPolicy find all cluster propagation policies related to the cluster and reschedule the RBs/CRBs
-func (s *Scheduler) enqueueAffectedClusterPolicy(oldCluster, newCluster *clusterv1alpha1.Cluster) {
-	clusterPolicies, _ := s.clusterPolicyLister.List(labels.Everything())
-	for _, policy := range clusterPolicies {
-		selector := labels.SelectorFromSet(labels.Set{
-			policyv1alpha1.ClusterPropagationPolicyLabel: policy.Name,
-		})
-		affinity := policy.Spec.Placement.ClusterAffinity
+	clusterBindings, _ := s.clusterBindingLister.List(labels.Everything())
+	for _, binding := range clusterBindings {
+		placementPtr := binding.Spec.Placement
+		if placementPtr == nil {
+			continue
+		}
+		affinity := placementPtr.ClusterAffinity
 		switch {
 		case affinity == nil:
 			// If no clusters specified, add it to the queue
@@ -321,14 +209,7 @@ func (s *Scheduler) enqueueAffectedClusterPolicy(oldCluster, newCluster *cluster
 			fallthrough
 		case util.ClusterMatches(oldCluster, *affinity):
 			// If the old cluster manifest match the affinity, add it to the queue, trigger rescheduling
-			err := s.requeueClusterResourceBindings(selector, metrics.ClusterChanged)
-			if err != nil {
-				klog.Errorf("Failed to requeue ClusterResourceBinding, error: %v", err)
-			}
-			err = s.requeueResourceBindings(selector, metrics.ClusterChanged)
-			if err != nil {
-				klog.Errorf("Failed to requeue ResourceBinding, error: %v", err)
-			}
+			s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
 		}
 	}
 }

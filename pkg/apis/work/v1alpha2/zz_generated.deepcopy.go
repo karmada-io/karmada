@@ -6,6 +6,7 @@
 package v1alpha2
 
 import (
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -289,6 +290,11 @@ func (in *ResourceBindingSpec) DeepCopyInto(out *ResourceBindingSpec) {
 		in, out := &in.Clusters, &out.Clusters
 		*out = make([]TargetCluster, len(*in))
 		copy(*out, *in)
+	}
+	if in.Placement != nil {
+		in, out := &in.Placement, &out.Placement
+		*out = new(v1alpha1.Placement)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.GracefulEvictionTasks != nil {
 		in, out := &in.GracefulEvictionTasks, &out.GracefulEvictionTasks
