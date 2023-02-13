@@ -33,7 +33,7 @@ type ObjectWatcher interface {
 }
 
 // ClientSetFunc is used to generate client set of member cluster
-type ClientSetFunc func(c string, client client.Client) (*util.DynamicClusterClient, error)
+type ClientSetFunc func(c string, client client.Client, clientOption *util.ClientOption) (*util.DynamicClusterClient, error)
 
 type objectWatcherImpl struct {
 	Lock                 sync.RWMutex
@@ -43,10 +43,11 @@ type objectWatcherImpl struct {
 	ClusterClientSetFunc ClientSetFunc
 	resourceInterpreter  resourceinterpreter.ResourceInterpreter
 	InformerManager      genericmanager.MultiClusterInformerManager
+	ClientOption         *util.ClientOption
 }
 
 // NewObjectWatcher returns an instance of ObjectWatcher
-func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc, interpreter resourceinterpreter.ResourceInterpreter) ObjectWatcher {
+func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, clusterClientSetFunc ClientSetFunc, interpreter resourceinterpreter.ResourceInterpreter, clientOption *util.ClientOption) ObjectWatcher {
 	return &objectWatcherImpl{
 		KubeClientSet:        kubeClientSet,
 		VersionRecord:        make(map[string]map[string]string),
@@ -54,11 +55,12 @@ func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, c
 		ClusterClientSetFunc: clusterClientSetFunc,
 		resourceInterpreter:  interpreter,
 		InformerManager:      genericmanager.GetInstance(),
+		ClientOption:         clientOption,
 	}
 }
 
 func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.Unstructured) error {
-	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
+	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet, o.ClientOption)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
 		return err
@@ -129,7 +131,7 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 		return nil
 	}
 
-	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
+	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet, o.ClientOption)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
 		return err
@@ -161,7 +163,7 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 }
 
 func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.Unstructured) error {
-	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
+	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet, o.ClientOption)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
 		return err

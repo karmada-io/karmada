@@ -32,6 +32,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/version"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
@@ -171,7 +172,7 @@ func config(o *options.Options, outOfTreeRegistryOptions ...Option) (*search.Con
 
 	var ctl *search.Controller
 	if !o.DisableSearch {
-		ctl, err = search.NewController(serverConfig.ClientConfig, factory, restMapper)
+		ctl, err = search.NewController(serverConfig.ClientConfig, factory, restMapper, util.NewClientOption(o.ClusterAPIQPS, o.ClusterAPIBurst))
 		if err != nil {
 			return nil, err
 		}

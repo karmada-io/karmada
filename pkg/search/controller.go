@@ -52,22 +52,23 @@ type Controller struct {
 
 	clusterRegistry sync.Map
 
-	InformerManager genericmanager.MultiClusterInformerManager
+	InformerManager     genericmanager.MultiClusterInformerManager
+	ClusterClientOption *util.ClientOption
 }
 
 // NewController returns a new ResourceRegistry controller
-func NewController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, restMapper meta.RESTMapper) (*Controller, error) {
+func NewController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, restMapper meta.RESTMapper, clientOption *util.ClientOption) (*Controller, error) {
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	c := &Controller{
-		restConfig:      restConfig,
-		informerFactory: factory,
-		clusterLister:   clusterLister,
-		queue:           queue,
-		restMapper:      restMapper,
-
-		InformerManager: genericmanager.GetInstance(),
+		restConfig:          restConfig,
+		informerFactory:     factory,
+		clusterLister:       clusterLister,
+		queue:               queue,
+		restMapper:          restMapper,
+		InformerManager:     genericmanager.GetInstance(),
+		ClusterClientOption: clientOption,
 	}
 	c.addAllEventHandlers()
 
@@ -206,7 +207,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 		klog.Info("Try to build informer manager for cluster ", cluster)
 		controlPlaneClient := gclient.NewForConfigOrDie(c.restConfig)
 
-		clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, controlPlaneClient)
+		clusterDynamicClient, err := util.NewClusterDynamicClientSet(cluster, controlPlaneClient, c.ClusterClientOption)
 		if err != nil {
 			return err
 		}

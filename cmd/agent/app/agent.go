@@ -234,7 +234,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}
 
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter)
+	clusterClientOptions := util.NewClientOption(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, resourceInterpreter, clusterClientOptions)
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
@@ -284,7 +285,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		StopChan:                          ctx.StopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSetForAgent,
-		ClusterClientOption:               &util.ClientOption{QPS: ctx.Opts.ClusterAPIQPS, Burst: ctx.Opts.ClusterAPIBurst},
+		ClusterClientOption:               util.NewClientOption(ctx.Opts.ClusterAPIQPS, ctx.Opts.ClusterAPIBurst),
 		ClusterStatusUpdateFrequency:      ctx.Opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              ctx.Opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: ctx.Opts.ClusterLeaseRenewIntervalFraction,
@@ -330,6 +331,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		ConcurrentWorkStatusSyncs:   ctx.Opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 		ResourceInterpreter:         ctx.ResourceInterpreter,
+		ClusterClientOption:         util.NewClientOption(ctx.Opts.ClusterAPIQPS, ctx.Opts.ClusterAPIBurst),
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -349,6 +351,7 @@ func startServiceExportController(ctx controllerscontext.Context) (bool, error) 
 		PredicateFunc:               helper.NewPredicateForServiceExportControllerOnAgent(ctx.Opts.ClusterName),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
+		ClusterClientOption:         util.NewClientOption(ctx.Opts.ClusterAPIQPS, ctx.Opts.ClusterAPIBurst),
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
@@ -370,6 +373,7 @@ func startCertRotationController(ctx controllerscontext.Context) (bool, error) {
 		CertRotationCheckingInterval:       ctx.Opts.CertRotationCheckingInterval,
 		CertRotationRemainingTimeThreshold: ctx.Opts.CertRotationRemainingTimeThreshold,
 		KarmadaKubeconfigNamespace:         ctx.Opts.KarmadaKubeconfigNamespace,
+		ClusterClientOption:                util.NewClientOption(ctx.Opts.ClusterAPIQPS, ctx.Opts.ClusterAPIBurst),
 	}
 	if err := certRotationController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err

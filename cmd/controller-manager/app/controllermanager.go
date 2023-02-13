@@ -278,7 +278,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 		StopChan:                          stopChan,
 		ClusterClientSetFunc:              util.NewClusterClientSet,
 		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
-		ClusterClientOption:               &util.ClientOption{QPS: opts.ClusterAPIQPS, Burst: opts.ClusterAPIBurst},
+		ClusterClientOption:               util.NewClientOption(ctx.Opts.ClusterAPIQPS, ctx.Opts.ClusterAPIBurst),
 		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
 		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
 		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
@@ -370,6 +370,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		ConcurrentWorkStatusSyncs:   opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 		ResourceInterpreter:         ctx.ResourceInterpreter,
+		ClusterClientOption:         util.NewClientOption(ctx.Opts.ClusterAPIQPS, ctx.Opts.ClusterAPIBurst),
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -408,6 +409,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 		PredicateFunc:               helper.NewPredicateForServiceExportController(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
+		ClusterClientOption:         util.NewClientOption(ctx.Opts.ClusterAPIQPS, ctx.Opts.ClusterAPIBurst),
 	}
 	serviceExportController.RunWorkQueue()
 	if err := serviceExportController.SetupWithManager(ctx.Mgr); err != nil {
@@ -524,7 +526,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
 	}
 
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
+	clusterClientOption := util.NewClientOption(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter, clusterClientOption)
 
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:              discoverClientSet,

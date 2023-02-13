@@ -45,6 +45,14 @@ type ClientOption struct {
 	Burst int
 }
 
+// NewClientOption returns a ClientOption with qps and burst.
+func NewClientOption(qps float32, burst int) *ClientOption {
+	return &ClientOption{
+		QPS:   qps,
+		Burst: burst,
+	}
+}
+
 // NewClusterClientSet returns a ClusterClient for the given member cluster.
 func NewClusterClientSet(clusterName string, client client.Client, clientOption *ClientOption) (*ClusterClient, error) {
 	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
@@ -84,7 +92,7 @@ func NewClusterClientSetForAgent(clusterName string, client client.Client, clien
 }
 
 // NewClusterDynamicClientSet returns a dynamic client for the given member cluster.
-func NewClusterDynamicClientSet(clusterName string, client client.Client) (*DynamicClusterClient, error) {
+func NewClusterDynamicClientSet(clusterName string, client client.Client, clientOption *ClientOption) (*DynamicClusterClient, error) {
 	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
 	if err != nil {
 		return nil, err
@@ -92,13 +100,17 @@ func NewClusterDynamicClientSet(clusterName string, client client.Client) (*Dyna
 	var clusterClientSet = DynamicClusterClient{ClusterName: clusterName}
 
 	if clusterConfig != nil {
+		if clientOption != nil {
+			clusterConfig.QPS = clientOption.QPS
+			clusterConfig.Burst = clientOption.Burst
+		}
 		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
 }
 
 // NewClusterDynamicClientSetForAgent returns a dynamic client for the given member cluster which will be used in karmada agent.
-func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client) (*DynamicClusterClient, error) {
+func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client, clientOption *ClientOption) (*DynamicClusterClient, error) {
 	clusterConfig, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error building kubeconfig of member cluster: %s", err.Error())
@@ -106,6 +118,10 @@ func NewClusterDynamicClientSetForAgent(clusterName string, client client.Client
 	var clusterClientSet = DynamicClusterClient{ClusterName: clusterName}
 
 	if clusterConfig != nil {
+		if clientOption != nil {
+			clusterConfig.QPS = clientOption.QPS
+			clusterConfig.Burst = clientOption.Burst
+		}
 		clusterClientSet.DynamicClientSet = dynamic.NewForConfigOrDie(clusterConfig)
 	}
 	return &clusterClientSet, nil
