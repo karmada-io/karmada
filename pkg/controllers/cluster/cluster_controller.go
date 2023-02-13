@@ -543,6 +543,7 @@ func (c *Controller) tryUpdateClusterHealth(ctx context.Context, cluster *cluste
 					currentCondition.Reason = "ClusterStatusUnknown"
 					currentCondition.Message = "Cluster status controller stopped posting cluster status."
 					currentCondition.LastTransitionTime = nowTimestamp
+					meta.SetStatusCondition(&cluster.Status.Conditions, *currentCondition)
 				}
 			}
 		}
