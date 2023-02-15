@@ -322,7 +322,7 @@ func UpdateOrCreateToken(client kubeclient.Interface, failIfExists bool, token *
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	if secret != nil && failIfExists {
+	if secret != nil && err == nil && failIfExists {
 		return fmt.Errorf("a token with id %q already exists", token.Token.ID)
 	}
 
