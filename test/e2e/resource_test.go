@@ -669,7 +669,7 @@ var _ = framework.SerialDescribe("workload status synchronization testing", func
 
 						// wait for the current cluster status changing to false
 						framework.WaitClusterFitWith(controlPlaneClient, targetClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
-							return helper.TaintExists(cluster.Spec.Taints, controllercluster.NotReadyTaintTemplate)
+							return helper.TaintExists(cluster.Spec.Taints, controllercluster.UnreachableTaintTemplate)
 						})
 						disabledClusters = append(disabledClusters, targetClusterName)
 						temp--
@@ -689,7 +689,7 @@ var _ = framework.SerialDescribe("workload status synchronization testing", func
 						currentCluster, err := util.GetCluster(controlPlaneClient, disabledCluster)
 						g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-						if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.NotReadyTaintTemplate) {
+						if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.UnreachableTaintTemplate) {
 							fmt.Printf("cluster %s recovered\n", disabledCluster)
 							return true, nil
 						}

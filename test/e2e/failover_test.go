@@ -95,7 +95,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 
 						// wait for the current cluster status changing to false
 						framework.WaitClusterFitWith(controlPlaneClient, targetClusterName, func(cluster *clusterv1alpha1.Cluster) bool {
-							return helper.TaintExists(cluster.Spec.Taints, controllercluster.NotReadyTaintTemplate)
+							return helper.TaintExists(cluster.Spec.Taints, controllercluster.UnreachableTaintTemplate)
 						})
 						disabledClusters = append(disabledClusters, targetClusterName)
 						temp--
@@ -130,7 +130,7 @@ var _ = framework.SerialDescribe("failover testing", func() {
 						if err != nil {
 							return false, err
 						}
-						if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.NotReadyTaintTemplate) {
+						if !helper.TaintExists(currentCluster.Spec.Taints, controllercluster.UnreachableTaintTemplate) {
 							fmt.Printf("cluster %s recovered\n", disabledCluster)
 							return true, nil
 						}

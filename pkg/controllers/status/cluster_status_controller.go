@@ -411,7 +411,7 @@ func healthEndpointCheck(client *clientset.Clientset, path string) (int, error) 
 
 func generateReadyCondition(online, healthy bool) metav1.Condition {
 	if !online {
-		return util.NewCondition(clusterv1alpha1.ClusterConditionReady, clusterNotReachableReason, clusterNotReachableMsg, metav1.ConditionFalse)
+		return util.NewCondition(clusterv1alpha1.ClusterConditionReady, clusterNotReachableReason, clusterNotReachableMsg, metav1.ConditionUnknown)
 	}
 	if !healthy {
 		return util.NewCondition(clusterv1alpha1.ClusterConditionReady, clusterNotReady, clusterUnhealthy, metav1.ConditionFalse)
