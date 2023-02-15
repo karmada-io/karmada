@@ -69,7 +69,7 @@ func GenerateBindingName(kind, name string) string {
 func GenerateBindingReferenceKey(namespace, name string) string {
 	var bindingName string
 	if len(namespace) > 0 {
-		bindingName = namespace + "-" + name
+		bindingName = namespace + "/" + name
 	} else {
 		bindingName = name
 	}

@@ -92,6 +92,14 @@ func TestGenerateBindingReferenceKey(t *testing.T) {
 			name:      "mytest-deployment",
 			namespace: "",
 		},
+		{
+			name:      "b-c",
+			namespace: "a",
+		},
+		{
+			name:      "c",
+			namespace: "a-b",
+		},
 	}
 	result := map[string]struct{}{}
 	for _, tt := range tests {
