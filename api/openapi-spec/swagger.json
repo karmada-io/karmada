@@ -15480,6 +15480,51 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OrderedClusterAffinityTerm": {
+      "description": "OrderedClusterAffinityTerm selects a set of cluster and indicates the order that Karmada scheduler should inspect with.",
+      "type": "object",
+      "required": [
+        "affinityName",
+        "order"
+      ],
+      "properties": {
+        "affinityName": {
+          "description": "AffinityName is the name of the cluster group.",
+          "type": "string",
+          "default": ""
+        },
+        "clusterNames": {
+          "description": "ClusterNames is the list of clusters to be selected.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "exclude": {
+          "description": "ExcludedClusters is the list of clusters to be ignored.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "fieldSelector": {
+          "description": "FieldSelector is a filter to select member clusters by fields. If non-nil and non-empty, only the clusters match this filter will be selected.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldSelector"
+        },
+        "labelSelector": {
+          "description": "LabelSelector is a filter to select member clusters by labels. If non-nil and non-empty, only the clusters match this filter will be selected.",
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector"
+        },
+        "order": {
+          "description": "Order of the cluster group that Karmada scheduler should inspect with, in the range 1-100.",
+          "type": "integer",
+          "format": "int32",
+          "default": 0
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverridePolicy": {
       "description": "OverridePolicy represents the policy that overrides a group of resources to one or more clusters.",
       "type": "object",
@@ -15648,6 +15693,14 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+          }
+        },
+        "orderedClusterAffinities": {
+          "description": "OrderedClusterAffinities represents the scheduling order among multiple set of clusters that indicated by OrderedClusterAffinityTerm. Each term should have a unique order among all terms.\n\nThe scheduler will evaluate these groups one by one in strict order, the group that does not satisfy scheduling restrictions will be ignored that means all clusters in this group will not be selected unless it also belongs to the next group(a cluster could belong to multiple groups).\n\nIf none of the groups satisfy the scheduling restrictions, then scheduling fails, which means no cluster will be selected.\n\nNote: OrderedClusterAffinities can not co-exist with ClusterAffinity.\n\nPotential use case 1: The private clusters in the local data center could be the main group, and the managed clusters provided by cluster providers could be the secondary group. So that the Karmada scheduler would prefer to schedule workloads to the main group and the second group will only be considered in case of the main group does not satisfy restrictions(like, lack of resources).\n\nPotential use case 2: For the disaster recovery scenario, the clusters could be organized to primary and backup groups, the workloads would be scheduled to primary clusters firstly, and when primary cluster fails(like data center power off), Karmada scheduler could migrate workloads to the backup clusters.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OrderedClusterAffinityTerm"
           }
         },
         "replicaScheduling": {

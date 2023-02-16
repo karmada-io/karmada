@@ -472,6 +472,145 @@ spec:
                           type: string
                       type: object
                     type: array
+                  orderedClusterAffinities:
+                    description: "OrderedClusterAffinities represents the scheduling
+                      order among multiple set of clusters that indicated by OrderedClusterAffinityTerm.
+                      Each term should have a unique order among all terms. \n The
+                      scheduler will evaluate these groups one by one in strict order,
+                      the group that does not satisfy scheduling restrictions will
+                      be ignored that means all clusters in this group will not be
+                      selected unless it also belongs to the next group(a cluster
+                      could belong to multiple groups). \n If none of the groups satisfy
+                      the scheduling restrictions, then scheduling fails, which means
+                      no cluster will be selected. \n Note: OrderedClusterAffinities
+                      can not co-exist with ClusterAffinity. \n Potential use case
+                      1: The private clusters in the local data center could be the
+                      main group, and the managed clusters provided by cluster providers
+                      could be the secondary group. So that the Karmada scheduler
+                      would prefer to schedule workloads to the main group and the
+                      second group will only be considered in case of the main group
+                      does not satisfy restrictions(like, lack of resources). \n Potential
+                      use case 2: For the disaster recovery scenario, the clusters
+                      could be organized to primary and backup groups, the workloads
+                      would be scheduled to primary clusters firstly, and when primary
+                      cluster fails(like data center power off), Karmada scheduler
+                      could migrate workloads to the backup clusters."
+                    items:
+                      description: OrderedClusterAffinityTerm selects a set of cluster
+                        and indicates the order that Karmada scheduler should inspect
+                        with.
+                      properties:
+                        affinityName:
+                          description: AffinityName is the name of the cluster group.
+                          type: string
+                        clusterNames:
+                          description: ClusterNames is the list of clusters to be
+                            selected.
+                          items:
+                            type: string
+                          type: array
+                        exclude:
+                          description: ExcludedClusters is the list of clusters to
+                            be ignored.
+                          items:
+                            type: string
+                          type: array
+                        fieldSelector:
+                          description: FieldSelector is a filter to select member
+                            clusters by fields. If non-nil and non-empty, only the
+                            clusters match this filter will be selected.
+                          properties:
+                            matchExpressions:
+                              description: A list of field selector requirements.
+                              items:
+                                description: A node selector requirement is a selector
+                                  that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: The label key that the selector applies
+                                      to.
+                                    type: string
+                                  operator:
+                                    description: Represents a key's relationship to
+                                      a set of values. Valid operators are In, NotIn,
+                                      Exists, DoesNotExist. Gt, and Lt.
+                                    type: string
+                                  values:
+                                    description: An array of string values. If the
+                                      operator is In or NotIn, the values array must
+                                      be non-empty. If the operator is Exists or DoesNotExist,
+                                      the values array must be empty. If the operator
+                                      is Gt or Lt, the values array must have a single
+                                      element, which will be interpreted as an integer.
+                                      This array is replaced during a strategic merge
+                                      patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                          type: object
+                        labelSelector:
+                          description: LabelSelector is a filter to select member
+                            clusters by labels. If non-nil and non-empty, only the
+                            clusters match this filter will be selected.
+                          properties:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: A label selector requirement is a selector
+                                  that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: operator represents a key's relationship
+                                      to a set of values. Valid operators are In,
+                                      NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: values is an array of string values.
+                                      If the operator is In or NotIn, the values array
+                                      must be non-empty. If the operator is Exists
+                                      or DoesNotExist, the values array must be empty.
+                                      This array is replaced during a strategic merge
+                                      patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: matchLabels is a map of {key,value} pairs.
+                                A single {key,value} in the matchLabels map is equivalent
+                                to an element of matchExpressions, whose key field
+                                is "key", the operator is "In", and the values array
+                                contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                        order:
+                          description: Order of the cluster group that Karmada scheduler
+                            should inspect with, in the range 1-100.
+                          format: int32
+                          type: integer
+                      required:
+                      - affinityName
+                      - order
+                      type: object
+                    type: array
                   replicaScheduling:
                     description: ReplicaScheduling represents the scheduling policy
                       on dealing with the number of replicas when propagating resources
