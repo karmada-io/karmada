@@ -5362,6 +5362,13 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref common.ReferenceCal
 							Format:      "int64",
 						},
 					},
+					"schedulerObservingAffinityName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SchedulerObservedAffinityName is the name of affinity term that is the basis of current scheduling.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"conditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Conditions contain the different condition statuses.",
