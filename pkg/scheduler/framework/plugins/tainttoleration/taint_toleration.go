@@ -8,7 +8,6 @@ import (
 	v1helper "k8s.io/component-helpers/scheduling/corev1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
@@ -34,7 +33,7 @@ func (p *TaintToleration) Name() string {
 }
 
 // Filter checks if the given tolerations in placement tolerate cluster's taints.
-func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.Placement,
+func (p *TaintToleration) Filter(ctx context.Context,
 	bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	// skip the filter if the cluster is already in the list of scheduling results,
 	// if the workload referencing by the binding can't tolerate the taint,
@@ -47,7 +46,7 @@ func (p *TaintToleration) Filter(ctx context.Context, placement *policyv1alpha1.
 		return t.Effect == corev1.TaintEffectNoSchedule || t.Effect == corev1.TaintEffectNoExecute
 	}
 
-	taint, isUntolerated := v1helper.FindMatchingUntoleratedTaint(cluster.Spec.Taints, placement.ClusterTolerations, filterPredicate)
+	taint, isUntolerated := v1helper.FindMatchingUntoleratedTaint(cluster.Spec.Taints, bindingSpec.Placement.ClusterTolerations, filterPredicate)
 	if !isUntolerated {
 		return framework.NewResult(framework.Success)
 	}

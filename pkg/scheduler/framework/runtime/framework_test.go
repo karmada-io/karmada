@@ -19,12 +19,12 @@ func Test_frameworkImpl_RunFilterPlugins(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	alwaysError := frameworktesting.NewMockFilterPlugin(mockCtrl)
-	alwaysError.EXPECT().Filter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+	alwaysError.EXPECT().Filter(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(framework.NewResult(framework.Error, "foo"))
 	alwaysError.EXPECT().Name().AnyTimes().Return("foo")
 
 	alwaysSuccess := frameworktesting.NewMockFilterPlugin(mockCtrl)
-	alwaysSuccess.EXPECT().Filter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+	alwaysSuccess.EXPECT().Filter(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(framework.NewResult(framework.Success))
 	alwaysSuccess.EXPECT().Name().AnyTimes().Return("foo")
 
@@ -72,7 +72,7 @@ func Test_frameworkImpl_RunFilterPlugins(t *testing.T) {
 				t.Errorf("create frame work error:%v", err)
 			}
 
-			result := frameWork.RunFilterPlugins(ctx, nil, nil, nil)
+			result := frameWork.RunFilterPlugins(ctx, nil, nil)
 			if result.IsSuccess() != tt.isSuccess {
 				t.Errorf("want %v, but get:%v", tt.isSuccess, result.IsSuccess())
 			}
@@ -111,7 +111,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 		{
 			name: "Test score ok",
 			mockFunc: func(mockScorePlugin *frameworktesting.MockScorePlugin, mockScoreExtension *frameworktesting.MockScoreExtensions) {
-				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(int64(60), framework.NewResult(framework.Success))
 				mockScorePlugin.EXPECT().ScoreExtensions().Times(2).Return(mockScoreExtension)
 				mockScorePlugin.EXPECT().Name().AnyTimes().Return("foo")
@@ -124,7 +124,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 		{
 			name: "Test score func error",
 			mockFunc: func(mockScorePlugin *frameworktesting.MockScorePlugin, mockScoreExtension *frameworktesting.MockScoreExtensions) {
-				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(int64(-1), framework.NewResult(framework.Error, "foo"))
 				mockScorePlugin.EXPECT().Name().AnyTimes().Return("foo")
 			},
@@ -133,7 +133,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 		{
 			name: "Test normalize score error",
 			mockFunc: func(mockScorePlugin *frameworktesting.MockScorePlugin, mockScoreExtension *frameworktesting.MockScoreExtensions) {
-				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(int64(60), framework.NewResult(framework.Success))
 				mockScorePlugin.EXPECT().ScoreExtensions().Times(2).Return(mockScoreExtension)
 				mockScorePlugin.EXPECT().Name().AnyTimes().Return("foo")
@@ -160,7 +160,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 			}
 
 			tt.mockFunc(mockScorePlugin, mockScoreExtension)
-			_, result := frameWork.RunScorePlugins(ctx, nil, nil, clusters)
+			_, result := frameWork.RunScorePlugins(ctx, nil, clusters)
 			if result.IsSuccess() != tt.isSuccess {
 				t.Errorf("want %v, but get:%v", tt.isSuccess, result.IsSuccess())
 			}

@@ -58,7 +58,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, spec *workv1alpha2.Reso
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, g.scheduleFramework, spec.Placement, spec, &clusterInfoSnapshot)
+	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, g.scheduleFramework, spec, &clusterInfoSnapshot)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
@@ -72,7 +72,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, spec *workv1alpha2.Reso
 	}
 	klog.V(4).Infof("Feasible clusters found: %v", feasibleClusters)
 
-	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, spec.Placement, spec, feasibleClusters)
+	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, spec, feasibleClusters)
 	if err != nil {
 		return result, fmt.Errorf("failed to prioritizeClusters: %v", err)
 	}
@@ -100,7 +100,6 @@ func (g *genericScheduler) Schedule(ctx context.Context, spec *workv1alpha2.Reso
 func (g *genericScheduler) findClustersThatFit(
 	ctx context.Context,
 	fwk framework.Framework,
-	placement *policyv1alpha1.Placement,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	clusterInfo *cache.Snapshot,
 ) ([]*clusterv1alpha1.Cluster, framework.Diagnosis, error) {
@@ -115,7 +114,7 @@ func (g *genericScheduler) findClustersThatFit(
 	// DO NOT filter unhealthy cluster, let users make decisions by using ClusterTolerations of Placement.
 	clusters := clusterInfo.GetClusters()
 	for _, c := range clusters {
-		if result := fwk.RunFilterPlugins(ctx, placement, bindingSpec, c.Cluster()); !result.IsSuccess() {
+		if result := fwk.RunFilterPlugins(ctx, bindingSpec, c.Cluster()); !result.IsSuccess() {
 			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
 			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
 		} else {
@@ -130,13 +129,12 @@ func (g *genericScheduler) findClustersThatFit(
 func (g *genericScheduler) prioritizeClusters(
 	ctx context.Context,
 	fwk framework.Framework,
-	placement *policyv1alpha1.Placement,
 	spec *workv1alpha2.ResourceBindingSpec,
 	clusters []*clusterv1alpha1.Cluster) (result framework.ClusterScoreList, err error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepScore, startTime)
 
-	scoresMap, runScorePluginsResult := fwk.RunScorePlugins(ctx, placement, spec, clusters)
+	scoresMap, runScorePluginsResult := fwk.RunScorePlugins(ctx, spec, clusters)
 	if runScorePluginsResult != nil {
 		return result, runScorePluginsResult.AsError()
 	}

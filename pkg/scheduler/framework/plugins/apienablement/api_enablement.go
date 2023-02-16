@@ -6,7 +6,6 @@ import (
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -33,7 +32,7 @@ func (p *APIEnablement) Name() string {
 }
 
 // Filter checks if the API(CRD) of the resource is enabled or installed in the target cluster.
-func (p *APIEnablement) Filter(ctx context.Context, placement *policyv1alpha1.Placement,
+func (p *APIEnablement) Filter(ctx context.Context,
 	bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	if !helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
 		klog.V(2).Infof("Cluster(%s) not fit as missing API(%s, kind=%s)", cluster.Name, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind)
