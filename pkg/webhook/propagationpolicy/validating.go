@@ -47,19 +47,11 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		}
 	}
 
-	if err := validation.ValidateSpreadConstraint(policy.Spec.Placement.SpreadConstraints); err != nil {
-		klog.Error(err)
-		return admission.Denied(err.Error())
+	errs := validation.ValidatePropagationSpec(policy.Spec)
+	if len(errs) != 0 {
+		klog.Error(errs)
+		return admission.Denied(errs.ToAggregate().Error())
 	}
-
-	if policy.Spec.Placement.ClusterAffinity != nil && policy.Spec.Placement.ClusterAffinity.FieldSelector != nil {
-		err := validation.ValidatePolicyFieldSelector(policy.Spec.Placement.ClusterAffinity.FieldSelector)
-		if err != nil {
-			klog.Error(err)
-			return admission.Denied(err.Error())
-		}
-	}
-
 	return admission.Allowed("")
 }
 
