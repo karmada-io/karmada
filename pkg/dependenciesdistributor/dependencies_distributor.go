@@ -39,9 +39,9 @@ import (
 )
 
 const (
-	// bindingDependedByLabelKeyPrefix is the prefix to a label key specifying an attached binding referred by which independent binding.
+	// BindingDependedByLabelKeyPrefix is the prefix to a label key specifying an attached binding referred by which independent binding.
 	// the key is in the label of an attached binding which should be unique, because resource like secret can be referred by multiple deployments.
-	bindingDependedByLabelKeyPrefix = "resourcebinding.karmada.io/depended-by-"
+	BindingDependedByLabelKeyPrefix = "resourcebinding.karmada.io/depended-by-"
 	// bindingDependenciesAnnotationKey represents the key of dependencies data (json serialized)
 	// in the annotations of an independent binding.
 	bindingDependenciesAnnotationKey = "resourcebinding.karmada.io/dependencies"
@@ -492,7 +492,7 @@ func generateBindingDependedByLabel(bindingNamespace, bindingName string) map[st
 
 func generateBindingDependedByLabelKey(bindingNamespace, bindingName string) string {
 	bindHashKey := names.GenerateBindingReferenceKey(bindingNamespace, bindingName)
-	return fmt.Sprintf(bindingDependedByLabelKeyPrefix + bindHashKey)
+	return fmt.Sprintf(BindingDependedByLabelKeyPrefix + bindHashKey)
 }
 
 func generateDependencyKey(kind, apiVersion, name, namespace string) string {
