@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	"io"
 	"os"
 	"reflect"
 	"testing"
@@ -111,6 +114,14 @@ func TestCreateWithCerts(t *testing.T) {
 	}
 }
 
+func randString() string {
+	b := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(b)
+}
+
 func TestWriteKubeConfigFromSpec(t *testing.T) {
 	type args struct {
 		serverURL      string
@@ -133,7 +144,7 @@ func TestWriteKubeConfigFromSpec(t *testing.T) {
 				serverURL:      "https://127.0.0.1:6443",
 				userName:       "admin",
 				clusterName:    "local",
-				kubeconfigPath: "/tmp",
+				kubeconfigPath: "temp-kubeconfig-" + randString(),
 				kubeconfigName: "karmada-test.kubeconfig",
 				caCert:         []byte{'c', 'a', 'c', 'e', 'r', 't'},
 				clientKey:      []byte{'c', 'l', 'i', 'e', 'n', 't', 'k', 'e', 'y'},
@@ -143,12 +154,16 @@ func TestWriteKubeConfigFromSpec(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		// create config path
+		if err := os.Mkdir(tt.args.kubeconfigPath, 0755); err != nil {
+			t.Fatal(err)
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			if err := WriteKubeConfigFromSpec(tt.args.serverURL, tt.args.userName, tt.args.clusterName, tt.args.kubeconfigPath, tt.args.kubeconfigName, tt.args.caCert, tt.args.clientKey, tt.args.clientCert); (err != nil) != tt.wantErr {
 				t.Errorf("WriteKubeConfigFromSpec() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+		// cleanup test data
+		os.RemoveAll(tt.args.kubeconfigPath)
 	}
-	// cleanup test data
-	os.RemoveAll("/tmp/karmada-test.kubeconfig")
 }
