@@ -66,9 +66,11 @@ spec:
                   propagate resources.
                 properties:
                   clusterAffinity:
-                    description: ClusterAffinity represents scheduling restrictions
-                      to a certain set of clusters. If not set, any cluster can be
-                      scheduling candidate.
+                    description: 'ClusterAffinity represents scheduling restrictions
+                      to a certain set of clusters. Note: 1. ClusterAffinity can not
+                      co-exist with ClusterAffinities. 2. If both ClusterAffinity
+                      and ClusterAffinities are not set, any cluster can be scheduling
+                      candidates.'
                     properties:
                       clusterNames:
                         description: ClusterNames is the list of clusters to be selected.
@@ -210,17 +212,18 @@ spec:
                       type: object
                     type: array
                   orderedClusterAffinities:
-                    description: "OrderedClusterAffinities represents the scheduling
-                      order among multiple set of clusters that indicated by OrderedClusterAffinityTerm.
-                      Each term should have a unique order among all terms. \n The
-                      scheduler will evaluate these groups one by one in strict order,
-                      the group that does not satisfy scheduling restrictions will
-                      be ignored that means all clusters in this group will not be
-                      selected unless it also belongs to the next group(a cluster
-                      could belong to multiple groups). \n If none of the groups satisfy
-                      the scheduling restrictions, then scheduling fails, which means
-                      no cluster will be selected. \n Note: OrderedClusterAffinities
-                      can not co-exist with ClusterAffinity. \n Potential use case
+                    description: "ClusterAffinities represents scheduling restrictions
+                      to multiple cluster groups that indicated by ClusterAffinityTerm.
+                      \n The scheduler will evaluate these groups one by one in the
+                      order they appear in the spec, the group that does not satisfy
+                      scheduling restrictions will be ignored which means all clusters
+                      in this group will not be selected unless it also belongs to
+                      the next group(a cluster could belong to multiple groups). \n
+                      If none of the groups satisfy the scheduling restrictions, then
+                      scheduling fails, which means no cluster will be selected. \n
+                      Note: 1. ClusterAffinities can not co-exist with ClusterAffinity.
+                      2. If both ClusterAffinity and ClusterAffinities are not set,
+                      any cluster can be scheduling candidates. \n Potential use case
                       1: The private clusters in the local data center could be the
                       main group, and the managed clusters provided by cluster providers
                       could be the secondary group. So that the Karmada scheduler
@@ -233,9 +236,7 @@ spec:
                       cluster fails(like data center power off), Karmada scheduler
                       could migrate workloads to the backup clusters."
                     items:
-                      description: OrderedClusterAffinityTerm selects a set of cluster
-                        and indicates the order that Karmada scheduler should inspect
-                        with.
+                      description: ClusterAffinityTerm selects a set of cluster.
                       properties:
                         affinityName:
                           description: AffinityName is the name of the cluster group.
@@ -338,14 +339,8 @@ spec:
                                 contains only "value". The requirements are ANDed.
                               type: object
                           type: object
-                        order:
-                          description: Order of the cluster group that Karmada scheduler
-                            should inspect with, in the range 1-100.
-                          format: int32
-                          type: integer
                       required:
                       - affinityName
-                      - order
                       type: object
                     type: array
                   replicaScheduling:
