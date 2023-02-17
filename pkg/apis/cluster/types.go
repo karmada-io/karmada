@@ -183,6 +183,12 @@ type ClusterSpec struct {
 	//
 	// +optional
 	ResourceModels []ResourceModel
+	// ClusterEvictedSeconds represents the period of time how soon a cluster can be
+	// rescheduled after being evicted. By default, the value is 5min, which means
+	// the cluster can be rescheduled 5 minutes after the cluster is evicted. Zero and
+	// negative values will be treated as 0 (can never be rescheduled) by the system.
+	// +optional
+	ClusterEvictedSeconds int64 `json:"clusterEvictedSeconds,omitempty"`
 }
 
 // ResourceModel describes the modeling that you want to statistics.

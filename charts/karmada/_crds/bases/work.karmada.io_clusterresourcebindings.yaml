@@ -264,6 +264,23 @@ spec:
                   - name
                   type: object
                 type: array
+              evictedClusters:
+                description: EvictedClusters represents the evicted clusters.
+                items:
+                  properties:
+                    creationTimestamp:
+                      description: "CreationTimestamp is a timestamp representing
+                        the server time when this object was created. Clients should
+                        not set this value to avoid the time inconsistency issue.
+                        It is represented in RFC3339 form(like '2021-04-25T10:02:10Z')
+                        and is in UTC. \n Populated by the system. Read-only."
+                      format: date-time
+                      type: string
+                    name:
+                      description: Name represents the evicted cluster name.
+                      type: string
+                  type: object
+                type: array
               gracefulEvictionTasks:
                 description: 'GracefulEvictionTasks holds the eviction tasks that
                   are expected to perform the eviction in a graceful way. The intended
@@ -898,6 +915,31 @@ spec:
                   - name
                   type: object
                 type: array
+              reschedulingConfig:
+                description: ReschedulingConfig represents the rescheduling config
+                  for the referencing resource. It inherits directly from the associated
+                  PropagationPolicy(or ClusterPropagationPolicy).
+                properties:
+                  failover:
+                    description: Failover represents whether to reschedule when the
+                      application is unhealthy. By default, the value is false.
+                    type: boolean
+                  startupTolerationSeconds:
+                    description: StartupTolerationSeconds represents the period of
+                      time how soon Karmada waits to start health detection to protect
+                      slow starting applications. Sometimes, applications might require
+                      an additional startup time on their first initialization. By
+                      default, the value is 1 minute. Minimum value is 1.
+                    format: int32
+                    type: integer
+                  unhealthyTolerationSeconds:
+                    description: UnhealthyTolerationSeconds represents the period
+                      of time how soon the unhealthy state of applications can be
+                      tolerated. By default, the value is 10 seconds. Minimum value
+                      is 1.
+                    format: int32
+                    type: integer
+                type: object
               resource:
                 description: Resource represents the Kubernetes resource to be propagated.
                 properties:

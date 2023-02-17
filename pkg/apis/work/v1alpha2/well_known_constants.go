@@ -82,10 +82,17 @@ const (
 	// EvictionReasonTaintUntolerated describes the eviction is triggered
 	// because can not tolerate taint or exceed toleration period of time.
 	EvictionReasonTaintUntolerated = "TaintUntolerated"
+
+	// EvictionReasonWorkloadUnhealthy describes the eviction is triggered
+	// because workload is unhealthy within the toleration period of time.
+	EvictionReasonWorkloadUnhealthy = "WorkloadUnhealthy"
 )
 
 // Define eviction producers.
 const (
 	// EvictionProducerTaintManager represents the name of taint manager.
 	EvictionProducerTaintManager = "TaintManager"
+
+	// EvictionProducerHealthController represents the name of health controller.
+	EvictionProducerHealthController = "HealthController"
 )

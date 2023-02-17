@@ -109,6 +109,45 @@ type PropagationSpec struct {
 	// +kubebuilder:default="default-scheduler"
 	// +optional
 	SchedulerName string `json:"schedulerName,omitempty"`
+
+	// ReschedulingTriggers represents the rescheduling triggers for unhealthy application state.
+	// +optional
+	ReschedulingTriggers []ReschedulingTrigger `json:"reschedulingTriggers,omitempty"`
+}
+
+// ReschedulingTrigger represents the rescheduling trigger for matched resource objects.
+type ReschedulingTrigger struct {
+	// Index represents the corresponding index of ResourceSelectors.
+	// If this value is not set, it means that all resources hit by ResourceSectors use the same configuration.
+	// If the resource meets the conditions of multiple ResourceSelectors at the same time,
+	// it will use the matching configuration with the highest priority.
+	// +optional
+	Index *int32 `json:"index,omitempty"`
+
+	// ReschedulingConfig represents the rescheduling config for resource objects matched by the ResourceSelector
+	// pointed to by the above index.
+	// +optional
+	ReschedulingConfig *ReschedulingConfig `json:"reschedulingConfig,omitempty"`
+}
+
+// ReschedulingConfig represents the rescheduling config for resource objects matched by the ResourceSelector
+// pointed to by the above index.
+type ReschedulingConfig struct {
+	// Failover represents whether to reschedule when the application is unhealthy.
+	// By default, the value is false.
+	// +optional
+	Failover bool `json:"failover,omitempty"`
+
+	// UnhealthyTolerationSeconds represents the period of time how soon the unhealthy state of applications can be tolerated.
+	// By default, the value is 10 seconds. Minimum value is 1.
+	// +optional
+	UnhealthyTolerationSeconds int32 `json:"unhealthyTolerationSeconds,omitempty"`
+
+	// StartupTolerationSeconds represents the period of time how soon Karmada waits to start health detection to protect slow starting applications.
+	// Sometimes, applications might require an additional startup time on their first initialization.
+	// By default, the value is 1 minute. Minimum value is 1.
+	// +optional
+	StartupTolerationSeconds int32 `json:"startupTolerationSeconds,omitempty"`
 }
 
 // ResourceSelector the resources will be selected.

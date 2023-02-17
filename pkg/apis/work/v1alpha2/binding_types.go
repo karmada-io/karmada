@@ -98,10 +98,34 @@ type ResourceBindingSpec struct {
 	// +optional
 	RequiredBy []BindingSnapshot `json:"requiredBy,omitempty"`
 
+	// EvictedClusters represents the evicted clusters.
+	// +optional
+	EvictedClusters []EvictedCluster `json:"evictedClusters,omitempty"`
+
+	// ReschedulingConfig represents the rescheduling config for the referencing resource.
+	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
+	// +optional
+	ReschedulingConfig *policyv1alpha1.ReschedulingConfig `json:"reschedulingConfig,omitempty"`
+
 	// SchedulerName represents which scheduler to proceed the scheduling.
 	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
 	// +optional
 	SchedulerName string `json:"schedulerName,omitempty"`
+}
+
+type EvictedCluster struct {
+	// Name represents the evicted cluster name.
+	// +required
+	Name string `json:"name,omitempty"`
+	//
+	// CreationTimestamp is a timestamp representing the server time when this object was
+	// created.
+	// Clients should not set this value to avoid the time inconsistency issue.
+	// It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.
+	//
+	// Populated by the system. Read-only.
+	// +optional
+	CreationTimestamp metav1.Time `json:"creationTimestamp,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.

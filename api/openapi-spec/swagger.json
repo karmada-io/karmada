@@ -14581,6 +14581,11 @@
           "description": "The API endpoint of the member cluster. This can be a hostname, hostname:port, IP or IP:port.",
           "type": "string"
         },
+        "clusterEvictedSeconds": {
+          "description": "ClusterEvictedSeconds represents the period of time how soon a cluster can be rescheduled after being evicted. By default, the value is 5min, which means the cluster can be rescheduled 5 minutes after the cluster is evicted. Zero and negative values will be treated as 0 (can never be rescheduled) by the system.",
+          "type": "integer",
+          "format": "int64"
+        },
         "id": {
           "description": "ID is the unique identifier for the cluster. It is different from the object uid(.metadata.uid) and typically collected automatically from member cluster during the progress of registration.\n\nThe value is collected in order: 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by\n  creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would\n  take the defined value in the ClusterProperty object.\n  See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.\n2. Take the uid of 'kube-system' namespace on the registering cluster.\n\nPlease don't update this value unless you know what you are doing, because it will/may be used to : - uniquely identify the clusters within the Karmada system. - compose the DNS name of multi-cluster services.",
           "type": "string"
@@ -15790,6 +15795,14 @@
           "description": "PropagateDeps tells if relevant resources should be propagated automatically. Take 'Deployment' which referencing 'ConfigMap' and 'Secret' as an example, when 'propagateDeps' is 'true', the referencing resources could be omitted(for saving config effort) from 'resourceSelectors' as they will be propagated along with the Deployment. In addition to the propagating process, the referencing resources will be migrated along with the Deployment in the fail-over scenario.\n\nDefaults to false.",
           "type": "boolean"
         },
+        "reschedulingTriggers": {
+          "description": "ReschedulingTriggers represents the rescheduling triggers for unhealthy application state.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ReschedulingTrigger"
+          }
+        },
         "resourceSelectors": {
           "description": "ResourceSelectors used to select resources. Nil or empty selector is not allowed and doesn't mean match all kinds of resources for security concerns that sensitive resources(like Secret) might be accidentally propagated.",
           "type": "array",
@@ -15819,6 +15832,41 @@
         "weightPreference": {
           "description": "WeightPreference describes weight for each cluster or for each group of cluster If ReplicaDivisionPreference is set to \"Weighted\", and WeightPreference is not set, scheduler will weight all clusters the same.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterPreferences"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ReschedulingConfig": {
+      "description": "ReschedulingConfig represents the rescheduling config for resource objects matched by the ResourceSelector pointed to by the above index.",
+      "type": "object",
+      "properties": {
+        "failover": {
+          "description": "Failover represents whether to reschedule when the application is unhealthy. By default, the value is false.",
+          "type": "boolean"
+        },
+        "startupTolerationSeconds": {
+          "description": "StartupTolerationSeconds represents the period of time how soon Karmada waits to start health detection to protect slow starting applications. Sometimes, applications might require an additional startup time on their first initialization. By default, the value is 1 minute. Minimum value is 1.",
+          "type": "integer",
+          "format": "int32"
+        },
+        "unhealthyTolerationSeconds": {
+          "description": "UnhealthyTolerationSeconds represents the period of time how soon the unhealthy state of applications can be tolerated. By default, the value is 10 seconds. Minimum value is 1.",
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ReschedulingTrigger": {
+      "description": "ReschedulingTrigger represents the rescheduling trigger for matched resource objects.",
+      "type": "object",
+      "properties": {
+        "index": {
+          "description": "Index represents the corresponding index of ResourceSelectors. If this value is not set, it means that all resources hit by ResourceSectors use the same configuration. If the resource meets the conditions of multiple ResourceSelectors at the same time, it will use the matching configuration with the highest priority.",
+          "type": "integer",
+          "format": "int32"
+        },
+        "reschedulingConfig": {
+          "description": "ReschedulingConfig represents the rescheduling config for resource objects matched by the ResourceSelector pointed to by the above index.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ReschedulingConfig"
         }
       }
     },
@@ -16432,6 +16480,20 @@
         }
       ]
     },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.EvictedCluster": {
+      "type": "object",
+      "properties": {
+        "creationTimestamp": {
+          "description": "CreationTimestamp is a timestamp representing the server time when this object was created. Clients should not set this value to avoid the time inconsistency issue. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.\n\nPopulated by the system. Read-only.",
+          "default": {},
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+        },
+        "name": {
+          "description": "Name represents the evicted cluster name.",
+          "type": "string"
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask": {
       "description": "GracefulEvictionTask represents a graceful eviction task.",
       "type": "object",
@@ -16643,6 +16705,14 @@
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
           }
         },
+        "evictedClusters": {
+          "description": "EvictedClusters represents the evicted clusters.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.EvictedCluster"
+          }
+        },
         "gracefulEvictionTasks": {
           "description": "GracefulEvictionTasks holds the eviction tasks that are expected to perform the eviction in a graceful way. The intended workflow is: 1. Once the controller(such as 'taint-manager') decided to evict the resource that\n   is referenced by current ResourceBinding or ClusterResourceBinding from a target\n   cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)\n   and builds a graceful eviction task.\n2. The scheduler may perform a re-scheduler and probably select a substitute cluster\n   to take over the evicting workload(resource).\n3. The graceful eviction controller takes care of the graceful eviction tasks and\n   performs the final removal after the workload(resource) is available on the substitute\n   cluster or exceed the grace termination period(defaults to 10 minutes).",
           "type": "array",
@@ -16675,6 +16745,10 @@
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.BindingSnapshot"
           }
+        },
+        "reschedulingConfig": {
+          "description": "ReschedulingConfig represents the rescheduling config for the referencing resource. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ReschedulingConfig"
         },
         "resource": {
           "description": "Resource represents the Kubernetes resource to be propagated.",

@@ -80,6 +80,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicyList":                       schema_pkg_apis_policy_v1alpha1_PropagationPolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationSpec":                             schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy":                   schema_pkg_apis_policy_v1alpha1_ReplicaSchedulingStrategy(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReschedulingConfig":                          schema_pkg_apis_policy_v1alpha1_ReschedulingConfig(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReschedulingTrigger":                         schema_pkg_apis_policy_v1alpha1_ReschedulingTrigger(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector":                            schema_pkg_apis_policy_v1alpha1_ResourceSelector(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.RuleWithCluster":                             schema_pkg_apis_policy_v1alpha1_RuleWithCluster(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint":                            schema_pkg_apis_policy_v1alpha1_SpreadConstraint(ref),
@@ -115,6 +117,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot":                               schema_pkg_apis_work_v1alpha2_BindingSnapshot(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBinding":                        schema_pkg_apis_work_v1alpha2_ClusterResourceBinding(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBindingList":                    schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.EvictedCluster":                                schema_pkg_apis_work_v1alpha2_EvictedCluster(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask":                          schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.NodeClaim":                                     schema_pkg_apis_work_v1alpha2_NodeClaim(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference":                               schema_pkg_apis_work_v1alpha2_ObjectReference(ref),
@@ -809,6 +812,13 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 									},
 								},
 							},
+						},
+					},
+					"clusterEvictedSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterEvictedSeconds represents the period of time how soon a cluster can be rescheduled after being evicted. By default, the value is 5min, which means the cluster can be rescheduled 5 minutes after the cluster is evicted. Zero and negative values will be treated as 0 (can never be rescheduled) by the system.",
+							Type:        []string{"integer"},
+							Format:      "int64",
 						},
 					},
 				},
@@ -3363,12 +3373,26 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"reschedulingTriggers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReschedulingTriggers represents the rescheduling triggers for unhealthy application state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReschedulingTrigger"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"resourceSelectors"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReschedulingTrigger", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"},
 	}
 }
 
@@ -3404,6 +3428,68 @@ func schema_pkg_apis_policy_v1alpha1_ReplicaSchedulingStrategy(ref common.Refere
 		},
 		Dependencies: []string{
 			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPreferences"},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_ReschedulingConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ReschedulingConfig represents the rescheduling config for resource objects matched by the ResourceSelector pointed to by the above index.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"failover": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Failover represents whether to reschedule when the application is unhealthy. By default, the value is false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"unhealthyTolerationSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UnhealthyTolerationSeconds represents the period of time how soon the unhealthy state of applications can be tolerated. By default, the value is 10 seconds. Minimum value is 1.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"startupTolerationSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupTolerationSeconds represents the period of time how soon Karmada waits to start health detection to protect slow starting applications. Sometimes, applications might require an additional startup time on their first initialization. By default, the value is 1 minute. Minimum value is 1.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_ReschedulingTrigger(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ReschedulingTrigger represents the rescheduling trigger for matched resource objects.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"index": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Index represents the corresponding index of ResourceSelectors. If this value is not set, it means that all resources hit by ResourceSectors use the same configuration. If the resource meets the conditions of multiple ResourceSelectors at the same time, it will use the matching configuration with the highest priority.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"reschedulingConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReschedulingConfig represents the rescheduling config for resource objects matched by the ResourceSelector pointed to by the above index.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReschedulingConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReschedulingConfig"},
 	}
 }
 
@@ -4854,6 +4940,34 @@ func schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref common.Referen
 	}
 }
 
+func schema_pkg_apis_work_v1alpha2_EvictedCluster(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name represents the evicted cluster name.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"creationTimestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CreationTimestamp is a timestamp representing the server time when this object was created. Clients should not set this value to avoid the time inconsistency issue. It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.\n\nPopulated by the system. Read-only.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -5243,6 +5357,26 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 							},
 						},
 					},
+					"evictedClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EvictedClusters represents the evicted clusters.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.EvictedCluster"),
+									},
+								},
+							},
+						},
+					},
+					"reschedulingConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReschedulingConfig represents the rescheduling config for the referencing resource. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReschedulingConfig"),
+						},
+					},
 					"schedulerName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SchedulerName represents which scheduler to proceed the scheduling. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
@@ -5255,7 +5389,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReschedulingConfig", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.EvictedCluster", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"},
 	}
 }
 
