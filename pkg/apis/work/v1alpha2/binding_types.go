@@ -235,9 +235,16 @@ type ResourceBindingStatus struct {
 	// the scheduling result or hasn't done the schedule yet.
 	// +optional
 	SchedulerObservedGeneration int64 `json:"schedulerObservedGeneration,omitempty"`
+
+	// SchedulerObservedAffinityName is the name of affinity term that is
+	// the basis of current scheduling.
+	// +optional
+	SchedulerObservedAffinityName string `json:"schedulerObservingAffinityName,omitempty"`
+
 	// Conditions contain the different condition statuses.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
 	// AggregatedStatus represents status list of the resource running in each member cluster.
 	// +optional
 	AggregatedStatus []AggregatedStatusItem `json:"aggregatedStatus,omitempty"`

@@ -1195,6 +1195,10 @@ spec:
                   the scheduling result or hasn't done the schedule yet.
                 format: int64
                 type: integer
+              schedulerObservingAffinityName:
+                description: SchedulerObservedAffinityName is the name of affinity
+                  term that is the basis of current scheduling.
+                type: string
             type: object
         required:
         - spec

@@ -16764,6 +16764,10 @@
           "description": "SchedulerObservedGeneration is the generation(.metadata.generation) observed by the scheduler. If SchedulerObservedGeneration is less than the generation in metadata means the scheduler hasn't confirmed the scheduling result or hasn't done the schedule yet.",
           "type": "integer",
           "format": "int64"
+        },
+        "schedulerObservingAffinityName": {
+          "description": "SchedulerObservedAffinityName is the name of affinity term that is the basis of current scheduling.",
+          "type": "string"
         }
       }
     },
