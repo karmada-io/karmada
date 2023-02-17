@@ -1,0 +1,53 @@
+name: CLI
+on:
+  # Run this workflow every time a new commit pushed to upstream/fork repository.
+  # Run workflow on fork repository will help contributors find and resolve issues before sending a PR.
+  push:
+  pull_request:
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  init:
+    name: init
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
+        # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
+        # Please remember to update the CI Schedule Workflow when we add a new version.
+        k8s: [ v1.24.2, v1.25.0, v1.26.0 ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.5
+      - uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: "v0.17.0"
+      - name: run karmadactl init test
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+
+          # init e2e environment
+          hack/cli-testing-environment.sh
+
+          # run a single e2e
+          export KUBECONFIG=${HOME}/karmada/karmada-apiserver.config
+          GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
+          ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/
+      - uses: chainguard-dev/actions/kind-diag@main
+        # Only upload logs on failure.
+        if: ${{ failure() }}
+        with:
+          cluster-resources: nodes,namespaces,
+          namespace-resources: configmaps,pods,svc
+          artifact-name: logs-${{ matrix.k8s}}
+
