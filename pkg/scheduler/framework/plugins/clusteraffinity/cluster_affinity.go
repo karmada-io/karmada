@@ -4,7 +4,6 @@ import (
 	"context"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -32,9 +31,9 @@ func (p *ClusterAffinity) Name() string {
 }
 
 // Filter checks if the cluster matched the placement cluster affinity constraint.
-func (p *ClusterAffinity) Filter(ctx context.Context, placement *policyv1alpha1.Placement,
+func (p *ClusterAffinity) Filter(ctx context.Context,
 	bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
-	affinity := placement.ClusterAffinity
+	affinity := bindingSpec.Placement.ClusterAffinity
 	if affinity != nil {
 		if util.ClusterMatches(cluster, *affinity) {
 			return framework.NewResult(framework.Success)
@@ -47,7 +46,7 @@ func (p *ClusterAffinity) Filter(ctx context.Context, placement *policyv1alpha1.
 }
 
 // Score calculates the score on the candidate cluster.
-func (p *ClusterAffinity) Score(ctx context.Context, placement *policyv1alpha1.Placement,
+func (p *ClusterAffinity) Score(ctx context.Context,
 	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	return framework.MinClusterScore, framework.NewResult(framework.Success)
 }

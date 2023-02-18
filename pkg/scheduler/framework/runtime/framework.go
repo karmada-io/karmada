@@ -7,7 +7,6 @@ import (
 	"time"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
@@ -75,29 +74,29 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *policyv1alpha1.Placement, bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (result *framework.Result) {
+func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (result *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(filter, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
 	for _, p := range frw.filterPlugins {
-		if result := frw.runFilterPlugin(ctx, p, placement, bindingSpec, cluster); !result.IsSuccess() {
+		if result := frw.runFilterPlugin(ctx, p, bindingSpec, cluster); !result.IsSuccess() {
 			return result
 		}
 	}
 	return framework.NewResult(framework.Success)
 }
 
-func (frw *frameworkImpl) runFilterPlugin(ctx context.Context, pl framework.FilterPlugin, placement *policyv1alpha1.Placement, bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (frw *frameworkImpl) runFilterPlugin(ctx context.Context, pl framework.FilterPlugin, bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
 	startTime := time.Now()
-	result := pl.Filter(ctx, placement, bindingSpec, cluster)
+	result := pl.Filter(ctx, bindingSpec, cluster)
 	frw.metricsRecorder.observePluginDurationAsync(filter, pl.Name(), result, utilmetrics.DurationInSeconds(startTime))
 	return result
 }
 
 // RunScorePlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (ps framework.PluginToClusterScores, result *framework.Result) {
+func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (ps framework.PluginToClusterScores, result *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(score, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
@@ -106,7 +105,7 @@ func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policy
 	for _, p := range frw.scorePlugins {
 		var scoreList framework.ClusterScoreList
 		for _, cluster := range clusters {
-			s, res := frw.runScorePlugin(ctx, p, placement, spec, cluster)
+			s, res := frw.runScorePlugin(ctx, p, spec, cluster)
 			if !res.IsSuccess() {
 				return nil, framework.AsResult(fmt.Errorf("plugin %q failed with: %w", p.Name(), res.AsError()))
 			}
@@ -139,9 +138,9 @@ func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policy
 	return pluginToClusterScores, nil
 }
 
-func (frw *frameworkImpl) runScorePlugin(ctx context.Context, pl framework.ScorePlugin, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
+func (frw *frameworkImpl) runScorePlugin(ctx context.Context, pl framework.ScorePlugin, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	startTime := time.Now()
-	s, result := pl.Score(ctx, placement, spec, cluster)
+	s, result := pl.Score(ctx, spec, cluster)
 	frw.metricsRecorder.observePluginDurationAsync(score, pl.Name(), result, utilmetrics.DurationInSeconds(startTime))
 	return s, result
 }

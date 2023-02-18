@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	v1alpha10 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	framework "github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
@@ -39,32 +38,32 @@ func (m *MockFramework) EXPECT() *MockFrameworkMockRecorder {
 }
 
 // RunFilterPlugins mocks base method.
-func (m *MockFramework) RunFilterPlugins(ctx context.Context, placement *v1alpha10.Placement, bindingSpec *v1alpha2.ResourceBindingSpec, clusterv1alpha1 *v1alpha1.Cluster) *framework.Result {
+func (m *MockFramework) RunFilterPlugins(ctx context.Context, bindingSpec *v1alpha2.ResourceBindingSpec, clusterv1alpha1 *v1alpha1.Cluster) *framework.Result {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RunFilterPlugins", ctx, placement, bindingSpec, clusterv1alpha1)
+	ret := m.ctrl.Call(m, "RunFilterPlugins", ctx, bindingSpec, clusterv1alpha1)
 	ret0, _ := ret[0].(*framework.Result)
 	return ret0
 }
 
 // RunFilterPlugins indicates an expected call of RunFilterPlugins.
-func (mr *MockFrameworkMockRecorder) RunFilterPlugins(ctx, placement, bindingSpec, clusterv1alpha1 interface{}) *gomock.Call {
+func (mr *MockFrameworkMockRecorder) RunFilterPlugins(ctx, bindingSpec, clusterv1alpha1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunFilterPlugins", reflect.TypeOf((*MockFramework)(nil).RunFilterPlugins), ctx, placement, bindingSpec, clusterv1alpha1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunFilterPlugins", reflect.TypeOf((*MockFramework)(nil).RunFilterPlugins), ctx, bindingSpec, clusterv1alpha1)
 }
 
 // RunScorePlugins mocks base method.
-func (m *MockFramework) RunScorePlugins(ctx context.Context, placement *v1alpha10.Placement, spec *v1alpha2.ResourceBindingSpec, clusters []*v1alpha1.Cluster) (framework.PluginToClusterScores, *framework.Result) {
+func (m *MockFramework) RunScorePlugins(ctx context.Context, spec *v1alpha2.ResourceBindingSpec, clusters []*v1alpha1.Cluster) (framework.PluginToClusterScores, *framework.Result) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RunScorePlugins", ctx, placement, spec, clusters)
+	ret := m.ctrl.Call(m, "RunScorePlugins", ctx, spec, clusters)
 	ret0, _ := ret[0].(framework.PluginToClusterScores)
 	ret1, _ := ret[1].(*framework.Result)
 	return ret0, ret1
 }
 
 // RunScorePlugins indicates an expected call of RunScorePlugins.
-func (mr *MockFrameworkMockRecorder) RunScorePlugins(ctx, placement, spec, clusters interface{}) *gomock.Call {
+func (mr *MockFrameworkMockRecorder) RunScorePlugins(ctx, spec, clusters interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunScorePlugins", reflect.TypeOf((*MockFramework)(nil).RunScorePlugins), ctx, placement, spec, clusters)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunScorePlugins", reflect.TypeOf((*MockFramework)(nil).RunScorePlugins), ctx, spec, clusters)
 }
 
 // MockPlugin is a mock of Plugin interface.
@@ -128,17 +127,17 @@ func (m *MockFilterPlugin) EXPECT() *MockFilterPluginMockRecorder {
 }
 
 // Filter mocks base method.
-func (m *MockFilterPlugin) Filter(ctx context.Context, placement *v1alpha10.Placement, bindingSpec *v1alpha2.ResourceBindingSpec, clusterv1alpha1 *v1alpha1.Cluster) *framework.Result {
+func (m *MockFilterPlugin) Filter(ctx context.Context, bindingSpec *v1alpha2.ResourceBindingSpec, clusterv1alpha1 *v1alpha1.Cluster) *framework.Result {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Filter", ctx, placement, bindingSpec, clusterv1alpha1)
+	ret := m.ctrl.Call(m, "Filter", ctx, bindingSpec, clusterv1alpha1)
 	ret0, _ := ret[0].(*framework.Result)
 	return ret0
 }
 
 // Filter indicates an expected call of Filter.
-func (mr *MockFilterPluginMockRecorder) Filter(ctx, placement, bindingSpec, clusterv1alpha1 interface{}) *gomock.Call {
+func (mr *MockFilterPluginMockRecorder) Filter(ctx, bindingSpec, clusterv1alpha1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockFilterPlugin)(nil).Filter), ctx, placement, bindingSpec, clusterv1alpha1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockFilterPlugin)(nil).Filter), ctx, bindingSpec, clusterv1alpha1)
 }
 
 // Name mocks base method.
@@ -193,18 +192,18 @@ func (mr *MockScorePluginMockRecorder) Name() *gomock.Call {
 }
 
 // Score mocks base method.
-func (m *MockScorePlugin) Score(ctx context.Context, placement *v1alpha10.Placement, spec *v1alpha2.ResourceBindingSpec, cluster *v1alpha1.Cluster) (int64, *framework.Result) {
+func (m *MockScorePlugin) Score(ctx context.Context, spec *v1alpha2.ResourceBindingSpec, cluster *v1alpha1.Cluster) (int64, *framework.Result) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Score", ctx, placement, spec, cluster)
+	ret := m.ctrl.Call(m, "Score", ctx, spec, cluster)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(*framework.Result)
 	return ret0, ret1
 }
 
 // Score indicates an expected call of Score.
-func (mr *MockScorePluginMockRecorder) Score(ctx, placement, spec, cluster interface{}) *gomock.Call {
+func (mr *MockScorePluginMockRecorder) Score(ctx, spec, cluster interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Score", reflect.TypeOf((*MockScorePlugin)(nil).Score), ctx, placement, spec, cluster)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Score", reflect.TypeOf((*MockScorePlugin)(nil).Score), ctx, spec, cluster)
 }
 
 // ScoreExtensions mocks base method.

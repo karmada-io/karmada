@@ -987,17 +987,11 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 		return err
 	}
 	for _, rb := range resourceBindings.Items {
-		gv, err := schema.ParseGroupVersion(rb.Spec.Resource.APIVersion)
+		resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
 		if err != nil {
 			return err
 		}
-		d.Processor.Add(keys.ClusterWideKey{
-			Name:      rb.Spec.Resource.Name,
-			Namespace: rb.Spec.Resource.Namespace,
-			Kind:      rb.Spec.Resource.Kind,
-			Group:     gv.Group,
-			Version:   gv.Version,
-		})
+		d.Processor.Add(resourceKey)
 	}
 
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
@@ -1048,30 +1042,18 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 		return err
 	}
 	for _, rb := range resourceBindings.Items {
-		gv, err := schema.ParseGroupVersion(rb.Spec.Resource.APIVersion)
+		resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
 		if err != nil {
 			return err
 		}
-		d.Processor.Add(keys.ClusterWideKey{
-			Name:      rb.Spec.Resource.Name,
-			Namespace: rb.Spec.Resource.Namespace,
-			Kind:      rb.Spec.Resource.Kind,
-			Group:     gv.Group,
-			Version:   gv.Version,
-		})
+		d.Processor.Add(resourceKey)
 	}
 	for _, crb := range clusterResourceBindings.Items {
-		gv, err := schema.ParseGroupVersion(crb.Spec.Resource.APIVersion)
+		resourceKey, err := helper.ConstructClusterWideKey(crb.Spec.Resource)
 		if err != nil {
 			return err
 		}
-		d.Processor.Add(keys.ClusterWideKey{
-			Name:      crb.Spec.Resource.Name,
-			Namespace: crb.Spec.Resource.Namespace,
-			Kind:      crb.Spec.Resource.Kind,
-			Group:     gv.Group,
-			Version:   gv.Version,
-		})
+		d.Processor.Add(resourceKey)
 	}
 
 	matchedKeys := d.GetMatching(policy.Spec.ResourceSelectors)
