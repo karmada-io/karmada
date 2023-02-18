@@ -146,23 +146,29 @@ type FieldSelector struct {
 // Placement represents the rule for select clusters.
 type Placement struct {
 	// ClusterAffinity represents scheduling restrictions to a certain set of clusters.
-	// If not set, any cluster can be scheduling candidate.
+	// Note:
+	//   1. ClusterAffinity can not co-exist with ClusterAffinities.
+	//   2. If both ClusterAffinity and ClusterAffinities are not set, any cluster
+	//      can be scheduling candidates.
 	// +optional
 	ClusterAffinity *ClusterAffinity `json:"clusterAffinity,omitempty"`
 
-	// OrderedClusterAffinities represents the scheduling order among multiple
-	// set of clusters that indicated by OrderedClusterAffinityTerm.
-	// Each term should have a unique order among all terms.
+	// ClusterAffinities represents scheduling restrictions to multiple cluster
+	// groups that indicated by ClusterAffinityTerm.
 	//
-	// The scheduler will evaluate these groups one by one in strict order, the
-	// group that does not satisfy scheduling restrictions will be ignored that
-	// means all clusters in this group will not be selected unless it also
-	// belongs to the next group(a cluster could belong to multiple groups).
+	// The scheduler will evaluate these groups one by one in the order they
+	// appear in the spec, the group that does not satisfy scheduling restrictions
+	// will be ignored which means all clusters in this group will not be selected
+	// unless it also belongs to the next group(a cluster could belong to multiple
+	// groups).
 	//
 	// If none of the groups satisfy the scheduling restrictions, then scheduling
 	// fails, which means no cluster will be selected.
 	//
-	// Note: OrderedClusterAffinities can not co-exist with ClusterAffinity.
+	// Note:
+	//   1. ClusterAffinities can not co-exist with ClusterAffinity.
+	//   2. If both ClusterAffinity and ClusterAffinities are not set, any cluster
+	//      can be scheduling candidates.
 	//
 	// Potential use case 1:
 	// The private clusters in the local data center could be the main group, and
@@ -178,7 +184,7 @@ type Placement struct {
 	// Karmada scheduler could migrate workloads to the backup clusters.
 	//
 	// +optional
-	OrderedClusterAffinities []OrderedClusterAffinityTerm `json:"orderedClusterAffinities,omitempty"`
+	ClusterAffinities []ClusterAffinityTerm `json:"orderedClusterAffinities,omitempty"`
 
 	// ClusterTolerations represents the tolerations.
 	// +optional
@@ -255,16 +261,11 @@ type ClusterAffinity struct {
 	ExcludeClusters []string `json:"exclude,omitempty"`
 }
 
-// OrderedClusterAffinityTerm selects a set of cluster and indicates the order
-// that Karmada scheduler should inspect with.
-type OrderedClusterAffinityTerm struct {
+// ClusterAffinityTerm selects a set of cluster.
+type ClusterAffinityTerm struct {
 	// AffinityName is the name of the cluster group.
 	// +required
 	AffinityName string `json:"affinityName"`
-
-	// Order of the cluster group that Karmada scheduler should inspect with, in the range 1-100.
-	// +required
-	Order int32 `json:"order"`
 
 	ClusterAffinity `json:",inline"`
 }
