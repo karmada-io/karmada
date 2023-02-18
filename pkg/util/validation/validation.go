@@ -16,6 +16,58 @@ import (
 // LabelValueMaxLength is a label's max length
 const LabelValueMaxLength int = 63
 
+// ValidatePropagationSpec validates a PropagationSpec before creation or update.
+func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorList {
+	var allErrs field.ErrorList
+	allErrs = append(allErrs, ValidatePlacement(spec.Placement, field.NewPath("spec").Child("placement"))...)
+	return allErrs
+}
+
+// ValidatePlacement validates a PropagationSpec before creation or update.
+func ValidatePlacement(placement policyv1alpha1.Placement, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if placement.ClusterAffinity != nil && placement.ClusterAffinities != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath, placement, "clusterAffinities can not co-exist with clusterAffinity"))
+	}
+
+	allErrs = append(allErrs, ValidateClusterAffinity(placement.ClusterAffinity, fldPath.Child("clusterAffinity"))...)
+	allErrs = append(allErrs, ValidateClusterAffinities(placement.ClusterAffinities, fldPath.Child("clusterAffinities"))...)
+	allErrs = append(allErrs, ValidateSpreadConstraint(placement.SpreadConstraints, fldPath.Child("spreadConstraints"))...)
+	return allErrs
+}
+
+// ValidateClusterAffinity validates a PropagationSpec before creation or update.
+func ValidateClusterAffinity(affinity *policyv1alpha1.ClusterAffinity, fldPath *field.Path) field.ErrorList {
+	if affinity == nil {
+		return nil
+	}
+
+	var allErrs field.ErrorList
+	err := ValidatePolicyFieldSelector(affinity.FieldSelector)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("fieldSelector"), affinity.FieldSelector, err.Error()))
+	}
+	return allErrs
+}
+
+// ValidateClusterAffinities validates a PropagationSpec before creation or update.
+func ValidateClusterAffinities(affinities []policyv1alpha1.ClusterAffinityTerm, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	affinityNames := make(map[string]bool)
+	for index, term := range affinities {
+		if _, exist := affinityNames[term.AffinityName]; exist {
+			allErrs = append(allErrs, field.Invalid(fldPath, affinities, "each affinity term in a policy must have a unique name"))
+		} else {
+			affinityNames[term.AffinityName] = true
+		}
+
+		allErrs = append(allErrs, ValidateClusterAffinity(&term.ClusterAffinity, fldPath.Index(index))...)
+	}
+	return allErrs
+}
+
 // ValidatePolicyFieldSelector tests if the fieldSelector of propagation policy is valid.
 func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) error {
 	if fieldSelector == nil {
@@ -40,18 +92,19 @@ func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) er
 }
 
 // ValidateSpreadConstraint tests if the constraints is valid.
-func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstraint) error {
-	spreadByFields := sets.NewString()
+func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstraint, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
 
-	for _, constraint := range spreadConstraints {
+	spreadByFields := sets.New[string]()
+	for index, constraint := range spreadConstraints {
 		// SpreadByField and SpreadByLabel should not co-exist
 		if len(constraint.SpreadByField) > 0 && len(constraint.SpreadByLabel) > 0 {
-			return fmt.Errorf("invalid constraints: SpreadByLabel(%s) should not co-exist with spreadByField(%s)", constraint.SpreadByLabel, constraint.SpreadByField)
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), constraint, "spreadByLabel should not co-exist with spreadByField"))
 		}
 
 		// If MaxGroups provided, it should greater or equal than MinGroups.
 		if constraint.MaxGroups > 0 && constraint.MaxGroups < constraint.MinGroups {
-			return fmt.Errorf("maxGroups(%d) lower than minGroups(%d) is not allowed", constraint.MaxGroups, constraint.MinGroups)
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), constraint, "maxGroups lower than minGroups is not allowed"))
 		}
 
 		if len(constraint.SpreadByField) > 0 {
@@ -64,11 +117,11 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 		// For example, when using 'SpreadByFieldRegion' to specify region groups, at the meantime, you must use
 		// 'SpreadByFieldCluster' to specify how many clusters should be selected.
 		if !spreadByFields.Has(string(policyv1alpha1.SpreadByFieldCluster)) {
-			return fmt.Errorf("the cluster spread constraint must be enabled in one of the constraints in case of SpreadByField is enabled")
+			allErrs = append(allErrs, field.Invalid(fldPath, spreadConstraints, "the cluster spread constraint must be enabled in one of the constraints in case of SpreadByField is enabled"))
 		}
 	}
 
-	return nil
+	return allErrs
 }
 
 // ValidateOverrideSpec validates that the overrider specification is correctly defined.
