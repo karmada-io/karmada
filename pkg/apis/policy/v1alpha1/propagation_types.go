@@ -184,7 +184,7 @@ type Placement struct {
 	// Karmada scheduler could migrate workloads to the backup clusters.
 	//
 	// +optional
-	ClusterAffinities []ClusterAffinityTerm `json:"orderedClusterAffinities,omitempty"`
+	ClusterAffinities []ClusterAffinityTerm `json:"clusterAffinities,omitempty"`
 
 	// ClusterTolerations represents the tolerations.
 	// +optional
