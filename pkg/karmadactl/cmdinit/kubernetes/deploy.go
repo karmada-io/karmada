@@ -121,6 +121,7 @@ type CommandInitOption struct {
 	CRDs                               string
 	ExternalIP                         string
 	ExternalDNS                        string
+	CertValidity                       time.Duration
 	KubeClientSet                      kubernetes.Interface
 	CertAndKeyFileData                 map[string][]byte
 	RestConfig                         *rest.Config
@@ -218,7 +219,7 @@ func initializeDirectory(path string) error {
 
 // genCerts create ca etcd karmada cert
 func (i *CommandInitOption) genCerts() error {
-	notAfter := time.Now().Add(cert.Duration365d).UTC()
+	notAfter := time.Now().Add(i.CertValidity).UTC()
 
 	etcdServerCertDNS := []string{
 		"localhost",
