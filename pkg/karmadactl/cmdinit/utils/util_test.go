@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -77,5 +78,46 @@ func TestDownloadFile(t *testing.T) {
 
 	if want := testFileContent; !bytes.Equal(got, want) {
 		t.Errorf("DeCompress() got %v, want %v", got, want)
+	}
+}
+
+func TestListFiles(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		tempfils []string
+	}{
+		{
+			name:     "get files from path",
+			path:     "temp-path" + randString(),
+			tempfils: []string{"tempfiles1" + randString(), "tempfiles2" + randString()},
+		},
+		{
+			name:     "no files from path",
+			path:     "temp-path" + randString(),
+			tempfils: []string{},
+		},
+	}
+	for _, tt := range tests {
+		err := os.Mkdir(tt.path, 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(tt.path)
+
+		var want []string
+		for i := 0; i < len(tt.tempfils); i++ {
+			want = append(want, tt.path+"/"+tt.tempfils[i])
+			_, err = os.Create(tt.path + "/" + tt.tempfils[i])
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ListFiles(tt.path + "/"); !reflect.DeepEqual(got, want) {
+				t.Errorf("ListFiles() = %v, want %v", got, want)
+			}
+		})
 	}
 }
