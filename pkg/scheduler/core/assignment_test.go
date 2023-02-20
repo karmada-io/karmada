@@ -1,10 +1,12 @@
 package core
 
 import (
+	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -735,6 +737,75 @@ func Test_dynamicScaleUp(t *testing.T) {
 			}
 			if !helper.IsScheduleResultEqual(got, tt.want) {
 				t.Errorf("dynamicScaleUp() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_assignByDuplicatedStrategy(t *testing.T) {
+	tests := []struct {
+		name    string
+		state   *assignState
+		want    []workv1alpha2.TargetCluster
+		wantErr bool
+	}{
+		{
+			name: "test with multiple cluster",
+			state: &assignState{
+				candidates: []*clusterv1alpha1.Cluster{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster1"},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster2"},
+					},
+				},
+				spec: &workv1alpha2.ResourceBindingSpec{Replicas: 2},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 2},
+				{Name: "cluster2", Replicas: 2},
+			},
+			wantErr: false,
+		},
+		{
+			name: "the target cluster is null",
+			state: &assignState{
+				candidates: []*clusterv1alpha1.Cluster{},
+				spec:       &workv1alpha2.ResourceBindingSpec{Replicas: 2},
+			},
+			want:    []workv1alpha2.TargetCluster{},
+			wantErr: false,
+		},
+		{
+			name: "replicas is null",
+			state: &assignState{
+				candidates: []*clusterv1alpha1.Cluster{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster1"},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster2"},
+					},
+				},
+				spec: &workv1alpha2.ResourceBindingSpec{},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 0},
+				{Name: "cluster2", Replicas: 0},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := assignByDuplicatedStrategy(tt.state)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("assignByDuplicatedStrategy() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("assignByDuplicatedStrategy() = %v, want %v", got, tt.want)
 			}
 		})
 	}
