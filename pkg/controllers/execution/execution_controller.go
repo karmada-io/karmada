@@ -85,11 +85,15 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
 				return controllerruntime.Result{Requeue: true}, err
 			}
-		} else if cluster.DeletionTimestamp.IsZero() { // cluster is unready, but not terminating
-			return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		} else {
+			if err := c.removeFinalizer(work); err != nil {
+				return controllerruntime.Result{Requeue: true}, err
+			}
+			if cluster.DeletionTimestamp.IsZero() {
+				return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+			}
 		}
-
-		return c.removeFinalizer(work)
+		return controllerruntime.Result{}, nil
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
@@ -169,17 +173,17 @@ func (c *Controller) tryDeleteWorkload(clusterName string, work *workv1alpha1.Wo
 }
 
 // removeFinalizer remove finalizer from the given Work
-func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *Controller) removeFinalizer(work *workv1alpha1.Work) error {
 	if !controllerutil.ContainsFinalizer(work, util.ExecutionControllerFinalizer) {
-		return controllerruntime.Result{}, nil
+		return nil
 	}
 
 	controllerutil.RemoveFinalizer(work, util.ExecutionControllerFinalizer)
 	err := c.Client.Update(context.TODO(), work)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
-	return controllerruntime.Result{}, nil
+	return nil
 }
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
