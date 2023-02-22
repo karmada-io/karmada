@@ -23,7 +23,7 @@ func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorLis
 	return allErrs
 }
 
-// ValidatePlacement validates a PropagationSpec before creation or update.
+// ValidatePlacement validates a placement before creation or update.
 func ValidatePlacement(placement policyv1alpha1.Placement, fldPath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
@@ -51,7 +51,7 @@ func ValidateClusterAffinity(affinity *policyv1alpha1.ClusterAffinity, fldPath *
 	return allErrs
 }
 
-// ValidateClusterAffinities validates a PropagationSpec before creation or update.
+// ValidateClusterAffinities validates clusterAffinities before creation or update.
 func ValidateClusterAffinities(affinities []policyv1alpha1.ClusterAffinityTerm, fldPath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
@@ -143,15 +143,15 @@ func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) field.Error
 	}
 	//nolint:staticcheck
 	// disable `deprecation` check for backward compatibility.
-	if !EmptyOverrides(overrideSpec.Overriders) && overrideSpec.OverrideRules != nil {
+	if !emptyOverrides(overrideSpec.Overriders) && overrideSpec.OverrideRules != nil {
 		allErrs = append(allErrs, field.Invalid(specPath.Child("overriders"), overrideSpec.Overriders, "overrideRules and overriders can't co-exist"))
 	}
 	allErrs = append(allErrs, ValidateOverrideRules(overrideSpec.OverrideRules, specPath)...)
 	return allErrs
 }
 
-// EmptyOverrides check if the overriders of override policy is empty
-func EmptyOverrides(overriders policyv1alpha1.Overriders) bool {
+// emptyOverrides check if the overriders of override policy is empty.
+func emptyOverrides(overriders policyv1alpha1.Overriders) bool {
 	if len(overriders.Plaintext) != 0 {
 		return false
 	}
@@ -174,9 +174,9 @@ func EmptyOverrides(overriders policyv1alpha1.Overriders) bool {
 }
 
 // ValidateOverrideRules validates the overrideRules of override policy.
-func ValidateOverrideRules(overrideRule []policyv1alpha1.RuleWithCluster, fldPath *field.Path) field.ErrorList {
+func ValidateOverrideRules(overrideRules []policyv1alpha1.RuleWithCluster, fldPath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
-	for overrideRuleIndex, rule := range overrideRule {
+	for overrideRuleIndex, rule := range overrideRules {
 		rulePath := fldPath.Child("overrideRules").Index(overrideRuleIndex)
 
 		// validates provided annotations.
@@ -191,7 +191,7 @@ func ValidateOverrideRules(overrideRule []policyv1alpha1.RuleWithCluster, fldPat
 			allErrs = append(allErrs, metav1validation.ValidateLabels(label.Value, labelPath.Child("value"))...)
 		}
 
-		// validates the fieldSelector of targetCluster.
+		// validates the targetCluster.
 		allErrs = append(allErrs, ValidateClusterAffinity(rule.TargetCluster, rulePath.Child("targetCluster"))...)
 	}
 	return allErrs
