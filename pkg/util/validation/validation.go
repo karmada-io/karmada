@@ -37,7 +37,7 @@ func ValidatePlacement(placement policyv1alpha1.Placement, fldPath *field.Path) 
 	return allErrs
 }
 
-// ValidateClusterAffinity validates a PropagationSpec before creation or update.
+// ValidateClusterAffinity validates a clusterAffinity before creation or update.
 func ValidateClusterAffinity(affinity *policyv1alpha1.ClusterAffinity, fldPath *field.Path) field.ErrorList {
 	if affinity == nil {
 		return nil
@@ -68,7 +68,7 @@ func ValidateClusterAffinities(affinities []policyv1alpha1.ClusterAffinityTerm, 
 	return allErrs
 }
 
-// ValidatePolicyFieldSelector tests if the fieldSelector of propagation policy is valid.
+// ValidatePolicyFieldSelector tests if the fieldSelector of propagation policy or override policy is valid.
 func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) error {
 	if fieldSelector == nil {
 		return nil
@@ -125,41 +125,29 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 }
 
 // ValidateOverrideSpec validates that the overrider specification is correctly defined.
-func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) error {
+func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) field.ErrorList {
+	var allErrs field.ErrorList
 	if overrideSpec == nil {
 		return nil
 	}
-
-	if overrideSpec.OverrideRules == nil {
-		return nil
-	}
-
+	specPath := field.NewPath("spec")
 	//nolint:staticcheck
 	// disable `deprecation` check for backward compatibility.
-	if overrideSpec.TargetCluster != nil || !EmptyOverrides(overrideSpec.Overriders) {
-		return fmt.Errorf("overrideRules and (overriders or targetCluster) can't co-exist")
+	if overrideSpec.TargetCluster != nil {
+		allErrs = append(allErrs, ValidateClusterAffinity(overrideSpec.TargetCluster, specPath.Child("targetCluster"))...)
 	}
-
-	for overrideRuleIndex, rule := range overrideSpec.OverrideRules {
-		rulePath := field.NewPath("spec").Child("overrideRules").Index(overrideRuleIndex)
-
-		// validates provided annotations.
-		for annotationIndex, annotation := range rule.Overriders.AnnotationsOverrider {
-			annotationPath := rulePath.Child("overriders").Child("annotationsOverrider").Index(annotationIndex)
-			if err := apivalidation.ValidateAnnotations(annotation.Value, annotationPath.Child("value")).ToAggregate(); err != nil {
-				return err
-			}
-		}
-
-		// validates provided labels.
-		for labelIndex, label := range rule.Overriders.LabelsOverrider {
-			labelPath := rulePath.Child("overriders").Child("labelsOverrider").Index(labelIndex)
-			if err := metav1validation.ValidateLabels(label.Value, labelPath.Child("value")).ToAggregate(); err != nil {
-				return err
-			}
-		}
+	//nolint:staticcheck
+	// disable `deprecation` check for backward compatibility.
+	if overrideSpec.TargetCluster != nil && overrideSpec.OverrideRules != nil {
+		allErrs = append(allErrs, field.Invalid(specPath.Child("targetCluster"), overrideSpec.TargetCluster, "overrideRules and targetCluster can't co-exist"))
 	}
-	return nil
+	//nolint:staticcheck
+	// disable `deprecation` check for backward compatibility.
+	if !EmptyOverrides(overrideSpec.Overriders) && overrideSpec.OverrideRules != nil {
+		allErrs = append(allErrs, field.Invalid(specPath.Child("overriders"), overrideSpec.Overriders, "overrideRules and overriders can't co-exist"))
+	}
+	allErrs = append(allErrs, ValidateOverrideRules(overrideSpec.OverrideRules, specPath)...)
+	return allErrs
 }
 
 // EmptyOverrides check if the overriders of override policy is empty
@@ -183,4 +171,28 @@ func EmptyOverrides(overriders policyv1alpha1.Overriders) bool {
 		return false
 	}
 	return true
+}
+
+// ValidateOverrideRules validates the overrideRules of override policy.
+func ValidateOverrideRules(overrideRule []policyv1alpha1.RuleWithCluster, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	for overrideRuleIndex, rule := range overrideRule {
+		rulePath := fldPath.Child("overrideRules").Index(overrideRuleIndex)
+
+		// validates provided annotations.
+		for annotationIndex, annotation := range rule.Overriders.AnnotationsOverrider {
+			annotationPath := rulePath.Child("overriders").Child("annotationsOverrider").Index(annotationIndex)
+			allErrs = append(allErrs, apivalidation.ValidateAnnotations(annotation.Value, annotationPath.Child("value"))...)
+		}
+
+		// validates provided labels.
+		for labelIndex, label := range rule.Overriders.LabelsOverrider {
+			labelPath := rulePath.Child("overriders").Child("labelsOverrider").Index(labelIndex)
+			allErrs = append(allErrs, metav1validation.ValidateLabels(label.Value, labelPath.Child("value"))...)
+		}
+
+		// validates the fieldSelector of targetCluster.
+		allErrs = append(allErrs, ValidateClusterAffinity(rule.TargetCluster, rulePath.Child("targetCluster"))...)
+	}
+	return allErrs
 }
