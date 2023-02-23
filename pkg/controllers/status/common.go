@@ -24,23 +24,23 @@ import (
 var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 	CreateFunc: func(e event.CreateEvent) bool { return false },
 	UpdateFunc: func(e event.UpdateEvent) bool {
-		var statusesOld, statusesNew workv1alpha1.WorkStatus
+		var oldStatus, newStatus workv1alpha1.WorkStatus
 
 		switch oldWork := e.ObjectOld.(type) {
 		case *workv1alpha1.Work:
-			statusesOld = oldWork.Status
+			oldStatus = oldWork.Status
 		default:
 			return false
 		}
 
 		switch newWork := e.ObjectNew.(type) {
 		case *workv1alpha1.Work:
-			statusesNew = newWork.Status
+			newStatus = newWork.Status
 		default:
 			return false
 		}
 
-		return !reflect.DeepEqual(statusesOld, statusesNew)
+		return !reflect.DeepEqual(oldStatus, newStatus)
 	},
 	DeleteFunc:  func(event.DeleteEvent) bool { return true },
 	GenericFunc: func(event.GenericEvent) bool { return false },

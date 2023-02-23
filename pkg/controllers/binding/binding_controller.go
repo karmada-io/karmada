@@ -105,7 +105,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 			// So, just return without retry(requeue) would save unnecessary loop.
 			return controllerruntime.Result{}, nil
 		}
-		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v",
+		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
 			binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}

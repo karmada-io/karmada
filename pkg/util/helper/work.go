@@ -52,6 +52,9 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	var operationResult controllerutil.OperationResult
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
+			if !runtimeObject.DeletionTimestamp.IsZero() {
+				return fmt.Errorf("work %s/%s is being deleted", runtimeObject.GetNamespace(), runtimeObject.GetName())
+			}
 			runtimeObject.Spec = work.Spec
 			runtimeObject.Labels = work.Labels
 			runtimeObject.Annotations = work.Annotations
