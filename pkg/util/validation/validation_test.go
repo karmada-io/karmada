@@ -146,6 +146,72 @@ func TestValidateOverrideSpec(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "overrideSpec.targetCluster.fieldSelector has unsupported key",
+			overrideSpec: policyv1alpha1.OverrideSpec{
+				TargetCluster: &policyv1alpha1.ClusterAffinity{
+					FieldSelector: &policyv1alpha1.FieldSelector{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "foo",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"fooCloud"},
+							}}}},
+			},
+			expectError: true,
+		},
+		{
+			name: "overrideSpec.targetCluster.fieldSelector has unsupported operator",
+			overrideSpec: policyv1alpha1.OverrideSpec{
+				TargetCluster: &policyv1alpha1.ClusterAffinity{
+					FieldSelector: &policyv1alpha1.FieldSelector{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      util.ProviderField,
+								Operator: corev1.NodeSelectorOpGt,
+								Values:   []string{"fooCloud"},
+							}}}},
+			},
+			expectError: true,
+		},
+		{
+			name: "overrideRules.[index].targetCluster.fieldSelector has unsupported key",
+			overrideSpec: policyv1alpha1.OverrideSpec{
+				OverrideRules: []policyv1alpha1.RuleWithCluster{
+					{
+						TargetCluster: &policyv1alpha1.ClusterAffinity{
+							FieldSelector: &policyv1alpha1.FieldSelector{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "foo",
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{"fooCloud"},
+									}}},
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "overrideRules.[index].targetCluster.fieldSelector has unsupported operator",
+			overrideSpec: policyv1alpha1.OverrideSpec{
+				OverrideRules: []policyv1alpha1.RuleWithCluster{
+					{
+						TargetCluster: &policyv1alpha1.ClusterAffinity{
+							FieldSelector: &policyv1alpha1.FieldSelector{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      util.ProviderField,
+										Operator: corev1.NodeSelectorOpGt,
+										Values:   []string{"fooCloud"},
+									}}},
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -210,7 +276,7 @@ func TestEmptyOverrides(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := EmptyOverrides(tt.overriders); got != tt.want {
+			if got := emptyOverrides(tt.overriders); got != tt.want {
 				t.Errorf("EmptyOverrides() = %v, want %v", got, tt.want)
 			}
 		})

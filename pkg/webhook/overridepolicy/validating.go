@@ -31,9 +31,9 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 	}
 	klog.V(2).Infof("Validating OverridePolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
 
-	if err := validation.ValidateOverrideSpec(&policy.Spec); err != nil {
-		klog.Error(err)
-		return admission.Denied(err.Error())
+	if errs := validation.ValidateOverrideSpec(&policy.Spec); len(errs) != 0 {
+		klog.Error(errs)
+		return admission.Denied(errs.ToAggregate().Error())
 	}
 
 	return admission.Allowed("")
