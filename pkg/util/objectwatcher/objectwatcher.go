@@ -75,7 +75,7 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 		klog.Errorf("Failed to get FederatedKey %s, error: %v", desireObj.GetName(), err)
 		return err
 	}
-	existObj, err := helper.GetObjectFromCache(o.RESTMapper, o.InformerManager, fedKey)
+	_, err = helper.GetObjectFromCache(o.RESTMapper, o.InformerManager, fedKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", desireObj.GetName(), err)
@@ -91,35 +91,9 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 		klog.Infof("Created resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
 		// record version
 		o.recordVersion(clusterObj, dynamicClusterClient.ClusterName)
-	} else {
-		// If the existing resource is managed by Karmada, then just update it.
-		if util.GetLabelValue(desireObj.GetLabels(), workv1alpha1.WorkNameLabel) == util.GetLabelValue(existObj.GetLabels(), workv1alpha1.WorkNameLabel) {
-			return o.Update(clusterName, desireObj, existObj)
-		}
-		// update the resource if a conflict resolution instruction is existed in annotation.
-		err = o.resourceConflictOverwrite(clusterName, desireObj, existObj)
-		if err != nil {
-			return fmt.Errorf("failed to update exist resource(kind=%s, %s/%s) in cluster %v: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
-		}
 	}
 
 	return nil
-}
-
-// resourceConflictOverwrite update the resource if a conflict resolution instruction is existed in annotation.
-// The existing resource is not managed by Karmada, then we should consult conflict resolution instruction in annotation.
-func (o *objectWatcherImpl) resourceConflictOverwrite(clusterName string, desireObj *unstructured.Unstructured, existObj *unstructured.Unstructured) error {
-	switch util.GetAnnotationValue(desireObj.GetAnnotations(), workv1alpha2.ResourceConflictResolutionAnnotation) {
-	case workv1alpha2.ResourceConflictResolutionOverwrite:
-		klog.Infof("Overwriting the resource(kind=%s, %s/%s) as %s=%s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(),
-			workv1alpha2.ResourceConflictResolutionAnnotation, workv1alpha2.ResourceConflictResolutionOverwrite)
-		return o.Update(clusterName, desireObj, existObj)
-	default:
-		// The existing resource is not managed by Karmada, and no conflict resolution found, avoid updating the existing resource by default.
-		return fmt.Errorf("resource(kind=%s, %s/%s) already exist in cluster %v and the %s strategy value is empty, karmada will not manage this resource",
-			desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, workv1alpha2.ResourceConflictResolutionAnnotation,
-		)
-	}
 }
 
 func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
@@ -150,6 +124,11 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 }
 
 func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured) error {
+	updateAllowed := o.allowUpdate(clusterName, desireObj, clusterObj)
+	if !updateAllowed {
+		return nil
+	}
+
 	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
@@ -205,10 +184,7 @@ func (o *objectWatcherImpl) Delete(clusterName string, desireObj *unstructured.U
 	}
 
 	err = dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Delete(context.TODO(), desireObj.GetName(), deleteOption)
-	if apierrors.IsNotFound(err) {
-		err = nil
-	}
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Failed to delete resource %v in cluster %s, err is %v ", desireObj.GetName(), clusterName, err)
 		return err
 	}
@@ -284,4 +260,23 @@ func (o *objectWatcherImpl) NeedsUpdate(clusterName string, desiredObj, clusterO
 	}
 
 	return lifted.ObjectNeedsUpdate(desiredObj, clusterObj, version), nil
+}
+
+func (o *objectWatcherImpl) allowUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) bool {
+	// If the existing resource is managed by Karmada, then the updating is allowed.
+	if util.GetLabelValue(desiredObj.GetLabels(), workv1alpha1.WorkNameLabel) == util.GetLabelValue(clusterObj.GetLabels(), workv1alpha1.WorkNameLabel) {
+		return true
+	}
+
+	// This happens when promoting workload to the Karmada control plane
+	conflictResolution := util.GetAnnotationValue(desiredObj.GetAnnotations(), workv1alpha2.ResourceConflictResolutionAnnotation)
+	if conflictResolution == workv1alpha2.ResourceConflictResolutionOverwrite {
+		return true
+	}
+
+	// The existing resource is not managed by Karmada, and no conflict resolution found, avoid updating the existing resource by default.
+	klog.Warningf("resource(kind=%s, %s/%s) already exist in cluster %v and the %s strategy value is empty, karmada will not manage this resource",
+		desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName, workv1alpha2.ResourceConflictResolutionAnnotation,
+	)
+	return false
 }

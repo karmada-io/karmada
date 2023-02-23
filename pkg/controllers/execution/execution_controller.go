@@ -195,23 +195,11 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			continue
 		}
 
-		applied := helper.IsResourceApplied(&work.Status)
-		if applied {
-			err = c.tryUpdateWorkload(clusterName, workload)
-			if err != nil {
-				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
-				c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
-				errs = append(errs, err)
-				continue
-			}
-		} else {
-			err = c.tryCreateWorkload(clusterName, workload)
-			if err != nil {
-				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
-				c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
-				errs = append(errs, err)
-				continue
-			}
+		if err = c.tryCreateOrUpdateWorkload(clusterName, workload); err != nil {
+			klog.Errorf("Failed to create or update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+			c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
+			errs = append(errs, err)
+			continue
 		}
 		c.eventf(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkloadSucceed, "Successfully applied resource(%v/%v) to cluster %s", workload.GetNamespace(), workload.GetName(), clusterName)
 		syncSucceedNum++
@@ -237,7 +225,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 	return nil
 }
 
-func (c *Controller) tryUpdateWorkload(clusterName string, workload *unstructured.Unstructured) error {
+func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *unstructured.Unstructured) error {
 	fedKey, err := keys.FederatedKeyFunc(clusterName, workload)
 	if err != nil {
 		klog.Errorf("Failed to get FederatedKey %s, error: %v", workload.GetName(), err)
@@ -250,7 +238,7 @@ func (c *Controller) tryUpdateWorkload(clusterName string, workload *unstructure
 			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
 			return err
 		}
-		err = c.tryCreateWorkload(clusterName, workload)
+		err = c.ObjectWatcher.Create(clusterName, workload)
 		if err != nil {
 			klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
 			return err
@@ -264,10 +252,6 @@ func (c *Controller) tryUpdateWorkload(clusterName string, workload *unstructure
 		return err
 	}
 	return nil
-}
-
-func (c *Controller) tryCreateWorkload(clusterName string, workload *unstructured.Unstructured) error {
-	return c.ObjectWatcher.Create(clusterName, workload)
 }
 
 // updateAppliedCondition update the Applied condition for the given Work
