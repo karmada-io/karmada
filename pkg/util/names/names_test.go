@@ -3,6 +3,7 @@ package names
 import (
 	"fmt"
 	"hash/fnv"
+	"strings"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -200,7 +201,7 @@ func TestGenerateWorkName(t *testing.T) {
 
 		hash := fnv.New32a()
 		hashutil.DeepHashObject(hash, test.workname)
-		if result := fmt.Sprintf("%s-%s", test.name, rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))); result != got {
+		if result := fmt.Sprintf("%s-%s", strings.ToLower(test.name), rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))); result != got {
 			t.Errorf("Test %s failed: expected %v, but got %v", test.testCase, result, got)
 		}
 	}
