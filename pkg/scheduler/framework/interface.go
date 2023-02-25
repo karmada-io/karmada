@@ -25,7 +25,7 @@ type Framework interface {
 
 	// RunFilterPlugins runs the set of configured Filter plugins for resources on
 	// the given cluster.
-	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, clusterv1alpha1 *clusterv1alpha1.Cluster) *Result
+	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *Result
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin name to cores
 	RunScorePlugins(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, *Result)
@@ -41,7 +41,7 @@ type Plugin interface {
 type FilterPlugin interface {
 	Plugin
 	// Filter is called by the scheduling framework.
-	Filter(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, clusterv1alpha1 *clusterv1alpha1.Cluster) *Result
+	Filter(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *Result
 }
 
 // Result indicates the result of running a plugin. It consists of a code, a

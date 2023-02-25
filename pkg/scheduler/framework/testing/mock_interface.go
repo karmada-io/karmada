@@ -38,17 +38,17 @@ func (m *MockFramework) EXPECT() *MockFrameworkMockRecorder {
 }
 
 // RunFilterPlugins mocks base method.
-func (m *MockFramework) RunFilterPlugins(ctx context.Context, bindingSpec *v1alpha2.ResourceBindingSpec, clusterv1alpha1 *v1alpha1.Cluster) *framework.Result {
+func (m *MockFramework) RunFilterPlugins(ctx context.Context, bindingSpec *v1alpha2.ResourceBindingSpec, bindingStatus *v1alpha2.ResourceBindingStatus, cluster *v1alpha1.Cluster) *framework.Result {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RunFilterPlugins", ctx, bindingSpec, clusterv1alpha1)
+	ret := m.ctrl.Call(m, "RunFilterPlugins", ctx, bindingSpec, bindingStatus, cluster)
 	ret0, _ := ret[0].(*framework.Result)
 	return ret0
 }
 
 // RunFilterPlugins indicates an expected call of RunFilterPlugins.
-func (mr *MockFrameworkMockRecorder) RunFilterPlugins(ctx, bindingSpec, clusterv1alpha1 interface{}) *gomock.Call {
+func (mr *MockFrameworkMockRecorder) RunFilterPlugins(ctx, bindingSpec, bindingStatus, cluster interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunFilterPlugins", reflect.TypeOf((*MockFramework)(nil).RunFilterPlugins), ctx, bindingSpec, clusterv1alpha1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunFilterPlugins", reflect.TypeOf((*MockFramework)(nil).RunFilterPlugins), ctx, bindingSpec, bindingStatus, cluster)
 }
 
 // RunScorePlugins mocks base method.
@@ -127,17 +127,17 @@ func (m *MockFilterPlugin) EXPECT() *MockFilterPluginMockRecorder {
 }
 
 // Filter mocks base method.
-func (m *MockFilterPlugin) Filter(ctx context.Context, bindingSpec *v1alpha2.ResourceBindingSpec, clusterv1alpha1 *v1alpha1.Cluster) *framework.Result {
+func (m *MockFilterPlugin) Filter(ctx context.Context, bindingSpec *v1alpha2.ResourceBindingSpec, bindingStatus *v1alpha2.ResourceBindingStatus, cluster *v1alpha1.Cluster) *framework.Result {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Filter", ctx, bindingSpec, clusterv1alpha1)
+	ret := m.ctrl.Call(m, "Filter", ctx, bindingSpec, bindingStatus, cluster)
 	ret0, _ := ret[0].(*framework.Result)
 	return ret0
 }
 
 // Filter indicates an expected call of Filter.
-func (mr *MockFilterPluginMockRecorder) Filter(ctx, bindingSpec, clusterv1alpha1 interface{}) *gomock.Call {
+func (mr *MockFilterPluginMockRecorder) Filter(ctx, bindingSpec, bindingStatus, cluster interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockFilterPlugin)(nil).Filter), ctx, bindingSpec, clusterv1alpha1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockFilterPlugin)(nil).Filter), ctx, bindingSpec, bindingStatus, cluster)
 }
 
 // Name mocks base method.

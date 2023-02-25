@@ -33,8 +33,12 @@ func (p *TaintToleration) Name() string {
 }
 
 // Filter checks if the given tolerations in placement tolerate cluster's taints.
-func (p *TaintToleration) Filter(ctx context.Context,
-	bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *TaintToleration) Filter(
+	_ context.Context,
+	bindingSpec *workv1alpha2.ResourceBindingSpec,
+	_ *workv1alpha2.ResourceBindingStatus,
+	cluster *clusterv1alpha1.Cluster,
+) *framework.Result {
 	// skip the filter if the cluster is already in the list of scheduling results,
 	// if the workload referencing by the binding can't tolerate the taint,
 	// the taint-manager will evict it after a graceful period.

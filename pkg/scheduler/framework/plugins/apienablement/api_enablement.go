@@ -32,8 +32,12 @@ func (p *APIEnablement) Name() string {
 }
 
 // Filter checks if the API(CRD) of the resource is enabled or installed in the target cluster.
-func (p *APIEnablement) Filter(ctx context.Context,
-	bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *APIEnablement) Filter(
+	_ context.Context,
+	bindingSpec *workv1alpha2.ResourceBindingSpec,
+	_ *workv1alpha2.ResourceBindingStatus,
+	cluster *clusterv1alpha1.Cluster,
+) *framework.Result {
 	if !helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
 		klog.V(2).Infof("Cluster(%s) not fit as missing API(%s, kind=%s)", cluster.Name, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind)
 		return framework.NewResult(framework.Unschedulable, "cluster(s) didn't have the API resource")
