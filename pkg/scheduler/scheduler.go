@@ -342,24 +342,6 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		return err
 	}
 
-	// Update "Scheduled" condition according to schedule result.
-	defer func() {
-		s.recordScheduleResultEventForResourceBinding(rb, err)
-		var condition metav1.Condition
-		if err == nil {
-			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
-		} else {
-			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
-		}
-		if updateErr := s.patchBindingScheduleStatus(rb, condition); updateErr != nil {
-			klog.Errorf("Failed to patch schedule status to ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
-			if err == nil {
-				// schedule succeed but update status failed, return err in order to retry in next loop.
-				err = updateErr
-			}
-		}
-	}()
-
 	start := time.Now()
 	policyPlacement, policyPlacementStr, err := s.getPlacement(rb)
 	if err != nil {
@@ -404,24 +386,6 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		return err
 	}
 
-	// Update "Scheduled" condition according to schedule result.
-	defer func() {
-		s.recordScheduleResultEventForClusterResourceBinding(crb, err)
-		var condition metav1.Condition
-		if err == nil {
-			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
-		} else {
-			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
-		}
-		if updateErr := s.patchClusterBindingScheduleStatus(crb, condition); updateErr != nil {
-			klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
-			if err == nil {
-				// schedule succeed but update status failed, return err in order to retry in next loop.
-				err = updateErr
-			}
-		}
-	}()
-
 	start := time.Now()
 	policyPlacement, policyPlacementStr, err := s.getClusterPlacement(crb)
 	if err != nil {
@@ -459,6 +423,24 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 func (s *Scheduler) scheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding, placementStr string) (err error) {
 	klog.V(4).InfoS("Begin scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
 	defer klog.V(4).InfoS("End scheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
+
+	// Update "Scheduled" condition according to schedule result.
+	defer func() {
+		s.recordScheduleResultEventForResourceBinding(resourceBinding, err)
+		var condition metav1.Condition
+		if err == nil {
+			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
+		} else {
+			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
+		}
+		if updateErr := s.patchBindingScheduleStatus(resourceBinding, condition); updateErr != nil {
+			klog.Errorf("Failed to patch schedule status to ResourceBinding(%s/%s): %v", resourceBinding.Namespace, resourceBinding.Name, err)
+			if err == nil {
+				// schedule succeed but update status failed, return err in order to retry in next loop.
+				err = updateErr
+			}
+		}
+	}()
 
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &resourceBinding.Spec, &resourceBinding.Status,
 		&core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
@@ -505,6 +487,24 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 func (s *Scheduler) scheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, placementStr string) (err error) {
 	klog.V(4).InfoS("Begin scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
 	defer klog.V(4).InfoS("End scheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
+
+	// Update "Scheduled" condition according to schedule result.
+	defer func() {
+		s.recordScheduleResultEventForClusterResourceBinding(clusterResourceBinding, err)
+		var condition metav1.Condition
+		if err == nil {
+			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)
+		} else {
+			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
+		}
+		if updateErr := s.patchClusterBindingScheduleStatus(clusterResourceBinding, condition); updateErr != nil {
+			klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", clusterResourceBinding.Name, err)
+			if err == nil {
+				// schedule succeed but update status failed, return err in order to retry in next loop.
+				err = updateErr
+			}
+		}
+	}()
 
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &clusterResourceBinding.Spec, &clusterResourceBinding.Status,
 		&core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
