@@ -19,7 +19,7 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *workv1alpha2.ResourceBindingSpec, *ScheduleAlgorithmOption) (scheduleResult ScheduleResult, err error)
+	Schedule(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *ScheduleAlgorithmOption) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
@@ -52,13 +52,18 @@ func NewGenericScheduler(
 	}, nil
 }
 
-func (g *genericScheduler) Schedule(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, scheduleAlgorithmOption *ScheduleAlgorithmOption) (result ScheduleResult, err error) {
+func (g *genericScheduler) Schedule(
+	ctx context.Context,
+	spec *workv1alpha2.ResourceBindingSpec,
+	status *workv1alpha2.ResourceBindingStatus,
+	scheduleAlgorithmOption *ScheduleAlgorithmOption,
+) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, g.scheduleFramework, spec, &clusterInfoSnapshot)
+	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, spec, status, &clusterInfoSnapshot)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
@@ -99,8 +104,8 @@ func (g *genericScheduler) Schedule(ctx context.Context, spec *workv1alpha2.Reso
 // findClustersThatFit finds the clusters that are fit for the placement based on running the filter plugins.
 func (g *genericScheduler) findClustersThatFit(
 	ctx context.Context,
-	fwk framework.Framework,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
+	bindingStatus *workv1alpha2.ResourceBindingStatus,
 	clusterInfo *cache.Snapshot,
 ) ([]*clusterv1alpha1.Cluster, framework.Diagnosis, error) {
 	startTime := time.Now()
@@ -114,7 +119,7 @@ func (g *genericScheduler) findClustersThatFit(
 	// DO NOT filter unhealthy cluster, let users make decisions by using ClusterTolerations of Placement.
 	clusters := clusterInfo.GetClusters()
 	for _, c := range clusters {
-		if result := fwk.RunFilterPlugins(ctx, bindingSpec, c.Cluster()); !result.IsSuccess() {
+		if result := g.scheduleFramework.RunFilterPlugins(ctx, bindingSpec, bindingStatus, c.Cluster()); !result.IsSuccess() {
 			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
 			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
 		} else {

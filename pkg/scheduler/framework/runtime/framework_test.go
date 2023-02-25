@@ -19,12 +19,12 @@ func Test_frameworkImpl_RunFilterPlugins(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	alwaysError := frameworktesting.NewMockFilterPlugin(mockCtrl)
-	alwaysError.EXPECT().Filter(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+	alwaysError.EXPECT().Filter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(framework.NewResult(framework.Error, "foo"))
 	alwaysError.EXPECT().Name().AnyTimes().Return("foo")
 
 	alwaysSuccess := frameworktesting.NewMockFilterPlugin(mockCtrl)
-	alwaysSuccess.EXPECT().Filter(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+	alwaysSuccess.EXPECT().Filter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(framework.NewResult(framework.Success))
 	alwaysSuccess.EXPECT().Name().AnyTimes().Return("foo")
 
@@ -72,7 +72,7 @@ func Test_frameworkImpl_RunFilterPlugins(t *testing.T) {
 				t.Errorf("create frame work error:%v", err)
 			}
 
-			result := frameWork.RunFilterPlugins(ctx, nil, nil)
+			result := frameWork.RunFilterPlugins(ctx, nil, nil, nil)
 			if result.IsSuccess() != tt.isSuccess {
 				t.Errorf("want %v, but get:%v", tt.isSuccess, result.IsSuccess())
 			}

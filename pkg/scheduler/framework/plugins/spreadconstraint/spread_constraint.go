@@ -30,8 +30,12 @@ func (p *SpreadConstraint) Name() string {
 }
 
 // Filter checks if the cluster Provider/Zone/Region spread is null.
-func (p *SpreadConstraint) Filter(ctx context.Context,
-	bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *SpreadConstraint) Filter(
+	_ context.Context,
+	bindingSpec *workv1alpha2.ResourceBindingSpec,
+	_ *workv1alpha2.ResourceBindingStatus,
+	cluster *clusterv1alpha1.Cluster,
+) *framework.Result {
 	for _, spreadConstraint := range bindingSpec.Placement.SpreadConstraints {
 		if spreadConstraint.SpreadByField == policyv1alpha1.SpreadByFieldProvider && cluster.Spec.Provider == "" {
 			return framework.NewResult(framework.Unschedulable, "cluster(s) didn't have provider property")

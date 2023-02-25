@@ -74,29 +74,44 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (result *framework.Result) {
+func (frw *frameworkImpl) RunFilterPlugins(
+	ctx context.Context,
+	bindingSpec *workv1alpha2.ResourceBindingSpec,
+	bindingStatus *workv1alpha2.ResourceBindingStatus,
+	cluster *clusterv1alpha1.Cluster,
+) (result *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(filter, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
 	for _, p := range frw.filterPlugins {
-		if result := frw.runFilterPlugin(ctx, p, bindingSpec, cluster); !result.IsSuccess() {
+		if result := frw.runFilterPlugin(ctx, p, bindingSpec, bindingStatus, cluster); !result.IsSuccess() {
 			return result
 		}
 	}
 	return framework.NewResult(framework.Success)
 }
 
-func (frw *frameworkImpl) runFilterPlugin(ctx context.Context, pl framework.FilterPlugin, bindingSpec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (frw *frameworkImpl) runFilterPlugin(
+	ctx context.Context,
+	pl framework.FilterPlugin,
+	bindingSpec *workv1alpha2.ResourceBindingSpec,
+	bindingStatus *workv1alpha2.ResourceBindingStatus,
+	cluster *clusterv1alpha1.Cluster,
+) *framework.Result {
 	startTime := time.Now()
-	result := pl.Filter(ctx, bindingSpec, cluster)
+	result := pl.Filter(ctx, bindingSpec, bindingStatus, cluster)
 	frw.metricsRecorder.observePluginDurationAsync(filter, pl.Name(), result, utilmetrics.DurationInSeconds(startTime))
 	return result
 }
 
 // RunScorePlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (ps framework.PluginToClusterScores, result *framework.Result) {
+func (frw *frameworkImpl) RunScorePlugins(
+	ctx context.Context,
+	spec *workv1alpha2.ResourceBindingSpec,
+	clusters []*clusterv1alpha1.Cluster,
+) (ps framework.PluginToClusterScores, result *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(score, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
