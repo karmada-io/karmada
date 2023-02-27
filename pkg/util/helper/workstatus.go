@@ -50,17 +50,20 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 		return err
 	}
 
+	fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
+
 	currentBindingStatus := binding.Status.DeepCopy()
 	currentBindingStatus.AggregatedStatus = aggregatedStatuses
-	meta.SetStatusCondition(&currentBindingStatus.Conditions, generateFullyAppliedCondition(binding.Spec, aggregatedStatuses))
-
-	if reflect.DeepEqual(binding.Status, currentBindingStatus) {
-		klog.V(4).Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
-			binding.Namespace, binding.Name)
-		return nil
-	}
-
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		// set binding status with the newest condition
+		currentBindingStatus.Conditions = binding.Status.Conditions
+		meta.SetStatusCondition(&currentBindingStatus.Conditions, fullyAppliedCondition)
+		if reflect.DeepEqual(binding.Status, currentBindingStatus) {
+			klog.V(4).Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
+				binding.Namespace, binding.Name)
+			return nil
+		}
+
 		binding.Status = *currentBindingStatus
 		updateErr := c.Status().Update(context.TODO(), binding)
 		if updateErr == nil {
@@ -102,16 +105,19 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 		return err
 	}
 
+	fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
+
 	currentBindingStatus := binding.Status.DeepCopy()
 	currentBindingStatus.AggregatedStatus = aggregatedStatuses
-	meta.SetStatusCondition(&currentBindingStatus.Conditions, generateFullyAppliedCondition(binding.Spec, aggregatedStatuses))
-
-	if reflect.DeepEqual(binding.Status, currentBindingStatus) {
-		klog.Infof("New aggregatedStatuses are equal with old clusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
-		return nil
-	}
-
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		// set binding status with the newest condition
+		currentBindingStatus.Conditions = binding.Status.Conditions
+		meta.SetStatusCondition(&currentBindingStatus.Conditions, fullyAppliedCondition)
+		if reflect.DeepEqual(binding.Status, currentBindingStatus) {
+			klog.Infof("New aggregatedStatuses are equal with old clusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
+			return nil
+		}
+
 		binding.Status = *currentBindingStatus
 		updateErr := c.Status().Update(context.TODO(), binding)
 		if updateErr == nil {
