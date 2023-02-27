@@ -895,7 +895,7 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 		})
 
 		ginkgo.It("add resourceSelectors item", func() {
-			framework.UpdatePropagationPolicy(karmadaClient, policy.Namespace, policy.Name, []policyv1alpha1.ResourceSelector{
+			policy.Spec.ResourceSelectors = []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: deployment01.APIVersion,
 					Kind:       deployment01.Kind,
@@ -906,20 +906,24 @@ var _ = ginkgo.Describe("[AdvancedPropagation] propagation testing", func() {
 					Kind:       deployment02.Kind,
 					Name:       deployment02.Name,
 				},
-			})
+			}
+			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
 
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
 				func(deployment *appsv1.Deployment) bool { return true })
 		})
 
 		ginkgo.It("update resourceSelectors item", func() {
-			framework.UpdatePropagationPolicy(karmadaClient, policy.Namespace, policy.Name, []policyv1alpha1.ResourceSelector{
-				{
-					APIVersion: deployment02.APIVersion,
-					Kind:       deployment02.Kind,
-					Name:       deployment02.Name,
+			policySpec := policyv1alpha1.PropagationSpec{
+				ResourceSelectors: []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment02.APIVersion,
+						Kind:       deployment02.Kind,
+						Name:       deployment02.Name,
+					},
 				},
-			})
+			}
+			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policySpec)
 
 			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment02.Namespace, deployment02.Name,
 				func(deployment *appsv1.Deployment) bool { return true })
