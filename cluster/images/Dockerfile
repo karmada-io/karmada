@@ -4,4 +4,6 @@ ARG BINARY
 
 RUN apk add --no-cache ca-certificates
 
+RUN apk update && apk add bind-tools
+
 COPY ${BINARY} /bin/${BINARY}
