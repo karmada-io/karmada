@@ -203,11 +203,7 @@ func (d *Descheduler) updateScheduleResult(h *core.SchedulingResultHelper) error
 	}()
 
 	binding, err = d.KarmadaClient.WorkV1alpha2().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (d *Descheduler) addCluster(obj interface{}) {
