@@ -70,7 +70,7 @@ func TestCreateScheduler(t *testing.T) {
 	}
 }
 
-func Test_patchBindingScheduleStatus(t *testing.T) {
+func Test_patchBindingStatusCondition(t *testing.T) {
 	oneHourBefore := time.Now().Add(-1 * time.Hour).Round(time.Second)
 	oneHourAfter := time.Now().Add(1 * time.Hour).Round(time.Second)
 
@@ -80,14 +80,7 @@ func Test_patchBindingScheduleStatus(t *testing.T) {
 	successCondition.LastTransitionTime = metav1.Time{Time: oneHourBefore}
 	failureCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
 
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	karmadaClient := karmadafake.NewSimpleClientset()
-	kubeClient := fake.NewSimpleClientset()
-
-	scheduler, err := NewScheduler(dynamicClient, karmadaClient, kubeClient)
-	if err != nil {
-		t.Error(err)
-	}
 
 	tests := []struct {
 		name                  string
@@ -159,7 +152,7 @@ func Test_patchBindingScheduleStatus(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = scheduler.patchBindingScheduleStatus(test.binding, test.newScheduledCondition)
+			err = patchBindingStatusCondition(karmadaClient, test.binding, test.newScheduledCondition)
 			if err != nil {
 				t.Error(err)
 			}
@@ -174,7 +167,53 @@ func Test_patchBindingScheduleStatus(t *testing.T) {
 	}
 }
 
-func Test_patchClusterBindingScheduleStatus(t *testing.T) {
+func Test_patchBindingStatusWithAffinityName(t *testing.T) {
+	karmadaClient := karmadafake.NewSimpleClientset()
+
+	tests := []struct {
+		name         string
+		binding      *workv1alpha2.ResourceBinding
+		affinityName string
+		expected     *workv1alpha2.ResourceBinding
+	}{
+		{
+			name: "add affinityName in status",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-1", Namespace: "default", Generation: 1},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{},
+			},
+			affinityName: "group1",
+			expected: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "rb-1", Namespace: "default", Generation: 1},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status:     workv1alpha2.ResourceBindingStatus{SchedulerObservedAffinityName: "group1"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := karmadaClient.WorkV1alpha2().ResourceBindings(test.binding.Namespace).Create(context.TODO(), test.binding, metav1.CreateOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = patchBindingStatusWithAffinityName(karmadaClient, test.binding, test.affinityName)
+			if err != nil {
+				t.Error(err)
+			}
+			res, err := karmadaClient.WorkV1alpha2().ResourceBindings(test.binding.Namespace).Get(context.TODO(), test.binding.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(res.Status, test.expected.Status) {
+				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
+			}
+		})
+	}
+}
+
+func Test_patchClusterBindingStatusCondition(t *testing.T) {
 	oneHourBefore := time.Now().Add(-1 * time.Hour).Round(time.Second)
 	oneHourAfter := time.Now().Add(1 * time.Hour).Round(time.Second)
 
@@ -184,14 +223,7 @@ func Test_patchClusterBindingScheduleStatus(t *testing.T) {
 	successCondition.LastTransitionTime = metav1.Time{Time: oneHourBefore}
 	failureCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
 
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	karmadaClient := karmadafake.NewSimpleClientset()
-	kubeClient := fake.NewSimpleClientset()
-
-	scheduler, err := NewScheduler(dynamicClient, karmadaClient, kubeClient)
-	if err != nil {
-		t.Error(err)
-	}
 
 	tests := []struct {
 		name                  string
@@ -263,7 +295,60 @@ func Test_patchClusterBindingScheduleStatus(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = scheduler.patchClusterBindingScheduleStatus(test.binding, test.newScheduledCondition)
+			err = patchClusterBindingStatusCondition(karmadaClient, test.binding, test.newScheduledCondition)
+			if err != nil {
+				t.Error(err)
+			}
+			res, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), test.binding.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(res.Status, test.expected.Status) {
+				t.Errorf("expected status: %v, but got: %v", test.expected.Status, res.Status)
+			}
+		})
+	}
+}
+
+func Test_patchClusterBindingStatusWithAffinityName(t *testing.T) {
+	karmadaClient := karmadafake.NewSimpleClientset()
+
+	tests := []struct {
+		name         string
+		binding      *workv1alpha2.ClusterResourceBinding
+		affinityName string
+		expected     *workv1alpha2.ClusterResourceBinding
+	}{
+		{
+			name: "add affinityName in status",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "crb-1", Generation: 1},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status: workv1alpha2.ResourceBindingStatus{
+					Conditions:                  []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)},
+					SchedulerObservedGeneration: 1,
+				},
+			},
+			affinityName: "group1",
+			expected: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "crb-1"},
+				Spec:       workv1alpha2.ResourceBindingSpec{},
+				Status: workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedAffinityName: "group1",
+					Conditions:                    []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, scheduleSuccessReason, scheduleSuccessMessage, metav1.ConditionTrue)},
+					SchedulerObservedGeneration:   1,
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Create(context.TODO(), test.binding, metav1.CreateOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = patchClusterBindingStatusWithAffinityName(karmadaClient, test.binding, test.affinityName)
 			if err != nil {
 				t.Error(err)
 			}

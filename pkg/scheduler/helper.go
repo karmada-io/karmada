@@ -71,3 +71,16 @@ func clusterAffinitiesChanged(
 	}
 	return false
 }
+
+func getAffinityIndex(affinities []policyv1alpha1.ClusterAffinityTerm, observedName string) int {
+	if observedName == "" {
+		return 0
+	}
+
+	for index, term := range affinities {
+		if term.AffinityName == observedName {
+			return index
+		}
+	}
+	return 0
+}

@@ -178,9 +178,18 @@ func (s *Scheduler) enqueueAffectedBindings(oldCluster, newCluster *clusterv1alp
 	for _, binding := range bindings {
 		placementPtr := binding.Spec.Placement
 		if placementPtr == nil {
+			// never reach here
 			continue
 		}
-		affinity := placementPtr.ClusterAffinity
+
+		var affinity *policyv1alpha1.ClusterAffinity
+		if placementPtr.ClusterAffinities != nil {
+			affinityIndex := getAffinityIndex(placementPtr.ClusterAffinities, binding.Status.SchedulerObservedAffinityName)
+			affinity = &placementPtr.ClusterAffinities[affinityIndex].ClusterAffinity
+		} else {
+			affinity = placementPtr.ClusterAffinity
+		}
+
 		switch {
 		case affinity == nil:
 			// If no clusters specified, add it to the queue
@@ -198,9 +207,18 @@ func (s *Scheduler) enqueueAffectedBindings(oldCluster, newCluster *clusterv1alp
 	for _, binding := range clusterBindings {
 		placementPtr := binding.Spec.Placement
 		if placementPtr == nil {
+			// never reach here
 			continue
 		}
-		affinity := placementPtr.ClusterAffinity
+
+		var affinity *policyv1alpha1.ClusterAffinity
+		if placementPtr.ClusterAffinities != nil {
+			affinityIndex := getAffinityIndex(placementPtr.ClusterAffinities, binding.Status.SchedulerObservedAffinityName)
+			affinity = &placementPtr.ClusterAffinities[affinityIndex].ClusterAffinity
+		} else {
+			affinity = placementPtr.ClusterAffinity
+		}
+
 		switch {
 		case affinity == nil:
 			// If no clusters specified, add it to the queue
