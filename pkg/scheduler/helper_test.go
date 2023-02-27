@@ -372,3 +372,59 @@ func Test_needConsideredPlacementChanged(t *testing.T) {
 		})
 	}
 }
+
+func Test_getAffinityIndex(t *testing.T) {
+	type args struct {
+		affinities   []policyv1alpha1.ClusterAffinityTerm
+		observedName string
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{
+			name: "empty observedName",
+			args: args{
+				affinities: []policyv1alpha1.ClusterAffinityTerm{
+					{AffinityName: "group1"},
+					{AffinityName: "group2"},
+					{AffinityName: "group3"},
+				},
+				observedName: "",
+			},
+			want: 0,
+		},
+		{
+			name: "observedName can not find in affinities",
+			args: args{
+				affinities: []policyv1alpha1.ClusterAffinityTerm{
+					{AffinityName: "group1"},
+					{AffinityName: "group2"},
+					{AffinityName: "group3"},
+				},
+				observedName: "group0",
+			},
+			want: 0,
+		},
+		{
+			name: "observedName can find in affinities",
+			args: args{
+				affinities: []policyv1alpha1.ClusterAffinityTerm{
+					{AffinityName: "group1"},
+					{AffinityName: "group2"},
+					{AffinityName: "group3"},
+				},
+				observedName: "group3",
+			},
+			want: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getAffinityIndex(tt.args.affinities, tt.args.observedName); got != tt.want {
+				t.Errorf("getAffinityIndex() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
