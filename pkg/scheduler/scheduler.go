@@ -365,7 +365,8 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	if err != nil {
 		return err
 	}
-	if appliedPlacement := util.GetLabelValue(rb.Annotations, util.PolicyPlacementAnnotation); policyPlacementStr != appliedPlacement {
+	appliedPlacementStr := util.GetLabelValue(rb.Annotations, util.PolicyPlacementAnnotation)
+	if placementChanged(*rb.Spec.Placement, appliedPlacementStr, rb.Status.SchedulerObservedAffinityName) {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ResourceBinding(%s/%s) as placement changed", namespace, name)
 		err = s.scheduleResourceBinding(rb, policyPlacementStr)
@@ -427,7 +428,8 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	if err != nil {
 		return err
 	}
-	if appliedPlacement := util.GetLabelValue(crb.Annotations, util.PolicyPlacementAnnotation); policyPlacementStr != appliedPlacement {
+	appliedPlacementStr := util.GetLabelValue(crb.Annotations, util.PolicyPlacementAnnotation)
+	if placementChanged(*crb.Spec.Placement, appliedPlacementStr, crb.Status.SchedulerObservedAffinityName) {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ClusterResourceBinding(%s) as placement changed", name)
 		err = s.scheduleClusterResourceBinding(crb, policyPlacementStr)
