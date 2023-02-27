@@ -73,6 +73,18 @@ func GenerateBindingReferenceKey(namespace, name string) string {
 
 // GenerateWorkName will generate work name by its name and the hash of its namespace, kind and name.
 func GenerateWorkName(kind, name, namespace string) string {
+	// The name of resources, like 'Role'/'ClusterRole'/'RoleBinding'/'ClusterRoleBinding',
+	// may contain symbols(like ':' or uppercase upper case) that are not allowed by CRD resources which require the
+	// name can be used as a DNS subdomain name. So, we need to replace it.
+	// These resources may also allow for other characters(like '&','$') that are not allowed
+	// by CRD resources, we only handle the most common ones now for performance concerns.
+	// For more information about the DNS subdomain name, please refer to
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names.
+	if strings.Contains(name, ":") {
+		name = strings.ReplaceAll(name, ":", ".")
+	}
+	name = strings.ToLower(name)
+
 	var workName string
 	if len(namespace) == 0 {
 		workName = strings.ToLower(name + "-" + kind)
