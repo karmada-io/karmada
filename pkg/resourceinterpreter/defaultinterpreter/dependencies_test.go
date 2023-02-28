@@ -167,7 +167,16 @@ func TestGetDependenciesFromPodTemplate(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "pvc-name",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "fake-pvc",
+				},
+			},
+		},
 	}
+	fakePod.Spec.ServiceAccountName = "fake-sa"
 
 	tests := []struct {
 		name     string
@@ -189,6 +198,18 @@ func TestGetDependenciesFromPodTemplate(t *testing.T) {
 					Kind:       "Secret",
 					Namespace:  "foo",
 					Name:       "fake-bar",
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "ServiceAccount",
+					Namespace:  "foo",
+					Name:       "fake-sa",
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "PersistentVolumeClaim",
+					Namespace:  "foo",
+					Name:       "fake-pvc",
 				},
 			},
 		},
