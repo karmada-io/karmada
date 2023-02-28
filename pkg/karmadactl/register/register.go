@@ -34,8 +34,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
-	check "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
@@ -349,11 +347,12 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 
 	// create karmada-agent Deployment in the member cluster
 	fmt.Println("[karmada-agent-start] Waiting karmada-agent Deployment")
-	if _, err := o.memberClusterClient.AppsV1().Deployments(o.Namespace).Create(context.TODO(), o.makeKarmadaAgentDeployment(), metav1.CreateOptions{}); err != nil {
+	KarmadaAgentDeployment := o.makeKarmadaAgentDeployment()
+	if _, err := o.memberClusterClient.AppsV1().Deployments(o.Namespace).Create(context.TODO(), KarmadaAgentDeployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
-	if err := check.WaitPodReady(o.memberClusterClient, o.Namespace, utils.MapToString(karmadaAgentLabels), int(o.Timeout)); err != nil {
+	if err := cmdutil.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, int(o.Timeout)); err != nil {
 		return err
 	}
 

@@ -15,8 +15,6 @@ type CommandAddonsDisableOption struct {
 	GlobalCommandOptions
 
 	KarmadaKubeClientSet *kubernetes.Clientset
-
-	WaitPodReadyTimeout int
 }
 
 // Complete the conditions required to be able to run disable.

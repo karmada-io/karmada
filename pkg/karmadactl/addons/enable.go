@@ -8,6 +8,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -71,7 +72,7 @@ func NewCmdAddonsEnable(parentCommand string) *cobra.Command {
 
 	flags := cmd.PersistentFlags()
 	opts.GlobalCommandOptions.AddFlags(flags)
-	flags.IntVar(&opts.WaitPodReadyTimeout, "pod-timeout", 30, "Wait pod ready timeout.")
+	flags.IntVar(&opts.WaitComponentReadyTimeout, "pod-timeout", options.WaitComponentReadyTimeout, "Wait pod ready timeout.")
 	flags.IntVar(&opts.WaitAPIServiceReadyTimeout, "apiservice-timeout", 30, "Wait apiservice ready timeout.")
 	flags.StringVar(&opts.KarmadaSearchImage, "karmada-search-image", fmt.Sprintf("docker.io/karmada/karmada-search:%s", releaseVer.PatchRelease()), "karmada search image")
 	flags.Int32Var(&opts.KarmadaSearchReplicas, "karmada-search-replicas", 1, "Karmada search replica set")
