@@ -20,6 +20,8 @@ installMode: "host"
 ## @param clusterDomain default domain for karmada
 clusterDomain: "cluster.local"
 
+systemNamespace: "karmada-system"
+
 ## @param components component list
 components: []
   # components: [
