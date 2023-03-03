@@ -31,16 +31,10 @@ spec:
     spec:
       automountServiceAccountToken: false
       {{- include "karmada.internal.etcd.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.etcd.affinity }}
       affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                      - etcd
-              topologyKey: kubernetes.io/hostname
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.etcd.internal.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}

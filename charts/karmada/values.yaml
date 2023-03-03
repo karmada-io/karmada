@@ -342,7 +342,7 @@ apiServer:
   ## @param apiServer.hostNetwork
   ## "true" means using hostNetwork
   ## "false" means normal network
-  hostNetwork: true
+  hostNetwork: false
   ## @param apiServer.nodeSelector node selector of the karmada-apiserver
   nodeSelector: {}
   ## @param apiServer.affinity affinity of the karmada-apiserver
@@ -501,6 +501,17 @@ etcd:
     app: etcd
   ## @param etcd.labels labels of the etcd pods
   podLabels: {}
+  ## @param etcd.affinity affinity of the etcd
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - etcd
+          topologyKey: kubernetes.io/hostname
   ## @param etcd.mode "external" and "internal" are provided
   ## "external" means use external ectd
   ## "internal" means install a etcd in the cluster
