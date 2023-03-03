@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {{ include "karmada.namespace" . }}
+  name: {{ .Values.systemNamespace }}
 ---
 apiVersion: v1
 kind: Namespace
