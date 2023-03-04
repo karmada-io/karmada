@@ -219,6 +219,11 @@ type KarmadaAPIServer struct {
 	// +optional
 	ServiceSubnet *string `json:"serviceSubnet,omitempty"`
 
+	// ServiceType represents the service type of karmada apiserver.
+	// it is Nodeport by default.
+	// +optional
+	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+
 	// ExtraArgs is an extra set of flags to pass to the kube-apiserver component or
 	// override. A key in this map is the flag name as it appears on the command line except
 	// without leading dash(es).
@@ -269,11 +274,6 @@ type KarmadaAggregratedAPIServer struct {
 	// CertSANs sets extra Subject Alternative Names for the API Server signing cert.
 	// +optional
 	CertSANs []string `json:"certSANs,omitempty"`
-
-	// ServiceType represents the service type of karmada apiserver.
-	// it is Nodeport by default.
-	// +optional
-	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
 
 	// FeatureGates enabled by the user.
 	// - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models

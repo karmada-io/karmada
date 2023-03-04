@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -25,7 +26,7 @@ const (
 // Controller controls the Karmada resource.
 type Controller struct {
 	client.Client
-
+	Config        *rest.Config
 	EventRecorder record.EventRecorder
 }
 
@@ -82,9 +83,11 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 
 	klog.V(2).InfoS("Reconciling karmada", "name", req.Name)
 
-	// do reconcile
-
-	return controllerruntime.Result{}, nil
+	planner, err := NewPlannerFor(karmada, ctrl.Client, ctrl.Config)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	return planner.Execute()
 }
 
 func (ctrl *Controller) deleteUnableGCResources(karmada *operatorv1alpha1.Karmada) error {

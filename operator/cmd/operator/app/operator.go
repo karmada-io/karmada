@@ -120,6 +120,7 @@ func init() {
 
 func startKarmadaController(ctx ctrlctx.Context) (bool, error) {
 	ctrl := &karmada.Controller{
+		Config:        ctx.Manager.GetConfig(),
 		Client:        ctx.Manager.GetClient(),
 		EventRecorder: ctx.Manager.GetEventRecorderFor(karmada.ControllerName),
 	}

@@ -1,0 +1,42 @@
+apiVersion: operator.karmada.io/v1alpha1
+kind: Karmada
+metadata:
+  name: karmada-demo
+  namespace: test
+spec:
+  components:
+    etcd:
+      local:
+        imageRepository: registry.k8s.io/etcd
+        imageTag: 3.5.3-0
+        volumeData:
+          emptyDir: {}
+    karmadaAPIServer:
+      imageRepository: registry.k8s.io/kube-apiserver
+      imageTag: v1.25.2
+      replicas: 1
+      serviceType: NodePort
+      serviceSubnet: 10.96.0.0/12
+    karmadaAggregratedAPIServer:
+      imageRepository: docker.io/karmada/karmada-aggregated-apiserver
+      imageTag: v1.4.0
+      replicas: 1
+    karmadaControllerManager:
+      imageRepository: docker.io/karmada/karmada-controller-manager
+      imageTag: v1.4.0
+      replicas: 1
+    karmadaScheduler:
+      imageRepository: docker.io/karmada/karmada-scheduler
+      imageTag: v1.4.0
+      replicas: 1
+    karmadaWebhook:
+      imageRepository: docker.io/karmada/karmada-webhook
+      imageTag: v1.4.0
+      replicas: 1
+    kubeControllerManager:
+      imageRepository: registry.k8s.io/kube-controller-manager
+      imageTag: v1.25.2
+      replicas: 1
+  hostCluster:
+    networking:
+      dnsDomain: cluster.local
