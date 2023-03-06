@@ -61,38 +61,35 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 				return controllerruntime.Result{}, err
 			}
 		}
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(karmada, ControllerFinalizerName) {
-			// our finalizer is present, so lets handle any external dependency
-			if err := ctrl.deleteUnableGCResources(karmada); err != nil {
-				// if fail to delete the external dependency here, return with error
-				// so that it can be retried
-				return controllerruntime.Result{}, err
-			}
-
-			// remove our finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(karmada, ControllerFinalizerName)
-			if err := ctrl.Update(ctx, karmada); err != nil {
-				return controllerruntime.Result{}, err
-			}
-			// Stop reconciliation as the item is being deleted
-			return controllerruntime.Result{}, nil
-		}
 	}
 
 	klog.V(2).InfoS("Reconciling karmada", "name", req.Name)
-
 	planner, err := NewPlannerFor(karmada, ctrl.Client, ctrl.Config)
 	if err != nil {
 		return controllerruntime.Result{}, err
 	}
-	return planner.Execute()
+	if err := planner.Execute(); err != nil {
+		return controllerruntime.Result{}, err
+	}
+
+	// The object is being deleted
+	if !karmada.DeletionTimestamp.IsZero() {
+		return ctrl.removeFinalizer(ctx, karmada)
+	}
+
+	return controllerruntime.Result{}, nil
 }
 
-func (ctrl *Controller) deleteUnableGCResources(karmada *operatorv1alpha1.Karmada) error {
-	klog.InfoS("Deleting unable gc resources", "karmada", klog.KObj(karmada))
-	return nil
+func (ctrl *Controller) removeFinalizer(ctx context.Context, karmada *operatorv1alpha1.Karmada) (controllerruntime.Result, error) {
+	if controllerutil.ContainsFinalizer(karmada, ControllerFinalizerName) {
+		controllerutil.RemoveFinalizer(karmada, ControllerFinalizerName)
+
+		if err := ctrl.Update(ctx, karmada); err != nil {
+			return controllerruntime.Result{}, err
+		}
+	}
+
+	return controllerruntime.Result{}, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.

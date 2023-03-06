@@ -5,8 +5,8 @@ package workflow
 // RunSubTasks is true.
 type Task struct {
 	Name        string
-	Run         func(data RunData) error
-	Skip        func(data RunData) (bool, error)
+	Run         func(RunData) error
+	Skip        func(RunData) (bool, error)
 	Tasks       []Task
 	RunSubTasks bool
 }

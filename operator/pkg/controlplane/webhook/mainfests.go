@@ -10,6 +10,7 @@ metadata:
   namespace: {{ .Namespace }}
   labels:
     karmada-app: karmada-webhook
+    app.kubernetes.io/managed-by: karmada-operator
 spec:
   replicas: {{ .Replicas }}
   selector:
@@ -67,6 +68,8 @@ kind: Service
 metadata:
   name: {{ .ServiceName }}
   namespace: {{ .Namespace }}
+  labels:
+    app.kubernetes.io/managed-by: karmada-operator
 spec:
   selector:
     karmada-app: karmada-webhook

@@ -1,6 +1,10 @@
 package constants
 
-import "time"
+import (
+	"time"
+
+	"k8s.io/apimachinery/pkg/labels"
+)
 
 const (
 	// KubeDefaultRepository defines the default of the k8s image repository
@@ -14,6 +18,8 @@ const (
 	// KubeDefaultVersion defines the default of the karmada apiserver and kubeControllerManager image tag
 	KubeDefaultVersion = "v1.25.2"
 
+	// KarmadaOperator defines the name of the karmada operator.
+	KarmadaOperator = "karmada-operator"
 	// Etcd defines the name of the built-in etcd cluster component
 	Etcd = "etcd"
 	// KarmadaAPIServer defines the name of the karmada-apiserver component
@@ -76,4 +82,14 @@ const (
 	KarmadaControllerManagerComponent = "KarmadaControllerManager"
 	// KarmadaSchedulerComponent defines the name of karmada scheduler component
 	KarmadaSchedulerComponent = "KarmadaScheduler"
+	// KarmadaWebhookComponent defines the name of the karmada-webhook component
+	KarmadaWebhookComponent = "KarmadaWebhook"
+
+	// KarmadaOperatorLabelKeyName defines a label key used by all of resources created by karmada operator
+	KarmadaOperatorLabelKeyName = "app.kubernetes.io/managed-by"
+)
+
+var (
+	// KarmadaOperatorLabel defines the default labels in the resource create by karmada operator
+	KarmadaOperatorLabel = labels.Set{KarmadaOperatorLabelKeyName: KarmadaOperator}
 )

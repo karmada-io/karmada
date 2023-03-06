@@ -70,6 +70,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
 			Name:      util.AdminKubeconfigSercretName(data.GetName()),
+			Labels:    constants.KarmadaOperatorLabel,
 		},
 		Data: map[string][]byte{"config": configBytes},
 	})
@@ -162,6 +163,7 @@ func runUploadKarmadaCert(r workflow.RunData) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.KarmadaCertSecretName(data.GetName()),
 			Namespace: data.GetNamespace(),
+			Labels:    constants.KarmadaOperatorLabel,
 		},
 		Data: certsData,
 	})
@@ -187,6 +189,7 @@ func runUploadEtcdCert(r workflow.RunData) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
 			Name:      util.EtcdCertSecretName(data.GetName()),
+			Labels:    constants.KarmadaOperatorLabel,
 		},
 
 		Data: map[string][]byte{
@@ -217,6 +220,7 @@ func runUploadWebHookCert(r workflow.RunData) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.WebhookCertSecretName(data.GetName()),
 			Namespace: data.GetNamespace(),
+			Labels:    constants.KarmadaOperatorLabel,
 		},
 
 		Data: map[string][]byte{
