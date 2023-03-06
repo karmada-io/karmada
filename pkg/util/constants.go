@@ -22,6 +22,12 @@ const (
 
 	// FederatedResourceQuotaNameLabel is added to Work to specify associated FederatedResourceQuota's name.
 	FederatedResourceQuotaNameLabel = "federatedresourcequota.karmada.io/name"
+
+	// HPANamespaceLabel is added to Work to specify associated HPA's namespace.
+	HPANamespaceLabel = "federatedresourcequota.karmada.io/namespace"
+
+	// HPANameLabel is added to Work to specify associated HPA's name.
+	HPANameLabel = "federatedresourcequota.karmada.io/name"
 )
 
 // Define annotations used by karmada system.

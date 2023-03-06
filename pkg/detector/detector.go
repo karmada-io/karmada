@@ -397,11 +397,10 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	bindingCopy := binding.DeepCopy()
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-			// If this binding exists and its owner is not the input object, return error and let garbage collector
-			// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
-			if ownerRef := metav1.GetControllerOfNoCopy(bindingCopy); ownerRef != nil && ownerRef.UID != object.GetUID() {
-				return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
-					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
+			// double-check binding name collision
+			// return an error and retry in the next reconcile, where the collision would likely be solved
+			if names.BindingNameCollision(bindingCopy, object) {
+				return fmt.Errorf("binding name collision: %q", bindingCopy.Name)
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
@@ -472,11 +471,10 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		bindingCopy := binding.DeepCopy()
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-				// If this binding exists and its owner is not the input object, return error and let garbage collector
-				// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
-				if ownerRef := metav1.GetControllerOfNoCopy(bindingCopy); ownerRef != nil && ownerRef.UID != object.GetUID() {
-					return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
-						"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
+				// double-check binding name collision
+				// return an error and retry in the next reconcile, where the collision would likely be solved
+				if names.BindingNameCollision(bindingCopy, object) {
+					return fmt.Errorf("binding name collision: %q", bindingCopy.Name)
 				}
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 				bindingCopy.Labels = binding.Labels
@@ -516,11 +514,10 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		}
 		bindingCopy := binding.DeepCopy()
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
-			// If this binding exists and its owner is not the input object, return error and let garbage collector
-			// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
-			if ownerRef := metav1.GetControllerOfNoCopy(bindingCopy); ownerRef != nil && ownerRef.UID != object.GetUID() {
-				return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
-					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
+			// double-check binding name collision
+			// return an error and retry in the next reconcile, where the collision would likely be solved
+			if names.BindingNameCollision(bindingCopy, object) {
+				return fmt.Errorf("binding name collision: %q", bindingCopy.Name)
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = binding.Labels
@@ -614,7 +611,11 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
 func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string, policySpec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ResourceBinding, error) {
-	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
+	bindingName, err := names.GenerateBindingName(context.TODO(), d.Client, d.DynamicClient, object, d.RESTMapper)
+	if err != nil {
+		klog.Errorf("Failed to generate binding name for (%s/%s): %v", object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
 	propagationBinding := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
@@ -655,7 +656,11 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
 func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, labels map[string]string, policySpec *policyv1alpha1.PropagationSpec) (*workv1alpha2.ClusterResourceBinding, error) {
-	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
+	bindingName, err := names.GenerateBindingName(context.TODO(), d.Client, d.DynamicClient, object, d.RESTMapper)
+	if err != nil {
+		klog.Errorf("Failed to generate binding name for (%s): %v", object.GetName(), err)
+		return nil, err
+	}
 	binding := &workv1alpha2.ClusterResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,

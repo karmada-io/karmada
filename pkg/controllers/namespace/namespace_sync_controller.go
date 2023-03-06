@@ -7,10 +7,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -39,7 +41,9 @@ const (
 
 // Controller is to sync Work.
 type Controller struct {
-	client.Client                // used to operate Work resources.
+	client.Client                                  // used to operate Work resources.
+	DynamicClient                dynamic.Interface // used to generate Work names.
+	RESTMapper                   meta.RESTMapper
 	EventRecorder                record.EventRecorder
 	SkippedPropagatingNamespaces map[string]struct{}
 	OverrideManager              overridemanager.OverrideManager
@@ -131,7 +135,13 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 
 			workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
 
-			workName := names.GenerateWorkName(namespaceObj.GetKind(), namespaceObj.GetName(), namespaceObj.GetNamespace())
+			workName, err := names.GenerateWorkName(context.TODO(), c.Client, c.DynamicClient, workNamespace, namespaceObj, namespaceObj, c.RESTMapper)
+			if err != nil {
+				klog.Errorf("Failed to generate work name for member cluster %s, err is %v", cluster.Name, err)
+				ch <- fmt.Errorf("sync namespace(%s) to cluster(%s) failed due to: %v", clonedNamespaced.GetName(), cluster.GetName(), err)
+				return
+			}
+
 			objectMeta := metav1.ObjectMeta{
 				Name:       workName,
 				Namespace:  workNamespace,

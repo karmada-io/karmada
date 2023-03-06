@@ -5,9 +5,11 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -35,7 +37,9 @@ const (
 
 // SyncController is to sync FederatedResourceQuota.
 type SyncController struct {
-	client.Client // used to operate Work resources.
+	client.Client                   // used to operate Work resources.
+	DynamicClient dynamic.Interface // used to generate Work names.
+	RESTMapper    meta.RESTMapper
 	EventRecorder record.EventRecorder
 }
 
@@ -145,17 +149,12 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 	var errs []error
 	for _, cluster := range clusters {
 		workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
-		workName := names.GenerateWorkName("ResourceQuota", quota.Name, quota.Namespace)
 
 		resourceQuota := &corev1.ResourceQuota{}
 		resourceQuota.APIVersion = "v1"
 		resourceQuota.Kind = "ResourceQuota"
 		resourceQuota.Namespace = quota.Namespace
 		resourceQuota.Name = quota.Name
-		resourceQuota.Labels = map[string]string{
-			workv1alpha1.WorkNamespaceLabel: workNamespace,
-			workv1alpha1.WorkNameLabel:      workName,
-		}
 		resourceQuota.Spec.Hard = extractClusterHardResourceList(quota.Spec, cluster.Name)
 
 		resourceQuotaObj, err := helper.ToUnstructured(resourceQuota)
@@ -164,6 +163,24 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 			errs = append(errs, err)
 			continue
 		}
+		fedQuotaObj, err := helper.ToUnstructured(quota)
+		if err != nil {
+			klog.Errorf("Failed to transform federated resourceQuota(%s), error: %v", klog.KObj(quota).String(), err)
+			errs = append(errs, err)
+			continue
+		}
+
+		workName, err := names.GenerateWorkName(context.TODO(), c.Client, c.DynamicClient, workNamespace, resourceQuotaObj, fedQuotaObj, c.RESTMapper)
+		if err != nil {
+			klog.Errorf("Failed to generate work name for cluster(%s), error: %v", cluster.Name, err)
+			errs = append(errs, err)
+			continue
+		}
+
+		resourceQuotaObj.SetLabels(map[string]string{
+			workv1alpha1.WorkNamespaceLabel: workNamespace,
+			workv1alpha1.WorkNameLabel:      workName,
+		})
 
 		objectMeta := metav1.ObjectMeta{
 			Namespace:  workNamespace,

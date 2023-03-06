@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
@@ -36,9 +35,9 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	kutil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -548,9 +547,13 @@ func (g *CommandGetOptions) reconstructionRow(objs []Obj, table *metav1.Table) (
 			return nil, nil, err
 		}
 		for rowIdx := range table.Rows {
-			var tempRow metav1.TableRow
-			rbKey := getRBKey(mapping.GroupVersionKind, table.Rows[rowIdx], objs[ix].Cluster)
+			obj := &unstructured.Unstructured{}
+			if err := obj.UnmarshalJSON(table.Rows[rowIdx].Object.Raw); err != nil {
+				return nil, nil, err
+			}
+			rbKey := getRBKey(obj, objs[ix].Cluster)
 
+			var tempRow metav1.TableRow
 			tempRow.Cells = append(append(tempRow.Cells, table.Rows[rowIdx].Cells[0], objs[ix].Cluster), table.Rows[rowIdx].Cells[1:]...)
 			if _, ok := RBInfo[rbKey]; ok {
 				tempRow.Cells = append(tempRow.Cells, "Y")
@@ -578,9 +581,13 @@ func (g *CommandGetOptions) reconstructObj(obj runtime.Object, mapping *meta.RES
 	}
 
 	for rowIdx := range table.Rows {
-		var tempRow metav1.TableRow
-		rbKey := getRBKey(mapping.GroupVersionKind, table.Rows[rowIdx], cluster)
+		obj := &unstructured.Unstructured{}
+		if err := obj.UnmarshalJSON(table.Rows[rowIdx].Object.Raw); err != nil {
+			return nil, err
+		}
+		rbKey := getRBKey(obj, cluster)
 
+		var tempRow metav1.TableRow
 		if g.OutputWatchEvents {
 			tempRow.Cells = append(append(tempRow.Cells, event, table.Rows[rowIdx].Cells[0], cluster), table.Rows[rowIdx].Cells[1:]...)
 		} else {
@@ -952,11 +959,12 @@ func (g *CommandGetOptions) getRBInKarmada() error {
 	return nil
 }
 
-func getRBKey(gvk schema.GroupVersionKind, row metav1.TableRow, cluster string) string {
-	resourceName, _ := row.Cells[0].(string)
-	rbKey := names.GenerateBindingName(gvk.Kind, resourceName)
-
-	return fmt.Sprintf("%s-%s", cluster, rbKey)
+func getRBKey(obj *unstructured.Unstructured, cluster string) string {
+	bindingName := kutil.GetAnnotationValue(obj.GetAnnotations(), workv1alpha2.ResourceBindingNameAnnotationKey)
+	if len(bindingName) == 0 {
+		bindingName = kutil.GetAnnotationValue(obj.GetAnnotations(), workv1alpha2.ClusterResourceBindingAnnotationKey)
+	}
+	return fmt.Sprintf("%s-%s", cluster, bindingName)
 }
 
 func multipleGVKsRequested(objs []Obj) bool {

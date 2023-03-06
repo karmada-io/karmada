@@ -121,7 +121,7 @@ var _ = framework.SerialDescribe("spread-by-region testing", func() {
 					},
 				}
 				framework.PatchPropagationPolicy(karmadaClient, policyNamespace, policyName, patch, types.JSONPatchType)
-				bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+				bindingName := names.GenerateBasicBindingName(deployment.Kind, deployment.Name)
 				binding := &workv1alpha2.ResourceBinding{}
 				gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 					err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Namespace: deployment.Namespace, Name: bindingName}, binding)

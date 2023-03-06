@@ -114,7 +114,7 @@ func TestGenerateBindingReferenceKey(t *testing.T) {
 	}
 }
 
-func TestGenerateBindingName(t *testing.T) {
+func TestGenerateBasicBindingName(t *testing.T) {
 	tests := []struct {
 		testCase string
 		kind     string
@@ -166,13 +166,13 @@ func TestGenerateBindingName(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if result := GenerateBindingName(test.kind, test.name); result != test.expect {
+		if result := GenerateBasicBindingName(test.kind, test.name); result != test.expect {
 			t.Errorf("Test %s failed: expected %v, but got %v", test.testCase, test.expect, result)
 		}
 	}
 }
 
-func TestGenerateWorkName(t *testing.T) {
+func TestGenerateBasicWorkName(t *testing.T) {
 	tests := []struct {
 		testCase  string
 		kind      string
@@ -197,7 +197,7 @@ func TestGenerateWorkName(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got := GenerateWorkName(test.kind, test.name, test.namespace)
+		got := GenerateBasicWorkName(test.kind, test.name, test.namespace)
 
 		hash := fnv.New32a()
 		hashutil.DeepHashObject(hash, test.workname)

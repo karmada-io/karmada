@@ -386,6 +386,8 @@ func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err
 	}
 	namespaceSyncController := &namespace.Controller{
 		Client:                       ctx.Mgr.GetClient(),
+		DynamicClient:                ctx.DynamicClientSet,
+		RESTMapper:                   ctx.Mgr.GetRESTMapper(),
 		EventRecorder:                ctx.Mgr.GetEventRecorderFor(namespace.ControllerName),
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
 		OverrideManager:              ctx.OverrideManager,
@@ -441,6 +443,8 @@ func startServiceImportController(ctx controllerscontext.Context) (enabled bool,
 func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, err error) {
 	unifiedAuthController := &unifiedauth.Controller{
 		Client:        ctx.Mgr.GetClient(),
+		DynamicClient: ctx.DynamicClientSet,
+		RESTMapper:    ctx.Mgr.GetRESTMapper(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
 	}
 	if err := unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
@@ -452,6 +456,8 @@ func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, e
 func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (enabled bool, err error) {
 	controller := federatedresourcequota.SyncController{
 		Client:        ctx.Mgr.GetClient(),
+		DynamicClient: ctx.DynamicClientSet,
+		RESTMapper:    ctx.Mgr.GetRESTMapper(),
 		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.SyncControllerName),
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {

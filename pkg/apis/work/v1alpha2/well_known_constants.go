@@ -21,12 +21,14 @@ const (
 	// It is added to:
 	// - Work object: describes the name of ResourceBinding which the Work derived from.
 	// - Manifest in Work object: describes the name of ResourceBinding which the manifest derived from.
+	// - Resource templates: describes the associated ResourceBinding name.
 	ResourceBindingNameAnnotationKey = "resourcebinding.karmada.io/name"
 
 	// ClusterResourceBindingAnnotationKey is added to object to describe associated ClusterResourceBinding's name.
 	// It is added to:
 	// - Work object: describes the name of ClusterResourceBinding which the Work derived from.
 	// - Manifest in Work object: describes the name of ClusterResourceBinding which the manifest derived from.
+	// - Resource templates: describes the associated ClusterResourceBinding name.
 	ClusterResourceBindingAnnotationKey = "clusterresourcebinding.karmada.io/name"
 
 	// WorkNamespaceLabel is added to objects to specify associated Work's namespace.
@@ -34,6 +36,12 @@ const (
 
 	// WorkNameLabel is added to objects to specify associated Work's name.
 	WorkNameLabel = "work.karmada.io/name"
+
+	// WorkNamesAnnotationKey is added to resource templates to describe the associated work names.
+	// The controller uses this annotation as a name collision avoidance mechanism when it needs to generate a work name for the object.
+	// It is added to:
+	// - Resource templates: describes the associated work names.
+	WorkNamesAnnotationKey = "work.karmada.io/names"
 )
 
 // Define resource conflict resolution

@@ -27,6 +27,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	util.MergeAnnotation(workload, workv1alpha2.ResourceTemplateUIDAnnotation, string(workload.GetUID()))
 	util.RecordManagedAnnotations(workload)
 	util.RecordManagedLabels(workload)
+	util.DeleteAnnotation(workload, workv1alpha2.WorkNamesAnnotationKey)
 	workloadJSON, err := workload.MarshalJSON()
 	if err != nil {
 		klog.Errorf("Failed to marshal workload(%s/%s), Error: %v", workload.GetNamespace(), workload.GetName(), err)
@@ -52,6 +53,11 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	var operationResult controllerutil.OperationResult
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
+			// double-check work name collision
+			// return an error and retry in the next reconcile, where the collision would likely be solved
+			if names.WorkNameCollision(runtimeObject, workload) {
+				return fmt.Errorf("work name collision: %q", runtimeObject.Name)
+			}
 			runtimeObject.Spec = work.Spec
 			runtimeObject.Labels = work.Labels
 			runtimeObject.Annotations = work.Annotations

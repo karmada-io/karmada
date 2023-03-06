@@ -1,11 +1,13 @@
 package binding
 
 import (
+	"context"
 	"reflect"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,9 +56,10 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 })
 
 // ensureWork ensure Work to be created or updated.
+// nolint:gocyclo
 func ensureWork(
-	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
-	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
+	c client.Client, dynamicClient dynamic.Interface, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
+	overrideManager overridemanager.OverrideManager, binding client.Object, scope apiextensionsv1.ResourceScope,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
 	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
@@ -118,7 +121,14 @@ func ensureWork(
 			klog.Errorf("Failed to apply overrides for %s/%s/%s, err is: %v", clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
 			return err
 		}
-		workLabel := mergeLabel(clonedWorkload, workNamespace, binding, scope)
+
+		workName, err := names.GenerateWorkName(context.TODO(), c, dynamicClient, workNamespace, clonedWorkload, clonedWorkload, c.RESTMapper())
+		if err != nil {
+			klog.Errorf("Failed to generate work name: %v", err)
+			return err
+		}
+
+		workLabel := mergeLabel(clonedWorkload, workNamespace, workName, binding, scope)
 
 		annotations := mergeAnnotations(clonedWorkload, binding, scope)
 		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
@@ -128,7 +138,7 @@ func ensureWork(
 		}
 
 		workMeta := metav1.ObjectMeta{
-			Name:        names.GenerateWorkName(clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace()),
+			Name:        workName,
 			Namespace:   workNamespace,
 			Finalizers:  []string{util.ExecutionControllerFinalizer},
 			Labels:      workLabel,
@@ -176,10 +186,10 @@ func transScheduleResultToMap(scheduleResult []workv1alpha2.TargetCluster) map[s
 	return desireReplicaInfos
 }
 
-func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
+func mergeLabel(workload *unstructured.Unstructured, workNamespace, workName string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
 	var workLabel = make(map[string]string)
 	util.MergeLabel(workload, workv1alpha1.WorkNamespaceLabel, workNamespace)
-	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()))
+	util.MergeLabel(workload, workv1alpha1.WorkNameLabel, workName)
 	if scope == apiextensionsv1.NamespaceScoped {
 		util.MergeLabel(workload, workv1alpha2.ResourceBindingReferenceKey, names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName()))
 		workLabel[workv1alpha2.ResourceBindingReferenceKey] = names.GenerateBindingReferenceKey(binding.GetNamespace(), binding.GetName())
