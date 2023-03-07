@@ -1,0 +1,39 @@
+name: CI Schedule Workflow
+on:
+  schedule:
+    # Run this workflow "At 18:00 UTC on Sunday and Saturday"
+    - cron: '0 18 * * 0,6'
+jobs:
+  e2e:
+    name: e2e test
+    # prevent job running from forked repository
+    if: ${{ github.repository == 'karmada-io/karmada' }}
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        k8s: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0 ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.5
+      - name: setup e2e test environment
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          hack/local-up-karmada.sh
+      - name: run e2e
+        run: |
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
+          hack/run-e2e.sh
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: karmada_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
