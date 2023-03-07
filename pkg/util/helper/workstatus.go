@@ -146,6 +146,31 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 	return nil
 }
 
+// BuildStatusIdentifier builds the identifier of work status.
+func BuildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {
+	ordinal, err := GetManifestIndex(work.Spec.Workload.Manifests, clusterObj)
+	if err != nil {
+		return nil, err
+	}
+
+	groupVersion, err := schema.ParseGroupVersion(clusterObj.GetAPIVersion())
+	if err != nil {
+		return nil, err
+	}
+
+	identifier := &workv1alpha1.ResourceIdentifier{
+		Ordinal: ordinal,
+		// TODO(RainbowMango): Consider merge Group and Version to APIVersion from Work API.
+		Group:     groupVersion.Group,
+		Version:   groupVersion.Version,
+		Kind:      clusterObj.GetKind(),
+		Namespace: clusterObj.GetNamespace(),
+		Name:      clusterObj.GetName(),
+	}
+
+	return identifier, nil
+}
+
 func generateFullyAppliedCondition(spec workv1alpha2.ResourceBindingSpec, aggregatedStatuses []workv1alpha2.AggregatedStatusItem) metav1.Condition {
 	clusterNames := ObtainBindingSpecExistingClusters(spec)
 	if worksFullyApplied(aggregatedStatuses, clusterNames) {
@@ -189,22 +214,13 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 				panic("unexpected status")
 			}
 		}
-		if !applied {
-			aggregatedStatus := workv1alpha2.AggregatedStatusItem{
-				ClusterName:    clusterName,
-				Applied:        applied,
-				AppliedMessage: appliedMsg,
-				Health:         workv1alpha2.ResourceUnknown,
-			}
-			statuses = append(statuses, aggregatedStatus)
-			continue
-		}
 
 		// resources with no status,only record whether the propagation is successful in work
 		aggregatedStatus := workv1alpha2.AggregatedStatusItem{
-			ClusterName: clusterName,
-			Applied:     applied,
-			Health:      workv1alpha2.ResourceUnknown,
+			ClusterName:    clusterName,
+			Applied:        applied,
+			AppliedMessage: appliedMsg,
+			Health:         workv1alpha2.ResourceUnknown,
 		}
 
 		for _, manifestStatus := range work.Status.ManifestStatuses {

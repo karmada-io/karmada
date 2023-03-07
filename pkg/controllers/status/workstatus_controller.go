@@ -311,7 +311,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		c.EventRecorder.Eventf(work, corev1.EventTypeNormal, events.EventReasonInterpretHealthSucceed, "Interpret health of object(%s/%s/%s) as unhealthy.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
 	}
 
-	identifier, err := c.buildStatusIdentifier(work, clusterObj)
+	identifier, err := helper.BuildStatusIdentifier(work, clusterObj)
 	if err != nil {
 		return err
 	}
@@ -343,30 +343,6 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		}
 		return updateErr
 	})
-}
-
-func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {
-	ordinal, err := helper.GetManifestIndex(work.Spec.Workload.Manifests, clusterObj)
-	if err != nil {
-		return nil, err
-	}
-
-	groupVersion, err := schema.ParseGroupVersion(clusterObj.GetAPIVersion())
-	if err != nil {
-		return nil, err
-	}
-
-	identifier := &workv1alpha1.ResourceIdentifier{
-		Ordinal: ordinal,
-		// TODO(RainbowMango): Consider merge Group and Version to APIVersion from Work API.
-		Group:     groupVersion.Group,
-		Version:   groupVersion.Version,
-		Kind:      clusterObj.GetKind(),
-		Namespace: clusterObj.GetNamespace(),
-		Name:      clusterObj.GetName(),
-	}
-
-	return identifier, nil
 }
 
 func (c *WorkStatusController) mergeStatus(statuses []workv1alpha1.ManifestStatus, newStatus workv1alpha1.ManifestStatus) []workv1alpha1.ManifestStatus {
