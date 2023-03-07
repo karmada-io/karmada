@@ -102,6 +102,16 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), constraint, "spreadByLabel should not co-exist with spreadByField"))
 		}
 
+		// If MinGroups provided, it should not be lower than 0.
+		if constraint.MinGroups < 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), constraint, "minGroups lower than 0 is not allowed"))
+		}
+
+		// If MaxGroups provided, it should not be lower than 0.
+		if constraint.MaxGroups < 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), constraint, "maxGroups lower than 0 is not allowed"))
+		}
+
 		// If MaxGroups provided, it should greater or equal than MinGroups.
 		if constraint.MaxGroups > 0 && constraint.MaxGroups < constraint.MinGroups {
 			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), constraint, "maxGroups lower than minGroups is not allowed"))

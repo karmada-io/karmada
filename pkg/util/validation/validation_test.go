@@ -444,6 +444,32 @@ func TestValidatePropagationSpec(t *testing.T) {
 			expectedErr: "maxGroups lower than minGroups is not allowed",
 		},
 		{
+			name: "spreadConstraint maxGroups lower than 0",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							MaxGroups: -1,
+							MinGroups: 1,
+						},
+					},
+				}},
+			expectedErr: "maxGroups lower than 0 is not allowed",
+		},
+		{
+			name: "spreadConstraint minGroups lower than 0",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							MaxGroups: 2,
+							MinGroups: -2,
+						},
+					},
+				}},
+			expectedErr: "minGroups lower than 0 is not allowed",
+		},
+		{
 			name: "spreadConstraint spreadByFieldCluster must be included if using spreadByField",
 			spec: policyv1alpha1.PropagationSpec{
 				Placement: policyv1alpha1.Placement{
