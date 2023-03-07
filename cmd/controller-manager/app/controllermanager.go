@@ -184,6 +184,7 @@ func init() {
 	controllers["clusterStatus"] = startClusterStatusController
 	controllers["hpa"] = startHpaController
 	controllers["binding"] = startBindingController
+	controllers["bindingStatus"] = startBindingStatusController
 	controllers["execution"] = startExecutionController
 	controllers["workStatus"] = startWorkStatusController
 	controllers["namespace"] = startNamespaceController
@@ -336,6 +337,36 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 	if err := clusterResourceBindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
+	return true, nil
+}
+
+func startBindingStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
+	rbStatusController := &status.RBStatusController{
+		Client:              ctx.Mgr.GetClient(),
+		DynamicClient:       ctx.DynamicClientSet,
+		InformerManager:     ctx.ControlPlaneInformerManager,
+		ResourceInterpreter: ctx.ResourceInterpreter,
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.RBStatusControllerName),
+		RESTMapper:          ctx.Mgr.GetRESTMapper(),
+		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
+	}
+	if err := rbStatusController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+
+	crbStatusController := &status.CRBStatusController{
+		Client:              ctx.Mgr.GetClient(),
+		DynamicClient:       ctx.DynamicClientSet,
+		InformerManager:     ctx.ControlPlaneInformerManager,
+		ResourceInterpreter: ctx.ResourceInterpreter,
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.CRBStatusControllerName),
+		RESTMapper:          ctx.Mgr.GetRESTMapper(),
+		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
+	}
+	if err := crbStatusController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 

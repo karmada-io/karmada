@@ -1,16 +1,11 @@
 package binding
 
 import (
-	"reflect"
-
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -21,37 +16,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
-
-var workPredicateFn = builder.WithPredicates(predicate.Funcs{
-	CreateFunc: func(e event.CreateEvent) bool {
-		return false
-	},
-	UpdateFunc: func(e event.UpdateEvent) bool {
-		var statusesOld, statusesNew workv1alpha1.WorkStatus
-
-		switch oldWork := e.ObjectOld.(type) {
-		case *workv1alpha1.Work:
-			statusesOld = oldWork.Status
-		default:
-			return false
-		}
-
-		switch newWork := e.ObjectNew.(type) {
-		case *workv1alpha1.Work:
-			statusesNew = newWork.Status
-		default:
-			return false
-		}
-
-		return !reflect.DeepEqual(statusesOld, statusesNew)
-	},
-	DeleteFunc: func(event.DeleteEvent) bool {
-		return true
-	},
-	GenericFunc: func(event.GenericEvent) bool {
-		return false
-	},
-})
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(

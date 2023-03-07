@@ -852,9 +852,9 @@ func TestFetchWorkload(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			stopCh := make(chan struct{})
 			mgr := tt.args.informerManager(stopCh)
-			got, err := FetchWorkload(tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource)
+			got, err := FetchResourceTemplate(tt.args.dynamicClient, mgr, tt.args.restMapper, tt.args.resource)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("FetchWorkload() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("FetchResourceTemplate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != nil {
@@ -863,7 +863,7 @@ func TestFetchWorkload(t *testing.T) {
 				delete(got.Object, "status")
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FetchWorkload() got = %v, want %v", got, tt.want)
+				t.Errorf("FetchResourceTemplate() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
