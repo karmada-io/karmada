@@ -2160,7 +2160,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref common.ReferenceCallbac
 					},
 					"fieldSelector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "FieldSelector is a filter to select member clusters by fields. If non-nil and non-empty, only the clusters match this filter will be selected.",
+							Description: "FieldSelector is a filter to select member clusters by fields. The key(field) of the match expression should be 'provider', 'region', or 'zone', and the operator of the match expression should be 'In' or 'NotIn'. If non-nil and non-empty, only the clusters match this filter will be selected.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector"),
 						},
 					},
@@ -2225,7 +2225,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref common.ReferenceCal
 					},
 					"fieldSelector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "FieldSelector is a filter to select member clusters by fields. If non-nil and non-empty, only the clusters match this filter will be selected.",
+							Description: "FieldSelector is a filter to select member clusters by fields. The key(field) of the match expression should be 'provider', 'region', or 'zone', and the operator of the match expression should be 'In' or 'NotIn'. If non-nil and non-empty, only the clusters match this filter will be selected.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector"),
 						},
 					},

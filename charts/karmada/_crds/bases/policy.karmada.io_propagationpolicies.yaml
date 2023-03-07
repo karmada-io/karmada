@@ -105,8 +105,11 @@ spec:
                           type: array
                         fieldSelector:
                           description: FieldSelector is a filter to select member
-                            clusters by fields. If non-nil and non-empty, only the
-                            clusters match this filter will be selected.
+                            clusters by fields. The key(field) of the match expression
+                            should be 'provider', 'region', or 'zone', and the operator
+                            of the match expression should be 'In' or 'NotIn'. If
+                            non-nil and non-empty, only the clusters match this filter
+                            will be selected.
                           properties:
                             matchExpressions:
                               description: A list of field selector requirements.
@@ -213,8 +216,11 @@ spec:
                         type: array
                       fieldSelector:
                         description: FieldSelector is a filter to select member clusters
-                          by fields. If non-nil and non-empty, only the clusters match
-                          this filter will be selected.
+                          by fields. The key(field) of the match expression should
+                          be 'provider', 'region', or 'zone', and the operator of
+                          the match expression should be 'In' or 'NotIn'. If non-nil
+                          and non-empty, only the clusters match this filter will
+                          be selected.
                         properties:
                           matchExpressions:
                             description: A list of field selector requirements.
@@ -408,9 +414,12 @@ spec:
                                       type: array
                                     fieldSelector:
                                       description: FieldSelector is a filter to select
-                                        member clusters by fields. If non-nil and
-                                        non-empty, only the clusters match this filter
-                                        will be selected.
+                                        member clusters by fields. The key(field)
+                                        of the match expression should be 'provider',
+                                        'region', or 'zone', and the operator of the
+                                        match expression should be 'In' or 'NotIn'.
+                                        If non-nil and non-empty, only the clusters
+                                        match this filter will be selected.
                                       properties:
                                         matchExpressions:
                                           description: A list of field selector requirements.
