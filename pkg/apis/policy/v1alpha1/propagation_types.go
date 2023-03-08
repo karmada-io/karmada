@@ -248,6 +248,8 @@ type ClusterAffinity struct {
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 
 	// FieldSelector is a filter to select member clusters by fields.
+	// The key(field) of the match expression should be 'provider', 'region', or 'zone',
+	// and the operator of the match expression should be 'In' or 'NotIn'.
 	// If non-nil and non-empty, only the clusters match this filter will be selected.
 	// +optional
 	FieldSelector *FieldSelector `json:"fieldSelector,omitempty"`
