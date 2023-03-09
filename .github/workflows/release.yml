@@ -36,11 +36,3 @@ jobs:
         files: |
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz.sha256
-  update-krew-index:
-    needs: release-assests
-    name: Update krew-index
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v3
-    - name: Update new version in krew-index
-      uses: rajatjindal/krew-release-bot@v0.0.40
