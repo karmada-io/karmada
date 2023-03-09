@@ -167,7 +167,7 @@ func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 	switch {
 	case !equality.Semantic.DeepEqual(oldCluster.Labels, newCluster.Labels):
 		fallthrough
-	case !equality.Semantic.DeepEqual(oldCluster.Spec, newCluster.Spec):
+	case oldCluster.Generation != newCluster.Generation:
 		s.enqueueAffectedBindings(oldCluster, newCluster)
 	}
 }

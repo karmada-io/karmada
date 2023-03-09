@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -73,6 +74,10 @@ func (Strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 // PrepareForCreate is invoked on create before validation to normalize the object.
 func (Strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 	cluster := obj.(*clusterapis.Cluster)
+	cluster.Status = clusterapis.ClusterStatus{}
+
+	cluster.Generation = 1
+
 	if utilfeature.DefaultMutableFeatureGate.Enabled(features.CustomizedClusterResourceModeling) {
 		if len(cluster.Spec.ResourceModels) == 0 {
 			mutation.SetDefaultClusterResourceModels(cluster)
@@ -84,10 +89,18 @@ func (Strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 
 // PrepareForUpdate is invoked on update before validation to normalize the object.
 func (Strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
-	cluster := obj.(*clusterapis.Cluster)
+	newCluster := obj.(*clusterapis.Cluster)
+	oldCluster := old.(*clusterapis.Cluster)
+	newCluster.Status = oldCluster.Status
+
+	// Any changes to the spec increases the generation number.
+	if !apiequality.Semantic.DeepEqual(newCluster.Spec, oldCluster.Spec) {
+		newCluster.Generation = oldCluster.Generation + 1
+	}
+
 	if utilfeature.DefaultMutableFeatureGate.Enabled(features.CustomizedClusterResourceModeling) {
-		if len(cluster.Spec.ResourceModels) != 0 {
-			mutation.StandardizeClusterResourceModels(cluster.Spec.ResourceModels)
+		if len(newCluster.Spec.ResourceModels) != 0 {
+			mutation.StandardizeClusterResourceModels(newCluster.Spec.ResourceModels)
 		}
 	}
 }
