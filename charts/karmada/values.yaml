@@ -268,9 +268,7 @@ controllerManager:
     ##   - myRegistryKeySecretName
     ##
     pullSecrets: []
-  ## @param controllerManager.config.controllers the controllers launched by the manager.
-  config:
-    controllers: ""
+
   ## @param controllerManager.resources resource quota of the karmada-controller-manager
   resources: {}
     # If you do want to specify resources, uncomment the following
@@ -473,9 +471,7 @@ kubeControllerManager:
     ##   - myRegistryKeySecretName
     ##
     pullSecrets: []
-  ## @param kubeControllerManager.config.controllers the controllers launched by the kubernetes manager.
-  config:
-    controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrapproving,csrcleaner,csrsigning
+
   ## @param kubeControllerManager.resources resource quota of the kube-controller-manager
   resources:
     # If you do want to specify resources, uncomment the following
@@ -500,6 +496,7 @@ kubeControllerManager:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+  controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrapproving,csrcleaner,csrsigning
 
 ## etcd config
 etcd:
