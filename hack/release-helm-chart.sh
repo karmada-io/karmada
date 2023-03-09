@@ -6,7 +6,8 @@ set -o pipefail
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}"/hack/util.sh
 
-version=$1
+# keep v1.x.x forms
+version=${1%%-*}
 
 release_dir="${REPO_ROOT}/_output/release"
 tar_file="karmada-chart-${version}.tgz"
@@ -22,7 +23,8 @@ else
 fi
 
 echo "Starting to package into a Karmada chart archive"
-helm package ./charts/karmada --version "${version}" -d "${release_dir}"
+helm package ./charts/karmada --version "${version}" -d "${release_dir}" -u
 cd "${release_dir}"
 mv "karmada-${version}.tgz" ${tar_file}
+echo "Rename karmada-${version}.tgz to ${tar_file}"
 sha256sum "${tar_file}" > "${tar_file}.sha256"
