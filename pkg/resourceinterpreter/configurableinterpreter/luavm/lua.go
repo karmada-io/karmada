@@ -168,6 +168,8 @@ func (vm *VM) setLib(l *lua.LState) error {
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
+		{lua.StringLibName, lua.OpenString},
+		{lua.MathLibName, lua.OpenMath},
 		// load our 'safe' version of the OS library
 		{lua.OsLibName, lifted.OpenSafeOs},
 	} {
