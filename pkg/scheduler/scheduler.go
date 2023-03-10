@@ -333,6 +333,15 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
+	if len(rb.Spec.Clusters) == 0 {
+		// For those bindings that previously failed to be scheduled,
+		// we should always schedule them when they are requeued into the scheduling queue.
+		klog.V(3).Infof("Try to schedule ResourceBinding(%s/%s) as it's unschedulable", namespace, name)
+		err = s.scheduleResourceBinding(rb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return err
+	}
+
 	// TODO(dddddai): reschedule bindings on cluster change
 	klog.V(3).Infof("Don't need to schedule ResourceBinding(%s/%s)", rb.Namespace, rb.Name)
 	return nil
@@ -381,6 +390,15 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
+	if len(crb.Spec.Clusters) == 0 {
+		// For those bindings that previously failed to be scheduled,
+		// we should always schedule them when they are requeued into the scheduling queue.
+		klog.V(3).Infof("Try to schedule ClusterResourceBinding(%s) as it's unschedulable", name)
+		err = s.scheduleClusterResourceBinding(crb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return err
+	}
+
 	// TODO(dddddai): reschedule bindings on cluster change
 	klog.Infof("Don't need to schedule ClusterResourceBinding(%s)", name)
 	return nil
