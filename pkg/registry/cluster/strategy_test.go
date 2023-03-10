@@ -34,6 +34,12 @@ func getValidCluster(name string) *clusterapis.Cluster {
 	}
 }
 
+func getValidClusterWithGeneration(name string, generation int64) *clusterapis.Cluster {
+	cluster := getValidCluster(name)
+	cluster.Generation = generation
+	return cluster
+}
+
 func setFeatureGateDuringTest(tb testing.TB, gate featuregate.FeatureGate, f featuregate.Feature, value bool) func() {
 	originalValue := gate.Enabled(f)
 
@@ -59,7 +65,7 @@ func TestStrategy_PrepareForCreate(t *testing.T) {
 	clusterStrategy := NewStrategy(clusterscheme.Scheme)
 	ctx := request.NewContext()
 
-	defaultResourceModelCluster := getValidCluster("m1")
+	defaultResourceModelCluster := getValidClusterWithGeneration("m1", 1)
 	mutation.SetDefaultClusterResourceModels(defaultResourceModelCluster)
 
 	standardResourceModelClusterBefore := getValidCluster("m2")
@@ -85,7 +91,7 @@ func TestStrategy_PrepareForCreate(t *testing.T) {
 			},
 		}}
 
-	standardResourceModelClusterAfter := getValidCluster("m2")
+	standardResourceModelClusterAfter := getValidClusterWithGeneration("m2", 1)
 	standardResourceModelClusterAfter.Spec.ResourceModels = []clusterapis.ResourceModel{
 		{
 			Grade: 1,
@@ -118,7 +124,7 @@ func TestStrategy_PrepareForCreate(t *testing.T) {
 		{
 			name:     "featureGate CustomizedClusterResourceModeling is false",
 			object:   getValidCluster("cluster"),
-			expect:   getValidCluster("cluster"),
+			expect:   getValidClusterWithGeneration("cluster", 1),
 			gateFlag: false,
 		},
 		{
@@ -152,7 +158,7 @@ func TestStrategy_PrepareForUpdate(t *testing.T) {
 	clusterStrategy := NewStrategy(clusterscheme.Scheme)
 	ctx := request.NewContext()
 
-	standardResourceModelClusterBefore := getValidCluster("m2")
+	standardResourceModelClusterBefore := getValidClusterWithGeneration("m2", 2)
 	standardResourceModelClusterBefore.Spec.ResourceModels = []clusterapis.ResourceModel{
 		{
 			Grade: 2,
@@ -175,7 +181,7 @@ func TestStrategy_PrepareForUpdate(t *testing.T) {
 			},
 		}}
 
-	standardResourceModelClusterAfter := getValidCluster("m2")
+	standardResourceModelClusterAfter := getValidClusterWithGeneration("m2", 2)
 	standardResourceModelClusterAfter.Spec.ResourceModels = []clusterapis.ResourceModel{
 		{
 			Grade: 1,
@@ -201,25 +207,51 @@ func TestStrategy_PrepareForUpdate(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		object   runtime.Object
+		oldObj   runtime.Object
+		newObj   runtime.Object
 		expect   runtime.Object
 		gateFlag bool
 	}{
 		{
+			name:     "cluster spec has no change",
+			oldObj:   getValidClusterWithGeneration("cluster", 2),
+			newObj:   getValidClusterWithGeneration("cluster", 2),
+			expect:   getValidClusterWithGeneration("cluster", 2),
+			gateFlag: false,
+		},
+		{
+			name:   "cluster spec has changed",
+			oldObj: getValidClusterWithGeneration("cluster", 2),
+			newObj: func() *clusterapis.Cluster {
+				cluster := getValidClusterWithGeneration("cluster", 2)
+				cluster.Spec.Provider = "a"
+				return cluster
+			}(),
+			expect: func() *clusterapis.Cluster {
+				cluster := getValidClusterWithGeneration("cluster", 3)
+				cluster.Spec.Provider = "a"
+				return cluster
+			}(),
+			gateFlag: false,
+		},
+		{
 			name:     "featureGate CustomizedClusterResourceModeling is false",
-			object:   getValidCluster("cluster"),
-			expect:   getValidCluster("cluster"),
+			oldObj:   getValidClusterWithGeneration("cluster", 2),
+			newObj:   getValidClusterWithGeneration("cluster", 2),
+			expect:   getValidClusterWithGeneration("cluster", 2),
 			gateFlag: false,
 		},
 		{
 			name:     "featureGate CustomizedClusterResourceModeling is true and cluster.Spec.ResourceModels is nil",
-			object:   getValidCluster("m1"),
-			expect:   getValidCluster("m1"),
+			oldObj:   getValidClusterWithGeneration("m1", 2),
+			newObj:   getValidClusterWithGeneration("m1", 2),
+			expect:   getValidClusterWithGeneration("m1", 2),
 			gateFlag: true,
 		},
 		{
 			name:     "featureGate CustomizedClusterResourceModeling is true and cluster.Spec.ResourceModels is not nil",
-			object:   standardResourceModelClusterBefore,
+			oldObj:   standardResourceModelClusterBefore,
+			newObj:   standardResourceModelClusterBefore,
 			expect:   standardResourceModelClusterAfter,
 			gateFlag: true,
 		},
@@ -230,9 +262,9 @@ func TestStrategy_PrepareForUpdate(t *testing.T) {
 			runtimeutil.Must(utilfeature.DefaultMutableFeatureGate.Add(features.DefaultFeatureGates))
 			setFeatureGateDuringTest(t, utilfeature.DefaultMutableFeatureGate, features.CustomizedClusterResourceModeling, tt.gateFlag)
 
-			clusterStrategy.PrepareForUpdate(ctx, tt.object, nil)
-			if !reflect.DeepEqual(tt.expect, tt.object) {
-				t.Errorf("Object mismatch! Excepted: \n%#v \ngot: \n%#b", tt.expect, tt.object)
+			clusterStrategy.PrepareForUpdate(ctx, tt.newObj, tt.oldObj)
+			if !reflect.DeepEqual(tt.expect, tt.newObj) {
+				t.Errorf("Object mismatch! Excepted: \n%#v \ngot: \n%#b", tt.expect, tt.newObj)
 			}
 		})
 	}
