@@ -97,6 +97,7 @@ func (c *HorizontalPodAutoscalerController) buildWorks(hpa *autoscalingv1.Horizo
 
 		util.MergeLabel(hpaObj, workv1alpha1.WorkNamespaceLabel, workNamespace)
 		util.MergeLabel(hpaObj, workv1alpha1.WorkNameLabel, workName)
+		util.MergeLabel(hpaObj, util.ManagedByWellKnownLabel, util.Karmada)
 
 		if err = helper.CreateOrUpdateWork(c.Client, objectMeta, hpaObj); err != nil {
 			return err

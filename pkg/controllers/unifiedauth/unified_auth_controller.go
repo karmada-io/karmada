@@ -222,6 +222,7 @@ func (c *Controller) buildWorks(cluster *clusterv1alpha1.Cluster, obj *unstructu
 
 	util.MergeLabel(obj, workv1alpha1.WorkNamespaceLabel, workNamespace)
 	util.MergeLabel(obj, workv1alpha1.WorkNameLabel, clusterRoleBindingWorkName)
+	util.MergeLabel(obj, util.ManagedByWellKnownLabel, util.Karmada)
 
 	if err := helper.CreateOrUpdateWork(c.Client, objectMeta, obj); err != nil {
 		return err

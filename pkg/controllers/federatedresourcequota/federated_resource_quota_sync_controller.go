@@ -155,6 +155,7 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 		resourceQuota.Labels = map[string]string{
 			workv1alpha1.WorkNamespaceLabel: workNamespace,
 			workv1alpha1.WorkNameLabel:      workName,
+			util.ManagedByWellKnownLabel:    util.Karmada,
 		}
 		resourceQuota.Spec.Hard = extractClusterHardResourceList(quota.Spec, cluster.Name)
 
@@ -172,6 +173,7 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 			Labels: map[string]string{
 				util.FederatedResourceQuotaNamespaceLabel: quota.Namespace,
 				util.FederatedResourceQuotaNameLabel:      quota.Name,
+				util.ManagedByWellKnownLabel:              util.Karmada,
 			},
 		}
 
