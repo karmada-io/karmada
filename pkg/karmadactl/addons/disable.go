@@ -57,6 +57,8 @@ func NewCmdAddonsDisable(parentCommand string) *cobra.Command {
 			return nil
 		},
 	}
-	opts.GlobalCommandOptions.AddFlags(cmd.PersistentFlags())
+	flags := cmd.PersistentFlags()
+	opts.GlobalCommandOptions.AddFlags(flags)
+	flags.BoolVarP(&opts.Force, "force", "f", false, "Disable addons without prompting for confirmation.")
 	return cmd
 }
