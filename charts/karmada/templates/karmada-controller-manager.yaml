@@ -53,9 +53,6 @@ spec:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
-            {{- if .Values.controllerManager.config.controllers }}
-            - --controllers={{ .Values.controllerManager.config.controllers }}
-            {{- end }}
             - --cluster-status-update-frequency=10s
             - --secure-port=10357
             - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
