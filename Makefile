@@ -117,6 +117,7 @@ endif
 	docker push ${REGISTRY}/karmada-interpreter-webhook-example:${VERSION}
 	docker push ${REGISTRY}/karmada-aggregated-apiserver:${VERSION}
 	docker push ${REGISTRY}/karmada-search:${VERSION}
+	docker push ${REGISTRY}/karmada-operator:${VERSION}
 
 # Build and package binary
 #
