@@ -1,5 +1,5 @@
 {{- $name := include "karmada.name" . -}}
-
+{{- $systemNamespace := .Values.systemNamespace -}}
 {{- if eq .Values.installMode "host" }}
 apiVersion: apps/v1
 kind: Deployment
@@ -50,7 +50,7 @@ spec:
             - --kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
             - --secure-port=10351
-            - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
+            - --leader-elect-resource-namespace={{ $systemNamespace }}
           livenessProbe:
             httpGet:
               path: /healthz
