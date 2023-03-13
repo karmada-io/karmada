@@ -1,4 +1,5 @@
 {{- $name := include "karmada.name" . -}}
+{{- $systemNamespace := .Values.systemNamespace -}}
 {{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "descheduler" .Values.components) }}
 apiVersion: apps/v1
 kind: Deployment
@@ -48,7 +49,7 @@ spec:
             - /bin/karmada-descheduler
             - --kubeconfig=/etc/kubeconfig
             - --bind-address=0.0.0.0
-            - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
+            - --leader-elect-resource-namespace={{ $systemNamespace }}
             - --v=4
           livenessProbe:
             httpGet:

@@ -1,5 +1,6 @@
 {{- if eq .Values.installMode "host" }}
 {{- $name := include "karmada.name" . -}}
+{{- $systemNamespace := .Values.systemNamespace -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -55,7 +56,7 @@ spec:
             - --bind-address=0.0.0.0
             - --cluster-status-update-frequency=10s
             - --secure-port=10357
-            - --leader-elect-resource-namespace={{ include "karmada.namespace" . }}
+            - --leader-elect-resource-namespace={{ $systemNamespace }}
             - --v=2
             {{- if .Values.controllerManager.controllers }}
             - --controllers={{ .Values.controllerManager.controllers }}
