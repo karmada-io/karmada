@@ -700,17 +700,6 @@ func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *
 				if err != nil {
 					panic(err)
 				}
-			}
-
-			if isList {
-				// we can start outputting objects now, watches started from lists don't emit synthetic added events
-				*outputObjects = true
-			} else {
-				// suppress output, since watches started for individual items emit a synthetic ADDED event first
-				*outputObjects = false
-			}
-
-			if isList {
 				// we can start outputting objects now, watches started from lists don't emit synthetic added events
 				*outputObjects = true
 			} else {
