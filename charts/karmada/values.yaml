@@ -298,6 +298,8 @@ controllerManager:
     ## @param PropagateDeps is a feature gate for the controllerManager to allow propagate dependent respurce to workloads.
     PropagateDeps: false
   controllers: ""
+  ## @param extraCommandArgs to extraCommandArgs
+  extraCommandArgs: {}
 
 ## karmada apiserver config
 apiServer:
