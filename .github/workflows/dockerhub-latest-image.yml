@@ -22,6 +22,7 @@ jobs:
           - karmada-interpreter-webhook-example
           - karmada-aggregated-apiserver
           - karmada-search
+          - karmada-operator
     runs-on: ubuntu-20.04
     steps:
       - name: checkout code
