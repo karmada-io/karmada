@@ -121,6 +121,7 @@ type CommandInitOption struct {
 	CRDs                               string
 	ExternalIP                         string
 	ExternalDNS                        string
+	PullSecrets                        []string
 	CertValidity                       time.Duration
 	KubeClientSet                      kubernetes.Interface
 	CertAndKeyFileData                 map[string][]byte
@@ -611,6 +612,18 @@ func (i *CommandInitOption) karmadaAggregatedAPIServerImage() string {
 		return i.ImageRegistry + "/karmada-aggregated-apiserver:" + karmadaRelease
 	}
 	return i.KarmadaAggregatedAPIServerImage
+}
+
+// get image pull secret
+func (i *CommandInitOption) getImagePullSecrets() []corev1.LocalObjectReference {
+	var imagePullSecrets []corev1.LocalObjectReference
+	for _, val := range i.PullSecrets {
+		secret := corev1.LocalObjectReference{
+			Name: val,
+		}
+		imagePullSecrets = append(imagePullSecrets, secret)
+	}
+	return imagePullSecrets
 }
 
 func generateServerURL(serverIP string, nodePort int32) (string, error) {
