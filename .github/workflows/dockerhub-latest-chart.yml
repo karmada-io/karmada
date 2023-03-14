@@ -1,0 +1,34 @@
+name: latest chart to DockerHub
+on:
+  push:
+    branches:
+      - master
+jobs:
+  publish-chart-to-dockerhub:
+    name: publish to DockerHub
+    # prevent job running from forked repository, otherwise
+    # 1. running on the forked repository would fail as missing necessary secret.
+    # 2. running on the forked repository would use unnecessary GitHub Action time.
+    if: ${{ github.repository == 'karmada-io/karmada' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          # fetch-depth:
+          # 0 indicates all history for all branches and tags.
+          # for `git describe --tags` in Makefile.
+          fetch-depth: 0
+      - name: login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER_NAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: package chart
+        env:
+          VERSION: 0.0.0
+        run: make package-chart
+      - name: push chart
+        env:
+          VERSION: 0.0.0
+        run: make push-chart

@@ -6,12 +6,11 @@ set -o pipefail
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}"/hack/util.sh
 
-# keep v1.x.x forms
-version=${1%%-*}
+version=${1}
+output_dir="${REPO_ROOT}/_output/charts"
 
-release_dir="${REPO_ROOT}/_output/release"
 tar_file="karmada-chart-${version}.tgz"
-mkdir -p "${release_dir}"
+mkdir -p "${output_dir}"
 
 # install helm
 echo -n "Preparing: 'helm' existence check - "
@@ -23,8 +22,8 @@ else
 fi
 
 echo "Starting to package into a Karmada chart archive"
-helm package ./charts/karmada --version "${version}" -d "${release_dir}" -u
-cd "${release_dir}"
+helm package ./charts/karmada --version "${version}" -d "${output_dir}" -u
+cd "${output_dir}"
 mv "karmada-${version}.tgz" ${tar_file}
 echo "Rename karmada-${version}.tgz to ${tar_file}"
 sha256sum "${tar_file}" > "${tar_file}.sha256"
