@@ -140,12 +140,12 @@ func TestRemoveIrrelevantField(t *testing.T) {
 						"name": "foo",
 					},
 					"secrets": []interface{}{
-						conv(map[string]interface{}{
+						map[string]interface{}{
 							"name": "foo-token-6pgxf",
-						}),
-						conv(map[string]interface{}{
+						},
+						map[string]interface{}{
 							"name": "foo-dockercfg-zdr2j",
-						}),
+						},
 					},
 				},
 			},
@@ -225,8 +225,4 @@ func getShouldNotRemoveFields(t *test) ([]field, error) {
 		}
 	}
 	return shouldNotRemoveFields, nil
-}
-
-func conv(m map[string]interface{}) interface{} {
-	return m
 }
