@@ -92,9 +92,13 @@ update:
 verify:
 	hack/verify-all.sh
 
-.PHONY: release-chart
-release-chart:
-	hack/release-helm-chart.sh $(VERSION)
+.PHONY: package-chart
+package-chart:
+	hack/package-helm-chart.sh $(VERSION)
+
+.PHONY: push-chart
+push-chart:
+	helm push _output/charts/karmada-chart-${VERSION}.tgz oci://docker.io/karmada
 
 .PHONY: test
 test:

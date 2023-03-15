@@ -1,0 +1,30 @@
+name: released chart to DockerHub
+on:
+  release:
+    types:
+      - published
+jobs:
+  publish-chart-to-dockerhub:
+    name: publish to DockerHub
+    runs-on: ubuntu-20.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          # fetch-depth:
+          # 0 indicates all history for all branches and tags.
+          # for `git describe --tags` in Makefile.
+          fetch-depth: 0
+      - name: login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER_NAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: package chart
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: make package-chart
+      - name: push chart
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: make push-chart

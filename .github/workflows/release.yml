@@ -30,7 +30,9 @@ jobs:
         GOARCH: ${{ matrix.arch }}
       run: make release-${{ matrix.target }}
     - name: Making helm charts
-      run: make release-chart
+      env:
+        VERSION: ${{ github.ref_name }}
+      run: make package-chart
     - name: Uploading assets...
       if: ${{ !env.ACT }}
       uses: softprops/action-gh-release@v1
@@ -38,8 +40,8 @@ jobs:
         files: |
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz.sha256
-          _output/release/karmada-chart-*.tgz
-          _output/release/karmada-chart-*.tgz.sha256
+          _output/charts/karmada-chart-${{ github.ref_name }}.tgz
+          _output/charts/karmada-chart-${{ github.ref_name }}.tgz.sha256
   update-krew-index:
     needs: release-assests
     name: Update krew-index
