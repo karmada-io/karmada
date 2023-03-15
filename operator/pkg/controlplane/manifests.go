@@ -10,6 +10,7 @@ metadata:
   namespace: {{ .Namespace }}
   labels:
     karmada-app: kube-controller-manager
+    app.kubernetes.io/managed-by: karmada-operator
 spec:
   replicas: {{ .Replicas }}
   selector:
@@ -94,6 +95,7 @@ metadata:
   namespace: {{ .Namespace }}
   labels:
     karmada-app: karmada-controller-manager
+    app.kubernetes.io/managed-by: karmada-operator
 spec:
   replicas: {{ .Replicas }}
   selector:
@@ -148,6 +150,7 @@ metadata:
   namespace: {{ .Namespace }}
   labels:
     karmada-app: karmada-scheduler
+    app.kubernetes.io/managed-by: karmada-operator
 spec:
   replicas: {{ .Replicas }}
   selector:

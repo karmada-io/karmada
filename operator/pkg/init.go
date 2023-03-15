@@ -24,7 +24,7 @@ var (
 	defaultCrdURL = "https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz"
 )
 
-// InitOptions defines all the init options.
+// InitOptions defines all the init workflow options.
 type InitOptions struct {
 	Name            string
 	Namespace       string
@@ -178,10 +178,10 @@ func (data *initData) KarmadaVersion() string {
 	return data.karmadaVersion.String()
 }
 
-// NewJobOptions calls all of InitOpt func to initialize a InitOptions.
+// NewJobInitOptions calls all of InitOpt func to initialize a InitOptions.
 // if there is not InitOpt functions, it will return a default InitOptions.
-func NewJobOptions(opts ...InitOpt) *InitOptions {
-	options := defaultJobOptions()
+func NewJobInitOptions(opts ...InitOpt) *InitOptions {
+	options := defaultJobInitOptions()
 
 	for _, c := range opts {
 		c(options)
@@ -189,7 +189,7 @@ func NewJobOptions(opts ...InitOpt) *InitOptions {
 	return options
 }
 
-func defaultJobOptions() *InitOptions {
+func defaultJobInitOptions() *InitOptions {
 	return &InitOptions{
 		CrdRemoteURL:   fmt.Sprintf(defaultCrdURL, constants.KarmadaDefaultVersion),
 		Name:           "karmada",
@@ -279,5 +279,33 @@ func defaultComponents() *operatorv1alpha1.KarmadaComponents {
 				},
 			},
 		},
+	}
+}
+
+// NewInitOptWithKarmada returns a InitOpt function to initialize InitOptions with karmada resource
+func NewInitOptWithKarmada(karmada *operatorv1alpha1.Karmada) InitOpt {
+	return func(opt *InitOptions) {
+		opt.Name = karmada.GetName()
+		opt.Namespace = karmada.GetNamespace()
+		opt.FeatureGates = karmada.Spec.FeatureGates
+
+		if karmada.Spec.PrivateRegistry != nil && len(karmada.Spec.PrivateRegistry.Registry) > 0 {
+			opt.PrivateRegistry = karmada.Spec.PrivateRegistry.Registry
+		}
+
+		if karmada.Spec.Components != nil {
+			opt.Components = karmada.Spec.Components
+		}
+
+		if karmada.Spec.HostCluster != nil {
+			opt.HostCluster = karmada.Spec.HostCluster
+		}
+	}
+}
+
+// NewInitOptWithKubeconfig returns a InitOpt function to set kubeconfig to InitOptions with rest config
+func NewInitOptWithKubeconfig(config *rest.Config) InitOpt {
+	return func(options *InitOptions) {
+		options.Kubeconfig = config
 	}
 }

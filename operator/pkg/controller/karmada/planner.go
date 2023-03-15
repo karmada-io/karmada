@@ -5,7 +5,6 @@ import (
 
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	operator "github.com/karmada-io/karmada/operator/pkg"
@@ -42,12 +41,21 @@ func NewPlannerFor(karmada *operatorv1alpha1.Karmada, c client.Client, config *r
 	switch action {
 	case InitAction:
 		opts := []operator.InitOpt{
-			WithKarmada(karmada),
-			WithKubeconfig(config),
+			operator.NewInitOptWithKarmada(karmada),
+			operator.NewInitOptWithKubeconfig(config),
 		}
 
-		options := operator.NewJobOptions(opts...)
+		options := operator.NewJobInitOptions(opts...)
 		job = operator.NewInitJob(options)
+
+	case DeInitAction:
+		opts := []operator.DeInitOpt{
+			operator.NewDeInitOptWithKarmada(karmada),
+			operator.NewDeInitOptWithKubeconfig(config),
+		}
+
+		options := operator.NewJobDeInitOptions(opts...)
+		job = operator.NewDeInitDataJob(options)
 	default:
 		return nil, fmt.Errorf("failed to recognize action for karmada %s", karmada.Name)
 	}
@@ -72,41 +80,13 @@ func recognizeActionFor(karmada *operatorv1alpha1.Karmada) Action {
 
 // Execute starts a job workflow. if the workflow is error,
 // TODO: the karmada resource will requeue and reconcile
-func (p *Planner) Execute() (controllerruntime.Result, error) {
+func (p *Planner) Execute() error {
 	klog.InfoS("Start execute the workflow", "workflow", p.action, "karmada", klog.KObj(p.karmada))
 
 	if err := p.job.Run(); err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		return err
 	}
 
 	klog.InfoS("Successfully executed the workflow", "workflow", p.action, "karmada", klog.KObj(p.karmada))
-	return controllerruntime.Result{}, nil
-}
-
-// WithKarmada returns a InitOpt function to initialize InitOptions with karmada resource
-func WithKarmada(karmada *operatorv1alpha1.Karmada) operator.InitOpt {
-	return func(opt *operator.InitOptions) {
-		opt.Name = karmada.GetName()
-		opt.Namespace = karmada.GetNamespace()
-		opt.FeatureGates = karmada.Spec.FeatureGates
-
-		if karmada.Spec.PrivateRegistry != nil && len(karmada.Spec.PrivateRegistry.Registry) > 0 {
-			opt.PrivateRegistry = karmada.Spec.PrivateRegistry.Registry
-		}
-
-		if karmada.Spec.Components != nil {
-			opt.Components = karmada.Spec.Components
-		}
-
-		if karmada.Spec.HostCluster != nil {
-			opt.HostCluster = karmada.Spec.HostCluster
-		}
-	}
-}
-
-// WithKubeconfig returns a InitOpt function to set kubeconfig to InitOptions with rest config
-func WithKubeconfig(config *rest.Config) operator.InitOpt {
-	return func(options *operator.InitOptions) {
-		options.Kubeconfig = config
-	}
+	return nil
 }

@@ -12,12 +12,15 @@ import (
 	crdsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
+
+	"github.com/karmada-io/karmada/operator/pkg/constants"
 )
 
 var errAllocated = errors.New("provided port is already allocated")
@@ -225,4 +228,80 @@ func CreateOrUpdateStatefulSet(client clientset.Interface, statefuleSet *appsv1.
 
 	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefuleSet.GetName)
 	return nil
+}
+
+// DeleteDeploymentIfHasLabels delete a Deployment that exists the given labels.
+func DeleteDeploymentIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Labels) error {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(4).InfoS("Can not delete Deployment, it was not fount", "Deployment", name)
+			return nil
+		}
+		return err
+	}
+
+	if match := containsLabels(deployment.ObjectMeta, constants.KarmadaOperatorLabel); !match {
+		klog.V(4).InfoS("Can not delete Deployment, it doesn't have given label", "Deployment", name, "label", constants.KarmadaOperatorLabelKeyName)
+		return nil
+	}
+	return client.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+// DeleteStatefulSetIfHasLabels delete a StatefuleSet that exists the given labels.
+func DeleteStatefulSetIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Labels) error {
+	sts, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(4).InfoS("Can not delete StatefulSet, it was not fount", "StatefulSet", name)
+			return nil
+		}
+		return err
+	}
+
+	if match := containsLabels(sts.ObjectMeta, constants.KarmadaOperatorLabel); !match {
+		klog.V(4).InfoS("Can not delete StatefulSet, it doesn't have given label", "StatefulSet", name, "label", constants.KarmadaOperatorLabelKeyName)
+		return nil
+	}
+	return client.AppsV1().StatefulSets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+// DeleteSecretIfHasLabels delete a secret that exists the given labels.
+func DeleteSecretIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Labels) error {
+	sts, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(2).InfoS("Can not delete Secret, it was not fount", "Secret", name)
+			return nil
+		}
+		return err
+	}
+
+	if match := containsLabels(sts.ObjectMeta, constants.KarmadaOperatorLabel); !match {
+		klog.V(4).InfoS("Can not delete Secret, it doesn't have given label", "Secret", name, "label", constants.KarmadaOperatorLabelKeyName)
+		return nil
+	}
+	return client.CoreV1().Secrets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+// DeleteServiceIfHasLabels delete a service that exists the given labels.
+func DeleteServiceIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Labels) error {
+	service, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(4).InfoS("Can not delete Service, it was not fount", "Service", name)
+			return nil
+		}
+		return err
+	}
+
+	if match := containsLabels(service.ObjectMeta, constants.KarmadaOperatorLabel); !match {
+		klog.V(4).InfoS("Can not delete Service, it doesn't have given label", "Service", name, "label", constants.KarmadaOperatorLabelKeyName)
+		return nil
+	}
+	return client.CoreV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func containsLabels(object metav1.ObjectMeta, ls labels.Set) bool {
+	return ls.AsSelector().Matches(labels.Set(object.GetLabels()))
 }

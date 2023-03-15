@@ -33,7 +33,7 @@ func NewComponentTask() workflow.Task {
 func runComponents(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
-		return fmt.Errorf("components task invoked with an invalid data struct")
+		return errors.New("components task invoked with an invalid data struct")
 	}
 
 	klog.V(4).InfoS("[components] Running components task", "karmada", klog.KObj(data))
@@ -51,7 +51,7 @@ func runComponentSubTask(component string, patchManifestFunc controlplane.PatchM
 	return func(r workflow.RunData) error {
 		data, ok := r.(InitData)
 		if !ok {
-			return fmt.Errorf("certs task invoked with an invalid data struct")
+			return errors.New("components task invoked with an invalid data struct")
 		}
 
 		err := controlplane.EnsureControlPlaneComponent(
