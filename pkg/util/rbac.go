@@ -6,8 +6,8 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	kubeclient "k8s.io/client-go/kubernetes"
-	stringslices "k8s.io/utils/strings/slices"
 )
 
 // IsClusterRoleExist tells if specific ClusterRole already exists.
@@ -128,40 +128,49 @@ func PolicyRuleResourceNameMatches(rule *rbacv1.PolicyRule, requestedName string
 }
 
 // GenerateImpersonationRules generate PolicyRules from given subjects for impersonation.
-func GenerateImpersonationRules(allSubjects []rbacv1.Subject) []rbacv1.PolicyRule {
-	if len(allSubjects) == 0 {
+func GenerateImpersonationRules(subjects []rbacv1.Subject) []rbacv1.PolicyRule {
+	if len(subjects) == 0 {
 		return nil
 	}
 
-	var users, serviceAccounts, groups []string
-	for _, subject := range allSubjects {
+	users, serviceAccounts, groups := sets.NewString(), sets.NewString(), sets.NewString()
+	for _, subject := range subjects {
 		switch subject.Kind {
 		case rbacv1.UserKind:
-			if !stringslices.Contains(users, subject.Name) {
-				users = append(users, subject.Name)
-			}
+			users.Insert(subject.Name)
 		case rbacv1.ServiceAccountKind:
-			if !stringslices.Contains(serviceAccounts, subject.Name) {
-				serviceAccounts = append(serviceAccounts, subject.Name)
-			}
+			serviceAccounts.Insert(subject.Name)
 		case rbacv1.GroupKind:
-			if !stringslices.Contains(groups, subject.Name) {
-				groups = append(groups, subject.Name)
-			}
+			groups.Insert(subject.Name)
 		}
 	}
 
 	var rules []rbacv1.PolicyRule
-	if len(users) != 0 {
-		rules = append(rules, rbacv1.PolicyRule{Verbs: []string{"impersonate"}, Resources: []string{"users"}, APIGroups: []string{""}, ResourceNames: users})
+	if users.Len() != 0 {
+		rules = append(rules, rbacv1.PolicyRule{
+			Verbs:         []string{"impersonate"},
+			APIGroups:     []string{""},
+			Resources:     []string{"users"},
+			ResourceNames: sets.StringKeySet(users).List(),
+		})
 	}
 
-	if len(serviceAccounts) != 0 {
-		rules = append(rules, rbacv1.PolicyRule{Verbs: []string{"impersonate"}, Resources: []string{"serviceaccounts"}, APIGroups: []string{""}, ResourceNames: serviceAccounts})
+	if serviceAccounts.Len() != 0 {
+		rules = append(rules, rbacv1.PolicyRule{
+			Verbs:         []string{"impersonate"},
+			APIGroups:     []string{""},
+			Resources:     []string{"serviceaccounts"},
+			ResourceNames: sets.StringKeySet(serviceAccounts).List(),
+		})
 	}
 
-	if len(groups) != 0 {
-		rules = append(rules, rbacv1.PolicyRule{Verbs: []string{"impersonate"}, Resources: []string{"groups"}, APIGroups: []string{""}, ResourceNames: groups})
+	if groups.Len() != 0 {
+		rules = append(rules, rbacv1.PolicyRule{
+			Verbs:         []string{"impersonate"},
+			APIGroups:     []string{""},
+			Resources:     []string{"groups"},
+			ResourceNames: sets.StringKeySet(groups).List(),
+		})
 	}
 
 	return rules
