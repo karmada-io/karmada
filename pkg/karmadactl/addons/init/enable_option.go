@@ -32,7 +32,7 @@ type CommandAddonsEnableOption struct {
 
 	KarmadaKubeClientSet *kubernetes.Clientset
 
-	WaitPodReadyTimeout int
+	WaitComponentReadyTimeout int
 
 	WaitAPIServiceReadyTimeout int
 

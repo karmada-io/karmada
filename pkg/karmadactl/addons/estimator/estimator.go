@@ -15,8 +15,6 @@ import (
 
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
-	initutils "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -113,8 +111,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 		return fmt.Errorf("create or update scheduler estimator deployment error: %v", err)
 	}
 
-	karmadaEstimatorLabels := map[string]string{"cluster": opts.Cluster}
-	if err := kubernetes.WaitPodReady(opts.KubeClientSet, opts.Namespace, initutils.MapToString(karmadaEstimatorLabels), opts.WaitPodReadyTimeout); err != nil {
+	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaEstimatorDeployment, opts.WaitComponentReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
 	klog.Infof("Karmada scheduler estimator of member cluster %s is installed successfully.", opts.Cluster)

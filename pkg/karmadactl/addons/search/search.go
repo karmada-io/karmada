@@ -19,8 +19,6 @@ import (
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
 	initkarmada "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
-	initutils "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -33,10 +31,6 @@ const (
 
 	// etcdContainerClientPort define etcd pod installed by init command
 	etcdContainerClientPort = 2379
-)
-
-var (
-	karmadaSearchLabels = map[string]string{"app": addoninit.SearchResourceName, "apiserver": "true"}
 )
 
 // AddonSearch describe the search addon command process
@@ -166,7 +160,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		return fmt.Errorf("create karmada search deployment error: %v", err)
 	}
 
-	if err := kubernetes.WaitPodReady(opts.KubeClientSet, opts.Namespace, initutils.MapToString(karmadaSearchLabels), opts.WaitPodReadyTimeout); err != nil {
+	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaSearchDeployment, opts.WaitComponentReadyTimeout); err != nil {
 		return fmt.Errorf("wait karmada search pod status ready timeout: %v", err)
 	}
 
