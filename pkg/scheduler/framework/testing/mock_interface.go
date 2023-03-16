@@ -192,18 +192,18 @@ func (mr *MockScorePluginMockRecorder) Name() *gomock.Call {
 }
 
 // Score mocks base method.
-func (m *MockScorePlugin) Score(ctx context.Context, spec *v1alpha2.ResourceBindingSpec, cluster *v1alpha1.Cluster) (int64, *framework.Result) {
+func (m *MockScorePlugin) Score(ctx context.Context, spec *v1alpha2.ResourceBindingSpec, clusters []*v1alpha1.Cluster, name string) (int64, *framework.Result) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Score", ctx, spec, cluster)
+	ret := m.ctrl.Call(m, "Score", ctx, spec, clusters, name)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(*framework.Result)
 	return ret0, ret1
 }
 
 // Score indicates an expected call of Score.
-func (mr *MockScorePluginMockRecorder) Score(ctx, spec, cluster interface{}) *gomock.Call {
+func (mr *MockScorePluginMockRecorder) Score(ctx, spec, clusters, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Score", reflect.TypeOf((*MockScorePlugin)(nil).Score), ctx, spec, cluster)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Score", reflect.TypeOf((*MockScorePlugin)(nil).Score), ctx, spec, clusters, name)
 }
 
 // ScoreExtensions mocks base method.

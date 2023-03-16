@@ -7,6 +7,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -94,7 +95,7 @@ func dynamicScaleUp(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	// Target is the extra ones.
 	state.targetReplicas = state.spec.Replicas - state.assignedReplicas
 	state.buildAvailableClusters(func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		clusterAvailableReplicas := calAvailableReplicas(clusters, spec)
+		clusterAvailableReplicas := estimatorclient.CalcAvailableReplicas(clusters, spec)
 		sort.Sort(TargetClustersList(clusterAvailableReplicas))
 		return clusterAvailableReplicas
 	})

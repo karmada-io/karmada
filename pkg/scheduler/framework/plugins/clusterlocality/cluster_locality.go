@@ -33,7 +33,7 @@ func (p *ClusterLocality) Name() string {
 // If the cluster already have the resource(exists in .spec.Clusters of ResourceBinding or ClusterResourceBinding),
 // then score is 100, otherwise 0.
 func (p *ClusterLocality) Score(ctx context.Context,
-	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
+	spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster, name string) (int64, *framework.Result) {
 	if len(spec.Clusters) == 0 {
 		return framework.MinClusterScore, framework.NewResult(framework.Success)
 	}
@@ -43,7 +43,7 @@ func (p *ClusterLocality) Score(ctx context.Context,
 		return framework.MinClusterScore, framework.NewResult(framework.Success)
 	}
 
-	if spec.TargetContains(cluster.Name) {
+	if spec.TargetContains(name) {
 		return framework.MaxClusterScore, framework.NewResult(framework.Success)
 	}
 
