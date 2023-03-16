@@ -155,7 +155,7 @@ func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 	}
 	oldCluster, ok := oldObj.(*clusterv1alpha1.Cluster)
 	if !ok {
-		klog.Errorf("cannot convert oldObj to Cluster: %v", newObj)
+		klog.Errorf("cannot convert oldObj to Cluster: %v", oldObj)
 		return
 	}
 	klog.V(3).Infof("Update event for cluster %s", newCluster.Name)
