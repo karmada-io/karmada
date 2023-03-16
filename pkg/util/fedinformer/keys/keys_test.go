@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +51,12 @@ var (
 			Name:      "bar",
 		},
 	}
+	deploymentObj = appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "foo",
+			Name:      "bar",
+		},
+	}
 )
 
 func TestClusterWideKeyFunc(t *testing.T) {
@@ -91,6 +98,11 @@ func TestClusterWideKeyFunc(t *testing.T) {
 		{
 			name:      "nil object should be error",
 			object:    nil,
+			expectErr: true,
+		},
+		{
+			name:      "non APIVersion and kind runtime object should be error",
+			object:    deploymentObj,
 			expectErr: true,
 		},
 	}
