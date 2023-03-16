@@ -210,6 +210,25 @@ func Test_assessSingleTask(t *testing.T) {
 			},
 			want: nil,
 		},
+		{
+			name: "cluster appears both in targetClusters and gracefulEvictionTasks",
+			args: args{
+				task: workv1alpha2.GracefulEvictionTask{
+					FromCluster:       "member1",
+					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				},
+				opt: assessmentOption{
+					timeout: timeout,
+					scheduleResult: []workv1alpha2.TargetCluster{
+						{Name: "member1"},
+					},
+					observedStatus: []workv1alpha2.AggregatedStatusItem{
+						{ClusterName: "member1", Health: workv1alpha2.ResourceHealthy},
+					},
+				},
+			},
+			want: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
