@@ -64,6 +64,7 @@ spec:
             {{- with (include "karmada.controllerManager.featureGates" .) }}
             - {{ . }}
             {{- end }}
+            {{- include "karmada.controllerManager.extraCommandArgs" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz

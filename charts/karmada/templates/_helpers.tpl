@@ -449,3 +449,11 @@ Return the proper karmada kubectl image name
           {{- end -}}
      {{- end -}}
 {{- end -}}
+
+{{- define "karmada.controllerManager.extraCommandArgs" -}}
+{{- if .Values.controllerManager.extraCommandArgs }}
+{{- range $key, $value := .Values.controllerManager.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
