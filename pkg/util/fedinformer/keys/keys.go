@@ -74,7 +74,18 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 		return key, fmt.Errorf("object has no meta: %v", err)
 	}
 
+	// When using a typed client, decoding to a versioned struct (not an internal API type), the apiVersion/kind
+	// information will be dropped. Therefore, the APIVersion/Kind information of runtime.Object needs to be verified.
+	// See issue: https://github.com/kubernetes/kubernetes/issues/80609
 	gvk := runtimeObject.GetObjectKind().GroupVersionKind()
+	if len(gvk.Kind) == 0 {
+		return key, fmt.Errorf("runtime object has no kind")
+	}
+
+	if len(gvk.Version) == 0 {
+		return key, fmt.Errorf("runtime object has no version")
+	}
+
 	key.Group = gvk.Group
 	key.Version = gvk.Version
 	key.Kind = gvk.Kind
