@@ -39,6 +39,8 @@ type CommandAddonsEnableOption struct {
 	MemberKubeConfig string
 
 	MemberContext string
+
+	HostClusterDomain string
 }
 
 // Complete the conditions required to be able to run enable.

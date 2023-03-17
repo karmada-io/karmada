@@ -9,6 +9,7 @@ import (
 
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/version"
 )
 
@@ -82,5 +83,6 @@ func NewCmdAddonsEnable(parentCommand string) *cobra.Command {
 	flags.Int32Var(&opts.KarmadaEstimatorReplicas, "karmada-estimator-replicas", 1, "Karmada scheduler estimator replica set")
 	flags.StringVar(&opts.MemberKubeConfig, "member-kubeconfig", "", "Member cluster's kubeconfig which to deploy scheduler estimator")
 	flags.StringVar(&opts.MemberContext, "member-context", "", "Member cluster's context which to deploy scheduler estimator")
+	flags.StringVar(&opts.HostClusterDomain, "host-cluster-domain", globaloptions.DefaultHostClusterDomain, "The cluster domain of karmada host cluster. (e.g. --host-cluster-domain=host.karmada)")
 	return cmd
 }

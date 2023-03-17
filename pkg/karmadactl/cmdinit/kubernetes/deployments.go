@@ -53,7 +53,7 @@ var (
 func (i *CommandInitOption) etcdServers() string {
 	etcdClusterConfig := ""
 	for v := int32(0); v < i.EtcdReplicas; v++ {
-		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, etcdContainerClientPort) + ","
+		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerClientPort) + ","
 	}
 	return etcdClusterConfig
 }
@@ -77,7 +77,7 @@ func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
 		"--runtime-config=",
 		fmt.Sprintf("--apiserver-count=%v", i.KarmadaAPIServerReplicas),
 		fmt.Sprintf("--secure-port=%v", karmadaAPIServerContainerPort),
-		"--service-account-issuer=https://kubernetes.default.svc.cluster.local",
+		fmt.Sprintf("--service-account-issuer=https://kubernetes.default.svc.%s", i.HostClusterDomain),
 		fmt.Sprintf("--service-account-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--service-account-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
 		fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),

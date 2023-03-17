@@ -127,6 +127,7 @@ type CommandInitOption struct {
 	CertAndKeyFileData                 map[string][]byte
 	RestConfig                         *rest.Config
 	KarmadaAPIServerIP                 []net.IP
+	HostClusterDomain                  string
 }
 
 // Validate Check that there are enough flags to run the command.
@@ -226,7 +227,8 @@ func (i *CommandInitOption) genCerts() error {
 		"localhost",
 	}
 	for number := int32(0); number < i.EtcdReplicas; number++ {
-		etcdServerCertDNS = append(etcdServerCertDNS, fmt.Sprintf("%s-%v.%s.%s.svc.cluster.local", etcdStatefulSetAndServiceName, number, etcdStatefulSetAndServiceName, i.Namespace))
+		etcdServerCertDNS = append(etcdServerCertDNS, fmt.Sprintf("%s-%v.%s.%s.svc.%s",
+			etcdStatefulSetAndServiceName, number, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain))
 	}
 	etcdServerAltNames := certutil.AltNames{
 		DNSNames: etcdServerCertDNS,
@@ -243,11 +245,11 @@ func (i *CommandInitOption) genCerts() error {
 		karmadaAPIServerDeploymentAndServiceName,
 		webhookDeploymentAndServiceAccountAndServiceName,
 		karmadaAggregatedAPIServerDeploymentAndServiceName,
-		fmt.Sprintf("%s.%s.svc.cluster.local", karmadaAPIServerDeploymentAndServiceName, i.Namespace),
-		fmt.Sprintf("%s.%s.svc.cluster.local", webhookDeploymentAndServiceAccountAndServiceName, i.Namespace),
+		fmt.Sprintf("%s.%s.svc.%s", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain),
+		fmt.Sprintf("%s.%s.svc.%s", webhookDeploymentAndServiceAccountAndServiceName, i.Namespace, i.HostClusterDomain),
 		fmt.Sprintf("%s.%s.svc", webhookDeploymentAndServiceAccountAndServiceName, i.Namespace),
-		fmt.Sprintf("%s.%s.svc.cluster.local", karmadaAggregatedAPIServerDeploymentAndServiceName, i.Namespace),
-		fmt.Sprintf("*.%s.svc.cluster.local", i.Namespace),
+		fmt.Sprintf("%s.%s.svc.%s", karmadaAggregatedAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain),
+		fmt.Sprintf("*.%s.svc.%s", i.Namespace, i.HostClusterDomain),
 		fmt.Sprintf("*.%s.svc", i.Namespace),
 	}
 	karmadaDNS = append(karmadaDNS, utils.FlagsDNS(i.ExternalDNS)...)
@@ -301,7 +303,7 @@ func (i *CommandInitOption) prepareCRD() error {
 
 func (i *CommandInitOption) createCertsSecrets() error {
 	// Create kubeconfig Secret
-	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.cluster.local:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, karmadaAPIServerContainerPort)
+	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.CaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
 	configBytes, err := clientcmd.Write(*config)
