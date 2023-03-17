@@ -33,10 +33,12 @@ const (
 	// ControllerName is the controller name that will be used when reporting events.
 	ControllerName = "unified-auth-controller"
 
-	rbacAPIVersion          = "rbac.authorization.k8s.io/v1"
-	clusterProxyResource    = "clusters/proxy"
-	clusterProxyAPIGroup    = "cluster.karmada.io"
 	karmadaImpersonatorName = "karmada-impersonator"
+
+	clusterAPIGroup       = "cluster.karmada.io"
+	clusterProxyResource  = "clusters/proxy"
+	searchAPIGroup        = "search.karmada.io"
+	proxyingProxyResource = "proxying/proxy"
 )
 
 // Controller is to sync impersonation config to member clusters for unified authentication.
@@ -66,7 +68,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if cluster.Spec.ImpersonatorSecretRef == nil {
-		klog.Infof("Aggregated API feature is disabled on cluster %s as it does not have an impersonator secret", cluster.Name)
+		klog.Infof("Unified auth is disabled on cluster %s as it does not have an impersonator secret", cluster.Name)
 		return controllerruntime.Result{}, nil
 	}
 
@@ -82,64 +84,80 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 }
 
 func (c *Controller) syncImpersonationConfig(cluster *clusterv1alpha1.Cluster) error {
-	// step1: list all clusterroles
-	clusterRoleList := &rbacv1.ClusterRoleList{}
-	if err := c.Client.List(context.TODO(), clusterRoleList); err != nil {
-		klog.Errorf("Failed to list clusterroles, error: %v", err)
+	// step1: find out target RBAC subjects.
+	targetSubjects, err := findRBACSubjectsWithCluster(c.Client, cluster.Name)
+	if err != nil {
 		return err
 	}
 
-	// step2: found out clusterroles that matches current cluster
-	allMatchedClusterRoles := sets.NewString()
-	for _, clusterRole := range clusterRoleList.Items {
-		for i := range clusterRole.Rules {
-			if util.PolicyRuleAPIGroupMatches(&clusterRole.Rules[i], clusterProxyAPIGroup) &&
-				util.PolicyRuleResourceMatches(&clusterRole.Rules[i], clusterProxyResource) &&
-				util.PolicyRuleResourceNameMatches(&clusterRole.Rules[i], cluster.Name) {
-				allMatchedClusterRoles.Insert(clusterRole.Name)
-				break
-			}
-		}
-	}
+	// step2: generate rules for impersonation
+	rules := util.GenerateImpersonationRules(targetSubjects)
 
-	// step3: found out reference clusterRolebindings and collecting subjects.
-	clusterRoleBindings := &rbacv1.ClusterRoleBindingList{}
-	var allSubjects []rbacv1.Subject
-	if len(allMatchedClusterRoles) != 0 {
-		if err := c.Client.List(context.TODO(), clusterRoleBindings); err != nil {
-			klog.Errorf("Failed to list clusterrolebindings, error: %v", err)
-			return err
-		}
-
-		for _, clusterRoleBinding := range clusterRoleBindings.Items {
-			if clusterRoleBinding.RoleRef.Kind == util.ClusterRoleKind && allMatchedClusterRoles.Has(clusterRoleBinding.RoleRef.Name) {
-				allSubjects = append(allSubjects, clusterRoleBinding.Subjects...)
-			}
-		}
-	}
-
-	// step4:  generate rules for impersonation
-	rules := util.GenerateImpersonationRules(allSubjects)
-
-	// step5: sync clusterrole to cluster for impersonation
+	// step3: sync ClusterRole to cluster for impersonation
 	if err := c.buildImpersonationClusterRole(cluster, rules); err != nil {
-		klog.Errorf("Failed to sync impersonate clusterrole to cluster(%s): %v", cluster.Name, err)
+		klog.Errorf("Failed to sync impersonate ClusterRole to cluster(%s): %v", cluster.Name, err)
 		return err
 	}
 
-	// step6: sync clusterrolebinding to cluster for impersonation
+	// step4: sync ClusterRoleBinding to cluster for impersonation
 	if err := c.buildImpersonationClusterRoleBinding(cluster); err != nil {
-		klog.Errorf("Failed to sync impersonate clusterrolebinding to cluster(%s): %v", cluster.Name, err)
+		klog.Errorf("Failed to sync impersonate ClusterRoleBinding to cluster(%s): %v", cluster.Name, err)
 		return err
 	}
 
 	return nil
 }
 
+func findRBACSubjectsWithCluster(c client.Client, cluster string) ([]rbacv1.Subject, error) {
+	clusterRoleList := &rbacv1.ClusterRoleList{}
+	if err := c.List(context.TODO(), clusterRoleList); err != nil {
+		klog.Errorf("Failed to list ClusterRoles, error: %v", err)
+		return nil, err
+	}
+
+	matchedClusterRoles := sets.NewString()
+	for _, clusterRole := range clusterRoleList.Items {
+		for index := range clusterRole.Rules {
+			if util.PolicyRuleAPIGroupMatches(&clusterRole.Rules[index], clusterAPIGroup) &&
+				util.PolicyRuleResourceMatches(&clusterRole.Rules[index], clusterProxyResource) &&
+				util.PolicyRuleResourceNameMatches(&clusterRole.Rules[index], cluster) {
+				matchedClusterRoles.Insert(clusterRole.Name)
+				break
+			}
+
+			if util.PolicyRuleAPIGroupMatches(&clusterRole.Rules[index], searchAPIGroup) &&
+				util.PolicyRuleResourceMatches(&clusterRole.Rules[index], proxyingProxyResource) {
+				matchedClusterRoles.Insert(clusterRole.Name)
+				break
+			}
+		}
+	}
+
+	// short path: no matched ClusterRoles
+	if matchedClusterRoles.Len() == 0 {
+		return nil, nil
+	}
+
+	clusterRoleBindings := &rbacv1.ClusterRoleBindingList{}
+	if err := c.List(context.TODO(), clusterRoleBindings); err != nil {
+		klog.Errorf("Failed to list ClusterRoleBindings, error: %v", err)
+		return nil, err
+	}
+
+	var targetSubjects []rbacv1.Subject
+	for _, clusterRoleBinding := range clusterRoleBindings.Items {
+		if clusterRoleBinding.RoleRef.Kind == util.ClusterRoleKind &&
+			matchedClusterRoles.Has(clusterRoleBinding.RoleRef.Name) {
+			targetSubjects = append(targetSubjects, clusterRoleBinding.Subjects...)
+		}
+	}
+	return targetSubjects, nil
+}
+
 func (c *Controller) buildImpersonationClusterRole(cluster *clusterv1alpha1.Cluster, rules []rbacv1.PolicyRule) error {
 	impersonationClusterRole := &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacAPIVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.String(),
 			Kind:       util.ClusterRoleKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -150,7 +168,7 @@ func (c *Controller) buildImpersonationClusterRole(cluster *clusterv1alpha1.Clus
 
 	clusterRoleObj, err := helper.ToUnstructured(impersonationClusterRole)
 	if err != nil {
-		klog.Errorf("Failed to transform clusterrole %s. Error: %v", impersonationClusterRole.GetName(), err)
+		klog.Errorf("Failed to transform ClusterRole %s. Error: %v", impersonationClusterRole.GetName(), err)
 		return err
 	}
 
@@ -160,7 +178,7 @@ func (c *Controller) buildImpersonationClusterRole(cluster *clusterv1alpha1.Clus
 func (c *Controller) buildImpersonationClusterRoleBinding(cluster *clusterv1alpha1.Cluster) error {
 	impersonatorClusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacAPIVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.String(),
 			Kind:       util.ClusterRoleBindingKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -182,7 +200,7 @@ func (c *Controller) buildImpersonationClusterRoleBinding(cluster *clusterv1alph
 
 	clusterRoleBindingObj, err := helper.ToUnstructured(impersonatorClusterRoleBinding)
 	if err != nil {
-		klog.Errorf("Failed to transform clusterrolebinding %s. Error: %v", impersonatorClusterRoleBinding.GetName(), err)
+		klog.Errorf("Failed to transform ClusterRoleBinding %s. Error: %v", impersonatorClusterRoleBinding.GetName(), err)
 		return err
 	}
 
@@ -216,18 +234,10 @@ func (c *Controller) buildWorks(cluster *clusterv1alpha1.Cluster, obj *unstructu
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	// clusterPredicateFunc only cares about create events
 	clusterPredicateFunc := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return true
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			return false
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return false
-		},
-		GenericFunc: func(event.GenericEvent) bool {
-			return false
-		},
+		CreateFunc:  func(event.CreateEvent) bool { return true },
+		UpdateFunc:  func(event.UpdateEvent) bool { return false },
+		DeleteFunc:  func(event.DeleteEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
@@ -253,42 +263,58 @@ func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
 
 		clusterRole := &rbacv1.ClusterRole{}
 		if err := c.Client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleBinding.RoleRef.Name}, clusterRole); err != nil {
-			klog.Errorf("Failed to get reference clusterrole, error: %v", err)
+			klog.Errorf("Failed to get reference ClusterRole, error: %v", err)
 			return nil
 		}
 		return c.generateRequestsFromClusterRole(clusterRole)
 	}
 }
 
-// found out which clusters need to sync impersonation config from rules like:
-//
-//	resources: ["cluster/proxy"]
-//	resourceNames: ["cluster1", "cluster2"]
+// generateRequestsFromClusterRole generates the requests for which clusters need be synced with impersonation config.
 func (c *Controller) generateRequestsFromClusterRole(clusterRole *rbacv1.ClusterRole) []reconcile.Request {
-	var requests []reconcile.Request
-	for i := range clusterRole.Rules {
-		if util.PolicyRuleAPIGroupMatches(&clusterRole.Rules[i], clusterProxyAPIGroup) &&
-			util.PolicyRuleResourceMatches(&clusterRole.Rules[i], clusterProxyResource) {
-			if len(clusterRole.Rules[i].ResourceNames) == 0 {
-				// if the length of rule[i].ResourceNames is 0, means to match all clusters
-				clusterList := &clusterv1alpha1.ClusterList{}
-				if err := c.Client.List(context.TODO(), clusterList); err != nil {
-					klog.Errorf("Failed to list clusters, error: %v", err)
-					return nil
-				}
+	clusterList := &clusterv1alpha1.ClusterList{}
+	if err := c.Client.List(context.TODO(), clusterList); err != nil {
+		klog.Errorf("Failed to list existing clusters, error: %v", err)
+		return nil
+	}
+
+	syncClusterNames := sets.NewString()
+	for index, rule := range clusterRole.Rules {
+		// for rule like:
+		//   apiGroup: "cluster.karmada.io"
+		//   resources: ["cluster/proxy"]
+		//   resourceNames: ["cluster1", "cluster2"]
+		if util.PolicyRuleAPIGroupMatches(&clusterRole.Rules[index], clusterAPIGroup) &&
+			util.PolicyRuleResourceMatches(&clusterRole.Rules[index], clusterProxyResource) {
+			if len(rule.ResourceNames) == 0 {
+				// if the length of rule.ResourceNames is 0, means to match all clusters
 				for _, cluster := range clusterList.Items {
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
-						Name: cluster.Name,
-					}})
+					syncClusterNames.Insert(cluster.Name)
 				}
-			} else {
-				for _, resourceName := range clusterRole.Rules[i].ResourceNames {
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
-						Name: resourceName,
-					}})
-				}
+				break
+			}
+
+			for _, resourceName := range rule.ResourceNames {
+				syncClusterNames.Insert(resourceName)
 			}
 		}
+
+		// for rule like:
+		//   apiGroup: "search.karmada.io"
+		//   resources: ["proxying/proxy"]
+		if util.PolicyRuleAPIGroupMatches(&clusterRole.Rules[index], searchAPIGroup) &&
+			util.PolicyRuleResourceMatches(&clusterRole.Rules[index], proxyingProxyResource) {
+			// push all existing clusters into requests
+			for _, cluster := range clusterList.Items {
+				syncClusterNames.Insert(cluster.Name)
+			}
+			break
+		}
+	}
+
+	var requests []reconcile.Request
+	for _, clusterName := range syncClusterNames.List() {
+		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: clusterName}})
 	}
 	return requests
 }
