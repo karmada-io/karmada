@@ -21,8 +21,8 @@ func SetLeaseOwnerFunc(c client.Client, clusterName string) func(lease *coordina
 			if err := c.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj); err == nil {
 				lease.OwnerReferences = []metav1.OwnerReference{
 					{
-						APIVersion: clusterObj.APIVersion,
-						Kind:       clusterObj.Kind,
+						APIVersion: clusterv1alpha1.GroupVersion.String(),
+						Kind:       clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").Kind,
 						Name:       clusterName,
 						UID:        clusterObj.UID,
 					},
