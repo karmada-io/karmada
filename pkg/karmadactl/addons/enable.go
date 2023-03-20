@@ -70,7 +70,7 @@ func NewCmdAddonsEnable(parentCommand string) *cobra.Command {
 		releaseVer = &version.ReleaseVersion{} // initialize to avoid panic
 	}
 
-	flags := cmd.PersistentFlags()
+	flags := cmd.Flags()
 	opts.GlobalCommandOptions.AddFlags(flags)
 	flags.IntVar(&opts.WaitComponentReadyTimeout, "pod-timeout", options.WaitComponentReadyTimeout, "Wait pod ready timeout.")
 	flags.IntVar(&opts.WaitAPIServiceReadyTimeout, "apiservice-timeout", 30, "Wait apiservice ready timeout.")
