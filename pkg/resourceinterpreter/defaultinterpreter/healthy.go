@@ -23,6 +23,7 @@ func getAllDefaultHealthInterpreter() map[schema.GroupVersionKind]healthInterpre
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = interpretServiceHealth
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = interpretIngressHealth
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = interpretPersistentVolumeClaimHealth
+	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = interpretPodHealth
 	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = interpretPodDisruptionBudgetHealth
 	return s
 }
@@ -145,6 +146,25 @@ func interpretPersistentVolumeClaimHealth(object *unstructured.Unstructured) (bo
 	}
 
 	return pvc.Status.Phase == corev1.ClaimBound, nil
+}
+
+func interpretPodHealth(object *unstructured.Unstructured) (bool, error) {
+	pod := &corev1.Pod{}
+	err := helper.ConvertToTypedObject(object, pod)
+	if err != nil {
+		return false, err
+	}
+
+	if pod.Status.Phase == corev1.PodSucceeded {
+		return true, nil
+	}
+
+	_, condition := helper.GetPodCondition(&pod.Status, corev1.PodReady)
+	if pod.Status.Phase == corev1.PodRunning && condition != nil && condition.Status == corev1.ConditionTrue {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func interpretPodDisruptionBudgetHealth(object *unstructured.Unstructured) (bool, error) {
