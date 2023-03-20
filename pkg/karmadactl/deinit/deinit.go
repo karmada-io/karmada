@@ -3,7 +3,6 @@ package deinit
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -224,31 +223,11 @@ func removeLabels(node *corev1.Node, removesLabel string) {
 	}
 }
 
-// deleteConfirmation delete karmada confirmation
-func deleteConfirmation() bool {
-	fmt.Print("Please type (y)es or (n)o and then press enter:")
-	var response string
-	_, err := fmt.Scanln(&response)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	switch strings.ToLower(response) {
-	case "y", "yes":
-		return true
-	case "n", "no":
-		return false
-	default:
-		return deleteConfirmation()
-	}
-}
-
 // Run start delete
 func (o *CommandDeInitOption) Run() error {
 	fmt.Println("removes Karmada from Kubernetes")
 	// delete confirmation,exit the delete action when false.
-	if !o.Force && !deleteConfirmation() {
+	if !o.Force && !util.DeleteConfirmation() {
 		return nil
 	}
 

@@ -7,6 +7,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
 )
 
@@ -15,6 +16,8 @@ type CommandAddonsDisableOption struct {
 	GlobalCommandOptions
 
 	KarmadaKubeClientSet *kubernetes.Clientset
+
+	Force bool
 }
 
 // Complete the conditions required to be able to run disable.
@@ -47,6 +50,11 @@ func (o *CommandAddonsDisableOption) Validate(args []string) error {
 
 // Run start disable Karmada addons
 func (o *CommandAddonsDisableOption) Run(args []string) error {
+	fmt.Printf("Disable Karmada addon %s\n", args)
+	if !o.Force && !util.DeleteConfirmation() {
+		return nil
+	}
+
 	var disableAddons = map[string]*Addon{}
 
 	// collect disabled addons
