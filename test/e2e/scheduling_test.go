@@ -418,8 +418,8 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deploy *appsv1.Deployment) bool {
 					klog.Infof("Deployment(%s/%s)'s replcas is %d, expected: %d.",
-						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, *deployment.Spec.Replicas)
-					return *deploy.Spec.Replicas == *deployment.Spec.Replicas
+						deploy.Namespace, deploy.Name, *deploy.Spec.Replicas, updateDeploymentReplicas)
+					return *deploy.Spec.Replicas == updateDeploymentReplicas
 				})
 		})
 	})
