@@ -35,6 +35,7 @@ func (p *TaintToleration) Name() string {
 // Filter checks if the given tolerations in placement tolerate cluster's taints.
 func (p *TaintToleration) Filter(
 	_ context.Context,
+	_ *framework.CycleState,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	_ *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,

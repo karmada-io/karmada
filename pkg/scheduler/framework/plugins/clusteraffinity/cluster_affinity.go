@@ -34,6 +34,7 @@ func (p *ClusterAffinity) Name() string {
 // Filter checks if the cluster matched the placement cluster affinity constraint.
 func (p *ClusterAffinity) Filter(
 	_ context.Context,
+	_ *framework.CycleState,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	bindingStatus *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,
@@ -62,7 +63,7 @@ func (p *ClusterAffinity) Filter(
 }
 
 // Score calculates the score on the candidate cluster.
-func (p *ClusterAffinity) Score(ctx context.Context,
+func (p *ClusterAffinity) Score(ctx context.Context, _ *framework.CycleState,
 	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	return framework.MinClusterScore, framework.NewResult(framework.Success)
 }
