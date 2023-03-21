@@ -569,6 +569,123 @@ func Test_interpretPersistentVolumeClaimHealth(t *testing.T) {
 	}
 }
 
+func Test_interpretPodHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "service type pod healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]interface{}{
+						"name": "fake-pod",
+					},
+					"status": map[string]interface{}{
+						"conditions": []map[string]string{
+							{
+								"type":   "Ready",
+								"status": "True",
+							},
+						},
+						"phase": "Running",
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "job type pod healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]interface{}{
+						"name": "fake-pod",
+					},
+					"status": map[string]interface{}{
+						"phase": "Succeeded",
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "pod condition ready false",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]interface{}{
+						"name": "fake-pod",
+					},
+					"status": map[string]interface{}{
+						"conditions": []map[string]string{
+							{
+								"type":   "Ready",
+								"status": "Unknown",
+							},
+						},
+						"phase": "Running",
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "pod phase not running and not succeeded",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]interface{}{
+						"name": "fake-pod",
+					},
+					"status": map[string]interface{}{
+						"phase": "Failed",
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "condition or phase nil",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]interface{}{
+						"name": "fake-pod",
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretPodHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretPodHealth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("interpretPodHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 func Test_interpretPodDisruptionBudgetHealth(t *testing.T) {
 	tests := []struct {
 		name   string
