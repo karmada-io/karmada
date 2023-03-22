@@ -100,6 +100,7 @@ func (i *CommandInitOption) AddNodeSelectorLabels() error {
 	var etcdNodeName string
 	var etcdSelectorLabels map[string]string
 	for _, v := range nodes.Items {
+		klog.Warningf("jw:%v, %v", v.Spec.Taints, v.Status.Conditions)
 		if v.Spec.Taints != nil {
 			continue
 		}
