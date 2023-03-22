@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/informers"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
@@ -229,7 +230,16 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
-	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager)
+	controlPlaneKubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
+
+	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
+	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
+	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
+	serviceLister := sharedFactory.Core().V1().Services().Lister()
+	sharedFactory.Start(stopChan)
+	sharedFactory.WaitForCacheSync(stopChan)
+
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
 	}
