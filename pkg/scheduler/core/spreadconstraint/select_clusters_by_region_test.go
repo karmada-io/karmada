@@ -37,9 +37,8 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 				groupClustersInfo: &GroupClustersInfo{
 					Regions: map[string]RegionInfo{
 						"R1": {
-							Name:              "R1",
-							Score:             100,
-							AvailableReplicas: 100,
+							Name:  "R1",
+							Score: 100,
 							Clusters: []ClusterDetailInfo{
 								{
 									Name:              "member1",
@@ -56,9 +55,8 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 							},
 						},
 						"R2": {
-							Name:              "R2",
-							Score:             80,
-							AvailableReplicas: 100,
+							Name:  "R2",
+							Score: 80,
 							Clusters: []ClusterDetailInfo{
 								{
 									Name:              "member3",
@@ -107,9 +105,8 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 				groupClustersInfo: &GroupClustersInfo{
 					Regions: map[string]RegionInfo{
 						"R1": {
-							Name:              "R1",
-							Score:             100,
-							AvailableReplicas: 100,
+							Name:  "R1",
+							Score: 100,
 							Clusters: []ClusterDetailInfo{
 								{
 									Name:              "member1",
@@ -126,9 +123,8 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 							},
 						},
 						"R2": {
-							Name:              "R2",
-							Score:             80,
-							AvailableReplicas: 100,
+							Name:  "R2",
+							Score: 80,
 							Clusters: []ClusterDetailInfo{
 								{
 									Name:              "member3",
@@ -178,9 +174,8 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 				groupClustersInfo: &GroupClustersInfo{
 					Regions: map[string]RegionInfo{
 						"R1": {
-							Name:              "R1",
-							Score:             100,
-							AvailableReplicas: 100,
+							Name:  "R1",
+							Score: 100,
 							Clusters: []ClusterDetailInfo{
 								{
 									Name:              "member1",
@@ -197,9 +192,8 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 							},
 						},
 						"R2": {
-							Name:              "R2",
-							Score:             80,
-							AvailableReplicas: 100,
+							Name:  "R2",
+							Score: 80,
 							Clusters: []ClusterDetailInfo{
 								{
 									Name:              "member3",
@@ -245,9 +239,8 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 				groupClustersInfo: &GroupClustersInfo{
 					Regions: map[string]RegionInfo{
 						"R1": {
-							Name:              "R1",
-							Score:             100,
-							AvailableReplicas: 100,
+							Name:  "R1",
+							Score: 100,
 							Clusters: []ClusterDetailInfo{
 								{
 									Name:              "member1",
@@ -264,9 +257,8 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 							},
 						},
 						"R2": {
-							Name:              "R2",
-							Score:             80,
-							AvailableReplicas: 100,
+							Name:  "R2",
+							Score: 80,
 							Clusters: []ClusterDetailInfo{
 								{
 									Name:              "member3",

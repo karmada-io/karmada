@@ -16,14 +16,16 @@ type GroupClustersInfo struct {
 	// Clusters from global view, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
 
+	// The average score of all cluster.
+	averageScore int64
+
 	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster
 }
 
 // ProviderInfo indicate the provider information
 type ProviderInfo struct {
-	Name              string
-	Score             int64 // the highest score in all clusters of the provider
-	AvailableReplicas int64
+	Name  string
+	Score int64 // the comprehensive score in all clusters of the provider
 
 	// Regions under this provider
 	Regions map[string]struct{}
@@ -35,9 +37,8 @@ type ProviderInfo struct {
 
 // RegionInfo indicate the region information
 type RegionInfo struct {
-	Name              string
-	Score             int64 // the highest score in all clusters of the region
-	AvailableReplicas int64
+	Name  string
+	Score int64 // the comprehensive score in all clusters of the region
 
 	// Zones under this provider
 	Zones map[string]struct{}
@@ -47,9 +48,8 @@ type RegionInfo struct {
 
 // ZoneInfo indicate the zone information
 type ZoneInfo struct {
-	Name              string
-	Score             int64 // the highest score in all clusters of the zone
-	AvailableReplicas int64
+	Name  string
+	Score int64 // the comprehensive score in all clusters of the zone
 
 	// Clusters under this zone, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
@@ -91,9 +91,9 @@ func groupClustersBasedTopology(
 	}
 	groupClustersInfo.calAvailableReplicasFunc = calAvailableReplicasFunc
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
-	groupClustersInfo.generateZoneInfo(spreadConstraints)
-	groupClustersInfo.generateRegionInfo(spreadConstraints)
-	groupClustersInfo.generateProviderInfo(spreadConstraints)
+	groupClustersInfo.generateZoneInfo(spreadConstraints, rbSpec)
+	groupClustersInfo.generateRegionInfo(spreadConstraints, rbSpec)
+	groupClustersInfo.generateProviderInfo(spreadConstraints, rbSpec)
 
 	return groupClustersInfo
 }
@@ -111,8 +111,10 @@ func groupClustersIngoreTopology(
 }
 
 func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.ClusterScoreList, rbSpec *workv1alpha2.ResourceBindingSpec) {
+	var totalScore int64
 	var clusters []*clusterv1alpha1.Cluster
 	for _, clusterScore := range clustersScore {
+		totalScore += clusterScore.Score
 		clusterInfo := ClusterDetailInfo{}
 		clusterInfo.Name = clusterScore.Cluster.Name
 		clusterInfo.Score = clusterScore.Score
@@ -120,6 +122,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 		info.Clusters = append(info.Clusters, clusterInfo)
 		clusters = append(clusters, clusterScore.Cluster)
 	}
+	info.averageScore = totalScore / int64(len(clusters))
 
 	clustersReplicas := info.calAvailableReplicasFunc(clusters, rbSpec)
 	for i, clustersReplica := range clustersReplicas {
@@ -130,7 +133,42 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	sortClusters(info.Clusters)
 }
 
-func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) calcGroupScore(clusters []ClusterDetailInfo, rbSpec *workv1alpha2.ResourceBindingSpec) int64 {
+	// First, calculate the base score.
+	var highScoreSum int64
+	var selectedNum int
+	for _, cluster := range clusters {
+		if cluster.Score > info.averageScore {
+			highScoreSum += cluster.Score
+			selectedNum++
+		}
+	}
+	var baseScore int64
+	if selectedNum == 0 {
+		baseScore = clusters[0].Score
+	} else {
+		baseScore = highScoreSum / int64(selectedNum)
+	}
+
+	// Second, calculate the bonus score.
+	var bonusScore int64
+	if rbSpec.Placement == nil ||
+		rbSpec.Placement.ReplicaScheduling == nil ||
+		rbSpec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		var goodNum int
+		for _, cluster := range clusters {
+			if cluster.AvailableReplicas >= int64(rbSpec.Replicas) {
+				goodNum++
+			}
+		}
+		bonusRatio := float64(goodNum) / float64(len(clusters))
+		bonusScore = int64(float64(baseScore) * bonusRatio)
+	}
+
+	return baseScore + bonusScore
+}
+
+func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldZone) {
 		return
 	}
@@ -150,17 +188,16 @@ func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alph
 		}
 
 		zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
-		zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
 		info.Zones[zone] = zoneInfo
 	}
 
 	for zone, zoneInfo := range info.Zones {
-		zoneInfo.Score = zoneInfo.Clusters[0].Score
+		zoneInfo.Score = info.calcGroupScore(zoneInfo.Clusters, rbSpec)
 		info.Zones[zone] = zoneInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldRegion) {
 		return
 	}
@@ -184,17 +221,16 @@ func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1al
 			regionInfo.Zones[clusterInfo.Cluster.Spec.Zone] = struct{}{}
 		}
 		regionInfo.Clusters = append(regionInfo.Clusters, clusterInfo)
-		regionInfo.AvailableReplicas += clusterInfo.AvailableReplicas
 		info.Regions[region] = regionInfo
 	}
 
 	for region, regionInfo := range info.Regions {
-		regionInfo.Score = regionInfo.Clusters[0].Score
+		regionInfo.Score = info.calcGroupScore(regionInfo.Clusters, rbSpec)
 		info.Regions[region] = regionInfo
 	}
 }
 
-func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint, rbSpec *workv1alpha2.ResourceBindingSpec) {
 	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldProvider) {
 		return
 	}
@@ -224,12 +260,11 @@ func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1
 		}
 
 		providerInfo.Clusters = append(providerInfo.Clusters, clusterInfo)
-		providerInfo.AvailableReplicas += clusterInfo.AvailableReplicas
 		info.Providers[provider] = providerInfo
 	}
 
 	for provider, providerInfo := range info.Providers {
-		providerInfo.Score = providerInfo.Clusters[0].Score
+		providerInfo.Score = info.calcGroupScore(providerInfo.Clusters, rbSpec)
 		info.Providers[provider] = providerInfo
 	}
 }
