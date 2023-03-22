@@ -11,7 +11,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -119,6 +118,7 @@ func BuildClusterConfig(clusterName string,
 	if err != nil {
 		return nil, err
 	}
+
 	apiEndpoint := cluster.Spec.APIEndpoint
 	if apiEndpoint == "" {
 		return nil, fmt.Errorf("the api endpoint of cluster %s is empty", clusterName)
@@ -133,24 +133,29 @@ func BuildClusterConfig(clusterName string,
 		return nil, err
 	}
 
-	token, tokenFound := secret.Data[clusterv1alpha1.SecretTokenKey]
-	if !tokenFound || len(token) == 0 {
+	token, ok := secret.Data[clusterv1alpha1.SecretTokenKey]
+	if !ok || len(token) == 0 {
 		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
 	}
 
-	clusterConfig, err := clientcmd.BuildConfigFromFlags(apiEndpoint, "")
-	if err != nil {
-		return nil, err
+	// Initialize cluster configuration.
+	clusterConfig := &rest.Config{
+		BearerToken: string(token),
+		Host:        apiEndpoint,
 	}
 
-	clusterConfig.BearerToken = string(token)
-
+	// Handle TLS configuration.
 	if cluster.Spec.InsecureSkipTLSVerification {
 		clusterConfig.TLSClientConfig.Insecure = true
 	} else {
-		clusterConfig.CAData = secret.Data[clusterv1alpha1.SecretCADataKey]
+		ca, ok := secret.Data[clusterv1alpha1.SecretCADataKey]
+		if !ok {
+			return nil, fmt.Errorf("the secret for cluster %s is missing the CA data key %q", clusterName, clusterv1alpha1.SecretCADataKey)
+		}
+		clusterConfig.TLSClientConfig = rest.TLSClientConfig{CAData: ca}
 	}
 
+	// Handle proxy configuration.
 	if cluster.Spec.ProxyURL != "" {
 		proxy, err := url.Parse(cluster.Spec.ProxyURL)
 		if err != nil {
