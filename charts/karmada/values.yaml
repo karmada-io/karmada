@@ -60,12 +60,18 @@ kubectl:
 
 ## pre-install job config
 preInstallJob:
+  tolerations: []
+  nodeSelector: {}
 
 ## post-install job config
 postInstallJob:
+  tolerations: []
+  nodeSelector: {}
 
 ## post-delete job config
 postDeleteJob:
+  tolerations: []
+  nodeSelector: {}
 
 ## karmada certificate config
 certs:
@@ -306,6 +312,7 @@ apiServer:
   ## @param apiServer.labels labels of the karmada-apiserver deployment
   labels:
     app: karmada-apiserver
+  serviceAnnotations: {}
   ## @param apiServer.replicaCount target replicas of the karmada-apiserver
   replicaCount: 1
   ## @param apiServer.podAnnotations annotations of the karmada-apiserver pods

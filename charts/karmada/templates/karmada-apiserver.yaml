@@ -154,6 +154,10 @@ metadata:
   namespace: {{ include "karmada.namespace" . }}
   labels:
   {{- include "karmada.apiserver.labels" . | nindent 4 }}
+  {{- with .Values.apiServer.serviceAnnotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.apiServer.serviceType }}
   ports:
