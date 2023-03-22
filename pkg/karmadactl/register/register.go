@@ -318,7 +318,12 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 	bootstrapKubeConfigFile := filepath.Join(KarmadaDir, KarmadaAgentBootstrapKubeConfigFileName)
 
 	// Deletes the bootstrapKubeConfigFile, so the credential used for TLS bootstrap is removed from disk
-	defer os.Remove(bootstrapKubeConfigFile)
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			klog.Warningf("Failed to remove bootstrapKubeConfigFile: %v", err)
+		}
+	}(bootstrapKubeConfigFile)
 
 	// fetch the bootstrap client to connect to karmada apiserver temporarily
 	fmt.Println("[karmada-agent-start] Waiting to perform the TLS Bootstrap")
