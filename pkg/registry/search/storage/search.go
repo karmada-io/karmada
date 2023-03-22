@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	genericrequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -20,6 +21,7 @@ import (
 type SearchREST struct {
 	multiClusterInformerManager genericmanager.MultiClusterInformerManager
 	clusterLister               clusterlister.ClusterLister
+	restMapper                  meta.RESTMapper
 
 	// add needed parameters here
 }
@@ -31,10 +33,12 @@ var _ rest.Connecter = &SearchREST{}
 // NewSearchREST returns a RESTStorage object that will work against search.
 func NewSearchREST(
 	multiClusterInformerManager genericmanager.MultiClusterInformerManager,
-	clusterLister clusterlister.ClusterLister) *SearchREST {
+	clusterLister clusterlister.ClusterLister,
+	restMapper meta.RESTMapper) *SearchREST {
 	return &SearchREST{
 		multiClusterInformerManager: multiClusterInformerManager,
 		clusterLister:               clusterLister,
+		restMapper:                  restMapper,
 	}
 }
 

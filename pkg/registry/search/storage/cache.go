@@ -71,13 +71,21 @@ func (r *SearchREST) newCacheHandler(info *genericrequest.RequestInfo, responder
 		// TODO: process opts.Limit to prevent the client from being unable to process the response
 		// due to the large size of the response body.
 		objItems := r.getObjectItemsFromClusters(clusters, resourceGVR, info.Namespace, info.Name, label)
+		kind, err := r.restMapper.KindFor(resourceGVR)
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			klog.Errorf("Failed to find kind, resource: %s, %v", resourceGVR.Resource, err)
+			_ = enc.Encode(errorResponse{Error: err.Error()})
+			return
+		}
 		rr := reqResponse{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: resourceGVR.GroupVersion().String(),
-				Kind:       "List", // TODO: obtains the kind type of the actual resource list.
+				Kind:       kind.Kind + "List",
 			},
 			Items: objItems,
 		}
+		rw.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = enc.Encode(rr)
 	}), nil
 }
