@@ -149,14 +149,14 @@ func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.Queu
 
 	klog.V(4).Infof("Begin to sync %s %s.", fedKey.Kind, fedKey.NamespaceKey())
 
-	switch fedKey.Kind {
-	case util.ServiceExportKind:
+	switch fedKey.GroupVersionKind() {
+	case serviceExportGVK:
 		if err := c.handleServiceExportEvent(fedKey); err != nil {
 			klog.Errorf("Failed to handle serviceExport(%s) event, Error: %v",
 				fedKey.NamespaceKey(), err)
 			return err
 		}
-	case util.EndpointSliceKind:
+	case discoveryv1.SchemeGroupVersion.WithKind(util.EndpointSliceKind):
 		if err := c.handleEndpointSliceEvent(fedKey); err != nil {
 			klog.Errorf("Failed to handle endpointSlice(%s) event, Error: %v",
 				fedKey.NamespaceKey(), err)

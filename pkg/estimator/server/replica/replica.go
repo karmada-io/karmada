@@ -31,8 +31,8 @@ func GetUnschedulablePodsOfWorkload(unstructObj *unstructured.Unstructured, thre
 	unschedulable := 0
 	// Workloads could be classified into two types. The one is which owns ReplicaSet
 	// and the other is which owns Pod directly.
-	switch unstructObj.GetKind() {
-	case util.DeploymentKind:
+	switch unstructObj.GroupVersionKind() {
+	case appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind):
 		deployment := &appsv1.Deployment{}
 		if err := helper.ConvertToTypedObject(unstructObj, deployment); err != nil {
 			return 0, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %v", err)

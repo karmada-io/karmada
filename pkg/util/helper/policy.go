@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -65,7 +66,7 @@ func GetFollowedResourceSelectorsWhenMatchServiceImport(resourceSelectors []poli
 	var addedResourceSelectors []policyv1alpha1.ResourceSelector
 
 	for _, resourceSelector := range resourceSelectors {
-		if resourceSelector.Kind != util.ServiceImportKind {
+		if resourceSelector.Kind != util.ServiceImportKind || resourceSelector.APIVersion != mcsv1alpha1.GroupVersion.String() {
 			continue
 		}
 

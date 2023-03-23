@@ -50,7 +50,7 @@ func RemoveIrrelevantField(workload *unstructured.Unstructured, extraHooks ...fu
 
 	unstructured.RemoveNestedField(workload.Object, "status")
 
-	if workload.GetKind() == util.ServiceKind {
+	if workload.GroupVersionKind() == corev1.SchemeGroupVersion.WithKind(util.ServiceKind) {
 		// In the case spec.clusterIP is set to `None`, means user want a headless service,  then it shouldn't be removed.
 		clusterIP, exist, _ := unstructured.NestedString(workload.Object, "spec", "clusterIP")
 		if exist && clusterIP != corev1.ClusterIPNone {
@@ -59,7 +59,7 @@ func RemoveIrrelevantField(workload *unstructured.Unstructured, extraHooks ...fu
 		}
 	}
 
-	if workload.GetKind() == util.JobKind {
+	if workload.GroupVersionKind() == batchv1.SchemeGroupVersion.WithKind(util.JobKind) {
 		job := &batchv1.Job{}
 		err := helper.ConvertToTypedObject(workload, job)
 		if err != nil {
@@ -72,7 +72,7 @@ func RemoveIrrelevantField(workload *unstructured.Unstructured, extraHooks ...fu
 		}
 	}
 
-	if workload.GetKind() == util.ServiceAccountKind {
+	if workload.GroupVersionKind() == corev1.SchemeGroupVersion.WithKind(util.ServiceAccountKind) {
 		secrets, exist, _ := unstructured.NestedSlice(workload.Object, "secrets")
 		// If 'secrets' exists in ServiceAccount, remove the automatic generation secrets(e.g. default-token-xxx)
 		if exist && len(secrets) > 0 {
@@ -136,7 +136,7 @@ func removeGenerateSelectorOfJob(workload *unstructured.Unstructured) error {
 // It is recommended to enable the `ttl-after-finished` controller in the Karmada control plane.
 // See https://karmada.io/docs/administrator/configuration/configure-controllers#ttl-after-finished for more details.
 func RemoveJobTTLSeconds(workload *unstructured.Unstructured) {
-	if workload.GetKind() == util.JobKind {
+	if workload.GroupVersionKind() == batchv1.SchemeGroupVersion.WithKind(util.JobKind) {
 		unstructured.RemoveNestedField(workload.Object, "spec", "ttlSecondsAfterFinished")
 	}
 }

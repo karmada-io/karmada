@@ -1,6 +1,7 @@
 package binding
 
 import (
+	batchv1 "k8s.io/api/batch/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -39,7 +40,7 @@ func ensureWork(
 
 	var jobCompletions []workv1alpha2.TargetCluster
 	var err error
-	if workload.GetKind() == util.JobKind {
+	if workload.GroupVersionKind() == batchv1.SchemeGroupVersion.WithKind(util.JobKind) {
 		jobCompletions, err = divideReplicasByJobCompletions(workload, targetClusters)
 		if err != nil {
 			return err
