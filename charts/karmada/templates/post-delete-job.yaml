@@ -23,6 +23,14 @@ spec:
       labels:
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
+      {{- with .Values.postDeleteJob.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postDeleteJob.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ $name }}-pre-job
       restartPolicy: Never
       containers:
