@@ -80,7 +80,10 @@ func (c completedConfig) New() (*APIServer, error) {
 	v1alpha1search["resourceregistries/status"] = resourceRegistryStorage.Status
 
 	if c.ExtraConfig.Controller != nil {
-		searchREST := searchstorage.NewSearchREST(c.ExtraConfig.Controller.InformerManager, c.ExtraConfig.Controller.clusterLister)
+		searchREST := searchstorage.NewSearchREST(
+			c.ExtraConfig.Controller.InformerManager,
+			c.ExtraConfig.Controller.clusterLister,
+			c.ExtraConfig.Controller.restMapper)
 		v1alpha1search["search"] = searchREST
 	}
 
