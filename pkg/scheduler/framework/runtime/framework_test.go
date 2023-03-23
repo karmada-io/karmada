@@ -111,7 +111,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 		{
 			name: "Test score ok",
 			mockFunc: func(mockScorePlugin *frameworktesting.MockScorePlugin, mockScoreExtension *frameworktesting.MockScoreExtensions) {
-				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any()).
+				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(int64(60), framework.NewResult(framework.Success))
 				mockScorePlugin.EXPECT().ScoreExtensions().Times(2).Return(mockScoreExtension)
 				mockScorePlugin.EXPECT().Name().AnyTimes().Return("foo")
@@ -124,7 +124,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 		{
 			name: "Test score func error",
 			mockFunc: func(mockScorePlugin *frameworktesting.MockScorePlugin, mockScoreExtension *frameworktesting.MockScoreExtensions) {
-				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any()).
+				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(int64(-1), framework.NewResult(framework.Error, "foo"))
 				mockScorePlugin.EXPECT().Name().AnyTimes().Return("foo")
 			},
@@ -133,7 +133,7 @@ func Test_frameworkImpl_RunScorePlugins(t *testing.T) {
 		{
 			name: "Test normalize score error",
 			mockFunc: func(mockScorePlugin *frameworktesting.MockScorePlugin, mockScoreExtension *frameworktesting.MockScoreExtensions) {
-				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any()).
+				mockScorePlugin.EXPECT().Score(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(int64(60), framework.NewResult(framework.Success))
 				mockScorePlugin.EXPECT().ScoreExtensions().Times(2).Return(mockScoreExtension)
 				mockScorePlugin.EXPECT().Name().AnyTimes().Return("foo")

@@ -120,7 +120,7 @@ func (frw *frameworkImpl) RunScorePlugins(
 	for _, p := range frw.scorePlugins {
 		var scoreList framework.ClusterScoreList
 		for _, cluster := range clusters {
-			s, res := frw.runScorePlugin(ctx, p, spec, cluster)
+			s, res := frw.runScorePlugin(ctx, p, spec, clusters, cluster.Name)
 			if !res.IsSuccess() {
 				return nil, framework.AsResult(fmt.Errorf("plugin %q failed with: %w", p.Name(), res.AsError()))
 			}
@@ -153,9 +153,9 @@ func (frw *frameworkImpl) RunScorePlugins(
 	return pluginToClusterScores, nil
 }
 
-func (frw *frameworkImpl) runScorePlugin(ctx context.Context, pl framework.ScorePlugin, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
+func (frw *frameworkImpl) runScorePlugin(ctx context.Context, pl framework.ScorePlugin, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster, name string) (int64, *framework.Result) {
 	startTime := time.Now()
-	s, result := pl.Score(ctx, spec, cluster)
+	s, result := pl.Score(ctx, spec, clusters, name)
 	frw.metricsRecorder.observePluginDurationAsync(score, pl.Name(), result, utilmetrics.DurationInSeconds(startTime))
 	return s, result
 }

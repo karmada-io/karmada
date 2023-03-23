@@ -63,7 +63,7 @@ func (p *ClusterAffinity) Filter(
 
 // Score calculates the score on the candidate cluster.
 func (p *ClusterAffinity) Score(ctx context.Context,
-	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
+	spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster, name string) (int64, *framework.Result) {
 	return framework.MinClusterScore, framework.NewResult(framework.Success)
 }
 

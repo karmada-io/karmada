@@ -10,27 +10,13 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 )
-
-// ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
-type ScheduleAlgorithm interface {
-	Schedule(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *ScheduleAlgorithmOption) (scheduleResult ScheduleResult, err error)
-}
-
-// ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
-type ScheduleAlgorithmOption struct {
-	EnableEmptyWorkloadPropagation bool
-}
-
-// ScheduleResult includes the clusters selected.
-type ScheduleResult struct {
-	SuggestedClusters []workv1alpha2.TargetCluster
-}
 
 type genericScheduler struct {
 	schedulerCache    cache.Cache
@@ -41,7 +27,7 @@ type genericScheduler struct {
 func NewGenericScheduler(
 	schedCache cache.Cache,
 	registry runtime.Registry,
-) (ScheduleAlgorithm, error) {
+) (framework.ScheduleAlgorithm, error) {
 	f, err := runtime.NewFramework(registry)
 	if err != nil {
 		return nil, err
@@ -56,8 +42,8 @@ func (g *genericScheduler) Schedule(
 	ctx context.Context,
 	spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus,
-	scheduleAlgorithmOption *ScheduleAlgorithmOption,
-) (result ScheduleResult, err error) {
+	scheduleAlgorithmOption *framework.ScheduleAlgorithmOption,
+) (result framework.ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
@@ -166,7 +152,7 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, startTime)
 
-	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, calAvailableReplicas)
+	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, estimatorclient.CalcAvailableReplicas)
 	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, spec.Replicas)
 }
 

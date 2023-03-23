@@ -19,6 +19,21 @@ const (
 	MaxClusterScore int64 = 100
 )
 
+// ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
+type ScheduleAlgorithm interface {
+	Schedule(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *ScheduleAlgorithmOption) (ScheduleResult, error)
+}
+
+// ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
+type ScheduleAlgorithmOption struct {
+	EnableEmptyWorkloadPropagation bool
+}
+
+// ScheduleResult includes the clusters selected.
+type ScheduleResult struct {
+	SuggestedClusters []workv1alpha2.TargetCluster
+}
+
 // Framework manages the set of plugins in use by the scheduling framework.
 // Configured plugins are called at specified points in a scheduling context.
 type Framework interface {
@@ -163,7 +178,7 @@ type ScorePlugin interface {
 	// Score is called on each filtered cluster. It must return success and an integer
 	// indicating the rank of the cluster. All scoring plugins must return success or
 	// the resource will be rejected.
-	Score(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *Result)
+	Score(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster, name string) (int64, *Result)
 
 	// ScoreExtensions returns a ScoreExtensions interface
 	// if it implements one, or nil if does not.
