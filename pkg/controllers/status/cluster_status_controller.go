@@ -177,7 +177,6 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	if !online && readyCondition.Status != metav1.ConditionTrue {
 		klog.V(2).Infof("Cluster(%s) still offline after %s, ensuring offline is set.",
 			cluster.Name, c.ClusterFailureThreshold.Duration)
-		setTransitionTime(cluster.Status.Conditions, readyCondition)
 		meta.SetStatusCondition(&currentClusterStatus.Conditions, *readyCondition)
 		return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 	}
@@ -202,7 +201,6 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 		}
 	}
 
-	setTransitionTime(currentClusterStatus.Conditions, readyCondition)
 	meta.SetStatusCondition(&currentClusterStatus.Conditions, *readyCondition)
 
 	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
@@ -254,7 +252,6 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 
 func (c *ClusterStatusController) setStatusCollectionFailedCondition(cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus, message string) (controllerruntime.Result, error) {
 	readyCondition := util.NewCondition(clusterv1alpha1.ClusterConditionReady, statusCollectionFailed, message, metav1.ConditionFalse)
-	setTransitionTime(cluster.Status.Conditions, &readyCondition)
 	meta.SetStatusCondition(&currentClusterStatus.Conditions, readyCondition)
 	return c.updateStatusIfNeeded(cluster, currentClusterStatus)
 }
@@ -418,15 +415,6 @@ func generateReadyCondition(online, healthy bool) metav1.Condition {
 	}
 
 	return util.NewCondition(clusterv1alpha1.ClusterConditionReady, clusterReady, clusterHealthy, metav1.ConditionTrue)
-}
-
-func setTransitionTime(existingConditions []metav1.Condition, newCondition *metav1.Condition) {
-	// preserve the last transition time if the status of given condition not changed
-	if existingCondition := meta.FindStatusCondition(existingConditions, newCondition.Type); existingCondition != nil {
-		if existingCondition.Status == newCondition.Status {
-			newCondition.LastTransitionTime = existingCondition.LastTransitionTime
-		}
-	}
 }
 
 func getKubernetesVersion(clusterClient *util.ClusterClient) (string, error) {
