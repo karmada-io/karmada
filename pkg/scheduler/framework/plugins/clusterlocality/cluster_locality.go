@@ -6,7 +6,6 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
-	"github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
@@ -35,11 +34,6 @@ func (p *ClusterLocality) Name() string {
 func (p *ClusterLocality) Score(ctx context.Context,
 	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	if len(spec.Clusters) == 0 {
-		return framework.MinClusterScore, framework.NewResult(framework.Success)
-	}
-
-	replicas := util.GetSumOfReplicas(spec.Clusters)
-	if replicas <= 0 {
 		return framework.MinClusterScore, framework.NewResult(framework.Success)
 	}
 
