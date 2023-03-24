@@ -200,7 +200,7 @@ func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableO
 	}
 
 	if err = cmdutil.CreateOrUpdateAPIService(opts.KarmadaAggregatorClientSet, aaAPIService); err != nil {
-		return fmt.Errorf("craete karmada search AA apiservice error: %v", err)
+		return fmt.Errorf("create karmada search AA apiservice error: %v", err)
 	}
 
 	if err := initkarmada.WaitAPIServiceReady(opts.KarmadaAggregatorClientSet, aaAPIServiceName, time.Duration(opts.WaitAPIServiceReadyTimeout)*time.Second); err != nil {
@@ -217,12 +217,12 @@ func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, error) {
 		return "", err
 	}
 
-	ectdReplicas := *sts.Spec.Replicas
-	ectdServers := ""
+	etcdReplicas := *sts.Spec.Replicas
+	etcdServers := ""
 
-	for v := int32(0); v < ectdReplicas; v++ {
-		ectdServers += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, opts.Namespace, etcdContainerClientPort) + ","
+	for v := int32(0); v < etcdReplicas; v++ {
+		etcdServers += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, opts.Namespace, etcdContainerClientPort) + ","
 	}
 
-	return strings.TrimRight(ectdServers, ","), nil
+	return strings.TrimRight(etcdServers, ","), nil
 }
