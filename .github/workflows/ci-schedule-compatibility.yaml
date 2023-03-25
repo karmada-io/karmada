@@ -1,0 +1,66 @@
+name: APIServer compatibility
+on:
+  schedule:
+    # Run this workflow "At 20:00 UTC on Sunday and Saturday"
+    - cron: '0 20 * * 0,6'
+
+jobs:
+  e2e:
+    name: e2e test
+    # prevent job running from forked repository
+    if: ${{ github.repository == 'karmada-io/karmada' }}
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        kubeapiserver-version: [ v1.21.10, v1.22.7, v1.23.4, v1.24.2, v1.25.0, v1.26.0 ]
+        karmada-version: [ release-1.3, release-1.4, release-1.5 ]
+
+        include:
+        - karmada-version: release-1.3
+          go-version: 1.18.3
+
+        - karmada-version: release-1.4
+          go-version: 1.19.5
+
+        - karmada-version: release-1.5
+          go-version: 1.19.5
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+          ref: ${{ matrix.karmada-version }}
+      - name: install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: setup e2e test environment
+        run: |
+          hack/local-up-karmada.sh
+
+          # Update images
+          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
+            set image deployment/karmada-apiserver -nkarmada-system \
+            karmada-apiserver=registry.k8s.io/kube-apiserver:${{ matrix.kubeapiserver-version }}
+          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
+            set image deployment/karmada-kube-controller-manager -nkarmada-system \
+            kube-controller-manager=registry.k8s.io/kube-controller-manager:${{ matrix.kubeapiserver-version }}
+
+          # Wait ready
+          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
+            rollout status deployment/karmada-kube-controller-manager -nkarmada-system --timeout=5m
+          kubectl --kubeconfig=${HOME}/.kube/karmada.config --context=karmada-host \
+            rollout status deployment/karmada-apiserver -nkarmada-system --timeout=5m
+      - name: run e2e
+        run: |
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.kubeapiserver-version }}-${{ matrix.karmada-version }}/
+          hack/run-e2e.sh
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: karmada_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.kubeapiserver-version }}-${{ matrix.karmada-version }}/
