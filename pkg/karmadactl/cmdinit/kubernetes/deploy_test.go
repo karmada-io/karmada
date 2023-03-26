@@ -1,10 +1,14 @@
 package kubernetes
 
 import (
+	"context"
 	"net"
 	"os"
 	"testing"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
@@ -159,6 +163,76 @@ func TestCommandInitOption_genCerts(t *testing.T) {
 	err := opt.genCerts()
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestInitKarmadaAPIServer(t *testing.T) {
+	// Create a fake clientset
+	clientset := fake.NewSimpleClientset()
+
+	// Create a new CommandInitOption
+	initOption := &CommandInitOption{
+		KubeClientSet: clientset,
+		Namespace:     "test-namespace",
+	}
+
+	// Call the function
+	err := initOption.initKarmadaAPIServer()
+
+	// Check if the function returned an error
+	if err != nil {
+		t.Errorf("initKarmadaAPIServer() returned an error: %v", err)
+	}
+
+	// Check if the etcd StatefulSet was created
+	_, err = clientset.AppsV1().StatefulSets(initOption.Namespace).Get(context.TODO(), etcdStatefulSetAndServiceName, metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("initKarmadaAPIServer() failed to create etcd StatefulSet: %v", err)
+	}
+
+	// Check if the karmada APIServer Deployment was created
+	_, err = clientset.AppsV1().Deployments(initOption.Namespace).Get(context.TODO(), karmadaAPIServerDeploymentAndServiceName, metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("initKarmadaAPIServer() failed to create karmada APIServer Deployment: %v", err)
+	}
+
+	// Check if the karmada aggregated apiserver Deployment was created
+	_, err = clientset.AppsV1().Deployments(initOption.Namespace).Get(context.TODO(), karmadaAggregatedAPIServerDeploymentAndServiceName, metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("initKarmadaAPIServer() failed to create karmada aggregated apiserver Deployment: %v", err)
+	}
+}
+
+func TestCommandInitOption_initKarmadaComponent(t *testing.T) {
+	// Create a fake kube clientset
+	clientSet := fake.NewSimpleClientset()
+
+	// Create a new CommandInitOption
+	initOption := &CommandInitOption{
+		KubeClientSet: clientSet,
+		Namespace:     "test-namespace",
+	}
+
+	// Call the function
+	err := initOption.initKarmadaComponent()
+
+	// Assert that no error was returned
+	if err != nil {
+		t.Errorf("initKarmadaComponent returned an unexpected error: %v", err)
+	}
+
+	// Assert that the expected deployments were created
+	expectedDeployments := []string{
+		kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
+		schedulerDeploymentNameAndServiceAccountName,
+		controllerManagerDeploymentAndServiceName,
+		webhookDeploymentAndServiceAccountAndServiceName,
+	}
+	for _, deploymentName := range expectedDeployments {
+		_, err = clientSet.AppsV1().Deployments("test-namespace").Get(context.TODO(), deploymentName, metav1.GetOptions{})
+		if err != nil {
+			t.Errorf("Expected deployment %s was not created: %v", deploymentName, err)
+		}
 	}
 }
 
