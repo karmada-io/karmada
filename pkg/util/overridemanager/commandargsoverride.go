@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
@@ -21,16 +23,16 @@ const (
 
 // buildCommandArgsPatches build JSON patches for the resource object according to override declaration.
 func buildCommandArgsPatches(target string, rawObj *unstructured.Unstructured, commandRunOverrider *policyv1alpha1.CommandArgsOverrider) ([]overrideOption, error) {
-	switch rawObj.GetKind() {
-	case util.PodKind:
+	switch rawObj.GroupVersionKind() {
+	case corev1.SchemeGroupVersion.WithKind(util.PodKind):
 		return buildCommandArgsPatchesWithPath(target, "spec/containers", rawObj, commandRunOverrider)
-	case util.ReplicaSetKind:
+	case appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind):
 		fallthrough
-	case util.DeploymentKind:
+	case appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind):
 		fallthrough
-	case util.DaemonSetKind:
+	case appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind):
 		fallthrough
-	case util.StatefulSetKind:
+	case appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind):
 		return buildCommandArgsPatchesWithPath(target, "spec/template/spec/containers", rawObj, commandRunOverrider)
 	}
 	return nil, nil

@@ -81,7 +81,8 @@ func TestRemoveIrrelevantField(t *testing.T) {
 			name: "remove service irrelevant fields",
 			workload: &unstructured.Unstructured{
 				Object: map[string]interface{}{
-					"kind": util.ServiceKind,
+					"apiVersion": "v1",
+					"kind":       util.ServiceKind,
 					"spec": map[string]interface{}{
 						"clusterIP":  "10.10.10.10",
 						"clusterIPs": []string{"10.10.10.10"},
@@ -98,7 +99,8 @@ func TestRemoveIrrelevantField(t *testing.T) {
 			name: "remove job irrelevant fields",
 			workload: &unstructured.Unstructured{
 				Object: map[string]interface{}{
-					"kind": util.JobKind,
+					"apiVersion": "batch/v1",
+					"kind":       util.JobKind,
 					"spec": map[string]interface{}{
 						"selector": map[string]interface{}{
 							"matchLabels": map[string]interface{}{
@@ -135,7 +137,8 @@ func TestRemoveIrrelevantField(t *testing.T) {
 			name: "remove serviceaccount irrelevant fields",
 			workload: &unstructured.Unstructured{
 				Object: map[string]interface{}{
-					"kind": util.ServiceAccountKind,
+					"apiVersion": "v1",
+					"kind":       util.ServiceAccountKind,
 					"metadata": map[string]interface{}{
 						"name": "foo",
 					},

@@ -8,6 +8,7 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -186,18 +187,21 @@ func TestGetFollowedResourceSelectorsWhenMatchServiceImport(t *testing.T) {
 			name: " get followed resource selector",
 			resourceSelectors: []policyv1alpha1.ResourceSelector{
 				{
-					Name: "foo1",
-					Kind: util.ServiceImportKind,
+					Name:       "foo1",
+					Kind:       util.ServiceImportKind,
+					APIVersion: mcsv1alpha1.GroupVersion.String(),
 				},
 				{
-					Name:      "foo2",
-					Namespace: "bar",
-					Kind:      util.ServiceKind,
+					Name:       "foo2",
+					Namespace:  "bar",
+					Kind:       util.ServiceKind,
+					APIVersion: "v1",
 				},
 				{
-					Name:      "foo3",
-					Namespace: "bar",
-					Kind:      util.ServiceImportKind,
+					Name:       "foo3",
+					Namespace:  "bar",
+					Kind:       util.ServiceImportKind,
+					APIVersion: mcsv1alpha1.GroupVersion.String(),
 				},
 			},
 			expected: []policyv1alpha1.ResourceSelector{

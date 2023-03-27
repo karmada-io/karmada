@@ -147,6 +147,7 @@ func findRBACSubjectsWithCluster(c client.Client, cluster string) ([]rbacv1.Subj
 	var targetSubjects []rbacv1.Subject
 	for _, clusterRoleBinding := range clusterRoleBindings.Items {
 		if clusterRoleBinding.RoleRef.Kind == util.ClusterRoleKind &&
+			clusterRoleBinding.RoleRef.APIGroup == rbacv1.GroupName &&
 			matchedClusterRoles.Has(clusterRoleBinding.RoleRef.Name) {
 			targetSubjects = append(targetSubjects, clusterRoleBinding.Subjects...)
 		}
@@ -257,7 +258,7 @@ func (c *Controller) newClusterRoleMapFunc() handler.MapFunc {
 func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
 	return func(a client.Object) []reconcile.Request {
 		clusterRoleBinding := a.(*rbacv1.ClusterRoleBinding)
-		if clusterRoleBinding.RoleRef.Kind != util.ClusterRoleKind {
+		if clusterRoleBinding.RoleRef.Kind != util.ClusterRoleKind || clusterRoleBinding.RoleRef.APIGroup != rbacv1.GroupName {
 			return nil
 		}
 
