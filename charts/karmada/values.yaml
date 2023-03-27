@@ -578,6 +578,10 @@ etcd:
       size: ""
     ## @param etcd.internal.nodeSelector node selector of the etcd
     nodeSelector: {}
+    ## @param etcd.internal.tolerations tolerations of the internal etcd
+    tolerations: []
+      # - key: node-role.kubernetes.io/master
+      #   operator: Exists
     ## @param etcd.internal.resources
     resources: {}
       # If you do want to specify resources, uncomment the following

@@ -39,8 +39,10 @@ spec:
       nodeSelector:
       {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.etcd.internal.tolerations }}
       tolerations:
-        - operator: Exists
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: etcd
           image: {{ template "karmada.internal.etcd.image" . }}
