@@ -23,7 +23,7 @@ func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionIn
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceAccountKind)] = lifted.RetainServiceAccountFields
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = retainPersistentVolumeClaimFields
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeKind)] = retainPersistentVolumeFields
-	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = retainJobSelectorFields
+	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = retainJobFields
 	return s
 }
 
@@ -89,7 +89,8 @@ func retainPersistentVolumeFields(desired, observed *unstructured.Unstructured) 
 	return desired, nil
 }
 
-func retainJobSelectorFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func retainJobFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	// retain job selector
 	matchLabels, exist, err := unstructured.NestedStringMap(observed.Object, "spec", "selector", "matchLabels")
 	if err != nil {
 		return nil, err
@@ -111,5 +112,17 @@ func retainJobSelectorFields(desired, observed *unstructured.Unstructured) (*uns
 			return nil, err
 		}
 	}
+
+	// retain job completions: spec.completions is immutable if job was created before.
+	completions, ok, err := unstructured.NestedInt64(observed.Object, "spec", "completions")
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve completions from job: %v", err)
+	}
+	if ok {
+		if err = unstructured.SetNestedField(desired.Object, completions, "spec", "completions"); err != nil {
+			return nil, fmt.Errorf("failed to set completions for job: %v", err)
+		}
+	}
+
 	return desired, nil
 }

@@ -182,7 +182,11 @@ func (g *genericScheduler) assignReplicas(
 		return nil, fmt.Errorf("no clusters available to schedule")
 	}
 
-	if object.Replicas > 0 && replicaSchedulingStrategy != nil {
+	if object.Replicas > 0 {
+		// If a workload has a nil replica scheduling strategy, we consider it has a duplicated strategy.
+		if replicaSchedulingStrategy == nil {
+			replicaSchedulingStrategy = duplicatedStrategyTemplate
+		}
 		state := newAssignState(clusters, replicaSchedulingStrategy, object)
 		assignFunc, ok := assignFuncMap[state.strategyType]
 		if !ok {

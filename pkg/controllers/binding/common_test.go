@@ -128,50 +128,6 @@ func Test_transScheduleResultToMap(t *testing.T) {
 	}
 }
 
-func Test_getReplicaInfos(t *testing.T) {
-	tests := []struct {
-		name           string
-		targetClusters []workv1alpha2.TargetCluster
-		wantBool       bool
-		wantRes        map[string]int64
-	}{
-		{
-			name: "a cluster with replicas",
-			targetClusters: []workv1alpha2.TargetCluster{
-				{
-					Name:     "foo",
-					Replicas: 1,
-				},
-			},
-			wantBool: true,
-			wantRes: map[string]int64{
-				"foo": 1,
-			},
-		},
-		{
-			name: "none of the clusters have replicas",
-			targetClusters: []workv1alpha2.TargetCluster{
-				{
-					Name: "foo",
-				},
-			},
-			wantBool: false,
-			wantRes:  nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := getReplicaInfos(tt.targetClusters)
-			if got != tt.wantBool {
-				t.Errorf("getReplicaInfos() got = %v, want %v", got, tt.wantBool)
-			}
-			if !reflect.DeepEqual(got1, tt.wantRes) {
-				t.Errorf("getReplicaInfos() got1 = %v, want %v", got1, tt.wantRes)
-			}
-		})
-	}
-}
-
 func Test_mergeLabel(t *testing.T) {
 	namespace := "fake-ns"
 	bindingName := "fake-bindingName"
