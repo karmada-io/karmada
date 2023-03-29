@@ -1,6 +1,7 @@
 package apiclient
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -43,6 +44,17 @@ func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
 		kubeconfigPath = env.GetString("KUBECONFIG", defaultKubeConfig)
 	}
 	if !Exists(kubeconfigPath) {
+		// Given no kubeconfig is provided, give it a try to load the config by
+		// in-cluster mode if the client running inside a pod running on kubernetes.
+		host, port := os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT")
+		if len(host) > 0 || len(port) > 0 { // in-cluster mode
+			inClusterRestConfig, err := rest.InClusterConfig()
+			if err != nil {
+				return nil, fmt.Errorf("failed to load rest config by in-cluster mode: %v", err)
+			}
+			return inClusterRestConfig, nil
+		}
+
 		return nil, ErrEmptyConfig
 	}
 
