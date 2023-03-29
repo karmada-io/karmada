@@ -19,3 +19,11 @@ func NewInTreeRegistry() runtime.Registry {
 		clusterlocality.Name:  clusterlocality.New,
 	}
 }
+
+// GetDefaultScorePluginsWeight returns the default weight for score plugins.
+func GetDefaultScorePluginsWeight() map[string]int {
+	return map[string]int{
+		clusteraffinity.Name: 1,
+		clusterlocality.Name: 10000,
+	}
+}
