@@ -10,7 +10,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter/luavm"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative/luavm"
 )
 
 func (o *Options) runCheck() error {

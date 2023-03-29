@@ -1,4 +1,4 @@
-package configurableinterpreter
+package declarative
 
 import (
 	"sort"
@@ -11,8 +11,8 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter/configmanager"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter/luavm"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative/configmanager"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative/luavm"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 

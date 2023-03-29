@@ -12,7 +12,7 @@ import (
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/genericresource"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative"
 	"github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
@@ -80,7 +80,7 @@ func (o *Options) runExecute() error {
 		Replica:  int64(o.DesiredReplica),
 	}
 
-	interpreter := configurableinterpreter.NewConfigurableInterpreter(nil)
+	interpreter := declarative.NewConfigurableInterpreter(nil)
 	interpreter.LoadConfig(customizations)
 
 	r := o.Rules.GetByOperation(o.Operation)
