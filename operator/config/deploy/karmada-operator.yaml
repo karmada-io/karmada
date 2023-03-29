@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-operator
+  namespace: karmada-system
+  labels:
+    karmada-app: karmada-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      karmada-app: karmada-operator
+  template:
+    metadata:
+      labels:
+        karmada-app: karmada-operator
+    spec:
+      containers:
+      - name: karmada-operator
+        image: docker.io/karmada/karmada-operator:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/karmada-operator
+        - --kubeconfig=/etc/config
+        - --v=4
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: /etc/config
+          subPath: config
+      volumes:
+      - name: kubeconfig
+        secret:
+          secretName: my-kubeconfig

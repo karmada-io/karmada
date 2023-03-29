@@ -108,6 +108,13 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 			}
 		}
 
+		if opt.Components.Etcd.Local != nil && opt.Components.Etcd.Local.CommonSettings.Replicas != nil {
+			replicas := *opt.Components.Etcd.Local.CommonSettings.Replicas
+			if (replicas % 2) == 0 {
+				klog.Warningf("invalid etcd replicas %d, expected an odd number", replicas)
+			}
+		}
+
 		// TODO: Verify whether important values of initData is valid
 
 		return &initData{
@@ -213,10 +220,14 @@ func defaultComponents() *operatorv1alpha1.KarmadaComponents {
 	return &operatorv1alpha1.KarmadaComponents{
 		Etcd: &operatorv1alpha1.Etcd{
 			Local: &operatorv1alpha1.LocalEtcd{
-				Image: operatorv1alpha1.Image{
-					ImageRepository: fmt.Sprintf("%s/%s", constants.KubeDefaultRepository, constants.Etcd),
-					ImageTag:        constants.EtcdDefaultVersion,
+				CommonSettings: operatorv1alpha1.CommonSettings{
+					Image: operatorv1alpha1.Image{
+						ImageRepository: fmt.Sprintf("%s/%s", constants.KubeDefaultRepository, constants.Etcd),
+						ImageTag:        constants.EtcdDefaultVersion,
+					},
+					Replicas: pointer.Int32(1),
 				},
+
 				VolumeData: &operatorv1alpha1.VolumeData{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},

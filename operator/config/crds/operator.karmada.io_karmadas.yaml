@@ -191,6 +191,15 @@ spec:
                           the built-in etcd instance Local and External are mutually
                           exclusive
                         properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: 'Annotations is an unstructured key value
+                              map stored with a resource that may be set by external
+                              tools to store and retrieve arbitrary metadata. They
+                              are not queryable and should be preserved when modifying
+                              objects. More info: http://kubernetes.io/docs/user-guide/annotations'
+                            type: object
                           imageRepository:
                             description: ImageRepository sets the container registry
                               to pull images from. if not set, the ImageRepository
@@ -202,12 +211,77 @@ spec:
                               change automatically the version of the above components
                               during upgrades.
                             type: string
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: 'Map of string keys and values that can be
+                              used to organize and categorize (scope and select) objects.
+                              May match selectors of replication controllers and services.
+                              More info: http://kubernetes.io/docs/user-guide/labels'
+                            type: object
                           peerCertSANs:
                             description: PeerCertSANs sets extra Subject Alternative
                               Names for the etcd peer signing cert.
                             items:
                               type: string
                             type: array
+                          replicas:
+                            description: Number of desired pods. This is a pointer
+                              to distinguish between explicit zero and not specified.
+                              Defaults to 1.
+                            format: int32
+                            type: integer
+                          resources:
+                            description: 'Compute Resources required by this component.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            properties:
+                              claims:
+                                description: "Claims lists the names of resources,
+                                  defined in spec.resourceClaims, that are used by
+                                  this container. \n This is an alpha field and requires
+                                  enabling the DynamicResourceAllocation feature gate.
+                                  \n This field is immutable."
+                                items:
+                                  description: ResourceClaim references one entry
+                                    in PodSpec.ResourceClaims.
+                                  properties:
+                                    name:
+                                      description: Name must match the name of one
+                                        entry in pod.spec.resourceClaims of the Pod
+                                        where this field is used. It makes that resource
+                                        available inside a container.
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
+                              limits:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: 'Limits describes the maximum amount
+                                  of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: 'Requests describes the minimum amount
+                                  of compute resources required. If Requests is omitted
+                                  for a container, it defaults to Limits if that is
+                                  explicitly specified, otherwise to an implementation-defined
+                                  value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                type: object
+                            type: object
                           serverCertSANs:
                             description: ServerCertSANs sets extra Subject Alternative
                               Names for the etcd server signing cert.

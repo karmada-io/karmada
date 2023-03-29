@@ -9,6 +9,7 @@ spec:
       local:
         imageRepository: registry.k8s.io/etcd
         imageTag: 3.5.3-0
+        replicas: 1
         volumeData:
           emptyDir: {}
     karmadaAPIServer:
