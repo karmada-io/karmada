@@ -496,7 +496,7 @@ func TestStatusReflection(t *testing.T) {
 }
 
 func TestGetDeployPodDependencies(t *testing.T) {
-	newDeploy := appsv1.Deployment{
+	newDeploy1 := appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Deployment",
@@ -513,12 +513,22 @@ func TestGetDeployPodDependencies(t *testing.T) {
 			},
 		},
 	}
-	newObj, _ := helper.ToUnstructured(&newDeploy)
-	expect := make([]configv1alpha1.DependentObjectReference, 1)
-	expect[0] = configv1alpha1.DependentObjectReference{
+	newDeploy2 := newDeploy1.DeepCopy()
+	newDeploy2.Namespace = ""
+	newObj1, _ := helper.ToUnstructured(&newDeploy1)
+	expect1 := make([]configv1alpha1.DependentObjectReference, 1)
+	expect1[0] = configv1alpha1.DependentObjectReference{
 		APIVersion: "v1",
 		Kind:       "ServiceAccount",
 		Namespace:  "test",
+		Name:       "test",
+	}
+	newObj2, _ := helper.ToUnstructured(&newDeploy2)
+	expect2 := make([]configv1alpha1.DependentObjectReference, 1)
+	expect2[0] = configv1alpha1.DependentObjectReference{
+		APIVersion: "v1",
+		Kind:       "ServiceAccount",
+		Namespace:  "default",
 		Name:       "test",
 	}
 	tests := []struct {
@@ -529,7 +539,7 @@ func TestGetDeployPodDependencies(t *testing.T) {
 	}{
 		{
 			name:   "Get GetDeployPodDependencies",
-			curObj: newObj,
+			curObj: newObj1,
 			luaScript: `function GetDependencies(desiredObj)
 							dependentSas = {}
 							refs = {}
@@ -549,7 +559,27 @@ func TestGetDeployPodDependencies(t *testing.T) {
 						end
 					return refs
 				    end`,
-			want: expect,
+			want: expect1,
+		},
+		{
+			name:   "Test getPodDependencies",
+			curObj: newObj1,
+			luaScript: `local kube = require("kube")
+					function GetDependencies(desiredObj)
+						dependencies = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
+						return dependencies
+			            end`,
+			want: expect1,
+		},
+		{
+			name:   "Test getPodDependencies when desiredObj's namespace is empty",
+			curObj: newObj2,
+			luaScript: `local kube = require("kube")
+					function GetDependencies(desiredObj)
+						dependencies = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
+						return dependencies
+			            end`,
+			want: expect2,
 		},
 	}
 
