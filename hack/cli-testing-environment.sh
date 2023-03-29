@@ -38,11 +38,16 @@ hack/create-cluster.sh ${MEMBER_CLUSTER_2_NAME} ${KUBECONFIG_PATH}/${MEMBER_CLUS
 # wait cluster ready
 echo "Wait clusters ready..."
 util::wait_file_exist ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config 300
-util::wait_file_exist ${KUBECONFIG_PATH}/${MEMBER_CLUSTER_1_NAME}.config 300
-util::wait_file_exist ${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config 300
 kubectl wait --for=condition=Ready nodes --all --timeout=800s --kubeconfig=${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config
+util::wait_nodes_taint_disappear 800 ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config
+
+util::wait_file_exist ${KUBECONFIG_PATH}/${MEMBER_CLUSTER_1_NAME}.config 300
 kubectl wait --for=condition=Ready nodes --all --timeout=800s --kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_1_NAME}.config
+util::wait_nodes_taint_disappear 800 ${KUBECONFIG_PATH}/${MEMBER_CLUSTER_1_NAME}.config
+
+util::wait_file_exist ${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config 300
 kubectl wait --for=condition=Ready nodes --all --timeout=800s --kubeconfig=${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config
+util::wait_nodes_taint_disappear 800 ${KUBECONFIG_PATH}/${MEMBER_CLUSTER_2_NAME}.config
 
 # init Karmada control plane
 echo "Start init karmada control plane..."

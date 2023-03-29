@@ -693,3 +693,25 @@ RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.17/main/ > /etc/apk/repositorie
   done
 }
 
+# util::wait_nodes_taint_disappear will wait for all the nodes' taint to disappear
+# Parameters:
+#  - timeout: Timeout in seconds.
+#  - kubeconfig_path: The path of kubeconfig.
+# Returns:
+#  1 if the condition is not met before the timeout, else 0
+function util::wait_nodes_taint_disappear() {
+  local timeout=${1}
+  local kubeconfig_path=${2}
+
+  timeout "${timeout}" bash <<EOF && return 0
+    while true
+    do
+      taints=\$(kubectl get nodes --kubeconfig=${kubeconfig_path} -o=jsonpath="{.items[*].spec.taints}")
+      if [ -z \$taints ]; then
+        exit
+      fi
+    done
+EOF
+  echo "Timeout for nodes' taint to disappear"
+  return 1
+}
