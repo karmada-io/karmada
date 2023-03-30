@@ -1,4 +1,4 @@
-package defaultinterpreter
+package native
 
 import (
 	appsv1 "k8s.io/api/apps/v1"

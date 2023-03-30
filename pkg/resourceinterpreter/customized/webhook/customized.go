@@ -1,4 +1,4 @@
-package customizedinterpreter
+package webhook
 
 import (
 	"context"
@@ -18,8 +18,8 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/configmanager"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook/configmanager"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook/request"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	interpreterutil "github.com/karmada-io/karmada/pkg/util/interpreter"
 )
@@ -70,10 +70,10 @@ func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, oper
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *webhook.RequestAttributes) (replica int32, requires *workv1alpha2.ReplicaRequirements, matched bool, err error) {
+func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *request.Attributes) (replica int32, requires *workv1alpha2.ReplicaRequirements, matched bool, err error) {
 	klog.V(4).Infof("Get replicas for object: %v %s/%s with webhook interpreter.",
 		attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
-	var response *webhook.ResponseAttributes
+	var response *request.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
 		return
@@ -87,8 +87,8 @@ func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *web
 
 // Patch returns the Unstructured object that applied patch response that based on the RequestAttributes.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) Patch(ctx context.Context, attributes *webhook.RequestAttributes) (obj *unstructured.Unstructured, matched bool, err error) {
-	var response *webhook.ResponseAttributes
+func (e *CustomizedInterpreter) Patch(ctx context.Context, attributes *request.Attributes) (obj *unstructured.Unstructured, matched bool, err error) {
+	var response *request.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
 		return
@@ -122,7 +122,7 @@ func (e *CustomizedInterpreter) getFirstRelevantHook(objGVK schema.GroupVersionK
 	return relevantHooks[0]
 }
 
-func (e *CustomizedInterpreter) interpret(ctx context.Context, attributes *webhook.RequestAttributes) (*webhook.ResponseAttributes, bool, error) {
+func (e *CustomizedInterpreter) interpret(ctx context.Context, attributes *request.Attributes) (*request.ResponseAttributes, bool, error) {
 	if !e.hookManager.HasSynced() {
 		return nil, false, fmt.Errorf("not yet ready to handle request")
 	}
@@ -143,7 +143,7 @@ func (e *CustomizedInterpreter) interpret(ctx context.Context, attributes *webho
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	var response *webhook.ResponseAttributes
+	var response *request.ResponseAttributes
 	var callErr error
 	go func(hook configmanager.WebhookAccessor) {
 		defer wg.Done()
@@ -179,8 +179,8 @@ func shouldCallHook(hook configmanager.WebhookAccessor, objGVK schema.GroupVersi
 	return false
 }
 
-func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager.WebhookAccessor, attributes *webhook.RequestAttributes) (*webhook.ResponseAttributes, error) {
-	uid, req, err := webhook.CreateResourceInterpreterContext(hook.GetInterpreterContextVersions(), attributes)
+func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager.WebhookAccessor, attributes *request.Attributes) (*request.ResponseAttributes, error) {
+	uid, req, err := request.CreateResourceInterpreterContext(hook.GetInterpreterContextVersions(), attributes)
 	if err != nil {
 		return nil, &webhookutil.ErrCallingWebhook{
 			WebhookName: hook.GetUID(),
@@ -234,8 +234,8 @@ func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager
 	}
 	trace.Step("Request completed")
 
-	var res *webhook.ResponseAttributes
-	res, err = webhook.VerifyResourceInterpreterContext(uid, attributes.Operation, response)
+	var res *request.ResponseAttributes
+	res, err = request.VerifyResourceInterpreterContext(uid, attributes.Operation, response)
 	if err != nil {
 		return nil, &webhookutil.ErrCallingWebhook{
 			WebhookName: hook.GetUID(),
@@ -290,8 +290,8 @@ func applyPatch(object *unstructured.Unstructured, patch []byte, patchType confi
 
 // GetDependencies returns the dependencies of give object.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes *webhook.RequestAttributes) (dependencies []configv1alpha1.DependentObjectReference, matched bool, err error) {
-	var response *webhook.ResponseAttributes
+func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes *request.Attributes) (dependencies []configv1alpha1.DependentObjectReference, matched bool, err error) {
+	var response *request.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
 		return
@@ -305,8 +305,8 @@ func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes 
 
 // ReflectStatus returns the status of the object.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *webhook.RequestAttributes) (status *runtime.RawExtension, matched bool, err error) {
-	var response *webhook.ResponseAttributes
+func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *request.Attributes) (status *runtime.RawExtension, matched bool, err error) {
+	var response *request.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
 		return
@@ -320,8 +320,8 @@ func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *w
 
 // InterpretHealth returns the health state of the object.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) InterpretHealth(ctx context.Context, attributes *webhook.RequestAttributes) (healthy bool, matched bool, err error) {
-	var response *webhook.ResponseAttributes
+func (e *CustomizedInterpreter) InterpretHealth(ctx context.Context, attributes *request.Attributes) (healthy bool, matched bool, err error) {
+	var response *request.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
 		return

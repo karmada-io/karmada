@@ -1,4 +1,4 @@
-package webhook
+package request
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 
 // CreateResourceInterpreterContext returns the unique request uid, the ResourceInterpreterContext object to send the webhook,
 // or an error if the webhook does not support receiving any of the versions we know to send.
-func CreateResourceInterpreterContext(versions []string, attributes *RequestAttributes) (uid types.UID, request runtime.Object, err error) {
+func CreateResourceInterpreterContext(versions []string, attributes *Attributes) (uid types.UID, request runtime.Object, err error) {
 	for _, version := range versions {
 		switch version {
 		case configv1alpha1.GroupVersion.Version:
@@ -28,7 +28,7 @@ func CreateResourceInterpreterContext(versions []string, attributes *RequestAttr
 }
 
 // CreateV1alpha1ResourceInterpreterContext creates an ResourceInterpreterContext for the provided RequestAttributes.
-func CreateV1alpha1ResourceInterpreterContext(uid types.UID, attributes *RequestAttributes) *configv1alpha1.ResourceInterpreterContext {
+func CreateV1alpha1ResourceInterpreterContext(uid types.UID, attributes *Attributes) *configv1alpha1.ResourceInterpreterContext {
 	r := &configv1alpha1.ResourceInterpreterContext{
 		Request: &configv1alpha1.ResourceInterpreterRequest{
 			UID: uid,

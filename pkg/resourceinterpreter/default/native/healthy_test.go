@@ -1,4 +1,4 @@
-package defaultinterpreter
+package native
 
 import (
 	"testing"

@@ -10,10 +10,10 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customizedinterpreter/webhook"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook/request"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
@@ -59,22 +59,22 @@ func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager
 type customResourceInterpreterImpl struct {
 	informer genericmanager.SingleClusterInformerManager
 
-	customizedInterpreter   *customizedinterpreter.CustomizedInterpreter
-	defaultInterpreter      *defaultinterpreter.DefaultInterpreter
-	configurableInterpreter *configurableinterpreter.ConfigurableInterpreter
+	customizedInterpreter   *webhook.CustomizedInterpreter
+	defaultInterpreter      *native.DefaultInterpreter
+	configurableInterpreter *declarative.ConfigurableInterpreter
 }
 
 // Start starts running the component and will never stop running until the context is closed or an error occurs.
 func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	klog.Infof("Starting custom resource interpreter.")
 
-	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter(i.informer)
+	i.customizedInterpreter, err = webhook.NewCustomizedInterpreter(i.informer)
 	if err != nil {
 		return
 	}
-	i.configurableInterpreter = configurableinterpreter.NewConfigurableInterpreter(i.informer)
+	i.configurableInterpreter = declarative.NewConfigurableInterpreter(i.informer)
 
-	i.defaultInterpreter = defaultinterpreter.NewDefaultInterpreter()
+	i.defaultInterpreter = native.NewDefaultInterpreter()
 
 	i.informer.Start()
 	<-ctx.Done()
@@ -101,7 +101,7 @@ func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstruc
 		return
 	}
 
-	replica, requires, hookEnabled, err = i.customizedInterpreter.GetReplicas(context.TODO(), &webhook.RequestAttributes{
+	replica, requires, hookEnabled, err = i.customizedInterpreter.GetReplicas(context.TODO(), &request.Attributes{
 		Operation: configv1alpha1.InterpreterOperationInterpretReplica,
 		Object:    object,
 	})
@@ -127,7 +127,7 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 	}
 
 	klog.V(4).Infof("Revise replicas for object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
-	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
+	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &request.Attributes{
 		Operation:   configv1alpha1.InterpreterOperationReviseReplica,
 		Object:      object,
 		ReplicasSet: int32(replica),
@@ -153,7 +153,7 @@ func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructure
 	}
 
 	klog.V(4).Infof("Retain object: %v %s/%s with webhook interpreter.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
-	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
+	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &request.Attributes{
 		Operation:   configv1alpha1.InterpreterOperationRetain,
 		Object:      desired,
 		ObservedObj: observed,
@@ -179,7 +179,7 @@ func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Uns
 	}
 
 	klog.V(4).Infof("Aggregate status of object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
-	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &webhook.RequestAttributes{
+	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &request.Attributes{
 		Operation:        configv1alpha1.InterpreterOperationAggregateStatus,
 		Object:           object.DeepCopy(),
 		AggregatedStatus: aggregatedStatusItems,
@@ -204,7 +204,7 @@ func (i *customResourceInterpreterImpl) GetDependencies(object *unstructured.Uns
 		return
 	}
 
-	dependencies, hookEnabled, err = i.customizedInterpreter.GetDependencies(context.TODO(), &webhook.RequestAttributes{
+	dependencies, hookEnabled, err = i.customizedInterpreter.GetDependencies(context.TODO(), &request.Attributes{
 		Operation: configv1alpha1.InterpreterOperationInterpretDependency,
 		Object:    object,
 	})
@@ -228,7 +228,7 @@ func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstr
 	if hookEnabled {
 		return
 	}
-	status, hookEnabled, err = i.customizedInterpreter.ReflectStatus(context.TODO(), &webhook.RequestAttributes{
+	status, hookEnabled, err = i.customizedInterpreter.ReflectStatus(context.TODO(), &request.Attributes{
 		Operation: configv1alpha1.InterpreterOperationInterpretStatus,
 		Object:    object,
 	})
@@ -253,7 +253,7 @@ func (i *customResourceInterpreterImpl) InterpretHealth(object *unstructured.Uns
 		return
 	}
 
-	healthy, hookEnabled, err = i.customizedInterpreter.InterpretHealth(context.TODO(), &webhook.RequestAttributes{
+	healthy, hookEnabled, err = i.customizedInterpreter.InterpretHealth(context.TODO(), &request.Attributes{
 		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
 		Object:    object,
 	})

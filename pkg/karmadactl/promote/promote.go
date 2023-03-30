@@ -26,7 +26,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/get"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/defaultinterpreter/prune"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"

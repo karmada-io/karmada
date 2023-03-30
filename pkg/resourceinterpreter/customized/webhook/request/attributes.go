@@ -1,4 +1,4 @@
-package webhook
+package request
 
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -8,8 +8,8 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-// RequestAttributes contains the attributes that call webhook.
-type RequestAttributes struct {
+// Attributes Attributes contains the attributes that call webhook.
+type Attributes struct {
 	Operation        configv1alpha1.InterpreterOperation
 	Object           *unstructured.Unstructured
 	ObservedObj      *unstructured.Unstructured

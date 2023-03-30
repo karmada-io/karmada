@@ -6,7 +6,7 @@ import (
 	"time"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/resourceinterpreter/configurableinterpreter/luavm"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative/luavm"
 	"github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
