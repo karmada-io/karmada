@@ -10,6 +10,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/version"
 )
@@ -110,6 +111,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.StorageClassesName, "storage-classes-name", "", "Kubernetes StorageClasses Name")
 	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
+	flags.StringVar(&opts.HostClusterDomain, "host-cluster-domain", options.DefaultHostClusterDomain, "The cluster domain of karmada host cluster. (e.g. --host-cluster-domain=host.karmada)")
 	// etcd
 	flags.StringVarP(&opts.EtcdStorageMode, "etcd-storage-mode", "", "hostPath",
 		fmt.Sprintf("etcd data storage mode(%s). value is PVC, specify --storage-classes-name", strings.Join(kubernetes.SupportedStorageMode(), ",")))

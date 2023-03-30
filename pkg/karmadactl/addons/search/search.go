@@ -171,7 +171,8 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 func installComponentsOnKarmadaControlPlane(opts *addoninit.CommandAddonsEnableOption) error {
 	// install karmada search AA service on karmada control plane
 	aaServiceBytes, err := addonutils.ParseTemplate(karmadaSearchAAService, AAServiceReplace{
-		Namespace: opts.Namespace,
+		Namespace:         opts.Namespace,
+		HostClusterDomain: opts.HostClusterDomain,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada search AA service template :%v", err)
@@ -221,7 +222,7 @@ func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, error) {
 	etcdServers := ""
 
 	for v := int32(0); v < etcdReplicas; v++ {
-		etcdServers += fmt.Sprintf("https://%s-%v.%s.%s.svc.cluster.local:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, opts.Namespace, etcdContainerClientPort) + ","
+		etcdServers += fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, opts.Namespace, opts.HostClusterDomain, etcdContainerClientPort) + ","
 	}
 
 	return strings.TrimRight(etcdServers, ","), nil

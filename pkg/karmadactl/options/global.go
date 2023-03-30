@@ -10,6 +10,9 @@ import (
 // DefaultKarmadaClusterNamespace defines the default namespace where the member cluster secrets are stored.
 const DefaultKarmadaClusterNamespace = "karmada-cluster"
 
+// DefaultHostClusterDomain defines the default cluster domain of karmada host cluster.
+const DefaultHostClusterDomain = "cluster.local"
+
 // DefaultKarmadactlCommandDuration defines the default timeout for karmadactl execute
 const DefaultKarmadactlCommandDuration = 60 * time.Second
 
