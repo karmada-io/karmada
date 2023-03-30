@@ -2,7 +2,8 @@ package spreadconstraint
 
 import (
 	"fmt"
-	"sort"
+
+	"k8s.io/utils/pointer"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -18,7 +19,8 @@ func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFie
 	}
 
 	// firstly, select regions which have enough clusters to satisfy the cluster and region propagation constraints
-	regions := selectRegions(groupClustersInfo.Regions, spreadConstraintMap[policyv1alpha1.SpreadByFieldRegion], spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster])
+	regions := selectRegions(groupClustersInfo.Regions, spreadConstraintMap[policyv1alpha1.SpreadByFieldRegion],
+		spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster])
 	if len(regions) == 0 {
 		return nil, fmt.Errorf("the number of clusters is less than the cluster spreadConstraint.MinGroups")
 	}
@@ -35,68 +37,67 @@ func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFie
 	}
 
 	// thirdly, select the remaining Clusters based cluster.Score
-	sortClusters(candidateClusters)
 	restCnt := needCnt - len(clusters)
-	for i := 0; i < restCnt; i++ {
-		clusters = append(clusters, candidateClusters[i].Cluster)
+	if restCnt > 0 {
+		sortClusters(candidateClusters, func(i *ClusterDetailInfo, j *ClusterDetailInfo) *bool {
+			if i.AvailableReplicas != j.AvailableReplicas {
+				return pointer.Bool(i.AvailableReplicas > j.AvailableReplicas)
+			}
+			return nil
+		})
+		for i := 0; i < restCnt; i++ {
+			clusters = append(clusters, candidateClusters[i].Cluster)
+		}
 	}
 
 	return clusters, nil
 }
 
-func selectRegions(RegionInfos map[string]RegionInfo, regionConstraint, clusterConstraint policyv1alpha1.SpreadConstraint) []RegionInfo {
-	var regions []RegionInfo
-	for i := range RegionInfos {
-		regions = append(regions, RegionInfos[i])
+// selectRegions is an implementation of the region selection algorithm, the purpose of
+// the region selection algorithm is to try to find those regions that satisfy all spread constraints.
+//
+// First, it needs to be clear how many regions we need. of course, it needs to meet the
+// region spread constraints([minGroups, maxGroups]), and starts from region's minGroups.
+//
+// Second, we need to find the combination with the highest score when there are multiple
+// sets of choices that can satisfy the cluster spread constraint.
+// For example:
+//
+//	R1 -> R2 -> R3 -> R4
+//
+// We assume that those regions have already done the above descending order according to
+// the score. Now those combinations([R1,R3] and [R1,R4]) can all satisfy all spread constraints.
+// Who is the best choice?
+// Obviously [R1,R3].
+//
+// Finally, the number of regions that we need should be auto-incremented when there is no
+// combination to meet cluster spread constraint. Of course, it can never exceed region's
+// maxGroups or the total number of regions. Let's use the example from the second statement above:
+//
+//	R1 -> R2 -> R3 -> R4
+//
+// When any combination of two regions cannot satisfy cluster spread constraint, we should try
+// to increase the number of regions. It is very likely that we will find the best choice by trying
+// to choose a combination of three regions.
+func selectRegions(regionMap map[string]RegionInfo, regionConstraint, clusterConstraint policyv1alpha1.SpreadConstraint) []RegionInfo {
+	groups := make([]*GroupInfo, 0, len(regionMap))
+	for _, region := range regionMap {
+		group := &GroupInfo{
+			name:   region.Name,
+			value:  len(region.Clusters),
+			weight: region.Score,
+		}
+		groups = append(groups, group)
 	}
 
-	sort.Slice(regions, func(i, j int) bool {
-		if regions[i].Score != regions[j].Score {
-			return regions[i].Score > regions[j].Score
-		}
-
-		return regions[i].Name < regions[j].Name
-	})
-
-	retRegions := regions[:regionConstraint.MinGroups]
-	candidateRegions := regions[regionConstraint.MinGroups:]
-	var replaceID = len(retRegions) - 1
-	for !checkClusterTotalForRegion(retRegions, clusterConstraint) && replaceID >= 0 {
-		regionID := getRegionWithMaxClusters(candidateRegions, len(retRegions[replaceID].Clusters))
-		if regionID == InvalidRegionID {
-			replaceID--
-			continue
-		}
-
-		retRegions[replaceID], candidateRegions[regionID] = candidateRegions[regionID], retRegions[replaceID]
-		replaceID--
-	}
-
-	if !checkClusterTotalForRegion(retRegions, clusterConstraint) {
+	groups = selectGroups(groups, regionConstraint.MinGroups, regionConstraint.MaxGroups, clusterConstraint.MinGroups)
+	if len(groups) == 0 {
 		return nil
 	}
 
-	return retRegions
-}
-
-func checkClusterTotalForRegion(regions []RegionInfo, clusterConstraint policyv1alpha1.SpreadConstraint) bool {
-	var sum int
-	for i := range regions {
-		sum += len(regions[i].Clusters)
+	result := make([]RegionInfo, 0, len(groups))
+	for _, group := range groups {
+		result = append(result, regionMap[group.name])
 	}
-
-	return sum >= clusterConstraint.MinGroups
-}
-
-func getRegionWithMaxClusters(candidateRegions []RegionInfo, originClusters int) int {
-	var maxClusters = originClusters
-	var regionID = -1
-	for i := range candidateRegions {
-		if maxClusters < len(candidateRegions[i].Clusters) {
-			regionID = i
-			maxClusters = len(candidateRegions[i].Clusters)
-		}
-	}
-
-	return regionID
+	return result
 }

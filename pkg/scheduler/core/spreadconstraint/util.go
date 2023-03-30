@@ -9,8 +9,6 @@ import (
 const (
 	// InvalidClusterID indicate a invalid cluster
 	InvalidClusterID = -1
-	// InvalidRegionID indicate a invalid region
-	InvalidRegionID = -1
 	// InvalidReplicas indicate that don't care about the available resource
 	InvalidReplicas = -1
 )
@@ -26,10 +24,16 @@ func IsSpreadConstraintExisted(spreadConstraints []policyv1alpha1.SpreadConstrai
 	return false
 }
 
-func sortClusters(infos []ClusterDetailInfo) {
+func sortClusters(infos []ClusterDetailInfo, compareFunctions ...func(*ClusterDetailInfo, *ClusterDetailInfo) *bool) {
 	sort.Slice(infos, func(i, j int) bool {
 		if infos[i].Score != infos[j].Score {
 			return infos[i].Score > infos[j].Score
+		}
+
+		for _, compareFunc := range compareFunctions {
+			if result := compareFunc(&infos[i], &infos[j]); result != nil {
+				return *result
+			}
 		}
 
 		return infos[i].Name < infos[j].Name

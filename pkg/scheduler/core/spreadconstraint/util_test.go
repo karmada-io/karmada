@@ -90,22 +90,26 @@ func Test_sortClusters(t *testing.T) {
 			name: "same score",
 			infos: []ClusterDetailInfo{
 				{
-					Name:  "b",
-					Score: 1,
+					Name:              "b",
+					Score:             1,
+					AvailableReplicas: 5,
 				},
 				{
-					Name:  "a",
-					Score: 1,
+					Name:              "a",
+					Score:             1,
+					AvailableReplicas: 10,
 				},
 			},
 			want: []ClusterDetailInfo{
 				{
-					Name:  "a",
-					Score: 1,
+					Name:              "a",
+					Score:             1,
+					AvailableReplicas: 10,
 				},
 				{
-					Name:  "b",
-					Score: 1,
+					Name:              "b",
+					Score:             1,
+					AvailableReplicas: 5,
 				},
 			},
 		},
