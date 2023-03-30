@@ -96,7 +96,7 @@ var enableEstimator = func(opts *addoninit.CommandAddonsEnableOption) error {
 	karmadaEstimatorDeploymentBytes, err := addonutils.ParseTemplate(karmadaEstimatorDeployment, DeploymentReplace{
 		Namespace:         opts.Namespace,
 		Replicas:          &opts.KarmadaEstimatorReplicas,
-		Image:             opts.KarmadaSchedulerEstimatorImage,
+		Image:             addoninit.KarmadaSchedulerEstimatorImage(opts),
 		MemberClusterName: opts.Cluster,
 	})
 	if err != nil {
