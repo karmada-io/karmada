@@ -1,9 +1,11 @@
 package fedinformer
 
 import (
+	"fmt"
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -20,16 +22,26 @@ func NewHandlerOnAllEvents(fn func(runtime.Object)) cache.ResourceEventHandler {
 				fn(curObj)
 			}
 		},
-		DeleteFunc: func(old interface{}) {
-			if deleted, ok := old.(cache.DeletedFinalStateUnknown); ok {
-				// This object might be stale but ok for our current usage.
-				old = deleted.Obj
-				if old == nil {
+		DeleteFunc: func(obj interface{}) {
+			curObj, ok := obj.(runtime.Object)
+
+			// When a delete is dropped, the relist will notice a pod in the store not
+			// in the list, leading to the insertion of a tombstone object which contains
+			// the deleted key/value. Note that this value might be stale. If the Pod
+			// changed labels the new deployment will not be woken up till the periodic resync.
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utilruntime.HandleError(fmt.Errorf("couldn't get object from tombstone %#v", obj))
+					return
+				}
+				curObj, ok = tombstone.Obj.(runtime.Object)
+				if !ok {
+					utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a pod %#v", obj))
 					return
 				}
 			}
-			oldObj := old.(runtime.Object)
-			fn(oldObj)
+			fn(curObj)
 		},
 	}
 }
