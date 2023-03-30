@@ -54,6 +54,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection":                            schema_pkg_apis_config_v1alpha1_StatusReflection(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress":                     schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref),
 		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressList":                 schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior":                 schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm":                         schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicy":                       schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref),
@@ -63,6 +64,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPropagationPolicyList":                schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterQuotaStatus":                          schema_pkg_apis_policy_v1alpha1_ClusterQuotaStatus(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider":                        schema_pkg_apis_policy_v1alpha1_CommandArgsOverrider(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions":                          schema_pkg_apis_policy_v1alpha1_DecisionConditions(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior":                            schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuota":                      schema_pkg_apis_policy_v1alpha1_FederatedResourceQuota(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaList":                  schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaSpec":                  schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaSpec(ref),
@@ -77,6 +80,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders":                                  schema_pkg_apis_policy_v1alpha1_Overriders(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement":                                   schema_pkg_apis_policy_v1alpha1_Placement(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider":                          schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PreConditions":                               schema_pkg_apis_policy_v1alpha1_PreConditions(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicy":                           schema_pkg_apis_policy_v1alpha1_PropagationPolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicyList":                       schema_pkg_apis_policy_v1alpha1_PropagationPolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationSpec":                             schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref),
@@ -2145,6 +2149,49 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref common.Refe
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationFailoverBehavior indicates application failover behaviors.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"preConditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreConditions indicates the preconditions of the failover process. If specified, only when all conditions are met can the failover process be started. Currently, PreConditions includes several conditions: - DelaySeconds (optional) - HealthyState (optional)",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PreConditions"),
+						},
+					},
+					"decisionConditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DecisionConditions indicates the decision conditions of performing the failover process. Only when all conditions are met can the failover process be performed. Currently, DecisionConditions includes several conditions: - TolerationSeconds (optional) - HealthyState (mandatory)",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions"),
+						},
+					},
+					"purgeMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\". Defaults to \"Graciously\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"blockPredecessorSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BlockPredecessorSeconds represents the period of time the cluster from which the application was migrated from can be schedulable again. During the period of BlockPredecessorSeconds, clusters are forcibly filtered out by the scheduler. If not specified or the value is zero, the evicted cluster is schedulable to the application when rescheduling. Defaults to 600s.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"decisionConditions"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PreConditions"},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2585,6 +2632,47 @@ func schema_pkg_apis_policy_v1alpha1_CommandArgsOverrider(ref common.ReferenceCa
 				Required: []string{"containerName", "operator"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_DecisionConditions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DecisionConditions represents the decision conditions of performing the failover process.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"tolerationSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TolerationSeconds represents the period of time Karmada should wait after reaching the desired state before performing failover process. If not specified, Karmada will immediately perform failover process. Defaults to 300s.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FailoverBehavior indicates failover behaviors in case of an application or cluster failure.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"application": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Application indicates failover behaviors in case of application failure. If this value is nil, failover is disabled. If set, the PropagateDeps should be true so that the dependencies could be migrated along with the application.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"},
 	}
 }
 
@@ -3281,6 +3369,33 @@ func schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_PreConditions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PreConditions represents the preconditions of the failover process.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"delaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DelaySeconds refers to a period of time after the control plane collects the status of the application for the first time. If specified, the failover process will be started after DelaySeconds is reached. It can be used simultaneously with HealthyState and does not affect each other.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"healthyState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HealthyState refers to the healthy status reported by the Karmada resource interpreter. Valid option is \"Healthy\". If specified, the failover process will be started when the application reaches the healthy state. It can be used simultaneously with DelaySeconds and does not affect each other.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_PropagationPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3444,12 +3559,18 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"failover": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Failover indicates how Karmada migrates applications in case of failures. If this value is nil, failover is disabled.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior"),
+						},
+					},
 				},
 				Required: []string{"resourceSelectors"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"},
 	}
 }
 
