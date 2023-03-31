@@ -4,7 +4,9 @@ import (
 	"context"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +46,32 @@ func CreateOrUpdateEndpointSlice(client client.Client, endpointSlice *discoveryv
 	return nil
 }
 
+// GetEndpointSlices returns a EndpointSliceList by labels
+func GetEndpointSlices(c client.Client, ls labels.Set) (*discoveryv1.EndpointSliceList, error) {
+	endpointSlices := &discoveryv1.EndpointSliceList{}
+	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
+
+	return endpointSlices, c.List(context.TODO(), endpointSlices, listOpt)
+}
+
 // DeleteEndpointSlice will delete all EndpointSlice objects by labels.
 func DeleteEndpointSlice(c client.Client, selector labels.Set) error {
-	return c.DeleteAllOf(context.TODO(), &discoveryv1.EndpointSlice{}, client.MatchingLabels(selector))
+	endpointSliceList, err := GetEndpointSlices(c, selector)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		klog.Errorf("Failed to get endpointslices by label %v: %v", selector, err)
+		return err
+	}
+
+	var errs []error
+	for index, work := range endpointSliceList.Items {
+		if err := c.Delete(context.TODO(), &endpointSliceList.Items[index]); err != nil {
+			klog.Errorf("Failed to delete endpointslice(%s/%s): %v", work.Namespace, work.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.NewAggregate(errs)
 }
