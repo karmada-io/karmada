@@ -103,11 +103,12 @@ func GenerateResourceSelectorForServiceImport(svcImport policyv1alpha1.ResourceS
 }
 
 // IsReplicaDynamicDivided checks if a PropagationPolicy schedules replicas as dynamic.
-func IsReplicaDynamicDivided(strategy *policyv1alpha1.ReplicaSchedulingStrategy) bool {
-	if strategy == nil || strategy.ReplicaSchedulingType != policyv1alpha1.ReplicaSchedulingTypeDivided {
+func IsReplicaDynamicDivided(placement *policyv1alpha1.Placement) bool {
+	if placement.ReplicaSchedulingType() != policyv1alpha1.ReplicaSchedulingTypeDivided {
 		return false
 	}
 
+	strategy := placement.ReplicaScheduling
 	switch strategy.ReplicaDivisionPreference {
 	case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
 		return strategy.WeightPreference != nil && len(strategy.WeightPreference.DynamicWeight) != 0
@@ -132,9 +133,9 @@ func GetAppliedPlacement(annotations map[string]string) (*policyv1alpha1.Placeme
 }
 
 // SetReplicaDivisionPreferenceWeighted Set the default value of ReplicaDivisionPreference to Weighted
-func SetReplicaDivisionPreferenceWeighted(strategy *policyv1alpha1.ReplicaSchedulingStrategy) {
-	if strategy == nil || strategy.ReplicaSchedulingType != policyv1alpha1.ReplicaSchedulingTypeDivided || strategy.ReplicaDivisionPreference != "" {
+func SetReplicaDivisionPreferenceWeighted(placement *policyv1alpha1.Placement) {
+	if placement.ReplicaSchedulingType() != policyv1alpha1.ReplicaSchedulingTypeDivided || placement.ReplicaScheduling.ReplicaDivisionPreference != "" {
 		return
 	}
-	strategy.ReplicaDivisionPreference = policyv1alpha1.ReplicaDivisionPreferenceWeighted
+	placement.ReplicaScheduling.ReplicaDivisionPreference = policyv1alpha1.ReplicaDivisionPreferenceWeighted
 }

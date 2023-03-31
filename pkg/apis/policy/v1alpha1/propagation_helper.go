@@ -18,3 +18,13 @@ func (p *PropagationPolicy) ExplicitPriority() int32 {
 func (p *ClusterPropagationPolicy) ExplicitPriority() int32 {
 	return p.Spec.ExplicitPriority()
 }
+
+// ReplicaSchedulingType returns the replica assignment strategy which is
+// "Duplicated" or "Divided". Returns "Duplicated" if the replica strategy is nil.
+func (p *Placement) ReplicaSchedulingType() ReplicaSchedulingType {
+	if p.ReplicaScheduling == nil {
+		return ReplicaSchedulingTypeDuplicated
+	}
+
+	return p.ReplicaScheduling.ReplicaSchedulingType
+}

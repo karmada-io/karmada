@@ -45,5 +45,5 @@ func validatePlacement(binding *workv1alpha2.ResourceBinding) bool {
 	if placement == nil {
 		return false
 	}
-	return helper.IsReplicaDynamicDivided(placement.ReplicaScheduling)
+	return helper.IsReplicaDynamicDivided(placement)
 }
