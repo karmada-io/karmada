@@ -1,0 +1,297 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-daemonset
+spec:
+  target:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: DaemonSet
+  customizations:
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          if desiredObj.generation == nil then
+            desiredObj.generation = 0
+          end
+          generation = desiredObj.generation
+          currentNumberScheduled = 0
+          numberMisscheduled = 0 
+          desiredNumberScheduled = 0
+          numberReady = 0
+          updatedNumberScheduled = 0
+          numberAvailable = 0
+          numberUnavailable = 0
+          for i = 1, #statusItems do
+            if statusItems[i].status ~= nil and statusItems[i].status.currentNumberScheduled ~= nil then
+              currentNumberScheduled = currentNumberScheduled + statusItems[i].status.currentNumberScheduled
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.numberMisscheduled ~= nil then
+              numberMisscheduled = numberMisscheduled + statusItems[i].status.numberMisscheduled
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.desiredNumberScheduled ~= nil then
+              desiredNumberScheduled = desiredNumberScheduled + statusItems[i].status.desiredNumberScheduled
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.numberReady ~= nil then
+              numberReady = numberReady + statusItems[i].status.numberReady
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.updatedNumberScheduled ~= nil then
+              updatedNumberScheduled = updatedNumberScheduled + statusItems[i].status.updatedNumberScheduled
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.numberAvailable ~= nil then
+              numberAvailable = numberAvailable + statusItems[i].status.numberAvailable
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.numberUnavailable ~= nil then
+              numberUnavailable = numberUnavailable + statusItems[i].status.numberUnavailable
+            end
+          end
+          desiredObj.status.observedGeneration = generation
+          desiredObj.status.currentNumberScheduled = currentNumberScheduled
+          desiredObj.status.numberMisscheduled = numberMisscheduled
+          desiredObj.status.desiredNumberScheduled = desiredNumberScheduled
+          desiredObj.status.numberReady = numberReady
+          desiredObj.status.updatedNumberScheduled = updatedNumberScheduled
+          desiredObj.status.numberAvailable = numberAvailable
+          desiredObj.status.numberUnavailable = numberUnavailable
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus (observedObj)
+          status = {}
+          if observedObj == nil or observedObj.status == nil then 
+            return status
+          end
+          status.currentNumberScheduled = observedObj.status.currentNumberScheduled
+          status.numberMisscheduled = observedObj.status.numberMisscheduled
+          status.desiredNumberScheduled = observedObj.status.desiredNumberScheduled
+          status.numberReady = observedObj.status.numberReady
+          status.updatedNumberScheduled = observedObj.status.updatedNumberScheduled
+          status.numberAvailable = observedObj.status.numberAvailable
+          status.numberUnavailable = observedObj.status.numberUnavailable
+          return status
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          --[[
+          if observedObj.status.observedGeneration ~= observedObj.generation then
+            return false
+          end
+          --]]
+          if observedObj.status.updatedNumberScheduled < observedObj.status.desiredNumberScheduled then
+            return false
+          end
+          if observedObj.status.numberAvailable < observedObj.status.updatedNumberScheduled then
+            return false
+          end
+          return true
+        end
+    dependencyInterpretation:
+      luaScript: >
+        function GetDependencies(desiredObj)
+          dependentConfigMaps = {}
+          dependentSecrets = {}
+          dependentSas = {}
+          dependentPVCs = {}
+          refs = {}
+          local idx = 1
+          if desiredObj.spec.template.spec.initContainers ~= nil then
+            containers = {}
+            containers = desiredObj.spec.template.spec.initContainers
+            for key, container in pairs(containers) do
+              if container.envFrom ~= nil then
+                envFrom = {}
+                envFrom = container.envFrom
+                for indexForEnvFrom, envFromSource in pairs(envFrom) do
+                  if envFromSource.configMapRef ~= nil and envFromSource.configMapRef.name ~= nil and envFromSource.configMapRef.name ~= '' then
+                    dependentConfigMaps[envFromSource.configMapRef.name] = true
+                  end
+                  if envFromSource.secretRef ~= nil and envFromSource.secretRef.name ~= nil and envFromSource.secretRef.name ~= '' then
+                    dependentSecrets[envFromSource.secretRef.name] = true
+                  end
+                end
+              end
+              if container.env ~= nil then
+                envs = {}
+                envs = container.env
+                for indexForEnv, envVar in pairs(envs) do
+                  if envVar.valueFrom ~= nil and envVar.valueFrom.configMapKeyRef ~= nil and envVar.valueFrom.configMapKeyRef.name ~= nil and envVar.valueFrom.configMapKeyRef.name ~= '' then
+                    dependentConfigMaps[envVar.valueFrom.configMapKeyRef.name] = true
+                  end
+                  if envVar.valueFrom ~= nil and envVar.valueFrom.secretKeyRef ~= nil and envVar.valueFrom.secretKeyRef.name ~= nil and envVar.valueFrom.secretKeyRef.name ~= '' then
+                    dependentSecrets[envVar.valueFrom.secretKeyRef.name] = true
+                  end
+                end
+              end
+            end
+          end
+          if desiredObj.spec.template.spec.containers ~= nil then
+            containers = {}
+            containers = desiredObj.spec.template.spec.containers
+            for key, container in pairs(containers) do
+              if container.envFrom ~= nil then
+                envFrom = {}
+                envFrom = container.envFrom
+                for indexForEnvFrom, envFromSource in pairs(envFrom) do
+                  if envFromSource.configMapRef ~= nil and envFromSource.configMapRef.name ~= nil and envFromSource.configMapRef.name ~= nil and envFromSource.configMapRef.name ~= '' then
+                    dependentConfigMaps[envFromSource.configMapRef.name] = true
+                  end
+                  if envFromSource.secretRef ~= nil and envFromSource.secretRef.name ~= nil and envFromSource.secretRef.name ~= '' then
+                    dependentSecrets[envFromSource.secretRef.name] = true
+                  end
+                end
+              end
+              if container.env ~= nil then
+                envs = {}
+                envs = container.env
+                for indexForEnv, envVar in pairs(container.env) do
+                  if envVar.valueFrom ~= nil and envVar.valueFrom.configMapKeyRef ~= nil and envVar.valueFrom.configMapKeyRef.name ~= nil and envVar.valueFrom.configMapKeyRef.name ~= '' then
+                    dependentConfigMaps[envVar.valueFrom.configMapKeyRef.name] = true
+                  end
+                  if envVar.valueFrom ~= nil and envVar.valueFrom.secretKeyRef ~= nil and envVar.valueFrom.secretKeyRef.name ~= nil and envVar.valueFrom.secretKeyRef.name ~= '' then
+                    dependentSecrets[envVar.valueFrom.secretKeyRef.name] = true
+                  end                  
+                end
+              end
+            end            
+          end
+          if desiredObj.spec.template.spec.ephemeralContainers ~= nil then
+            containers = {}
+            containers = desiredObj.spec.template.spec.ephemeralContainers
+            for key, container in pairs(containers) do
+              if container.envFrom ~= nil then
+                envFrom = {}
+                envFrom = container.envFrom
+                for indexForEnvFrom, envFromSource in pairs(envFrom) do
+                  if envFromSource.configMapRef ~= nil and envFromSource.configMapRef.name ~= nil and envFromSource.configMapRef.name ~= '' then
+                    dependentConfigMaps[envFromSource.configMapRef.name] = true
+                  end
+                  if envFromSource.secretRef ~= nil and envFromSource.secretRef.name ~= nil and envFromSource.secretRef.name ~= '' then
+                    dependentSecrets[envFromSource.secretRef.name] = true
+                  end                  
+                end
+              end
+              if container.env ~= nil then
+                envs = {}
+                envs = container.env
+                for indexForEnv, envVar in pairs(container.env) do
+                  if envVar.valueFrom ~= nil and envVar.valueFrom.configMapKeyRef ~= nil and envVar.valueFrom.configMapKeyRef.name ~= nil and envVar.valueFrom.configMapKeyRef.name ~= '' then
+                    dependentConfigMaps[envVar.valueFrom.configMapKeyRef.name] = true
+                  end
+                  if envVar.valueFrom ~= nil and envVar.valueFrom.secretKeyRef ~= nil and envVar.valueFrom.secretKeyRef.name ~= nil and envVar.valueFrom.secretKeyRef.name ~= '' then
+                    dependentSecrets[envVar.valueFrom.secretKeyRef.name] = true
+                  end                  
+                end
+              end
+            end  
+          end
+          volumes = {}
+          if desiredObj.spec.template.spec.volumes ~= nil then
+            volumes = desiredObj.spec.template.spec.volumes
+          end
+          for volumnIndex, volume in pairs(volumes) do 
+            if volume.configMap ~= nil and volume.configMap.name ~= nil and volume.configMap.name ~= '' then
+              dependentConfigMaps[volume.configMap.name] = true
+            end
+            if volume.projected ~= nil and volume.projected.sources ~= nil then
+              sources = {}
+              sources = volume.projected.sources
+              for sourceIndex, source in pairs(sources) do
+                if source.configMap ~= nil and source.configMap.name ~= nil and source.configMap.name ~= '' then
+                  dependentConfigMaps[source.configMap.name] = true
+                end
+                if source.secret ~= nil and source.secret.name ~= nil and source.secret.name ~= '' then
+                  dependentSecrets[source.secret.name] = true
+                end
+              end
+            end
+            if volume.azureFile ~= nil and volume.azureFile.secretName ~= nil and volume.azureFile.secretName ~= '' then 
+              dependentSecrets[volume.azureFile.secretName] = true
+            end
+            if volume.cephfs ~= nil and volume.cephfs.secretRef ~= nil and volume.cephfs.secretRef.name ~= nil and volume.cephfs.secretRef.name ~= '' then
+              dependentSecrets[volume.cephfs.secretRef.name] = true
+            end
+            if volume.cinder ~= nil and volume.cinder.secretRef ~= nil and volume.cinder.secretRef.name ~= nil and volume.cinder.secretRef.name ~= '' then
+              dependentSecrets[volume.cinder.secretRef.name] = true
+            end
+            if volume.flexVolume ~= nil and volume.flexVolume.secretRef ~= nil and volume.flexVolume.secretRef.name ~= nil and volume.flexVolume.secretRef.name ~= '' then
+              dependentSecrets[volume.flexVolume.secretRef.name] = true
+            end
+            if volume.rbd ~= nil and volume.rbd.secretRef ~= nil and volume.rbd.secretRef.name ~= nil and volume.rbd.secretRef.name ~= '' then
+              dependentSecrets[volume.rbd.secretRef.name] = true
+            end
+            if volume.secret ~= nil and volume.secret.name ~= nil and volume.secret.name ~= '' then
+              dependentSecrets[volume.secret.name] = true
+            end
+            if volume.scaleIO ~= nil and volume.scaleIO.secretRef ~= nil and volume.scaleIO.secretRef.name ~= nil and volume.scaleIO.secretRef.name ~= '' then
+              dependentSecrets[volume.scaleIO.secretRef.name] = true
+            end
+            if volume.iscsi ~= nil and volume.iscsi.secretRef ~= nil and volume.iscsi.secretRef.name ~= nil and volume.iscsi.secretRef.name ~= '' then
+              dependentSecrets[volume.iscsi.secretRef.name] = true
+            end
+            if volume.storageos ~= nil and volume.storageos.secretRef ~= nil and volume.storageos.secretRef.name ~= nil and volume.storageos.secretRef.name ~= '' then
+              dependentSecrets[volume.storageos.secretRef.name] = true
+            end
+            if volume.csi ~= nil and volume.csi.nodePublishSecretRef ~= nil and volume.csi.nodePublishSecretRef.name ~= nil and volume.csi.nodePublishSecretRef.name ~= '' then
+              dependentSecrets[volume.csi.nodePublishSecretRef.name] = true
+            end
+            if volume.persistentVolumeClaim ~= nil and volume.persistentVolumeClaim.claimName ~= nil and volume.persistentVolumeClaim.claimName ~= '' then
+              dependentPVCs[volume.persistentVolumeClaim.claimName] = true
+            end
+          end
+          if desiredObj.spec.template.spec.imagePullSecrets ~= nil then
+            reference = {}
+            reference = desiredObj.spec.template.spec.imagePullSecrets
+            for key, value in pairs(reference) do
+              if value.name ~= nil and value.name ~= '' then
+                dependentSecrets[value.name] = true
+              end
+            end
+          end
+          if desiredObj.spec.template.spec.serviceAccountName ~= nil and desiredObj.spec.template.spec.serviceAccountName ~= '' and desiredObj.spec.template.spec.serviceAccountName ~= 'default' then
+              dependentSas[desiredObj.spec.template.spec.serviceAccountName] = true
+          end
+          for key, value in pairs(dependentConfigMaps) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'ConfigMap'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          for key, value in pairs(dependentSecrets) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'Secret'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          for key, value in pairs(dependentSas) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'ServiceAccount'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          for key, value in pairs(dependentPVCs) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'PersistentVolumeClaim'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          return refs
+        end

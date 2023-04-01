@@ -1,0 +1,25 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: sample-daemonset-overridepolicy
+  namespace: test-kruise-deamonset
+  labels:
+    app: sample-daemonset
+spec:
+  resourceSelectors:
+    - apiVersion: apps.kruise.io/v1alpha1
+      kind: DaemonSet
+      name: sample
+      labelSelector:
+        matchLabels:
+          app: sample-daemonset
+  overrideRules:
+    - targetCluster:
+        labelSelector:
+          matchLabels:
+            cluster: member1 
+    - overriders:
+        labelsOverrider:
+          - operator: add
+            value: 
+              bar: bar

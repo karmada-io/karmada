@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-kruise-deamonset
+  labels:
+    name: test-kruise-deamonset
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: 
+  name: mysql-config
+  namespace: test-kruise-deamonset
+data:
+  log: "1"
+  lower: "1"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-sample-config
+  namespace: test-kruise-deamonset
+data:
+  nginx.properties: |
+    proxy-connect-timeout: "10s"
+    proxy-read-timeout: "10s"
+    client-max-body-size: "2m"
+---
+apiVersion: apps.kruise.io/v1alpha1
+kind: DaemonSet
+metadata:
+  labels:
+    app: sample-daemonset
+  name: sample
+  namespace: test-kruise-deamonset
+spec:
+  selector:
+    matchLabels:
+      app: sample-daemonset
+  template:
+    metadata:
+      labels:
+        app: sample-daemonset
+    spec:
+      volumes:
+        - name: configmap
+          configMap:
+            name: my-sample-config    
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          env: 
+          - name: logData
+            valueFrom: 
+              configMapKeyRef:
+                name: mysql-config
+                key: log
+          - name: lowerData
+            valueFrom:
+              configMapKeyRef:
+                name: mysql-config
+                key: lower
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: sample-daemonset-propagationpolicy
+  namespace: test-kruise-deamonset
+spec:
+  propagateDeps: true
+  resourceSelectors:
+    - apiVersion: apps.kruise.io/v1alpha1
+      kind: DaemonSet
+      name: sample
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member3
+    replicaScheduling:
+      replicaSchedulingType: Duplicated
