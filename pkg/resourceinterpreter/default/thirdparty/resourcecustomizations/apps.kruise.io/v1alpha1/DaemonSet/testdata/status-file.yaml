@@ -1,0 +1,25 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  currentNumberScheduled: 1
+  daemonSetHash: 7dd59cf749
+  desiredNumberScheduled: 1
+  numberAvailable: 1
+  numberMisscheduled: 0
+  numberReady: 1
+  observedGeneration: 1
+  updatedNumberScheduled: 1
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  currentNumberScheduled: 1
+  daemonSetHash: 7dd59cf749
+  desiredNumberScheduled: 1
+  numberAvailable: 1
+  numberMisscheduled: 0
+  numberReady: 1
+  observedGeneration: 1
+  updatedNumberScheduled: 1
