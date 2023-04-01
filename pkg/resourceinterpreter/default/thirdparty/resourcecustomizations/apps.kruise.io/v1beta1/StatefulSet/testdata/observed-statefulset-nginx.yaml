@@ -1,0 +1,58 @@
+apiVersion: apps.kruise.io/v1beta1
+kind: StatefulSet
+metadata:
+  name: sample
+  namespace: test-statefulset
+  generation: 1
+spec:
+  replicas: 2
+  serviceName: sample-statefulset-headless-service
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      volumes:
+        - name: configmap
+          configMap:
+            name: my-sample-config  
+      readinessGates:
+      - conditionType: InPlaceUpdateReady
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+          - containerPort: 80
+            name: web          
+          env: 
+          - name: logData
+            valueFrom: 
+              configMapKeyRef:
+                name: mysql-config
+                key: log
+          - name: lowerData
+            valueFrom:
+              configMapKeyRef:
+                name: mysql-config
+                key: lower
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      podUpdatePolicy: InPlaceIfPossible
+      maxUnavailable: 2
+status:
+  availableReplicas: 2
+  collisionCount: 0
+  currentReplicas: 2
+  currentRevision: sample-5675547df7
+  labelSelector: app=sample
+  observedGeneration: 1
+  readyReplicas: 2
+  replicas: 2
+  updateRevision: sample-5675547df7
+  updatedReadyReplicas: 2
+  updatedReplicas: 2

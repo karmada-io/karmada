@@ -1,0 +1,125 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-statefulset
+spec:
+  target:
+    apiVersion: apps.kruise.io/v1beta1
+    kind: StatefulSet
+  customizations:
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+        function GetReplicas(obj)
+          replica = obj.spec.replicas
+          requirement = kube.accuratePodRequirements(obj.spec.template)
+          return replica, requirement
+        end
+    replicaRevision:
+      luaScript: >
+        function ReviseReplica(obj, desiredReplica)
+          obj.spec.replicas = desiredReplica
+          return obj
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          if desiredObj.metadata.generation == nil then
+            desiredObj.metadata.generation = 0
+          end
+          generation = desiredObj.metadata.generation
+          replicas = 0
+          readyReplicas = 0 
+          currentReplicas = 0
+          updatedReplicas = 0
+          availableReplicas = 0
+          updatedReadyReplicas = 0
+          updateRevision = ''
+          currentRevision = ''
+          for i = 1, #statusItems do
+            if statusItems[i].status ~= nil and statusItems[i].status.replicas ~= nil then
+              replicas = replicas + statusItems[i].status.replicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.readyReplicas ~= nil then
+              readyReplicas = readyReplicas + statusItems[i].status.readyReplicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.currentReplicas ~= nil then
+              currentReplicas = currentReplicas + statusItems[i].status.currentReplicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.updatedReplicas ~= nil then
+              updatedReplicas = updatedReplicas + statusItems[i].status.updatedReplicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.availableReplicas ~= nil then
+              availableReplicas = availableReplicas + statusItems[i].status.availableReplicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.updatedReadyReplicas ~= nil then
+              updatedReadyReplicas = updatedReadyReplicas + statusItems[i].status.updatedReadyReplicas
+            end            
+            if statusItems[i].status ~= nil and statusItems[i].status.updateRevision ~= nil and statusItems[i].status.updateRevision ~= '' then
+              updateRevision = statusItems[i].status.updateRevision
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.currentRevision ~= nil and statusItems[i].status.currentRevision ~= '' then
+              currentRevision = statusItems[i].status.currentRevision
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.observedGeneration ~= nil and statusItems[i].status.observedGeneration ~= '' then
+              generation = statusItems[i].status.observedGeneration
+            end            
+          end
+          desiredObj.status.observedGeneration = generation
+          desiredObj.status.replicas = replicas
+          desiredObj.status.readyReplicas = readyReplicas
+          desiredObj.status.currentReplicas = currentReplicas
+          desiredObj.status.updatedReplicas = updatedReplicas
+          desiredObj.status.availableReplicas = availableReplicas
+          desiredObj.status.updatedReadyReplicas = updatedReadyReplicas
+          desiredObj.status.updateRevision = updateRevision
+          desiredObj.status.currentRevision = currentRevision
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus (observedObj)
+          status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+          status.replicas = observedObj.status.replicas
+          status.readyReplicas = observedObj.status.readyReplicas
+          status.currentReplicas = observedObj.status.currentReplicas
+          status.updatedReplicas = observedObj.status.updatedReplicas
+          status.availableReplicas = observedObj.status.availableReplicas
+          status.updateRevision = observedObj.status.updateRevision
+          status.currentRevision = observedObj.status.currentRevision
+          status.updatedReadyReplicas = observedObj.status.updatedReadyReplicas
+          status.observedGeneration = observedObj.status.observedGeneration
+          return status
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status.observedGeneration ~= observedObj.metadata.generation then
+            return false
+          end
+          if observedObj.spec.replicas ~= nil then
+            if observedObj.status.updatedReplicas < observedObj.spec.replicas then
+              return false
+            end
+          end
+          if observedObj.status.availableReplicas < observedObj.status.updatedReplicas then
+            return false
+          end
+          return true
+        end
+    dependencyInterpretation:
+      luaScript: >
+        local kube = require("kube")
+        function GetDependencies(desiredObj)
+          refs = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
+          return refs
+        end
