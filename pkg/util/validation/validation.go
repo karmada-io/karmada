@@ -6,8 +6,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/pointer"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -95,7 +95,7 @@ func ValidatePolicyFieldSelector(fieldSelector *policyv1alpha1.FieldSelector) er
 func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstraint, fldPath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
-	spreadByFields := sets.New[string]()
+	spreadByFieldsWithErrorMark := make(map[policyv1alpha1.SpreadFieldValue]*bool)
 	for index, constraint := range spreadConstraints {
 		// SpreadByField and SpreadByLabel should not co-exist
 		if len(constraint.SpreadByField) > 0 && len(constraint.SpreadByLabel) > 0 {
@@ -118,15 +118,22 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 		}
 
 		if len(constraint.SpreadByField) > 0 {
-			spreadByFields.Insert(string(constraint.SpreadByField))
+			marked := spreadByFieldsWithErrorMark[constraint.SpreadByField]
+			if !pointer.BoolDeref(marked, true) {
+				allErrs = append(allErrs, field.Invalid(fldPath, spreadConstraints, fmt.Sprintf("multiple %s spread constraints are not allowed", constraint.SpreadByField)))
+				*marked = true
+			}
+			if marked == nil {
+				spreadByFieldsWithErrorMark[constraint.SpreadByField] = pointer.Bool(false)
+			}
 		}
 	}
 
-	if spreadByFields.Len() > 0 {
+	if len(spreadByFieldsWithErrorMark) > 0 {
 		// If one of spread constraints are using 'SpreadByField', the 'SpreadByFieldCluster' must be included.
 		// For example, when using 'SpreadByFieldRegion' to specify region groups, at the meantime, you must use
 		// 'SpreadByFieldCluster' to specify how many clusters should be selected.
-		if !spreadByFields.Has(string(policyv1alpha1.SpreadByFieldCluster)) {
+		if _, ok := spreadByFieldsWithErrorMark[policyv1alpha1.SpreadByFieldCluster]; !ok {
 			allErrs = append(allErrs, field.Invalid(fldPath, spreadConstraints, "the cluster spread constraint must be enabled in one of the constraints in case of SpreadByField is enabled"))
 		}
 	}
