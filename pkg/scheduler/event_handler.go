@@ -18,6 +18,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // addAllEventHandlers is a helper function used in Scheduler
@@ -103,6 +104,23 @@ func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
 }
 
 func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
+	unstructuredOldObj, err := helper.ToUnstructured(old)
+	if err != nil {
+		klog.Errorf("Failed to transform oldObj, error: %v", err)
+		return
+	}
+
+	unstructuredNewObj, err := helper.ToUnstructured(cur)
+	if err != nil {
+		klog.Errorf("Failed to transform newObj, error: %v", err)
+		return
+	}
+
+	if unstructuredOldObj.GetGeneration() == unstructuredNewObj.GetGeneration() {
+		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
+		return
+	}
+
 	key, err := cache.MetaNamespaceKeyFunc(cur)
 	if err != nil {
 		klog.Errorf("couldn't get key for object %#v: %v", cur, err)
