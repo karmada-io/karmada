@@ -11,15 +11,15 @@ import (
 // GroupInfo indicate the group info.
 type GroupInfo struct {
 	name   string
-	value  int
+	value  int64
 	weight int64
 }
 
 type dfsPath struct {
-	id     int
+	id     int32
 	groups []*GroupInfo
 	weight int64
-	value  int
+	value  int64
 }
 
 func (path *dfsPath) next() *dfsPath {
@@ -83,7 +83,7 @@ func (path *dfsPath) String() string {
 }
 
 // selectGroups select best groups in all groups.
-func selectGroups(groups []*GroupInfo, minConstraint, maxConstraint, target int) []*GroupInfo {
+func selectGroups(groups []*GroupInfo, minConstraint, maxConstraint int, target int64) []*GroupInfo {
 	if len(groups) == 0 {
 		return nil
 	}
@@ -127,7 +127,7 @@ func selectGroups(groups []*GroupInfo, minConstraint, maxConstraint, target int)
 // minConstraint and maxConstraint are used to limit the length of the path. Therefore, we can exclude some
 // combinations whose path is too long or too short during the search process.
 // If we set minConstraint=2 and maxConstraint=2, so the feasible paths is: [2,6] [2,7] [3,6] [3,7] [6,7]
-func findFeasiblePaths(groups []*GroupInfo, minConstraint, maxConstraint, target int) (paths []*dfsPath) {
+func findFeasiblePaths(groups []*GroupInfo, minConstraint, maxConstraint int, target int64) (paths []*dfsPath) {
 	if len(groups) > 1 {
 		sort.Slice(groups, func(i, j int) bool {
 			if groups[i].value != groups[j].value {
@@ -143,8 +143,8 @@ func findFeasiblePaths(groups []*GroupInfo, minConstraint, maxConstraint, target
 	}
 
 	rootPath := new(dfsPath)
-	var dfsFunc func(int, int)
-	dfsFunc = func(sum, begin int) {
+	var dfsFunc func(int64, int)
+	dfsFunc = func(sum int64, begin int) {
 		if sum >= target && rootPath.length() >= minConstraint && rootPath.length() <= maxConstraint {
 			paths = append(paths, rootPath.next())
 			return

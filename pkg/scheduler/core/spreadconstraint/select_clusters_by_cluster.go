@@ -19,79 +19,43 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 		needCnt = totalClusterCnt
 	}
 
-	var clusterInfos []ClusterDetailInfo
-
+	var clusters []*clusterv1alpha1.Cluster
 	if needReplicas == InvalidReplicas {
-		clusterInfos = groupClustersInfo.Clusters[:needCnt]
+		clusterInfos := groupClustersInfo.Clusters[:needCnt]
+		for i := range clusterInfos {
+			clusters = append(clusters, clusterInfos[i].Cluster)
+		}
 	} else {
-		clusterInfos = selectClustersByAvailableResource(groupClustersInfo.Clusters, int32(needCnt), needReplicas)
-		if len(clusterInfos) == 0 {
+		clusters = selectClusters(groupClustersInfo.Clusters, spreadConstraint, needReplicas)
+		if len(clusters) == 0 {
 			return nil, fmt.Errorf("no enough resource when selecting %d clusters", needCnt)
 		}
-	}
-
-	var clusters []*clusterv1alpha1.Cluster
-	for i := range clusterInfos {
-		clusters = append(clusters, clusterInfos[i].Cluster)
 	}
 
 	return clusters, nil
 }
 
-// if needClusterCount = 2, needReplicas = 80, member1 and member3 will be selected finally.
-// because the total resource of member1 and member2 is less than needReplicas although their scores is highest
-// --------------------------------------------------
-// | clusterName      | member1 | member2 | member3 |
-// |-------------------------------------------------
-// | score            |   60    |    50   |    40   |
-// |------------------------------------------------|
-// |AvailableReplicas |   40    |    30   |    60   |
-// |------------------------------------------------|
-func selectClustersByAvailableResource(candidateClusters []ClusterDetailInfo, needClusterCount, needReplicas int32) []ClusterDetailInfo {
-	retClusters := candidateClusters[:needClusterCount]
-	restClusters := candidateClusters[needClusterCount:]
-
-	// the retClusters is sorted by cluster.Score descending. when the total AvailableReplicas of retClusters is less than needReplicas,
-	// use the cluster with the most AvailableReplicas in restClusters to instead the cluster with the lowest score,
-	// from the last cluster of the slice until checkAvailableResource returns true
-	var updateClusterID = len(retClusters) - 1
-	for !checkAvailableResource(retClusters, needReplicas) && updateClusterID >= 0 {
-		clusterID := GetClusterWithMaxAvailableResource(restClusters, retClusters[updateClusterID].AvailableReplicas)
-		if clusterID == InvalidClusterID {
-			updateClusterID--
-			continue
+func selectClusters(clusters []ClusterDetailInfo, clusterConstraint policyv1alpha1.SpreadConstraint, needReplicas int32) []*clusterv1alpha1.Cluster {
+	groups := make([]*GroupInfo, 0, len(clusters))
+	clusterMap := make(map[string]*clusterv1alpha1.Cluster, len(clusters))
+	for _, cluster := range clusters {
+		group := &GroupInfo{
+			name:   cluster.Name,
+			value:  cluster.AvailableReplicas,
+			weight: cluster.Score,
 		}
-
-		retClusters[updateClusterID], restClusters[clusterID] = restClusters[clusterID], retClusters[updateClusterID]
-		updateClusterID--
+		groups = append(groups, group)
+		clusterMap[cluster.Name] = cluster.Cluster
 	}
 
-	if !checkAvailableResource(retClusters, needReplicas) {
+	groups = selectGroups(groups, clusterConstraint.MinGroups, clusterConstraint.MaxGroups, int64(needReplicas))
+	if len(groups) == 0 {
 		return nil
 	}
-	return retClusters
-}
 
-func checkAvailableResource(clusters []ClusterDetailInfo, needReplicas int32) bool {
-	var total int64
-
-	for i := range clusters {
-		total += clusters[i].AvailableReplicas
+	result := make([]*clusterv1alpha1.Cluster, 0, len(groups))
+	for _, group := range groups {
+		result = append(result, clusterMap[group.name])
 	}
-
-	return total >= int64(needReplicas)
-}
-
-// GetClusterWithMaxAvailableResource returns the cluster with maxAvailableReplicas
-func GetClusterWithMaxAvailableResource(candidateClusters []ClusterDetailInfo, originReplicas int64) int {
-	var maxAvailableReplicas = originReplicas
-	var clusterID = InvalidClusterID
-	for i := range candidateClusters {
-		if maxAvailableReplicas < candidateClusters[i].AvailableReplicas {
-			clusterID = i
-			maxAvailableReplicas = candidateClusters[i].AvailableReplicas
-		}
-	}
-
-	return clusterID
+	return result
 }

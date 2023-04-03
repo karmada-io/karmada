@@ -84,13 +84,13 @@ func selectRegions(regionMap map[string]RegionInfo, regionConstraint, clusterCon
 	for _, region := range regionMap {
 		group := &GroupInfo{
 			name:   region.Name,
-			value:  len(region.Clusters),
+			value:  int64(len(region.Clusters)),
 			weight: region.Score,
 		}
 		groups = append(groups, group)
 	}
 
-	groups = selectGroups(groups, regionConstraint.MinGroups, regionConstraint.MaxGroups, clusterConstraint.MinGroups)
+	groups = selectGroups(groups, regionConstraint.MinGroups, regionConstraint.MaxGroups, int64(clusterConstraint.MinGroups))
 	if len(groups) == 0 {
 		return nil
 	}

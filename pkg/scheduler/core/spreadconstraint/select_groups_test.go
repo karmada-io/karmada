@@ -11,7 +11,7 @@ func TestSelectGroups(t *testing.T) {
 		groups         []*GroupInfo
 		minConstraints int
 		maxConstraints int
-		target         int
+		target         int64
 		expected       []string
 	}{
 		{
