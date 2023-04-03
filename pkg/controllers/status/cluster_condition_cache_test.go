@@ -187,3 +187,111 @@ func TestThresholdAdjustedReadyCondition(t *testing.T) {
 		})
 	}
 }
+
+func TestClusterConditionStore_Get(t *testing.T) {
+	// Create a new clusterConditionStore
+	store := clusterConditionStore{}
+
+	// Create a new clusterData object
+	cluster := "test-cluster"
+	now := time.Now()
+	data := &clusterData{
+		readyCondition:     metav1.ConditionTrue,
+		thresholdStartTime: now,
+	}
+
+	// Add the clusterData object to the store
+	store.clusterDataMap.Store(cluster, data)
+
+	// Call the get function and check the returned value
+	result := store.get(cluster)
+	if result == nil {
+		t.Errorf("Expected non-nil result, got nil")
+	}
+	if result != data {
+		t.Errorf("Expected %v, got %v", data, result)
+	}
+
+	// Call the get function with a non-existent cluster and check the returned value
+	result = store.get("non-existent-cluster")
+	if result != nil {
+		t.Errorf("Expected nil result, got %v", result)
+	}
+}
+
+func TestClusterConditionStore_Update(t *testing.T) {
+	// Create a new clusterConditionStore
+	store := &clusterConditionStore{}
+
+	// Create a new clusterData object
+	cluster := "test-cluster"
+	now := time.Now()
+	data := &clusterData{
+		readyCondition:     metav1.ConditionTrue,
+		thresholdStartTime: now,
+	}
+
+	t.Run("Test update with new data", func(t *testing.T) {
+		// Update the cluster with new data
+		store.update(cluster, data)
+
+		// Retrieve the updated data and verify it
+		result := store.get(cluster)
+		if result == nil {
+			t.Errorf("Expected non-nil result, got nil")
+		}
+		if result != data {
+			t.Errorf("Expected %v, got %v", data, result)
+		}
+	})
+
+	t.Run("Test update with same data", func(t *testing.T) {
+		// Update the cluster with the same data
+		store.update(cluster, data)
+
+		// Retrieve the updated data and verify it
+		result := store.get(cluster)
+		if result == nil {
+			t.Errorf("Expected non-nil result, got nil")
+		}
+		if result != data {
+			t.Errorf("Expected %v, got %v", data, result)
+		}
+	})
+
+	t.Run("Test update with nil data", func(t *testing.T) {
+		// Update the cluster with nil data
+		store.update(cluster, nil)
+
+		// Retrieve the updated data and verify it
+		result := store.get(cluster)
+		if result != nil {
+			t.Errorf("Expected nil result, got %v", result)
+		}
+	})
+}
+
+func TestClusterConditionStore_Delete(t *testing.T) {
+	// Create a new clusterConditionStore
+	store := clusterConditionStore{}
+
+	// Create a new clusterData object
+	cluster := "test-cluster"
+	now := time.Now()
+	data := &clusterData{
+		readyCondition:     metav1.ConditionTrue,
+		thresholdStartTime: now,
+	}
+
+	// Add the clusterData object to the store
+	store.clusterDataMap.Store(cluster, data)
+
+	// Delete the clusterData object from the store
+	store.delete(cluster)
+
+	// Call the get function with the deleted cluster and check the returned value
+	result := store.get(cluster)
+	if result != nil {
+		t.Errorf("Expected nil result, got %v", result)
+	}
+}
