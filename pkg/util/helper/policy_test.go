@@ -315,7 +315,7 @@ func TestIsReplicaDynamicDivided(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := IsReplicaDynamicDivided(tt.strategy)
+			res := IsReplicaDynamicDivided(&policyv1alpha1.Placement{ReplicaScheduling: tt.strategy})
 			if res != tt.expected {
 				t.Errorf("expected %v, but got %v", tt.expected, res)
 			}
@@ -357,6 +357,45 @@ func TestGetAppliedPlacement(t *testing.T) {
 			res, err := GetAppliedPlacement(tt.annotations)
 			if !reflect.DeepEqual(res, tt.expectedPlacement) || err != tt.expectedErr {
 				t.Errorf("expected %v and %v, but got %v and %v", tt.expectedPlacement, tt.expectedErr, res, err)
+			}
+		})
+	}
+}
+
+func TestSetReplicaDivisionPreferenceWeighted(t *testing.T) {
+	tests := []struct {
+		name             string
+		strategy         *policyv1alpha1.ReplicaSchedulingStrategy
+		expectedWeighted bool
+	}{
+		{
+			name:             "no replica scheduling strategy declared",
+			expectedWeighted: false,
+		},
+		{
+			name: "specified aggregated division preference",
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+			},
+			expectedWeighted: false,
+		},
+		{
+			name: "unspecified replica division preference",
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+			},
+			expectedWeighted: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &policyv1alpha1.Placement{ReplicaScheduling: tt.strategy}
+			SetReplicaDivisionPreferenceWeighted(p)
+			if (p.ReplicaScheduling != nil &&
+				p.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted) != tt.expectedWeighted {
+				t.Errorf("expectedWeighted %v, but got %v", tt.expectedWeighted, !tt.expectedWeighted)
 			}
 		})
 	}
