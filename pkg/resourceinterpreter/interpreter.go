@@ -14,6 +14,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/webhook/request"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/thirdparty"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
@@ -59,9 +60,10 @@ func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager
 type customResourceInterpreterImpl struct {
 	informer genericmanager.SingleClusterInformerManager
 
-	customizedInterpreter   *webhook.CustomizedInterpreter
-	defaultInterpreter      *native.DefaultInterpreter
 	configurableInterpreter *declarative.ConfigurableInterpreter
+	customizedInterpreter   *webhook.CustomizedInterpreter
+	thirdpartyInterpreter   *thirdparty.ConfigurableInterpreter
+	defaultInterpreter      *native.DefaultInterpreter
 }
 
 // Start starts running the component and will never stop running until the context is closed or an error occurs.
@@ -74,6 +76,7 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	}
 	i.configurableInterpreter = declarative.NewConfigurableInterpreter(i.informer)
 
+	i.thirdpartyInterpreter = thirdparty.NewConfigurableInterpreter()
 	i.defaultInterpreter = native.NewDefaultInterpreter()
 
 	i.informer.Start()
@@ -85,6 +88,7 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 // HookEnabled tells if any hook exist for specific resource type and operation.
 func (i *customResourceInterpreterImpl) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
 	return i.defaultInterpreter.HookEnabled(objGVK, operation) ||
+		i.thirdpartyInterpreter.HookEnabled(objGVK, operation) ||
 		i.configurableInterpreter.HookEnabled(objGVK, operation) ||
 		i.customizedInterpreter.HookEnabled(objGVK, operation)
 }
@@ -105,6 +109,13 @@ func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstruc
 		Operation: configv1alpha1.InterpreterOperationInterpretReplica,
 		Object:    object,
 	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+	replica, requires, hookEnabled, err = i.thirdpartyInterpreter.GetReplicas(object)
 	if err != nil {
 		return
 	}
@@ -138,6 +149,13 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 	if hookEnabled {
 		return obj, nil
 	}
+	obj, hookEnabled, err = i.thirdpartyInterpreter.ReviseReplica(object, replica)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
 
 	return i.defaultInterpreter.ReviseReplica(object, replica)
 }
@@ -158,6 +176,13 @@ func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructure
 		Object:      desired,
 		ObservedObj: observed,
 	})
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
+	obj, hookEnabled, err = i.thirdpartyInterpreter.Retain(desired, observed)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +215,13 @@ func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Uns
 	if hookEnabled {
 		return obj, nil
 	}
+	obj, hookEnabled, err = i.thirdpartyInterpreter.AggregateStatus(object, aggregatedStatusItems)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
 
 	return i.defaultInterpreter.AggregateStatus(object, aggregatedStatusItems)
 }
@@ -208,6 +240,13 @@ func (i *customResourceInterpreterImpl) GetDependencies(object *unstructured.Uns
 		Operation: configv1alpha1.InterpreterOperationInterpretDependency,
 		Object:    object,
 	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+	dependencies, hookEnabled, err = i.thirdpartyInterpreter.GetDependencies(object)
 	if err != nil {
 		return
 	}
@@ -238,7 +277,13 @@ func (i *customResourceInterpreterImpl) ReflectStatus(object *unstructured.Unstr
 	if hookEnabled {
 		return
 	}
-
+	status, hookEnabled, err = i.thirdpartyInterpreter.ReflectStatus(object)
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
 	status, err = i.defaultInterpreter.ReflectStatus(object)
 	return
 }
@@ -257,6 +302,13 @@ func (i *customResourceInterpreterImpl) InterpretHealth(object *unstructured.Uns
 		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
 		Object:    object,
 	})
+	if err != nil {
+		return
+	}
+	if hookEnabled {
+		return
+	}
+	healthy, hookEnabled, err = i.thirdpartyInterpreter.InterpretHealth(object)
 	if err != nil {
 		return
 	}
