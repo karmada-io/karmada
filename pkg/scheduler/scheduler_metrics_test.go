@@ -25,7 +25,12 @@ var (
 		scheduler.onResourceBindingAdd(obj)
 	}
 	updateBinding = func(scheduler *Scheduler, obj interface{}) {
-		scheduler.onResourceBindingUpdate(nil, obj)
+		oldRB := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Generation: 1,
+			},
+		}
+		scheduler.onResourceBindingUpdate(oldRB, obj)
 	}
 	policyChanged = func(scheduler *Scheduler, obj interface{}) {
 		rb := obj.(*workv1alpha2.ResourceBinding)
@@ -68,7 +73,7 @@ func TestIncomingBindingMetrics(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("test-rb-%d", i),
 				Namespace:  "bar",
-				Generation: 1,
+				Generation: 2,
 			},
 		}
 		rbInfos = append(rbInfos, rb)
@@ -77,7 +82,8 @@ func TestIncomingBindingMetrics(t *testing.T) {
 	for i := 1; i <= 3; i++ {
 		crb := &workv1alpha2.ClusterResourceBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("test-rb-%d", i),
+				Name:       fmt.Sprintf("test-rb-%d", i),
+				Generation: 2,
 			},
 		}
 		crbInfos = append(crbInfos, crb)
