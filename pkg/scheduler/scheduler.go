@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"time"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -505,19 +504,11 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
 	newBinding.Spec.Clusters = scheduleResult
 
-	oldData, err := json.Marshal(oldBinding)
+	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal the existing resource binding(%s/%s): %v", oldBinding.Namespace, oldBinding.Name, err)
+		return err
 	}
-	newData, err := json.Marshal(newBinding)
-	if err != nil {
-		return fmt.Errorf("failed to marshal the new resource binding(%s/%s): %v", newBinding.Namespace, newBinding.Name, err)
-	}
-	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
-	if err != nil {
-		return fmt.Errorf("failed to create a merge patch: %v", err)
-	}
-	if "{}" == string(patchBytes) {
+	if len(patchBytes) == 0 {
 		return nil
 	}
 
@@ -649,19 +640,11 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
 	newBinding.Spec.Clusters = scheduleResult
 
-	oldData, err := json.Marshal(oldBinding)
+	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal the existing cluster resource binding(%s): %v", oldBinding.Name, err)
+		return err
 	}
-	newData, err := json.Marshal(newBinding)
-	if err != nil {
-		return fmt.Errorf("failed to marshal the new resource binding(%s): %v", newBinding.Name, err)
-	}
-	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
-	if err != nil {
-		return fmt.Errorf("failed to create a merge patch: %v", err)
-	}
-	if "{}" == string(patchBytes) {
+	if len(patchBytes) == 0 {
 		return nil
 	}
 
@@ -727,27 +710,32 @@ func patchBindingStatusCondition(karmadaClient karmadaclientset.Interface, rb *w
 	if newScheduledCondition.Status == metav1.ConditionTrue {
 		updateRB.Status.SchedulerObservedGeneration = rb.Generation
 	}
+
+	if reflect.DeepEqual(rb.Status, updateRB.Status) {
+		return nil
+	}
 	return patchBindingStatus(karmadaClient, rb, updateRB)
 }
 
 // patchBindingStatusWithAffinityName patches schedule status with affinityName of ResourceBinding when necessary.
 func patchBindingStatusWithAffinityName(karmadaClient karmadaclientset.Interface, rb *workv1alpha2.ResourceBinding, affinityName string) error {
-	klog.V(4).Infof("Begin to patch status with affinityName(%s) to ResourceBinding(%s/%s).", affinityName, rb.Namespace, rb.Name)
+	if rb.Status.SchedulerObservedAffinityName == affinityName {
+		return nil
+	}
 
+	klog.V(4).Infof("Begin to patch status with affinityName(%s) to ResourceBinding(%s/%s).", affinityName, rb.Namespace, rb.Name)
 	updateRB := rb.DeepCopy()
 	updateRB.Status.SchedulerObservedAffinityName = affinityName
 	return patchBindingStatus(karmadaClient, rb, updateRB)
 }
 
 func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *workv1alpha2.ResourceBinding) error {
-	// Short path, ignore patch if no change.
-	if reflect.DeepEqual(rb.Status, updateRB.Status) {
-		return nil
-	}
-
 	patchBytes, err := helper.GenMergePatch(rb, updateRB)
 	if err != nil {
-		return fmt.Errorf("failed to create a merge patch: %v", err)
+		return err
+	}
+	if len(patchBytes) == 0 {
+		return nil
 	}
 
 	_, err = karmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
@@ -771,11 +759,19 @@ func patchClusterBindingStatusCondition(karmadaClient karmadaclientset.Interface
 	if newScheduledCondition.Status == metav1.ConditionTrue {
 		updateCRB.Status.SchedulerObservedGeneration = crb.Generation
 	}
+
+	if reflect.DeepEqual(crb.Status, updateCRB.Status) {
+		return nil
+	}
 	return patchClusterResourceBindingStatus(karmadaClient, crb, updateCRB)
 }
 
 // patchClusterBindingStatusWithAffinityName patches schedule status with affinityName of ClusterResourceBinding when necessary.
 func patchClusterBindingStatusWithAffinityName(karmadaClient karmadaclientset.Interface, crb *workv1alpha2.ClusterResourceBinding, affinityName string) error {
+	if crb.Status.SchedulerObservedAffinityName == affinityName {
+		return nil
+	}
+
 	klog.V(4).Infof("Begin to patch status with affinityName(%s) to ClusterResourceBinding(%s).", affinityName, crb.Name)
 	updateCRB := crb.DeepCopy()
 	updateCRB.Status.SchedulerObservedAffinityName = affinityName
@@ -783,14 +779,12 @@ func patchClusterBindingStatusWithAffinityName(karmadaClient karmadaclientset.In
 }
 
 func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface, crb, updateCRB *workv1alpha2.ClusterResourceBinding) error {
-	// Short path, ignore patch if no change.
-	if reflect.DeepEqual(crb.Status, updateCRB.Status) {
-		return nil
-	}
-
 	patchBytes, err := helper.GenMergePatch(crb, updateCRB)
 	if err != nil {
-		return fmt.Errorf("failed to create a merge patch: %v", err)
+		return err
+	}
+	if len(patchBytes) == 0 {
+		return nil
 	}
 
 	_, err = karmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")

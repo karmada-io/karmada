@@ -9,7 +9,7 @@ import (
 )
 
 func TestGenMergePatch(t *testing.T) {
-	testObj := workv1alpha2.ResourceBinding{
+	testObj := &workv1alpha2.ResourceBinding{
 		TypeMeta:   metav1.TypeMeta{Kind: "ResourceBinding", APIVersion: "work.karmada.io/v1alpha2"},
 		ObjectMeta: metav1.ObjectMeta{Name: "foo"},
 		Spec:       workv1alpha2.ResourceBindingSpec{Clusters: []workv1alpha2.TargetCluster{{Name: "foo", Replicas: 20}}},
@@ -68,7 +68,7 @@ func TestGenMergePatch(t *testing.T) {
 				modified := testObj.DeepCopy()
 				return modified
 			},
-			expectedPatch: `{}`,
+			expectedPatch: "",
 			expectErr:     false,
 		},
 		{
@@ -77,22 +77,31 @@ func TestGenMergePatch(t *testing.T) {
 				var invalid = 0
 				return invalid
 			},
-			expectedPatch: ``, // empty(nil) patch
+			expectedPatch: "",
 			expectErr:     true,
+		},
+		{
+			name: "update to empty annotations",
+			modifyFunc: func() interface{} {
+				modified := testObj.DeepCopy()
+				modified.Annotations = make(map[string]string, 0)
+				return modified
+			},
+			expectedPatch: "",
+			expectErr:     false,
 		},
 	}
 
-	for _, test := range tests {
-		tc := test
-		t.Run(test.name, func(t *testing.T) {
-			patch, err := GenMergePatch(testObj, tc.modifyFunc())
-			if err != nil && tc.expectErr == false {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patch, err := GenMergePatch(testObj, tt.modifyFunc())
+			if err != nil && tt.expectErr == false {
 				t.Fatalf("unexpect error, but got: %v", err)
-			} else if err == nil && tc.expectErr == true {
+			} else if err == nil && tt.expectErr == true {
 				t.Fatalf("expect error, but got none")
 			}
-			if string(patch) != tc.expectedPatch {
-				t.Fatalf("want patch: %s, but got :%s", tc.expectedPatch, string(patch))
+			if string(patch) != tt.expectedPatch {
+				t.Fatalf("want patch: %s, but got :%s", tt.expectedPatch, string(patch))
 			}
 		})
 	}
