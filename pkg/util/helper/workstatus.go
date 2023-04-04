@@ -65,7 +65,7 @@ func AggregateResourceBindingWorkStatus(
 		// set binding status with the newest condition
 		currentBindingStatus.Conditions = binding.Status.Conditions
 		meta.SetStatusCondition(&currentBindingStatus.Conditions, fullyAppliedCondition)
-		if reflect.DeepEqual(binding.Status, currentBindingStatus) {
+		if reflect.DeepEqual(binding.Status, *currentBindingStatus) {
 			klog.V(4).Infof("New aggregatedStatuses are equal with old resourceBinding(%s/%s) AggregatedStatus, no update required.",
 				binding.Namespace, binding.Name)
 			return nil
@@ -125,7 +125,7 @@ func AggregateClusterResourceBindingWorkStatus(
 		// set binding status with the newest condition
 		currentBindingStatus.Conditions = binding.Status.Conditions
 		meta.SetStatusCondition(&currentBindingStatus.Conditions, fullyAppliedCondition)
-		if reflect.DeepEqual(binding.Status, currentBindingStatus) {
+		if reflect.DeepEqual(binding.Status, *currentBindingStatus) {
 			klog.Infof("New aggregatedStatuses are equal with old clusterResourceBinding(%s) AggregatedStatus, no update required.", binding.Name)
 			return nil
 		}
