@@ -1,0 +1,48 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: AdvancedCronJob
+metadata:
+  labels:
+    app: sample
+  name: sample
+  namespace: test-acj
+spec:
+  schedule: "*/2 * * * *"
+  template:
+    broadcastJobTemplate:
+      spec:
+        template:
+          metadata:
+            labels:
+              app: sample
+          spec:
+            restartPolicy: Never
+            volumes:
+              - name: configmap
+                configMap:
+                  name: my-sample-config    
+            containers:
+              - name: nginx
+                image: nginx:alpine
+                env: 
+                - name: logData
+                  valueFrom: 
+                    configMapKeyRef:
+                      name: mysql-config
+                      key: log
+                - name: lowerData
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mysql-config
+                      key: lower
+        completionPolicy:
+          type: Never
+status:
+  active:
+  - apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    name: sample-1681378080
+    namespace: test-acj
+    resourceVersion: "3635081"
+    uid: d1f3c194-d650-4cce-b23d-307a445bb92e
+  lastScheduleTime: "2023-04-13T09:28:00Z"
+  type: BroadcastJob

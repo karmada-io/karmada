@@ -1,0 +1,27 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  active:
+  - apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    name: sample-1681378080
+    namespace: test-acj
+    resourceVersion: "3636404"
+    uid: f96013ef-2869-49d7-adf3-8f7231cc5e2a
+  lastScheduleTime: "2023-04-13T09:30:00Z"
+  type: BroadcastJob
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  active:
+  - apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    name: sample-1681378080
+    namespace: test-acj
+    resourceVersion: "3635081"
+    uid: d1f3c194-d650-4cce-b23d-307a445bb92e
+  lastScheduleTime: "2023-04-13T09:30:00Z"
+  type: BroadcastJob
