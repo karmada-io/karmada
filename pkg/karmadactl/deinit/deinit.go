@@ -37,8 +37,9 @@ type CommandDeInitOption struct {
 	Namespace  string
 
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
-	DryRun bool
-	Force  bool
+	DryRun         bool
+	Force          bool
+	PurgeNamespace bool
 
 	KubeClientSet *kubernetes.Clientset
 }
@@ -81,6 +82,7 @@ func NewCmdDeInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Reset cluster without prompting for confirmation.")
+	flags.BoolVar(&opts.PurgeNamespace, "purge-namespace", false, "Run the command with purge-namespace, the namespace which Karmada components were installed will be deleted.")
 	return cmd
 }
 
@@ -143,14 +145,15 @@ func (o *CommandDeInitOption) delete() error {
 	}
 
 	// Delete namespace where Karmada components are installed
-	fmt.Printf("delete Namespace %q\n", o.Namespace)
-	if o.DryRun {
-		return nil
+	if o.PurgeNamespace {
+		fmt.Printf("delete Namespace %q\n", o.Namespace)
+		if o.DryRun {
+			return nil
+		}
+		if err = o.KubeClientSet.CoreV1().Namespaces().Delete(context.Background(), o.Namespace, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
 	}
-	if err = o.KubeClientSet.CoreV1().Namespaces().Delete(context.Background(), o.Namespace, metav1.DeleteOptions{}); err != nil {
-		return err
-	}
-
 	return nil
 }
 
