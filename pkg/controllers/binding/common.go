@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -23,16 +24,22 @@ func ensureWork(
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
+	var placement *policyv1alpha1.Placement
 	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
+	var replicas int32
 	switch scope {
 	case apiextensionsv1.NamespaceScoped:
 		bindingObj := binding.(*workv1alpha2.ResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
 		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
+		placement = bindingObj.Spec.Placement
+		replicas = bindingObj.Spec.Replicas
 	case apiextensionsv1.ClusterScoped:
 		bindingObj := binding.(*workv1alpha2.ClusterResourceBinding)
 		targetClusters = bindingObj.Spec.Clusters
 		requiredByBindingSnapshot = bindingObj.Spec.RequiredBy
+		placement = bindingObj.Spec.Placement
+		replicas = bindingObj.Spec.Replicas
 	}
 
 	targetClusters = mergeTargetClusters(targetClusters, requiredByBindingSnapshot)
@@ -45,7 +52,6 @@ func ensureWork(
 			return err
 		}
 	}
-	hasScheduledReplica, desireReplicaInfos := getReplicaInfos(targetClusters)
 
 	for i := range targetClusters {
 		targetCluster := targetClusters[i]
@@ -53,9 +59,11 @@ func ensureWork(
 
 		workNamespace := names.GenerateExecutionSpaceName(targetCluster.Name)
 
-		if hasScheduledReplica {
+		// If and only if the resource template has replicas, and the replica scheduling policy is divided,
+		// we need to revise replicas.
+		if needReviseReplicas(replicas, placement) {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
-				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name])
+				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, int64(targetCluster.Replicas))
 				if err != nil {
 					klog.Errorf("Failed to revise replica for %s/%s/%s in cluster %s, err is: %v",
 						workload.GetKind(), workload.GetNamespace(), workload.GetName(), targetCluster.Name, err)
@@ -123,21 +131,6 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 	}
 
 	return targetClusters
-}
-
-func getReplicaInfos(targetClusters []workv1alpha2.TargetCluster) (bool, map[string]int64) {
-	if helper.HasScheduledReplica(targetClusters) {
-		return true, transScheduleResultToMap(targetClusters)
-	}
-	return false, nil
-}
-
-func transScheduleResultToMap(scheduleResult []workv1alpha2.TargetCluster) map[string]int64 {
-	var desireReplicaInfos = make(map[string]int64, len(scheduleResult))
-	for _, clusterInfo := range scheduleResult {
-		desireReplicaInfos[clusterInfo.Name] = int64(clusterInfo.Replicas)
-	}
-	return desireReplicaInfos
 }
 
 func mergeLabel(workload *unstructured.Unstructured, workNamespace string, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
@@ -211,4 +204,8 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 	}
 
 	return targetClusters, nil
+}
+
+func needReviseReplicas(replicas int32, placement *policyv1alpha1.Placement) bool {
+	return replicas > 0 && placement != nil && placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDivided
 }

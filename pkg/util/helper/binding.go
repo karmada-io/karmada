@@ -148,16 +148,6 @@ func IsBindingScheduled(status *workv1alpha2.ResourceBindingStatus) bool {
 	return meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled)
 }
 
-// HasScheduledReplica checks if the scheduler has assigned replicas for a cluster.
-func HasScheduledReplica(scheduleResult []workv1alpha2.TargetCluster) bool {
-	for _, clusterResult := range scheduleResult {
-		if clusterResult.Replicas > 0 {
-			return true
-		}
-	}
-	return false
-}
-
 // ObtainBindingSpecExistingClusters will obtain the cluster slice existing in the binding's spec field.
 func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingSpec) sets.Set[string] {
 	clusterNames := util.ConvertToClusterNames(bindingSpec.Clusters)
