@@ -4,13 +4,11 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
-	"github.com/karmada-io/karmada/pkg/version"
 )
 
 var (
@@ -65,21 +63,16 @@ func NewCmdAddonsEnable(parentCommand string) *cobra.Command {
 		},
 	}
 
-	releaseVer, err := version.ParseGitVersion(version.Get().GitVersion)
-	if err != nil {
-		klog.Infof("No default release version found. build version: %s", version.Get().String())
-		releaseVer = &version.ReleaseVersion{} // initialize to avoid panic
-	}
-
 	flags := cmd.Flags()
 	opts.GlobalCommandOptions.AddFlags(flags)
+	flags.StringVarP(&opts.ImageRegistry, "private-image-registry", "", "", "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.")
 	flags.IntVar(&opts.WaitComponentReadyTimeout, "pod-timeout", options.WaitComponentReadyTimeout, "Wait pod ready timeout.")
 	flags.IntVar(&opts.WaitAPIServiceReadyTimeout, "apiservice-timeout", 30, "Wait apiservice ready timeout.")
-	flags.StringVar(&opts.KarmadaSearchImage, "karmada-search-image", fmt.Sprintf("docker.io/karmada/karmada-search:%s", releaseVer.PatchRelease()), "karmada search image")
+	flags.StringVar(&opts.KarmadaSearchImage, "karmada-search-image", addoninit.DefaultKarmadaSearchImage, "karmada search image")
 	flags.Int32Var(&opts.KarmadaSearchReplicas, "karmada-search-replicas", 1, "Karmada search replica set")
-	flags.StringVar(&opts.KarmadaDeschedulerImage, "karmada-descheduler-image", fmt.Sprintf("docker.io/karmada/karmada-descheduler:%s", releaseVer.PatchRelease()), "karmada descheduler image")
+	flags.StringVar(&opts.KarmadaDeschedulerImage, "karmada-descheduler-image", addoninit.DefaultKarmadaDeschedulerImage, "karmada descheduler image")
 	flags.Int32Var(&opts.KarmadaDeschedulerReplicas, "karmada-descheduler-replicas", 1, "Karmada descheduler replica set")
-	flags.StringVar(&opts.KarmadaSchedulerEstimatorImage, "karmada-scheduler-estimator-image", fmt.Sprintf("docker.io/karmada/karmada-scheduler-estimator:%s", releaseVer.PatchRelease()), "karmada scheduler-estimator image")
+	flags.StringVar(&opts.KarmadaSchedulerEstimatorImage, "karmada-scheduler-estimator-image", addoninit.DefaultKarmadaSchedulerEstimatorImage, "karmada scheduler-estimator image")
 	flags.Int32Var(&opts.KarmadaEstimatorReplicas, "karmada-estimator-replicas", 1, "Karmada scheduler estimator replica set")
 	flags.StringVar(&opts.MemberKubeConfig, "member-kubeconfig", "", "Member cluster's kubeconfig which to deploy scheduler estimator")
 	flags.StringVar(&opts.MemberContext, "member-context", "", "Member cluster's context which to deploy scheduler estimator")

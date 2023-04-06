@@ -45,7 +45,7 @@ var enableDescheduler = func(opts *addoninit.CommandAddonsEnableOption) error {
 	karmadaDeschedulerDeploymentBytes, err := addonutils.ParseTemplate(karmadaDeschedulerDeployment, DeploymentReplace{
 		Namespace: opts.Namespace,
 		Replicas:  &opts.KarmadaDeschedulerReplicas,
-		Image:     opts.KarmadaDeschedulerImage,
+		Image:     addoninit.KarmadaDeschedulerImage(opts),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada descheduler deployment template :%v", err)

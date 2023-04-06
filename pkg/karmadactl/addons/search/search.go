@@ -146,7 +146,7 @@ func installComponentsOnHostCluster(opts *addoninit.CommandAddonsEnableOption) e
 		Namespace:  opts.Namespace,
 		Replicas:   &opts.KarmadaSearchReplicas,
 		ETCDSevers: etcdServers,
-		Image:      opts.KarmadaSearchImage,
+		Image:      addoninit.KarmadaSearchImage(opts),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing karmada search deployment template :%v", err)

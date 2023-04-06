@@ -12,6 +12,7 @@ import (
 
 	cmdinit "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/version"
 )
 
 // CommandAddonsEnableOption options for addons list.
@@ -32,6 +33,8 @@ type CommandAddonsEnableOption struct {
 
 	KarmadaKubeClientSet *kubernetes.Clientset
 
+	ImageRegistry string
+
 	WaitComponentReadyTimeout int
 
 	WaitAPIServiceReadyTimeout int
@@ -41,6 +44,54 @@ type CommandAddonsEnableOption struct {
 	MemberContext string
 
 	HostClusterDomain string
+}
+
+var (
+	// DefaultKarmadaDeschedulerImage Karmada descheduler image
+	DefaultKarmadaDeschedulerImage string
+	// DefaultKarmadaSchedulerEstimatorImage Karmada scheduler-estimator image
+	DefaultKarmadaSchedulerEstimatorImage string
+	// DefaultKarmadaSearchImage Karmada search estimator image
+	DefaultKarmadaSearchImage string
+
+	karmadaRelease string
+)
+
+func init() {
+	releaseVer, err := version.ParseGitVersion(version.Get().GitVersion)
+	if err != nil {
+		klog.Infof("No default release version found. build version: %s", version.Get().String())
+		releaseVer = &version.ReleaseVersion{} // initialize to avoid panic
+	}
+	karmadaRelease = releaseVer.PatchRelease()
+
+	DefaultKarmadaDeschedulerImage = fmt.Sprintf("docker.io/karmada/karmada-descheduler:%s", releaseVer.PatchRelease())
+	DefaultKarmadaSchedulerEstimatorImage = fmt.Sprintf("docker.io/karmada/karmada-scheduler-estimator:%s", releaseVer.PatchRelease())
+	DefaultKarmadaSearchImage = fmt.Sprintf("docker.io/karmada/karmada-search:%s", releaseVer.PatchRelease())
+}
+
+// KarmadaDeschedulerImage get karmada descheduler image
+func KarmadaDeschedulerImage(o *CommandAddonsEnableOption) string {
+	if o.ImageRegistry != "" && o.KarmadaDeschedulerImage == DefaultKarmadaDeschedulerImage {
+		return o.ImageRegistry + "/karmada-descheduler:" + karmadaRelease
+	}
+	return o.KarmadaDeschedulerImage
+}
+
+// KarmadaSchedulerEstimatorImage get karmada scheduler-estimator image
+func KarmadaSchedulerEstimatorImage(o *CommandAddonsEnableOption) string {
+	if o.ImageRegistry != "" && o.KarmadaSchedulerEstimatorImage == DefaultKarmadaSchedulerEstimatorImage {
+		return o.ImageRegistry + "/karmada-scheduler-estimator:" + karmadaRelease
+	}
+	return o.KarmadaSchedulerEstimatorImage
+}
+
+// KarmadaSearchImage get karmada search image
+func KarmadaSearchImage(o *CommandAddonsEnableOption) string {
+	if o.ImageRegistry != "" && o.KarmadaSearchImage == DefaultKarmadaSearchImage {
+		return o.ImageRegistry + "/karmada-search:" + karmadaRelease
+	}
+	return o.KarmadaSearchImage
 }
 
 // Complete the conditions required to be able to run enable.
