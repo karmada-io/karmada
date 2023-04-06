@@ -283,7 +283,7 @@ func Test_dynamicScale(t *testing.T) {
 		name       string
 		candidates []*clusterv1alpha1.Cluster
 		object     *workv1alpha2.ResourceBindingSpec
-		strategy   *policyv1alpha1.ReplicaSchedulingStrategy
+		placement  *policyv1alpha1.Placement
 		want       []workv1alpha2.TargetCluster
 		wantErr    bool
 	}{
@@ -311,7 +311,9 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember3, Replicas: 6},
 				},
 			},
-			strategy: dynamicWeightStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: dynamicWeightStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 1},
 				{Name: ClusterMember2, Replicas: 2},
@@ -343,7 +345,9 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember3, Replicas: 6},
 				},
 			},
-			strategy: dynamicWeightStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: dynamicWeightStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 6},
 				{Name: ClusterMember2, Replicas: 8},
@@ -375,8 +379,10 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember3, Replicas: 6},
 				},
 			},
-			strategy: dynamicWeightStrategy,
-			wantErr:  true,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: dynamicWeightStrategy,
+			},
+			wantErr: true,
 		},
 		{
 			name: "replica 12 -> 6, aggregated 1:1:1",
@@ -401,7 +407,9 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember2, Replicas: 8},
 				},
 			},
-			strategy: aggregatedStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember2, Replicas: 6},
 			},
@@ -427,7 +435,9 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember2, Replicas: 8},
 				},
 			},
-			strategy: aggregatedStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember2, Replicas: 8},
 			},
@@ -456,7 +466,9 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember2, Replicas: 8},
 				},
 			},
-			strategy: aggregatedStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 6},
 				{Name: ClusterMember2, Replicas: 12},
@@ -487,7 +499,9 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember2, Replicas: 8},
 				},
 			},
-			strategy: aggregatedStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 10},
 				{Name: ClusterMember2, Replicas: 14},
@@ -517,8 +531,10 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember2, Replicas: 8},
 				},
 			},
-			strategy: aggregatedStrategy,
-			wantErr:  true,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
+			wantErr: true,
 		},
 		{
 			name: "replica 12 -> 24, aggregated 4:8:12, with cluster2 disappeared and cluster4 appeared",
@@ -543,7 +559,9 @@ func Test_dynamicScale(t *testing.T) {
 					{Name: ClusterMember2, Replicas: 8},
 				},
 			},
-			strategy: aggregatedStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 7},
 				{Name: ClusterMember2, Replicas: 8},
@@ -554,7 +572,7 @@ func Test_dynamicScale(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := newAssignState(tt.candidates, tt.strategy, tt.object)
+			state := newAssignState(tt.candidates, tt.placement, tt.object)
 			got, err := assignByDynamicStrategy(state)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("assignByDynamicStrategy() error = %v, wantErr %v", err, tt.wantErr)
@@ -572,7 +590,7 @@ func Test_dynamicScaleUp(t *testing.T) {
 		name       string
 		candidates []*clusterv1alpha1.Cluster
 		object     *workv1alpha2.ResourceBindingSpec
-		strategy   *policyv1alpha1.ReplicaSchedulingStrategy
+		placement  *policyv1alpha1.Placement
 		want       []workv1alpha2.TargetCluster
 		wantErr    bool
 	}{
@@ -595,7 +613,9 @@ func Test_dynamicScaleUp(t *testing.T) {
 				},
 				Replicas: 12,
 			},
-			strategy: dynamicWeightStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: dynamicWeightStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 3},
 				{Name: ClusterMember2, Replicas: 4},
@@ -622,7 +642,9 @@ func Test_dynamicScaleUp(t *testing.T) {
 				},
 				Replicas: 12,
 			},
-			strategy: dynamicWeightStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: dynamicWeightStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 4},
 				{Name: ClusterMember2, Replicas: 3},
@@ -649,8 +671,10 @@ func Test_dynamicScaleUp(t *testing.T) {
 				},
 				Replicas: 12,
 			},
-			strategy: dynamicWeightStrategy,
-			wantErr:  true,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: dynamicWeightStrategy,
+			},
+			wantErr: true,
 		},
 		{
 			name: "replica 12, aggregated 6:8:10",
@@ -671,7 +695,9 @@ func Test_dynamicScaleUp(t *testing.T) {
 				},
 				Replicas: 12,
 			},
-			strategy: aggregatedStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember2, Replicas: 5},
 				{Name: ClusterMember3, Replicas: 7},
@@ -697,7 +723,9 @@ func Test_dynamicScaleUp(t *testing.T) {
 				},
 				Replicas: 12,
 			},
-			strategy: aggregatedStrategy,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 12},
 			},
@@ -722,13 +750,15 @@ func Test_dynamicScaleUp(t *testing.T) {
 				},
 				Replicas: 12,
 			},
-			strategy: aggregatedStrategy,
-			wantErr:  true,
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: aggregatedStrategy,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := newAssignState(tt.candidates, tt.strategy, tt.object)
+			state := newAssignState(tt.candidates, tt.placement, tt.object)
 			state.buildScheduledClusters()
 			got, err := dynamicScaleUp(state)
 			if (err != nil) != tt.wantErr {
