@@ -1,6 +1,7 @@
 package context
 
 import (
+	"regexp"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,8 +53,8 @@ type Options struct {
 	ClusterAPIQPS float32
 	// ClusterAPIBurst is the burst to allow while talking with cluster kube-apiserver.
 	ClusterAPIBurst int
-	// SkippedPropagatingNamespaces is a list of namespaces that will be skipped for propagating.
-	SkippedPropagatingNamespaces []string
+	// SkippedPropagatingNamespaces is a list of namespace regular expressions, matching namespaces will be skipped propagating.
+	SkippedPropagatingNamespaces []*regexp.Regexp
 	// ClusterName is the name of cluster.
 	ClusterName string
 	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
