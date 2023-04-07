@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -103,6 +104,7 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 			workv1alpha1.WorkNamespaceLabel: work.Namespace,
 			workv1alpha1.WorkNameLabel:      work.Name,
 			discoveryv1.LabelServiceName:    names.GenerateDerivedServiceName(work.Labels[util.ServiceNameLabel]),
+			mcsv1alpha1.LabelServiceName:    work.Labels[util.ServiceNameLabel],
 		}
 
 		if err = helper.CreateOrUpdateEndpointSlice(c.Client, desiredEndpointSlice); err != nil {
