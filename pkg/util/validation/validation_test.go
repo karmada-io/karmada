@@ -470,6 +470,59 @@ func TestValidatePropagationSpec(t *testing.T) {
 			expectedErr: "minGroups lower than 0 is not allowed",
 		},
 		{
+			name: "spreadConstraint has two cluster spread constraints",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     2,
+							MinGroups:     -2,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     5,
+							MinGroups:     3,
+						},
+						{
+							SpreadByLabel: "grouped-by-net",
+							MaxGroups:     5,
+							MinGroups:     3,
+						},
+					},
+				}},
+			expectedErr: "multiple cluster spread constraints are not allowed",
+		},
+		{
+			name: "spreadConstraint has multiple region spread constraints",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+							MaxGroups:     1,
+							MinGroups:     3,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+							MaxGroups:     4,
+							MinGroups:     2,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldRegion,
+							MaxGroups:     6,
+							MinGroups:     5,
+						},
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     10,
+							MinGroups:     5,
+						},
+					},
+				}},
+			expectedErr: "multiple region spread constraints are not allowed",
+		},
+		{
 			name: "spreadConstraint spreadByFieldCluster must be included if using spreadByField",
 			spec: policyv1alpha1.PropagationSpec{
 				Placement: policyv1alpha1.Placement{
