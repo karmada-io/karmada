@@ -38,9 +38,10 @@ const (
 // AltNamesMutatorConfig is a config to AltNamesMutator. It includes necessary
 // configs to AltNamesMutator.
 type AltNamesMutatorConfig struct {
-	Name       string
-	Namespace  string
-	Components *operatorv1alpha1.KarmadaComponents
+	Name                string
+	Namespace           string
+	ControlplaneAddress string
+	Components          *operatorv1alpha1.KarmadaComponents
 }
 
 type altNamesMutatorFunc func(*AltNamesMutatorConfig, *CertConfig) error
@@ -117,6 +118,20 @@ func KarmadaCertApiserver() *CertConfig {
 		Config: certutil.Config{
 			CommonName: "karmada-apiserver",
 			Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		},
+		AltNamesMutatorFunc: makeAltNamesMutator(apiServerAltNamesMutator),
+	}
+}
+
+// KarmadaCertClient returns karmada client cert config.
+func KarmadaCertClient() *CertConfig {
+	return &CertConfig{
+		Name:   "karmada-client",
+		CAName: constants.CaCertAndKeyName,
+		Config: certutil.Config{
+			CommonName:   "system:admin",
+			Organization: []string{"system:masters"},
+			Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		},
 		AltNamesMutatorFunc: makeAltNamesMutator(apiServerAltNamesMutator),
 	}
@@ -444,8 +459,12 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			"kubernetes.default.svc",
 			fmt.Sprintf("*.%s.svc.cluster.local", cfg.Namespace),
 			fmt.Sprintf("*.%s.svc", cfg.Namespace),
+			cfg.ControlplaneAddress,
 		},
-		IPs: []net.IP{net.IPv4(127, 0, 0, 1)},
+		IPs: []net.IP{
+			net.IPv4(127, 0, 0, 1),
+			net.ParseIP(cfg.ControlplaneAddress),
+		},
 	}
 
 	if len(cfg.Components.KarmadaAPIServer.CertSANs) > 0 {

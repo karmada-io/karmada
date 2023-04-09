@@ -230,8 +230,8 @@ func CreateOrUpdateStatefulSet(client clientset.Interface, statefuleSet *appsv1.
 	return nil
 }
 
-// DeleteDeploymentIfHasLabels delete a Deployment that exists the given labels.
-func DeleteDeploymentIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Labels) error {
+// DeleteDeploymentIfHasLabels deletes a Deployment that exists the given labels.
+func DeleteDeploymentIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Set) error {
 	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -241,15 +241,15 @@ func DeleteDeploymentIfHasLabels(client clientset.Interface, name, namespace str
 		return err
 	}
 
-	if match := containsLabels(deployment.ObjectMeta, constants.KarmadaOperatorLabel); !match {
+	if match := containsLabels(deployment.ObjectMeta, ls); !match {
 		klog.V(4).InfoS("Can not delete Deployment, it doesn't have given label", "Deployment", name, "label", constants.KarmadaOperatorLabelKeyName)
 		return nil
 	}
 	return client.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
-// DeleteStatefulSetIfHasLabels delete a StatefuleSet that exists the given labels.
-func DeleteStatefulSetIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Labels) error {
+// DeleteStatefulSetIfHasLabels deletes a StatefuleSet that exists the given labels.
+func DeleteStatefulSetIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Set) error {
 	sts, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -259,15 +259,15 @@ func DeleteStatefulSetIfHasLabels(client clientset.Interface, name, namespace st
 		return err
 	}
 
-	if match := containsLabels(sts.ObjectMeta, constants.KarmadaOperatorLabel); !match {
+	if match := containsLabels(sts.ObjectMeta, ls); !match {
 		klog.V(4).InfoS("Can not delete StatefulSet, it doesn't have given label", "StatefulSet", name, "label", constants.KarmadaOperatorLabelKeyName)
 		return nil
 	}
 	return client.AppsV1().StatefulSets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
-// DeleteSecretIfHasLabels delete a secret that exists the given labels.
-func DeleteSecretIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Labels) error {
+// DeleteSecretIfHasLabels deletes a secret that exists the given labels.
+func DeleteSecretIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Set) error {
 	sts, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -277,15 +277,15 @@ func DeleteSecretIfHasLabels(client clientset.Interface, name, namespace string,
 		return err
 	}
 
-	if match := containsLabels(sts.ObjectMeta, constants.KarmadaOperatorLabel); !match {
+	if match := containsLabels(sts.ObjectMeta, ls); !match {
 		klog.V(4).InfoS("Can not delete Secret, it doesn't have given label", "Secret", name, "label", constants.KarmadaOperatorLabelKeyName)
 		return nil
 	}
 	return client.CoreV1().Secrets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
-// DeleteServiceIfHasLabels delete a service that exists the given labels.
-func DeleteServiceIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Labels) error {
+// DeleteServiceIfHasLabels deletes a service that exists the given labels.
+func DeleteServiceIfHasLabels(client clientset.Interface, name, namespace string, ls labels.Set) error {
 	service, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -295,11 +295,16 @@ func DeleteServiceIfHasLabels(client clientset.Interface, name, namespace string
 		return err
 	}
 
-	if match := containsLabels(service.ObjectMeta, constants.KarmadaOperatorLabel); !match {
+	if match := containsLabels(service.ObjectMeta, ls); !match {
 		klog.V(4).InfoS("Can not delete Service, it doesn't have given label", "Service", name, "label", constants.KarmadaOperatorLabelKeyName)
 		return nil
 	}
 	return client.CoreV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+// GetService returns service resource with specified name and namespace.
+func GetService(client clientset.Interface, name, namespace string) (*corev1.Service, error) {
+	return client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
 func containsLabels(object metav1.ObjectMeta, ls labels.Set) bool {

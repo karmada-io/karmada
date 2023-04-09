@@ -13,8 +13,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
-// NewKarmadaApiserverTask init apiserver task to install karmada apiserver and
-// karmada aggregated apiserver component
+// NewKarmadaApiserverTask inits a task to install karmada-apiserver component
 func NewKarmadaApiserverTask() workflow.Task {
 	return workflow.Task{
 		Name:        "apiserver",
@@ -29,6 +28,17 @@ func NewKarmadaApiserverTask() workflow.Task {
 				Name: fmt.Sprintf("%s-%s", "wait", constants.KarmadaAPIserverComponent),
 				Run:  runWaitKarmadaAPIServer,
 			},
+		},
+	}
+}
+
+// NewKarmadaAggregatedApiserverTask inits a task to install karmada-aggregated-apiserver component
+func NewKarmadaAggregatedApiserverTask() workflow.Task {
+	return workflow.Task{
+		Name:        "aggregated-apiserver",
+		Run:         runAggregatedApiserver,
+		RunSubTasks: true,
+		Tasks: []workflow.Task{
 			{
 				Name: constants.KarmadaAggregatedAPIServerComponent,
 				Run:  runKarmadaAggregatedAPIServer,
@@ -39,6 +49,16 @@ func NewKarmadaApiserverTask() workflow.Task {
 			},
 		},
 	}
+}
+
+func runAggregatedApiserver(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("aggregated-apiserver task invoked with an invalid data struct")
+	}
+
+	klog.V(4).InfoS("[aggregated-apiserver] Running aggregated apiserver task", "karmada", klog.KObj(data))
+	return nil
 }
 
 func runApiserver(r workflow.RunData) error {
@@ -58,6 +78,7 @@ func runKarmadaAPIServer(r workflow.RunData) error {
 	}
 
 	cfg := data.Components()
+
 	if cfg.KarmadaAPIServer == nil {
 		klog.V(2).InfoS("[KarmadaApiserver] Skip install karmada-apiserver component")
 		return nil

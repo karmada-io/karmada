@@ -134,9 +134,10 @@ func runCertTask(cc, caCert *certs.CertConfig) func(d workflow.RunData) error {
 func mutateCertConfig(data InitData, cc *certs.CertConfig) error {
 	if cc.AltNamesMutatorFunc != nil {
 		err := cc.AltNamesMutatorFunc(&certs.AltNamesMutatorConfig{
-			Name:       data.GetName(),
-			Namespace:  data.GetNamespace(),
-			Components: data.Components(),
+			Name:                data.GetName(),
+			Namespace:           data.GetNamespace(),
+			Components:          data.Components(),
+			ControlplaneAddress: data.ControlplaneAddress(),
 		}, cc)
 
 		if err != nil {

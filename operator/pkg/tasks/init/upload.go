@@ -1,16 +1,13 @@
 package tasks
 
 import (
-	"crypto/x509"
 	"errors"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/operator/pkg/certs"
@@ -49,14 +46,25 @@ func runUploadKubeconfig(r workflow.RunData) error {
 func runUploadAdminKubeconfig(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
-		return errors.New("upload-config task invoked with an invalid data struct")
+		return errors.New("UploadAdminKubeconfig task invoked with an invalid data struct")
 	}
 
-	apiserverName := util.KarmadaAPIServerName(data.GetName())
+	var endpoint string
+	switch data.Components().KarmadaAPIServer.ServiceType {
+	case corev1.ServiceTypeClusterIP:
+		apiserverName := util.KarmadaAPIServerName(data.GetName())
+		endpoint = fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", apiserverName, data.GetNamespace(), constants.KarmadaAPIserverListenClientPort)
 
-	// TODO: How to get controlPlaneEndpoint?
-	localEndpoint := fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", apiserverName, data.GetNamespace(), constants.KarmadaAPIserverListenClientPort)
-	kubeconfig, err := buildKubeConfigFromSpec(data.GetCert(constants.CaCertAndKeyName), localEndpoint)
+	case corev1.ServiceTypeNodePort:
+		service, err := apiclient.GetService(data.RemoteClient(), util.KarmadaAPIServerName(data.GetName()), data.GetNamespace())
+		if err != nil {
+			return err
+		}
+		nodePort := getNodePortFromAPIServerService(service)
+		endpoint = fmt.Sprintf("https://%s:%d", data.ControlplaneAddress(), nodePort)
+	}
+
+	kubeconfig, err := buildKubeConfigFromSpec(data, endpoint)
 	if err != nil {
 		return err
 	}
@@ -85,16 +93,35 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	}
 	data.SetControlplaneConifg(config)
 
-	klog.V(2).InfoS("[upload-config] Successfully created secret of karmada apiserver kubeconfig", "karmada", klog.KObj(data))
+	klog.V(2).InfoS("[UploadAdminKubeconfig] Successfully created secret of karmada apiserver kubeconfig", "karmada", klog.KObj(data))
 	return nil
 }
 
-func buildKubeConfigFromSpec(ca *certs.KarmadaCert, serverURL string) (*clientcmdapi.Config, error) {
+func getNodePortFromAPIServerService(service *corev1.Service) int32 {
+	var nodePort int32
+	if service.Spec.Type == corev1.ServiceTypeNodePort {
+		for _, port := range service.Spec.Ports {
+			if port.Name != "client" {
+				continue
+			}
+			nodePort = port.NodePort
+		}
+	}
+
+	return nodePort
+}
+
+func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Config, error) {
+	ca := data.GetCert(constants.CaCertAndKeyName)
 	if ca == nil {
 		return nil, errors.New("unable build karmada admin kubeconfig, CA cert is empty")
 	}
 
-	cc := newClientCertConfigFromKubeConfigSpec(nil)
+	cc := certs.KarmadaCertClient()
+
+	if err := mutateCertConfig(data, cc); err != nil {
+		return nil, fmt.Errorf("error when mutate cert altNames for %s, err: %w", cc.Name, err)
+	}
 	client, err := certs.CreateCertAndKeyFilesWithCA(cc, ca.CertData(), ca.KeyData())
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate karmada apiserver client certificate for kubeconfig, err: %w", err)
@@ -234,17 +261,4 @@ func runUploadWebHookCert(r workflow.RunData) error {
 
 	klog.V(2).InfoS("[upload-webhookCert] Successfully uploaded webhook certs to secret", "karmada", klog.KObj(data))
 	return nil
-}
-
-func newClientCertConfigFromKubeConfigSpec(notAfter *time.Time) *certs.CertConfig {
-	return &certs.CertConfig{
-		Name:   "karmada-client",
-		CAName: constants.CaCertAndKeyName,
-		Config: certutil.Config{
-			CommonName:   "system:admin",
-			Organization: []string{"system:masters"},
-			Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		},
-		NotAfter: notAfter,
-	}
 }

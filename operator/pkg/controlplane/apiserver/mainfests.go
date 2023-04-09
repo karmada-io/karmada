@@ -7,7 +7,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    karmada-app: kube-apiserver
+    karmada-app: karmada-apiserver
     app.kubernetes.io/managed-by: karmada-operator
   name: {{ .DeploymentName }}
   namespace: {{ .Namespace }}
@@ -15,11 +15,11 @@ spec:
   replicas: {{ .Replicas }}
   selector:
     matchLabels:
-      karmada-app: kube-apiserver
+      karmada-app: karmada-apiserver
   template:
     metadata:
       labels:
-        karmada-app: kube-apiserver
+        karmada-app: karmada-apiserver
     spec:
       automountServiceAccountToken: false
       containers:
@@ -127,7 +127,7 @@ spec:
     protocol: TCP
     targetPort: 5443
   selector:
-    karmada-app: kube-apiserver
+    karmada-app: karmada-apiserver
   type: {{ .ServiceType }}
 `
 

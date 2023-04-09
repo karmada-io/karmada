@@ -27,7 +27,9 @@ const (
 	// Etcd defines the name of the built-in etcd cluster component
 	Etcd = "etcd"
 	// KarmadaAPIServer defines the name of the karmada-apiserver component
-	KarmadaAPIServer = "kube-apiserver"
+	KarmadaAPIServer = "karmada-apiserver"
+	// KubeAPIServer defines the repository name of the kube apiserver
+	KubeAPIServer = "kube-apiserver"
 	// KarmadaAggregatedAPIServer defines the name of the karmada-aggregated-apiserver component
 	KarmadaAggregatedAPIServer = "karmada-aggregated-apiserver"
 	// KubeControllerManager defines the name of the kube-controller-manager component

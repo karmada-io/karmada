@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"sync"
 
+	corev1 "k8s.io/api/core/v1"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -16,6 +17,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	operatorscheme "github.com/karmada-io/karmada/operator/pkg/scheme"
 	tasks "github.com/karmada-io/karmada/operator/pkg/tasks/init"
+	"github.com/karmada-io/karmada/operator/pkg/util"
 	workflow "github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -48,6 +50,7 @@ type initData struct {
 	namespace           string
 	karmadaVersion      *utilversion.Version
 	controlplaneConifig *rest.Config
+	controlplaneAddress string
 	remoteClient        clientset.Interface
 	karmadaClient       clientset.Interface
 	dnsDomain           string
@@ -67,10 +70,11 @@ func NewInitJob(opt *InitOptions) *workflow.Job {
 	initJob.AppendTask(tasks.NewPrepareCrdsTask())
 	initJob.AppendTask(tasks.NewCertTask())
 	initJob.AppendTask(tasks.NewNamespaceTask())
-	initJob.AppendTask(tasks.NewUploadKubeconfigTask())
 	initJob.AppendTask(tasks.NewUploadCertsTask())
 	initJob.AppendTask(tasks.NewEtcdTask())
 	initJob.AppendTask(tasks.NewKarmadaApiserverTask())
+	initJob.AppendTask(tasks.NewUploadKubeconfigTask())
+	initJob.AppendTask(tasks.NewKarmadaAggregatedApiserverTask())
 	initJob.AppendTask(tasks.NewCheckApiserverHealthTask())
 	initJob.AppendTask(tasks.NewKarmadaResourcesTask())
 	initJob.AppendTask(tasks.NewComponentTask())
@@ -125,19 +129,27 @@ func newRunData(opt *InitOptions) (*initData, error) {
 	}
 
 	// TODO: Verify whether important values of initData is valid
+	var address string
+	if opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeNodePort {
+		address, err = util.GetAPIServiceIP(remoteClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get a valid node IP for APIServer, err: %w", err)
+		}
+	}
 
 	return &initData{
-		name:            opt.Name,
-		namespace:       opt.Namespace,
-		karmadaVersion:  version,
-		remoteClient:    remoteClient,
-		crdRemoteURL:    opt.CrdRemoteURL,
-		karmadaDataDir:  opt.KarmadaDataDir,
-		privateRegistry: privateRegistry,
-		components:      opt.Karmada.Spec.Components,
-		featureGates:    opt.Karmada.Spec.FeatureGates,
-		dnsDomain:       *opt.Karmada.Spec.HostCluster.Networking.DNSDomain,
-		CertStore:       certs.NewCertStore(),
+		name:                opt.Name,
+		namespace:           opt.Namespace,
+		karmadaVersion:      version,
+		controlplaneAddress: address,
+		remoteClient:        remoteClient,
+		crdRemoteURL:        opt.CrdRemoteURL,
+		karmadaDataDir:      opt.KarmadaDataDir,
+		privateRegistry:     privateRegistry,
+		components:          opt.Karmada.Spec.Components,
+		featureGates:        opt.Karmada.Spec.FeatureGates,
+		dnsDomain:           *opt.Karmada.Spec.HostCluster.Networking.DNSDomain,
+		CertStore:           certs.NewCertStore(),
 	}, nil
 }
 
@@ -189,6 +201,10 @@ func (data *initData) CrdsRomoteURL() string {
 
 func (data *initData) KarmadaVersion() string {
 	return data.karmadaVersion.String()
+}
+
+func (data *initData) ControlplaneAddress() string {
+	return data.controlplaneAddress
 }
 
 // NewJobInitOptions calls all of InitOpt func to initialize a InitOptions.
