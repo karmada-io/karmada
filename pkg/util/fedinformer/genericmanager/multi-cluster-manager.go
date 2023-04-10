@@ -85,13 +85,14 @@ func (m *multiClusterInformerManagerImpl) getManager(cluster string) (SingleClus
 }
 
 func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	// If informer manager already exist, just return
-	if manager, exist := m.getManager(cluster); exist {
+	if manager, exist := m.managers[cluster]; exist {
 		return manager
 	}
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
 	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh)
 	m.managers[cluster] = manager
 	return manager
