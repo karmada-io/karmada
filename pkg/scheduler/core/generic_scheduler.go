@@ -89,7 +89,7 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Selected clusters: %v", clusters)
 
-	clustersWithReplicas, err := g.assignReplicas(clusters, spec.Placement.ReplicaScheduling, spec)
+	clustersWithReplicas, err := g.assignReplicas(clusters, spec.Placement, spec)
 	if err != nil {
 		return result, fmt.Errorf("failed to assignReplicas: %v", err)
 	}
@@ -172,7 +172,7 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 
 func (g *genericScheduler) assignReplicas(
 	clusters []*clusterv1alpha1.Cluster,
-	replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy,
+	placement *policyv1alpha1.Placement,
 	object *workv1alpha2.ResourceBindingSpec,
 ) ([]workv1alpha2.TargetCluster, error) {
 	startTime := time.Now()
@@ -182,13 +182,13 @@ func (g *genericScheduler) assignReplicas(
 		return nil, fmt.Errorf("no clusters available to schedule")
 	}
 
-	if object.Replicas > 0 && replicaSchedulingStrategy != nil {
-		state := newAssignState(clusters, replicaSchedulingStrategy, object)
+	if object.Replicas > 0 {
+		state := newAssignState(clusters, placement, object)
 		assignFunc, ok := assignFuncMap[state.strategyType]
 		if !ok {
 			// should never happen at present
 			return nil, fmt.Errorf("unsupported replica scheduling strategy, replicaSchedulingType: %s, replicaDivisionPreference: %s, "+
-				"please try another scheduling strategy", replicaSchedulingStrategy.ReplicaSchedulingType, replicaSchedulingStrategy.ReplicaDivisionPreference)
+				"please try another scheduling strategy", placement.ReplicaSchedulingType(), placement.ReplicaScheduling.ReplicaDivisionPreference)
 		}
 		return assignFunc(state)
 	}

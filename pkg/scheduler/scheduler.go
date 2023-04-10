@@ -315,7 +315,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	if rb.Spec.Placement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&rb.Spec, rb.Spec.Placement.ReplicaScheduling) {
+	if util.IsBindingReplicasChanged(&rb.Spec, rb.Spec.Placement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ResourceBinding(%s/%s) as replicas scaled down or scaled up", namespace, name)
 		err = s.scheduleResourceBinding(rb)
@@ -323,8 +323,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		return err
 	}
 	if rb.Spec.Replicas == 0 ||
-		rb.Spec.Placement.ReplicaScheduling == nil ||
-		rb.Spec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		rb.Spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
 		klog.V(3).Infof("Start to schedule ResourceBinding(%s/%s) as scheduling type is duplicated", namespace, name)
@@ -363,7 +362,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
-	if crb.Spec.Placement.ReplicaScheduling != nil && util.IsBindingReplicasChanged(&crb.Spec, crb.Spec.Placement.ReplicaScheduling) {
+	if util.IsBindingReplicasChanged(&crb.Spec, crb.Spec.Placement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as replicas scaled down or scaled up", name)
 		err = s.scheduleClusterResourceBinding(crb)
@@ -371,8 +370,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		return err
 	}
 	if crb.Spec.Replicas == 0 ||
-		crb.Spec.Placement.ReplicaScheduling == nil ||
-		crb.Spec.Placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		crb.Spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
 		klog.V(3).Infof("Start to schedule ClusterResourceBinding(%s) as scheduling type is duplicated", name)

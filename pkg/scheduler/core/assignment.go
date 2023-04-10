@@ -51,18 +51,18 @@ type assignState struct {
 	targetReplicas int32
 }
 
-func newAssignState(candidates []*clusterv1alpha1.Cluster, strategy *policyv1alpha1.ReplicaSchedulingStrategy, obj *workv1alpha2.ResourceBindingSpec) *assignState {
+func newAssignState(candidates []*clusterv1alpha1.Cluster, placement *policyv1alpha1.Placement, obj *workv1alpha2.ResourceBindingSpec) *assignState {
 	var strategyType string
 
-	switch strategy.ReplicaSchedulingType {
+	switch placement.ReplicaSchedulingType() {
 	case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
 		strategyType = DuplicatedStrategy
 	case policyv1alpha1.ReplicaSchedulingTypeDivided:
-		switch strategy.ReplicaDivisionPreference {
+		switch placement.ReplicaScheduling.ReplicaDivisionPreference {
 		case policyv1alpha1.ReplicaDivisionPreferenceAggregated:
 			strategyType = AggregatedStrategy
 		case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
-			if strategy.WeightPreference != nil && len(strategy.WeightPreference.DynamicWeight) != 0 {
+			if placement.ReplicaScheduling.WeightPreference != nil && len(placement.ReplicaScheduling.WeightPreference.DynamicWeight) != 0 {
 				strategyType = DynamicWeightStrategy
 			} else {
 				strategyType = StaticWeightStrategy
@@ -70,7 +70,7 @@ func newAssignState(candidates []*clusterv1alpha1.Cluster, strategy *policyv1alp
 		}
 	}
 
-	return &assignState{candidates: candidates, strategy: strategy, spec: obj, strategyType: strategyType}
+	return &assignState{candidates: candidates, strategy: placement.ReplicaScheduling, spec: obj, strategyType: strategyType}
 }
 
 func (as *assignState) buildScheduledClusters() {
