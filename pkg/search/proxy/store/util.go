@@ -220,6 +220,8 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 			if decorator != nil {
 				decorator(copyEvent)
 			}
+		case <-w.done:
+			return
 		}
 
 		select {
