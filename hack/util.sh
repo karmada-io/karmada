@@ -313,6 +313,22 @@ function util::wait_file_exist() {
     return 1
 }
 
+# util::wait_context_exist checks if the specific context exists in kubeconfig, if not, wait until timeout
+function util::wait_context_exist() {
+    local context_name=${1}
+    local file_path=${2}
+    local timeout=${3}
+    local error_msg="[ERROR] Timeout waiting for context exist ${context_name}"
+    for ((time=0; time<${timeout}; time++)); do
+        if [[ `grep -c "${context_name}" ${file_path}` -ne '0' ]]; then
+            return 0
+        fi
+        sleep 1
+    done
+    echo -e "\n${error_msg}"
+    return 1
+}
+
 # util::wait_pod_ready waits for pod state becomes ready until timeout.
 # Parameters:
 #  - $1: k8s context name, such as "karmada-apiserver"
