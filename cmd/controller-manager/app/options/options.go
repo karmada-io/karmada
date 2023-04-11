@@ -71,6 +71,8 @@ type Options struct {
 	SkippedPropagatingAPIs string
 	// SkippedPropagatingNamespaces is a list of namespaces that will be skipped for propagating.
 	SkippedPropagatingNamespaces []string
+	// AllowIgnoreReservedNamespaces is a list of namespaces in reserved namespaces that will be propagating
+	AllowPropagatingReservedNamespaces []string
 	// ClusterAPIContext is the name of the cluster context in cluster-api management cluster KUBECONFIG file.
 	// Default value is the current-context.
 	ClusterAPIContext string
@@ -186,6 +188,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 		"<group>/<version>/<kind>,<kind> for skip one or more specific resource(e.g. networking.k8s.io/v1beta1/Ingress,IngressClass) where the kinds are case-insensitive.")
 	flags.StringSliceVar(&o.SkippedPropagatingNamespaces, "skipped-propagating-namespaces", []string{},
 		"Comma-separated namespaces that should be skipped from propagating in addition to the default skipped namespaces(karmada-system, karmada-cluster, namespaces prefixed by kube- and karmada-es-).")
+	flags.StringSliceVar(&o.AllowPropagatingReservedNamespaces, "allow-propagating-reserved-namespaces", []string{}, "Comma-separated namespaces that in the reserved namespace but need to propagate.")
 	flags.StringVar(&o.ClusterAPIContext, "cluster-api-context", "", "Name of the cluster context in cluster-api management cluster kubeconfig file.")
 	flags.StringVar(&o.ClusterAPIKubeconfig, "cluster-api-kubeconfig", "", "Path to the cluster-api management cluster kubeconfig file.")
 	flags.Float32Var(&o.ClusterAPIQPS, "cluster-api-qps", 40.0, "QPS to use while talking with cluster kube-apiserver. Doesn't cover events and node heartbeat apis which rate limiting is controlled by a different set of flags.")

@@ -50,12 +50,13 @@ type ResourceDetector struct {
 	// Client is used to retrieve objects, it is often more convenient than lister.
 	Client client.Client
 	// DynamicClient used to fetch arbitrary resources.
-	DynamicClient                dynamic.Interface
-	InformerManager              genericmanager.SingleClusterInformerManager
-	EventHandler                 cache.ResourceEventHandler
-	Processor                    util.AsyncWorker
-	SkippedResourceConfig        *util.SkippedResourceConfig
-	SkippedPropagatingNamespaces map[string]struct{}
+	DynamicClient                      dynamic.Interface
+	InformerManager                    genericmanager.SingleClusterInformerManager
+	EventHandler                       cache.ResourceEventHandler
+	Processor                          util.AsyncWorker
+	SkippedResourceConfig              *util.SkippedResourceConfig
+	SkippedPropagatingNamespaces       map[string]struct{}
+	AllowPropagatingReservedNamespaces map[string]struct{}
 	// ResourceInterpreter knows the details of resource structure.
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 	EventRecorder       record.EventRecorder
@@ -234,7 +235,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 // - karmada-system
 // - karmada-cluster
 // - karmada-es-*
-//
+// Unless '--allow-propagating-reserved-namespaces' is specified
 // If '--skipped-propagating-namespaces' is specified, all APIs in the skipped-propagating-namespaces will be ignored.
 func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 	key, err := ClusterWideKeyFunc(obj)
@@ -249,7 +250,11 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 	}
 
 	if names.IsReservedNamespace(clusterWideKey.Namespace) {
-		return false
+		if _, ok := d.AllowPropagatingReservedNamespaces[clusterWideKey.Namespace]; ok {
+			return true
+		} else {
+			return false
+		}
 	}
 
 	// if SkippedPropagatingNamespaces is set, skip object events in these namespaces.

@@ -415,11 +415,16 @@ func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err
 	for _, ns := range ctx.Opts.SkippedPropagatingNamespaces {
 		skippedPropagatingNamespaces[ns] = struct{}{}
 	}
+	allowPropagatingReservedNamespaces := map[string]struct{}{}
+	for _, ns := range ctx.Opts.AllowPropagatingReservedNamespaces {
+		allowPropagatingReservedNamespaces[ns] = struct{}{}
+	}
 	namespaceSyncController := &namespace.Controller{
-		Client:                       ctx.Mgr.GetClient(),
-		EventRecorder:                ctx.Mgr.GetEventRecorderFor(namespace.ControllerName),
-		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
-		OverrideManager:              ctx.OverrideManager,
+		Client:                             ctx.Mgr.GetClient(),
+		EventRecorder:                      ctx.Mgr.GetEventRecorderFor(namespace.ControllerName),
+		SkippedPropagatingNamespaces:       skippedPropagatingNamespaces,
+		AllowPropagatingReservedNamespaces: allowPropagatingReservedNamespaces,
+		OverrideManager:                    ctx.OverrideManager,
 	}
 	if err := namespaceSyncController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -548,6 +553,11 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		skippedPropagatingNamespaces[ns] = struct{}{}
 	}
 
+	allowPropagatingReservedNamespaces := map[string]struct{}{}
+	for _, ns := range opts.AllowPropagatingReservedNamespaces {
+		allowPropagatingReservedNamespaces[ns] = struct{}{}
+	}
+
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager)
@@ -558,17 +568,18 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
 
 	resourceDetector := &detector.ResourceDetector{
-		DiscoveryClientSet:              discoverClientSet,
-		Client:                          mgr.GetClient(),
-		InformerManager:                 controlPlaneInformerManager,
-		RESTMapper:                      mgr.GetRESTMapper(),
-		DynamicClient:                   dynamicClientSet,
-		SkippedResourceConfig:           skippedResourceConfig,
-		SkippedPropagatingNamespaces:    skippedPropagatingNamespaces,
-		ResourceInterpreter:             resourceInterpreter,
-		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
-		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
-		RateLimiterOptions:              opts.RateLimiterOpts,
+		DiscoveryClientSet:                 discoverClientSet,
+		Client:                             mgr.GetClient(),
+		InformerManager:                    controlPlaneInformerManager,
+		RESTMapper:                         mgr.GetRESTMapper(),
+		DynamicClient:                      dynamicClientSet,
+		SkippedResourceConfig:              skippedResourceConfig,
+		SkippedPropagatingNamespaces:       skippedPropagatingNamespaces,
+		AllowPropagatingReservedNamespaces: allowPropagatingReservedNamespaces,
+		ResourceInterpreter:                resourceInterpreter,
+		EventRecorder:                      mgr.GetEventRecorderFor("resource-detector"),
+		ConcurrentResourceTemplateSyncs:    opts.ConcurrentResourceTemplateSyncs,
+		RateLimiterOptions:                 opts.RateLimiterOpts,
 	}
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
@@ -593,25 +604,26 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
 		Opts: controllerscontext.Options{
-			Controllers:                       opts.Controllers,
-			ClusterMonitorPeriod:              opts.ClusterMonitorPeriod,
-			ClusterMonitorGracePeriod:         opts.ClusterMonitorGracePeriod,
-			ClusterStartupGracePeriod:         opts.ClusterStartupGracePeriod,
-			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-			FailoverEvictionTimeout:           opts.FailoverEvictionTimeout,
-			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-			ClusterSuccessThreshold:           opts.ClusterSuccessThreshold,
-			ClusterFailureThreshold:           opts.ClusterFailureThreshold,
-			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
-			ClusterAPIQPS:                     opts.ClusterAPIQPS,
-			ClusterAPIBurst:                   opts.ClusterAPIBurst,
-			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
-			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
-			EnableTaintManager:                opts.EnableTaintManager,
-			RateLimiterOptions:                opts.RateLimiterOpts,
-			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
-			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
+			Controllers:                        opts.Controllers,
+			ClusterMonitorPeriod:               opts.ClusterMonitorPeriod,
+			ClusterMonitorGracePeriod:          opts.ClusterMonitorGracePeriod,
+			ClusterStartupGracePeriod:          opts.ClusterStartupGracePeriod,
+			ClusterStatusUpdateFrequency:       opts.ClusterStatusUpdateFrequency,
+			FailoverEvictionTimeout:            opts.FailoverEvictionTimeout,
+			ClusterLeaseDuration:               opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction:  opts.ClusterLeaseRenewIntervalFraction,
+			ClusterSuccessThreshold:            opts.ClusterSuccessThreshold,
+			ClusterFailureThreshold:            opts.ClusterFailureThreshold,
+			ClusterCacheSyncTimeout:            opts.ClusterCacheSyncTimeout,
+			ClusterAPIQPS:                      opts.ClusterAPIQPS,
+			ClusterAPIBurst:                    opts.ClusterAPIBurst,
+			SkippedPropagatingNamespaces:       opts.SkippedPropagatingNamespaces,
+			AllowPropagatingReservedNamespaces: opts.AllowPropagatingReservedNamespaces,
+			ConcurrentWorkSyncs:                opts.ConcurrentWorkSyncs,
+			EnableTaintManager:                 opts.EnableTaintManager,
+			RateLimiterOptions:                 opts.RateLimiterOpts,
+			GracefulEvictionTimeout:            opts.GracefulEvictionTimeout,
+			EnableClusterResourceModeling:      opts.EnableClusterResourceModeling,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,

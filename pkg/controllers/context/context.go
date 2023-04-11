@@ -54,6 +54,8 @@ type Options struct {
 	ClusterAPIBurst int
 	// SkippedPropagatingNamespaces is a list of namespaces that will be skipped for propagating.
 	SkippedPropagatingNamespaces []string
+	// AllowPropagatingReservedNamespaces is a list of namespaces in reserved namespaces that will be propagating
+	AllowPropagatingReservedNamespaces []string
 	// ClusterName is the name of cluster.
 	ClusterName string
 	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.

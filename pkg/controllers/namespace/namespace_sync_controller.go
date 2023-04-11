@@ -39,10 +39,11 @@ const (
 
 // Controller is to sync Work.
 type Controller struct {
-	client.Client                // used to operate Work resources.
-	EventRecorder                record.EventRecorder
-	SkippedPropagatingNamespaces map[string]struct{}
-	OverrideManager              overridemanager.OverrideManager
+	client.Client                      // used to operate Work resources.
+	EventRecorder                      record.EventRecorder
+	SkippedPropagatingNamespaces       map[string]struct{}
+	AllowPropagatingReservedNamespaces map[string]struct{}
+	OverrideManager                    overridemanager.OverrideManager
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -93,9 +94,12 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 	if names.IsReservedNamespace(namespace) || namespace == names.NamespaceDefault {
-		return false
+		if _, ok := c.AllowPropagatingReservedNamespaces[namespace]; ok {
+			return true
+		} else {
+			return false
+		}
 	}
-
 	if _, ok := c.SkippedPropagatingNamespaces[namespace]; ok {
 		return false
 	}
