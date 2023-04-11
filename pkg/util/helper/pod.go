@@ -32,7 +32,7 @@ func GetPodConditionFromList(conditions []corev1.PodCondition, conditionType cor
 	return -1, nil
 }
 
-// GeneratePodFromTemplateAndNamespace generate a simple pod object from the given podTemplate and namespace, then
+// GeneratePodFromTemplateAndNamespace generates a simple pod object from the given podTemplate and namespace, then
 // returns the generated pod.
 func GeneratePodFromTemplateAndNamespace(template *corev1.PodTemplateSpec, namespace string) *corev1.Pod {
 	pod := &corev1.Pod{
