@@ -214,15 +214,16 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 	defer source.Stop()
 	defer w.Stop()
 	for {
-		var event watch.Event
-		var ok bool
+		var copyEvent watch.Event
 		select {
-		case event, ok = <-source.ResultChan():
+		case sourceEvent, ok := <-source.ResultChan():
 			if !ok {
 				return
 			}
+			// sourceEvent object is cacheObject,all watcher use the same point,must deepcopy.
+			copyEvent = *sourceEvent.DeepCopy()
 			if decorator != nil {
-				decorator(event)
+				decorator(copyEvent)
 			}
 		case <-w.done:
 			return
@@ -241,7 +242,7 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 			case <-w.done:
 				return
 			default:
-				w.result <- event
+				w.result <- copyEvent
 			}
 		}()
 	}
