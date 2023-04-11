@@ -315,7 +315,6 @@ func (c *MultiClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionRe
 		}
 
 		mux.AddSource(w, func(e watch.Event) {
-			// We can safely modify data because it is deepCopied in cacheWatcher.convertToWatchEvent
 			setObjectResourceVersionFunc(cluster, e.Object)
 			addCacheSourceAnnotation(e.Object, cluster)
 		})
