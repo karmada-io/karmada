@@ -429,6 +429,7 @@ func Test_newMultiClusterContinueFromString(t *testing.T) {
 
 func Test_multiClusterContinue_String(t *testing.T) {
 	type fields struct {
+		RV       string
 		Cluster  string
 		Continue string
 	}
@@ -440,6 +441,7 @@ func Test_multiClusterContinue_String(t *testing.T) {
 		{
 			name: "empty",
 			fields: fields{
+				RV:       "",
 				Cluster:  "",
 				Continue: "",
 			},
@@ -448,15 +450,17 @@ func Test_multiClusterContinue_String(t *testing.T) {
 		{
 			name: "success",
 			fields: fields{
+				RV:       "123",
 				Cluster:  "cluster1",
 				Continue: "1",
 			},
-			want: base64.RawURLEncoding.EncodeToString([]byte(`{"cluster":"cluster1","continue":"1"}`)),
+			want: base64.RawURLEncoding.EncodeToString([]byte(`{"rv":"123","cluster":"cluster1","continue":"1"}`)),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &multiClusterContinue{
+				RV:       tt.fields.RV,
 				Cluster:  tt.fields.Cluster,
 				Continue: tt.fields.Continue,
 			}
