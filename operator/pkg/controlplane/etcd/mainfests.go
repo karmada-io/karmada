@@ -32,11 +32,11 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /usr/local/bin/etcd
-        - --name={{ .StatefulSetName }}0
+        - --name=$(KARMADA_ETCD_NAME)
         - --listen-client-urls= https://0.0.0.0:{{ .EtcdListenClientPort }}
         - --listen-peer-urls=http://0.0.0.0:{{ .EtcdListenPeerPort }}
         - --advertise-client-urls=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
-        - --initial-cluster={{ .StatefulSetName }}0=http://{{ .StatefulSetName }}-0.{{ .EtcdPeerServiceName }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenPeerPort }}
+        - --initial-cluster={{ .InitialCluster }}
         - --initial-cluster-state=new
         - --client-cert-auth=true
         - --trusted-ca-file=/etc/karmada/pki/etcd/etcd-ca.crt
@@ -45,6 +45,12 @@ spec:
         - --data-dir=/var/lib/etcd
         - --snapshot-count=10000
         - --log-level=debug
+        env:
+        - name: KARMADA_ETCD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
         livenessProbe:
           exec:
             command:
@@ -118,6 +124,8 @@ spec:
      port: {{ .EtcdListenPeerPort }}
      protocol: TCP
      targetPort: {{ .EtcdListenPeerPort }}
+   selector:
+     karmada-app: etcd
    type: ClusterIP
   `
 )

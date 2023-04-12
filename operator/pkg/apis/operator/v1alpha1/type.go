@@ -147,8 +147,8 @@ type Etcd struct {
 
 // LocalEtcd describes that operator should run an etcd cluster in a host cluster.
 type LocalEtcd struct {
-	// ImageMeta allows to customize the container used for etcd
-	Image `json:",inline"`
+	// CommonSettings holds common settings to etcd.
+	CommonSettings `json:",inline"`
 
 	// VolumeData describes the settings of etcd data store.
 	// We will support 3 modes: emtydir, hostPath, PVC. default by hostPath.
