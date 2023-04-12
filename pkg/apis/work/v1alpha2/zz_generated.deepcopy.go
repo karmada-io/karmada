@@ -310,6 +310,11 @@ func (in *ResourceBindingSpec) DeepCopyInto(out *ResourceBindingSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Failover != nil {
+		in, out := &in.Failover, &out.Failover
+		*out = new(v1alpha1.FailoverBehavior)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
