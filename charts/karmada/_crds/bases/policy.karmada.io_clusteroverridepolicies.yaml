@@ -176,14 +176,15 @@ spec:
                                   system will automatically detect image fields if
                                   the resource type is Pod, ReplicaSet, Deployment,
                                   StatefulSet, DaemonSet or Job by following rule:
-                                  - Pod: spec/containers/<N>/image - ReplicaSet: spec/template/spec/containers/<N>/image
-                                  - Deployment: spec/template/spec/containers/<N>/image
-                                  - DaemonSet: spec/template/spec/containers/<N>/image
-                                  - StatefulSet: spec/template/spec/containers/<N>/image
-                                  - Job: spec/template/spec/containers/<N>/image In
-                                  addition, all images will be processed if the resource
-                                  object has more than one container. \n If not nil,
-                                  only images matches the filters will be processed."
+                                  - Pod: /spec/containers/<N>/image - ReplicaSet:
+                                  /spec/template/spec/containers/<N>/image - Deployment:
+                                  /spec/template/spec/containers/<N>/image - DaemonSet:
+                                  /spec/template/spec/containers/<N>/image - StatefulSet:
+                                  /spec/template/spec/containers/<N>/image - Job:
+                                  /spec/template/spec/containers/<N>/image In addition,
+                                  all images will be processed if the resource object
+                                  has more than one container. \n If not nil, only
+                                  images matches the filters will be processed."
                                 properties:
                                   path:
                                     description: Path indicates the path of target
@@ -500,12 +501,12 @@ spec:
                             rule. \n Defaults to nil, in that case, the system will
                             automatically detect image fields if the resource type
                             is Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet
-                            or Job by following rule: - Pod: spec/containers/<N>/image
-                            - ReplicaSet: spec/template/spec/containers/<N>/image
-                            - Deployment: spec/template/spec/containers/<N>/image
-                            - DaemonSet: spec/template/spec/containers/<N>/image -
-                            StatefulSet: spec/template/spec/containers/<N>/image -
-                            Job: spec/template/spec/containers/<N>/image In addition,
+                            or Job by following rule: - Pod: /spec/containers/<N>/image
+                            - ReplicaSet: /spec/template/spec/containers/<N>/image
+                            - Deployment: /spec/template/spec/containers/<N>/image
+                            - DaemonSet: /spec/template/spec/containers/<N>/image
+                            - StatefulSet: /spec/template/spec/containers/<N>/image
+                            - Job: /spec/template/spec/containers/<N>/image In addition,
                             all images will be processed if the resource object has
                             more than one container. \n If not nil, only images matches
                             the filters will be processed."

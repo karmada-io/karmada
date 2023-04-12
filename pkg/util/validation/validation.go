@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
@@ -206,6 +207,14 @@ func ValidateOverrideRules(overrideRules []policyv1alpha1.RuleWithCluster, fldPa
 		for labelIndex, label := range rule.Overriders.LabelsOverrider {
 			labelPath := rulePath.Child("overriders").Child("labelsOverrider").Index(labelIndex)
 			allErrs = append(allErrs, metav1validation.ValidateLabels(label.Value, labelPath.Child("value"))...)
+		}
+
+		// validates predicate path.
+		for imageIndex, image := range rule.Overriders.ImageOverrider {
+			imagePath := rulePath.Child("overriders").Child("imageOverrider").Index(imageIndex)
+			if image.Predicate != nil && !strings.HasPrefix(image.Predicate.Path, "/") {
+				allErrs = append(allErrs, field.Invalid(imagePath.Child("predicate").Child("path"), image.Predicate.Path, "path should be start with / character"))
+			}
 		}
 
 		// validates the targetCluster.

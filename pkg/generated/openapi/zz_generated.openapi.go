@@ -2829,7 +2829,7 @@ func schema_pkg_apis_policy_v1alpha1_ImageOverrider(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"predicate": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Predicate filters images before applying the rule.\n\nDefaults to nil, in that case, the system will automatically detect image fields if the resource type is Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet or Job by following rule:\n  - Pod: spec/containers/<N>/image\n  - ReplicaSet: spec/template/spec/containers/<N>/image\n  - Deployment: spec/template/spec/containers/<N>/image\n  - DaemonSet: spec/template/spec/containers/<N>/image\n  - StatefulSet: spec/template/spec/containers/<N>/image\n  - Job: spec/template/spec/containers/<N>/image\nIn addition, all images will be processed if the resource object has more than one container.\n\nIf not nil, only images matches the filters will be processed.",
+							Description: "Predicate filters images before applying the rule.\n\nDefaults to nil, in that case, the system will automatically detect image fields if the resource type is Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet or Job by following rule:\n  - Pod: /spec/containers/<N>/image\n  - ReplicaSet: /spec/template/spec/containers/<N>/image\n  - Deployment: /spec/template/spec/containers/<N>/image\n  - DaemonSet: /spec/template/spec/containers/<N>/image\n  - StatefulSet: /spec/template/spec/containers/<N>/image\n  - Job: /spec/template/spec/containers/<N>/image\nIn addition, all images will be processed if the resource object has more than one container.\n\nIf not nil, only images matches the filters will be processed.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImagePredicate"),
 						},
 					},
