@@ -133,12 +133,12 @@ type ImageOverrider struct {
 	//
 	// Defaults to nil, in that case, the system will automatically detect image fields if the resource type is
 	// Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet or Job by following rule:
-	//   - Pod: spec/containers/<N>/image
-	//   - ReplicaSet: spec/template/spec/containers/<N>/image
-	//   - Deployment: spec/template/spec/containers/<N>/image
-	//   - DaemonSet: spec/template/spec/containers/<N>/image
-	//   - StatefulSet: spec/template/spec/containers/<N>/image
-	//   - Job: spec/template/spec/containers/<N>/image
+	//   - Pod: /spec/containers/<N>/image
+	//   - ReplicaSet: /spec/template/spec/containers/<N>/image
+	//   - Deployment: /spec/template/spec/containers/<N>/image
+	//   - DaemonSet: /spec/template/spec/containers/<N>/image
+	//   - StatefulSet: /spec/template/spec/containers/<N>/image
+	//   - Job: /spec/template/spec/containers/<N>/image
 	// In addition, all images will be processed if the resource object has more than one container.
 	//
 	// If not nil, only images matches the filters will be processed.
