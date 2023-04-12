@@ -23,10 +23,10 @@ var (
 	karmadaWebhookLabels             = labels.Set{"karmada-app": constants.KarmadaWebhook}
 )
 
-// NewWaitApiserverTask init wait-apiserver task
-func NewWaitApiserverTask() workflow.Task {
+// NewCheckApiserverHealthTask init wait-apiserver task
+func NewCheckApiserverHealthTask() workflow.Task {
 	return workflow.Task{
-		Name: "wait-apiserver",
+		Name: "check-apiserver-health",
 		Run:  runWaitApiserver,
 	}
 }
@@ -34,31 +34,17 @@ func NewWaitApiserverTask() workflow.Task {
 func runWaitApiserver(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
-		return fmt.Errorf("wait-aipserver task invoked with an invalid data struct")
+		return fmt.Errorf("check-apiserver-health task invoked with an invalid data struct")
 	}
-	klog.V(4).InfoS("[wait-aipserver] Running task", "karmada", klog.KObj(data))
+	klog.V(4).InfoS("[check-apiserver-health] Running task", "karmada", klog.KObj(data))
 
 	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConifg(), data.RemoteClient(), time.Second*30)
 
-	// wait etcd, karmada apiserver and aggregated apiserver to ready
-	// as long as a replica of pod is ready, we consider the service available.
-	if err := waiter.WaitForSomePods(etcdLabels.String(), data.GetNamespace(), 1); err != nil {
-		return fmt.Errorf("waiting for etcd to ready timeout, err: %w", err)
-	}
-	if err := waiter.WaitForSomePods(karmadaApiserverLabels.String(), data.GetNamespace(), 1); err != nil {
-		return fmt.Errorf("waiting for karmada apiserver to ready timeout, err: %w", err)
-	}
-	err := waiter.WaitForSomePods(karmadaAggregatedAPIServerLabels.String(), data.GetNamespace(), 1)
-	if err != nil {
-		return fmt.Errorf("waiting for karmada aggregated apiserver to ready timeout, err: %w", err)
-	}
-
-	// check whether the karmada apiserver is running and health.
+	// check whether the karmada apiserver is health.
 	if err := apiclient.TryRunCommand(waiter.WaitForAPI, 3); err != nil {
-		return fmt.Errorf("the karmada apiserver is unhealth, err: %w", err)
+		return fmt.Errorf("the karmada apiserver is unhealthy, err: %w", err)
 	}
-
-	klog.V(2).InfoS("[wait-aipserver] the etcd, karmada apiserver and aggregated apiserver is ready", "karmada", klog.KObj(data))
+	klog.V(2).InfoS("[check-apiserver-health] the etcd and karmada-apiserver is healthy", "karmada", klog.KObj(data))
 	return nil
 }
 
