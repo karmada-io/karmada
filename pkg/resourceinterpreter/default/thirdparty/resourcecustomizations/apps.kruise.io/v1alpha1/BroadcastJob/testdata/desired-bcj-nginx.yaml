@@ -1,0 +1,36 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: BroadcastJob
+metadata:
+  labels:
+    app: sample
+  name: sample
+  namespace: test-bcj
+spec:
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      restartPolicy: Never
+      volumes:
+        - name: configmap
+          configMap:
+            name: my-sample-config    
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          env: 
+          - name: logData
+            valueFrom: 
+              configMapKeyRef:
+                name: mysql-config
+                key: log
+          - name: lowerData
+            valueFrom:
+              configMapKeyRef:
+                name: mysql-config
+                key: lower
+  completionPolicy:
+    type: Always
+    activeDeadlineSeconds: 10

@@ -1,0 +1,37 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  active: 0
+  completionTime: "2023-04-06T15:01:47Z"
+  conditions:
+  - lastProbeTime: "2023-04-06T15:01:47Z"
+    lastTransitionTime: "2023-04-06T15:01:47Z"
+    message: Job test-bcj/sample was active longer than specified deadline
+    reason: Failed
+    status: "True"
+    type: Failed
+  desired: 1
+  failed: 1
+  phase: failed
+  startTime: "2023-04-06T15:01:37Z"
+  succeeded: 0
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  active: 0
+  completionTime: "2023-04-06T15:01:47Z"
+  conditions:
+  - lastProbeTime: "2023-04-06T15:01:47Z"
+    lastTransitionTime: "2023-04-06T15:01:47Z"
+    message: Job test-bcj/sample was active longer than specified deadline
+    reason: Failed
+    status: "True"
+    type: Failed
+  desired: 1
+  failed: 1
+  phase: failed
+  startTime: "2023-04-06T15:01:37Z"
+  succeeded: 0
