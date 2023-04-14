@@ -1,0 +1,34 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: DaemonSet
+metadata:
+  labels:
+    app: sample-daemonset
+  name: sample
+  namespace: test-kruise-daemonset
+spec:
+  selector:
+    matchLabels:
+      app: sample-daemonset
+  template:
+    metadata:
+      labels:
+        app: sample-daemonset
+    spec:
+      volumes:
+        - name: configmap
+          configMap:
+            name: my-sample-config    
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          env: 
+          - name: logData
+            valueFrom: 
+              configMapKeyRef:
+                name: mysql-config
+                key: log
+          - name: lowerData
+            valueFrom:
+              configMapKeyRef:
+                name: mysql-config
+                key: lower
