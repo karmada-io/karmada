@@ -402,7 +402,6 @@ func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {
 					c.clusterHealthMap.delete(clusterName)
 					return true, nil
 				}
-				klog.Errorf("Getting a cluster to retry updating cluster health error: %v", clusterName, err)
 				return false, err
 			}
 			return false, nil
