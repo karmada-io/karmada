@@ -1,0 +1,27 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  availableReplicas: 2
+  currentRevision: sample-59df6bd888
+  expectedUpdatedReplicas: 2
+  observedGeneration: 1
+  readyReplicas: 2
+  replicas: 2
+  updateRevision: sample-59df6bd888
+  updatedReadyReplicas: 2
+  updatedReplicas: 2
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  availableReplicas: 2
+  currentRevision: sample-59df6bd888
+  expectedUpdatedReplicas: 2
+  observedGeneration: 1
+  readyReplicas: 2
+  replicas: 2
+  updateRevision: sample-59df6bd888
+  updatedReadyReplicas: 2
+  updatedReplicas: 2

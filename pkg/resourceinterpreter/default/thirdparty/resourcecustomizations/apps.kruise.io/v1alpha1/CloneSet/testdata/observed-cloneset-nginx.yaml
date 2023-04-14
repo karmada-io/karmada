@@ -1,0 +1,48 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: CloneSet
+metadata:
+  labels:
+    app: sample
+  name: sample
+  namespace: test-cloneset
+  generation: 1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      volumes:
+        - name: configmap
+          configMap:
+            name: my-sample-config    
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          env: 
+          - name: logData
+            valueFrom: 
+              configMapKeyRef:
+                name: mysql-config
+                key: log
+          - name: lowerData
+            valueFrom:
+              configMapKeyRef:
+                name: mysql-config
+                key: lower
+status:
+  availableReplicas: 2
+  collisionCount: 0
+  currentRevision: sample-59df6bd888
+  expectedUpdatedReplicas: 2
+  labelSelector: app=sample
+  observedGeneration: 1
+  readyReplicas: 2
+  replicas: 2
+  updateRevision: sample-59df6bd888
+  updatedReadyReplicas: 2
+  updatedReplicas: 2
