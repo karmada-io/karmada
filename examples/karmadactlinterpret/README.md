@@ -11,13 +11,19 @@ karmadactl interpret -f resourceinterpretercustomization.yaml --check
 *Execute the InterpretReplica rule*
 
 ```shell
-karmadactl interpret -f resourceinterpretercustomization.yaml --observed-file observed-deploy-nginx.yaml --operation=InterpretReplica
+karmadactl interpret -f resourceinterpretercustomization.yaml --observed-file observed-deploy-nginx.yaml --operation InterpretReplica
 ```
 
 *Execute the Retain rule*
 
 ```shell
 karmadactl interpret -f resourceinterpretercustomization.yaml --desired-file desired-deploy-nginx.yaml --observed-file observed-deploy-nginx.yaml --operation Retain
+```
+
+*Execute the ReviseReplica rule*
+
+```shell
+karmadactl interpret -f resourceinterpretercustomization.yaml --desired-replica 3 --observed-file observed-deploy-nginx.yaml --operation ReviseReplica
 ```
 
 *Execute the InterpretStatus rule*
