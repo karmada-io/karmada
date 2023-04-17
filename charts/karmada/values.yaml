@@ -663,7 +663,7 @@ agent:
   ## @param agent.affinity affinity of the agent
   affinity: {}
   ## @param agent.tolerations tolerations of the agent
-  tolerations: {}
+  tolerations: []
     # - key: node-role.kubernetes.io/master
     #   operator: Exists
   ## @param agent.strategy strategy of the agent
