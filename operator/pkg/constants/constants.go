@@ -17,6 +17,10 @@ const (
 	KarmadaDefaultVersion = "v1.4.0"
 	// KubeDefaultVersion defines the default of the karmada apiserver and kubeControllerManager image tag
 	KubeDefaultVersion = "v1.25.2"
+	// KarmadaDefaultServiceSubnet defines the default of the subnet used by k8s services.
+	KarmadaDefaultServiceSubnet = "10.96.0.0/12"
+	// KarmadaDefaultDNSDomain defines the default of the DNSDomain
+	KarmadaDefaultDNSDomain = "cluster.local"
 
 	// KarmadaOperator defines the name of the karmada operator.
 	KarmadaOperator = "karmada-operator"

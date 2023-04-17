@@ -6,7 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -51,7 +50,7 @@ func aggregatedAPIService(client *aggregator.Clientset, name, namespace string) 
 	}
 
 	apiService := &apiregistrationv1.APIService{}
-	if err := kuberuntime.DecodeInto(codecs.UniversalDecoder(), apiServiceBytes, apiService); err != nil {
+	if err := runtime.DecodeInto(codecs.UniversalDecoder(), apiServiceBytes, apiService); err != nil {
 		return fmt.Errorf("err when decoding AggregatedApiserver APIService: %w", err)
 	}
 
@@ -74,7 +73,7 @@ func aggregatedApiserverService(client clientset.Interface, name, namespace stri
 	}
 
 	aggregatedService := &corev1.Service{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), aggregatedApiserverServiceBytes, aggregatedService); err != nil {
+	if err := runtime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), aggregatedApiserverServiceBytes, aggregatedService); err != nil {
 		return fmt.Errorf("err when decoding AggregatedApiserver Service: %w", err)
 	}
 
