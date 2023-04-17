@@ -157,7 +157,7 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 		return fmt.Errorf("when etcd storage mode is PVC, storageClassesName is not empty. See '%s init --help'", parentCommand)
 	}
 
-	if i.WaitComponentReadyTimeout < 0 {
+	if time.Duration(i.WaitComponentReadyTimeout) < 0 {
 		return fmt.Errorf("wait-component-ready-timeout must be greater than or equal to 0")
 	}
 
@@ -365,7 +365,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	if _, err := i.KubeClientSet.AppsV1().StatefulSets(i.Namespace).Create(context.TODO(), etcdStatefulSet, metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := util.WaitForStatefulSetRollout(i.KubeClientSet, etcdStatefulSet, i.WaitComponentReadyTimeout); err != nil {
+	if err := util.WaitForStatefulSetRollout(i.KubeClientSet, etcdStatefulSet, time.Duration(i.WaitComponentReadyTimeout)); err != nil {
 		klog.Warning(err)
 	}
 	klog.Info("Create karmada ApiServer Deployment")
@@ -377,7 +377,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), karmadaAPIServerDeployment, metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaAPIServerDeployment, i.WaitComponentReadyTimeout); err != nil {
+	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaAPIServerDeployment, time.Duration(i.WaitComponentReadyTimeout)); err != nil {
 		return err
 	}
 
@@ -391,7 +391,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	if _, err := i.KubeClientSet.AppsV1().Deployments(i.Namespace).Create(context.TODO(), i.makeKarmadaAggregatedAPIServerDeployment(), metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaAggregatedAPIServerDeployment, i.WaitComponentReadyTimeout); err != nil {
+	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaAggregatedAPIServerDeployment, time.Duration(i.WaitComponentReadyTimeout)); err != nil {
 		klog.Warning(err)
 	}
 	return nil
@@ -409,7 +409,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if _, err := deploymentClient.Create(context.TODO(), karmadaKubeControllerManagerDeployment, metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaKubeControllerManagerDeployment, i.WaitComponentReadyTimeout); err != nil {
+	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaKubeControllerManagerDeployment, time.Duration(i.WaitComponentReadyTimeout)); err != nil {
 		klog.Warning(err)
 	}
 
@@ -420,7 +420,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if _, err := deploymentClient.Create(context.TODO(), karmadaSchedulerDeployment, metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaSchedulerDeployment, i.WaitComponentReadyTimeout); err != nil {
+	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaSchedulerDeployment, time.Duration(i.WaitComponentReadyTimeout)); err != nil {
 		klog.Warning(err)
 	}
 
@@ -431,7 +431,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if _, err := deploymentClient.Create(context.TODO(), karmadaControllerManagerDeployment, metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaControllerManagerDeployment, i.WaitComponentReadyTimeout); err != nil {
+	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaControllerManagerDeployment, time.Duration(i.WaitComponentReadyTimeout)); err != nil {
 		klog.Warning(err)
 	}
 
@@ -445,7 +445,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	if _, err := deploymentClient.Create(context.TODO(), karmadaWebhookDeployment, metav1.CreateOptions{}); err != nil {
 		klog.Warning(err)
 	}
-	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaWebhookDeployment, i.WaitComponentReadyTimeout); err != nil {
+	if err := util.WaitForDeploymentRollout(i.KubeClientSet, karmadaWebhookDeployment, time.Duration(i.WaitComponentReadyTimeout)); err != nil {
 		klog.Warning(err)
 	}
 	return nil

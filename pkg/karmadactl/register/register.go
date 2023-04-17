@@ -51,7 +51,7 @@ var (
 		# Register cluster into karmada control plane with Pull mode.
 		# If '--cluster-name' isn't specified, the cluster of current-context will be used by default.
 		%[1]s register [karmada-apiserver-endpoint] --cluster-name=<CLUSTER_NAME> --token=<TOKEN>  --discovery-token-ca-cert-hash=<CA-CERT-HASH>
-		
+
 		# UnsafeSkipCAVerification allows token-based discovery without CA verification via CACertHashes. This can weaken
 		# the security of register command since other clusters can impersonate the control-plane.
 		%[1]s register [karmada-apiserver-endpoint] --token=<TOKEN>  --discovery-token-unsafe-skip-ca-verification=true
@@ -357,7 +357,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return err
 	}
 
-	if err := cmdutil.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, int(o.Timeout)); err != nil {
+	if err := cmdutil.WaitForDeploymentRollout(o.memberClusterClient, KarmadaAgentDeployment, o.Timeout); err != nil {
 		return err
 	}
 

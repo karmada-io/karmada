@@ -3,6 +3,7 @@ package descheduler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -60,7 +61,7 @@ var enableDescheduler = func(opts *addoninit.CommandAddonsEnableOption) error {
 		return fmt.Errorf("create karmada descheduler deployment error: %v", err)
 	}
 
-	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaDeschedulerDeployment, opts.WaitComponentReadyTimeout); err != nil {
+	if err := cmdutil.WaitForDeploymentRollout(opts.KubeClientSet, karmadaDeschedulerDeployment, time.Duration(opts.WaitComponentReadyTimeout)); err != nil {
 		return fmt.Errorf("wait karmada descheduler pod timeout: %v", err)
 	}
 
