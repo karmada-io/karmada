@@ -74,6 +74,9 @@ type Scheduler struct {
 	clusterLister        clusterlister.ClusterLister
 	informerFactory      informerfactory.SharedInformerFactory
 
+	// clusterReconcileWorker reconciles cluster changes to trigger corresponding
+	// ResourceBinding/ClusterResourceBinding rescheduling.
+	clusterReconcileWorker util.AsyncWorker
 	// TODO: implement a priority scheduling queue
 	queue workqueue.RateLimitingInterface
 
@@ -218,6 +221,11 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		schedulerCache:       schedulerCache,
 	}
 
+	sched.clusterReconcileWorker = util.NewAsyncWorker(util.Options{
+		Name:          "ClusterReconcileWorker",
+		ReconcileFunc: sched.reconcileCluster,
+	})
+
 	if options.enableSchedulerEstimator {
 		sched.enableSchedulerEstimator = options.enableSchedulerEstimator
 		sched.disableSchedulerEstimatorInPullMode = options.disableSchedulerEstimatorInPullMode
@@ -254,6 +262,8 @@ func (s *Scheduler) Run(ctx context.Context) {
 
 	s.informerFactory.Start(stopCh)
 	s.informerFactory.WaitForCacheSync(stopCh)
+
+	s.clusterReconcileWorker.Run(1, stopCh)
 
 	go wait.Until(s.worker, time.Second, stopCh)
 
