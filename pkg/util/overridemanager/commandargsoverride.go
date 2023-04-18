@@ -30,6 +30,8 @@ func buildCommandArgsPatches(target string, rawObj *unstructured.Unstructured, c
 		fallthrough
 	case util.DaemonSetKind:
 		fallthrough
+	case util.JobKind:
+		fallthrough
 	case util.StatefulSetKind:
 		return buildCommandArgsPatchesWithPath(target, "spec/template/spec/containers", rawObj, commandRunOverrider)
 	}
