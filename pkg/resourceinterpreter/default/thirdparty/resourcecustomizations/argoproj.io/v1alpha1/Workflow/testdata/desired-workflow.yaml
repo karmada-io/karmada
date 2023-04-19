@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  labels:
+    app: sample
+  name: sample
+  namespace: test-workflow
+spec:
+  parallelism: 2
+  entrypoint: volumes-existing-example
+  volumes:
+  - name: workdir
+    persistentVolumeClaim:
+      claimName: my-existing-volume
+  serviceAccountName: my-service-account
+  imagePullSecrets: 
+  - name: my-secret
+  tolerations:
+  - key: 'key'
+    operation: 'Equal'
+    value: 'value'
+    effect: 'NoSchedule'
+  templates:
+  - name: volumes-existing-example
+    steps:
+    - - name: hello
+        template: whalesay
+  - name: whalesay
+    container:
+      image: docker/whalesay:latest
+      command: [cowsay]
+      args: ["hello world"]
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/vol
+      resources:
+        limits:
+          memory: 1Gi
+        requests:
+          memory: 1Mi

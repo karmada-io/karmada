@@ -1,0 +1,13 @@
+tests:
+  - desiredInputPath: testdata/desired-workflow.yaml
+    operation: InterpretDependency
+  - observedInputPath: testdata/observed-workflow.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-workflow.yaml
+    operation: InterpretReplica
+  - desiredInputPath: testdata/desired-workflow.yaml
+    observedInputPath: testdata/observed-workflow.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-workflow.yaml
+    operation: ReviseReplica
+    desiredReplicas: 1
