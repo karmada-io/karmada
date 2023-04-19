@@ -1,0 +1,112 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  labels:
+    app: sample
+  name: sample
+  namespace: test-workflow
+spec:
+  parallelism: 1
+  entrypoint: volumes-existing-example
+  suspend: true
+  volumes:
+  - name: workdir
+    persistentVolumeClaim:
+      claimName: my-existing-volume
+  serviceAccountName: my-service-account
+  imagePullSecrets: 
+  - name: my-secret
+  tolerations:
+  - key: 'key'
+    operation: 'Equal'
+    value: 'value'
+    effect: 'NoSchedule'
+  templates:
+  - name: volumes-existing-example
+    steps:
+    - - name: hello
+        template: whalesay
+  - name: whalesay
+    container:
+      image: docker/whalesay:latest
+      command: [cowsay]
+      args: ["hello world"]
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/vol
+      resources:
+        limits:
+          memory: 1Gi
+        requests:
+          memory: 1Mi
+status:
+  artifactGCStatus:
+    notSpecified: true
+  artifactRepositoryRef:
+    artifactRepository: {}
+    default: true
+  conditions:
+  - status: "False"
+    type: PodRunning
+  - status: "True"
+    type: Completed
+  finishedAt: "2023-04-20T11:26:47Z"
+  nodes:
+    sample:
+      children:
+      - sample-2754495299
+      displayName: sample
+      finishedAt: "2023-04-20T11:26:47Z"
+      id: sample
+      name: sample
+      outboundNodes:
+      - sample-410485805
+      phase: Succeeded
+      progress: 1/1
+      resourcesDuration:
+        cpu: 19
+        memory: 18
+      startedAt: "2023-04-20T11:26:17Z"
+      templateName: volumes-existing-example
+      templateScope: local/sample
+      type: Steps
+    sample-410485805:
+      boundaryID: sample
+      displayName: hello
+      finishedAt: "2023-04-20T11:26:38Z"
+      hostNodeName: member1-control-plane
+      id: sample-410485805
+      name: sample[0].hello
+      outputs:
+        exitCode: "0"
+      phase: Succeeded
+      progress: 1/1
+      resourcesDuration:
+        cpu: 19
+        memory: 18
+      startedAt: "2023-04-20T11:26:17Z"
+      templateName: whalesay
+      templateScope: local/sample
+      type: Pod
+    sample-2754495299:
+      boundaryID: sample
+      children:
+      - sample-410485805
+      displayName: '[0]'
+      finishedAt: "2023-04-20T11:26:47Z"
+      id: sample-2754495299
+      name: sample[0]
+      phase: Succeeded
+      progress: 1/1
+      resourcesDuration:
+        cpu: 19
+        memory: 18
+      startedAt: "2023-04-20T11:26:17Z"
+      templateScope: local/sample
+      type: StepGroup
+  phase: Succeeded
+  progress: 1/1
+  resourcesDuration:
+    cpu: 19
+    memory: 18
+  startedAt: "2023-04-20T11:26:17Z"
