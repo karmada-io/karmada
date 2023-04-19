@@ -53,6 +53,15 @@ func retainPodFields(desired, observed *unstructured.Unstructured) (*unstructure
 		}
 	}
 
+	// retain volumeMounts in each init container
+	for _, clusterInitContainer := range clusterPod.Spec.InitContainers {
+		for desiredIndex, desiredInitContainer := range desiredPod.Spec.InitContainers {
+			if desiredInitContainer.Name == clusterInitContainer.Name {
+				desiredPod.Spec.InitContainers[desiredIndex].VolumeMounts = clusterInitContainer.VolumeMounts
+				break
+			}
+		}
+	}
 	unstructuredObj, err := helper.ToUnstructured(desiredPod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to transform Pod: %v", err)
