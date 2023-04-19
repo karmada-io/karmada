@@ -102,6 +102,11 @@ type ResourceBindingSpec struct {
 	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
 	// +optional
 	SchedulerName string `json:"schedulerName,omitempty"`
+
+	// Failover indicates how Karmada migrates applications in case of failures.
+	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
+	// +optional
+	Failover *policyv1alpha1.FailoverBehavior `json:"failover,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
@@ -260,6 +265,7 @@ type AggregatedStatusItem struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	Status *runtime.RawExtension `json:"status,omitempty"`
+
 	// Applied represents if the resource referencing by ResourceBinding or ClusterResourceBinding
 	// is successfully applied on the cluster.
 	// +optional
