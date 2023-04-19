@@ -1593,7 +1593,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref common.Refer
 					},
 					"aggregatedStatus": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AggregatedStatus represents status list of the resource running in each member cluster.",
+							Description: "AggregatedStatus represents status list of the resource running in each member cluster. It'll be set only if InterpreterOperation is InterpreterOperationAggregateStatus.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
