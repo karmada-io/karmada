@@ -15044,7 +15044,7 @@
           "format": "int32"
         },
         "decisionConditions": {
-          "description": "DecisionConditions indicates the decision conditions of performing the failover process. Only when all conditions are met can the failover process be performed. Currently, DecisionConditions includes several conditions: - TolerationSeconds (optional) - HealthyState (mandatory)",
+          "description": "DecisionConditions indicates the decision conditions of performing the failover process. Only when all conditions are met can the failover process be performed. Currently, DecisionConditions includes several conditions: - TolerationSeconds (optional)",
           "default": {},
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.DecisionConditions"
         },

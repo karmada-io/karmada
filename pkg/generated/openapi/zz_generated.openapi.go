@@ -2164,7 +2164,7 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 					},
 					"decisionConditions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DecisionConditions indicates the decision conditions of performing the failover process. Only when all conditions are met can the failover process be performed. Currently, DecisionConditions includes several conditions: - TolerationSeconds (optional) - HealthyState (mandatory)",
+							Description: "DecisionConditions indicates the decision conditions of performing the failover process. Only when all conditions are met can the failover process be performed. Currently, DecisionConditions includes several conditions: - TolerationSeconds (optional)",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions"),
 						},
