@@ -299,6 +299,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		}
 		return err
 	}
+	rb = rb.DeepCopy()
 
 	if rb.Spec.Placement == nil {
 		// never reach here
@@ -347,6 +348,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		}
 		return err
 	}
+	crb = crb.DeepCopy()
 
 	if crb.Spec.Placement == nil {
 		// never reach here
