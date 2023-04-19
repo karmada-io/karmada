@@ -411,14 +411,10 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 }
 
 func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err error) {
-	skippedPropagatingNamespaces := map[string]struct{}{}
-	for _, ns := range ctx.Opts.SkippedPropagatingNamespaces {
-		skippedPropagatingNamespaces[ns] = struct{}{}
-	}
 	namespaceSyncController := &namespace.Controller{
 		Client:                       ctx.Mgr.GetClient(),
 		EventRecorder:                ctx.Mgr.GetEventRecorderFor(namespace.ControllerName),
-		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		SkippedPropagatingNamespaces: ctx.Opts.SkippedPropagatingNamespaces,
 		OverrideManager:              ctx.OverrideManager,
 	}
 	if err := namespaceSyncController.SetupWithManager(ctx.Mgr); err != nil {
@@ -543,11 +539,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		return
 	}
 
-	skippedPropagatingNamespaces := map[string]struct{}{}
-	for _, ns := range opts.SkippedPropagatingNamespaces {
-		skippedPropagatingNamespaces[ns] = struct{}{}
-	}
-
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager)
@@ -564,12 +555,13 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		RESTMapper:                      mgr.GetRESTMapper(),
 		DynamicClient:                   dynamicClientSet,
 		SkippedResourceConfig:           skippedResourceConfig,
-		SkippedPropagatingNamespaces:    skippedPropagatingNamespaces,
+		SkippedPropagatingNamespaces:    opts.SkippedNamespacesRegexps(),
 		ResourceInterpreter:             resourceInterpreter,
 		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
 		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
 		RateLimiterOptions:              opts.RateLimiterOpts,
 	}
+
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
@@ -606,7 +598,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ClusterCacheSyncTimeout:           opts.ClusterCacheSyncTimeout,
 			ClusterAPIQPS:                     opts.ClusterAPIQPS,
 			ClusterAPIBurst:                   opts.ClusterAPIBurst,
-			SkippedPropagatingNamespaces:      opts.SkippedPropagatingNamespaces,
+			SkippedPropagatingNamespaces:      opts.SkippedNamespacesRegexps(),
 			ConcurrentWorkSyncs:               opts.ConcurrentWorkSyncs,
 			EnableTaintManager:                opts.EnableTaintManager,
 			RateLimiterOptions:                opts.RateLimiterOpts,

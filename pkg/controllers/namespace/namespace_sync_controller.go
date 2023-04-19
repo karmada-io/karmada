@@ -3,6 +3,7 @@ package namespace
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -41,7 +42,7 @@ const (
 type Controller struct {
 	client.Client                // used to operate Work resources.
 	EventRecorder                record.EventRecorder
-	SkippedPropagatingNamespaces map[string]struct{}
+	SkippedPropagatingNamespaces []*regexp.Regexp
 	OverrideManager              overridemanager.OverrideManager
 }
 
@@ -96,8 +97,10 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 		return false
 	}
 
-	if _, ok := c.SkippedPropagatingNamespaces[namespace]; ok {
-		return false
+	for _, nsRegexp := range c.SkippedPropagatingNamespaces {
+		if match := nsRegexp.MatchString(namespace); match {
+			return false
+		}
 	}
 	return true
 }

@@ -2,6 +2,7 @@ package options
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -210,4 +211,13 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	o.RateLimiterOpts.AddFlags(flags)
 	o.ProfileOpts.AddFlags(flags)
 	features.FeatureGate.AddFlag(flags)
+}
+
+// SkippedNamespacesRegexps precompiled regular expressions
+func (o *Options) SkippedNamespacesRegexps() []*regexp.Regexp {
+	skippedPropagatingNamespaces := make([]*regexp.Regexp, len(o.SkippedPropagatingNamespaces))
+	for index, ns := range o.SkippedPropagatingNamespaces {
+		skippedPropagatingNamespaces[index] = regexp.MustCompile(fmt.Sprintf("^%s$", ns))
+	}
+	return skippedPropagatingNamespaces
 }

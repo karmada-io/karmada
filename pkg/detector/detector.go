@@ -3,6 +3,7 @@ package detector
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sync"
 	"time"
 
@@ -55,7 +56,7 @@ type ResourceDetector struct {
 	EventHandler                 cache.ResourceEventHandler
 	Processor                    util.AsyncWorker
 	SkippedResourceConfig        *util.SkippedResourceConfig
-	SkippedPropagatingNamespaces map[string]struct{}
+	SkippedPropagatingNamespaces []*regexp.Regexp
 	// ResourceInterpreter knows the details of resource structure.
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 	EventRecorder       record.EventRecorder
@@ -253,8 +254,10 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 	}
 
 	// if SkippedPropagatingNamespaces is set, skip object events in these namespaces.
-	if _, ok := d.SkippedPropagatingNamespaces[clusterWideKey.Namespace]; ok {
-		return false
+	for _, nsRegexp := range d.SkippedPropagatingNamespaces {
+		if match := nsRegexp.MatchString(clusterWideKey.Namespace); match {
+			return false
+		}
 	}
 
 	if unstructObj, ok := obj.(*unstructured.Unstructured); ok {

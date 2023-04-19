@@ -1,6 +1,9 @@
 package options
 
 import (
+	"fmt"
+	"regexp"
+
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/karmada-io/karmada/pkg/util"
@@ -33,6 +36,10 @@ func (o *Options) Validate() field.ErrorList {
 	if o.ClusterStartupGracePeriod.Duration <= 0 {
 		errs = append(errs, field.Invalid(newPath.Child("ClusterStartupGracePeriod"), o.ClusterStartupGracePeriod, "must be greater than 0"))
 	}
-
+	for index, ns := range o.SkippedPropagatingNamespaces {
+		if _, err := regexp.Compile(fmt.Sprintf("^%s$", ns)); err != nil {
+			errs = append(errs, field.Invalid(newPath.Child("SkippedPropagatingNamespaces").Index(index), ns, "Invalid namespace regular expression"))
+		}
+	}
 	return errs
 }
