@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/informers"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
@@ -531,6 +532,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
+	kubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
 
 	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName))
 	skippedResourceConfig := util.NewSkippedResourceConfig()
@@ -541,7 +543,14 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
 
-	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager)
+	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
+	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
+	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
+	serviceLister := sharedFactory.Core().V1().Services().Lister()
+	sharedFactory.Start(stopChan)
+	sharedFactory.WaitForCacheSync(stopChan)
+
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
 	}

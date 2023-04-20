@@ -13,7 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
+	corev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/kube-aggregator/pkg/apiserver"
 	utiltrace "k8s.io/utils/trace"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -33,7 +35,7 @@ type CustomizedInterpreter struct {
 }
 
 // NewCustomizedInterpreter return a new CustomizedInterpreter.
-func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManager) (*CustomizedInterpreter, error) {
+func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManager, serviceLister corev1.ServiceLister) (*CustomizedInterpreter, error) {
 	cm, err := webhookutil.NewClientManager(
 		[]schema.GroupVersion{configv1alpha1.SchemeGroupVersion},
 		configv1alpha1.AddToScheme,
@@ -45,8 +47,9 @@ func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManag
 	if err != nil {
 		return nil, err
 	}
+
 	cm.SetAuthenticationInfoResolver(authInfoResolver)
-	cm.SetServiceResolver(webhookutil.NewDefaultServiceResolver())
+	cm.SetServiceResolver(apiserver.NewClusterIPServiceResolver(serviceLister))
 
 	return &CustomizedInterpreter{
 		hookManager:   configmanager.NewExploreConfigManager(informer),
