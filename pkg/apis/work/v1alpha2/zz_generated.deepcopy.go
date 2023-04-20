@@ -123,6 +123,16 @@ func (in *GracefulEvictionTask) DeepCopyInto(out *GracefulEvictionTask) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.GracePeriodSeconds != nil {
+		in, out := &in.GracePeriodSeconds, &out.GracePeriodSeconds
+		*out = new(int32)
+		**out = **in
+	}
+	if in.SuppressDeletion != nil {
+		in, out := &in.SuppressDeletion, &out.SuppressDeletion
+		*out = new(bool)
+		**out = **in
+	}
 	in.CreationTimestamp.DeepCopyInto(&out.CreationTimestamp)
 	return
 }

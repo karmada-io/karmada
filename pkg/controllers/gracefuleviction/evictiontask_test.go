@@ -6,6 +6,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
@@ -120,6 +121,94 @@ func Test_assessSingleTask(t *testing.T) {
 				FromCluster:       "member1",
 				CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 			},
+		},
+		{
+			name: "gracePeriodSeconds is declared in gracefulEvictionTask and timeout is not reached",
+			args: args{
+				task: workv1alpha2.GracefulEvictionTask{
+					FromCluster:        "member1",
+					GracePeriodSeconds: pointer.Int32(30),
+					CreationTimestamp:  metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				},
+				opt: assessmentOption{
+					timeout: timeout,
+					scheduleResult: []workv1alpha2.TargetCluster{
+						{Name: "memberA"},
+					},
+					observedStatus: []workv1alpha2.AggregatedStatusItem{
+						{ClusterName: "memberA", Health: workv1alpha2.ResourceUnknown},
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "gracePeriodSeconds is declared in gracefulEvictionTask and timeout is reached",
+			args: args{
+				task: workv1alpha2.GracefulEvictionTask{
+					FromCluster:        "member1",
+					GracePeriodSeconds: pointer.Int32(120),
+					CreationTimestamp:  metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				},
+				opt: assessmentOption{
+					timeout: timeout,
+					scheduleResult: []workv1alpha2.TargetCluster{
+						{Name: "memberA"},
+					},
+					observedStatus: []workv1alpha2.AggregatedStatusItem{
+						{ClusterName: "memberA", Health: workv1alpha2.ResourceUnknown},
+					},
+				},
+			},
+			want: &workv1alpha2.GracefulEvictionTask{
+				FromCluster:        "member1",
+				GracePeriodSeconds: pointer.Int32(120),
+				CreationTimestamp:  metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+			},
+		},
+		{
+			name: "suppressDeletion is declared in gracefulEvictionTask and is true",
+			args: args{
+				task: workv1alpha2.GracefulEvictionTask{
+					FromCluster:       "member1",
+					SuppressDeletion:  pointer.Bool(true),
+					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				},
+				opt: assessmentOption{
+					timeout: timeout,
+					scheduleResult: []workv1alpha2.TargetCluster{
+						{Name: "memberA"},
+					},
+					observedStatus: []workv1alpha2.AggregatedStatusItem{
+						{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
+					},
+				},
+			},
+			want: &workv1alpha2.GracefulEvictionTask{
+				FromCluster:       "member1",
+				SuppressDeletion:  pointer.Bool(true),
+				CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+			},
+		},
+		{
+			name: "suppressDeletion is declared in gracefulEvictionTask and is false",
+			args: args{
+				task: workv1alpha2.GracefulEvictionTask{
+					FromCluster:       "member1",
+					SuppressDeletion:  pointer.Bool(false),
+					CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				},
+				opt: assessmentOption{
+					timeout: timeout,
+					scheduleResult: []workv1alpha2.TargetCluster{
+						{Name: "memberA"},
+					},
+					observedStatus: []workv1alpha2.AggregatedStatusItem{
+						{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
+					},
+				},
+			},
+			want: nil,
 		},
 	}
 	for _, tt := range tests {

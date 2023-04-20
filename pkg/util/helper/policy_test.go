@@ -7,6 +7,7 @@ import (
 
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -396,6 +397,54 @@ func TestSetReplicaDivisionPreferenceWeighted(t *testing.T) {
 			if (p.ReplicaScheduling != nil &&
 				p.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted) != tt.expectedWeighted {
 				t.Errorf("expectedWeighted %v, but got %v", tt.expectedWeighted, !tt.expectedWeighted)
+			}
+		})
+	}
+}
+
+func TestSetDefaultGracePeriodSeconds(t *testing.T) {
+	tests := []struct {
+		name           string
+		behavior       *policyv1alpha1.ApplicationFailoverBehavior
+		expectBehavior *policyv1alpha1.ApplicationFailoverBehavior
+	}{
+		{
+			name: "purgeMode is not graciously",
+			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				PurgeMode: policyv1alpha1.Never,
+			},
+			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				PurgeMode: policyv1alpha1.Never,
+			},
+		},
+		{
+			name: "purgeMode is graciously and gracePeriodSeconds is set",
+			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				PurgeMode:          policyv1alpha1.Graciously,
+				GracePeriodSeconds: pointer.Int32(200),
+			},
+			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				PurgeMode:          policyv1alpha1.Graciously,
+				GracePeriodSeconds: pointer.Int32(200),
+			},
+		},
+		{
+			name: "purgeMode is graciously and gracePeriodSeconds is not set",
+			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				PurgeMode: policyv1alpha1.Graciously,
+			},
+			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				PurgeMode:          policyv1alpha1.Graciously,
+				GracePeriodSeconds: pointer.Int32(600),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetDefaultGracePeriodSeconds(tt.behavior)
+			if !reflect.DeepEqual(tt.behavior, tt.expectBehavior) {
+				t.Errorf("expectedBehavior %v, but got %v", tt.expectBehavior, tt.behavior)
 			}
 		})
 	}

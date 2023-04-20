@@ -15048,6 +15048,11 @@
           "default": {},
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.DecisionConditions"
         },
+        "gracePeriodSeconds": {
+          "description": "GracePeriodSeconds is the maximum waiting duration in seconds before application on the migrated cluster should be deleted. Required only when PurgeMode is \"Graciously\" and defaults to 600s. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the application after GracePeriodSeconds is reached. Value must be positive integer.",
+          "type": "integer",
+          "format": "int32"
+        },
         "preConditions": {
           "description": "PreConditions indicates the preconditions of the failover process. If specified, only when all conditions are met can the failover process be started. Currently, PreConditions includes several conditions: - DelaySeconds (optional) - HealthyState (optional)",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PreConditions"
@@ -16564,6 +16569,11 @@
           "type": "string",
           "default": ""
         },
+        "gracePeriodSeconds": {
+          "description": "GracePeriodSeconds is the maximum waiting duration in seconds before the item should be deleted. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the item after GracePeriodSeconds is reached. Value must be positive integer. It can not co-exist with SuppressDeletion.",
+          "type": "integer",
+          "format": "int32"
+        },
         "message": {
           "description": "Message is a human-readable message indicating details about the eviction. This may be an empty string.",
           "type": "string"
@@ -16582,6 +16592,10 @@
           "description": "Replicas indicates the number of replicas should be evicted. Should be ignored for resource type that doesn't have replica.",
           "type": "integer",
           "format": "int32"
+        },
+        "suppressDeletion": {
+          "description": "SuppressDeletion represents the grace period will be persistent until the tools or human intervention stops it. It can not co-exist with GracePeriodSeconds.",
+          "type": "boolean"
         }
       }
     },

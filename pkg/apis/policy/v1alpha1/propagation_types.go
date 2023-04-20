@@ -221,6 +221,15 @@ type ApplicationFailoverBehavior struct {
 	// +optional
 	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
 
+	// GracePeriodSeconds is the maximum waiting duration in seconds before
+	// application on the migrated cluster should be deleted.
+	// Required only when PurgeMode is "Graciously" and defaults to 600s.
+	// If the application on the new cluster cannot reach a Healthy state,
+	// Karmada will delete the application after GracePeriodSeconds is reached.
+	// Value must be positive integer.
+	// +optional
+	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+
 	// BlockPredecessorSeconds represents the period of time the cluster from which the
 	// application was migrated from can be schedulable again.
 	// During the period of BlockPredecessorSeconds, clusters are forcibly filtered out by the scheduler.
