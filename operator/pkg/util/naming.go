@@ -33,8 +33,8 @@ func KarmadaAPIServerName(karmada string) string {
 	return generateResourceName(karmada, "apiserver")
 }
 
-// KarmadaAggratedAPIServerName return secret name of karmada aggregated apiserver
-func KarmadaAggratedAPIServerName(karmada string) string {
+// KarmadaAggregatedAPIServerName return secret name of karmada aggregated apiserver
+func KarmadaAggregatedAPIServerName(karmada string) string {
 	return generateResourceName(karmada, "aggregated-apiserver")
 }
 

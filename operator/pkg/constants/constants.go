@@ -78,8 +78,8 @@ const (
 
 	// KarmadaAPIserverComponent defines the name of karmada apiserver component
 	KarmadaAPIserverComponent = "KarmadaAPIServer"
-	// KarmadaAggregratedAPIServerComponent defines the name of karmada aggregrated apiserver component
-	KarmadaAggregratedAPIServerComponent = "KarmadaAggregratedAAPIServer"
+	// KarmadaAggregatedAPIServerComponent defines the name of karmada aggregated apiserver component
+	KarmadaAggregatedAPIServerComponent = "KarmadaAggregatedAPIServer"
 	// KubeControllerManagerComponent defines the name of kube controller manager component
 	KubeControllerManagerComponent = "KubeControllerManager"
 	// KarmadaControllerManagerComponent defines the name of karmada controller manager component

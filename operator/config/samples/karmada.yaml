@@ -18,7 +18,7 @@ spec:
       replicas: 1
       serviceType: NodePort
       serviceSubnet: 10.96.0.0/12
-    karmadaAggregratedAPIServer:
+    karmadaAggregatedAPIServer:
       imageRepository: docker.io/karmada/karmada-aggregated-apiserver
       imageTag: v1.4.0
       replicas: 1
