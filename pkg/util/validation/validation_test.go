@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/pointer"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -550,6 +552,77 @@ func TestValidatePropagationSpec(t *testing.T) {
 				if tt.expectedErr != "" {
 					t.Errorf("unexpected no error, expected to contain:\n  %s", tt.expectedErr)
 				}
+			}
+		})
+	}
+}
+
+func TestValidateApplicationFailover(t *testing.T) {
+	tests := []struct {
+		name                        string
+		applicationFailoverBehavior *policyv1alpha1.ApplicationFailoverBehavior
+		expectedErr                 string
+	}{
+		{
+			name:                        "application failover is nil",
+			applicationFailoverBehavior: nil,
+			expectedErr:                 "",
+		},
+		{
+			name: "the delaySeconds is less than zero",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				BlockPredecessorSeconds: pointer.Int32(100),
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: pointer.Int32(100),
+				},
+				PreConditions: &policyv1alpha1.PreConditions{
+					DelaySeconds: pointer.Int32(-100),
+				},
+			},
+			expectedErr: "spec.failover.application.preConditions.delaySeconds: Invalid value: -100: must be greater than or equal to 0",
+		},
+		{
+			name: "the tolerationSeconds is less than zero",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				BlockPredecessorSeconds: pointer.Int32(100),
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: pointer.Int32(-100),
+				},
+			},
+			expectedErr: "spec.failover.application.decisionConditions.tolerationSeconds: Invalid value: -100: must be greater than or equal to 0",
+		},
+		{
+			name: "the blockPredecessorSeconds is less than zero",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				BlockPredecessorSeconds: pointer.Int32(-100),
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: pointer.Int32(100),
+				},
+			},
+			expectedErr: "spec.failover.application.blockPredecessorSeconds: Invalid value: -100: must be greater than or equal to 0",
+		},
+		{
+			name: "application behavior is correctly defined",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				BlockPredecessorSeconds: pointer.Int32(100),
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: pointer.Int32(100),
+				},
+				PreConditions: &policyv1alpha1.PreConditions{
+					DelaySeconds: pointer.Int32(100),
+				},
+			},
+			expectedErr: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := ValidateApplicationFailover(tt.applicationFailoverBehavior, field.NewPath("spec").Child("failover").Child("application"))
+			err := errs.ToAggregate()
+			if err != nil && err.Error() != tt.expectedErr {
+				t.Errorf("expected error:\n  %s, but got:\n  %s", tt.expectedErr, err.Error())
+			} else if err == nil && tt.expectedErr != "" {
+				t.Errorf("expected error:\n  %s, but got no error\n", tt.expectedErr)
 			}
 		})
 	}

@@ -21,6 +21,7 @@ const LabelValueMaxLength int = 63
 func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorList {
 	var allErrs field.ErrorList
 	allErrs = append(allErrs, ValidatePlacement(spec.Placement, field.NewPath("spec").Child("placement"))...)
+	allErrs = append(allErrs, ValidateFailover(spec.Failover, field.NewPath("spec").Child("failover"))...)
 	return allErrs
 }
 
@@ -137,6 +138,42 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 		if _, ok := spreadByFieldsWithErrorMark[policyv1alpha1.SpreadByFieldCluster]; !ok {
 			allErrs = append(allErrs, field.Invalid(fldPath, spreadConstraints, "the cluster spread constraint must be enabled in one of the constraints in case of SpreadByField is enabled"))
 		}
+	}
+
+	return allErrs
+}
+
+// ValidateFailover validates that the failoverBehavior is correctly defined.
+func ValidateFailover(failoverBehavior *policyv1alpha1.FailoverBehavior, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if failoverBehavior == nil {
+		return nil
+	}
+
+	allErrs = append(allErrs, ValidateApplicationFailover(failoverBehavior.Application, fldPath.Child("application"))...)
+	return allErrs
+}
+
+// ValidateApplicationFailover validates that the application failover is correctly defined.
+func ValidateApplicationFailover(applicationFailoverBehavior *policyv1alpha1.ApplicationFailoverBehavior, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if applicationFailoverBehavior == nil {
+		return nil
+	}
+
+	preConditions := applicationFailoverBehavior.PreConditions
+	if preConditions != nil && preConditions.DelaySeconds != nil && *preConditions.DelaySeconds < 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("preConditions").Child("delaySeconds"), *preConditions.DelaySeconds, "must be greater than or equal to 0"))
+	}
+
+	if *applicationFailoverBehavior.DecisionConditions.TolerationSeconds < 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("decisionConditions").Child("tolerationSeconds"), *applicationFailoverBehavior.DecisionConditions.TolerationSeconds, "must be greater than or equal to 0"))
+	}
+
+	if *applicationFailoverBehavior.BlockPredecessorSeconds < 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("blockPredecessorSeconds"), *applicationFailoverBehavior.BlockPredecessorSeconds, "must be greater than or equal to 0"))
 	}
 
 	return allErrs

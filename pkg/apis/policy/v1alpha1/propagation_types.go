@@ -210,7 +210,6 @@ type ApplicationFailoverBehavior struct {
 	// Only when all conditions are met can the failover process be performed.
 	// Currently, DecisionConditions includes several conditions:
 	// - TolerationSeconds (optional)
-	// - HealthyState (mandatory)
 	// +required
 	DecisionConditions DecisionConditions `json:"decisionConditions"`
 

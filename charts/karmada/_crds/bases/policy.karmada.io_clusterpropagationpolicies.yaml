@@ -87,7 +87,7 @@ spec:
                           of performing the failover process. Only when all conditions
                           are met can the failover process be performed. Currently,
                           DecisionConditions includes several conditions: - TolerationSeconds
-                          (optional) - HealthyState (mandatory)'
+                          (optional)'
                         properties:
                           tolerationSeconds:
                             default: 300
