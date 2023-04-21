@@ -11,11 +11,6 @@ import (
 )
 
 const (
-	// KubernetesReservedNSPrefix is the prefix of namespace which reserved by Kubernetes system, such as:
-	// - kube-system
-	// - kube-public
-	// - kube-node-lease
-	KubernetesReservedNSPrefix = "kube-"
 	// NamespaceKarmadaSystem is reserved namespace
 	NamespaceKarmadaSystem = "karmada-system"
 	// NamespaceKarmadaCluster is reserved namespace
@@ -137,8 +132,7 @@ func GenerateEstimatorDeploymentName(clusterName string) string {
 func IsReservedNamespace(namespace string) bool {
 	return namespace == NamespaceKarmadaSystem ||
 		namespace == NamespaceKarmadaCluster ||
-		strings.HasPrefix(namespace, ExecutionSpacePrefix) ||
-		strings.HasPrefix(namespace, KubernetesReservedNSPrefix)
+		strings.HasPrefix(namespace, ExecutionSpacePrefix)
 }
 
 // GenerateImpersonationSecretName generates the secret name of impersonation secret.

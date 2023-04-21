@@ -354,11 +354,6 @@ func TestIsReservedNamespace(t *testing.T) {
 			expected:  true,
 		},
 		{
-			name:      "kube-",
-			namespace: KubernetesReservedNSPrefix,
-			expected:  true,
-		},
-		{
 			name:      "karmada-es-",
 			namespace: ExecutionSpacePrefix,
 			expected:  true,
