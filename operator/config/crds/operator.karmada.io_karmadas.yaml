@@ -735,8 +735,8 @@ spec:
                           apiserver. it is Nodeport by default.
                         type: string
                     type: object
-                  karmadaAggregratedAPIServer:
-                    description: KarmadaAggregratedAPIServer holds settings to karmada-aggregated-apiserver
+                  karmadaAggregatedAPIServer:
+                    description: KarmadaAggregatedAPIServer holds settings to karmada-aggregated-apiserver
                       component of the karmada.
                     properties:
                       annotations:

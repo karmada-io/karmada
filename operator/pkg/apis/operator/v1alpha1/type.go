@@ -96,9 +96,9 @@ type KarmadaComponents struct {
 	// +optional
 	KarmadaAPIServer *KarmadaAPIServer `json:"karmadaAPIServer,omitempty"`
 
-	// KarmadaAggregratedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.
+	// KarmadaAggregatedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.
 	// +optional
-	KarmadaAggregratedAPIServer *KarmadaAggregratedAPIServer `json:"karmadaAggregratedAPIServer,omitempty"`
+	KarmadaAggregatedAPIServer *KarmadaAggregatedAPIServer `json:"karmadaAggregatedAPIServer,omitempty"`
 
 	// KubeControllerManager holds settings to kube-controller-manager component of the karmada.
 	// +optional
@@ -250,8 +250,8 @@ type KarmadaAPIServer struct {
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
-// KarmadaAggregratedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.
-type KarmadaAggregratedAPIServer struct {
+// KarmadaAggregatedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.
+type KarmadaAggregatedAPIServer struct {
 	// CommonSettings holds common settings to karmada apiServer.
 	CommonSettings `json:",inline"`
 

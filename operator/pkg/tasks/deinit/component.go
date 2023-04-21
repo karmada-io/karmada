@@ -23,7 +23,7 @@ func NewRemoveComponentTask() workflow.Task {
 			newRemoveComponentSubTask(constants.KarmadaControllerManagerComponent, util.KarmadaControllerManagerName),
 			newRemoveComponentSubTask(constants.KubeControllerManagerComponent, util.KubeControllerManagerName),
 			newRemoveComponentWithServiceSubTask(constants.KarmadaWebhookComponent, util.KarmadaWebhookName),
-			newRemoveComponentWithServiceSubTask(constants.KarmadaAggregratedAPIServerComponent, util.KarmadaAggratedAPIServerName),
+			newRemoveComponentWithServiceSubTask(constants.KarmadaAggregatedAPIServerComponent, util.KarmadaAggregatedAPIServerName),
 			newRemoveComponentWithServiceSubTask(constants.KarmadaAPIserverComponent, util.KarmadaAPIServerName),
 			{
 				Name: "remove-etcd",

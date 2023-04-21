@@ -43,7 +43,7 @@ func aggregatedAPIService(client *aggregator.Clientset, name, namespace string) 
 		ServiceName string
 	}{
 		Namespace:   namespace,
-		ServiceName: util.KarmadaAggratedAPIServerName(name),
+		ServiceName: util.KarmadaAggregatedAPIServerName(name),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing AggregatedApiserver APIService template: %w", err)
@@ -66,7 +66,7 @@ func aggregatedApiserverService(client clientset.Interface, name, namespace stri
 		ServiceName string
 	}{
 		Namespace:   namespace,
-		ServiceName: util.KarmadaAggratedAPIServerName(name),
+		ServiceName: util.KarmadaAggregatedAPIServerName(name),
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing AggregatedApiserver Service template: %w", err)

@@ -77,12 +77,8 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 }
 
 func (ctrl *Controller) removeFinalizer(ctx context.Context, karmada *operatorv1alpha1.Karmada) (controllerruntime.Result, error) {
-	if controllerutil.ContainsFinalizer(karmada, ControllerFinalizerName) {
-		controllerutil.RemoveFinalizer(karmada, ControllerFinalizerName)
-
-		if err := ctrl.Update(ctx, karmada); err != nil {
-			return controllerruntime.Result{}, err
-		}
+	if controllerutil.RemoveFinalizer(karmada, ControllerFinalizerName) {
+		return controllerruntime.Result{}, ctrl.Update(ctx, karmada)
 	}
 
 	return controllerruntime.Result{}, nil
@@ -99,9 +95,7 @@ func (ctrl *Controller) ensureKarmada(ctx context.Context, karmada *operatorv1al
 	operatorscheme.Scheme.Default(karmada)
 
 	if updated || !reflect.DeepEqual(karmada.Spec, older.Spec) {
-		if err := ctrl.Update(ctx, karmada); err != nil {
-			return err
-		}
+		return ctrl.Update(ctx, karmada)
 	}
 
 	return nil
