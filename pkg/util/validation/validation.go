@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
 
@@ -59,6 +60,9 @@ func ValidateClusterAffinities(affinities []policyv1alpha1.ClusterAffinityTerm, 
 
 	affinityNames := make(map[string]bool)
 	for index, term := range affinities {
+		for _, err := range validation.IsQualifiedName(term.AffinityName) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index), term.AffinityName, err))
+		}
 		if _, exist := affinityNames[term.AffinityName]; exist {
 			allErrs = append(allErrs, field.Invalid(fldPath, affinities, "each affinity term in a policy must have a unique name"))
 		} else {

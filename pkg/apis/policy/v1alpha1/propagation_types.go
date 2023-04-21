@@ -383,6 +383,8 @@ type ClusterAffinity struct {
 // ClusterAffinityTerm selects a set of cluster.
 type ClusterAffinityTerm struct {
 	// AffinityName is the name of the cluster group.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32
 	// +required
 	AffinityName string `json:"affinityName"`
 
