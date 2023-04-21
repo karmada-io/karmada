@@ -60,6 +60,8 @@ ensures development quality.
 - [`run-e2e.sh`](run-e2e.sh) This script runs e2e test against on Karmada control plane. You should prepare your environment
   in advance with `local-up-karmada.sh`.
 
+- [`ghaction.sh`](ghaction.sh) This script working for rerun github action failed workflow when you create a issue comment of include "/retest-failed".
+
 ## Some internal scripts
 These scripts are not intended used by end-users, just for the development
 - [`deploy-karmada.sh`](deploy-karmada.sh) Underlying common implementation for `local-up-karmada.sh` and `remote-up-karmada.sh`.

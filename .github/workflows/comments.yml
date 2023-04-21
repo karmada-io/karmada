@@ -1,0 +1,27 @@
+name: comments
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+
+  rerun-failed-workflow:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }} # Only work for PR
+    permissions:
+      actions: write # To be able to rerun workflow
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: rerun failed workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_COMMENT: ${{ github.event.comment.body }}
+          PR_NUM: ${{ github.event.issue.number }}
+        run: |
+          hack/ghaction.sh
