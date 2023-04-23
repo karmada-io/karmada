@@ -57,8 +57,20 @@ func (s *ResourceBindingSpec) GracefulEvictCluster(name, producer, reason, messa
 		return
 	}
 
+	evictCluster := s.Clusters[i]
+
+	// remove the target cluster from scheduling result
+	s.Clusters = append(s.Clusters[:i], s.Clusters[i+1:]...)
+
+	// skip if the target cluster already in the task list
+	for _, task := range s.GracefulEvictionTasks {
+		if task.FromCluster == evictCluster.Name {
+			return
+		}
+	}
+
 	// build eviction task
-	evictingCluster := s.Clusters[i].DeepCopy()
+	evictingCluster := evictCluster.DeepCopy()
 	evictionTask := GracefulEvictionTask{
 		FromCluster: evictingCluster.Name,
 		Reason:      reason,
@@ -68,7 +80,5 @@ func (s *ResourceBindingSpec) GracefulEvictCluster(name, producer, reason, messa
 	if evictingCluster.Replicas > 0 {
 		evictionTask.Replicas = &evictingCluster.Replicas
 	}
-
 	s.GracefulEvictionTasks = append(s.GracefulEvictionTasks, evictionTask)
-	s.Clusters = append(s.Clusters[:i], s.Clusters[i+1:]...)
 }
