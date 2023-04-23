@@ -56,7 +56,7 @@ func (c *Cluster) Order() int {
 
 // SupportRequest implements Plugin
 func (c *Cluster) SupportRequest(request framework.ProxyRequest) bool {
-	return request.RequestInfo.IsResourceRequest && c.store.HasResource(request.GroupVersionResource)
+	return request.RequestInfo.IsResourceRequest && c.store.HasResource(request.GroupVersionResource, request.RequestInfo.Namespace)
 }
 
 // Connect implements Plugin

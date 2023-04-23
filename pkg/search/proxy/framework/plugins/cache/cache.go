@@ -56,7 +56,7 @@ func (c *Cache) SupportRequest(request framework.ProxyRequest) bool {
 	requestInfo := request.RequestInfo
 
 	return requestInfo.IsResourceRequest &&
-		c.store.HasResource(request.GroupVersionResource) &&
+		c.store.HasResource(request.GroupVersionResource, requestInfo.Namespace) &&
 		requestInfo.Subresource == "" &&
 		(requestInfo.Verb == "get" ||
 			requestInfo.Verb == "list" ||

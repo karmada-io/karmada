@@ -60,7 +60,7 @@ func TestMultiClusterCache_UpdateCache(t *testing.T) {
 
 	cluster1 := newCluster("cluster1")
 	cluster2 := newCluster("cluster2")
-	resources := map[string]map[schema.GroupVersionResource]struct{}{
+	resources := map[string]map[schema.GroupVersionResource]*NamespaceScope{
 		cluster1.Name: resourceSet(podGVR, nodeGVR),
 		cluster2.Name: resourceSet(podGVR),
 	}
@@ -75,7 +75,7 @@ func TestMultiClusterCache_UpdateCache(t *testing.T) {
 	}
 
 	// Then test removing cluster2 and remove node cache for cluster1
-	err = cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err = cache.UpdateCache(map[string]map[schema.GroupVersionResource]*NamespaceScope{
 		cluster1.Name: resourceSet(podGVR),
 	})
 	if err != nil {
@@ -95,7 +95,7 @@ func TestMultiClusterCache_HasResource(t *testing.T) {
 	defer cache.Stop()
 	cluster1 := newCluster("cluster1")
 	cluster2 := newCluster("cluster2")
-	resources := map[string]map[schema.GroupVersionResource]struct{}{
+	resources := map[string]map[schema.GroupVersionResource]*NamespaceScope{
 		cluster1.Name: resourceSet(podGVR, nodeGVR),
 		cluster2.Name: resourceSet(podGVR),
 	}
@@ -129,7 +129,7 @@ func TestMultiClusterCache_HasResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual := cache.HasResource(tt.args)
+			actual := cache.HasResource(tt.args, "")
 			if tt.want != actual {
 				t.Errorf("should return %v", tt.want)
 			}
@@ -140,7 +140,7 @@ func TestMultiClusterCache_HasResource(t *testing.T) {
 func TestMultiClusterCache_GetResourceFromCache(t *testing.T) {
 	cluster1 := newCluster("cluster1")
 	cluster2 := newCluster("cluster2")
-	resources := map[string]map[schema.GroupVersionResource]struct{}{
+	resources := map[string]map[schema.GroupVersionResource]*NamespaceScope{
 		cluster1.Name: resourceSet(podGVR),
 		cluster2.Name: resourceSet(podGVR),
 	}
@@ -285,7 +285,7 @@ func TestMultiClusterCache_Get(t *testing.T) {
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
-	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*NamespaceScope{
 		cluster1.Name: resourceSet(podGVR, nodeGVR),
 		cluster2.Name: resourceSet(podGVR),
 	})
@@ -443,13 +443,13 @@ func TestMultiClusterCache_List(t *testing.T) {
 	}
 	tests := []struct {
 		name      string
-		resources map[string]map[schema.GroupVersionResource]struct{}
+		resources map[string]map[schema.GroupVersionResource]*NamespaceScope
 		args      args
 		want      want
 	}{
 		{
 			name:      "list gets with labelSelector",
-			resources: map[string]map[schema.GroupVersionResource]struct{}{},
+			resources: map[string]map[schema.GroupVersionResource]*NamespaceScope{},
 			args: args{
 				ctx: request.WithNamespace(context.TODO(), metav1.NamespaceDefault),
 				gvr: podGVR,
@@ -466,7 +466,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 		},
 		{
 			name: "list gets",
-			resources: map[string]map[schema.GroupVersionResource]struct{}{
+			resources: map[string]map[schema.GroupVersionResource]*NamespaceScope{
 				cluster1.Name: resourceSet(podGVR),
 				cluster2.Name: resourceSet(podGVR),
 			},
@@ -484,7 +484,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 		},
 		{
 			name: "list gets with labelSelector",
-			resources: map[string]map[schema.GroupVersionResource]struct{}{
+			resources: map[string]map[schema.GroupVersionResource]*NamespaceScope{
 				cluster1.Name: resourceSet(podGVR),
 				cluster2.Name: resourceSet(podGVR),
 			},
@@ -576,7 +576,7 @@ func TestMultiClusterCache_List_CacheSourceAnnotation(t *testing.T) {
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
-	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*NamespaceScope{
 		cluster1.Name: resourceSet(podGVR),
 		cluster2.Name: resourceSet(podGVR),
 	})
@@ -630,7 +630,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
-	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*NamespaceScope{
 		cluster1.Name: resourceSet(podGVR),
 		cluster2.Name: resourceSet(podGVR),
 	})
@@ -795,10 +795,12 @@ func asLabelSelector(s string) labels.Selector {
 	return selector
 }
 
-func resourceSet(rs ...schema.GroupVersionResource) map[schema.GroupVersionResource]struct{} {
-	m := make(map[schema.GroupVersionResource]struct{}, len(rs))
+func resourceSet(rs ...schema.GroupVersionResource) map[schema.GroupVersionResource]*NamespaceScope {
+	m := make(map[schema.GroupVersionResource]*NamespaceScope, len(rs))
 	for _, r := range rs {
-		m[r] = struct{}{}
+		m[r] = &NamespaceScope{
+			allNamespaces: true,
+		}
 	}
 	return m
 }
@@ -969,7 +971,7 @@ func TestMultiClusterCache_fillMissingClusterResourceVersion(t *testing.T) {
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
-	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*NamespaceScope{
 		cluster1.Name: resourceSet(podGVR),
 	})
 	if err != nil {

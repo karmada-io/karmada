@@ -14,7 +14,7 @@ import (
 
 // MockStore is a mock for store.Store interface
 type MockStore struct {
-	UpdateCacheFunc          func(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error
+	UpdateCacheFunc          func(resourcesByCluster map[string]map[schema.GroupVersionResource]*store.NamespaceScope) error
 	HasResourceFunc          func(resource schema.GroupVersionResource) bool
 	GetResourceFromCacheFunc func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error)
 	StopFunc                 func()
@@ -26,7 +26,7 @@ type MockStore struct {
 var _ store.Store = &MockStore{}
 
 // UpdateCache implements store.Store interface
-func (c *MockStore) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error {
+func (c *MockStore) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*store.NamespaceScope) error {
 	if c.UpdateCacheFunc == nil {
 		panic("implement me")
 	}
@@ -34,7 +34,7 @@ func (c *MockStore) UpdateCache(resourcesByCluster map[string]map[schema.GroupVe
 }
 
 // HasResource implements store.Store interface
-func (c *MockStore) HasResource(resource schema.GroupVersionResource) bool {
+func (c *MockStore) HasResource(resource schema.GroupVersionResource, namespace string) bool {
 	if c.HasResourceFunc == nil {
 		panic("implement me")
 	}

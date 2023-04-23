@@ -25,8 +25,8 @@ import (
 
 // Store is the cache for resources from multiple member clusters
 type Store interface {
-	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error
-	HasResource(resource schema.GroupVersionResource) bool
+	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*NamespaceScope) error
+	HasResource(resource schema.GroupVersionResource, namespace string) bool
 	GetResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error)
 	Stop()
 
@@ -39,7 +39,7 @@ type Store interface {
 type MultiClusterCache struct {
 	lock            sync.RWMutex
 	cache           map[string]*clusterCache
-	cachedResources map[schema.GroupVersionResource]struct{}
+	cachedResources map[schema.GroupVersionResource]*NamespaceScope
 	restMapper      meta.RESTMapper
 	// newClientFunc returns a dynamic client for member cluster apiserver
 	newClientFunc func(string) (dynamic.Interface, error)
@@ -53,12 +53,12 @@ func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error),
 		restMapper:      restMapper,
 		newClientFunc:   newClientFunc,
 		cache:           map[string]*clusterCache{},
-		cachedResources: map[schema.GroupVersionResource]struct{}{},
+		cachedResources: map[schema.GroupVersionResource]*NamespaceScope{},
 	}
 }
 
 // UpdateCache update cache for multi clusters
-func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error {
+func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*NamespaceScope) error {
 	if klog.V(3).Enabled() {
 		start := time.Now()
 		defer func() {
@@ -97,10 +97,13 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 	}
 
 	// update cachedResource
-	newCachedResources := make(map[schema.GroupVersionResource]struct{}, len(c.cachedResources))
+	newCachedResources := make(map[schema.GroupVersionResource]*NamespaceScope, len(c.cachedResources))
 	for _, resources := range resourcesByCluster {
-		for resource := range resources {
-			newCachedResources[resource] = struct{}{}
+		for resource, multiNS := range resources {
+			if _, exist := newCachedResources[resource]; !exist {
+				newCachedResources[resource] = &NamespaceScope{}
+			}
+			newCachedResources[resource].Merge(multiNS)
 		}
 	}
 	for resource := range c.cachedResources {
@@ -108,10 +111,8 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 			delete(c.cachedResources, resource)
 		}
 	}
-	for resource := range newCachedResources {
-		if _, exist := c.cachedResources[resource]; !exist {
-			c.cachedResources[resource] = struct{}{}
-		}
+	for resource, ns := range newCachedResources {
+		c.cachedResources[resource] = ns
 	}
 	return nil
 }
@@ -127,11 +128,14 @@ func (c *MultiClusterCache) Stop() {
 }
 
 // HasResource return whether resource is cached.
-func (c *MultiClusterCache) HasResource(resource schema.GroupVersionResource) bool {
+func (c *MultiClusterCache) HasResource(resource schema.GroupVersionResource, namespace string) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	_, ok := c.cachedResources[resource]
-	return ok
+	if nsScope, ok := c.cachedResources[resource]; ok {
+		return nsScope.Has(namespace)
+	} else {
+		return false
+	}
 }
 
 // GetResourceFromCache returns which cluster the resource belong to.
@@ -203,7 +207,7 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 			options.Continue = ""
 		}()
 
-		cache := c.cacheForClusterResource(cluster, gvr)
+		cache := c.cacheForClusterResource(cluster, gvr, request.NamespaceValue(ctx))
 		if cache == nil {
 			klog.V(4).Infof("cluster %v does not cache resource %v", cluster, gvr.String())
 			return 0, "", nil
@@ -336,7 +340,7 @@ func (c *MultiClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionRe
 	for i := range clusters {
 		cluster := clusters[i]
 		options.ResourceVersion = resourceVersion.get(cluster)
-		cache := c.cacheForClusterResource(cluster, gvr)
+		cache := c.cacheForClusterResource(cluster, gvr, request.NamespaceValue(ctx))
 		if cache == nil {
 			continue
 		}
@@ -365,14 +369,14 @@ func (c *MultiClusterCache) getClusterNames() []string {
 	return clusters
 }
 
-func (c *MultiClusterCache) cacheForClusterResource(cluster string, gvr schema.GroupVersionResource) *resourceCache {
+func (c *MultiClusterCache) cacheForClusterResource(cluster string, gvr schema.GroupVersionResource, namespace string) *resourceCache {
 	c.lock.RLock()
 	cc := c.cache[cluster]
 	c.lock.RUnlock()
 	if cc == nil {
 		return nil
 	}
-	return cc.cacheForResource(gvr)
+	return cc.cacheForResource(gvr, namespace)
 }
 
 func (c *MultiClusterCache) getResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, *resourceCache, error) {
@@ -385,7 +389,7 @@ func (c *MultiClusterCache) getResourceFromCache(ctx context.Context, gvr schema
 	// Set ResourceVersion=0 to get resource from cache.
 	options := &metav1.GetOptions{ResourceVersion: "0"}
 	for clusterName, cc := range c.cache {
-		cache := cc.cache[gvr]
+		cache := cc.cacheForResource(gvr, namespace)
 		if cache == nil {
 			// This cluster doesn't cache this resource
 			continue
@@ -466,7 +470,7 @@ func (c *MultiClusterCache) fillMissingClusterResourceVersion(ctx context.Contex
 }
 
 func (c *MultiClusterCache) getClusterResourceVersion(ctx context.Context, cluster string, gvr schema.GroupVersionResource) (string, error) {
-	cache := c.cacheForClusterResource(cluster, gvr)
+	cache := c.cacheForClusterResource(cluster, gvr, request.NamespaceValue(ctx))
 	if cache == nil {
 		klog.V(4).Infof("cluster %v does not cache resource %v", cluster, gvr.String())
 		return "", nil

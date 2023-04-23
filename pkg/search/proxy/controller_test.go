@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -79,7 +80,7 @@ func TestController(t *testing.T) {
 	// wait for controller synced
 	time.Sleep(time.Second)
 
-	hasPod := ctrl.store.HasResource(proxytest.PodGVR)
+	hasPod := ctrl.store.HasResource(proxytest.PodGVR, "")
 	if !hasPod {
 		t.Error("has no pod resource")
 		return
@@ -276,7 +277,7 @@ func TestController_reconcile(t *testing.T) {
 				clusterLister:  karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
 				registryLister: karmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
 				store: &proxytest.MockStore{
-					UpdateCacheFunc: func(m map[string]map[schema.GroupVersionResource]struct{}) error {
+					UpdateCacheFunc: func(m map[string]map[schema.GroupVersionResource]*store.NamespaceScope) error {
 						for clusterName, resources := range m {
 							resourceNames := make([]string, 0, len(resources))
 							for resource := range resources {

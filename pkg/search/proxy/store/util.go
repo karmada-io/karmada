@@ -331,3 +331,57 @@ func BuildMultiClusterResourceVersion(clusterResourceMap map[string]string) stri
 	}
 	return m.String()
 }
+
+const (
+	AllNamespace = ""
+)
+
+type NamespaceScope struct {
+	namespaces    map[string]struct{} // ignored when allNamespaces is true
+	allNamespaces bool
+}
+
+func (namespaceScope *NamespaceScope) AddAll(namespaces []string) {
+	for _, namespace := range namespaces {
+		if namespace == AllNamespace {
+			namespaceScope.allNamespaces = true
+			namespaceScope.namespaces = nil
+		} else if !namespaceScope.allNamespaces {
+			if namespaceScope.namespaces == nil {
+				namespaceScope.namespaces = make(map[string]struct{})
+			}
+			namespaceScope.namespaces[namespace] = struct{}{}
+		}
+	}
+}
+
+func (namespaceScope *NamespaceScope) Merge(src *NamespaceScope) {
+	if src.allNamespaces {
+		namespaceScope.allNamespaces = true
+		namespaceScope.namespaces = nil
+	} else {
+		for namespace := range src.namespaces {
+			if !namespaceScope.allNamespaces {
+				if namespaceScope.namespaces == nil {
+					namespaceScope.namespaces = make(map[string]struct{})
+				}
+				namespaceScope.namespaces[namespace] = struct{}{}
+			}
+		}
+	}
+
+}
+
+func (namespaceScope *NamespaceScope) Has(ns string) bool {
+	if namespaceScope.allNamespaces {
+		return true
+	} else {
+		if _, ok := namespaceScope.namespaces[ns]; ok {
+			return true
+		} else {
+			return false
+		}
+	}
+
+}
+
