@@ -37,7 +37,6 @@ spec:
             - --allow-privileged=true
             - --authorization-mode=Node,RBAC
             - --client-ca-file=/etc/karmada/pki/ca.crt
-            - --enable-admission-plugins=NodeRestriction
             - --enable-bootstrap-token-auth=true
             - --etcd-cafile=/etc/karmada/pki/etcd-ca.crt
             - --etcd-certfile=/etc/karmada/pki/etcd-client.crt
