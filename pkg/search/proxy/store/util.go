@@ -60,6 +60,17 @@ func (m *multiClusterResourceVersion) get(cluster string) string {
 	return m.rvs[cluster]
 }
 
+func (m *multiClusterResourceVersion) clone() *multiClusterResourceVersion {
+	ret := &multiClusterResourceVersion{
+		isZero: m.isZero,
+		rvs:    make(map[string]string, len(m.rvs)),
+	}
+	for k, v := range m.rvs {
+		ret.rvs[k] = v
+	}
+	return ret
+}
+
 func (m *multiClusterResourceVersion) String() string {
 	if m.isZero {
 		return "0"
@@ -125,6 +136,7 @@ func marshalRvs(rvs map[string]string) []byte {
 }
 
 type multiClusterContinue struct {
+	RV       string `json:"rv"`
 	Cluster  string `json:"cluster,omitempty"`
 	Continue string `json:"continue,omitempty"`
 }
