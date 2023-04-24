@@ -129,6 +129,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingSpec":                           schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingStatus":                         schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster":                                 schema_pkg_apis_work_v1alpha2_TargetCluster(ref),
+		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TaskOptions":                                   schema_pkg_apis_work_v1alpha2_TaskOptions(ref),
 		"k8s.io/api/admissionregistration/v1.MutatingWebhook":                                                schema_k8sio_api_admissionregistration_v1_MutatingWebhook(ref),
 		"k8s.io/api/admissionregistration/v1.MutatingWebhookConfiguration":                                   schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfiguration(ref),
 		"k8s.io/api/admissionregistration/v1.MutatingWebhookConfigurationList":                               schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfigurationList(ref),
@@ -5569,6 +5570,53 @@ func schema_pkg_apis_work_v1alpha2_TargetCluster(ref common.ReferenceCallback) c
 					},
 				},
 				Required: []string{"name"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_work_v1alpha2_TaskOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TaskOptions represents options for GracefulEvictionTasks.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"producer": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"gracePeriodSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"suppressDeletion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"producer", "reason", "message", "gracePeriodSeconds", "suppressDeletion"},
 			},
 		},
 	}
