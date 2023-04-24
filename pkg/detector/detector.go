@@ -416,6 +416,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.PropagateDeps = binding.Spec.PropagateDeps
 			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 			bindingCopy.Spec.Placement = binding.Spec.Placement
+			bindingCopy.Spec.Failover = binding.Spec.Failover
 			return nil
 		})
 		if err != nil {
@@ -491,6 +492,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.PropagateDeps = binding.Spec.PropagateDeps
 				bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 				bindingCopy.Spec.Placement = binding.Spec.Placement
+				bindingCopy.Spec.Failover = binding.Spec.Failover
 				return nil
 			})
 			if err != nil {
@@ -534,6 +536,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Spec.Replicas = binding.Spec.Replicas
 			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 			bindingCopy.Spec.Placement = binding.Spec.Placement
+			bindingCopy.Spec.Failover = binding.Spec.Failover
 			return nil
 		})
 		if err != nil {
@@ -632,6 +635,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			PropagateDeps: policySpec.PropagateDeps,
 			SchedulerName: policySpec.SchedulerName,
 			Placement:     &policySpec.Placement,
+			Failover:      policySpec.Failover,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),
@@ -672,6 +676,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			PropagateDeps: policySpec.PropagateDeps,
 			SchedulerName: policySpec.SchedulerName,
 			Placement:     &policySpec.Placement,
+			Failover:      policySpec.Failover,
 			Resource: workv1alpha2.ObjectReference{
 				APIVersion:      object.GetAPIVersion(),
 				Kind:            object.GetKind(),

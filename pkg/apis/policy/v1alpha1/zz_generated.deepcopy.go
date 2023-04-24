@@ -20,6 +20,11 @@ func (in *ApplicationFailoverBehavior) DeepCopyInto(out *ApplicationFailoverBeha
 		(*in).DeepCopyInto(*out)
 	}
 	in.DecisionConditions.DeepCopyInto(&out.DecisionConditions)
+	if in.GracePeriodSeconds != nil {
+		in, out := &in.GracePeriodSeconds, &out.GracePeriodSeconds
+		*out = new(int32)
+		**out = **in
+	}
 	if in.BlockPredecessorSeconds != nil {
 		in, out := &in.BlockPredecessorSeconds, &out.BlockPredecessorSeconds
 		*out = new(int32)

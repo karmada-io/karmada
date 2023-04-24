@@ -48,8 +48,22 @@ func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
 }
 
 func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOption) *workv1alpha2.GracefulEvictionTask {
+	if task.SuppressDeletion != nil {
+		if *task.SuppressDeletion {
+			return &task
+		}
+		// If *task.SuppressDeletion is equal to false,
+		// it means users have confirmed that they want to delete the redundant copy.
+		// In that case, we will delete the task immediately.
+		return nil
+	}
+
+	timeout := opt.timeout
+	if task.GracePeriodSeconds != nil {
+		timeout = time.Duration(*task.GracePeriodSeconds) * time.Second
+	}
 	// task exceeds timeout
-	if metav1.Now().After(task.CreationTimestamp.Add(opt.timeout)) {
+	if metav1.Now().After(task.CreationTimestamp.Add(timeout)) {
 		return nil
 	}
 
@@ -94,6 +108,9 @@ func nextRetry(tasks []workv1alpha2.GracefulEvictionTask, timeout time.Duration,
 	retryInterval := timeout / 10
 
 	for i := range tasks {
+		if tasks[i].GracePeriodSeconds != nil {
+			timeout = time.Duration(*tasks[i].GracePeriodSeconds) * time.Second
+		}
 		next := tasks[i].CreationTimestamp.Add(timeout).Sub(timeNow)
 		if next < retryInterval {
 			retryInterval = next

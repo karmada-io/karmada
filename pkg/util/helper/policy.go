@@ -6,6 +6,7 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -132,10 +133,17 @@ func GetAppliedPlacement(annotations map[string]string) (*policyv1alpha1.Placeme
 	return placement, nil
 }
 
-// SetReplicaDivisionPreferenceWeighted Set the default value of ReplicaDivisionPreference to Weighted
+// SetReplicaDivisionPreferenceWeighted sets the default value of ReplicaDivisionPreference to Weighted
 func SetReplicaDivisionPreferenceWeighted(placement *policyv1alpha1.Placement) {
 	if placement.ReplicaSchedulingType() != policyv1alpha1.ReplicaSchedulingTypeDivided || placement.ReplicaScheduling.ReplicaDivisionPreference != "" {
 		return
 	}
 	placement.ReplicaScheduling.ReplicaDivisionPreference = policyv1alpha1.ReplicaDivisionPreferenceWeighted
+}
+
+// SetDefaultGracePeriodSeconds sets the default value of GracePeriodSeconds in ApplicationFailoverBehavior
+func SetDefaultGracePeriodSeconds(behavior *policyv1alpha1.ApplicationFailoverBehavior) {
+	if behavior.PurgeMode == policyv1alpha1.Graciously && behavior.GracePeriodSeconds == nil {
+		behavior.GracePeriodSeconds = pointer.Int32(600)
+	}
 }

@@ -71,6 +71,12 @@ func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) a
 	// When ReplicaSchedulingType is Divided, set the default value of ReplicaDivisionPreference to Weighted.
 	helper.SetReplicaDivisionPreferenceWeighted(&policy.Spec.Placement)
 
+	if policy.Spec.Failover != nil {
+		if policy.Spec.Failover.Application != nil {
+			helper.SetDefaultGracePeriodSeconds(policy.Spec.Failover.Application)
+		}
+	}
+
 	marshaledBytes, err := json.Marshal(policy)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)

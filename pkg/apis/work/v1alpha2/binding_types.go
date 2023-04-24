@@ -206,6 +206,20 @@ type GracefulEvictionTask struct {
 	// +required
 	Producer string `json:"producer"`
 
+	// GracePeriodSeconds is the maximum waiting duration in seconds before the item
+	// should be deleted. If the application on the new cluster cannot reach a Healthy state,
+	// Karmada will delete the item after GracePeriodSeconds is reached.
+	// Value must be positive integer.
+	// It can not co-exist with SuppressDeletion.
+	// +optional
+	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+
+	// SuppressDeletion represents the grace period will be persistent until
+	// the tools or human intervention stops it.
+	// It can not co-exist with GracePeriodSeconds.
+	// +optional
+	SuppressDeletion *bool `json:"suppressDeletion,omitempty"`
+
 	// CreationTimestamp is a timestamp representing the server time when this object was
 	// created.
 	// Clients should not set this value to avoid the time inconsistency issue.

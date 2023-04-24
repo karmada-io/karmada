@@ -176,6 +176,18 @@ func ValidateApplicationFailover(applicationFailoverBehavior *policyv1alpha1.App
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("blockPredecessorSeconds"), *applicationFailoverBehavior.BlockPredecessorSeconds, "must be greater than or equal to 0"))
 	}
 
+	if applicationFailoverBehavior.PurgeMode != policyv1alpha1.Graciously && applicationFailoverBehavior.GracePeriodSeconds != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("gracePeriodSeconds"), *applicationFailoverBehavior.GracePeriodSeconds, "only takes effect when purgeMode is graciously"))
+	}
+
+	if applicationFailoverBehavior.PurgeMode == policyv1alpha1.Graciously && applicationFailoverBehavior.GracePeriodSeconds == nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("gracePeriodSeconds"), applicationFailoverBehavior.GracePeriodSeconds, "should not be empty when purgeMode is graciously"))
+	}
+
+	if applicationFailoverBehavior.GracePeriodSeconds != nil && *applicationFailoverBehavior.GracePeriodSeconds <= 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("gracePeriodSeconds"), *applicationFailoverBehavior.GracePeriodSeconds, "must be greater than 0"))
+	}
+
 	return allErrs
 }
 
