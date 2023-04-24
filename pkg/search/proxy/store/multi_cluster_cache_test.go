@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +23,7 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/dynamic"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
+	kubetesting "k8s.io/client-go/testing"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
@@ -617,4 +620,248 @@ func resourceSet(rs ...schema.GroupVersionResource) map[schema.GroupVersionResou
 		m[r] = struct{}{}
 	}
 	return m
+}
+
+type VersionTracker interface {
+	Set(string)
+	Get() string
+}
+
+type versionTracker struct {
+	lock sync.RWMutex
+	rv   string
+}
+
+func NewVersionTracker(rv string) VersionTracker {
+	return &versionTracker{
+		rv: rv,
+	}
+}
+
+func (t *versionTracker) Set(rv string) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.rv = rv
+}
+
+func (t *versionTracker) Get() string {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	return t.rv
+}
+
+// EnhancedFakeDynamicClient enhances FakeDynamicClient. It will return resourceVersion for list request.
+type EnhancedFakeDynamicClient struct {
+	*fakedynamic.FakeDynamicClient
+	ObjectReaction kubetesting.ReactionFunc
+	versionTracker VersionTracker
+}
+
+// NewEnhancedFakeDynamicClientWithResourceVersion returns instance of EnhancedFakeDynamicClient.
+func NewEnhancedFakeDynamicClientWithResourceVersion(scheme *runtime.Scheme, rv string, objects ...runtime.Object) *EnhancedFakeDynamicClient {
+	v := NewVersionTracker(rv)
+
+	c := fakedynamic.NewSimpleDynamicClient(scheme, objects...)
+	c.PrependReactor("list", "*", enhancedListReaction(c.Tracker(), v))
+
+	return &EnhancedFakeDynamicClient{
+		FakeDynamicClient: c,
+		ObjectReaction:    kubetesting.ObjectReaction(c.Tracker()),
+		versionTracker:    v,
+	}
+}
+
+func enhancedListReaction(o kubetesting.ObjectTracker, v VersionTracker) kubetesting.ReactionFunc {
+	return func(act kubetesting.Action) (bool, runtime.Object, error) {
+		action, ok := act.(kubetesting.ListActionImpl)
+		if !ok {
+			return false, nil, nil
+		}
+
+		ret, err := o.List(action.GetResource(), action.GetKind(), action.GetNamespace())
+		if err != nil {
+			return true, ret, err
+		}
+
+		accessor, err := meta.ListAccessor(ret)
+		if err != nil {
+			// object is not a list object, don't change it. Don't return this error.
+			return true, ret, nil
+		}
+		accessor.SetResourceVersion(v.Get())
+		return true, ret, nil
+	}
+}
+
+func Test_prepareBeforeList(t *testing.T) {
+	testMRV := &multiClusterResourceVersion{rvs: map[string]string{"c1": "1234", "c2": "5678"}}
+	testMRVString := testMRV.String()
+
+	type args struct {
+		o *metainternalversion.ListOptions
+	}
+	tests := []struct {
+		name        string
+		args        args
+		wantCluster string
+		wantOptions *metainternalversion.ListOptions
+		wantMrv     *multiClusterResourceVersion
+	}{
+		{
+			name: "Continue is empty",
+			args: args{
+				o: &metainternalversion.ListOptions{
+					ResourceVersion: "0",
+				},
+			},
+			wantCluster: "",
+			wantOptions: &metainternalversion.ListOptions{
+				ResourceVersion: "0",
+				Continue:        "",
+			},
+			wantMrv: newMultiClusterResourceVersionFromString("0"),
+		},
+		{
+			name: "Continue is not empty, and has no continue",
+			args: args{
+				o: &metainternalversion.ListOptions{
+					Continue: func() string {
+						c := multiClusterContinue{RV: testMRVString, Cluster: "c2", Continue: ""}
+						return c.String()
+					}(),
+				},
+			},
+			wantCluster: "c2",
+			wantOptions: &metainternalversion.ListOptions{
+				ResourceVersion: "5678",
+				Continue:        "",
+			},
+			wantMrv: testMRV,
+		},
+		{
+			name: "Continue is not empty, and has continue",
+			args: args{
+				o: &metainternalversion.ListOptions{
+					Continue: func() string {
+						c := multiClusterContinue{RV: testMRVString, Cluster: "c2", Continue: "xxx"}
+						return c.String()
+					}(),
+				},
+			},
+			wantCluster: "c2",
+			wantOptions: &metainternalversion.ListOptions{
+				Continue: "xxx",
+			},
+			wantMrv: testMRV,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCluster, gotOptions, gotMrv := prepareBeforeList(tt.args.o)
+			if gotCluster != tt.wantCluster {
+				t.Errorf("prepareBeforeList() gotCluster = %v, want %v", gotCluster, tt.wantCluster)
+			}
+			if !reflect.DeepEqual(gotOptions, tt.wantOptions) {
+				t.Errorf("prepareBeforeList() gotOptions = %v, want %v", gotOptions, tt.wantOptions)
+			}
+			if !reflect.DeepEqual(gotMrv, tt.wantMrv) {
+				t.Errorf("prepareBeforeList() gotMrv = %v, want %v", gotMrv, tt.wantMrv)
+			}
+		})
+	}
+}
+
+func TestMultiClusterCache_fillMissingClusterResourceVersion(t *testing.T) {
+	cluster1 := newCluster("cluster1")
+	cluster1Client := NewEnhancedFakeDynamicClientWithResourceVersion(scheme, "1000")
+	cluster1Client.AddReactor("*", "nodes", func(kubetesting.Action) (bool, runtime.Object, error) {
+		return false, nil, fmt.Errorf("error")
+	})
+
+	newClientFunc := func(cluster string) (dynamic.Interface, error) {
+		switch cluster {
+		case cluster1.Name:
+			return cluster1Client, nil
+		default:
+			return nil, fmt.Errorf("unknown cluster %v", cluster)
+		}
+	}
+	cache := NewMultiClusterCache(newClientFunc, restMapper)
+	defer cache.Stop()
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+		cluster1.Name: resourceSet(podGVR),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// wait cache synced
+	time.Sleep(time.Second)
+
+	type args struct {
+		mcv      *multiClusterResourceVersion
+		clusters []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		wantMCV *multiClusterResourceVersion
+	}{
+		{
+			name: "no missing cluster rv",
+			args: args{
+				mcv: &multiClusterResourceVersion{
+					rvs: map[string]string{
+						"cluster1": "1234",
+					},
+				},
+				clusters: []string{"cluster1"},
+			},
+			wantMCV: &multiClusterResourceVersion{
+				rvs: map[string]string{
+					"cluster1": "1234",
+				},
+			},
+		},
+		{
+			name: "has missing cluster rv",
+			args: args{
+				mcv: &multiClusterResourceVersion{
+					rvs: map[string]string{},
+				},
+				clusters: []string{"cluster1"},
+			},
+			wantMCV: &multiClusterResourceVersion{
+				rvs: map[string]string{
+					"cluster1": "1000",
+				},
+			},
+		},
+		{
+			name: "cluster not exist",
+			args: args{
+				mcv: &multiClusterResourceVersion{
+					rvs: map[string]string{},
+				},
+				clusters: []string{"non-exist"},
+			},
+			wantMCV: &multiClusterResourceVersion{
+				rvs: map[string]string{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+			defer cancel()
+
+			if err = cache.fillMissingClusterResourceVersion(ctx, tt.args.mcv, tt.args.clusters, podGVR); (err != nil) != tt.wantErr {
+				t.Fatalf("fillMissingClusterResourceVersion() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if got := tt.args.mcv; !reflect.DeepEqual(got, tt.wantMCV) {
+				t.Fatalf("fillMissingClusterResourceVersion() mcv = %v, want %v", got.String(), tt.wantMCV.String())
+			}
+		})
+	}
 }
