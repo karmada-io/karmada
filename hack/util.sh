@@ -640,6 +640,7 @@ function util::get_macos_ipaddress() {
 }
 
 function util::get_version() {
+  # echo "***Geting version from last tag and please make sure you have a karmada remote tag at local.***"
   git describe --tags --dirty
 }
 
