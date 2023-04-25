@@ -583,6 +583,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			ResourceInterpreter: resourceInterpreter,
 			RESTMapper:          mgr.GetRESTMapper(),
 			EventRecorder:       mgr.GetEventRecorderFor("dependencies-distributor"),
+			ConcurrentDependenciesDistributorBindingSyncs:  opts.ConcurrentDependenciesDistributorBindingSyncs,
+			ConcurrentDependenciesDistributorResourceSyncs: opts.ConcurrentDependenciesDistributorResourceSyncs,
 		}
 		if err := mgr.Add(dependenciesDistributor); err != nil {
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)

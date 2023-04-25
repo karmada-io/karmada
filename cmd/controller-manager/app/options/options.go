@@ -126,6 +126,11 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+
+	// ConcurrentDependenciesDistributorBindingSyncs is the number of bindings that are allowed to sync concurrently.
+	ConcurrentDependenciesDistributorBindingSyncs int
+	// ConcurrentDependenciesDistributorResourceSyncs is the number of resources that are allowed to sync concurrently.
+	ConcurrentDependenciesDistributorResourceSyncs int
 }
 
 // NewOptions builds an empty options.
@@ -203,6 +208,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.IntVar(&o.ConcurrentWorkSyncs, "concurrent-work-syncs", 5, "The number of Works that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentNamespaceSyncs, "concurrent-namespace-syncs", 1, "The number of Namespaces that are allowed to sync concurrently.")
 	flags.IntVar(&o.ConcurrentResourceTemplateSyncs, "concurrent-resource-template-syncs", 5, "The number of resource templates that are allowed to sync concurrently.")
+	flags.IntVar(&o.ConcurrentDependenciesDistributorBindingSyncs, "concurrent-dependencies-distributor-binding-syncs", 2, "The number of bindings that are allowed to sync concurrently.")
+	flags.IntVar(&o.ConcurrentDependenciesDistributorResourceSyncs, "concurrent-dependencies-distributor-resource-syncs", 2, "The number of resources that are allowed to sync concurrently.")
 	flags.BoolVar(&o.EnableTaintManager, "enable-taint-manager", true, "If set to true enables NoExecute Taints and will evict all not-tolerating objects propagating on Clusters tainted with this kind of Taints.")
 	flags.DurationVar(&o.GracefulEvictionTimeout.Duration, "graceful-eviction-timeout", 10*time.Minute, "Specifies the timeout period waiting for the graceful-eviction-controller performs the final removal since the workload(resource) has been moved to the graceful eviction tasks.")
 	flags.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
