@@ -178,6 +178,8 @@ spec:
                       properties:
                         affinityName:
                           description: AffinityName is the name of the cluster group.
+                          maxLength: 32
+                          minLength: 1
                           type: string
                         clusterNames:
                           description: ClusterNames is the list of clusters to be
