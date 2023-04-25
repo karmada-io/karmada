@@ -14,7 +14,7 @@ import (
 )
 
 var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relevant resources testing", func() {
-	ginkgo.Context("dependencies propagation testing", func() {
+	ginkgo.Context("dependencies propagation with propagationpolicy testing", func() {
 		var initClusterNames, updateClusterNames []string
 		var policyName string
 		var deploymentName string
@@ -322,6 +322,126 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 				ginkgo.By("make the sa is not referenced by the deployment ", func() {
 					framework.UpdateDeploymentServiceAccountName(kubeClient, deployment, "default")
 					framework.WaitServiceAccountDisappearOnClusters(initClusterNames, sa.GetNamespace(), sa.GetName())
+				})
+			})
+		})
+	})
+
+	ginkgo.Context("dependencies propagation with clusterpropagationpolicy testing", func() {
+		var initClusterNames, updateClusterNames []string
+		var policyName string
+		var deploymentName string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.ClusterPropagationPolicy
+
+		ginkgo.BeforeEach(func() {
+			initClusterNames = []string{"member1"}
+			updateClusterNames = []string{"member2"}
+
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentName = policyName
+		})
+
+		ginkgo.JustBeforeEach(func() {
+			framework.CreateDeployment(kubeClient, deployment)
+			framework.CreateClusterPropagationPolicy(karmadaClient, policy)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemoveClusterPropagationPolicy(karmadaClient, policy.Name)
+			})
+		})
+
+		ginkgo.When("configmap propagate automatically", func() {
+			var configMapName string
+			var configMap *corev1.ConfigMap
+
+			ginkgo.BeforeEach(func() {
+				configMapName = configMapNamePrefix + rand.String(RandomStrLength)
+				configMap = testhelper.NewConfigMap(testNamespace, configMapName, map[string]string{"user": "karmada"})
+
+				volumes := []corev1.Volume{{
+					Name: "vol-configmap",
+					VolumeSource: corev1.VolumeSource{
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: configMapName,
+							}}}}}
+				deployment = testhelper.NewDeploymentWithVolumes(testNamespace, deploymentName, volumes)
+
+				policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment.APIVersion,
+						Kind:       deployment.Kind,
+						Name:       deployment.Name,
+					},
+				}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: initClusterNames,
+					},
+				})
+				policy.Spec.PropagateDeps = true
+			})
+
+			ginkgo.BeforeEach(func() {
+				framework.CreateConfigMap(kubeClient, configMap)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveConfigMap(kubeClient, configMap.Namespace, configMapName)
+				})
+			})
+
+			ginkgo.It("configmap automatically propagation testing", func() {
+				ginkgo.By("check if the configmap is propagated automatically", func() {
+					framework.WaitDeploymentPresentOnClustersFitWith(initClusterNames, deployment.Namespace, deployment.Name,
+						func(deployment *appsv1.Deployment) bool {
+							return true
+						})
+
+					framework.WaitConfigMapPresentOnClustersFitWith(initClusterNames, configMap.Namespace, configMapName,
+						func(configmap *corev1.ConfigMap) bool {
+							return true
+						})
+				})
+
+				ginkgo.By("updating propagation policy's clusterNames", func() {
+					patch := []map[string]interface{}{
+						{
+							"op":    "replace",
+							"path":  "/spec/placement/clusterAffinity/clusterNames",
+							"value": updateClusterNames,
+						},
+					}
+
+					framework.PatchClusterPropagationPolicy(karmadaClient, policyName, patch, types.JSONPatchType)
+					framework.WaitDeploymentPresentOnClustersFitWith(updateClusterNames, deployment.Namespace, deploymentName,
+						func(deployment *appsv1.Deployment) bool {
+							return true
+						})
+
+					framework.WaitConfigMapPresentOnClustersFitWith(updateClusterNames, configMap.Namespace, configMapName,
+						func(configmap *corev1.ConfigMap) bool {
+							return true
+						})
+				})
+
+				ginkgo.By("updating configmap's data", func() {
+					patch := []map[string]interface{}{
+						{
+							"op":    "replace",
+							"path":  "/data/user",
+							"value": "karmada-e2e",
+						},
+					}
+
+					framework.UpdateConfigMapWithPatch(kubeClient, configMap.Namespace, configMapName, patch, types.JSONPatchType)
+					framework.WaitConfigMapPresentOnClustersFitWith(updateClusterNames, configMap.Namespace, configMapName,
+						func(configmap *corev1.ConfigMap) bool {
+							for key, value := range configmap.Data {
+								if key == "user" && value == "karmada-e2e" {
+									return true
+								}
+							}
+							return false
+						})
 				})
 			})
 		})
