@@ -132,8 +132,8 @@ spec:
         function Retain(desiredObj, observedObj)
           if observedObj.spec.template.metadata ~= nil and observedObj.spec.template.metadata.labels ~= nil then
             desiredObj.spec.template.metadata.labels = observedObj.spec.template.metadata.labels
-            return desiredObj
           end
+          return desiredObj
         end
     statusReflection:
       luaScript: >
