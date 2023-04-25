@@ -62,6 +62,7 @@ type ResourceInterpreterRequest struct {
 	DesiredReplicas *int32 `json:"replicas,omitempty"`
 
 	// AggregatedStatus represents status list of the resource running in each member cluster.
+	// It'll be set only if InterpreterOperation is InterpreterOperationAggregateStatus.
 	// +optional
 	AggregatedStatus []workv1alpha2.AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
 }
