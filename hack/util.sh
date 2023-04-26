@@ -320,7 +320,7 @@ function util::wait_context_exist() {
     local timeout=${3}
     local error_msg="[ERROR] Timeout waiting for context exist ${context_name}"
     for ((time=0; time<${timeout}; time++)); do
-        if [[ `grep -c "${context_name}" ${file_path}` -ne '0' ]]; then
+        if [[ `kubectl config get-contexts ${context_name} --kubeconfig=${file_path}` =~ ${context_name} ]]; then
             return 0
         fi
         sleep 1
