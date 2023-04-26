@@ -254,6 +254,40 @@ func TestResourceBindingSpec_GracefulEvictCluster(t *testing.T) {
 			InputSpec:  ResourceBindingSpec{Clusters: []TargetCluster{}},
 			ExpectSpec: ResourceBindingSpec{Clusters: []TargetCluster{}},
 		},
+		{
+			Name: "same eviction task should not be appended multiple times",
+			InputSpec: ResourceBindingSpec{
+				Clusters: []TargetCluster{{Name: "m1", Replicas: 1}, {Name: "m2", Replicas: 2}},
+				GracefulEvictionTasks: []GracefulEvictionTask{
+					{
+						FromCluster: "m1",
+						Replicas:    pointer.Int32(1),
+						Reason:      EvictionReasonTaintUntolerated,
+						Message:     "graceful eviction v1",
+						Producer:    EvictionProducerTaintManager,
+					},
+				},
+			},
+			EvictEvent: GracefulEvictionTask{
+				FromCluster: "m1",
+				Replicas:    pointer.Int32(1),
+				Reason:      EvictionReasonTaintUntolerated,
+				Message:     "graceful eviction v2",
+				Producer:    EvictionProducerTaintManager,
+			},
+			ExpectSpec: ResourceBindingSpec{
+				Clusters: []TargetCluster{{Name: "m2", Replicas: 2}},
+				GracefulEvictionTasks: []GracefulEvictionTask{
+					{
+						FromCluster: "m1",
+						Replicas:    pointer.Int32(1),
+						Reason:      EvictionReasonTaintUntolerated,
+						Message:     "graceful eviction v1",
+						Producer:    EvictionProducerTaintManager,
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
