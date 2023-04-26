@@ -48,13 +48,6 @@ func assessEvictionTasks(bindingSpec workv1alpha2.ResourceBindingSpec,
 }
 
 func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOption) *workv1alpha2.GracefulEvictionTask {
-	// avoid the same cluster appearing in both spec.clusters and spec.gracefulEvictionTasks
-	for _, targetCluster := range opt.scheduleResult {
-		if task.FromCluster == targetCluster.Name {
-			return nil
-		}
-	}
-
 	if task.SuppressDeletion != nil {
 		if *task.SuppressDeletion {
 			return &task
