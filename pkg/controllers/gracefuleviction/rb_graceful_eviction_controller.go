@@ -84,7 +84,15 @@ func (c *RBGracefulEvictionController) syncBinding(binding *workv1alpha2.Resourc
 // SetupWithManager creates a controller and register to controller manager.
 func (c *RBGracefulEvictionController) SetupWithManager(mgr controllerruntime.Manager) error {
 	resourceBindingPredicateFn := predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool { return false },
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			newObj := createEvent.Object.(*workv1alpha2.ResourceBinding)
+			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
+				return false
+			}
+			// When the current component is restarted and there are still tasks in the
+			// GracefulEvictionTasks queue, we need to continue the procession.
+			return newObj.Status.SchedulerObservedGeneration == newObj.Generation
+		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			newObj := updateEvent.ObjectNew.(*workv1alpha2.ResourceBinding)
 

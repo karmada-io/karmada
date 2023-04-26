@@ -84,7 +84,15 @@ func (c *CRBGracefulEvictionController) syncBinding(binding *workv1alpha2.Cluste
 // SetupWithManager creates a controller and register to controller manager.
 func (c *CRBGracefulEvictionController) SetupWithManager(mgr controllerruntime.Manager) error {
 	clusterResourceBindingPredicateFn := predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool { return false },
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			newObj := createEvent.Object.(*workv1alpha2.ClusterResourceBinding)
+			if len(newObj.Spec.GracefulEvictionTasks) == 0 {
+				return false
+			}
+			// When the current component is restarted and there are still tasks in the
+			// GracefulEvictionTasks queue, we need to continue the procession.
+			return newObj.Status.SchedulerObservedGeneration == newObj.Generation
+		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			newObj := updateEvent.ObjectNew.(*workv1alpha2.ClusterResourceBinding)
 
