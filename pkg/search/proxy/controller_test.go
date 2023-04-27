@@ -28,6 +28,7 @@ import (
 	karmadainformers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
+	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 	proxytest "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -276,7 +277,7 @@ func TestController_reconcile(t *testing.T) {
 				clusterLister:  karmadaFactory.Cluster().V1alpha1().Clusters().Lister(),
 				registryLister: karmadaFactory.Search().V1alpha1().ResourceRegistries().Lister(),
 				store: &proxytest.MockStore{
-					UpdateCacheFunc: func(m map[string]map[schema.GroupVersionResource]struct{}) error {
+					UpdateCacheFunc: func(m map[string]map[schema.GroupVersionResource]*store.MultiNamespace) error {
 						for clusterName, resources := range m {
 							resourceNames := make([]string, 0, len(resources))
 							for resource := range resources {

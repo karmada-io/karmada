@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 
@@ -703,6 +704,364 @@ func TestBuildMultiClusterResourceVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := BuildMultiClusterResourceVersion(tt.args.clusterResourceMap); got != tt.want {
 				t.Errorf("BuildMultiClusterResourceVersion() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMultiNamespace_Add(t *testing.T) {
+	type fields struct {
+		allNamespaces bool
+		namespaces    sets.Set[string]
+	}
+	type args struct {
+		ns string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *MultiNamespace
+	}{
+		{
+			name: "add foo ns to empty selector",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string](),
+			},
+			args: args{
+				ns: "foo",
+			},
+			want: &MultiNamespace{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo"),
+			},
+		},
+		{
+			name: "add all namespaces to empty selector",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string](),
+			},
+			args: args{
+				ns: metav1.NamespaceAll,
+			},
+			want: &MultiNamespace{
+				allNamespaces: true,
+				namespaces:    nil,
+			},
+		},
+		{
+			name: "add new namespace to non empty selector",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("bar"),
+			},
+			args: args{
+				ns: "foo",
+			},
+			want: &MultiNamespace{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo", "bar"),
+			},
+		},
+		{
+			name: "add existed namespace to non empty selector",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo"),
+			},
+			args: args{
+				ns: "foo",
+			},
+			want: &MultiNamespace{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo"),
+			},
+		},
+		{
+			name: "add all namespaces to non empty selector",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo"),
+			},
+			args: args{
+				ns: metav1.NamespaceAll,
+			},
+			want: &MultiNamespace{
+				allNamespaces: true,
+				namespaces:    nil,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := &MultiNamespace{
+				allNamespaces: tt.fields.allNamespaces,
+				namespaces:    tt.fields.namespaces,
+			}
+			n.Add(tt.args.ns)
+			if got := n; !got.Equal(tt.want) {
+				t.Errorf("Add()=%v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMultiNamespace_Contains(t *testing.T) {
+	type fields struct {
+		allNamespaces bool
+		namespaces    sets.Set[string]
+	}
+	type args struct {
+		ns string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "All namespaces contains any ns",
+			fields: fields{
+				allNamespaces: true,
+			},
+			args: args{ns: "foo"},
+			want: true,
+		},
+		{
+			name: "some namespaces contains target ns",
+			fields: fields{
+				namespaces: sets.New[string]("foo", "bar"),
+			},
+			args: args{ns: "foo"},
+			want: true,
+		},
+		{
+			name: "some namespaces not contains target ns",
+			fields: fields{
+				namespaces: sets.New[string]("foo", "bar"),
+			},
+			args: args{ns: "baz"},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := &MultiNamespace{
+				allNamespaces: tt.fields.allNamespaces,
+				namespaces:    tt.fields.namespaces,
+			}
+			if got := n.Contains(tt.args.ns); got != tt.want {
+				t.Errorf("Contains() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMultiNamespace_Single(t *testing.T) {
+	type fields struct {
+		allNamespaces bool
+		namespaces    sets.Set[string]
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+		want1  bool
+	}{
+		{
+			name: "all namespaces always return false",
+			fields: fields{
+				allNamespaces: true,
+			},
+			want:  "",
+			want1: false,
+		},
+		{
+			name: "contains only one ns",
+			fields: fields{
+				namespaces: sets.New[string]("foo"),
+			},
+			want:  "foo",
+			want1: true,
+		},
+		{
+			name: "contains only two ns",
+			fields: fields{
+				namespaces: sets.New[string]("foo", "bar"),
+			},
+			want:  "",
+			want1: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := &MultiNamespace{
+				allNamespaces: tt.fields.allNamespaces,
+				namespaces:    tt.fields.namespaces,
+			}
+			got, got1 := n.Single()
+			if got != tt.want {
+				t.Errorf("Single() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("Single() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func TestMultiNamespace_Equal(t *testing.T) {
+	type fields struct {
+		allNamespaces bool
+		namespaces    sets.Set[string]
+	}
+	type args struct {
+		another *MultiNamespace
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "empty vs empty",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string](),
+			},
+			args: args{
+				another: NewMultiNamespace(),
+			},
+			want: true,
+		},
+		{
+			name: "empty vs non empty",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string](),
+			},
+			args: args{
+				another: &MultiNamespace{
+					allNamespaces: false,
+					namespaces:    sets.New[string]("foo"),
+				},
+			},
+			want: false,
+		},
+		{
+			name: "empty vs all namespaces",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string](),
+			},
+			args: args{
+				another: &MultiNamespace{
+					allNamespaces: true,
+					namespaces:    nil,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "non empty vs empty",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo"),
+			},
+			args: args{
+				another: NewMultiNamespace(),
+			},
+			want: false,
+		},
+		{
+			name: "non empty vs non empty, but not same",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo"),
+			},
+			args: args{
+				another: &MultiNamespace{
+					allNamespaces: false,
+					namespaces:    sets.New[string]("bar"),
+				},
+			},
+			want: false,
+		},
+		{
+			name: "non empty vs same",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo"),
+			},
+			args: args{
+				another: &MultiNamespace{
+					allNamespaces: false,
+					namespaces:    sets.New[string]("foo"),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "non empty vs all namespaces",
+			fields: fields{
+				allNamespaces: false,
+				namespaces:    sets.New[string]("foo"),
+			},
+			args: args{
+				another: &MultiNamespace{
+					allNamespaces: true,
+				},
+			},
+			want: false,
+		},
+
+		{
+			name: "all namespaces vs empty",
+			fields: fields{
+				allNamespaces: true,
+			},
+			args: args{
+				another: NewMultiNamespace(),
+			},
+			want: false,
+		},
+		{
+			name: "all namespaces vs non empty",
+			fields: fields{
+				allNamespaces: true,
+			},
+			args: args{
+				another: &MultiNamespace{
+					namespaces: sets.New[string]("foo"),
+				},
+			},
+			want: false,
+		},
+		{
+			name: "all namespaces vs all namespaces",
+			fields: fields{
+				allNamespaces: true,
+			},
+			args: args{
+				another: &MultiNamespace{
+					allNamespaces: true,
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := &MultiNamespace{
+				allNamespaces: tt.fields.allNamespaces,
+				namespaces:    tt.fields.namespaces,
+			}
+			if got := n.Equal(tt.args.another); got != tt.want {
+				t.Errorf("Equal() = %v, want %v", got, tt.want)
 			}
 		})
 	}
