@@ -1,0 +1,36 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: sample
+  namespace: test-gitrepository
+spec:
+  interval: 30s
+  ref:
+    branch: master
+  secretRef:
+    name: fake-secret
+  timeout: 60s
+  url: https://github.com/stefanprodan/podinfo
+  suspend: true
+status:
+  artifact:
+    digest: sha256:a375b2ca68275734e3850d3c80e0bc20c1d7a4daa1a9717056d5c0c563ea0719
+    lastUpdateTime: "2023-05-01T10:17:09Z"
+    path: gitrepository/test-gitrepository/sample/0647aea75b85755411b007a290b9321668370be5.tar.gz
+    revision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    size: 83516
+    url: http://source-controller.flux-system.svc.cluster.local./gitrepository/test-gitrepository/sample/0647aea75b85755411b007a290b9321668370be5.tar.gz
+  conditions:
+  - lastTransitionTime: "2023-05-01T10:17:09Z"
+    message: stored artifact for revision 'master@sha1:0647aea75b85755411b007a290b9321668370be5'
+    observedGeneration: 1
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-05-01T10:17:09Z"
+    message: stored artifact for revision 'master@sha1:0647aea75b85755411b007a290b9321668370be5'
+    observedGeneration: 1
+    reason: Succeeded
+    status: "True"
+    type: ArtifactInStorage
+  observedGeneration: 1
