@@ -60,7 +60,7 @@ func TestMultiClusterCache_UpdateCache(t *testing.T) {
 
 	cluster1 := newCluster("cluster1")
 	cluster2 := newCluster("cluster2")
-	resources := map[string]map[schema.GroupVersionResource]struct{}{
+	resources := map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR, nodeGVR),
 		cluster2.Name: resourceSet(podGVR),
 	}
@@ -75,7 +75,7 @@ func TestMultiClusterCache_UpdateCache(t *testing.T) {
 	}
 
 	// Then test removing cluster2 and remove node cache for cluster1
-	err = cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err = cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR),
 	})
 	if err != nil {
@@ -95,7 +95,7 @@ func TestMultiClusterCache_HasResource(t *testing.T) {
 	defer cache.Stop()
 	cluster1 := newCluster("cluster1")
 	cluster2 := newCluster("cluster2")
-	resources := map[string]map[schema.GroupVersionResource]struct{}{
+	resources := map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR, nodeGVR),
 		cluster2.Name: resourceSet(podGVR),
 	}
@@ -140,7 +140,7 @@ func TestMultiClusterCache_HasResource(t *testing.T) {
 func TestMultiClusterCache_GetResourceFromCache(t *testing.T) {
 	cluster1 := newCluster("cluster1")
 	cluster2 := newCluster("cluster2")
-	resources := map[string]map[schema.GroupVersionResource]struct{}{
+	resources := map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR),
 		cluster2.Name: resourceSet(podGVR),
 	}
@@ -285,7 +285,7 @@ func TestMultiClusterCache_Get(t *testing.T) {
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
-	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR, nodeGVR),
 		cluster2.Name: resourceSet(podGVR),
 	})
@@ -403,6 +403,139 @@ func TestMultiClusterCache_Get(t *testing.T) {
 	}
 }
 
+func TestMultiClusterCache_Get_Namespaced(t *testing.T) {
+	cluster1 := newCluster("cluster1")
+	cluster2 := newCluster("cluster2")
+	cluster1Client := fakedynamic.NewSimpleDynamicClient(scheme,
+		newUnstructuredObject(podGVK, "pod11", withNamespace("ns1"), withResourceVersion("1000")),
+		newUnstructuredObject(podGVK, "pod12", withNamespace("ns2"), withResourceVersion("1000")),
+	)
+	cluster2Client := fakedynamic.NewSimpleDynamicClient(scheme,
+		newUnstructuredObject(podGVK, "pod21", withNamespace("ns1"), withResourceVersion("2000")),
+		newUnstructuredObject(podGVK, "pod22", withNamespace("ns2"), withResourceVersion("2000")),
+		newUnstructuredObject(podGVK, "pod23", withNamespace("ns3"), withResourceVersion("2000")),
+	)
+	newClientFunc := func(cluster string) (dynamic.Interface, error) {
+		switch cluster {
+		case cluster1.Name:
+			return cluster1Client, nil
+		case cluster2.Name:
+			return cluster2Client, nil
+		}
+		return fakedynamic.NewSimpleDynamicClient(scheme), nil
+	}
+	cache := NewMultiClusterCache(newClientFunc, restMapper)
+	defer cache.Stop()
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
+		cluster1.Name: {
+			podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1")},
+		},
+		cluster2.Name: {
+			podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1", "ns2")},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type args struct {
+		ns      string
+		gvr     schema.GroupVersionResource
+		name    string
+		options *metav1.GetOptions
+	}
+	type want struct {
+		object    runtime.Object
+		errAssert func(error) bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "pod is cached in single ns cache",
+			args: args{
+				ns:      "ns1",
+				gvr:     podGVR,
+				name:    "pod11",
+				options: &metav1.GetOptions{},
+			},
+			want: want{
+				object:    newUnstructuredObject(podGVK, "pod11", withNamespace("ns1"), withResourceVersion(buildMultiClusterRV("cluster1", "1000")), withCacheSourceAnnotation("cluster1")),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "pod is not cached in single ns cache",
+			args: args{
+				ns:      "ns1",
+				gvr:     podGVR,
+				name:    "pod12",
+				options: &metav1.GetOptions{},
+			},
+			want: want{
+				object:    nil,
+				errAssert: apierrors.IsNotFound,
+			},
+		},
+		{
+			name: "pod is cached in multi ns cache",
+			args: args{
+				ns:      "ns1",
+				gvr:     podGVR,
+				name:    "pod21",
+				options: &metav1.GetOptions{},
+			},
+			want: want{
+				object:    newUnstructuredObject(podGVK, "pod21", withNamespace("ns1"), withResourceVersion(buildMultiClusterRV("cluster2", "2000")), withCacheSourceAnnotation("cluster2")),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "pod not found in cache.",
+			args: args{
+				ns:      "ns1",
+				gvr:     podGVR,
+				name:    "non-exist",
+				options: &metav1.GetOptions{},
+			},
+			want: want{
+				object:    nil,
+				errAssert: apierrors.IsNotFound,
+			},
+		},
+		{
+			name: "ns is not cached",
+			args: args{
+				ns:      "ns3",
+				gvr:     podGVR,
+				name:    "pod23",
+				options: &metav1.GetOptions{},
+			},
+			want: want{
+				object:    nil,
+				errAssert: apierrors.IsNotFound,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj, err := cache.Get(request.WithNamespace(context.TODO(), tt.args.ns), tt.args.gvr, tt.args.name, tt.args.options)
+			if !tt.want.errAssert(err) {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+			if err != nil {
+				return
+			}
+			if !reflect.DeepEqual(tt.want.object, obj) {
+				t.Errorf("Objects diff: %v", cmp.Diff(tt.want.object, obj))
+			}
+		})
+	}
+}
+
 func TestMultiClusterCache_List(t *testing.T) {
 	cluster1 := newCluster("cluster1")
 	cluster2 := newCluster("cluster2")
@@ -443,13 +576,13 @@ func TestMultiClusterCache_List(t *testing.T) {
 	}
 	tests := []struct {
 		name      string
-		resources map[string]map[schema.GroupVersionResource]struct{}
+		resources map[string]map[schema.GroupVersionResource]*MultiNamespace
 		args      args
 		want      want
 	}{
 		{
 			name:      "list gets with labelSelector",
-			resources: map[string]map[schema.GroupVersionResource]struct{}{},
+			resources: map[string]map[schema.GroupVersionResource]*MultiNamespace{},
 			args: args{
 				ctx: request.WithNamespace(context.TODO(), metav1.NamespaceDefault),
 				gvr: podGVR,
@@ -466,7 +599,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 		},
 		{
 			name: "list gets",
-			resources: map[string]map[schema.GroupVersionResource]struct{}{
+			resources: map[string]map[schema.GroupVersionResource]*MultiNamespace{
 				cluster1.Name: resourceSet(podGVR),
 				cluster2.Name: resourceSet(podGVR),
 			},
@@ -484,7 +617,7 @@ func TestMultiClusterCache_List(t *testing.T) {
 		},
 		{
 			name: "list gets with labelSelector",
-			resources: map[string]map[schema.GroupVersionResource]struct{}{
+			resources: map[string]map[schema.GroupVersionResource]*MultiNamespace{
 				cluster1.Name: resourceSet(podGVR),
 				cluster2.Name: resourceSet(podGVR),
 			},
@@ -576,7 +709,7 @@ func TestMultiClusterCache_List_CacheSourceAnnotation(t *testing.T) {
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
-	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR),
 		cluster2.Name: resourceSet(podGVR),
 	})
@@ -607,6 +740,145 @@ func TestMultiClusterCache_List_CacheSourceAnnotation(t *testing.T) {
 	}
 }
 
+func TestMultiClusterCache_List_Namespaced(t *testing.T) {
+	cluster1 := newCluster("cluster1")
+	cluster2 := newCluster("cluster2")
+	cluster1Client := fakedynamic.NewSimpleDynamicClient(scheme,
+		newUnstructuredObject(podGVK, "pod11", withNamespace("ns1"), withResourceVersion("1000")),
+		newUnstructuredObject(podGVK, "pod12", withNamespace("ns2"), withResourceVersion("1000")),
+	)
+	cluster2Client := fakedynamic.NewSimpleDynamicClient(scheme,
+		newUnstructuredObject(podGVK, "pod21", withNamespace("ns1"), withResourceVersion("2000")),
+		newUnstructuredObject(podGVK, "pod22", withNamespace("ns2"), withResourceVersion("2000")),
+	)
+	newClientFunc := func(cluster string) (dynamic.Interface, error) {
+		switch cluster {
+		case cluster1.Name:
+			return cluster1Client, nil
+		case cluster2.Name:
+			return cluster2Client, nil
+		}
+		return fakedynamic.NewSimpleDynamicClient(scheme), nil
+	}
+	cache := NewMultiClusterCache(newClientFunc, restMapper)
+	defer cache.Stop()
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
+		cluster1.Name: {podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1")}},
+		cluster2.Name: {podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1", "ns2", "ns3")}},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	type args struct {
+		ns      string
+		gvr     schema.GroupVersionResource
+		options *metainternalversion.ListOptions
+	}
+	type want struct {
+		names     sets.Set[string]
+		errAssert func(error) bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "request all namespaces",
+			args: args{
+				ns:      metav1.NamespaceAll,
+				gvr:     podGVR,
+				options: &metainternalversion.ListOptions{},
+			},
+			want: want{
+				names:     sets.New[string]("pod11", "pod21", "pod22"),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "request ns1 namespaces",
+			args: args{
+				ns:      "ns1",
+				gvr:     podGVR,
+				options: &metainternalversion.ListOptions{},
+			},
+			want: want{
+				names:     sets.New[string]("pod11", "pod21"),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "request ns2 namespaces",
+			args: args{
+				ns:      "ns2",
+				gvr:     podGVR,
+				options: &metainternalversion.ListOptions{},
+			},
+			want: want{
+				names:     sets.New[string]("pod22"),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "request ns3 namespaces",
+			args: args{
+				ns:      "ns3",
+				gvr:     podGVR,
+				options: &metainternalversion.ListOptions{},
+			},
+			want: want{
+				names:     sets.New[string](),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "request ns4 namespaces",
+			args: args{
+				ns:      "ns4",
+				gvr:     podGVR,
+				options: &metainternalversion.ListOptions{},
+			},
+			want: want{
+				names:     sets.New[string](),
+				errAssert: noError,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj, err := cache.List(request.WithNamespace(context.TODO(), tt.args.ns), tt.args.gvr, tt.args.options)
+			if !tt.want.errAssert(err) {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+			if err != nil {
+				return
+			}
+
+			names := sets.New[string]()
+
+			err = meta.EachListItem(obj, func(o runtime.Object) error {
+				a, err := meta.Accessor(o)
+				if err != nil {
+					return err
+				}
+				names.Insert(a.GetName())
+				return nil
+			})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			if !tt.want.names.Equal(names) {
+				t.Errorf("List items want=%v, actual=%v", strings.Join(sets.List(tt.want.names), ","), strings.Join(sets.List(names), ","))
+			}
+		})
+	}
+}
+
 func TestMultiClusterCache_Watch(t *testing.T) {
 	cluster1 := newCluster("cluster1")
 	cluster2 := newCluster("cluster2")
@@ -630,7 +902,7 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
-	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR),
 		cluster2.Name: resourceSet(podGVR),
 	})
@@ -731,6 +1003,138 @@ func TestMultiClusterCache_Watch(t *testing.T) {
 	}
 }
 
+func TestMultiClusterCache_Watch_Namespaced(t *testing.T) {
+	cluster1 := newCluster("cluster1")
+	cluster2 := newCluster("cluster2")
+	cluster1Client := NewEnhancedFakeDynamicClientWithResourceVersion(scheme, "1002",
+		newUnstructuredObject(podGVK, "pod11", withNamespace("ns1"), withResourceVersion("1001")),
+		newUnstructuredObject(podGVK, "pod12", withNamespace("ns2"), withResourceVersion("1002")),
+	)
+	cluster2Client := NewEnhancedFakeDynamicClientWithResourceVersion(scheme, "2002",
+		newUnstructuredObject(podGVK, "pod21", withNamespace("ns1"), withResourceVersion("2001")),
+		newUnstructuredObject(podGVK, "pod22", withNamespace("ns2"), withResourceVersion("2002")),
+	)
+	newClientFunc := func(cluster string) (dynamic.Interface, error) {
+		switch cluster {
+		case cluster1.Name:
+			return cluster1Client, nil
+		case cluster2.Name:
+			return cluster2Client, nil
+		}
+		return fakedynamic.NewSimpleDynamicClient(scheme), nil
+	}
+	cache := NewMultiClusterCache(newClientFunc, restMapper)
+	defer cache.Stop()
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
+		cluster1.Name: {podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1")}},
+		cluster2.Name: {podGVR: &MultiNamespace{namespaces: sets.New[string]("ns1", "ns2", "ns3")}},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	// wait cache synced
+	time.Sleep(time.Second)
+
+	type args struct {
+		ns string
+	}
+	type want struct {
+		names     sets.Set[string]
+		errAssert func(error) bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "request all namespaces",
+			args: args{
+				ns: metav1.NamespaceAll,
+			},
+			want: want{
+				names:     sets.New[string]("pod11", "pod21", "pod22"),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "request ns1 namespace",
+			args: args{
+				ns: "ns1",
+			},
+			want: want{
+				names:     sets.New[string]("pod11", "pod21"),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "request ns2 namespace",
+			args: args{
+				ns: "ns2",
+			},
+			want: want{
+				names:     sets.New[string]("pod22"),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "request ns3 namespace",
+			args: args{
+				ns: "ns3",
+			},
+			want: want{
+				names:     sets.New[string](),
+				errAssert: noError,
+			},
+		},
+		{
+			name: "request ns4 namespace",
+			args: args{
+				ns: "ns4",
+			},
+			want: want{
+				names:     sets.New[string](),
+				errAssert: noError,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(request.WithNamespace(context.TODO(), tt.args.ns), time.Second)
+			defer cancel()
+			watcher, err := cache.Watch(ctx, podGVR, &metainternalversion.ListOptions{})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer watcher.Stop()
+			timeout := time.After(time.Second * 5)
+
+			gots := sets.New[string]()
+		LOOP:
+			for {
+				select {
+				case event, ok := <-watcher.ResultChan():
+					if !ok {
+						break LOOP
+					}
+					accessor, err := meta.Accessor(event.Object)
+					if err == nil {
+						gots.Insert(accessor.GetName())
+					}
+				case <-timeout:
+					t.Fatal("timeout")
+				}
+			}
+
+			if !tt.want.names.Equal(gots) {
+				t.Errorf("Watch() got = %v, but want = %v", gots, tt.want.names)
+			}
+		})
+	}
+}
+
 func newCluster(name string) *clusterv1alpha1.Cluster {
 	o := &clusterv1alpha1.Cluster{}
 	o.Name = name
@@ -750,6 +1154,12 @@ func newUnstructuredObject(gvk schema.GroupVersionKind, name string, options ...
 func withDefaultNamespace() func(*unstructured.Unstructured) {
 	return func(obj *unstructured.Unstructured) {
 		obj.SetNamespace(metav1.NamespaceDefault)
+	}
+}
+
+func withNamespace(ns string) func(*unstructured.Unstructured) {
+	return func(obj *unstructured.Unstructured) {
+		obj.SetNamespace(ns)
 	}
 }
 
@@ -795,10 +1205,10 @@ func asLabelSelector(s string) labels.Selector {
 	return selector
 }
 
-func resourceSet(rs ...schema.GroupVersionResource) map[schema.GroupVersionResource]struct{} {
-	m := make(map[schema.GroupVersionResource]struct{}, len(rs))
+func resourceSet(rs ...schema.GroupVersionResource) map[schema.GroupVersionResource]*MultiNamespace {
+	m := make(map[schema.GroupVersionResource]*MultiNamespace, len(rs))
 	for _, r := range rs {
-		m[r] = struct{}{}
+		m[r] = &MultiNamespace{allNamespaces: true}
 	}
 	return m
 }
@@ -969,7 +1379,7 @@ func TestMultiClusterCache_fillMissingClusterResourceVersion(t *testing.T) {
 	}
 	cache := NewMultiClusterCache(newClientFunc, restMapper)
 	defer cache.Stop()
-	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]struct{}{
+	err := cache.UpdateCache(map[string]map[schema.GroupVersionResource]*MultiNamespace{
 		cluster1.Name: resourceSet(podGVR),
 	})
 	if err != nil {
