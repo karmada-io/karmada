@@ -56,6 +56,8 @@ const (
 	EtcdListenPeerPort = 2380
 	// KarmadaAPIserverListenClientPort defines the port karmada apiserver listen on for client traffic
 	KarmadaAPIserverListenClientPort = 5443
+	// EtcdDataVolumeName defines the name to etcd data volume
+	EtcdDataVolumeName = "etcd-data"
 
 	// CertificateValidity Certificate validity period
 	CertificateValidity = time.Hour * 24 * 365
