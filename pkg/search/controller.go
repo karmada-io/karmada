@@ -410,7 +410,7 @@ func (c *Controller) deleteCluster(obj interface{}) {
 	c.queue.Add(cluster.GetName())
 }
 
-// getClusterAndResource returns the cluster and resources from the resourceRegistry object
+// getClusters returns the cluster from the resourceRegistry object
 func (c *Controller) getClusters(affinity policyv1alpha1.ClusterAffinity) []string {
 	clusters := make([]string, 0)
 	lst, err := c.clusterLister.List(labels.Everything())
@@ -426,7 +426,7 @@ func (c *Controller) getClusters(affinity policyv1alpha1.ClusterAffinity) []stri
 	return clusters
 }
 
-// getClusterAndResource returns the cluster and resources from the resourceRegistry object
+// getResources returns the resources from the resourceRegistry object
 func (c *Controller) getResources(selectors []searchv1alpha1.ResourceSelector) []schema.GroupVersionResource {
 	resources := make([]schema.GroupVersionResource, 0)
 	for _, rs := range selectors {
