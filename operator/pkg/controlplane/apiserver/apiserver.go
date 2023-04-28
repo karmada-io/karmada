@@ -18,7 +18,7 @@ import (
 // EnsureKarmadaAPIServer creates karmada apiserver deployment and service resource
 func EnsureKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string) error {
 	if err := installKarmadaAPIServer(client, cfg.KarmadaAPIServer, name, namespace); err != nil {
-		return err
+		return fmt.Errorf("failed to install karmada apiserver, err: %w", err)
 	}
 
 	return createKarmadaAPIServerService(client, cfg.KarmadaAPIServer, name, namespace)

@@ -15,6 +15,7 @@ type InitData interface {
 	GetNamespace() string
 	SetControlplaneConifg(config *rest.Config)
 	ControlplaneConifg() *rest.Config
+	ControlplaneAddress() string
 	RemoteClient() clientset.Interface
 	KarmadaClient() clientset.Interface
 	DataDir() string

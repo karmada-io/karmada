@@ -12,7 +12,7 @@ import (
 
 var (
 	etcdImageRepository                       = fmt.Sprintf("%s/%s", constants.KubeDefaultRepository, constants.Etcd)
-	karmadaAPIServiceImageRepository          = fmt.Sprintf("%s/%s", constants.KubeDefaultRepository, constants.KarmadaAPIServer)
+	karmadaAPIServiceImageRepository          = fmt.Sprintf("%s/%s", constants.KubeDefaultRepository, constants.KubeAPIServer)
 	karmadaAggregatedAPIServerImageRepository = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaAggregatedAPIServer)
 	kubeControllerManagerImageRepository      = fmt.Sprintf("%s/%s", constants.KubeDefaultRepository, constants.KubeControllerManager)
 	karmadaControllerManagerImageRepository   = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaControllerManager)
