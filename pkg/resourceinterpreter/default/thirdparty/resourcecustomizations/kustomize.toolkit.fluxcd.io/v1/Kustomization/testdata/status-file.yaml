@@ -1,0 +1,27 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  conditions:
+  - lastTransitionTime: "2023-04-30T12:51:06Z"
+    message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+    observedGeneration: 1
+    reason: ReconciliationSucceeded
+    status: "True"
+    type: Ready
+  lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+  lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  conditions:
+  - lastTransitionTime: "2023-04-30T12:51:06Z"
+    message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+    observedGeneration: 1
+    reason: ReconciliationSucceeded
+    status: "True"
+    type: Ready
+  lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+  lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
