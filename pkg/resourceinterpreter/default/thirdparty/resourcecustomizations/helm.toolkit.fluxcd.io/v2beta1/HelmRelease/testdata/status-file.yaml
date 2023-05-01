@@ -1,0 +1,43 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  conditions:
+  - lastTransitionTime: "2023-05-01T07:11:16Z"
+    message: Release reconciliation succeeded
+    reason: ReconciliationSucceeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-05-01T07:11:16Z"        
+    message: Helm install succeeded
+    reason: InstallSucceeded
+    status: "True"
+    type: Released
+  helmChart: test-helmrelease/test-helmrelease-sample
+  lastAppliedRevision: 6.3.5
+  lastAttemptedRevision: 6.3.5
+  lastAttemptedValuesChecksum: da39a3ee5e6b4b0d3255bfef95601890afd80709      
+  lastReleaseRevision: 1
+  observedGeneration: 1
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  conditions:
+  - lastTransitionTime: "2023-05-01T07:11:17Z"
+    message: Release reconciliation succeeded
+    reason: ReconciliationSucceeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-05-01T07:11:17Z"
+    message: Helm install succeeded
+    reason: InstallSucceeded
+    status: "True"
+    type: Released
+  helmChart: test-helmrelease/test-helmrelease-sample
+  lastAppliedRevision: 6.3.5
+  lastAttemptedRevision: 6.3.5
+  lastAttemptedValuesChecksum: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  lastReleaseRevision: 1
+  observedGeneration: 1
