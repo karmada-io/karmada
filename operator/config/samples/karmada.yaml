@@ -14,7 +14,7 @@ spec:
           emptyDir: {}
     karmadaAPIServer:
       imageRepository: registry.k8s.io/kube-apiserver
-      imageTag: v1.25.2
+      imageTag: v1.25.4
       replicas: 1
       serviceType: NodePort
       serviceSubnet: 10.96.0.0/12
@@ -36,7 +36,7 @@ spec:
       replicas: 1
     kubeControllerManager:
       imageRepository: registry.k8s.io/kube-controller-manager
-      imageTag: v1.25.2
+      imageTag: v1.25.4
       replicas: 1
   hostCluster:
     networking:
