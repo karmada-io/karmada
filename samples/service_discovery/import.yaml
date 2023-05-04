@@ -1,0 +1,23 @@
+apiVersion: multicluster.x-k8s.io/v1alpha1
+kind: ServiceImport
+metadata:
+  name: serve
+spec:
+  type: ClusterSetIP
+  ports:
+    - port: 80
+      protocol: TCP
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: serve-import-policy
+spec:
+  resourceSelectors:
+    - apiVersion: multicluster.x-k8s.io/v1alpha1
+      kind: ServiceImport
+      name: serve
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member2
