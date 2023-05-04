@@ -1,0 +1,13 @@
+tests:
+  - desiredInputPath: testdata/desired-helmrepository.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-helmrepository.yaml
+    operation: InterpretDependency
+  - desiredInputPath: testdata/desired-helmrepository.yaml
+    observedInputPath: testdata/observed-helmrepository.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-helmrepository.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-helmrepository.yaml
+    operation: InterpretStatus

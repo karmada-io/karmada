@@ -1,0 +1,13 @@
+tests:
+  - desiredInputPath: testdata/desired-helmchart.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-helmchart.yaml
+    operation: InterpretDependency
+  - desiredInputPath: testdata/desired-helmchart.yaml
+    observedInputPath: testdata/observed-helmchart.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-helmchart.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-helmchart.yaml
+    operation: InterpretStatus

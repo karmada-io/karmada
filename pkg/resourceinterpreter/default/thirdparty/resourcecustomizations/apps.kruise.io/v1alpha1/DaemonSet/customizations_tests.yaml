@@ -1,0 +1,10 @@
+tests:
+  - desiredInputPath: testdata/desired-daemonset-nginx.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-daemonset-nginx.yaml
+    operation: InterpretDependency
+  - observedInputPath: testdata/observed-daemonset-nginx.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-daemonset-nginx.yaml
+    operation: InterpretStatus

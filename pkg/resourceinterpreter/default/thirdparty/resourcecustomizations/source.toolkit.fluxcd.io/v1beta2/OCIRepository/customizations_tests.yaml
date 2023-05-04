@@ -1,0 +1,14 @@
+tests:
+  - desiredInputPath: testdata/desired-ocirepository.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-ocirepository.yaml
+    operation: InterpretDependency
+  - desiredInputPath: testdata/desired-ocirepository.yaml
+    observedInputPath: testdata/observed-ocirepository.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-ocirepository.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-ocirepository.yaml
+    operation: InterpretStatus
+

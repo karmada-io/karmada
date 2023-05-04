@@ -7,6 +7,8 @@ spec:
   interval: 5m
   ref:
     branch: master
-  url: oci://ghcr.io/stefanprodan/podinfo-deploy
-  ref:
     semver: "6.2.x"
+  url: oci://ghcr.io/stefanprodan/podinfo-deploy
+  secretRef:
+    name: fake-secret
+  serviceAccountName: fake-serviceaccount

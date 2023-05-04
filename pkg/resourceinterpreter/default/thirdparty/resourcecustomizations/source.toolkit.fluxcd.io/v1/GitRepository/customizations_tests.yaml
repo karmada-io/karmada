@@ -1,0 +1,13 @@
+tests:
+  - desiredInputPath: testdata/desired-gitrepository.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-gitrepository.yaml
+    operation: InterpretDependency
+  - desiredInputPath: testdata/desired-gitrepository.yaml
+    observedInputPath: testdata/observed-gitrepository.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-gitrepository.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-gitrepository.yaml
+    operation: InterpretStatus
