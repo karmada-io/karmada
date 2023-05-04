@@ -1,0 +1,19 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: sample
+  namespace: default
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: "./charts/podinfo"
+      version: ">=4.0.0 <5.0.0"
+      sourceRef:
+        kind: GitRepository
+        name: podinfo
+        namespace: default
+      interval: 1m
+  test:
+    enable: true
+    ignoreFailures: true
