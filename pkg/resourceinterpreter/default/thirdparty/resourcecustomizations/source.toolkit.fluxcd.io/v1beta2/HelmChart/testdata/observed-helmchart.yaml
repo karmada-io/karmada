@@ -1,0 +1,43 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmChart
+metadata:
+  name: sample
+  namespace: test-helmchart
+spec:
+  interval: 5m0s
+  chart: podinfo
+  reconcileStrategy: ChartVersion
+  sourceRef:
+    kind: HelmRepository
+    name: sample
+  version: '5.*'
+  suspend: true
+  verify:
+    provider: cosign
+    secretRef:
+      name: fake-cosign-public-keys
+status:
+  artifact:
+    digest: sha256:6c3cc3b955bce1686036ae6822ee2ca0ef6ecb994e3f2d19eaf3ec03dcba84b3
+    lastUpdateTime: "2023-04-30T07:22:36Z"
+    path: helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+    revision: 5.2.1
+    size: 13418
+    url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+  conditions:
+  - lastTransitionTime: "2023-04-30T07:22:36Z"
+    message: pulled 'podinfo' chart with version '5.2.1'
+    observedGeneration: 1
+    reason: ChartPullSucceeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-04-30T07:22:36Z"
+    message: pulled 'podinfo' chart with version '5.2.1'
+    observedGeneration: 1
+    reason: ChartPullSucceeded
+    status: "True"
+    type: ArtifactInStorage
+  observedChartName: podinfo
+  observedGeneration: 1
+  observedSourceArtifactRevision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+  url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz

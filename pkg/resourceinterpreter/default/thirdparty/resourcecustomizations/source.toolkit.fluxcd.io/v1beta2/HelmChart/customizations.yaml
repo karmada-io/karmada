@@ -1,0 +1,114 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-helmchart
+spec:
+  target:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+  customizations:
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status ~= nil and observedObj.status.conditions ~= nil then
+            for conditionIndex = 1, #observedObj.status.conditions do
+              if observedObj.status.conditions[conditionIndex].type == 'Ready' and observedObj.status.conditions[conditionIndex].status == 'True' then
+                if observedObj.status.conditions[conditionIndex].reason == 'Succeeded' or observedObj.status.conditions[conditionIndex].reason == 'ChartPullSucceeded' then
+                  return true
+                end
+              end
+            end
+          end
+          return false
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          desiredObj.status = {}
+          desiredObj.status.conditions = {}
+          conditions = {}  
+          local conditionsIndex = 1
+          for i = 1, #statusItems do
+            if statusItems[i].status ~= nil and statusItems[i].status.artifact ~= nil then
+              desiredObj.status.artifact = statusItems[i].status.artifact
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.observedSourceArtifactRevision ~= nil and statusItems[i].status.observedSourceArtifactRevision ~= '' then
+              desiredObj.status.observedSourceArtifactRevision = statusItems[i].status.observedSourceArtifactRevision
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.observedChartName ~= nil and statusItems[i].status.observedChartName ~= '' then
+              desiredObj.status.observedChartName = statusItems[i].status.observedChartName
+            end                        
+            if statusItems[i].status ~= nil and statusItems[i].status.lastHandledReconcileAt ~= nil and statusItems[i].status.lastHandledReconcileAt ~= '' then
+              desiredObj.status.lastHandledReconcileAt = statusItems[i].status.lastHandledReconcileAt
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.url ~= nil and statusItems[i].status.url ~= '' then
+              desiredObj.status.url = statusItems[i].status.url
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.conditions ~= nil then
+              for conditionIndex = 1, #statusItems[i].status.conditions do
+                statusItems[i].status.conditions[conditionIndex].message = statusItems[i].clusterName..'='..statusItems[i].status.conditions[conditionIndex].message
+                hasCondition = false
+                for index = 1, #conditions do
+                  if conditions[index].type == statusItems[i].status.conditions[conditionIndex].type and conditions[index].status == statusItems[i].status.conditions[conditionIndex].status and conditions[index].reason == statusItems[i].status.conditions[conditionIndex].reason then
+                    conditions[index].message = conditions[index].message..', '..statusItems[i].status.conditions[conditionIndex].message
+                    hasCondition = true
+                    break
+                  end
+                end
+                if not hasCondition then
+                  conditions[conditionsIndex] = statusItems[i].status.conditions[conditionIndex]
+                  conditionsIndex = conditionsIndex + 1                  
+                end
+              end
+            end
+          end
+          desiredObj.status.observedGeneration = desiredObj.metadata.generation
+          desiredObj.status.conditions = conditions
+          return desiredObj
+        end
+    retention:
+      luaScript: >
+        function Retain(desiredObj, observedObj)
+          if observedObj.spec.suspend ~= nil then
+            desiredObj.spec.suspend = observedObj.spec.suspend
+          end
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus (observedObj)
+          status = {}
+          if observedObj == nil or observedObj.status == nil then 
+            return status
+          end
+          status.observedSourceArtifactRevision = observedObj.status.observedSourceArtifactRevision
+          status.observedChartName = observedObj.status.observedChartName
+          status.conditions = observedObj.status.conditions
+          status.url = observedObj.status.url
+          status.artifact = observedObj.status.artifact
+          status.lastHandledReconcileAt = observedObj.status.lastHandledReconcileAt
+          return status
+        end
+    dependencyInterpretation:
+      luaScript: >
+        function GetDependencies(desiredObj)
+          dependentSecrets = {}
+          refs = {}
+          local idx = 1
+          if desiredObj.spec.verify ~= nil and desiredObj.spec.verify.secretRef ~= nil and desiredObj.spec.verify.secretRef.name ~= '' then
+            dependentSecrets[desiredObj.spec.verify.secretRef.name] = true
+          end
+          for key, value in pairs(dependentSecrets) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'Secret'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          return refs
+        end

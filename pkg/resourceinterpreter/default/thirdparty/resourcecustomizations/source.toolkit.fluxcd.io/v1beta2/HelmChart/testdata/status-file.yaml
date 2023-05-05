@@ -1,0 +1,55 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  artifact:
+    digest: sha256:6c3cc3b955bce1686036ae6822ee2ca0ef6ecb994e3f2d19eaf3ec03dcba84b3
+    lastUpdateTime: "2023-04-30T07:22:36Z"
+    path: helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+    revision: 5.2.1
+    size: 13418
+    url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+  conditions:
+  - lastTransitionTime: "2023-04-30T07:22:36Z"
+    message: pulled 'podinfo' chart with version '5.2.1'
+    observedGeneration: 1
+    reason: ChartPullSucceeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-04-30T07:22:36Z"
+    message: pulled 'podinfo' chart with version '5.2.1'
+    observedGeneration: 1
+    reason: ChartPullSucceeded
+    status: "True"
+    type: ArtifactInStorage
+  observedChartName: podinfo
+  observedSourceArtifactRevision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+  url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  artifact:
+    digest: sha256:6c3cc3b955bce1686036ae6822ee2ca0ef6ecb994e3f2d19eaf3ec03dcba84b3
+    lastUpdateTime: "2023-04-30T07:22:37Z"
+    path: helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+    revision: 5.2.1
+    size: 13418
+    url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+  conditions:
+  - lastTransitionTime: "2023-04-30T07:22:37Z"
+    message: pulled 'podinfo' chart with version '5.2.1'
+    observedGeneration: 1
+    reason: ChartPullSucceeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-04-30T07:22:37Z"
+    message: pulled 'podinfo' chart with version '5.2.1'
+    observedGeneration: 1
+    reason: ChartPullSucceeded
+    status: "True"
+    type: ArtifactInStorage
+  observedChartName: podinfo
+  observedSourceArtifactRevision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+  url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz
