@@ -19,9 +19,9 @@ func NewComponentTask() workflow.Task {
 		Run:         runComponents,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
-			newComponentSubTask(constants.KubeControllerManagerComponent, nil),
-			newComponentSubTask(constants.KarmadaControllerManagerComponent, nil),
-			newComponentSubTask(constants.KarmadaSchedulerComponent, nil),
+			newComponentSubTask(constants.KubeControllerManagerComponent),
+			newComponentSubTask(constants.KarmadaControllerManagerComponent),
+			newComponentSubTask(constants.KarmadaSchedulerComponent),
 			{
 				Name: "KarmadaWebhook",
 				Run:  runKarmadaWebhook,
@@ -40,14 +40,14 @@ func runComponents(r workflow.RunData) error {
 	return nil
 }
 
-func newComponentSubTask(component string, patchManifestFunc controlplane.PatchManifest) workflow.Task {
+func newComponentSubTask(component string) workflow.Task {
 	return workflow.Task{
 		Name: component,
-		Run:  runComponentSubTask(component, patchManifestFunc),
+		Run:  runComponentSubTask(component),
 	}
 }
 
-func runComponentSubTask(component string, patchManifestFunc controlplane.PatchManifest) func(r workflow.RunData) error {
+func runComponentSubTask(component string) func(r workflow.RunData) error {
 	return func(r workflow.RunData) error {
 		data, ok := r.(InitData)
 		if !ok {
@@ -60,7 +60,6 @@ func runComponentSubTask(component string, patchManifestFunc controlplane.PatchM
 			data.GetNamespace(),
 			data.RemoteClient(),
 			data.Components(),
-			patchManifestFunc,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to apply component %s, err: %w", component, err)

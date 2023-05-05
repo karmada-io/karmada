@@ -12,13 +12,11 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
+	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
 )
 
-// PatchManifest defines a function to patch deployment
-type PatchManifest func(cfg *operatorv1alpha1.KarmadaComponents, deployment *appsv1.Deployment)
-
 // EnsureControlPlaneComponent creates karmada controllerManager, kubeControllerManager, scheduler, webhook component
-func EnsureControlPlaneComponent(component, name, namespace string, client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, patchManifestFunc PatchManifest) error {
+func EnsureControlPlaneComponent(component, name, namespace string, client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents) error {
 	deployments, err := getComponentManifests(name, namespace, cfg)
 	if err != nil {
 		return err
@@ -28,11 +26,6 @@ func EnsureControlPlaneComponent(component, name, namespace string, client clien
 	if !ok {
 		return fmt.Errorf("no exist manifest for %s", component)
 	}
-
-	if patchManifestFunc != nil {
-		patchManifestFunc(cfg, deployment)
-	}
-
 	if err := apiclient.CreateOrUpdateDeployment(client, deployment); err != nil {
 		return fmt.Errorf("failed to create deployment resource for component %s, err: %w", component, err)
 	}
@@ -44,11 +37,11 @@ func getComponentManifests(name, namespace string, cfg *operatorv1alpha1.Karmada
 	if err != nil {
 		return nil, err
 	}
-	karmadaControllerManager, err := karmadaControllerManagerManifest(name, namespace, cfg.KarmadaControllerManager)
+	karmadaControllerManager, err := getKarmadaControllerManagerManifest(name, namespace, cfg.KarmadaControllerManager)
 	if err != nil {
 		return nil, err
 	}
-	scheduler, err := karmadaSchedulerManifest(name, namespace, cfg.KarmadaScheduler)
+	scheduler, err := getKarmadaSchedulerManifest(name, namespace, cfg.KarmadaScheduler)
 	if err != nil {
 		return nil, err
 	}
@@ -82,10 +75,11 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 		return nil, fmt.Errorf("err when decoding KubeControllerManager Deployment: %w", err)
 	}
 
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(kcm)
 	return kcm, nil
 }
 
-func karmadaControllerManagerManifest(name, namespace string, cfg *operatorv1alpha1.KarmadaControllerManager) (*appsv1.Deployment, error) {
+func getKarmadaControllerManagerManifest(name, namespace string, cfg *operatorv1alpha1.KarmadaControllerManager) (*appsv1.Deployment, error) {
 	karmadaControllerManageretBytes, err := util.ParseTemplate(KamradaControllerManagerDeployment, struct {
 		Replicas                  *int32
 		DeploymentName, Namespace string
@@ -106,10 +100,11 @@ func karmadaControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 		return nil, fmt.Errorf("err when decoding KarmadaControllerManager Deployment: %w", err)
 	}
 
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(kcm)
 	return kcm, nil
 }
 
-func karmadaSchedulerManifest(name, namespace string, cfg *operatorv1alpha1.KarmadaScheduler) (*appsv1.Deployment, error) {
+func getKarmadaSchedulerManifest(name, namespace string, cfg *operatorv1alpha1.KarmadaScheduler) (*appsv1.Deployment, error) {
 	karmadaSchedulerBytes, err := util.ParseTemplate(KarmadaSchedulerDeployment, struct {
 		Replicas                  *int32
 		DeploymentName, Namespace string
@@ -130,5 +125,6 @@ func karmadaSchedulerManifest(name, namespace string, cfg *operatorv1alpha1.Karm
 		return nil, fmt.Errorf("err when decoding KarmadaScheduler Deployment: %w", err)
 	}
 
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(scheduler)
 	return scheduler, nil
 }
