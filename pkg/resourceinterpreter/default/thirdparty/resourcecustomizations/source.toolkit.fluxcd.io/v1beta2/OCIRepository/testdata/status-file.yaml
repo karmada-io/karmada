@@ -1,0 +1,59 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  artifact:
+    digest: sha256:b6ccead26c790c8a0d40579905edc6d83f732ceacc0f4133f578fed456a2438a
+    lastUpdateTime: "2023-04-29T06:07:53Z"
+    metadata:
+      org.opencontainers.image.created: "2022-11-09T11:24:23Z"
+      org.opencontainers.image.revision: 6.2.3/8615cb75d926ea0ba5353b1d56867868c737bf5e
+      org.opencontainers.image.source: https://github.com/stefanprodan/podinfo
+    path: ocirepository/test-ocirepository/sample/sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792.tar.gz
+    revision: 6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792
+    size: 1103
+    url: http://source-controller.flux-system.svc.cluster.local./ocirepository/test-ocirepository/sample/sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792.tar.gz
+  conditions:
+  - lastTransitionTime: "2023-04-29T06:07:53Z"
+    message: stored artifact for digest '6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792'
+    observedGeneration: 1
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-04-29T06:07:53Z"
+    message: stored artifact for digest '6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792'
+    observedGeneration: 1
+    reason: Succeeded
+    status: "True"
+    type: ArtifactInStorage
+  url: http://source-controller.flux-system.svc.cluster.local./ocirepository/test-ocirepository/sample/latest.tar.gz
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  artifact:
+    digest: sha256:b6ccead26c790c8a0d40579905edc6d83f732ceacc0f4133f578fed456a2438a
+    lastUpdateTime: "2023-04-29T06:07:53Z"
+    metadata:
+      org.opencontainers.image.created: "2022-11-09T11:24:23Z"
+      org.opencontainers.image.revision: 6.2.3/8615cb75d926ea0ba5353b1d56867868c737bf5e
+      org.opencontainers.image.source: https://github.com/stefanprodan/podinfo
+    path: ocirepository/test-ocirepository/sample/sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792.tar.gz
+    revision: 6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792
+    size: 1103
+    url: http://source-controller.flux-system.svc.cluster.local./ocirepository/test-ocirepository/sample/sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792.tar.gz
+  conditions:
+  - lastTransitionTime: "2023-04-29T06:07:53Z"
+    message: stored artifact for digest '6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792'
+    observedGeneration: 1
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-04-29T06:07:53Z"
+    message: stored artifact for digest '6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792'
+    observedGeneration: 1
+    reason: Succeeded
+    status: "True"
+    type: ArtifactInStorage
+  url: http://source-controller.flux-system.svc.cluster.local./ocirepository/test-ocirepository/sample/latest.tar.gz

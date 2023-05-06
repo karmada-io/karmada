@@ -1,0 +1,12 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: sample
+  namespace: test-ocirepository
+spec:
+  interval: 5m
+  ref:
+    branch: master
+  url: oci://ghcr.io/stefanprodan/podinfo-deploy
+  ref:
+    semver: "6.2.x"
