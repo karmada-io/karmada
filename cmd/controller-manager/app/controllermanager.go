@@ -30,6 +30,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/clusterdiscovery/clusterapi"
+	"github.com/karmada-io/karmada/pkg/controllers/applicationfailover"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
@@ -196,6 +197,7 @@ func init() {
 	controllers["federatedResourceQuotaSync"] = startFederatedResourceQuotaSyncController
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
 	controllers["gracefulEviction"] = startGracefulEvictionController
+	controllers["applicationFailover"] = startApplicationFailoverController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -500,31 +502,54 @@ func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context)
 }
 
 func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bool, err error) {
-	if features.FeatureGate.Enabled(features.GracefulEviction) {
-		rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
-			Client:                  ctx.Mgr.GetClient(),
-			EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
-			RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
-			GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
-		}
-		if err := rbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
-			return false, err
-		}
-
-		crbGracefulEvictionController := &gracefuleviction.CRBGracefulEvictionController{
-			Client:                  ctx.Mgr.GetClient(),
-			EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.CRBGracefulEvictionControllerName),
-			RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
-			GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
-		}
-		if err := crbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
-			return false, err
-		}
-
-		return true, nil
+	if !features.FeatureGate.Enabled(features.GracefulEviction) {
+		return false, nil
+	}
+	rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
+		Client:                  ctx.Mgr.GetClient(),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
+		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
+		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
+	}
+	if err := rbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
 	}
 
-	return false, nil
+	crbGracefulEvictionController := &gracefuleviction.CRBGracefulEvictionController{
+		Client:                  ctx.Mgr.GetClient(),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.CRBGracefulEvictionControllerName),
+		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
+		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
+	}
+	if err := crbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func startApplicationFailoverController(ctx controllerscontext.Context) (enabled bool, err error) {
+	if !features.FeatureGate.Enabled(features.Failover) {
+		return false, nil
+	}
+	rbApplicationFailoverController := applicationfailover.RBApplicationFailoverController{
+		Client:              ctx.Mgr.GetClient(),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.RBApplicationFailoverControllerName),
+		ResourceInterpreter: ctx.ResourceInterpreter,
+	}
+	if err = rbApplicationFailoverController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+
+	crbApplicationFailoverController := applicationfailover.CRBApplicationFailoverController{
+		Client:              ctx.Mgr.GetClient(),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.CRBApplicationFailoverControllerName),
+		ResourceInterpreter: ctx.ResourceInterpreter,
+	}
+	if err = crbApplicationFailoverController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // setupControllers initialize controllers and setup one by one.

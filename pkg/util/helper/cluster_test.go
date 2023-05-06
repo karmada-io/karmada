@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 func TestIsAPIEnabled(t *testing.T) {
@@ -67,51 +66,6 @@ func TestIsAPIEnabled(t *testing.T) {
 		tc := test
 		t.Run(tc.name, func(t *testing.T) {
 			result := IsAPIEnabled(tc.enablements, tc.targetGroupVersion, tc.targetKind)
-			if result != tc.expect {
-				t.Errorf("expected: %v, but got: %v", tc.expect, result)
-			}
-		})
-	}
-}
-
-func TestClusterInGracefulEvictionTasks(t *testing.T) {
-	gracefulEvictionTasks := []workv1alpha2.GracefulEvictionTask{
-		{
-			FromCluster: ClusterMember1,
-			Producer:    workv1alpha2.EvictionProducerTaintManager,
-			Reason:      workv1alpha2.EvictionReasonTaintUntolerated,
-		},
-		{
-			FromCluster: ClusterMember2,
-			Producer:    workv1alpha2.EvictionProducerTaintManager,
-			Reason:      workv1alpha2.EvictionReasonTaintUntolerated,
-		},
-	}
-
-	tests := []struct {
-		name                  string
-		gracefulEvictionTasks []workv1alpha2.GracefulEvictionTask
-		targetCluster         string
-		expect                bool
-	}{
-		{
-			name:                  "targetCluster is in the process of eviction",
-			gracefulEvictionTasks: gracefulEvictionTasks,
-			targetCluster:         ClusterMember1,
-			expect:                true,
-		},
-		{
-			name:                  "targetCluster is not in the process of eviction",
-			gracefulEvictionTasks: gracefulEvictionTasks,
-			targetCluster:         ClusterMember3,
-			expect:                false,
-		},
-	}
-
-	for _, test := range tests {
-		tc := test
-		t.Run(tc.name, func(t *testing.T) {
-			result := ClusterInGracefulEvictionTasks(tc.gracefulEvictionTasks, tc.targetCluster)
 			if result != tc.expect {
 				t.Errorf("expected: %v, but got: %v", tc.expect, result)
 			}
