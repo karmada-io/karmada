@@ -536,6 +536,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 	ginkgo.Context("ReplicaSchedulingType is Divided, ReplicaDivisionPreference is Weighted, WeightPreference isn't "+
 		"nil, trigger rescheduling when replicas have changed.", func() {
 		ginkgo.BeforeEach(func() {
+			sumWeight := 0
 			staticWeightLists := make([]policyv1alpha1.StaticClusterWeight, 0)
 			for index, clusterName := range framework.ClusterNames() {
 				staticWeightList := policyv1alpha1.StaticClusterWeight{
@@ -545,6 +546,7 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					Weight: int64(index + 1),
 				}
 				staticWeightLists = append(staticWeightLists, staticWeightList)
+				sumWeight += index + 1
 			}
 			klog.Infof("StaticWeightList of policy is %+v", staticWeightLists)
 			policy.Spec.Placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
@@ -554,6 +556,8 @@ var _ = ginkgo.Describe("[ReplicaScheduling] ReplicaSchedulingStrategy testing",
 					StaticWeightList: staticWeightLists,
 				},
 			}
+			sumReplicas := int32(sumWeight)
+			deployment.Spec.Replicas = &sumReplicas
 		})
 
 		ginkgo.It("replicas divided and weighted testing when rescheduling", func() {
