@@ -8,6 +8,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -25,7 +26,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
-	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
@@ -52,22 +52,14 @@ func (c *CRBApplicationFailoverController) Reconcile(ctx context.Context, req co
 	binding := &workv1alpha2.ClusterResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
 		if apierrors.IsNotFound(err) {
-			resource, err := helper.ConstructClusterWideKey(binding.Spec.Resource)
-			if err != nil {
-				return controllerruntime.Result{Requeue: true}, err
-			}
-			c.workloadUnhealthyMap.delete(resource)
+			c.workloadUnhealthyMap.delete(req.NamespacedName)
 			return controllerruntime.Result{}, nil
 		}
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	if !c.clusterResourceBindingFilter(binding) {
-		resource, err := helper.ConstructClusterWideKey(binding.Spec.Resource)
-		if err != nil {
-			return controllerruntime.Result{Requeue: true}, err
-		}
-		c.workloadUnhealthyMap.delete(resource)
+		c.workloadUnhealthyMap.delete(req.NamespacedName)
 		return controllerruntime.Result{}, nil
 	}
 
@@ -82,13 +74,13 @@ func (c *CRBApplicationFailoverController) Reconcile(ctx context.Context, req co
 	return controllerruntime.Result{}, nil
 }
 
-func (c *CRBApplicationFailoverController) detectFailure(clusters []string, tolerationSeconds *int32, resource keys.ClusterWideKey) (int32, []string) {
+func (c *CRBApplicationFailoverController) detectFailure(clusters []string, tolerationSeconds *int32, key types.NamespacedName) (int32, []string) {
 	var needEvictClusters []string
 	duration := int32(math.MaxInt32)
 
 	for _, cluster := range clusters {
-		if !c.workloadUnhealthyMap.hasWorkloadBeenUnhealthy(resource, cluster) {
-			c.workloadUnhealthyMap.setTimeStamp(resource, cluster)
+		if !c.workloadUnhealthyMap.hasWorkloadBeenUnhealthy(key, cluster) {
+			c.workloadUnhealthyMap.setTimeStamp(key, cluster)
 			if duration > *tolerationSeconds {
 				duration = *tolerationSeconds
 			}
@@ -97,7 +89,7 @@ func (c *CRBApplicationFailoverController) detectFailure(clusters []string, tole
 		// When the workload in a cluster is in an unhealthy state for more than the tolerance time,
 		// and the cluster has not been in the GracefulEvictionTasks,
 		// the cluster will be added to the list that needs to be evicted.
-		unHealthyTimeStamp := c.workloadUnhealthyMap.getTimeStamp(resource, cluster)
+		unHealthyTimeStamp := c.workloadUnhealthyMap.getTimeStamp(key, cluster)
 		timeNow := metav1.Now()
 		if timeNow.After(unHealthyTimeStamp.Add(time.Duration(*tolerationSeconds) * time.Second)) {
 			needEvictClusters = append(needEvictClusters, cluster)
@@ -115,22 +107,18 @@ func (c *CRBApplicationFailoverController) detectFailure(clusters []string, tole
 }
 
 func (c *CRBApplicationFailoverController) syncBinding(binding *workv1alpha2.ClusterResourceBinding) (time.Duration, error) {
+	key := types.NamespacedName{Name: binding.Name, Namespace: binding.Namespace}
 	tolerationSeconds := binding.Spec.Failover.Application.DecisionConditions.TolerationSeconds
-	resource, err := helper.ConstructClusterWideKey(binding.Spec.Resource)
-	if err != nil {
-		klog.Errorf("failed to get key from binding(%s)'s resource", binding.Name)
-		return 0, err
-	}
 
 	allClusters := sets.New[string]()
 	for _, cluster := range binding.Spec.Clusters {
 		allClusters.Insert(cluster.Name)
 	}
 
-	unhealthyClusters := filterIrrelevantClusters(binding.Status.AggregatedStatus, binding.Spec)
-	duration, needEvictClusters := c.detectFailure(unhealthyClusters, tolerationSeconds, resource)
+	unhealthyClusters, others := distinguishUnhealthyClustersWithOthers(binding.Status.AggregatedStatus, binding.Spec)
+	duration, needEvictClusters := c.detectFailure(unhealthyClusters, tolerationSeconds, key)
 
-	err = c.evictBinding(binding, needEvictClusters)
+	err := c.evictBinding(binding, needEvictClusters)
 	if err != nil {
 		klog.Errorf("Failed to evict binding(%s), err: %v.", binding.Name, err)
 		return 0, err
@@ -142,8 +130,8 @@ func (c *CRBApplicationFailoverController) syncBinding(binding *workv1alpha2.Clu
 		}
 	}
 
-	// Cleanup clusters that have been evicted or removed in the workloadUnhealthyMap
-	c.workloadUnhealthyMap.deleteIrrelevantClusters(resource, allClusters)
+	// Cleanup clusters on which the application status is not unhealthy and clusters that have been evicted or removed in the workloadUnhealthyMap.
+	c.workloadUnhealthyMap.deleteIrrelevantClusters(key, allClusters, others)
 
 	return time.Duration(duration) * time.Second, nil
 }

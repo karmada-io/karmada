@@ -4,37 +4,37 @@ import (
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
 type workloadUnhealthyMap struct {
 	sync.RWMutex
-	// key is the resource type
+	// key is the NamespacedName of the binding
 	// value is also a map. Its key is the cluster where the unhealthy workload resides.
 	// Its value is the time when the unhealthy state was first observed.
-	workloadUnhealthy map[keys.ClusterWideKey]map[string]metav1.Time
+	workloadUnhealthy map[types.NamespacedName]map[string]metav1.Time
 }
 
 func newWorkloadUnhealthyMap() *workloadUnhealthyMap {
 	return &workloadUnhealthyMap{
-		workloadUnhealthy: make(map[keys.ClusterWideKey]map[string]metav1.Time),
+		workloadUnhealthy: make(map[types.NamespacedName]map[string]metav1.Time),
 	}
 }
 
-func (m *workloadUnhealthyMap) delete(key keys.ClusterWideKey) {
+func (m *workloadUnhealthyMap) delete(key types.NamespacedName) {
 	m.Lock()
 	defer m.Unlock()
 	delete(m.workloadUnhealthy, key)
 }
 
-func (m *workloadUnhealthyMap) hasWorkloadBeenUnhealthy(resource keys.ClusterWideKey, cluster string) bool {
+func (m *workloadUnhealthyMap) hasWorkloadBeenUnhealthy(key types.NamespacedName, cluster string) bool {
 	m.RLock()
 	defer m.RUnlock()
 
-	unhealthyClusters := m.workloadUnhealthy[resource]
+	unhealthyClusters := m.workloadUnhealthy[key]
 	if unhealthyClusters == nil {
 		return false
 	}
@@ -43,32 +43,32 @@ func (m *workloadUnhealthyMap) hasWorkloadBeenUnhealthy(resource keys.ClusterWid
 	return exist
 }
 
-func (m *workloadUnhealthyMap) setTimeStamp(resource keys.ClusterWideKey, cluster string) {
+func (m *workloadUnhealthyMap) setTimeStamp(key types.NamespacedName, cluster string) {
 	m.Lock()
 	defer m.Unlock()
 
-	unhealthyClusters := m.workloadUnhealthy[resource]
+	unhealthyClusters := m.workloadUnhealthy[key]
 	if unhealthyClusters == nil {
 		unhealthyClusters = make(map[string]metav1.Time)
 	}
 
 	unhealthyClusters[cluster] = metav1.Now()
-	m.workloadUnhealthy[resource] = unhealthyClusters
+	m.workloadUnhealthy[key] = unhealthyClusters
 }
 
-func (m *workloadUnhealthyMap) getTimeStamp(resource keys.ClusterWideKey, cluster string) metav1.Time {
+func (m *workloadUnhealthyMap) getTimeStamp(key types.NamespacedName, cluster string) metav1.Time {
 	m.RLock()
 	defer m.RUnlock()
 
-	unhealthyClusters := m.workloadUnhealthy[resource]
+	unhealthyClusters := m.workloadUnhealthy[key]
 	return unhealthyClusters[cluster]
 }
 
-func (m *workloadUnhealthyMap) deleteIrrelevantClusters(resource keys.ClusterWideKey, allClusters sets.Set[string]) {
+func (m *workloadUnhealthyMap) deleteIrrelevantClusters(key types.NamespacedName, allClusters sets.Set[string], healthyClusters []string) {
 	m.Lock()
 	defer m.Unlock()
 
-	unhealthyClusters := m.workloadUnhealthy[resource]
+	unhealthyClusters := m.workloadUnhealthy[key]
 	if unhealthyClusters == nil {
 		return
 	}
@@ -77,19 +77,27 @@ func (m *workloadUnhealthyMap) deleteIrrelevantClusters(resource keys.ClusterWid
 			delete(unhealthyClusters, cluster)
 		}
 	}
-	m.workloadUnhealthy[resource] = unhealthyClusters
+	for _, cluster := range healthyClusters {
+		delete(unhealthyClusters, cluster)
+	}
+
+	m.workloadUnhealthy[key] = unhealthyClusters
 }
 
-// filterIrrelevantClusters filters clusters which is in the process of eviction or in the Healthy/Unknown state.
-func filterIrrelevantClusters(aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, resourceBindingSpec workv1alpha2.ResourceBindingSpec) []string {
-	var filteredClusters []string
+// distinguishUnhealthyClustersWithOthers distinguishes clusters which is in the unHealthy state(not in the process of eviction) with others.
+func distinguishUnhealthyClustersWithOthers(aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, resourceBindingSpec workv1alpha2.ResourceBindingSpec) ([]string, []string) {
+	var unhealthyClusters, others []string
 	for _, aggregatedStatusItem := range aggregatedStatusItems {
 		cluster := aggregatedStatusItem.ClusterName
 
 		if aggregatedStatusItem.Health == workv1alpha2.ResourceUnhealthy && !resourceBindingSpec.ClusterInGracefulEvictionTasks(cluster) {
-			filteredClusters = append(filteredClusters, cluster)
+			unhealthyClusters = append(unhealthyClusters, cluster)
+		}
+
+		if aggregatedStatusItem.Health == workv1alpha2.ResourceHealthy || aggregatedStatusItem.Health == workv1alpha2.ResourceUnknown {
+			others = append(others, cluster)
 		}
 	}
 
-	return filteredClusters
+	return unhealthyClusters, others
 }

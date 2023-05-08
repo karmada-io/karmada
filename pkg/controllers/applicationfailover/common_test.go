@@ -7,12 +7,13 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-func TestFilterIrrelevantClusters(t *testing.T) {
+func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 	tests := []struct {
 		name                  string
 		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
 		resourceBindingSpec   workv1alpha2.ResourceBindingSpec
 		expectedClusters      []string
+		expectedOthers        []string
 	}{
 		{
 			name: "all applications are healthy",
@@ -28,6 +29,7 @@ func TestFilterIrrelevantClusters(t *testing.T) {
 			},
 			resourceBindingSpec: workv1alpha2.ResourceBindingSpec{},
 			expectedClusters:    nil,
+			expectedOthers:      []string{"member1", "member2"},
 		},
 		{
 			name: "all applications are unknown",
@@ -43,6 +45,7 @@ func TestFilterIrrelevantClusters(t *testing.T) {
 			},
 			resourceBindingSpec: workv1alpha2.ResourceBindingSpec{},
 			expectedClusters:    nil,
+			expectedOthers:      []string{"member1", "member2"},
 		},
 		{
 			name: "one application is unhealthy and not in gracefulEvictionTasks",
@@ -58,6 +61,7 @@ func TestFilterIrrelevantClusters(t *testing.T) {
 			},
 			resourceBindingSpec: workv1alpha2.ResourceBindingSpec{},
 			expectedClusters:    []string{"member2"},
+			expectedOthers:      []string{"member1"},
 		},
 		{
 			name: "one application is unhealthy and in gracefulEvictionTasks",
@@ -79,13 +83,14 @@ func TestFilterIrrelevantClusters(t *testing.T) {
 				},
 			},
 			expectedClusters: nil,
+			expectedOthers:   []string{"member1"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := filterIrrelevantClusters(tt.aggregatedStatusItems, tt.resourceBindingSpec); !reflect.DeepEqual(got, tt.expectedClusters) {
-				t.Errorf("filterIrrelevantClusters() = %v, want %v", got, tt.expectedClusters)
+			if got, gotOthers := distinguishUnhealthyClustersWithOthers(tt.aggregatedStatusItems, tt.resourceBindingSpec); !reflect.DeepEqual(got, tt.expectedClusters) || !reflect.DeepEqual(gotOthers, tt.expectedOthers) {
+				t.Errorf("distinguishUnhealthyClustersWithOthers() = (%v, %v), want (%v, %v)", got, gotOthers, tt.expectedClusters, tt.expectedOthers)
 			}
 		})
 	}
