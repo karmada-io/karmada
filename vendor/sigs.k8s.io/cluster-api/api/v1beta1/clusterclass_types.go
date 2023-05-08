@@ -535,6 +535,10 @@ type ExternalPatchDefinition struct {
 	// +optional
 	ValidateExtension *string `json:"validateExtension,omitempty"`
 
+	// DiscoverVariablesExtension references an extension which is called to discover variables.
+	// +optional
+	DiscoverVariablesExtension *string `json:"discoverVariablesExtension,omitempty"`
+
 	// Settings defines key value pairs to be passed to the extensions.
 	// Values defined here take precedence over the values defined in the
 	// corresponding ExtensionConfig.
@@ -553,6 +557,10 @@ type LocalObjectTemplate struct {
 
 // ClusterClassStatus defines the observed state of the ClusterClass.
 type ClusterClassStatus struct {
+	// Variables is a list of ClusterClassStatusVariable that are defined for the ClusterClass.
+	// +optional
+	Variables []ClusterClassStatusVariable `json:"variables,omitempty"`
+
 	// Conditions defines current observed state of the ClusterClass.
 	// +optional
 	Conditions Conditions `json:"conditions,omitempty"`
@@ -560,6 +568,36 @@ type ClusterClassStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
+// ClusterClassStatusVariable defines a variable which appears in the status of a ClusterClass.
+type ClusterClassStatusVariable struct {
+	// Name is the name of the variable.
+	Name string `json:"name"`
+
+	// DefinitionsConflict specifies whether or not there are conflicting definitions for a single variable name.
+	// +optional
+	DefinitionsConflict bool `json:"definitionsConflict"`
+
+	// Definitions is a list of definitions for a variable.
+	Definitions []ClusterClassStatusVariableDefinition `json:"definitions"`
+}
+
+// ClusterClassStatusVariableDefinition defines a variable which appears in the status of a ClusterClass.
+type ClusterClassStatusVariableDefinition struct {
+	// From specifies the origin of the variable definition.
+	// This will be `inline` for variables defined in the ClusterClass or the name of a patch defined in the ClusterClass
+	// for variables discovered from a DiscoverVariables runtime extensions.
+	From string `json:"from"`
+
+	// Required specifies if the variable is required.
+	// Note: this applies to the variable as a whole and thus the
+	// top-level object defined in the schema. If nested fields are
+	// required, this will be specified inside the schema.
+	Required bool `json:"required"`
+
+	// Schema defines the schema of the variable.
+	Schema VariableSchema `json:"schema"`
 }
 
 // GetConditions returns the set of conditions for this object.

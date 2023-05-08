@@ -270,6 +270,7 @@ func (src *MachineDeployment) ConvertTo(dstRaw conversion.Hub) error {
 
 	dst.Spec.Template.Spec.NodeDeletionTimeout = restored.Spec.Template.Spec.NodeDeletionTimeout
 	dst.Spec.Template.Spec.NodeVolumeDetachTimeout = restored.Spec.Template.Spec.NodeVolumeDetachTimeout
+	dst.Spec.RolloutAfter = restored.Spec.RolloutAfter
 	return nil
 }
 
@@ -333,6 +334,10 @@ func Convert_v1beta1_ClusterClassSpec_To_v1alpha4_ClusterClassSpec(in *clusterv1
 func Convert_v1beta1_MachineSpec_To_v1alpha4_MachineSpec(in *clusterv1.MachineSpec, out *MachineSpec, s apiconversion.Scope) error {
 	// spec.nodeDeletionTimeout has been added with v1beta1.
 	return autoConvert_v1beta1_MachineSpec_To_v1alpha4_MachineSpec(in, out, s)
+}
+
+func Convert_v1beta1_MachineDeploymentSpec_To_v1alpha4_MachineDeploymentSpec(in *clusterv1.MachineDeploymentSpec, out *MachineDeploymentSpec, s apiconversion.Scope) error {
+	return autoConvert_v1beta1_MachineDeploymentSpec_To_v1alpha4_MachineDeploymentSpec(in, out, s)
 }
 
 func Convert_v1beta1_Topology_To_v1alpha4_Topology(in *clusterv1.Topology, out *Topology, s apiconversion.Scope) error {

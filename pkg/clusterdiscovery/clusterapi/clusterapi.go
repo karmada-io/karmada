@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	clusterapiv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4"
+	clusterapiv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4" //nolint:staticcheck // disable `deprecation` check for backward compatibility.
 	clusterapiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	secretutil "sigs.k8s.io/cluster-api/util/secret"
 	"sigs.k8s.io/controller-runtime/pkg/client"

@@ -282,6 +282,8 @@ func (md *MachineDeploymentStatus) GetTypedPhase() MachineDeploymentPhase {
 // +kubebuilder:printcolumn:name="Unavailable",type=integer,JSONPath=".status.unavailableReplicas",description="Total number of unavailable machines targeted by this MachineDeployment"
 
 // MachineDeployment is the Schema for the machinedeployments API.
+//
+// Deprecated: This type will be removed in one of the next releases.
 type MachineDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -293,6 +295,8 @@ type MachineDeployment struct {
 // +kubebuilder:object:root=true
 
 // MachineDeploymentList contains a list of MachineDeployment.
+//
+// Deprecated: This type will be removed in one of the next releases.
 type MachineDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

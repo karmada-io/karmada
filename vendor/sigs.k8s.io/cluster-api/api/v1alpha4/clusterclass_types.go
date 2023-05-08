@@ -26,6 +26,8 @@ import (
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time duration since creation of ClusterClass"
 
 // ClusterClass is a template which can be used to create managed topologies.
+//
+// Deprecated: This type will be removed in one of the next releases.
 type ClusterClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -121,6 +123,8 @@ type LocalObjectTemplate struct {
 // +kubebuilder:object:root=true
 
 // ClusterClassList contains a list of Cluster.
+//
+// Deprecated: This type will be removed in one of the next releases.
 type ClusterClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

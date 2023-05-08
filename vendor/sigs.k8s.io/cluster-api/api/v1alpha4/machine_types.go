@@ -244,6 +244,8 @@ type Bootstrap struct {
 // +kubebuilder:printcolumn:name="NodeName",type="string",JSONPath=".status.nodeRef.name",description="Node name associated with this machine",priority=1
 
 // Machine is the Schema for the machines API.
+//
+// Deprecated: This type will be removed in one of the next releases.
 type Machine struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -265,6 +267,8 @@ func (m *Machine) SetConditions(conditions Conditions) {
 // +kubebuilder:object:root=true
 
 // MachineList contains a list of Machine.
+//
+// Deprecated: This type will be removed in one of the next releases.
 type MachineList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

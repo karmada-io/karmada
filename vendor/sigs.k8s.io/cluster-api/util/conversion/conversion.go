@@ -37,7 +37,6 @@ import (
 	runtimeserializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
@@ -59,29 +58,18 @@ var (
 // the Custom Resource Definition and looks which one is the stored version available.
 //
 // The object passed as input is modified in place if an updated compatible version is found.
-// NOTE: In case CRDs are named incorrectly, this func is using an APIReader instead of the regular client to list CRDs
-// to avoid implicitly creating an informer for CRDs which would lead to high memory consumption.
-func UpdateReferenceAPIContract(ctx context.Context, c client.Client, apiReader client.Reader, ref *corev1.ObjectReference) error {
-	log := ctrl.LoggerFrom(ctx)
+// NOTE: This version depends on CRDs being named correctly as defined by contract.CalculateCRDName.
+func UpdateReferenceAPIContract(ctx context.Context, c client.Client, ref *corev1.ObjectReference) error {
 	gvk := ref.GroupVersionKind()
 
 	metadata, err := util.GetGVKMetadata(ctx, c, gvk)
 	if err != nil {
-		log.Info("Cannot retrieve CRD with metadata only client, falling back to slower listing", "err", err.Error())
-		// Fallback to slower and more memory intensive method to get the full CRD.
-		crd, err := util.GetCRDWithContract(ctx, apiReader, gvk, contract)
-		if err != nil {
-			return err
-		}
-		metadata = &metav1.PartialObjectMetadata{
-			TypeMeta:   crd.TypeMeta,
-			ObjectMeta: crd.ObjectMeta,
-		}
+		return errors.Wrapf(err, "failed to update apiVersion in ref")
 	}
 
 	chosen, err := getLatestAPIVersionFromContract(metadata)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to update apiVersion in ref")
 	}
 
 	// Modify the GroupVersionKind with the new version.

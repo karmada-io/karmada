@@ -323,7 +323,7 @@ func (c *Certificate) AsSecret(clusterName client.ObjectKey, owner metav1.OwnerR
 	}
 
 	if c.Generated {
-		s.OwnerReferences = []metav1.OwnerReference{owner}
+		s.SetOwnerReferences([]metav1.OwnerReference{owner})
 	}
 	return s
 }

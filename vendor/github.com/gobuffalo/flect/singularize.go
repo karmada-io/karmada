@@ -35,6 +35,14 @@ func (i Ident) Singularize() Ident {
 	singularMoot.RLock()
 	defer singularMoot.RUnlock()
 
+	// check if the Original has an explicit entry in the map
+	if p, ok := pluralToSingle[i.Original]; ok {
+		return i.ReplaceSuffix(i.Original, p)
+	}
+	if _, ok := singleToPlural[i.Original]; ok {
+		return i
+	}
+
 	ls := strings.ToLower(s)
 	if p, ok := pluralToSingle[ls]; ok {
 		if s == Capitalize(s) {
@@ -48,7 +56,7 @@ func (i Ident) Singularize() Ident {
 	}
 
 	for _, r := range singularRules {
-		if strings.HasSuffix(ls, r.suffix) {
+		if strings.HasSuffix(s, r.suffix) {
 			return i.ReplaceSuffix(s, r.fn(s))
 		}
 	}
