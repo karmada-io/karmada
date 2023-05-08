@@ -55,13 +55,26 @@ const (
 
 // ANCHOR_END: CommonConditions
 
+// Conditions and condition Reasons for the ClusterClass object.
+const (
+	// ClusterClassVariablesReconciledCondition reports if the ClusterClass variables, including both inline and external
+	// variables, have been successfully reconciled.
+	// This signals that the ClusterClass is ready to be used to default and validate variables on Clusters using
+	// this ClusterClass.
+	ClusterClassVariablesReconciledCondition ConditionType = "VariablesReconciled"
+
+	// VariableDiscoveryFailedReason (Severity=Error) documents a ClusterClass with VariableDiscovery extensions that
+	// failed.
+	VariableDiscoveryFailedReason = "VariableDiscoveryFailed"
+)
+
 // Conditions and condition Reasons for the Cluster object.
 
 const (
 	// ControlPlaneInitializedCondition reports if the cluster's control plane has been initialized such that the
-	// cluster's apiserver is reachable and at least one control plane Machine has a node reference. Once this
-	// condition is marked true, its value is never changed. See the ControlPlaneReady condition for an indication of
-	// the current readiness of the cluster's control plane.
+	// cluster's apiserver is reachable. If no Control Plane provider is in use this condition reports that at least one
+	// control plane Machine has a node reference. Once this Condition is marked true, its value is never changed. See
+	// the ControlPlaneReady condition for an indication of the current readiness of the cluster's control plane.
 	ControlPlaneInitializedCondition ConditionType = "ControlPlaneInitialized"
 
 	// MissingNodeRefReason (Severity=Info) documents a cluster waiting for at least one control plane Machine to have
@@ -273,9 +286,18 @@ const (
 	// not yet completed because at least one of the MachineDeployments is not yet updated to match the desired topology spec.
 	TopologyReconciledMachineDeploymentsUpgradePendingReason = "MachineDeploymentsUpgradePending"
 
+	// TopologyReconciledMachineDeploymentsUpgradeDeferredReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because the upgrade for at least one of the MachineDeployments has been deferred.
+	TopologyReconciledMachineDeploymentsUpgradeDeferredReason = "MachineDeploymentsUpgradeDeferred"
+
 	// TopologyReconciledHookBlockingReason (Severity=Info) documents reconciliation of a Cluster topology
 	// not yet completed because at least one of the lifecycle hooks is blocking.
 	TopologyReconciledHookBlockingReason = "LifecycleHookBlocking"
+
+	// TopologyReconciledClusterClassNotReconciledReason (Severity=Info) documents reconciliation of a Cluster topology not
+	// yet completed because the ClusterClass has not reconciled yet. If this condition persists there may be an issue
+	// with the ClusterClass surfaced in the ClusterClass status or controller logs.
+	TopologyReconciledClusterClassNotReconciledReason = "ClusterClassNotReconciled"
 )
 
 // Conditions and condition reasons for ClusterClass.

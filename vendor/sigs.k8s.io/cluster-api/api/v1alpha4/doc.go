@@ -16,4 +16,6 @@ limitations under the License.
 
 // Package v1alpha4 contains the v1alpha4 API implementation.
 // +k8s:conversion-gen=sigs.k8s.io/cluster-api/api/v1beta1
+//
+// Deprecated: This package will be removed in one of the next releases.
 package v1alpha4

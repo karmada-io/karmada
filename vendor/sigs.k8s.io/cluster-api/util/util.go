@@ -156,7 +156,7 @@ func GetClusterFromMetadata(ctx context.Context, c client.Client, obj metav1.Obj
 
 // GetOwnerCluster returns the Cluster object owning the current resource.
 func GetOwnerCluster(ctx context.Context, c client.Client, obj metav1.ObjectMeta) (*clusterv1.Cluster, error) {
-	for _, ref := range obj.OwnerReferences {
+	for _, ref := range obj.GetOwnerReferences() {
 		if ref.Kind != "Cluster" {
 			continue
 		}
@@ -240,7 +240,7 @@ func ClusterToInfrastructureMapFunc(ctx context.Context, gvk schema.GroupVersion
 
 // GetOwnerMachine returns the Machine object owning the current resource.
 func GetOwnerMachine(ctx context.Context, c client.Client, obj metav1.ObjectMeta) (*clusterv1.Machine, error) {
-	for _, ref := range obj.OwnerReferences {
+	for _, ref := range obj.GetOwnerReferences() {
 		gv, err := schema.ParseGroupVersion(ref.APIVersion)
 		if err != nil {
 			return nil, err
@@ -289,12 +289,13 @@ func MachineToInfrastructureMapFunc(gvk schema.GroupVersionKind) handler.MapFunc
 	}
 }
 
-// HasOwnerRef returns true if the OwnerReference is already in the slice.
+// HasOwnerRef returns true if the OwnerReference is already in the slice. It matches based on Group, Kind and Name.
 func HasOwnerRef(ownerReferences []metav1.OwnerReference, ref metav1.OwnerReference) bool {
 	return indexOwnerRef(ownerReferences, ref) > -1
 }
 
 // EnsureOwnerRef makes sure the slice contains the OwnerReference.
+// Note: EnsureOwnerRef will update the version of the OwnerReference fi it exists with a different version. It will also update the UID.
 func EnsureOwnerRef(ownerReferences []metav1.OwnerReference, ref metav1.OwnerReference) []metav1.OwnerReference {
 	idx := indexOwnerRef(ownerReferences, ref)
 	if idx == -1 {
@@ -324,6 +325,7 @@ func ReplaceOwnerRef(ownerReferences []metav1.OwnerReference, source metav1.Obje
 }
 
 // RemoveOwnerRef returns the slice of owner references after removing the supplied owner ref.
+// Note: RemoveOwnerRef ignores apiVersion and UID. It will remove the passed ownerReference where it matches Name, Group and Kind.
 func RemoveOwnerRef(ownerReferences []metav1.OwnerReference, inputRef metav1.OwnerReference) []metav1.OwnerReference {
 	if index := indexOwnerRef(ownerReferences, inputRef); index != -1 {
 		return append(ownerReferences[:index], ownerReferences[index+1:]...)
@@ -342,6 +344,7 @@ func indexOwnerRef(ownerReferences []metav1.OwnerReference, ref metav1.OwnerRefe
 }
 
 // IsOwnedByObject returns true if any of the owner references point to the given target.
+// It matches the object based on the Group, Kind and Name.
 func IsOwnedByObject(obj metav1.Object, target client.Object) bool {
 	for _, ref := range obj.GetOwnerReferences() {
 		ref := ref
@@ -352,7 +355,7 @@ func IsOwnedByObject(obj metav1.Object, target client.Object) bool {
 	return false
 }
 
-// IsControlledBy differs from metav1.IsControlledBy in that it checks the group (but not version), kind, and name vs uid.
+// IsControlledBy differs from metav1.IsControlledBy. This function matches on Group, Kind and Name. The metav1.IsControlledBy function matches on UID only.
 func IsControlledBy(obj metav1.Object, owner client.Object) bool {
 	controllerRef := metav1.GetControllerOfNoCopy(obj)
 	if controllerRef == nil {
@@ -361,7 +364,7 @@ func IsControlledBy(obj metav1.Object, owner client.Object) bool {
 	return refersTo(controllerRef, owner)
 }
 
-// Returns true if a and b point to the same object.
+// Returns true if a and b point to the same object based on Group, Kind and Name.
 func referSameObject(a, b metav1.OwnerReference) bool {
 	aGV, err := schema.ParseGroupVersion(a.APIVersion)
 	if err != nil {
@@ -376,7 +379,7 @@ func referSameObject(a, b metav1.OwnerReference) bool {
 	return aGV.Group == bGV.Group && a.Kind == b.Kind && a.Name == b.Name
 }
 
-// Returns true if ref refers to obj.
+// Returns true if ref refers to obj based on Group, Kind and Name.
 func refersTo(ref *metav1.OwnerReference, obj client.Object) bool {
 	refGv, err := schema.ParseGroupVersion(ref.APIVersion)
 	if err != nil {
@@ -448,32 +451,6 @@ func GetGVKMetadata(ctx context.Context, c client.Client, gvk schema.GroupVersio
 		return meta, errors.Wrap(err, "failed to retrieve metadata from GVK resource")
 	}
 	return meta, nil
-}
-
-// GetCRDWithContract retrieves a list of CustomResourceDefinitions from using controller-runtime Client,
-// filtering with the `contract` label passed in.
-// Returns the first CRD in the list that matches the GroupVersionKind, otherwise returns an error.
-func GetCRDWithContract(ctx context.Context, c client.Reader, gvk schema.GroupVersionKind, contract string) (*apiextensionsv1.CustomResourceDefinition, error) {
-	crdList := &apiextensionsv1.CustomResourceDefinitionList{}
-	for {
-		if err := c.List(ctx, crdList, client.Continue(crdList.Continue), client.HasLabels{contract}); err != nil {
-			return nil, errors.Wrapf(err, "failed to list CustomResourceDefinitions for %v", gvk)
-		}
-
-		for i := range crdList.Items {
-			crd := crdList.Items[i]
-			if crd.Spec.Group == gvk.Group &&
-				crd.Spec.Names.Kind == gvk.Kind {
-				return &crd, nil
-			}
-		}
-
-		if crdList.Continue == "" {
-			break
-		}
-	}
-
-	return nil, errors.Errorf("failed to find a CustomResourceDefinition for %v with contract %q", gvk, contract)
 }
 
 // KubeAwareAPIVersions is a sortable slice of kube-like version strings.
