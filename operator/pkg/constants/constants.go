@@ -40,6 +40,8 @@ const (
 	KarmadaScheduler = "karmada-scheduler"
 	// KarmadaWebhook defines the name of the karmada-webhook component
 	KarmadaWebhook = "karmada-webhook"
+	// KarmadaDescheduler defines the name of the karmada-descheduler component
+	KarmadaDescheduler = "karmada-descheduler"
 
 	// KarmadaSystemNamespace defines the leader selection namespace for karmada components
 	KarmadaSystemNamespace = "karmada-system"
@@ -78,18 +80,20 @@ const (
 	// UserName karmada cluster user name
 	UserName = "karmada-admin"
 
-	// KarmadaAPIserverComponent defines the name of karmada apiserver component
+	// KarmadaAPIserverComponent defines the name of karmada-apiserver component
 	KarmadaAPIserverComponent = "KarmadaAPIServer"
-	// KarmadaAggregatedAPIServerComponent defines the name of karmada aggregated apiserver component
+	// KarmadaAggregatedAPIServerComponent defines the name of karmada-aggregated-apiserver component
 	KarmadaAggregatedAPIServerComponent = "KarmadaAggregatedAPIServer"
-	// KubeControllerManagerComponent defines the name of kube controller manager component
+	// KubeControllerManagerComponent defines the name of kube-controller-manager-component
 	KubeControllerManagerComponent = "KubeControllerManager"
-	// KarmadaControllerManagerComponent defines the name of karmada controller manager component
+	// KarmadaControllerManagerComponent defines the name of karmada-controller-manager component
 	KarmadaControllerManagerComponent = "KarmadaControllerManager"
-	// KarmadaSchedulerComponent defines the name of karmada scheduler component
+	// KarmadaSchedulerComponent defines the name of karmada-scheduler component
 	KarmadaSchedulerComponent = "KarmadaScheduler"
 	// KarmadaWebhookComponent defines the name of the karmada-webhook component
 	KarmadaWebhookComponent = "KarmadaWebhook"
+	// KarmadaDeschedulerComponent defines the name of the karmada-descheduler component
+	KarmadaDeschedulerComponent = "KarmadaDescheduler"
 
 	// KarmadaOperatorLabelKeyName defines a label key used by all of resources created by karmada operator
 	KarmadaOperatorLabelKeyName = "app.kubernetes.io/managed-by"

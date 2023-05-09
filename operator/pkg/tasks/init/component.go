@@ -26,6 +26,7 @@ func NewComponentTask() workflow.Task {
 				Name: "KarmadaWebhook",
 				Run:  runKarmadaWebhook,
 			},
+			newComponentSubTask(constants.KarmadaDeschedulerComponent),
 		},
 	}
 }
