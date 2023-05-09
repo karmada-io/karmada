@@ -80,7 +80,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders":                                  schema_pkg_apis_policy_v1alpha1_Overriders(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement":                                   schema_pkg_apis_policy_v1alpha1_Placement(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider":                          schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PreConditions":                               schema_pkg_apis_policy_v1alpha1_PreConditions(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicy":                           schema_pkg_apis_policy_v1alpha1_PropagationPolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicyList":                       schema_pkg_apis_policy_v1alpha1_PropagationPolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationSpec":                             schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref),
@@ -2157,12 +2156,6 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 				Description: "ApplicationFailoverBehavior indicates application failover behaviors.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"preConditions": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PreConditions indicates the preconditions of the failover process. If specified, only when all conditions are met can the failover process be started. Currently, PreConditions includes several conditions: - DelaySeconds (optional) - HealthyState (optional)",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PreConditions"),
-						},
-					},
 					"decisionConditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DecisionConditions indicates the decision conditions of performing the failover process. Only when all conditions are met can the failover process be performed. Currently, DecisionConditions includes several conditions: - TolerationSeconds (optional)",
@@ -2184,19 +2177,12 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 							Format:      "int32",
 						},
 					},
-					"blockPredecessorSeconds": {
-						SchemaProps: spec.SchemaProps{
-							Description: "BlockPredecessorSeconds represents the period of time the cluster from which the application was migrated from can be schedulable again. During the period of BlockPredecessorSeconds, clusters are forcibly filtered out by the scheduler. If not specified or the value is zero, the evicted cluster is schedulable to the application when rescheduling. Defaults to 600s.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
 				},
 				Required: []string{"decisionConditions"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PreConditions"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions"},
 	}
 }
 
@@ -3374,33 +3360,6 @@ func schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref common.ReferenceCall
 		},
 		Dependencies: []string{
 			"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
-	}
-}
-
-func schema_pkg_apis_policy_v1alpha1_PreConditions(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "PreConditions represents the preconditions of the failover process.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"delaySeconds": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DelaySeconds refers to a period of time after the control plane collects the status of the application for the first time. If specified, the failover process will be started after DelaySeconds is reached. It can be used simultaneously with HealthyState and does not affect each other.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"healthyState": {
-						SchemaProps: spec.SchemaProps{
-							Description: "HealthyState refers to the healthy status reported by the Karmada resource interpreter. Valid option is \"Healthy\". If specified, the failover process will be started when the application reaches the healthy state. It can be used simultaneously with DelaySeconds and does not affect each other.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
 	}
 }
 

@@ -165,21 +165,6 @@ const (
 	Never PurgeMode = "Never"
 )
 
-// ResourceHealth represents that the health status of the reference resource.
-type ResourceHealth string
-
-const (
-	// ResourceHealthy represents that the health status of the current resource
-	// that applied on the managed cluster is healthy.
-	ResourceHealthy ResourceHealth = "Healthy"
-	// ResourceUnhealthy represents that the health status of the current resource
-	// that applied on the managed cluster is unhealthy.
-	ResourceUnhealthy ResourceHealth = "Unhealthy"
-	// ResourceUnknown represents that the health status of the current resource
-	// that applied on the managed cluster is unknown.
-	ResourceUnknown ResourceHealth = "Unknown"
-)
-
 // FailoverBehavior indicates failover behaviors in case of an application or
 // cluster failure.
 type FailoverBehavior struct {
@@ -198,14 +183,6 @@ type FailoverBehavior struct {
 
 // ApplicationFailoverBehavior indicates application failover behaviors.
 type ApplicationFailoverBehavior struct {
-	// PreConditions indicates the preconditions of the failover process.
-	// If specified, only when all conditions are met can the failover process be started.
-	// Currently, PreConditions includes several conditions:
-	// - DelaySeconds (optional)
-	// - HealthyState (optional)
-	// +optional
-	PreConditions *PreConditions `json:"preConditions,omitempty"`
-
 	// DecisionConditions indicates the decision conditions of performing the failover process.
 	// Only when all conditions are met can the failover process be performed.
 	// Currently, DecisionConditions includes several conditions:
@@ -229,33 +206,6 @@ type ApplicationFailoverBehavior struct {
 	// Value must be positive integer.
 	// +optional
 	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
-
-	// BlockPredecessorSeconds represents the period of time the cluster from which the
-	// application was migrated from can be schedulable again.
-	// During the period of BlockPredecessorSeconds, clusters are forcibly filtered out by the scheduler.
-	// If not specified or the value is zero, the evicted cluster is schedulable to the application when rescheduling.
-	// Defaults to 600s.
-	// +kubebuilder:default=600
-	// +optional
-	BlockPredecessorSeconds *int32 `json:"blockPredecessorSeconds,omitempty"`
-}
-
-// PreConditions represents the preconditions of the failover process.
-type PreConditions struct {
-	// DelaySeconds refers to a period of time after the control plane collects
-	// the status of the application for the first time.
-	// If specified, the failover process will be started after DelaySeconds is reached.
-	// It can be used simultaneously with HealthyState and does not affect each other.
-	// +optional
-	DelaySeconds *int32 `json:"delaySeconds,omitempty"`
-
-	// HealthyState refers to the healthy status reported by the Karmada resource
-	// interpreter.
-	// Valid option is "Healthy".
-	// If specified, the failover process will be started when the application reaches the healthy state.
-	// It can be used simultaneously with DelaySeconds and does not affect each other.
-	// +optional
-	HealthyState ResourceHealth `json:"healthyState,omitempty"`
 }
 
 // DecisionConditions represents the decision conditions of performing the failover process.
