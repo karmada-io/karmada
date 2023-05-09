@@ -569,22 +569,8 @@ func TestValidateApplicationFailover(t *testing.T) {
 			expectedErr:                 "",
 		},
 		{
-			name: "the delaySeconds is less than zero",
-			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				BlockPredecessorSeconds: pointer.Int32(100),
-				DecisionConditions: policyv1alpha1.DecisionConditions{
-					TolerationSeconds: pointer.Int32(100),
-				},
-				PreConditions: &policyv1alpha1.PreConditions{
-					DelaySeconds: pointer.Int32(-100),
-				},
-			},
-			expectedErr: "spec.failover.application.preConditions.delaySeconds: Invalid value: -100: must be greater than or equal to 0",
-		},
-		{
 			name: "the tolerationSeconds is less than zero",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				BlockPredecessorSeconds: pointer.Int32(100),
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: pointer.Int32(-100),
 				},
@@ -592,19 +578,8 @@ func TestValidateApplicationFailover(t *testing.T) {
 			expectedErr: "spec.failover.application.decisionConditions.tolerationSeconds: Invalid value: -100: must be greater than or equal to 0",
 		},
 		{
-			name: "the blockPredecessorSeconds is less than zero",
-			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				BlockPredecessorSeconds: pointer.Int32(-100),
-				DecisionConditions: policyv1alpha1.DecisionConditions{
-					TolerationSeconds: pointer.Int32(100),
-				},
-			},
-			expectedErr: "spec.failover.application.blockPredecessorSeconds: Invalid value: -100: must be greater than or equal to 0",
-		},
-		{
 			name: "the gracePeriodSeconds is declared when purgeMode is not graciously",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				BlockPredecessorSeconds: pointer.Int32(100),
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: pointer.Int32(100),
 				},
@@ -616,7 +591,6 @@ func TestValidateApplicationFailover(t *testing.T) {
 		{
 			name: "the gracePeriodSeconds is less than 0 when purgeMode is graciously",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				BlockPredecessorSeconds: pointer.Int32(100),
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: pointer.Int32(100),
 				},
@@ -628,7 +602,6 @@ func TestValidateApplicationFailover(t *testing.T) {
 		{
 			name: "the gracePeriodSeconds is empty when purgeMode is graciously",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				BlockPredecessorSeconds: pointer.Int32(100),
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: pointer.Int32(100),
 				},
@@ -639,12 +612,8 @@ func TestValidateApplicationFailover(t *testing.T) {
 		{
 			name: "application behavior is correctly declared",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
-				BlockPredecessorSeconds: pointer.Int32(100),
 				DecisionConditions: policyv1alpha1.DecisionConditions{
 					TolerationSeconds: pointer.Int32(100),
-				},
-				PreConditions: &policyv1alpha1.PreConditions{
-					DelaySeconds: pointer.Int32(100),
 				},
 			},
 			expectedErr: "",
