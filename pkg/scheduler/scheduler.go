@@ -445,8 +445,9 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 		klog.V(4).ErrorS(err, "Failed to marshal binding placement", "resourceBinding", klog.KObj(rb))
 		return err
 	}
-
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	state := framework.NewCycleState()
+	state.EnableEmptyWorkloadPropagation = s.enableEmptyWorkloadPropagation
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), state, &rb.Spec, &rb.Status)
 	var noClusterFit *framework.FitError
 	// in case of no cluster fit, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &noClusterFit) {
@@ -478,13 +479,14 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 		scheduleResult core.ScheduleResult
 		firstErr       error
 	)
-
+	state := framework.NewCycleState()
+	state.EnableEmptyWorkloadPropagation = s.enableEmptyWorkloadPropagation
 	affinityIndex := getAffinityIndex(rb.Spec.Placement.ClusterAffinities, rb.Status.SchedulerObservedAffinityName)
 	updatedStatus := rb.Status.DeepCopy()
 	for affinityIndex < len(rb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ResourceBinding(%s/%s) with clusterAffiliates index(%d)", rb.Namespace, rb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = rb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), state, &rb.Spec, updatedStatus)
 		if err == nil {
 			break
 		}
@@ -582,8 +584,9 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 		klog.V(4).ErrorS(err, "Failed to marshal binding placement", "clusterResourceBinding", klog.KObj(crb))
 		return err
 	}
-
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	state := framework.NewCycleState()
+	state.EnableEmptyWorkloadPropagation = s.enableEmptyWorkloadPropagation
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), state, &crb.Spec, &crb.Status)
 	var noClusterFit *framework.FitError
 	// in case of no cluster fit, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &noClusterFit) {
@@ -615,13 +618,14 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 		scheduleResult core.ScheduleResult
 		firstErr       error
 	)
-
+	state := framework.NewCycleState()
+	state.EnableEmptyWorkloadPropagation = s.enableEmptyWorkloadPropagation
 	affinityIndex := getAffinityIndex(crb.Spec.Placement.ClusterAffinities, crb.Status.SchedulerObservedAffinityName)
 	updatedStatus := crb.Status.DeepCopy()
 	for affinityIndex < len(crb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ClusterResourceBinding(%s) with clusterAffiliates index(%d)", crb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = crb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), state, &crb.Spec, updatedStatus)
 		if err == nil {
 			break
 		}

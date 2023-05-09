@@ -19,12 +19,7 @@ import (
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
 type ScheduleAlgorithm interface {
-	Schedule(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *ScheduleAlgorithmOption) (scheduleResult ScheduleResult, err error)
-}
-
-// ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
-type ScheduleAlgorithmOption struct {
-	EnableEmptyWorkloadPropagation bool
+	Schedule(context.Context, *framework.CycleState, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus) (scheduleResult ScheduleResult, err error)
 }
 
 // ScheduleResult includes the clusters selected.
@@ -54,16 +49,16 @@ func NewGenericScheduler(
 
 func (g *genericScheduler) Schedule(
 	ctx context.Context,
+	state *framework.CycleState,
 	spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus,
-	scheduleAlgorithmOption *ScheduleAlgorithmOption,
 ) (result ScheduleResult, err error) {
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
 
-	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, spec, status, &clusterInfoSnapshot)
+	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, state, spec, status, &clusterInfoSnapshot)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
 	}
@@ -77,7 +72,7 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Feasible clusters found: %v", feasibleClusters)
 
-	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, spec, feasibleClusters)
+	clustersScore, err := g.prioritizeClusters(ctx, state, spec, feasibleClusters)
 	if err != nil {
 		return result, fmt.Errorf("failed to prioritizeClusters: %v", err)
 	}
@@ -93,7 +88,7 @@ func (g *genericScheduler) Schedule(
 	if err != nil {
 		return result, fmt.Errorf("failed to assignReplicas: %v", err)
 	}
-	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
+	if state.EnableEmptyWorkloadPropagation {
 		clustersWithReplicas = attachZeroReplicasCluster(clusters, clustersWithReplicas)
 	}
 	result.SuggestedClusters = clustersWithReplicas
@@ -104,22 +99,22 @@ func (g *genericScheduler) Schedule(
 // findClustersThatFit finds the clusters that are fit for the placement based on running the filter plugins.
 func (g *genericScheduler) findClustersThatFit(
 	ctx context.Context,
+	state *framework.CycleState,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	bindingStatus *workv1alpha2.ResourceBindingStatus,
 	clusterInfo *cache.Snapshot,
 ) ([]*clusterv1alpha1.Cluster, framework.Diagnosis, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, startTime)
-
 	diagnosis := framework.Diagnosis{
 		ClusterToResultMap: make(framework.ClusterToResultMap),
 	}
 
-	var out []*clusterv1alpha1.Cluster
 	// DO NOT filter unhealthy cluster, let users make decisions by using ClusterTolerations of Placement.
 	clusters := clusterInfo.GetClusters()
+	var out []*clusterv1alpha1.Cluster
 	for _, c := range clusters {
-		if result := g.scheduleFramework.RunFilterPlugins(ctx, bindingSpec, bindingStatus, c.Cluster()); !result.IsSuccess() {
+		if result := g.scheduleFramework.RunFilterPlugins(ctx, state, bindingSpec, bindingStatus, c.Cluster()); !result.IsSuccess() {
 			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
 			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
 		} else {
@@ -133,13 +128,13 @@ func (g *genericScheduler) findClustersThatFit(
 // prioritizeClusters prioritize the clusters by running the score plugins.
 func (g *genericScheduler) prioritizeClusters(
 	ctx context.Context,
-	fwk framework.Framework,
+	state *framework.CycleState,
 	spec *workv1alpha2.ResourceBindingSpec,
 	clusters []*clusterv1alpha1.Cluster) (result framework.ClusterScoreList, err error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepScore, startTime)
 
-	scoresMap, runScorePluginsResult := fwk.RunScorePlugins(ctx, spec, clusters)
+	scoresMap, runScorePluginsResult := g.scheduleFramework.RunScorePlugins(ctx, state, spec, clusters)
 	if runScorePluginsResult != nil {
 		return result, runScorePluginsResult.AsError()
 	}

@@ -32,6 +32,7 @@ func (p *SpreadConstraint) Name() string {
 // Filter checks if the cluster Provider/Zone/Region spread is null.
 func (p *SpreadConstraint) Filter(
 	_ context.Context,
+	_ *framework.CycleState,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	_ *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,

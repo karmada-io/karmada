@@ -34,6 +34,7 @@ func (p *APIEnablement) Name() string {
 // Filter checks if the API(CRD) of the resource is enabled or installed in the target cluster.
 func (p *APIEnablement) Filter(
 	_ context.Context,
+	_ *framework.CycleState,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	_ *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,

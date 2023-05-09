@@ -76,6 +76,7 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 // If any of the result is not success, the cluster is not suited for the resource.
 func (frw *frameworkImpl) RunFilterPlugins(
 	ctx context.Context,
+	state *framework.CycleState,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	bindingStatus *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,
@@ -85,7 +86,7 @@ func (frw *frameworkImpl) RunFilterPlugins(
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(filter, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
 	for _, p := range frw.filterPlugins {
-		if result := frw.runFilterPlugin(ctx, p, bindingSpec, bindingStatus, cluster); !result.IsSuccess() {
+		if result := frw.runFilterPlugin(ctx, state, p, bindingSpec, bindingStatus, cluster); !result.IsSuccess() {
 			return result
 		}
 	}
@@ -94,13 +95,14 @@ func (frw *frameworkImpl) RunFilterPlugins(
 
 func (frw *frameworkImpl) runFilterPlugin(
 	ctx context.Context,
+	state *framework.CycleState,
 	pl framework.FilterPlugin,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	bindingStatus *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,
 ) *framework.Result {
 	startTime := time.Now()
-	result := pl.Filter(ctx, bindingSpec, bindingStatus, cluster)
+	result := pl.Filter(ctx, state, bindingSpec, bindingStatus, cluster)
 	frw.metricsRecorder.observePluginDurationAsync(filter, pl.Name(), result, utilmetrics.DurationInSeconds(startTime))
 	return result
 }
@@ -109,6 +111,7 @@ func (frw *frameworkImpl) runFilterPlugin(
 // If any of the result is not success, the cluster is not suited for the resource.
 func (frw *frameworkImpl) RunScorePlugins(
 	ctx context.Context,
+	state *framework.CycleState,
 	spec *workv1alpha2.ResourceBindingSpec,
 	clusters []*clusterv1alpha1.Cluster,
 ) (ps framework.PluginToClusterScores, result *framework.Result) {
@@ -120,7 +123,7 @@ func (frw *frameworkImpl) RunScorePlugins(
 	for _, p := range frw.scorePlugins {
 		var scoreList framework.ClusterScoreList
 		for _, cluster := range clusters {
-			s, res := frw.runScorePlugin(ctx, p, spec, cluster)
+			s, res := frw.runScorePlugin(ctx, state, p, spec, cluster)
 			if !res.IsSuccess() {
 				return nil, framework.AsResult(fmt.Errorf("plugin %q failed with: %w", p.Name(), res.AsError()))
 			}
@@ -153,9 +156,9 @@ func (frw *frameworkImpl) RunScorePlugins(
 	return pluginToClusterScores, nil
 }
 
-func (frw *frameworkImpl) runScorePlugin(ctx context.Context, pl framework.ScorePlugin, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
+func (frw *frameworkImpl) runScorePlugin(ctx context.Context, state *framework.CycleState, pl framework.ScorePlugin, spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	startTime := time.Now()
-	s, result := pl.Score(ctx, spec, cluster)
+	s, result := pl.Score(ctx, state, spec, cluster)
 	frw.metricsRecorder.observePluginDurationAsync(score, pl.Name(), result, utilmetrics.DurationInSeconds(startTime))
 	return s, result
 }
