@@ -40,7 +40,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	if !svcImport.DeletionTimestamp.IsZero() || svcImport.Spec.Type != mcsv1alpha1.ClusterSetIP {
+	if !svcImport.DeletionTimestamp.IsZero() {
 		return controllerruntime.Result{}, nil
 	}
 
@@ -91,6 +91,10 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 			Type:  corev1.ServiceTypeClusterIP,
 			Ports: servicePorts(svcImport),
 		},
+	}
+
+	if svcImport.Spec.Type == mcsv1alpha1.Headless {
+		newDerivedService.Spec.ClusterIP = corev1.ClusterIPNone
 	}
 
 	oldDerivedService := &corev1.Service{}
