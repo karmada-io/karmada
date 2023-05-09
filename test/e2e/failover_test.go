@@ -242,6 +242,240 @@ var _ = framework.SerialDescribe("failover testing", func() {
 			})
 		})
 	})
+
+	ginkgo.Context("Application failover testing with purgeMode graciously", func() {
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.PropagationPolicy
+		var overridePolicy *policyv1alpha1.OverridePolicy
+		var maxGroups, minGroups int
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			maxGroups = 1
+			minGroups = 1
+
+			policy = &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: policyNamespace,
+					Name:      policyName,
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion: deployment.APIVersion,
+							Kind:       deployment.Kind,
+							Name:       deployment.Name,
+						},
+					},
+					Placement: policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: framework.ClusterNames(),
+						},
+						SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+							{
+								SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+								MaxGroups:     maxGroups,
+								MinGroups:     minGroups,
+							},
+						},
+					},
+					PropagateDeps: true,
+					Failover: &policyv1alpha1.FailoverBehavior{
+						Application: &policyv1alpha1.ApplicationFailoverBehavior{
+							DecisionConditions: policyv1alpha1.DecisionConditions{
+								TolerationSeconds: pointer.Int32(30),
+							},
+							PurgeMode:          policyv1alpha1.Graciously,
+							GracePeriodSeconds: pointer.Int32(30),
+						},
+					},
+				},
+			}
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
+
+		ginkgo.It("application failover", func() {
+			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+			ginkgo.By("create an error op", func() {
+				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment.APIVersion,
+						Kind:       deployment.Kind,
+						Name:       deployment.Name,
+					},
+				}, []policyv1alpha1.RuleWithCluster{
+					{
+						TargetCluster: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: disabledClusters,
+						},
+						Overriders: policyv1alpha1.Overriders{
+							ImageOverrider: []policyv1alpha1.ImageOverrider{
+								{
+									Component: "Registry",
+									Operator:  "replace",
+									Value:     "fake",
+								},
+							},
+						},
+					},
+				})
+				framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+			})
+
+			ginkgo.By("check whether the failed deployment disappears in the disabledClusters", func() {
+				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
+			})
+
+			ginkgo.By("check whether the failed deployment is rescheduled to other available cluster", func() {
+				gomega.Eventually(func() int {
+					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+					for _, targetClusterName := range targetClusterNames {
+						// the target cluster should be overwritten to another available cluster
+						if !testhelper.IsExclude(targetClusterName, disabledClusters) {
+							return 0
+						}
+					}
+
+					return len(targetClusterNames)
+				}, pollTimeout, pollInterval).Should(gomega.Equal(minGroups))
+			})
+
+			ginkgo.By("delete the error op", func() {
+				framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
+			})
+		})
+
+	})
+
+	ginkgo.Context("Application failover testing with purgeMode never", func() {
+		var policyNamespace, policyName string
+		var deploymentNamespace, deploymentName string
+		var deployment *appsv1.Deployment
+		var policy *policyv1alpha1.PropagationPolicy
+		var overridePolicy *policyv1alpha1.OverridePolicy
+		var maxGroups, minGroups int
+		ginkgo.BeforeEach(func() {
+			policyNamespace = testNamespace
+			policyName = deploymentNamePrefix + rand.String(RandomStrLength)
+			deploymentNamespace = testNamespace
+			deploymentName = policyName
+			deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
+			maxGroups = 1
+			minGroups = 1
+
+			policy = &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: policyNamespace,
+					Name:      policyName,
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{
+							APIVersion: deployment.APIVersion,
+							Kind:       deployment.Kind,
+							Name:       deployment.Name,
+						},
+					},
+					Placement: policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: framework.ClusterNames(),
+						},
+						SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+							{
+								SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+								MaxGroups:     maxGroups,
+								MinGroups:     minGroups,
+							},
+						},
+					},
+					PropagateDeps: true,
+					Failover: &policyv1alpha1.FailoverBehavior{
+						Application: &policyv1alpha1.ApplicationFailoverBehavior{
+							DecisionConditions: policyv1alpha1.DecisionConditions{
+								TolerationSeconds: pointer.Int32(30),
+							},
+							PurgeMode: policyv1alpha1.Never,
+						},
+					},
+				},
+			}
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreatePropagationPolicy(karmadaClient, policy)
+			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+			})
+		})
+
+		ginkgo.It("application failover", func() {
+			disabledClusters := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+			ginkgo.By("create an error op", func() {
+				overridePolicy = testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: deployment.APIVersion,
+						Kind:       deployment.Kind,
+						Name:       deployment.Name,
+					},
+				}, []policyv1alpha1.RuleWithCluster{
+					{
+						TargetCluster: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: disabledClusters,
+						},
+						Overriders: policyv1alpha1.Overriders{
+							ImageOverrider: []policyv1alpha1.ImageOverrider{
+								{
+									Component: "Registry",
+									Operator:  "replace",
+									Value:     "fake",
+								},
+							},
+						},
+					},
+				})
+				framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+			})
+
+			ginkgo.By("check whether the failed deployment is rescheduled to other available cluster", func() {
+				gomega.Eventually(func() int {
+					targetClusterNames := framework.ExtractTargetClustersFrom(controlPlaneClient, deployment)
+					for _, targetClusterName := range targetClusterNames {
+						// the target cluster should be overwritten to another available cluster
+						if !testhelper.IsExclude(targetClusterName, disabledClusters) {
+							return 0
+						}
+					}
+
+					return len(targetClusterNames)
+				}, pollTimeout, pollInterval).Should(gomega.Equal(minGroups))
+			})
+
+			ginkgo.By("check whether the failed deployment is present on the disabledClusters", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deploymentNamespace, deploymentName, func(deployment *appsv1.Deployment) bool { return true })
+			})
+
+			ginkgo.By("delete the error op", func() {
+				framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
+			})
+		})
+
+	})
+
 })
 
 // disableCluster will set wrong API endpoint of current cluster
