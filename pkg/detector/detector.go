@@ -76,6 +76,10 @@ type ResourceDetector struct {
 	waitingObjects map[keys.ClusterWideKey]struct{}
 	// waitingLock is the lock for waitingObjects operation.
 	waitingLock sync.RWMutex
+	// ConcurrentPropagationPolicySyncs is the number of PropagationPolicy that are allowed to sync concurrently.
+	ConcurrentPropagationPolicySyncs int
+	// ConcurrentClusterPropagationPolicySyncs is the number of ClusterPropagationPolicy that are allowed to sync concurrently.
+	ConcurrentClusterPropagationPolicySyncs int
 	// ConcurrentResourceTemplateSyncs is the number of resource templates that are allowed to sync concurrently.
 	// Larger number means responsive resource template syncing but more CPU(and network) load.
 	ConcurrentResourceTemplateSyncs int
@@ -100,14 +104,14 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		ReconcileFunc: d.ReconcilePropagationPolicy,
 	}
 	d.policyReconcileWorker = util.NewAsyncWorker(policyWorkerOptions)
-	d.policyReconcileWorker.Run(1, d.stopCh)
+	d.policyReconcileWorker.Run(d.ConcurrentPropagationPolicySyncs, d.stopCh)
 	clusterPolicyWorkerOptions := util.Options{
 		Name:          "clusterPropagationPolicy reconciler",
 		KeyFunc:       ClusterWideKeyFunc,
 		ReconcileFunc: d.ReconcileClusterPropagationPolicy,
 	}
 	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
-	d.clusterPolicyReconcileWorker.Run(1, d.stopCh)
+	d.clusterPolicyReconcileWorker.Run(d.ConcurrentClusterPropagationPolicySyncs, d.stopCh)
 
 	// watch and enqueue PropagationPolicy changes.
 	propagationPolicyGVR := schema.GroupVersionResource{

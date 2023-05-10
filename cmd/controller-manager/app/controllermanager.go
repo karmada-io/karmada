@@ -583,17 +583,19 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
 
 	resourceDetector := &detector.ResourceDetector{
-		DiscoveryClientSet:              discoverClientSet,
-		Client:                          mgr.GetClient(),
-		InformerManager:                 controlPlaneInformerManager,
-		RESTMapper:                      mgr.GetRESTMapper(),
-		DynamicClient:                   dynamicClientSet,
-		SkippedResourceConfig:           skippedResourceConfig,
-		SkippedPropagatingNamespaces:    opts.SkippedNamespacesRegexps(),
-		ResourceInterpreter:             resourceInterpreter,
-		EventRecorder:                   mgr.GetEventRecorderFor("resource-detector"),
-		ConcurrentResourceTemplateSyncs: opts.ConcurrentResourceTemplateSyncs,
-		RateLimiterOptions:              opts.RateLimiterOpts,
+		DiscoveryClientSet:                      discoverClientSet,
+		Client:                                  mgr.GetClient(),
+		InformerManager:                         controlPlaneInformerManager,
+		RESTMapper:                              mgr.GetRESTMapper(),
+		DynamicClient:                           dynamicClientSet,
+		SkippedResourceConfig:                   skippedResourceConfig,
+		SkippedPropagatingNamespaces:            opts.SkippedNamespacesRegexps(),
+		ResourceInterpreter:                     resourceInterpreter,
+		EventRecorder:                           mgr.GetEventRecorderFor("resource-detector"),
+		ConcurrentPropagationPolicySyncs:        opts.ConcurrentPropagationPolicySyncs,
+		ConcurrentClusterPropagationPolicySyncs: opts.ConcurrentClusterPropagationPolicySyncs,
+		ConcurrentResourceTemplateSyncs:         opts.ConcurrentResourceTemplateSyncs,
+		RateLimiterOptions:                      opts.RateLimiterOpts,
 	}
 
 	if err := mgr.Add(resourceDetector); err != nil {
