@@ -123,7 +123,6 @@ Optional configuration items include:
 
 Also, there are some decision conditions of performing the failover process.
 
-* Healthy state. We can define in what state the application triggers the migration. Valid options are "Unhealthy", "Unknown" or both.
 * A period of time. For some short-lived exceptions(which can be recovered after a period of time), we don't want to immediately migrate the application to other clusters which may make the migration very frequent.
   Therefore, we need a parameter to tolerate the unhealthy application.
 
@@ -195,9 +194,8 @@ type ApplicationFailoverBehavior struct {
     // Only when all conditions are met can the failover process be performed.
     // Currently, DecisionConditions includes several conditions:
     // - TolerationSeconds (optional)
-    // - HealthyState (mandatory)
     // +required
-    DecisionConditions *DecisionConditions `json:"decisionConditions,omitempty"`
+    DecisionConditions DecisionConditions `json:"decisionConditions,omitempty"`
   
     // PurgeMode represents how to deal with the legacy applications on the
     // cluster from which the application is migrated.
@@ -207,10 +205,19 @@ type ApplicationFailoverBehavior struct {
     // +optional
     PurgeMode PurgeMode `json:"purgeMode,omitempty"`
   
+    // GracePeriodSeconds is the maximum waiting duration in seconds before
+    // application on the migrated cluster should be deleted.
+    // Required only when PurgeMode is "Graciously" and defaults to 600s.
+    // If the application on the new cluster cannot reach a Healthy state,
+    // Karmada will delete the application after GracePeriodSeconds is reached.
+    // Value must be positive integer.
+    // +optional
+    GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+
     // BlockPredecessorSeconds represents the period of time the cluster from which the
     // application was migrated from can be schedulable again.
     // During the period of BlockPredecessorSeconds, clusters are forcibly filtered out by the scheduler. 
-	// If not specified, the scheduler may still schedule the application to the evicted cluster when rescheduling.
+    // If not specified, the scheduler may still schedule the application to the evicted cluster when rescheduling.
     // Defaults to 600s. Zero means the cluster will never be schedulable.
     // +kubebuilder:default=600
     // +optional
@@ -244,17 +251,10 @@ type DecisionConditions struct {
     // +kubebuilder:default=10
     // +optional
     TolerationSeconds *int32 `json:"tolerationSeconds,omitempty"`
-  
-    // HealthyState refers to the healthy status reported by the Karmada resource
-    // interpreter.
-    // Valid options are "Unhealthy", "Unknown", or both.
-    // When the application reaches the desired HealthyState, Karmada will perform failover process
-    // after TolerationSeconds is reached.
-    // +kubebuilder:validation:MinItems=1
-    // +required
-    HealthyState []ResourceHealth `json:"healthyState,omitempty"`
 }
 ```
+
+**Note**: We will not implement `PreConditions` and `BlockPredecessorSeconds` in release-1.6 because the API change of ResourceBinding for these fields hasn't been ready yet.
 
 For example:
 
