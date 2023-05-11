@@ -104,6 +104,28 @@ spec:
                     required:
                     - decisionConditions
                     type: object
+                  cluster:
+                    description: Cluster indicates failover behaviors in case of cluster
+                      failure. If this value is nil, failover is disabled.
+                    properties:
+                      gracePeriodSeconds:
+                        description: GracePeriodSeconds is the maximum waiting duration
+                          in seconds before application on the migrated cluster should
+                          be deleted. Required only when PurgeMode is "Graciously"
+                          and defaults to 600s. If the application on the new cluster
+                          cannot reach a Healthy state, Karmada will delete the application
+                          after GracePeriodSeconds is reached. Value must be positive
+                          integer.
+                        format: int32
+                        type: integer
+                      purgeMode:
+                        default: Graciously
+                        description: PurgeMode represents how to deal with the legacy
+                          applications on the cluster from which the application is
+                          migrated. Valid options are "Immediately", "Graciously"
+                          and "Never". Defaults to "Graciously".
+                        type: string
+                    type: object
                 type: object
               placement:
                 description: Placement represents the rule for select clusters to

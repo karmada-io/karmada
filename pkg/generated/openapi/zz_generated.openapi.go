@@ -57,6 +57,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior":                 schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm":                         schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior":                     schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicy":                       schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicyList":                   schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPreferences":                          schema_pkg_apis_policy_v1alpha1_ClusterPreferences(ref),
@@ -2309,6 +2310,33 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterFailoverBehavior indicates cluster failover behaviors.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"purgeMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\". Defaults to \"Graciously\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"gracePeriodSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GracePeriodSeconds is the maximum waiting duration in seconds before application on the migrated cluster should be deleted. Required only when PurgeMode is \"Graciously\" and defaults to 600s. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the application after GracePeriodSeconds is reached. Value must be positive integer.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2662,11 +2690,17 @@ func schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref common.ReferenceCallba
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"),
 						},
 					},
+					"cluster": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cluster indicates failover behaviors in case of cluster failure. If this value is nil, failover is disabled.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior"},
 	}
 }
 
