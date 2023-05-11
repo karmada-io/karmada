@@ -108,6 +108,11 @@ func nextRetry(tasks []workv1alpha2.GracefulEvictionTask, timeout time.Duration,
 	retryInterval := timeout / 10
 
 	for i := range tasks {
+		if tasks[i].SuppressDeletion != nil {
+			if *tasks[i].SuppressDeletion {
+				continue
+			}
+		}
 		if tasks[i].GracePeriodSeconds != nil {
 			timeout = time.Duration(*tasks[i].GracePeriodSeconds) * time.Second
 		}

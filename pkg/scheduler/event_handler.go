@@ -184,7 +184,6 @@ func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.Add(newCluster.Name)
 	}
-
 	switch {
 	case !equality.Semantic.DeepEqual(oldCluster.Labels, newCluster.Labels):
 		fallthrough
@@ -315,6 +314,18 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 		case util.ClusterMatches(cluster, *affinity):
 			// If the cluster manifest match the affinity, add it to the queue, trigger rescheduling
 			s.onClusterResourceBindingRequeue(binding, metrics.ClusterChanged)
+		default:
+			if binding.Spec.Resource.Kind == "ClusterRole" && placementPtr.ClusterAffinities != nil {
+				fmt.Printf("DEBUG: clusterName: %s, Labels: %+v\n", cluster.Name, cluster.Labels)
+			}
+			if binding.Spec.Resource.Kind == "ClusterRole" && placementPtr.ClusterAffinities != nil {
+				klog.InfoS("Debug: CRB",
+					"Name", binding.Name,
+					"SchedulerObservedGeneration", binding.Status.SchedulerObservedGeneration,
+					"Generation", binding.Generation,
+					"ClusterAffinities", placementPtr.ClusterAffinities,
+					"SchedulerObservedAffinityName", binding.Status.SchedulerObservedAffinityName)
+			}
 		}
 	}
 
