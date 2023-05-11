@@ -172,6 +172,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: federatedresourcequota.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["federatedresourcequotas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.%[1]s.svc:443/validate-federatedresourcequota
+      caBundle: %[2]s
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
 `, systemNamespace, caBundle)
 }
 
