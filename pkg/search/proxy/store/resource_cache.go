@@ -99,6 +99,7 @@ func storageWithCacher(newClientFunc func() (dynamic.NamespaceableResourceInterf
 		cacherConfig := cacherstorage.Config{
 			Storage:        newStore(newClientFunc, versioner, resourcePrefix),
 			Versioner:      versioner,
+			GroupResource:  storageConfig.GroupResource,
 			ResourcePrefix: resourcePrefix,
 			KeyFunc:        keyFunc,
 			GetAttrsFunc:   getAttrsFunc,
