@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/pointer"
 
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -40,34 +41,65 @@ func retainPodFields(desired, observed *unstructured.Unstructured) (*unstructure
 		return nil, fmt.Errorf("failed to convert clusterPod from unstructured object: %v", err)
 	}
 
-	desiredPod.Spec.NodeName = clusterPod.Spec.NodeName
-	desiredPod.Spec.ServiceAccountName = clusterPod.Spec.ServiceAccountName
-	desiredPod.Spec.Volumes = clusterPod.Spec.Volumes
-	// retain volumeMounts in each container
-	for _, clusterContainer := range clusterPod.Spec.Containers {
-		for desiredIndex, desiredContainer := range desiredPod.Spec.Containers {
-			if desiredContainer.Name == clusterContainer.Name {
-				desiredPod.Spec.Containers[desiredIndex].VolumeMounts = clusterContainer.VolumeMounts
-				break
-			}
-		}
-	}
+	// Pod updates may not change fields other than `spec.containers[*].image`, `spec.initContainers[*].image`,
+	// `spec.activeDeadlineSeconds`, `spec.tolerations` (only additions to existing tolerations), in place.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
+	//
+	// There are many fields in Pod, but only a few fields that can be modified. We choose to return clusterPod
+	// because it is unnecessary waste to copy from clusterPod to desiredPod.
+	clusterPod.Labels = desiredPod.Labels
+	clusterPod.Annotations = desiredPod.Annotations
+	updatePodImages(desiredPod, clusterPod)
+	updatePodActiveDeadlineSeconds(desiredPod, clusterPod)
+	updatePodTolerations(desiredPod, clusterPod)
 
-	// retain volumeMounts in each init container
-	for _, clusterInitContainer := range clusterPod.Spec.InitContainers {
-		for desiredIndex, desiredInitContainer := range desiredPod.Spec.InitContainers {
-			if desiredInitContainer.Name == clusterInitContainer.Name {
-				desiredPod.Spec.InitContainers[desiredIndex].VolumeMounts = clusterInitContainer.VolumeMounts
-				break
-			}
-		}
-	}
-	unstructuredObj, err := helper.ToUnstructured(desiredPod)
+	unstructuredObj, err := helper.ToUnstructured(clusterPod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to transform Pod: %v", err)
 	}
 
 	return unstructuredObj, nil
+}
+
+func updatePodImages(desiredPod, clusterPod *corev1.Pod) {
+	for clusterIndex, clusterContainer := range clusterPod.Spec.InitContainers {
+		for _, desiredContainer := range desiredPod.Spec.InitContainers {
+			if desiredContainer.Name == clusterContainer.Name {
+				clusterPod.Spec.InitContainers[clusterIndex].Image = desiredContainer.Image
+				break
+			}
+		}
+	}
+	for clusterIndex, clusterContainer := range clusterPod.Spec.Containers {
+		for _, desiredContainer := range desiredPod.Spec.Containers {
+			if desiredContainer.Name == clusterContainer.Name {
+				clusterPod.Spec.Containers[clusterIndex].Image = desiredContainer.Image
+				break
+			}
+		}
+	}
+}
+
+func updatePodActiveDeadlineSeconds(desiredPod, clusterPod *corev1.Pod) {
+	desiredActiveDeadlineSeconds := pointer.Int64Deref(desiredPod.Spec.ActiveDeadlineSeconds, 0)
+	clusterActiveDeadlineSeconds := pointer.Int64Deref(clusterPod.Spec.ActiveDeadlineSeconds, 0)
+	if (clusterPod.Spec.ActiveDeadlineSeconds == nil && desiredActiveDeadlineSeconds > 0) ||
+		(desiredActiveDeadlineSeconds > 0 && desiredActiveDeadlineSeconds < clusterActiveDeadlineSeconds) {
+		clusterPod.Spec.ActiveDeadlineSeconds = desiredPod.Spec.ActiveDeadlineSeconds
+	}
+}
+
+func updatePodTolerations(desiredPod, clusterPod *corev1.Pod) {
+outer:
+	for i := 0; i < len(desiredPod.Spec.Tolerations); i++ {
+		desiredToleration := &desiredPod.Spec.Tolerations[i]
+		for j := 0; j < len(clusterPod.Spec.Tolerations); j++ {
+			if clusterPod.Spec.Tolerations[j].MatchToleration(desiredToleration) {
+				continue outer
+			}
+		}
+		clusterPod.Spec.Tolerations = append(clusterPod.Spec.Tolerations, *desiredToleration)
+	}
 }
 
 func retainPersistentVolumeClaimFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
