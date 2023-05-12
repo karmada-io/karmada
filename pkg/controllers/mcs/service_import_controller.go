@@ -88,7 +88,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 			Namespace: svcImport.Namespace,
 			Name:      names.GenerateDerivedServiceName(svcImport.Name),
 			Labels: map[string]string{
-				util.ManagedByWellKnownLabel: util.Karmada,
+				util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
 			},
 		},
 		Spec: corev1.ServiceSpec{

@@ -23,8 +23,11 @@ const (
 	// FederatedResourceQuotaNameLabel is added to Work to specify associated FederatedResourceQuota's name.
 	FederatedResourceQuotaNameLabel = "federatedresourcequota.karmada.io/name"
 
-	// ManagedByWellKnownLabel is a well known label to specify the controller that manages the resource
-	ManagedByWellKnownLabel = "app.kubernetes.io/managed-by"
+	// ManagedByKarmadaLabel is a reserved karmada label to indicate whether resources are managed by karmada controllers.
+	ManagedByKarmadaLabel = "karmada.io/managed"
+
+	// ManagedByKarmadaLabelValue indicates that resources are managed by karmada controllers.
+	ManagedByKarmadaLabelValue = "true"
 )
 
 // Define annotations used by karmada system.
@@ -144,9 +147,6 @@ const (
 const (
 	// NamespaceKarmadaSystem is the karmada system namespace.
 	NamespaceKarmadaSystem = "karmada-system"
-
-	// Karmada is the value for managed-by label.
-	Karmada = "karmada"
 )
 
 // ContextKey is the key of context.

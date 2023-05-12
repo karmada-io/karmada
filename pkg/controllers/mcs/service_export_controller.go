@@ -392,8 +392,8 @@ func reportEndpointSlice(c client.Client, endpointSlice *unstructured.Unstructur
 			util.ServiceNamespaceLabel: endpointSlice.GetNamespace(),
 			util.ServiceNameLabel:      endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
 			// indicate the Work should be not propagated since it's collected resource.
-			util.PropagationInstruction:  util.PropagationInstructionSuppressed,
-			util.ManagedByWellKnownLabel: util.Karmada,
+			util.PropagationInstruction: util.PropagationInstructionSuppressed,
+			util.ManagedByKarmadaLabel:  util.ManagedByKarmadaLabelValue,
 		},
 	}
 
