@@ -188,6 +188,7 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 	syncSucceedNum := 0
 	for _, manifest := range work.Spec.Workload.Manifests {
 		workload := &unstructured.Unstructured{}
+		util.MergeLabel(workload, util.ManagedByKarmadaLabel, util.ManagedByKarmadaLabelValue)
 		err := workload.UnmarshalJSON(manifest.Raw)
 		if err != nil {
 			klog.Errorf("Failed to unmarshal workload, error is: %v", err)

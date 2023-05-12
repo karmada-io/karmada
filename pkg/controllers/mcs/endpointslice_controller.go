@@ -103,6 +103,7 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(work *workv1alpha
 			workv1alpha1.WorkNamespaceLabel: work.Namespace,
 			workv1alpha1.WorkNameLabel:      work.Name,
 			discoveryv1.LabelServiceName:    names.GenerateDerivedServiceName(work.Labels[util.ServiceNameLabel]),
+			util.ManagedByKarmadaLabel:      util.ManagedByKarmadaLabelValue,
 		}
 
 		if err = helper.CreateOrUpdateEndpointSlice(c.Client, desiredEndpointSlice); err != nil {

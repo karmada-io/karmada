@@ -22,6 +22,12 @@ const (
 
 	// FederatedResourceQuotaNameLabel is added to Work to specify associated FederatedResourceQuota's name.
 	FederatedResourceQuotaNameLabel = "federatedresourcequota.karmada.io/name"
+
+	// ManagedByKarmadaLabel is a reserved karmada label to indicate whether resources are managed by karmada controllers.
+	ManagedByKarmadaLabel = "karmada.io/managed"
+
+	// ManagedByKarmadaLabelValue indicates that resources are managed by karmada controllers.
+	ManagedByKarmadaLabelValue = "true"
 )
 
 // Define annotations used by karmada system.
