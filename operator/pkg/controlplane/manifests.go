@@ -194,4 +194,56 @@ spec:
           secret:
             secretName: {{ .KubeconfigSecret }}
 `
+
+	// KarmadaDeschedulerDeployment is KarmadaDescheduler Deployment manifest
+	KarmadaDeschedulerDeployment = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .DeploymentName }}
+  namespace: {{ .Namespace }}
+  labels:
+    karmada-app: karmada-descheduler
+    app.kubernetes.io/managed-by: karmada-operator
+spec:
+  replicas: {{ .Replicas }}
+  selector:
+    matchLabels:
+      karmada-app: karmada-descheduler
+  template:
+    metadata:
+      labels:
+        karmada-app: karmada-descheduler
+    spec:
+      automountServiceAccountToken: false
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+      - name: karmada-descheduler
+        image: {{ .Image }}
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/karmada-descheduler
+        - --kubeconfig=/etc/karmada/config
+        - --bind-address=0.0.0.0
+        - --v=4
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 10358
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: kubeconfig
+          subPath: config
+          mountPath: /etc/karmada/config
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: {{ .KubeconfigSecret }}
+`
 )

@@ -7,6 +7,7 @@ import (
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog/v2"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
@@ -24,8 +25,10 @@ func EnsureControlPlaneComponent(component, name, namespace string, client clien
 
 	deployment, ok := deployments[component]
 	if !ok {
-		return fmt.Errorf("no exist manifest for %s", component)
+		klog.Infof("Skip installing component %s(%s/%s)", component, namespace, name)
+		return nil
 	}
+
 	if err := apiclient.CreateOrUpdateDeployment(client, deployment); err != nil {
 		return fmt.Errorf("failed to create deployment resource for component %s, err: %w", component, err)
 	}
@@ -41,16 +44,26 @@ func getComponentManifests(name, namespace string, cfg *operatorv1alpha1.Karmada
 	if err != nil {
 		return nil, err
 	}
-	scheduler, err := getKarmadaSchedulerManifest(name, namespace, cfg.KarmadaScheduler)
+	karmadaScheduler, err := getKarmadaSchedulerManifest(name, namespace, cfg.KarmadaScheduler)
 	if err != nil {
 		return nil, err
 	}
 
-	return map[string]*appsv1.Deployment{
-		constants.KubeControllerManagerComponent:    kubeControllerManager,
+	manifest := map[string]*appsv1.Deployment{
 		constants.KarmadaControllerManagerComponent: karmadaControllerManager,
-		constants.KarmadaSchedulerComponent:         scheduler,
-	}, nil
+		constants.KubeControllerManagerComponent:    kubeControllerManager,
+		constants.KarmadaSchedulerComponent:         karmadaScheduler,
+	}
+
+	if cfg.KarmadaDescheduler != nil {
+		descheduler, err := getKarmadaDeschedulerManifest(name, namespace, cfg.KarmadaDescheduler)
+		if err != nil {
+			return nil, err
+		}
+		manifest[constants.KarmadaDeschedulerComponent] = descheduler
+	}
+
+	return manifest, nil
 }
 
 func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alpha1.KubeControllerManager) (*appsv1.Deployment, error) {
@@ -67,12 +80,12 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 		Replicas:           cfg.Replicas,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error when parsing KubeControllerManager Deployment template: %w", err)
+		return nil, fmt.Errorf("error when parsing kube-controller-manager deployment template: %w", err)
 	}
 
 	kcm := &appsv1.Deployment{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), kubeControllerManageretBytes, kcm); err != nil {
-		return nil, fmt.Errorf("err when decoding KubeControllerManager Deployment: %w", err)
+		return nil, fmt.Errorf("err when decoding kube-controller-manager deployment: %w", err)
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(kcm)
@@ -92,12 +105,12 @@ func getKarmadaControllerManagerManifest(name, namespace string, cfg *operatorv1
 		Replicas:         cfg.Replicas,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error when parsing KarmadaControllerManager Deployment template: %w", err)
+		return nil, fmt.Errorf("error when parsing karmada-controller-manager deployment template: %w", err)
 	}
 
 	kcm := &appsv1.Deployment{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaControllerManageretBytes, kcm); err != nil {
-		return nil, fmt.Errorf("err when decoding KarmadaControllerManager Deployment: %w", err)
+		return nil, fmt.Errorf("err when decoding karmada-controller-manager deployment: %w", err)
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(kcm)
@@ -117,14 +130,39 @@ func getKarmadaSchedulerManifest(name, namespace string, cfg *operatorv1alpha1.K
 		Replicas:         cfg.Replicas,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error when parsing KarmadaScheduler Deployment template: %w", err)
+		return nil, fmt.Errorf("error when parsing karmada-scheduler deployment template: %w", err)
 	}
 
 	scheduler := &appsv1.Deployment{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaSchedulerBytes, scheduler); err != nil {
-		return nil, fmt.Errorf("err when decoding KarmadaScheduler Deployment: %w", err)
+		return nil, fmt.Errorf("err when decoding karmada-scheduler deployment: %w", err)
 	}
 
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(scheduler)
 	return scheduler, nil
+}
+
+func getKarmadaDeschedulerManifest(name, namespace string, cfg *operatorv1alpha1.KarmadaDescheduler) (*appsv1.Deployment, error) {
+	karmadaDeschedulerBytes, err := util.ParseTemplate(KarmadaDeschedulerDeployment, struct {
+		Replicas                  *int32
+		DeploymentName, Namespace string
+		Image, KubeconfigSecret   string
+	}{
+		DeploymentName:   util.KarmadaDeschedulerName(name),
+		Namespace:        namespace,
+		Image:            cfg.Image.Name(),
+		KubeconfigSecret: util.AdminKubeconfigSercretName(name),
+		Replicas:         cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error when parsing karmada-descheduler deployment template: %w", err)
+	}
+
+	descheduler := &appsv1.Deployment{}
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaDeschedulerBytes, descheduler); err != nil {
+		return nil, fmt.Errorf("err when decoding karmada-descheduler deployment: %w", err)
+	}
+
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(descheduler)
+	return descheduler, nil
 }

@@ -18,6 +18,7 @@ var (
 	karmadaControllerManagerImageRepository   = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaControllerManager)
 	karmadaSchedulerImageRepository           = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaScheduler)
 	karmadaWebhookImageRepository             = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaWebhook)
+	karmadaDeschedulerImageRepository         = fmt.Sprintf("%s/%s", constants.KarmadaDefaultRepository, constants.KarmadaDescheduler)
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -54,6 +55,9 @@ func setDefaultsKarmadaComponents(obj *Karmada) {
 	setDefaultsKarmadaControllerManager(obj.Spec.Components)
 	setDefaultsKarmadaScheduler(obj.Spec.Components)
 	setDefaultsKarmadaWebhook(obj.Spec.Components)
+
+	// set addon defaults
+	setDefaultsKarmadaDescheduler(obj.Spec.Components)
 }
 
 func setDefaultsHostCluster(obj *Karmada) {
@@ -204,5 +208,22 @@ func setDefaultsKarmadaWebhook(obj *KarmadaComponents) {
 	}
 	if webhook.Replicas == nil {
 		webhook.Replicas = pointer.Int32(1)
+	}
+}
+
+func setDefaultsKarmadaDescheduler(obj *KarmadaComponents) {
+	if obj.KarmadaDescheduler == nil {
+		return
+	}
+
+	descheduler := obj.KarmadaDescheduler
+	if len(descheduler.Image.ImageRepository) == 0 {
+		descheduler.Image.ImageRepository = karmadaDeschedulerImageRepository
+	}
+	if len(descheduler.Image.ImageTag) == 0 {
+		descheduler.Image.ImageTag = constants.KarmadaDefaultVersion
+	}
+	if descheduler.Replicas == nil {
+		descheduler.Replicas = pointer.Int32(1)
 	}
 }
