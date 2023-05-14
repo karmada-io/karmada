@@ -1,0 +1,18 @@
+tests:
+  - desiredInputPath: testdata/desired-bcj-nginx.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-bcj-nginx.yaml
+    operation: InterpretDependency
+  - observedInputPath: testdata/observed-bcj-nginx.yaml
+    operation: InterpretReplica
+  - desiredInputPath: testdata/desired-bcj-nginx.yaml
+    observedInputPath: testdata/observed-bcj-nginx.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-bcj-nginx.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-bcj-nginx.yaml
+    operation: InterpretStatus
+  - observedInputPath: testdata/observed-bcj-nginx.yaml
+    operation: ReviseReplica
+    desiredReplicas: 1

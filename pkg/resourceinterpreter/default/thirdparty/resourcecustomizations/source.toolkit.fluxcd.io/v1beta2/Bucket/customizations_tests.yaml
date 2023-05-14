@@ -1,0 +1,13 @@
+tests:
+  - desiredInputPath: testdata/desired-bucket.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-bucket.yaml
+    operation: InterpretDependency
+  - desiredInputPath: testdata/desired-bucket.yaml
+    observedInputPath: testdata/observed-bucket.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-bucket.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-bucket.yaml
+    operation: InterpretStatus

@@ -1,0 +1,13 @@
+tests:
+  - desiredInputPath: testdata/desired-helmrelease.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-helmrelease.yaml
+    operation: InterpretDependency
+  - desiredInputPath: testdata/desired-helmrelease.yaml
+    observedInputPath: testdata/observed-helmrelease.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-helmrelease.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-helmrelease.yaml
+    operation: InterpretStatus

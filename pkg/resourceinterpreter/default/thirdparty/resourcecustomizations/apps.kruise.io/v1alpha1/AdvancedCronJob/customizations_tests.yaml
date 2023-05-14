@@ -1,0 +1,6 @@
+tests:
+  - desiredInputPath: testdata/desired-acj-nginx.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-acj-nginx.yaml
+    operation: InterpretDependency
