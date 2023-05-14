@@ -193,8 +193,10 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 
 			workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
+				// If we cannot fetch resource template from binding, this may be due to the fact that the resource template has been deleted.
+				// Just skip it so that it will not affect other bindings.
 				klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", binding.Namespace, binding.Name, err)
-				return nil
+				continue
 			}
 
 			for _, rs := range overrideRS {

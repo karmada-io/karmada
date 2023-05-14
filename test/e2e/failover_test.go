@@ -335,6 +335,18 @@ var _ = framework.SerialDescribe("failover testing", func() {
 				framework.CreateOverridePolicy(karmadaClient, overridePolicy)
 			})
 
+			ginkgo.By("check if deployment present on member clusters has correct image value", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						for _, container := range deployment.Spec.Template.Spec.Containers {
+							if container.Image != "fake/nginx:1.19.0" {
+								return false
+							}
+						}
+						return true
+					})
+			})
+
 			ginkgo.By("check whether the failed deployment disappears in the disabledClusters", func() {
 				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
 			})
@@ -449,6 +461,18 @@ var _ = framework.SerialDescribe("failover testing", func() {
 					},
 				})
 				framework.CreateOverridePolicy(karmadaClient, overridePolicy)
+			})
+
+			ginkgo.By("check if deployment present on member clusters has correct image value", func() {
+				framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deployment.Namespace, deployment.Name,
+					func(deployment *appsv1.Deployment) bool {
+						for _, container := range deployment.Spec.Template.Spec.Containers {
+							if container.Image != "fake/nginx:1.19.0" {
+								return false
+							}
+						}
+						return true
+					})
 			})
 
 			ginkgo.By("check whether the failed deployment is rescheduled to other available cluster", func() {
