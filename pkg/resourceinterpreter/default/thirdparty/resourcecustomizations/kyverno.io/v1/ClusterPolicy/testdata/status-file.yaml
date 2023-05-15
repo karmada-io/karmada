@@ -1,0 +1,33 @@
+applied: true
+clusterName: member2
+health: Healthy
+status:
+  conditions:
+  - lastTransitionTime: "2023-05-07T12:28:58Z"
+    message: ""
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  ready: true
+  rulecount:
+    generate: 0
+    mutate: 0
+    validate: 1
+    verifyimages: 0
+---
+applied: true
+clusterName: member3
+health: Healthy
+status:
+  conditions:
+  - lastTransitionTime: "2023-05-07T12:28:58Z"
+    message: ""
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  ready: true
+  rulecount:
+    generate: 0
+    mutate: 0
+    validate: 1
+    verifyimages: 0
