@@ -64,7 +64,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
+	clusterResourceBinding = clusterResourceBinding.DeepCopy()
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
 		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
 		if err := helper.DeleteWorkByCRBName(c.Client, req.Name); err != nil {

@@ -57,7 +57,7 @@ func (c *CRBApplicationFailoverController) Reconcile(ctx context.Context, req co
 		}
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
+	binding = binding.DeepCopy()
 	if !c.clusterResourceBindingFilter(binding) {
 		c.workloadUnhealthyMap.delete(req.NamespacedName)
 		return controllerruntime.Result{}, nil

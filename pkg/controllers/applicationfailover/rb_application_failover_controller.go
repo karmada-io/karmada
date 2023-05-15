@@ -57,7 +57,7 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 		}
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
+	binding = binding.DeepCopy()
 	if !c.bindingFilter(binding) {
 		c.workloadUnhealthyMap.delete(req.NamespacedName)
 		return controllerruntime.Result{}, nil

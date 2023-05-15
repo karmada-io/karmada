@@ -64,7 +64,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
+	binding = binding.DeepCopy()
 	if !binding.DeletionTimestamp.IsZero() {
 		klog.V(4).Infof("Begin to delete works owned by binding(%s).", req.NamespacedName.String())
 		if err := helper.DeleteWorkByRBNamespaceAndName(c.Client, req.Namespace, req.Name); err != nil {

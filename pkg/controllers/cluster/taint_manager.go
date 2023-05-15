@@ -141,7 +141,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	if !binding.DeletionTimestamp.IsZero() || !binding.Spec.TargetContains(cluster) {
 		return nil
 	}
-
+	binding = binding.DeepCopy()
 	needEviction, tolerationTime, err := tc.needEviction(cluster, binding.Annotations)
 	if err != nil {
 		klog.ErrorS(err, "Failed to check if binding needs eviction", "binding", fedKey.ClusterWideKey.NamespaceKey())
@@ -193,7 +193,7 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	if !binding.DeletionTimestamp.IsZero() || !binding.Spec.TargetContains(cluster) {
 		return nil
 	}
-
+	binding = binding.DeepCopy()
 	needEviction, tolerationTime, err := tc.needEviction(cluster, binding.Annotations)
 	if err != nil {
 		klog.ErrorS(err, "Failed to check if cluster binding needs eviction", "binding", binding.Name)

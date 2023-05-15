@@ -167,7 +167,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
+	cluster = cluster.DeepCopy()
 	if !cluster.DeletionTimestamp.IsZero() {
 		return c.removeCluster(ctx, cluster)
 	}
