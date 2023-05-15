@@ -1,0 +1,20 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: sample
+  namespace: test-policy
+spec:
+  validationFailureAction: Enforce
+  rules:
+  - name: require-pod-purpose-label
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "You must have label `purpose` with value `production` set on all new Pod in test-policy Namespace."
+      pattern:
+        metadata:
+          labels:
+            purpose: production

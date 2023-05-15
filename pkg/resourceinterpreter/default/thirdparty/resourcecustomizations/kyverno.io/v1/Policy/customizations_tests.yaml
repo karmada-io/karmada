@@ -1,0 +1,8 @@
+tests:
+  - desiredInputPath: testdata/desired-policy.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - observedInputPath: testdata/observed-policy.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-policy.yaml
+    operation: InterpretStatus
