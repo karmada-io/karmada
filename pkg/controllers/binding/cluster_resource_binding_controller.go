@@ -180,6 +180,10 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 
 			workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.V(2).Infof("Fetch Workload from ClusterResourceBinding(%s) is not found, skip", binding.Name)
+					continue
+				}
 				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
 				return nil
 			}

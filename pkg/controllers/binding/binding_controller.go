@@ -193,6 +193,10 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 
 			workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.V(2).Infof("Fetch Workload from ResourceBinding(%s/%s) is not found, skip", binding.Namespace, binding.Name)
+					continue
+				}
 				klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", binding.Namespace, binding.Name, err)
 				return nil
 			}
