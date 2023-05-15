@@ -93,6 +93,15 @@ app: {{- include "karmada.name" .}}-kube-controller-manager
   mountPath: /etc/kubeconfig
 {{- end -}}
 
+{{- define "karmada.kubeconfig.caData" -}}
+{{- if eq .Values.certs.mode "auto" }}
+certificate-authority-data: {{ print "{{ ca_crt }}" }}
+{{- end }}
+{{- if eq .Values.certs.mode "custom" }}
+certificate-authority-data: {{ b64enc .Values.certs.custom.caCrt }}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.cm.labels" -}}
 {{ $name :=  include "karmada.name" . }}
 {{- if .Values.controllerManager.labels -}}
