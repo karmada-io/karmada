@@ -59,7 +59,7 @@ func (o *Options) runCheck() error {
 				fmt.Fprintln(w, "UNSET")
 				continue
 			}
-			checkErr := checkScrip(script)
+			checkErr := checkScript(script)
 			if checkErr != nil {
 				failed = true
 				fmt.Fprintf(w, "%s: %s\t\n", "ERROR", strings.TrimSpace(checkErr.Error()))
@@ -80,7 +80,7 @@ func (o *Options) runCheck() error {
 	return nil
 }
 
-func checkScrip(script string) error {
+func checkScript(script string) error {
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
 	defer cancel()
 	l, err := luavm.NewWithContext(ctx)
