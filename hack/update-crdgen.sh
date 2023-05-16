@@ -16,6 +16,7 @@ util::install_tools ${CONTROLLER_GEN_PKG} ${CONTROLLER_GEN_VER} >/dev/null 2>&1
 controller-gen crd paths=./pkg/apis/config/... output:crd:dir=./charts/karmada/_crds/bases
 controller-gen crd paths=./pkg/apis/policy/... output:crd:dir=./charts/karmada/_crds/bases
 controller-gen crd paths=./pkg/apis/work/... output:crd:dir=./charts/karmada/_crds/bases
+controller-gen crd paths=./pkg/apis/autoscaling/... output:crd:dir=./charts/karmada/_crds/bases
 controller-gen crd paths=./pkg/apis/networking/... output:crd:dir=./charts/karmada/_crds/bases
 controller-gen crd paths=./examples/customresourceinterpreter/apis/... output:crd:dir=./examples/customresourceinterpreter/apis/
 controller-gen crd paths=./operator/pkg/apis/operator/... output:crd:dir=./charts/karmada-operator/crds
