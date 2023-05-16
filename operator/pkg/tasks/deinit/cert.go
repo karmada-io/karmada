@@ -19,9 +19,9 @@ func NewCleanupCertTask() workflow.Task {
 		Run:         runCleanupCert,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
-			newClenupCertSubTask("karmada", util.KarmadaCertSecretName),
-			newClenupCertSubTask("etcd", util.EtcdCertSecretName),
-			newClenupCertSubTask("webhook", util.WebhookCertSecretName),
+			newCleanupCertSubTask("karmada", util.KarmadaCertSecretName),
+			newCleanupCertSubTask("etcd", util.EtcdCertSecretName),
+			newCleanupCertSubTask("webhook", util.WebhookCertSecretName),
 		},
 	}
 }
@@ -36,7 +36,7 @@ func runCleanupCert(r workflow.RunData) error {
 	return nil
 }
 
-func newClenupCertSubTask(owner string, secretNameFunc util.Namefunc) workflow.Task {
+func newCleanupCertSubTask(owner string, secretNameFunc util.Namefunc) workflow.Task {
 	return workflow.Task{
 		Name: fmt.Sprintf("cleanup-%s-cert", owner),
 		Run:  runCleanupCertSubTask(owner, secretNameFunc),
