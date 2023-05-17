@@ -82,7 +82,7 @@ func (o *Options) runEdit() error {
 	var (
 		edit          = editor.NewDefaultEditor(editorEnvs())
 		results       = editResults{}
-		edited        = []byte{}
+		edited        = make([]byte, 0)
 		file          string
 		containsError = false
 	)

@@ -128,7 +128,7 @@ func (o *CommandApplyOptions) Validate() error {
 		for _, cluster := range clusters.Items {
 			clusterSet.Insert(cluster.Name)
 		}
-		errs := []error{}
+		var errs []error
 		for _, cluster := range o.Clusters {
 			if !clusterSet.Has(cluster) {
 				errs = append(errs, fmt.Errorf("cluster %s does not exist", cluster))

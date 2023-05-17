@@ -260,7 +260,7 @@ func (g *CommandGetOptions) Validate(cmd *cobra.Command) error {
 			clusterSet.Insert(cluster.Name)
 		}
 
-		noneExistClusters := []string{}
+		var noneExistClusters []string
 		for _, cluster := range g.Clusters {
 			if !clusterSet.Has(cluster) {
 				noneExistClusters = append(noneExistClusters, cluster)
@@ -358,7 +358,7 @@ func (g *CommandGetOptions) Run(f util.Factory, cmd *cobra.Command, args []strin
 }
 
 // printObjs print objects in multi clusters
-func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, args []string) {
+func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, _ []string) {
 	var err error
 	errs := sets.NewString()
 

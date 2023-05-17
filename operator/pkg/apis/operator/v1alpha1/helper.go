@@ -5,6 +5,6 @@ import (
 )
 
 // Name returns the image name.
-func (image Image) Name() string {
+func (image *Image) Name() string {
 	return fmt.Sprintf("%s:%s", image.ImageRepository, image.ImageTag)
 }

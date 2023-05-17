@@ -32,7 +32,7 @@ type TableConvertor struct {
 }
 
 // ConvertToTable method - converts objects to metav1.Table objects using TableGenerator
-func (c TableConvertor) ConvertToTable(ctx context.Context, obj runtime.Object, tableOptions runtime.Object) (*metav1.Table, error) {
+func (c TableConvertor) ConvertToTable(_ context.Context, obj runtime.Object, tableOptions runtime.Object) (*metav1.Table, error) {
 	noHeaders := false
 	if tableOptions != nil {
 		switch t := tableOptions.(type) {

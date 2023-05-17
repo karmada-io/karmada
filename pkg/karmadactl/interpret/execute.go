@@ -80,15 +80,15 @@ func (o *Options) runExecute() error {
 		Replica:  int64(o.DesiredReplica),
 	}
 
-	interpreter := declarative.NewConfigurableInterpreter(nil)
-	interpreter.LoadConfig(customizations)
+	configurableInterpreter := declarative.NewConfigurableInterpreter(nil)
+	configurableInterpreter.LoadConfig(customizations)
 
 	r := o.Rules.GetByOperation(o.Operation)
 	if r == nil {
 		// Shall never occur, because we validate it before.
 		return fmt.Errorf("operation %s is not supported. Use one of: %s", o.Operation, strings.Join(o.Rules.Names(), ", "))
 	}
-	result := r.Run(interpreter, args)
+	result := r.Run(configurableInterpreter, args)
 	printExecuteResult(o.Out, o.ErrOut, r.Name(), result)
 	return nil
 }

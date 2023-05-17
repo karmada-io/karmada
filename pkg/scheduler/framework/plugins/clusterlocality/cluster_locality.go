@@ -31,7 +31,7 @@ func (p *ClusterLocality) Name() string {
 // Score calculates the score on the candidate cluster.
 // If the cluster already have the resource(exists in .spec.Clusters of ResourceBinding or ClusterResourceBinding),
 // then score is 100, otherwise 0.
-func (p *ClusterLocality) Score(ctx context.Context,
+func (p *ClusterLocality) Score(_ context.Context,
 	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	if len(spec.Clusters) == 0 {
 		return framework.MinClusterScore, framework.NewResult(framework.Success)

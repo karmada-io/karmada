@@ -145,7 +145,7 @@ type Options struct {
 }
 
 // Complete ensures that options are valid and marshals them if necessary
-func (o *Options) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
+func (o *Options) Complete(f util.Factory, _ *cobra.Command, args []string) error {
 	if o.Check && o.Edit {
 		return fmt.Errorf("you can't set both --check and --edit options")
 	}

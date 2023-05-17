@@ -63,7 +63,8 @@ type ResourceList map[clusterapis.ResourceName]resource.Quantity
 
 // InitSummary is the init function of modeling data structure
 func InitSummary(resourceModels []clusterapis.ResourceModel) (ResourceSummary, error) {
-	rsName, rsList := []clusterapis.ResourceName{}, []ResourceList{}
+	var rsName []clusterapis.ResourceName
+	var rsList []ResourceList
 	for _, rm := range resourceModels {
 		tmp := map[clusterapis.ResourceName]resource.Quantity{}
 		for _, rmItem := range rm.Ranges {
@@ -155,7 +156,7 @@ func safeChangeNum(num *int, change int) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	(*num) += change
+	*num += change
 }
 
 // AddToResourceSummary add resource node into modeling summary

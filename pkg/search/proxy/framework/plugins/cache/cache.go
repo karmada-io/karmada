@@ -64,7 +64,7 @@ func (c *Cache) SupportRequest(request framework.ProxyRequest) bool {
 }
 
 // Connect implements Plugin
-func (c *Cache) Connect(ctx context.Context, request framework.ProxyRequest) (http.Handler, error) {
+func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http.Handler, error) {
 	requestInfo := request.RequestInfo
 	r := &rester{
 		store:          c.store,

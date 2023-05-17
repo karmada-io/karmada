@@ -6,7 +6,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 )
 
-func emptyPluginFactory(dep PluginDependency) (framework.Plugin, error) {
+func emptyPluginFactory(_ PluginDependency) (framework.Plugin, error) {
 	return nil, nil
 }
 

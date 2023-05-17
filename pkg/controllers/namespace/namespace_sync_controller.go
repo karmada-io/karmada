@@ -157,7 +157,7 @@ func (c *Controller) buildWorks(namespace *corev1.Namespace, clusters []clusterv
 		}(&clusters[i], errChan)
 	}
 
-	errs := []error{}
+	var errs []error
 	for range clusters {
 		if err := <-errChan; err != nil {
 			errs = append(errs, err)

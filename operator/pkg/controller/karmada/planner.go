@@ -9,7 +9,7 @@ import (
 
 	operator "github.com/karmada-io/karmada/operator/pkg"
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	workflow "github.com/karmada-io/karmada/operator/pkg/workflow"
+	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
 // Action is a intention corresponding karmada resource modification

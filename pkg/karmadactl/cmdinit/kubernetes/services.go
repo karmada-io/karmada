@@ -168,7 +168,7 @@ func (i *CommandInitOption) karmadaAggregatedAPIServerService() *corev1.Service 
 	}
 }
 
-func (i CommandInitOption) isNodePortExist() bool {
+func (i *CommandInitOption) isNodePortExist() bool {
 	svc, err := i.KubeClientSet.CoreV1().Services(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.Exit(err)

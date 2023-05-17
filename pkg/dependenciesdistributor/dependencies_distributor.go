@@ -151,7 +151,7 @@ func (d *DependenciesDistributor) OnAdd(obj interface{}) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
+func (d *DependenciesDistributor) OnUpdate(_, newObj interface{}) {
 	d.OnAdd(newObj)
 }
 
@@ -537,7 +537,7 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 }
 
 func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) *workv1alpha2.ResourceBinding {
-	labels := generateBindingDependedByLabel(binding.Namespace, binding.Name)
+	dependedByLabels := generateBindingDependedByLabel(binding.Namespace, binding.Name)
 
 	var result []workv1alpha2.BindingSnapshot
 	result = append(result, workv1alpha2.BindingSnapshot{
@@ -553,7 +553,7 @@ func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstruc
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, object.GroupVersionKind()),
 			},
-			Labels:     labels,
+			Labels:     dependedByLabels,
 			Finalizers: []string{util.BindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
