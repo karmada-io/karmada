@@ -1,0 +1,86 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: sample
+  namespace: test-policy
+spec:
+  validationFailureAction: Enforce
+  rules:
+  - name: require-pod-purpose-label
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "You must have label `purpose` with value `production` set on all new Pod in test-policy Namespace."
+      pattern:
+        metadata:
+          labels:
+            purpose: production
+status:
+  autogen:
+    rules:
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        any:
+        - resources:
+            kinds:
+            - DaemonSet
+            - Deployment
+            - Job
+            - StatefulSet
+            - ReplicaSet
+            - ReplicationController
+        resources: {}
+      mutate: {}
+      name: autogen-require-pod-purpose-label
+      validate:
+        message: You must have label `purpose` with value `production` set on all
+          new Pod in test-policy Namespace.
+        pattern:
+          spec:
+            template:
+              metadata:
+                labels:
+                  purpose: production
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        any:
+        - resources:
+            kinds:
+            - CronJob
+        resources: {}
+      mutate: {}
+      name: autogen-cronjob-require-pod-purpose-label
+      validate:
+        message: You must have label `purpose` with value `production` set on all
+          new Pod in test-policy Namespace.
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  metadata:
+                    labels:
+                      purpose: production
+  conditions:
+  - lastTransitionTime: "2023-05-07T09:19:06Z"
+    message: ""
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  ready: true
+  rulecount:
+    generate: 0
+    mutate: 0
+    validate: 1
+    verifyimages: 0

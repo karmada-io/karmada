@@ -139,7 +139,7 @@ func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedRes
 	quotaStatus.AggregatedStatus = aggregatedStatuses
 	quotaStatus.OverallUsed = calculateUsed(aggregatedStatuses)
 
-	if reflect.DeepEqual(quota.Status, quotaStatus) {
+	if reflect.DeepEqual(quota.Status, *quotaStatus) {
 		klog.V(4).Infof("New quotaStatus are equal with old federatedResourceQuota(%s) status, no update required.", klog.KObj(quota).String())
 		return nil
 	}

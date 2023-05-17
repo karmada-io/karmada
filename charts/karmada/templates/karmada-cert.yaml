@@ -39,7 +39,7 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: external-etcd-cert
+  name: {{ include "karmada.name" . }}-external-etcd-cert
   namespace: {{ include "karmada.namespace" . }}
 type: Opaque
 data:

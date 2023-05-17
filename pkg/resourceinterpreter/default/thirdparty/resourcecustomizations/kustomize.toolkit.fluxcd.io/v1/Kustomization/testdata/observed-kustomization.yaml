@@ -1,0 +1,41 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: sample
+  namespace: test-kustomization
+spec:
+  interval: 10m
+  targetNamespace: test-kustomization
+  sourceRef:
+    kind: GitRepository
+    name: sample
+  path: "./kustomize"
+  prune: true
+  timeout: 1m
+  serviceAccountName: fake-sa
+  suspend: true
+  decryption:
+    secretRef:
+      name: fake-decryption-secret
+  kubeConfig:
+    secretRef:
+      name: fake--decryption-secret
+status:
+  conditions:
+  - lastTransitionTime: "2023-04-30T12:51:06Z"
+    message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+    observedGeneration: 1
+    reason: ReconciliationSucceeded
+    status: "True"
+    type: Ready
+  inventory:
+    entries:
+    - id: test-kustomization_podinfo__Service
+      v: v1
+    - id: test-kustomization_podinfo_apps_Deployment
+      v: v1
+    - id: test-kustomization_podinfo_autoscaling_HorizontalPodAutoscaler
+      v: v2
+  lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+  lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+  observedGeneration: 1

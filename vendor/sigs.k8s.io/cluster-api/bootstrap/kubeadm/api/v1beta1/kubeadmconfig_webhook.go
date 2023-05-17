@@ -58,6 +58,12 @@ func DefaultKubeadmConfigSpec(r *KubeadmConfigSpec) {
 	if r.Format == "" {
 		r.Format = CloudConfig
 	}
+	if r.InitConfiguration != nil && r.InitConfiguration.NodeRegistration.ImagePullPolicy == "" {
+		r.InitConfiguration.NodeRegistration.ImagePullPolicy = "IfNotPresent"
+	}
+	if r.JoinConfiguration != nil && r.JoinConfiguration.NodeRegistration.ImagePullPolicy == "" {
+		r.JoinConfiguration.NodeRegistration.ImagePullPolicy = "IfNotPresent"
+	}
 }
 
 // +kubebuilder:webhook:verbs=create;update,path=/validate-bootstrap-cluster-x-k8s-io-v1beta1-kubeadmconfig,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,groups=bootstrap.cluster.x-k8s.io,resources=kubeadmconfigs,versions=v1beta1,name=validation.kubeadmconfig.bootstrap.cluster.x-k8s.io,sideEffects=None,admissionReviewVersions=v1;v1beta1

@@ -251,6 +251,15 @@ type NodeRegistrationOptions struct {
 	// IgnorePreflightErrors provides a slice of pre-flight errors to be ignored when the current node is registered.
 	// +optional
 	IgnorePreflightErrors []string `json:"ignorePreflightErrors,omitempty"`
+
+	// ImagePullPolicy specifies the policy for image pulling
+	// during kubeadm "init" and "join" operations. The value of
+	// this field must be one of "Always", "IfNotPresent" or
+	// "Never". Defaults to "IfNotPresent". This can be used only
+	// with Kubernetes version equal to 1.22 and later.
+	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
+	// +optional
+	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 }
 
 // MarshalJSON marshals NodeRegistrationOptions in a way that an empty slice in Taints is preserved.
@@ -271,12 +280,14 @@ func (n *NodeRegistrationOptions) MarshalJSON() ([]byte, error) {
 			Taints                []corev1.Taint    `json:"taints"`
 			KubeletExtraArgs      map[string]string `json:"kubeletExtraArgs,omitempty"`
 			IgnorePreflightErrors []string          `json:"ignorePreflightErrors,omitempty"`
+			ImagePullPolicy       string            `json:"imagePullPolicy,omitempty"`
 		}{
 			Name:                  n.Name,
 			CRISocket:             n.CRISocket,
 			Taints:                n.Taints,
 			KubeletExtraArgs:      n.KubeletExtraArgs,
 			IgnorePreflightErrors: n.IgnorePreflightErrors,
+			ImagePullPolicy:       n.ImagePullPolicy,
 		})
 	}
 
@@ -287,12 +298,14 @@ func (n *NodeRegistrationOptions) MarshalJSON() ([]byte, error) {
 		Taints                []corev1.Taint    `json:"taints,omitempty"`
 		KubeletExtraArgs      map[string]string `json:"kubeletExtraArgs,omitempty"`
 		IgnorePreflightErrors []string          `json:"ignorePreflightErrors,omitempty"`
+		ImagePullPolicy       string            `json:"imagePullPolicy,omitempty"`
 	}{
 		Name:                  n.Name,
 		CRISocket:             n.CRISocket,
 		Taints:                n.Taints,
 		KubeletExtraArgs:      n.KubeletExtraArgs,
 		IgnorePreflightErrors: n.IgnorePreflightErrors,
+		ImagePullPolicy:       n.ImagePullPolicy,
 	})
 }
 

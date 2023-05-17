@@ -1,0 +1,14 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: sample
+  namespace: test-ocirepository
+spec:
+  interval: 5m
+  ref:
+    branch: master
+    semver: "6.2.x"
+  url: oci://ghcr.io/stefanprodan/podinfo-deploy
+  secretRef:
+    name: fake-secret
+  serviceAccountName: fake-serviceaccount

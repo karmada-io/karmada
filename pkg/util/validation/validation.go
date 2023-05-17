@@ -167,17 +167,8 @@ func ValidateApplicationFailover(applicationFailoverBehavior *policyv1alpha1.App
 		return nil
 	}
 
-	preConditions := applicationFailoverBehavior.PreConditions
-	if preConditions != nil && preConditions.DelaySeconds != nil && *preConditions.DelaySeconds < 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("preConditions").Child("delaySeconds"), *preConditions.DelaySeconds, "must be greater than or equal to 0"))
-	}
-
 	if *applicationFailoverBehavior.DecisionConditions.TolerationSeconds < 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("decisionConditions").Child("tolerationSeconds"), *applicationFailoverBehavior.DecisionConditions.TolerationSeconds, "must be greater than or equal to 0"))
-	}
-
-	if *applicationFailoverBehavior.BlockPredecessorSeconds < 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("blockPredecessorSeconds"), *applicationFailoverBehavior.BlockPredecessorSeconds, "must be greater than or equal to 0"))
 	}
 
 	if applicationFailoverBehavior.PurgeMode != policyv1alpha1.Graciously && applicationFailoverBehavior.GracePeriodSeconds != nil {

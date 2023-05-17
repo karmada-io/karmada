@@ -106,7 +106,7 @@ spec:
             secretName: {{ $name }}-cert
           {{- end }}
           {{- if eq .Values.etcd.mode "external" }}
-            secretName: external-etcd-cert
+            secretName: {{ $name }}-external-etcd-cert
           {{- end }}
 ---
 apiVersion: v1

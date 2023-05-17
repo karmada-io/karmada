@@ -1,0 +1,15 @@
+tests:
+  - desiredInputPath: testdata/desired-statefulset-nginx.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-statefulset-nginx.yaml
+    operation: InterpretDependency
+  - observedInputPath: testdata/observed-statefulset-nginx.yaml
+    operation: InterpretReplica
+  - observedInputPath: testdata/observed-statefulset-nginx.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-statefulset-nginx.yaml
+    operation: InterpretStatus
+  - observedInputPath: testdata/observed-statefulset-nginx.yaml
+    operation: ReviseReplica
+    desiredReplicas: 1

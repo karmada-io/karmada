@@ -14,6 +14,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
+	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
 )
 
 // EnsureKarmadaEtcd creates etcd StatefulSet and service resource.
@@ -68,6 +69,8 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), etcdStatefuleSetBytes, etcdStatefulSet); err != nil {
 		return fmt.Errorf("error when decoding Etcd StatefulSet: %w", err)
 	}
+
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForStatefulSet(etcdStatefulSet)
 
 	if err := apiclient.CreateOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
 		return fmt.Errorf("error when creating Etcd statefulset, err: %w", err)

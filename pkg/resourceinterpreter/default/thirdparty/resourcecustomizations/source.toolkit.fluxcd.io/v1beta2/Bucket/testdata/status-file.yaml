@@ -1,0 +1,51 @@
+applied: true
+clusterName: member1
+health: Unhealthy
+status:
+  conditions:
+  - lastTransitionTime: "2023-04-29T14:02:31Z"
+    message: building artifact
+    observedGeneration: 1
+    reason: ProgressingWithRetry
+    status: "True"
+    type: Reconciling
+  - lastTransitionTime: "2023-04-29T14:02:31Z"
+    message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+      and ''secretkey'''
+    observedGeneration: 1
+    reason: AuthenticationFailed
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2023-04-29T14:01:44Z"
+    message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+      and ''secretkey'''
+    observedGeneration: 1
+    reason: AuthenticationFailed
+    status: "True"
+    type: FetchFailed
+---
+applied: true
+clusterName: member3
+health: Unhealthy
+status:
+  conditions:
+  - lastTransitionTime: "2023-04-29T14:02:31Z"
+    message: building artifact
+    observedGeneration: 1
+    reason: ProgressingWithRetry
+    status: "True"
+    type: Reconciling
+  - lastTransitionTime: "2023-04-29T14:02:31Z"
+    message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+      and ''secretkey'''
+    observedGeneration: 1
+    reason: AuthenticationFailed
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2023-04-29T14:01:44Z"
+    message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+      and ''secretkey'''
+    observedGeneration: 1
+    reason: AuthenticationFailed
+    status: "True"
+    type: FetchFailed

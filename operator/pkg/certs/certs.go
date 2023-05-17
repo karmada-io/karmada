@@ -459,16 +459,17 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			"kubernetes.default.svc",
 			fmt.Sprintf("*.%s.svc.cluster.local", cfg.Namespace),
 			fmt.Sprintf("*.%s.svc", cfg.Namespace),
-			cfg.ControlplaneAddress,
 		},
 		IPs: []net.IP{
 			net.IPv4(127, 0, 0, 1),
-			net.ParseIP(cfg.ControlplaneAddress),
 		},
 	}
 
 	if len(cfg.Components.KarmadaAPIServer.CertSANs) > 0 {
 		appendSANsToAltNames(altNames, cfg.Components.KarmadaAPIServer.CertSANs)
+	}
+	if len(cfg.ControlplaneAddress) > 0 {
+		appendSANsToAltNames(altNames, []string{cfg.ControlplaneAddress})
 	}
 
 	return altNames, nil

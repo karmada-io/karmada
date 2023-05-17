@@ -12,6 +12,7 @@ import (
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
+	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
 )
 
 // EnsureKarmadaWebhook creates karmada webhook deployment and service resource.
@@ -44,6 +45,8 @@ func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Kar
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), webhookDeploymentSetBytes, webhookDeployment); err != nil {
 		return fmt.Errorf("err when decoding KarmadaWebhook Deployment: %w", err)
 	}
+
+	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).ForDeployment(webhookDeployment)
 
 	if err := apiclient.CreateOrUpdateDeployment(client, webhookDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", webhookDeployment.Name, err)

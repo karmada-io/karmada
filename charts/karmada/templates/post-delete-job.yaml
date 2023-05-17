@@ -45,6 +45,7 @@ spec:
               set -ex
               kubectl delete -f /opt/mount/ --ignore-not-found=true
               kubectl delete cm/{{ $name }}-config -n {{ $namespace }} --ignore-not-found=true
+              kubectl delete deployment/{{ $name }}-controller-manager -n {{ $namespace }} --ignore-not-found=true
               EOF
           volumeMounts:
             - name: mount

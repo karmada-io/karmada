@@ -1,0 +1,38 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: Bucket
+metadata:
+  name: sample
+  namespace: test-bucket
+spec:
+  provider: generic
+  interval: 5m0s
+  bucketName: podinfo
+  endpoint: minio.minio.svc.cluster.local:9000
+  timeout: 60s
+  insecure: true
+  secretRef:
+    name: fake-minio-credentials
+  suspend: true
+status:
+  conditions:
+  - lastTransitionTime: "2023-04-29T14:03:19Z"
+    message: building artifact
+    observedGeneration: 1
+    reason: ProgressingWithRetry
+    status: "True"
+    type: Reconciling
+  - lastTransitionTime: "2023-04-29T14:03:19Z"
+    message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+      and ''secretkey'''
+    observedGeneration: 1
+    reason: AuthenticationFailed
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2023-04-29T14:01:44Z"
+    message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+      and ''secretkey'''
+    observedGeneration: 1
+    reason: AuthenticationFailed
+    status: "True"
+    type: FetchFailed
+  observedGeneration: -1

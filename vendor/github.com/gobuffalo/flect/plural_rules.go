@@ -202,6 +202,9 @@ var dictionary = []word{
 	{singular: "shoe", plural: "shoes"},
 	{singular: "toe", plural: "toes", exact: true},
 	{singular: "graffiti", plural: "graffiti"},
+
+	// abbreviations
+	{singular: "ID", plural: "IDs", exact: true},
 }
 
 // singleToPlural is the highest priority map for Pluralize().
@@ -365,6 +368,9 @@ var singularToPluralSuffixList = []singularToPluralSuffix{
 	{"oo", "oos"},
 	{"o", "oes"},
 	{"x", "xes"},
+
+	// for abbreviations
+	{"S", "Ses"},
 
 	// excluded rules: seems rare
 	// Words from Hebrew that add -im or -ot (eg, cherub becomes cherubim)

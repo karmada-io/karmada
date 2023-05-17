@@ -154,7 +154,7 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.EvictionProducerTaintManager, workv1alpha2.EvictionReasonTaintUntolerated, "")
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager), workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		} else {
 			binding.Spec.RemoveCluster(cluster)
 		}
@@ -206,7 +206,7 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
-			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.EvictionProducerTaintManager, workv1alpha2.EvictionReasonTaintUntolerated, "")
+			binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager), workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
 		} else {
 			binding.Spec.RemoveCluster(cluster)
 		}

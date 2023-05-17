@@ -1,0 +1,8 @@
+tests:
+  - desiredInputPath: testdata/desired-clusterpolicy.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - observedInputPath: testdata/observed-clusterpolicy.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-clusterpolicy.yaml
+    operation: InterpretStatus

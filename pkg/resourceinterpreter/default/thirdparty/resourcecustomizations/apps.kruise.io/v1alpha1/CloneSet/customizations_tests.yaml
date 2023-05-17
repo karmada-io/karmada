@@ -1,0 +1,15 @@
+tests:
+  - desiredInputPath: testdata/desired-cloneset-nginx.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-cloneset-nginx.yaml
+    operation: InterpretDependency
+  - observedInputPath: testdata/observed-cloneset-nginx.yaml
+    operation: InterpretReplica
+  - observedInputPath: testdata/observed-cloneset-nginx.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-cloneset-nginx.yaml
+    operation: InterpretStatus
+  - observedInputPath: testdata/observed-cloneset-nginx.yaml
+    operation: ReviseReplica
+    desiredReplicas: 1

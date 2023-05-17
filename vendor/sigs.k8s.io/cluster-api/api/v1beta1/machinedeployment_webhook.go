@@ -17,9 +17,13 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -27,31 +31,78 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"sigs.k8s.io/cluster-api/util/version"
 )
 
 func (m *MachineDeployment) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	// This registers MachineDeployment as a validating webhook and
+	// machineDeploymentDefaulter as a defaulting webhook.
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(m).
+		WithDefaulter(MachineDeploymentDefaulter(mgr.GetScheme())).
 		Complete()
 }
 
 // +kubebuilder:webhook:verbs=create;update,path=/validate-cluster-x-k8s-io-v1beta1-machinedeployment,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,groups=cluster.x-k8s.io,resources=machinedeployments,versions=v1beta1,name=validation.machinedeployment.cluster.x-k8s.io,sideEffects=None,admissionReviewVersions=v1;v1beta1
 // +kubebuilder:webhook:verbs=create;update,path=/mutate-cluster-x-k8s-io-v1beta1-machinedeployment,mutating=true,failurePolicy=fail,matchPolicy=Equivalent,groups=cluster.x-k8s.io,resources=machinedeployments,versions=v1beta1,name=default.machinedeployment.cluster.x-k8s.io,sideEffects=None,admissionReviewVersions=v1;v1beta1
 
-var _ webhook.Defaulter = &MachineDeployment{}
+var _ webhook.CustomDefaulter = &machineDeploymentDefaulter{}
 var _ webhook.Validator = &MachineDeployment{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (m *MachineDeployment) Default() {
+// MachineDeploymentDefaulter creates a new CustomDefaulter for MachineDeployments.
+func MachineDeploymentDefaulter(scheme *runtime.Scheme) webhook.CustomDefaulter {
+	// Note: The error return parameter is always nil and will be dropped with the next CR release.
+	decoder, _ := admission.NewDecoder(scheme)
+	return &machineDeploymentDefaulter{
+		decoder: decoder,
+	}
+}
+
+// machineDeploymentDefaulter implements a defaulting webhook for MachineDeployment.
+type machineDeploymentDefaulter struct {
+	decoder *admission.Decoder
+}
+
+// Default implements webhook.CustomDefaulter.
+func (webhook *machineDeploymentDefaulter) Default(ctx context.Context, obj runtime.Object) error {
+	m, ok := obj.(*MachineDeployment)
+	if !ok {
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a MachineDeployment but got a %T", obj))
+	}
+
+	req, err := admission.RequestFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	dryRun := false
+	if req.DryRun != nil {
+		dryRun = *req.DryRun
+	}
+
+	var oldMD *MachineDeployment
+	if req.Operation == v1.Update {
+		oldMD = &MachineDeployment{}
+		if err := webhook.decoder.DecodeRaw(req.OldObject, oldMD); err != nil {
+			return errors.Wrapf(err, "failed to decode oldObject to MachineDeployment")
+		}
+	}
+
 	if m.Labels == nil {
 		m.Labels = make(map[string]string)
 	}
 	m.Labels[ClusterNameLabel] = m.Spec.ClusterName
+
+	replicas, err := calculateMachineDeploymentReplicas(ctx, oldMD, m, dryRun)
+	if err != nil {
+		return err
+	}
+	m.Spec.Replicas = pointer.Int32(replicas)
 
 	if m.Spec.MinReadySeconds == nil {
 		m.Spec.MinReadySeconds = pointer.Int32(0)
@@ -111,6 +162,8 @@ func (m *MachineDeployment) Default() {
 		normalizedVersion := "v" + *m.Spec.Template.Spec.Version
 		m.Spec.Template.Spec.Version = &normalizedVersion
 	}
+
+	return nil
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
@@ -212,4 +265,114 @@ func (m *MachineDeployment) validate(old *MachineDeployment) error {
 	}
 
 	return apierrors.NewInvalid(GroupVersion.WithKind("MachineDeployment").GroupKind(), m.Name, allErrs)
+}
+
+// With the Kubernetes autoscaler it is possible to use different annotations by configuring a different
+// "Cluster API group" than "cluster.x-k8s.io" via the "CAPI_GROUP" environment variable.
+// We only handle the default group in our implementation.
+const (
+	autoscalerMinSize = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
+	autoscalerMaxSize = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
+)
+
+// calculateMachineDeploymentReplicas calculates the default value of the replicas field.
+// The value will be calculated based on the following logic:
+// * if replicas is already set on newMD, keep the current value
+// * if the autoscaler min size and max size annotations are set:
+//   - if it's a new MachineDeployment, use min size
+//   - if the replicas field of the old MachineDeployment is < min size, use min size
+//   - if the replicas field of the old MachineDeployment is > max size, use max size
+//   - if the replicas field of the old MachineDeployment is in the (min size, max size) range, keep the value from the oldMD
+//
+// * otherwise use 1
+//
+// The goal of this logic is to provide a smoother UX for clusters using the Kubernetes autoscaler.
+// Note: Autoscaler only takes over control of the replicas field if the replicas value is in the (min size, max size) range.
+//
+// We are supporting the following use cases:
+// * A new MD is created and replicas should be managed by the autoscaler
+//   - Either via the default annotation or via the min size and max size annotations the replicas field
+//     is defaulted to a value which is within the (min size, max size) range so the autoscaler can take control.
+//
+// * An existing MD which initially wasn't controlled by the autoscaler should be later controlled by the autoscaler
+//   - To adopt an existing MD users can use the default, min size and max size annotations to enable the autoscaler
+//     and to ensure the replicas field is within the (min size, max size) range. Without the annotations handing over
+//     control to the autoscaler by unsetting the replicas field would lead to the field being set to 1. This is very
+//     disruptive for existing Machines and if 1 is outside the (min size, max size) range the autoscaler won't take
+//     control.
+//
+// Notes:
+//   - While the min size and max size annotations of the autoscaler provide the best UX, other autoscalers can use the
+//     DefaultReplicasAnnotation if they have similar use cases.
+func calculateMachineDeploymentReplicas(ctx context.Context, oldMD *MachineDeployment, newMD *MachineDeployment, dryRun bool) (int32, error) {
+	// If replicas is already set => Keep the current value.
+	if newMD.Spec.Replicas != nil {
+		return *newMD.Spec.Replicas, nil
+	}
+
+	// TODO(sbueringer): drop this with the next CR version that adds the MD key automatically.
+	log := ctrl.LoggerFrom(ctx).WithValues("MachineDeployment", klog.KObj(newMD))
+
+	// If both autoscaler annotations are set, use them to calculate the default value.
+	minSizeString, hasMinSizeAnnotation := newMD.Annotations[autoscalerMinSize]
+	maxSizeString, hasMaxSizeAnnotation := newMD.Annotations[autoscalerMaxSize]
+	if hasMinSizeAnnotation && hasMaxSizeAnnotation {
+		minSize, err := strconv.ParseInt(minSizeString, 10, 32)
+		if err != nil {
+			return 0, errors.Wrapf(err, "failed to caculate MachineDeployment replicas value: could not parse the value of the %q annotation", autoscalerMinSize)
+		}
+		maxSize, err := strconv.ParseInt(maxSizeString, 10, 32)
+		if err != nil {
+			return 0, errors.Wrapf(err, "failed to caculate MachineDeployment replicas value: could not parse the value of the %q annotation", autoscalerMaxSize)
+		}
+
+		// If it's a new MachineDeployment => Use the min size.
+		// Note: This will result in a scale up to get into the range where autoscaler takes over.
+		if oldMD == nil {
+			if !dryRun {
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (MD is a new MD)", minSize, autoscalerMinSize))
+			}
+			return int32(minSize), nil
+		}
+
+		// Otherwise we are handing over the control for the replicas field for an existing MachineDeployment
+		// to the autoscaler.
+
+		switch {
+		// If the old MachineDeployment doesn't have replicas set => Use the min size.
+		// Note: As defaulting always sets the replica field, this case should not be possible
+		// We only have this handling to be 100% safe against panics.
+		case oldMD.Spec.Replicas == nil:
+			if !dryRun {
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD didn't have replicas set)", minSize, autoscalerMinSize))
+			}
+			return int32(minSize), nil
+		// If the old MachineDeployment replicas are lower than min size => Use the min size.
+		// Note: This will result in a scale up to get into the range where autoscaler takes over.
+		case *oldMD.Spec.Replicas < int32(minSize):
+			if !dryRun {
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD had replicas below min size)", minSize, autoscalerMinSize))
+			}
+			return int32(minSize), nil
+		// If the old MachineDeployment replicas are higher than max size => Use the max size.
+		// Note: This will result in a scale down to get into the range where autoscaler takes over.
+		case *oldMD.Spec.Replicas > int32(maxSize):
+			if !dryRun {
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on the %s annotation (old MD had replicas above max size)", maxSize, autoscalerMaxSize))
+			}
+			return int32(maxSize), nil
+		// If the old MachineDeployment replicas are between min and max size => Keep the current value.
+		default:
+			if !dryRun {
+				log.V(2).Info(fmt.Sprintf("Replica field has been defaulted to %d based on replicas of the old MachineDeployment (old MD had replicas within min size / max size range)", *oldMD.Spec.Replicas))
+			}
+			return *oldMD.Spec.Replicas, nil
+		}
+	}
+
+	// If neither the default nor the autoscaler annotations are set => Default to 1.
+	if !dryRun {
+		log.V(2).Info("Replica field has been defaulted to 1")
+	}
+	return 1, nil
 }

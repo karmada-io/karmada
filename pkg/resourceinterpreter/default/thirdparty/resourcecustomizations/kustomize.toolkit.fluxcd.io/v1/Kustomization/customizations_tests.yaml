@@ -1,0 +1,14 @@
+tests:
+  - desiredInputPath: testdata/desired-kustomization.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-kustomization.yaml
+    operation: InterpretDependency
+  - desiredInputPath: testdata/desired-kustomization.yaml
+    observedInputPath: testdata/observed-kustomization.yaml
+    operation: Retain
+  - observedInputPath: testdata/observed-kustomization.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-kustomization.yaml
+    operation: InterpretStatus
+

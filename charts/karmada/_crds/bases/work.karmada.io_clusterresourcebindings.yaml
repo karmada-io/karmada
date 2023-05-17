@@ -275,17 +275,6 @@ spec:
                       If set, the PropagateDeps should be true so that the dependencies
                       could be migrated along with the application.
                     properties:
-                      blockPredecessorSeconds:
-                        default: 600
-                        description: BlockPredecessorSeconds represents the period
-                          of time the cluster from which the application was migrated
-                          from can be schedulable again. During the period of BlockPredecessorSeconds,
-                          clusters are forcibly filtered out by the scheduler. If
-                          not specified or the value is zero, the evicted cluster
-                          is schedulable to the application when rescheduling. Defaults
-                          to 600s.
-                        format: int32
-                        type: integer
                       decisionConditions:
                         description: 'DecisionConditions indicates the decision conditions
                           of performing the failover process. Only when all conditions
@@ -313,31 +302,6 @@ spec:
                           integer.
                         format: int32
                         type: integer
-                      preConditions:
-                        description: 'PreConditions indicates the preconditions of
-                          the failover process. If specified, only when all conditions
-                          are met can the failover process be started. Currently,
-                          PreConditions includes several conditions: - DelaySeconds
-                          (optional) - HealthyState (optional)'
-                        properties:
-                          delaySeconds:
-                            description: DelaySeconds refers to a period of time after
-                              the control plane collects the status of the application
-                              for the first time. If specified, the failover process
-                              will be started after DelaySeconds is reached. It can
-                              be used simultaneously with HealthyState and does not
-                              affect each other.
-                            format: int32
-                            type: integer
-                          healthyState:
-                            description: HealthyState refers to the healthy status
-                              reported by the Karmada resource interpreter. Valid
-                              option is "Healthy". If specified, the failover process
-                              will be started when the application reaches the healthy
-                              state. It can be used simultaneously with DelaySeconds
-                              and does not affect each other.
-                            type: string
-                        type: object
                       purgeMode:
                         default: Graciously
                         description: PurgeMode represents how to deal with the legacy

@@ -5,7 +5,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	clusterapiv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4"
+	clusterapiv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4" //nolint:staticcheck // disable `deprecation` check for backward compatibility.
 	clusterapiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"

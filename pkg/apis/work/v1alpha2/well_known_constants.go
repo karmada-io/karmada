@@ -82,6 +82,10 @@ const (
 	// EvictionReasonTaintUntolerated describes the eviction is triggered
 	// because can not tolerate taint or exceed toleration period of time.
 	EvictionReasonTaintUntolerated = "TaintUntolerated"
+
+	// EvictionReasonApplicationFailure describes the eviction is triggered
+	// because the application fails and reaches the condition of ApplicationFailoverBehavior.
+	EvictionReasonApplicationFailure = "ApplicationFailure"
 )
 
 // Define eviction producers.

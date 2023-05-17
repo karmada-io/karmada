@@ -109,7 +109,7 @@ type OpenSearch struct {
 
 // NewOpenSearch returns a new OpenSearch
 func NewOpenSearch(cluster string, cfg *searchv1alpha1.BackendStoreConfig) (*OpenSearch, error) {
-	klog.Infof("create openserch backend store: %s", cluster)
+	klog.Infof("create opensearch backend store: %s", cluster)
 	os := &OpenSearch{
 		cluster: cluster,
 		indices: make(map[string]struct{})}

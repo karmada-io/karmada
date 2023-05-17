@@ -40,7 +40,7 @@ func (r *SearchREST) newCacheHandler(info *genericrequest.RequestInfo, responder
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		enc := json.NewEncoder(rw)
-
+		rw.Header().Set("Content-Type", "application/json")
 		opts := metainternalversion.ListOptions{}
 		if err := searchscheme.ParameterCodec.DecodeParameters(req.URL.Query(), metav1.SchemeGroupVersion, &opts); err != nil {
 			rw.WriteHeader(http.StatusBadRequest)

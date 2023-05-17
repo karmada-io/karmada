@@ -8,64 +8,69 @@ import (
 // Namefunc defines a function to generate resource name according to karmada resource name.
 type Namefunc func(karmada string) string
 
-// AdminKubeconfigSercretName return a secret name of karmada admin kubeconfig
+// AdminKubeconfigSercretName returns secret name of karmada-admin kubeconfig
 func AdminKubeconfigSercretName(karmada string) string {
 	return generateResourceName(karmada, "admin-config")
 }
 
-// KarmadaCertSecretName return a secret name of karmada certs
+// KarmadaCertSecretName returns secret name of karmada certs
 func KarmadaCertSecretName(karmada string) string {
 	return generateResourceName(karmada, "cert")
 }
 
-// EtcdCertSecretName return a secret name of etcd cert
+// EtcdCertSecretName returns secret name of etcd cert
 func EtcdCertSecretName(karmada string) string {
 	return generateResourceName(karmada, "etcd-cert")
 }
 
-// WebhookCertSecretName return secret name of karmada webhook cert
+// WebhookCertSecretName returns secret name of karmada-webhook cert
 func WebhookCertSecretName(karmada string) string {
 	return generateResourceName(karmada, "webhook-cert")
 }
 
-// KarmadaAPIServerName return secret name of karmada apiserver
+// KarmadaAPIServerName returns secret name of karmada-apiserver
 func KarmadaAPIServerName(karmada string) string {
 	return generateResourceName(karmada, "apiserver")
 }
 
-// KarmadaAggregatedAPIServerName return secret name of karmada aggregated apiserver
+// KarmadaAggregatedAPIServerName returns secret name of karmada-aggregated-apiserver
 func KarmadaAggregatedAPIServerName(karmada string) string {
 	return generateResourceName(karmada, "aggregated-apiserver")
 }
 
-// KarmadaEtcdName return karmada etcd name
+// KarmadaEtcdName returns name of karmada-etcd
 func KarmadaEtcdName(karmada string) string {
 	return generateResourceName(karmada, "etcd")
 }
 
-// KarmadaEtcdClientName return karmada etcd client name
+// KarmadaEtcdClientName returns name of karmada-etcd client
 func KarmadaEtcdClientName(karmada string) string {
 	return generateResourceName(karmada, "etcd-client")
 }
 
-// KubeControllerManagerName return name of kube controller manager name of karmada
+// KubeControllerManagerName returns name of kube-controller-manager
 func KubeControllerManagerName(karmada string) string {
 	return generateResourceName(karmada, "kube-controller-manager")
 }
 
-// KarmadaControllerManagerName return karmada controller manager name
+// KarmadaControllerManagerName returns name of karmada-controller-manager
 func KarmadaControllerManagerName(karmada string) string {
 	return generateResourceName(karmada, "controller-manager")
 }
 
-// KarmadaSchedulerName return karmada scheduler name
+// KarmadaSchedulerName returns name of karmada-scheduler
 func KarmadaSchedulerName(karmada string) string {
 	return generateResourceName(karmada, "scheduler")
 }
 
-// KarmadaWebhookName return karmada webhook name
+// KarmadaWebhookName returns name of karmada-webhook
 func KarmadaWebhookName(karmada string) string {
 	return generateResourceName(karmada, "webhook")
+}
+
+// KarmadaDeschedulerName returns name of karmada-descheduler
+func KarmadaDeschedulerName(karmada string) string {
+	return generateResourceName(karmada, "descheduler")
 }
 
 func generateResourceName(karmada, suffix string) string {

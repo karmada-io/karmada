@@ -205,6 +205,8 @@ func (m *MachineSet) Validate() field.ErrorList {
 // +kubebuilder:printcolumn:name="Ready",type="integer",JSONPath=".status.readyReplicas",description="Total number of ready machines targeted by this machineset."
 
 // MachineSet is the Schema for the machinesets API.
+//
+// Deprecated: This type will be removed in one of the next releases.
 type MachineSet struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -216,6 +218,8 @@ type MachineSet struct {
 // +kubebuilder:object:root=true
 
 // MachineSetList contains a list of MachineSet.
+//
+// Deprecated: This type will be removed in one of the next releases.
 type MachineSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

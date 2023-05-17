@@ -95,7 +95,7 @@ func WaitDeploymentDisappearOnCluster(cluster, namespace, name string) {
 	clusterClient := GetClusterClient(cluster)
 	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
 
-	klog.Infof("Waiting for deployment(%s/%s) disappear on cluster(%s)", namespace, name, cluster)
+	klog.Infof("Waiting for deployment(%s/%s) disappears on cluster(%s)", namespace, name, cluster)
 	gomega.Eventually(func() bool {
 		_, err := clusterClient.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err == nil {
@@ -112,7 +112,7 @@ func WaitDeploymentDisappearOnCluster(cluster, namespace, name string) {
 
 // WaitDeploymentDisappearOnClusters wait deployment disappear on member clusters until timeout.
 func WaitDeploymentDisappearOnClusters(clusters []string, namespace, name string) {
-	ginkgo.By(fmt.Sprintf("Check if deployment(%s/%s) diappeare on member clusters", namespace, name), func() {
+	ginkgo.By(fmt.Sprintf("Check if deployment(%s/%s) disappears on member clusters", namespace, name), func() {
 		for _, clusterName := range clusters {
 			WaitDeploymentDisappearOnCluster(clusterName, namespace, name)
 		}

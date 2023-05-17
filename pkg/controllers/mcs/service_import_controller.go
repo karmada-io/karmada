@@ -15,6 +15,7 @@ import (
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -86,6 +87,9 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(svcImport *mcsv
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: svcImport.Namespace,
 			Name:      names.GenerateDerivedServiceName(svcImport.Name),
+			Labels: map[string]string{
+				util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue,
+			},
 		},
 		Spec: corev1.ServiceSpec{
 			Type:  corev1.ServiceTypeClusterIP,

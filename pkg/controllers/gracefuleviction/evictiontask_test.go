@@ -569,7 +569,46 @@ func Test_nextRetry(t *testing.T) {
 				timeout: timeout,
 				timeNow: timeNow.Time,
 			},
-			want: timeout / 10,
+			want: time.Minute * 10,
+		},
+		{
+			name: "suppression and graciously tasks co-exist",
+			args: args{
+				task: []workv1alpha2.GracefulEvictionTask{
+					{
+						FromCluster:       "member1",
+						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -60)},
+						SuppressDeletion:  pointer.Bool(true),
+					},
+					{
+						FromCluster:       "member2",
+						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -5)},
+					},
+				},
+				timeout: timeout,
+				timeNow: timeNow.Time,
+			},
+			want: time.Minute * 15,
+		},
+		{
+			name: "only suppression tasks",
+			args: args{
+				task: []workv1alpha2.GracefulEvictionTask{
+					{
+						FromCluster:       "member1",
+						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -60)},
+						SuppressDeletion:  pointer.Bool(true),
+					},
+					{
+						FromCluster:       "member2",
+						CreationTimestamp: metav1.Time{Time: timeNow.Add(time.Minute * -5)},
+						SuppressDeletion:  pointer.Bool(true),
+					},
+				},
+				timeout: timeout,
+				timeNow: timeNow.Time,
+			},
+			want: 0,
 		},
 	}
 	for _, tt := range tests {
