@@ -280,7 +280,7 @@ func reorganizeTaints(cluster *clusterv1alpha1.Cluster, overwrite bool, taintsTo
 
 // deleteTaints deletes the given taints from the cluster's taintlist.
 func deleteTaints(taintsToRemove []corev1.Taint, newTaints *[]corev1.Taint) ([]error, bool) {
-	allErrs := []error{}
+	var allErrs []error
 	var removed bool
 	for i, taintToRemove := range taintsToRemove {
 		if len(taintToRemove.Effect) > 0 {
@@ -327,7 +327,7 @@ func checkIfTaintsAlreadyExists(oldTaints []corev1.Taint, taints []corev1.Taint)
 
 // deleteTaintsByKey removes all the taints that have the same key to given taintKey
 func deleteTaintsByKey(taints []corev1.Taint, taintKey string) ([]corev1.Taint, bool) {
-	newTaints := []corev1.Taint{}
+	var newTaints []corev1.Taint
 	for i := range taints {
 		if taintKey == taints[i].Key {
 			continue
@@ -339,7 +339,7 @@ func deleteTaintsByKey(taints []corev1.Taint, taintKey string) ([]corev1.Taint, 
 
 // deleteTaint removes all the taints that have the same key and effect to given taintToDelete.
 func deleteTaint(taints []corev1.Taint, taintToDelete *corev1.Taint) ([]corev1.Taint, bool) {
-	newTaints := []corev1.Taint{}
+	var newTaints []corev1.Taint
 	for i := range taints {
 		if taintToDelete.MatchTaint(&taints[i]) {
 			continue

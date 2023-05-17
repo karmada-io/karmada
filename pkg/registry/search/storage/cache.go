@@ -31,7 +31,7 @@ type reqResponse struct {
 	Items []runtime.Object `json:"items"`
 }
 
-func (r *SearchREST) newCacheHandler(info *genericrequest.RequestInfo, responder rest.Responder) (http.Handler, error) {
+func (r *SearchREST) newCacheHandler(info *genericrequest.RequestInfo, _ rest.Responder) (http.Handler, error) {
 	resourceGVR := schema.GroupVersionResource{
 		Group:    info.APIGroup,
 		Version:  info.APIVersion,

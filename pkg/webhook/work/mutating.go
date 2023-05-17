@@ -24,7 +24,7 @@ var _ admission.Handler = &MutatingAdmission{}
 var _ admission.DecoderInjector = &MutatingAdmission{}
 
 // Handle yields a response to an AdmissionRequest.
-func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	work := &workv1alpha1.Work{}
 
 	err := a.decoder.Decode(req, work)

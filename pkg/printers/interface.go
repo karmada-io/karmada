@@ -24,7 +24,7 @@ import (
 
 // ResourcePrinter is an interface that knows how to print runtime objects.
 type ResourcePrinter interface {
-	// Print receives a runtime object, formats it and prints it to a writer.
+	// PrintObj receives a runtime object, formats it and prints it to a writer.
 	PrintObj(runtime.Object, io.Writer) error
 }
 

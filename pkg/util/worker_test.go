@@ -151,7 +151,7 @@ type asyncWorkerReconciler2 struct {
 	receivedTimes atomic.Int64
 }
 
-func (a *asyncWorkerReconciler2) ReconcileFunc(key QueueKey) error {
+func (a *asyncWorkerReconciler2) ReconcileFunc(_ QueueKey) error {
 	a.receivedTimes.Inc()
 	return errors.New("always fail")
 }

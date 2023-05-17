@@ -55,7 +55,7 @@ func (p *Karmada) Order() int {
 }
 
 // SupportRequest implements Plugin
-func (p *Karmada) SupportRequest(request framework.ProxyRequest) bool {
+func (p *Karmada) SupportRequest(_ framework.ProxyRequest) bool {
 	// This plugin's order is the last one. It's actually a fallback plugin.
 	// So we return true here to indicate we always support the request.
 	return true

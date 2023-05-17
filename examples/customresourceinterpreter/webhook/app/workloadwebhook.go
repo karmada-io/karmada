@@ -26,7 +26,7 @@ type workloadInterpreter struct {
 
 // Handle implements interpreter.Handler interface.
 // It yields a response to an ExploreRequest.
-func (e *workloadInterpreter) Handle(ctx context.Context, req interpreter.Request) interpreter.Response {
+func (e *workloadInterpreter) Handle(_ context.Context, req interpreter.Request) interpreter.Response {
 	workload := &workloadv1alpha1.Workload{}
 	err := e.decoder.Decode(req, workload)
 	if err != nil {

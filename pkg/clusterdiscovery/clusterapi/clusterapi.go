@@ -95,7 +95,7 @@ func (d *ClusterDetector) OnAdd(obj interface{}) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (d *ClusterDetector) OnUpdate(oldObj, newObj interface{}) {
+func (d *ClusterDetector) OnUpdate(_, newObj interface{}) {
 	d.OnAdd(newObj)
 }
 

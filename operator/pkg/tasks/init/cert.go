@@ -56,7 +56,7 @@ func skipCerts(d workflow.RunData) (bool, error) {
 }
 
 func newCertSubTasks() []workflow.Task {
-	subTasks := []workflow.Task{}
+	var subTasks []workflow.Task
 	caCert := map[string]*certs.CertConfig{}
 
 	for _, cert := range certs.GetDefaultCertList() {

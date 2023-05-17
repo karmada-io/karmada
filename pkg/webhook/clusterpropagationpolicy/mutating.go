@@ -34,7 +34,7 @@ func NewMutatingHandler(notReadyTolerationSeconds, unreachableTolerationSeconds 
 }
 
 // Handle yields a response to an AdmissionRequest.
-func (a *MutatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	policy := &policyv1alpha1.ClusterPropagationPolicy{}
 
 	err := a.decoder.Decode(req, policy)

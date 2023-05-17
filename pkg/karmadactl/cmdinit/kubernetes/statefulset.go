@@ -39,7 +39,7 @@ var (
 	etcdLabels = map[string]string{"app": etcdStatefulSetAndServiceName}
 )
 
-func (i CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVolumeClaim) {
+func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVolumeClaim) {
 	var Volumes []corev1.Volume
 
 	secretVolume := corev1.Volume{

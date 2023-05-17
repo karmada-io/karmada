@@ -24,7 +24,7 @@ var _ admission.DecoderInjector = &ValidatingAdmission{}
 
 // Handle implements admission.Handler interface.
 // It yields a response to an AdmissionRequest.
-func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) admission.Response {
 	policy := &policyv1alpha1.PropagationPolicy{}
 
 	err := v.decoder.Decode(req, policy)
