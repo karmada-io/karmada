@@ -113,9 +113,6 @@ github.com/go-openapi/swag
 # github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0
 ## explicit; go 1.13
 github.com/go-task/slim-sprig
-# github.com/gobuffalo/flect v1.0.2
-## explicit; go 1.16
-github.com/gobuffalo/flect
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
 github.com/gogo/protobuf/gogoproto
@@ -876,8 +873,6 @@ k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextension
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 # k8s.io/apimachinery v0.26.2
 ## explicit; go 1.19
-k8s.io/apimachinery/pkg/api/apitesting
-k8s.io/apimachinery/pkg/api/apitesting/fuzzer
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/api/meta
@@ -886,7 +881,6 @@ k8s.io/apimachinery/pkg/api/meta/testrestmapper
 k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/api/validation
 k8s.io/apimachinery/pkg/api/validation/path
-k8s.io/apimachinery/pkg/apis/meta/fuzzer
 k8s.io/apimachinery/pkg/apis/meta/internalversion
 k8s.io/apimachinery/pkg/apis/meta/internalversion/scheme
 k8s.io/apimachinery/pkg/apis/meta/internalversion/validation
@@ -1648,17 +1642,12 @@ sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/common/metrics
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/proto/client
 # sigs.k8s.io/cluster-api v1.4.0
 ## explicit; go 1.19
-sigs.k8s.io/cluster-api/api/v1alpha4
 sigs.k8s.io/cluster-api/api/v1beta1
 sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1beta1
 sigs.k8s.io/cluster-api/errors
 sigs.k8s.io/cluster-api/feature
 sigs.k8s.io/cluster-api/internal/labels
-sigs.k8s.io/cluster-api/util
-sigs.k8s.io/cluster-api/util/annotations
 sigs.k8s.io/cluster-api/util/certs
-sigs.k8s.io/cluster-api/util/contract
-sigs.k8s.io/cluster-api/util/conversion
 sigs.k8s.io/cluster-api/util/secret
 sigs.k8s.io/cluster-api/util/version
 # sigs.k8s.io/controller-runtime v0.14.5

@@ -17691,11 +17691,6 @@
         {
           "group": "cluster.x-k8s.io",
           "kind": "DeleteOptions",
-          "version": "v1alpha4"
-        },
-        {
-          "group": "cluster.x-k8s.io",
-          "kind": "DeleteOptions",
           "version": "v1beta1"
         },
         {
@@ -18428,11 +18423,6 @@
           "group": "cluster.karmada.io",
           "kind": "WatchEvent",
           "version": "v1alpha1"
-        },
-        {
-          "group": "cluster.x-k8s.io",
-          "kind": "WatchEvent",
-          "version": "v1alpha4"
         },
         {
           "group": "cluster.x-k8s.io",
