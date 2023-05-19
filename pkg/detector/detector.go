@@ -767,7 +767,7 @@ func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}) {
 }
 
 // OnPropagationPolicyUpdate handles object update event and push the object to queue.
-func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{}) {
+func (d *ResourceDetector) OnPropagationPolicyUpdate(_, newObj interface{}) {
 	key, err := ClusterWideKeyFunc(newObj)
 	if err != nil {
 		return
@@ -831,7 +831,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}) {
 }
 
 // OnClusterPropagationPolicyUpdate handles object update event and push the object to queue.
-func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj interface{}) {
+func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(_, newObj interface{}) {
 	key, err := ClusterWideKeyFunc(newObj)
 	if err != nil {
 		return

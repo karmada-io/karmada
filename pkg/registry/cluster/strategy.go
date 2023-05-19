@@ -72,7 +72,7 @@ func (Strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 }
 
 // PrepareForCreate is invoked on create before validation to normalize the object.
-func (Strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+func (Strategy) PrepareForCreate(_ context.Context, obj runtime.Object) {
 	cluster := obj.(*clusterapis.Cluster)
 	cluster.Status = clusterapis.ClusterStatus{}
 
@@ -88,7 +88,7 @@ func (Strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 }
 
 // PrepareForUpdate is invoked on update before validation to normalize the object.
-func (Strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+func (Strategy) PrepareForUpdate(_ context.Context, obj, old runtime.Object) {
 	newCluster := obj.(*clusterapis.Cluster)
 	oldCluster := old.(*clusterapis.Cluster)
 	newCluster.Status = oldCluster.Status
@@ -106,13 +106,13 @@ func (Strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
 }
 
 // Validate returns an ErrorList with validation errors or nil.
-func (Strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
+func (Strategy) Validate(_ context.Context, obj runtime.Object) field.ErrorList {
 	cluster := obj.(*clusterapis.Cluster)
 	return validation.ValidateCluster(cluster)
 }
 
 // WarningsOnCreate returns warnings for the creation of the given object.
-func (Strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []string { return nil }
+func (Strategy) WarningsOnCreate(_ context.Context, _ runtime.Object) []string { return nil }
 
 // AllowCreateOnUpdate returns true if the object can be created by a PUT.
 func (Strategy) AllowCreateOnUpdate() bool {
@@ -134,14 +134,14 @@ func (Strategy) Canonicalize(obj runtime.Object) {
 
 // ValidateUpdate is invoked after default fields in the object have been
 // filled in before the object is persisted.
-func (Strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+func (Strategy) ValidateUpdate(_ context.Context, obj, old runtime.Object) field.ErrorList {
 	newCluster := obj.(*clusterapis.Cluster)
 	oldCluster := old.(*clusterapis.Cluster)
 	return validation.ValidateClusterUpdate(newCluster, oldCluster)
 }
 
 // WarningsOnUpdate returns warnings for the given update.
-func (Strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
+func (Strategy) WarningsOnUpdate(_ context.Context, _, _ runtime.Object) []string {
 	return nil
 }
 
@@ -162,15 +162,15 @@ func (StatusStrategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 }
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update of status
-func (StatusStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+func (StatusStrategy) PrepareForUpdate(_ context.Context, _, _ runtime.Object) {
 }
 
 // ValidateUpdate is the default update validation for an end user updating status
-func (StatusStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+func (StatusStrategy) ValidateUpdate(_ context.Context, _, _ runtime.Object) field.ErrorList {
 	return field.ErrorList{}
 }
 
 // WarningsOnUpdate returns warnings for the given update.
-func (StatusStrategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
+func (StatusStrategy) WarningsOnUpdate(_ context.Context, _, _ runtime.Object) []string {
 	return nil
 }

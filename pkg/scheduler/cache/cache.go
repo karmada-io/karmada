@@ -30,17 +30,18 @@ func NewCache(clusterLister clusterlister.ClusterLister) Cache {
 }
 
 // AddCluster does nothing since clusterLister would synchronize automatically
-func (c *schedulerCache) AddCluster(cluster *clusterv1alpha1.Cluster) {
+func (c *schedulerCache) AddCluster(_ *clusterv1alpha1.Cluster) {
 }
 
 // UpdateCluster does nothing since clusterLister would synchronize automatically
-func (c *schedulerCache) UpdateCluster(cluster *clusterv1alpha1.Cluster) {
+func (c *schedulerCache) UpdateCluster(_ *clusterv1alpha1.Cluster) {
 }
 
 // DeleteCluster does nothing since clusterLister would synchronize automatically
-func (c *schedulerCache) DeleteCluster(cluster *clusterv1alpha1.Cluster) {
+func (c *schedulerCache) DeleteCluster(_ *clusterv1alpha1.Cluster) {
 }
 
+// Snapshot returns clusters' snapshot.
 // TODO: need optimization, only clone when necessary
 func (c *schedulerCache) Snapshot() Snapshot {
 	out := NewEmptySnapshot()

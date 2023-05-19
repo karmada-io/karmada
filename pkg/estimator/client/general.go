@@ -28,7 +28,7 @@ func NewGeneralEstimator() *GeneralEstimator {
 }
 
 // MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by cluster ResourceSummary.
-func (ge *GeneralEstimator) MaxAvailableReplicas(ctx context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
+func (ge *GeneralEstimator) MaxAvailableReplicas(_ context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
 	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 	for i, cluster := range clusters {
 		maxReplicas := ge.maxAvailableReplicas(cluster, replicaRequirements)

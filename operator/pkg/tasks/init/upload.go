@@ -179,9 +179,9 @@ func runUploadKarmadaCert(r workflow.RunData) error {
 		return errors.New("upload-KarmadaCert task invoked with an invalid data struct")
 	}
 
-	certs := data.CertList()
-	certsData := make(map[string][]byte, len(certs))
-	for _, c := range certs {
+	certList := data.CertList()
+	certsData := make(map[string][]byte, len(certList))
+	for _, c := range certList {
 		certsData[c.KeyName()] = c.KeyData()
 		certsData[c.CertName()] = c.CertData()
 	}

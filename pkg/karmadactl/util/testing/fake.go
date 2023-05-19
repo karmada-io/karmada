@@ -29,7 +29,7 @@ func (t *TestFactory) KarmadaClientSet() (versioned.Interface, error) {
 }
 
 // FactoryForMemberCluster returns a cmdutil.Factory for the member cluster
-func (t *TestFactory) FactoryForMemberCluster(clusterName string) (cmdutil.Factory, error) {
+func (t *TestFactory) FactoryForMemberCluster(_ string) (cmdutil.Factory, error) {
 	// TODO implement me
 	panic("implement me")
 }

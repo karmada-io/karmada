@@ -40,11 +40,11 @@ func (obj *TestPrintType) DeepCopyObject() runtime.Object {
 	return &clone
 }
 
-func PrintCustomType(obj *TestPrintType, options GenerateOptions) ([]metav1beta1.TableRow, error) {
+func PrintCustomType(obj *TestPrintType, _ GenerateOptions) ([]metav1beta1.TableRow, error) {
 	return []metav1beta1.TableRow{{Cells: []interface{}{obj.Data}}}, nil
 }
 
-func ErrorPrintHandler(obj *TestPrintType, options GenerateOptions) ([]metav1beta1.TableRow, error) {
+func ErrorPrintHandler(_ *TestPrintType, _ GenerateOptions) ([]metav1beta1.TableRow, error) {
 	return nil, fmt.Errorf("ErrorPrintHandler error")
 }
 

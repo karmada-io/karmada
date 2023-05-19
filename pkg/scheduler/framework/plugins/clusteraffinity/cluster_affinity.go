@@ -62,8 +62,8 @@ func (p *ClusterAffinity) Filter(
 }
 
 // Score calculates the score on the candidate cluster.
-func (p *ClusterAffinity) Score(ctx context.Context,
-	spec *workv1alpha2.ResourceBindingSpec, cluster *clusterv1alpha1.Cluster) (int64, *framework.Result) {
+func (p *ClusterAffinity) Score(_ context.Context,
+	_ *workv1alpha2.ResourceBindingSpec, _ *clusterv1alpha1.Cluster) (int64, *framework.Result) {
 	return framework.MinClusterScore, framework.NewResult(framework.Success)
 }
 
@@ -73,6 +73,6 @@ func (p *ClusterAffinity) ScoreExtensions() framework.ScoreExtensions {
 }
 
 // NormalizeScore normalizes the score for each candidate cluster.
-func (p *ClusterAffinity) NormalizeScore(ctx context.Context, scores framework.ClusterScoreList) *framework.Result {
+func (p *ClusterAffinity) NormalizeScore(_ context.Context, _ framework.ClusterScoreList) *framework.Result {
 	return framework.NewResult(framework.Success)
 }

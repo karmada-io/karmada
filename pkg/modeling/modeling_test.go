@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	rbt "github.com/emirpasic/gods/trees/redblacktree"
+	"github.com/emirpasic/gods/trees/redblacktree"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -487,7 +487,7 @@ func TestRbtConvertToLl(t *testing.T) {
 			clusterapis.ResourceMemory: *resource.NewQuantity(1024*12, resource.DecimalSI),
 		},
 	}
-	tree := rbt.NewWith(clusterResourceNodeComparator)
+	tree := redblacktree.NewWith(clusterResourceNodeComparator)
 
 	if actualValue := tree.Size(); actualValue != 0 {
 		t.Errorf("Got %v expected %v", actualValue, 0)

@@ -320,11 +320,11 @@ func (r *mockPlugin) Order() int {
 	return r.TheOrder
 }
 
-func (r *mockPlugin) SupportRequest(request framework.ProxyRequest) bool {
+func (r *mockPlugin) SupportRequest(_ framework.ProxyRequest) bool {
 	return r.IsSupportRequest
 }
 
-func (r *mockPlugin) Connect(ctx context.Context, request framework.ProxyRequest) (http.Handler, error) {
+func (r *mockPlugin) Connect(_ context.Context, _ framework.ProxyRequest) (http.Handler, error) {
 	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		r.Called = true
 	}), nil
@@ -446,11 +446,11 @@ func (r *failPlugin) Order() int {
 	return 0
 }
 
-func (r *failPlugin) SupportRequest(request framework.ProxyRequest) bool {
+func (r *failPlugin) SupportRequest(_ framework.ProxyRequest) bool {
 	return true
 }
 
-func (r *failPlugin) Connect(ctx context.Context, request framework.ProxyRequest) (http.Handler, error) {
+func (r *failPlugin) Connect(_ context.Context, _ framework.ProxyRequest) (http.Handler, error) {
 	return nil, fmt.Errorf("test")
 }
 
