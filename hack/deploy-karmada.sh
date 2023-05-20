@@ -75,8 +75,8 @@ HOST_CLUSTER_TYPE=${3:-"local"} # the default of host cluster type is local, i.e
 function generate_cert_secret {
     local karmada_ca
     local karmada_ca_key
-    karmada_ca=$(base64 "${ROOT_CA_FILE}" | tr -d '\r\n')
-    karmada_ca_key=$(base64 "${ROOT_CA_KEY}" | tr -d '\r\n')
+    karmada_ca=$(base64 < "${ROOT_CA_FILE}" | tr -d '\r\n')
+    karmada_ca_key=$(base64 < "${ROOT_CA_KEY}" | tr -d '\r\n')
 
     local TEMP_PATH
     TEMP_PATH=$(mktemp -d)
@@ -147,18 +147,18 @@ util::create_certkey "" "${CERT_DIR}" "etcd-ca" etcd-client etcd-client "" "*.et
 # create namespace for control plane components
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
-KARMADA_CRT=$(base64 "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
-KARMADA_KEY=$(base64 "${CERT_DIR}/karmada.key" | tr -d '\r\n')
-KARMADA_APISERVER_CRT=$(base64 "${CERT_DIR}/apiserver.crt" | tr -d '\r\n')
-KARMADA_APISERVER_KEY=$(base64 "${CERT_DIR}/apiserver.key" | tr -d '\r\n')
-FRONT_PROXY_CA_CRT=$(base64 "${CERT_DIR}/front-proxy-ca.crt" | tr -d '\r\n')
-FRONT_PROXY_CLIENT_CRT=$(base64 "${CERT_DIR}/front-proxy-client.crt" | tr -d '\r\n')
-FRONT_PROXY_CLIENT_KEY=$(base64 "${CERT_DIR}/front-proxy-client.key" | tr -d '\r\n')
-ETCD_CA_CRT=$(base64 "${CERT_DIR}/etcd-ca.crt" | tr -d '\r\n')
-ETCD_SERVER_CRT=$(base64 "${CERT_DIR}/etcd-server.crt" | tr -d '\r\n')
-ETCD_SERVER_KEY=$(base64 "${CERT_DIR}/etcd-server.key" | tr -d '\r\n')
-ETCD_CLIENT_CRT=$(base64 "${CERT_DIR}/etcd-client.crt" | tr -d '\r\n')
-ETCD_CLIENT_KEY=$(base64 "${CERT_DIR}/etcd-client.key" | tr -d '\r\n')
+KARMADA_CRT=$(base64 < "${CERT_DIR}/karmada.crt" | tr -d '\r\n')
+KARMADA_KEY=$(base64 < "${CERT_DIR}/karmada.key" | tr -d '\r\n')
+KARMADA_APISERVER_CRT=$(base64 < "${CERT_DIR}/apiserver.crt" | tr -d '\r\n')
+KARMADA_APISERVER_KEY=$(base64 < "${CERT_DIR}/apiserver.key" | tr -d '\r\n')
+FRONT_PROXY_CA_CRT=$(base64 < "${CERT_DIR}/front-proxy-ca.crt" | tr -d '\r\n')
+FRONT_PROXY_CLIENT_CRT=$(base64 < "${CERT_DIR}/front-proxy-client.crt" | tr -d '\r\n')
+FRONT_PROXY_CLIENT_KEY=$(base64 < "${CERT_DIR}/front-proxy-client.key" | tr -d '\r\n')
+ETCD_CA_CRT=$(base64 < "${CERT_DIR}/etcd-ca.crt" | tr -d '\r\n')
+ETCD_SERVER_CRT=$(base64 < "${CERT_DIR}/etcd-server.crt" | tr -d '\r\n')
+ETCD_SERVER_KEY=$(base64 < "${CERT_DIR}/etcd-server.key" | tr -d '\r\n')
+ETCD_CLIENT_CRT=$(base64 < "${CERT_DIR}/etcd-client.crt" | tr -d '\r\n')
+ETCD_CLIENT_KEY=$(base64 < "${CERT_DIR}/etcd-client.key" | tr -d '\r\n')
 generate_cert_secret
 
 # deploy karmada etcd
@@ -264,7 +264,7 @@ util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_SEARCH_LABEL}"
 kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/cluster-proxy-admin-rbac.yaml"
 
 # deploy bootstrap token configuration for registering member clusters with PULL mode
-karmada_ca=$(base64 "${ROOT_CA_FILE}" | tr -d '\r\n')
+karmada_ca=$(base64 < "${ROOT_CA_FILE}" | tr -d '\r\n')
 karmada_apiserver_address=https://"${KARMADA_APISERVER_IP}:${KARMADA_APISERVER_SECURE_PORT}"
 TEMP_PATH_BOOTSTRAP=$(mktemp -d)
 trap '{ rm -rf ${TEMP_PATH_BOOTSTRAP}; }' EXIT
