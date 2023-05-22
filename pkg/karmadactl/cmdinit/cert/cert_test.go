@@ -16,7 +16,7 @@ const (
 	TestCertsTmp = "./test-certs-tmp"
 )
 
-func TestGenCerts(t *testing.T) {
+func TestGenCerts(_ *testing.T) {
 	defer os.RemoveAll(TestCertsTmp)
 
 	notAfter := time.Now().Add(Duration365d * 10).UTC()

@@ -15,6 +15,7 @@ run:
   - hack/tools/preferredimports # This code is directly lifted from the Kubernetes codebase, skip checking
   - (^|/)vendor($|/)
   - (^|/)third_party($|/)
+  - pkg/util/lifted # This code is lifted from other projects(Kubernetes, Kubefed, and so on), skip checking.
 
   # default is true. Enables skipping of directories:
   #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
@@ -59,6 +60,12 @@ linters-settings:
       - Standard
       - Default
       - Prefix(github.com/karmada-io/karmada)
+  revive:
+    rules:
+      # Disable if-return as it is too strict and not always useful.
+      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#if-return
+      - name: if-return
+        disabled: true
 
 issues:
   # The list of ids of default excludes to include or disable. By default it's empty.
