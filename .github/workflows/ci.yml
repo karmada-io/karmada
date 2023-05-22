@@ -18,7 +18,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.5
+          go-version: 1.20.4
       - name: vendor
         run: hack/verify-vendor.sh
       - name: lint
@@ -41,7 +41,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.5
+          go-version: 1.20.4
       - name: Install Protoc
         # TODO(@RainbowMango): Update the action version to adopt Node16
         # track issue: https://github.com/arduino/setup-protoc/issues/59
@@ -75,7 +75,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.5
+          go-version: 1.20.4
       - name: compile
         run: make all
   test:
@@ -88,7 +88,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.5
+          go-version: 1.20.4
       - name: make test
         run: make test
       - name: Upload coverage to Codecov
@@ -125,7 +125,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.5
+          go-version: 1.20.4
       - name: setup e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
