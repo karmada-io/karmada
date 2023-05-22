@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "karmada.operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app: {{ include "karmada.operator.fullname" . }}
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{  .Values.operator.replicaCount }}
+  selector:
+    matchLabels: {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app: {{ include "karmada.operator.fullname" . }}
+  {{- if .Values.operator.strategy }}
+  strategy: {{- include "common.tplvalues.render" (dict "value" .Values.operator.strategy "context" $) | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- if .Values.operator.podAnnotations }}
+      annotations:
+      {{- include "common.tplvalues.render" (dict "value" .Values.operator.podAnnotations "context" $) | nindent 8 }}
+      {{- end }}
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app: {{ include "karmada.operator.fullname" . }}
+        {{- if .Values.podLabels }}
+        {{- include "common.tplvalues.render" (dict "value" .Values.operator.podLabels "context" $) | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "karmada.operator.imagePullSecrets" . | indent 6 }}
+      containers:
+      - name: {{ include "karmada.operator.fullname" . }}
+        image: {{ template "karmada.operator.image" . }}
+        imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+        command:
+        - /bin/karmada-operator
+        - --leader-elect-resource-namespace={{ .Release.Namespace }}
+        - --v=2
+        {{- if .Values.operator.resources }}
+        resources: {{- toYaml .Values.operator.resources | nindent 12 }}
+        {{- end }}
+      serviceAccountName: {{ include "karmada.operator.fullname" . }}
+      {{- if .Values.operator.affinity }}
+      affinity: {{- include "common.tplvalues.render" (dict "value" .Values.operator.affinity "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.operator.nodeSelector }}
+      nodeSelector: {{- include "common.tplvalues.render" (dict "value" .Values.operator.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.operator.tolerations }}
+      tolerations: {{- include "common.tplvalues.render" (dict "value" .Values.operator.tolerations "context" $) | nindent 8 }}
+      {{- end }}

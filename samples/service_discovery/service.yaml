@@ -22,7 +22,7 @@ spec:
         - name: serve
           image: jeremyot/serve:0a40de8
           args:
-            - "--message='hello from cluster member1 (Node: {{env \"NODE_NAME\"}} Pod: {{env \"POD_NAME\"}} Address: {{addr}})'"
+            - "--message='hello from cluster (Node: {{env \"NODE_NAME\"}} Pod: {{env \"POD_NAME\"}} Address: {{addr}})'"
           env:
             - name: NODE_NAME
               valueFrom:
@@ -61,4 +61,10 @@ spec:
   placement:
     clusterAffinity:
       clusterNames:
-        - eu-west-1
+        - member1
+        - member2
+    replicaScheduling:
+      replicaDivisionPreference: Weighted
+      replicaSchedulingType: Divided
+      weightPreference:
+        dynamicWeight: AvailableReplicas

@@ -22,4 +22,4 @@ spec:
   placement:
     clusterAffinity:
       clusterNames:
-        - eu-central-1
+        - member2
