@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
@@ -28,13 +29,13 @@ func newClusterCache(clusterName string, newClientFunc func() (dynamic.Interface
 	}
 }
 
-func (c *clusterCache) updateCache(resources map[schema.GroupVersionResource]struct{}) error {
+func (c *clusterCache) updateCache(resources map[schema.GroupVersionResource]*MultiNamespace) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	// remove non-exist resources
-	for resource := range c.cache {
-		if _, exist := resources[resource]; !exist {
+	for resource, cache := range c.cache {
+		if multiNS, exist := resources[resource]; !exist || !multiNS.Equal(cache.multiNS) {
 			klog.Infof("Remove cache for %s %s", c.clusterName, resource.String())
 			c.cache[resource].stop()
 			delete(c.cache, resource)
@@ -42,7 +43,7 @@ func (c *clusterCache) updateCache(resources map[schema.GroupVersionResource]str
 	}
 
 	// add resource cache
-	for resource := range resources {
+	for resource, multiNS := range resources {
 		_, exist := c.cache[resource]
 		if !exist {
 			kind, err := c.restMapper.KindFor(resource)
@@ -55,8 +56,13 @@ func (c *clusterCache) updateCache(resources map[schema.GroupVersionResource]str
 			}
 			namespaced := mapping.Scope.Name() == meta.RESTScopeNameNamespace
 
+			if !namespaced && !multiNS.allNamespaces {
+				klog.Warningf("Namespace is invalid for %v, skip it.", kind.String())
+				multiNS.Add(metav1.NamespaceAll)
+			}
+
 			klog.Infof("Add cache for %s %s", c.clusterName, resource.String())
-			cache, err := newResourceCache(c.clusterName, resource, kind, namespaced, c.clientForResourceFunc(resource))
+			cache, err := newResourceCache(c.clusterName, resource, kind, namespaced, multiNS, c.clientForResourceFunc(resource))
 			if err != nil {
 				return err
 			}

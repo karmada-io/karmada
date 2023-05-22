@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/dynamic"
@@ -25,7 +24,7 @@ import (
 
 // Store is the cache for resources from multiple member clusters
 type Store interface {
-	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error
+	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*MultiNamespace) error
 	HasResource(resource schema.GroupVersionResource) bool
 	GetResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error)
 	Stop()
@@ -58,7 +57,7 @@ func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error),
 }
 
 // UpdateCache update cache for multi clusters
-func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error {
+func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*MultiNamespace) error {
 	if klog.V(3).Enabled() {
 		start := time.Now()
 		defer func() {
@@ -70,12 +69,8 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 	defer c.lock.Unlock()
 
 	// remove non-exist clusters
-	newClusterNames := sets.NewString()
-	for clusterName := range resourcesByCluster {
-		newClusterNames.Insert(clusterName)
-	}
 	for clusterName := range c.cache {
-		if !newClusterNames.Has(clusterName) {
+		if _, exist := resourcesByCluster[clusterName]; !exist {
 			klog.Infof("Remove cache for cluster %s", clusterName)
 			c.cache[clusterName].stop()
 			delete(c.cache, clusterName)

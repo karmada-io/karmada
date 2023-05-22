@@ -7,7 +7,9 @@ import (
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -258,6 +260,60 @@ func (w *watchMux) startWatchSource(source watch.Interface, decorator func(watch
 			}
 		}()
 	}
+}
+
+// MultiNamespace contains multiple namespaces.
+type MultiNamespace struct {
+	allNamespaces bool
+	namespaces    sets.Set[string]
+}
+
+// NewMultiNamespace return a new empty MultiNamespace.
+func NewMultiNamespace() *MultiNamespace {
+	return &MultiNamespace{
+		namespaces: sets.New[string](),
+	}
+}
+
+// Add adds ns.
+func (n *MultiNamespace) Add(ns string) {
+	if n.allNamespaces || n.namespaces.Has(ns) {
+		return
+	}
+
+	if ns == metav1.NamespaceAll {
+		n.allNamespaces = true
+		n.namespaces = nil
+		return
+	}
+	n.namespaces.Insert(ns)
+}
+
+// Contains returns if ns is covered by MultiNamespace. NamespaceAll covers all.
+func (n *MultiNamespace) Contains(ns string) bool {
+	return n.allNamespaces || n.namespaces.Has(ns)
+}
+
+// Single returns ns name and true when only one namespace in MultiNamespace. NamespaceAll returns false.
+func (n *MultiNamespace) Single() (string, bool) {
+	if n.allNamespaces || n.namespaces.Len() != 1 {
+		return "", false
+	}
+	var ns string
+	for ns = range n.namespaces {
+	}
+	return ns, true
+}
+
+// Equal tell whether two MultiNamespace has the same namespaces.
+func (n *MultiNamespace) Equal(another *MultiNamespace) bool {
+	if n.allNamespaces != another.allNamespaces {
+		return false
+	}
+	if n.allNamespaces {
+		return true
+	}
+	return n.namespaces.Equal(another.namespaces)
 }
 
 func addCacheSourceAnnotation(obj runtime.Object, clusterName string) {

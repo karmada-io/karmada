@@ -29,6 +29,7 @@ type resourceCache struct {
 	*genericregistry.Store
 	clusterName string
 	resource    schema.GroupVersionResource
+	multiNS     *MultiNamespace
 }
 
 func (c *resourceCache) stop() {
@@ -37,7 +38,7 @@ func (c *resourceCache) stop() {
 }
 
 func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk schema.GroupVersionKind,
-	namespaced bool, newClientFunc func() (dynamic.NamespaceableResourceInterface, error)) (*resourceCache, error) {
+	namespaced bool, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error)) (*resourceCache, error) {
 	s := &genericregistry.Store{
 		DefaultQualifiedResource: gvr.GroupResource(),
 		NewFunc: func() runtime.Object {
@@ -71,7 +72,7 @@ func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk s
 				GroupResource: gvr.GroupResource(),
 			},
 			ResourcePrefix: gvr.Group + "/" + gvr.Resource,
-			Decorator:      storageWithCacher(newClientFunc, defaultVersioner),
+			Decorator:      storageWithCacher(gvr, multiNS, newClientFunc, defaultVersioner),
 		},
 		AttrFunc: getAttrsFunc(namespaced),
 	})
@@ -83,10 +84,11 @@ func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk s
 		clusterName: clusterName,
 		Store:       s,
 		resource:    gvr,
+		multiNS:     multiNS,
 	}, nil
 }
 
-func storageWithCacher(newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner) generic.StorageDecorator {
+func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner) generic.StorageDecorator {
 	return func(
 		storageConfig *storagebackend.ConfigForResource,
 		resourcePrefix string,
@@ -97,7 +99,7 @@ func storageWithCacher(newClientFunc func() (dynamic.NamespaceableResourceInterf
 		triggerFuncs storage.IndexerFuncs,
 		indexers *cache.Indexers) (storage.Interface, factory.DestroyFunc, error) {
 		cacherConfig := cacherstorage.Config{
-			Storage:        newStore(newClientFunc, versioner, resourcePrefix),
+			Storage:        newStore(gvr, multiNS, newClientFunc, versioner, resourcePrefix),
 			Versioner:      versioner,
 			GroupResource:  storageConfig.GroupResource,
 			ResourcePrefix: resourcePrefix,

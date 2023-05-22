@@ -170,16 +170,22 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 		return err
 	}
 
-	resourcesByClusters := make(map[string]map[schema.GroupVersionResource]struct{})
+	resourcesByClusters := make(map[string]map[schema.GroupVersionResource]*store.MultiNamespace)
 	for _, registry := range registries {
-		matchedResources := make(map[schema.GroupVersionResource]struct{}, len(registry.Spec.ResourceSelectors))
+		matchedResources := make(map[schema.GroupVersionResource]*store.MultiNamespace, len(registry.Spec.ResourceSelectors))
 		for _, selector := range registry.Spec.ResourceSelectors {
 			gvr, err := restmapper.GetGroupVersionResource(ctl.restMapper, schema.FromAPIVersionAndKind(selector.APIVersion, selector.Kind))
 			if err != nil {
 				klog.Errorf("Failed to get gvr: %v", err)
 				continue
 			}
-			matchedResources[gvr] = struct{}{}
+
+			nsSelector := matchedResources[gvr]
+			if nsSelector == nil {
+				nsSelector = store.NewMultiNamespace()
+				matchedResources[gvr] = nsSelector
+			}
+			nsSelector.Add(selector.Namespace)
 		}
 
 		if len(matchedResources) == 0 {
@@ -197,11 +203,11 @@ func (ctl *Controller) reconcile(util.QueueKey) error {
 			}
 
 			if _, exist := resourcesByClusters[cluster.Name]; !exist {
-				resourcesByClusters[cluster.Name] = make(map[schema.GroupVersionResource]struct{})
+				resourcesByClusters[cluster.Name] = make(map[schema.GroupVersionResource]*store.MultiNamespace)
 			}
 
-			for resource := range matchedResources {
-				resourcesByClusters[cluster.Name][resource] = struct{}{}
+			for resource, multiNS := range matchedResources {
+				resourcesByClusters[cluster.Name][resource] = multiNS
 			}
 		}
 	}
