@@ -28,7 +28,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.5
+          go-version: 1.20.4
       - uses: engineerd/setup-kind@v0.5.0
         with:
           version: "v0.17.0"
