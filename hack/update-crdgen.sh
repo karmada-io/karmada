@@ -18,4 +18,4 @@ controller-gen crd paths=./pkg/apis/policy/... output:crd:dir=./charts/karmada/_
 controller-gen crd paths=./pkg/apis/work/... output:crd:dir=./charts/karmada/_crds/bases
 controller-gen crd paths=./pkg/apis/networking/... output:crd:dir=./charts/karmada/_crds/bases
 controller-gen crd paths=./examples/customresourceinterpreter/apis/... output:crd:dir=./examples/customresourceinterpreter/apis/
-controller-gen crd paths=./operator/pkg/apis/operator/... output:crd:dir=./operator/config/crds
+controller-gen crd paths=./operator/pkg/apis/operator/... output:crd:dir=./charts/karmada-operator/crds
