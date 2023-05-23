@@ -1,0 +1,176 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-workflow
+spec:
+  target:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+  customizations:
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+        function GetReplicas(obj)
+          replica = 1
+          if obj.spec.parallelism ~= nil then
+            replica = obj.spec.parallelism
+          end
+          podTemplateSpec = {}
+          podTemplateSpec.spec = {}
+          podTemplateSpec.spec.affinity = obj.spec.affinity
+          podTemplateSpec.spec.nodeSelector = obj.spec.nodeSelector
+          podTemplateSpec.spec.tolerations = obj.spec.tolerations
+          requirement = kube.accuratePodRequirements(podTemplateSpec)
+          return replica, requirement
+        end
+    replicaRevision:
+      luaScript: >
+        function ReviseReplica(obj, replica)
+          obj.spec.parallelism = replica
+          return obj
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil then
+            return false
+          end
+          if observedObj.status.phase == nil or observedObj.status.phase == '' or observedObj.status.phase == 'Failed' or observedObj.status.failed == 'Error' then
+            return false
+          end
+          return true
+        end
+    retention:
+      luaScript: >
+        function Retain(desiredObj, observedObj)
+          if observedObj.spec.suspend ~= nil then
+            desiredObj.spec.suspend = observedObj.spec.suspend 
+          end
+          if observedObj.status ~= nil then
+            desiredObj.status = observedObj.status
+          end
+          return desiredObj
+        end
+    dependencyInterpretation:
+      luaScript: >
+        function GetDependencies(desiredObj)
+          dependentConfigMaps = {}
+          dependentSecrets = {}
+          dependentSas = {}
+          dependentPVCs = {}
+          refs = {}
+          local idx = 1
+          if desiredObj.spec.executor ~= nil and desiredObj.spec.executor.serviceAccountName ~= nil and desiredObj.spec.executor.serviceAccountName ~= '' then
+            dependentSas[desiredObj.spec.executor.serviceAccountName] = true
+          end
+          if desiredObj.spec.volumeClaimTemplates ~= nil then
+            for volumeClaimIndex, volumeClaim in pairs(desiredObj.spec.volumeClaimTemplates) do
+              if volumeClaim.metadata.name ~= nil and volumeClaim.metadata.name ~= '' then
+                dependentPVCs[volumeClaim.metadata.name] = true
+              end
+            end
+          end
+          volumes = {}
+          if desiredObj.spec.volumes ~= nil then
+            volumes = desiredObj.spec.volumes
+          end
+          for volumnIndex, volume in pairs(volumes) do 
+            if volume.configMap ~= nil and volume.configMap.name ~= nil and volume.configMap.name ~= '' then
+              dependentConfigMaps[volume.configMap.name] = true
+            end
+            if volume.projected ~= nil and volume.projected.sources ~= nil then
+              sources = {}
+              sources = volume.projected.sources
+              for sourceIndex, source in pairs(sources) do
+                if source.configMap ~= nil and source.configMap.name ~= nil and source.configMap.name ~= '' then
+                  dependentConfigMaps[source.configMap.name] = true
+                end
+                if source.secret ~= nil and source.secret.name ~= nil and source.secret.name ~= '' then
+                  dependentSecrets[source.secret.name] = true
+                end
+              end
+            end
+            if volume.azureFile ~= nil and volume.azureFile.secretName ~= nil and volume.azureFile.secretName ~= '' then 
+              dependentSecrets[volume.azureFile.secretName] = true
+            end
+            if volume.cephfs ~= nil and volume.cephfs.secretRef ~= nil and volume.cephfs.secretRef.name ~= nil and volume.cephfs.secretRef.name ~= '' then
+              dependentSecrets[volume.cephfs.secretRef.name] = true
+            end
+            if volume.cinder ~= nil and volume.cinder.secretRef ~= nil and volume.cinder.secretRef.name ~= nil and volume.cinder.secretRef.name ~= '' then
+              dependentSecrets[volume.cinder.secretRef.name] = true
+            end
+            if volume.flexVolume ~= nil and volume.flexVolume.secretRef ~= nil and volume.flexVolume.secretRef.name ~= nil and volume.flexVolume.secretRef.name ~= '' then
+              dependentSecrets[volume.flexVolume.secretRef.name] = true
+            end
+            if volume.rbd ~= nil and volume.rbd.secretRef ~= nil and volume.rbd.secretRef.name ~= nil and volume.rbd.secretRef.name ~= '' then
+              dependentSecrets[volume.rbd.secretRef.name] = true
+            end
+            if volume.secret ~= nil and volume.secret.name ~= nil and volume.secret.name ~= '' then
+              dependentSecrets[volume.secret.name] = true
+            end
+            if volume.scaleIO ~= nil and volume.scaleIO.secretRef ~= nil and volume.scaleIO.secretRef.name ~= nil and volume.scaleIO.secretRef.name ~= '' then
+              dependentSecrets[volume.scaleIO.secretRef.name] = true
+            end
+            if volume.iscsi ~= nil and volume.iscsi.secretRef ~= nil and volume.iscsi.secretRef.name ~= nil and volume.iscsi.secretRef.name ~= '' then
+              dependentSecrets[volume.iscsi.secretRef.name] = true
+            end
+            if volume.storageos ~= nil and volume.storageos.secretRef ~= nil and volume.storageos.secretRef.name ~= nil and volume.storageos.secretRef.name ~= '' then
+              dependentSecrets[volume.storageos.secretRef.name] = true
+            end
+            if volume.csi ~= nil and volume.csi.nodePublishSecretRef ~= nil and volume.csi.nodePublishSecretRef.name ~= nil and volume.csi.nodePublishSecretRef.name ~= '' then
+              dependentSecrets[volume.csi.nodePublishSecretRef.name] = true
+            end
+            if volume.persistentVolumeClaim ~= nil and volume.persistentVolumeClaim.claimName ~= nil and volume.persistentVolumeClaim.claimName ~= '' then
+              dependentPVCs[volume.persistentVolumeClaim.claimName] = true
+            end
+          end
+          if desiredObj.spec.imagePullSecrets ~= nil then
+            reference = {}
+            reference = desiredObj.spec.imagePullSecrets
+            for key, value in pairs(reference) do
+              if value.name ~= nil and value.name ~= '' then
+                dependentSecrets[value.name] = true
+              end
+            end
+          end
+          if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName ~= '' and desiredObj.spec.serviceAccountName ~= 'default' then
+              dependentSas[desiredObj.spec.serviceAccountName] = true
+          end
+          for key, value in pairs(dependentConfigMaps) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'ConfigMap'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          for key, value in pairs(dependentSecrets) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'Secret'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          for key, value in pairs(dependentSas) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'ServiceAccount'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          for key, value in pairs(dependentPVCs) do
+            dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'PersistentVolumeClaim'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          return refs
+        end
