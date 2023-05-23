@@ -71,15 +71,13 @@ spec:
           protocol: TCP
         volumeMounts:
         - mountPath: /var/lib/etcd
-          name: etcd-data
+          name: {{ .EtcdDataVolumeName }}
         - mountPath: /etc/karmada/pki/etcd
           name: etcd-cert
       volumes:
       - name: etcd-cert
         secret:
           secretName: {{ .CertsSecretName }}
-      - name: etcd-data
-        emptyDir: {}
 `
 
 	// KarmadaEtcdClientService is karmada etcd client service manifest
