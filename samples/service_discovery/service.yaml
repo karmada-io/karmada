@@ -1,7 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: discovery
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: serve
+  namespace: discovery
 spec:
   replicas: 1
   selector:
@@ -31,6 +37,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: serve
+  namespace: discovery
 spec:
   ports:
     - port: 80
@@ -42,6 +49,7 @@ apiVersion: policy.karmada.io/v1alpha1
 kind: PropagationPolicy
 metadata:
   name: mcs-workload
+  namespace: discovery
 spec:
   resourceSelectors:
     - apiVersion: apps/v1
@@ -53,4 +61,4 @@ spec:
   placement:
     clusterAffinity:
       clusterNames:
-        - member1
+        - eu-west-1

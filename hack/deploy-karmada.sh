@@ -264,7 +264,7 @@ util::wait_apiservice_ready "karmada-apiserver" "${KARMADA_SEARCH_LABEL}"
 kubectl --context="karmada-apiserver" apply -f "${REPO_ROOT}/artifacts/deploy/cluster-proxy-admin-rbac.yaml"
 
 # deploy bootstrap token configuration for registering member clusters with PULL mode
-karmada_ca=$(base64 "${ROOT_CA_FILE}" | tr -d '\r\n')
+karmada_ca=$(base64 --input="${ROOT_CA_FILE}" | tr -d '\r\n')
 karmada_apiserver_address=https://"${KARMADA_APISERVER_IP}:${KARMADA_APISERVER_SECURE_PORT}"
 TEMP_PATH_BOOTSTRAP=$(mktemp -d)
 trap '{ rm -rf ${TEMP_PATH_BOOTSTRAP}; }' EXIT

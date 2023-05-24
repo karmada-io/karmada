@@ -10,18 +10,10 @@ spec:
   placement:
     clusterAffinity:
       clusterNames:
-        - member1
-        - member2
+        - eu-west-1
+        - eu-central-1
     replicaScheduling:
       replicaDivisionPreference: Weighted
-      replicaSchedulingType: Divided
+      replicaSchedulingType: Duplicated
       weightPreference:
-        staticWeightList:
-          - targetCluster:
-              clusterNames:
-                - member1
-            weight: 1
-          - targetCluster:
-              clusterNames:
-                - member2
-            weight: 1
+        dynamicWeight: AvailableReplicas

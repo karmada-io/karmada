@@ -10,32 +10,9 @@ spec:
   overrideRules:
     - targetCluster:
         clusterNames:
-          - member2
+          - eu-central-1
       overriders:
-        labelsOverrider:
-          - operator: add
-            value:
-              env: skoala-dev
-          - operator: add
-            value:
-              env-stat: skoala-stage
-          - operator: remove
-            value:
-              for: for
+        plaintext:
           - operator: replace
-            value:
-              bar: test
-    - targetCluster:
-        clusterNames:
-          - member1
-      overriders:
-        annotationsOverrider:
-          - operator: add
-            value:
-              env: skoala-stage
-          - operator: remove
-            value:
-              bom: bom
-          - operator: replace
-            value:
-              emma: sophia
+            path: /spec/template/spec/containers/0/env/1/value
+            value: "override"

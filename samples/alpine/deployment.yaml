@@ -18,4 +18,11 @@ spec:
       - image: alpine:3.17
         name: main
         command: [ "/bin/sh" ]
-        args: [ "-c", "while true; do echo \"${HOSTNAME} : $(date)\"; sleep 2s; done" ]
+        args: [ "-c", "while true; do echo \"${NODE_NAME} : $(date) : ${ECHO_FIELD}\"; sleep 2s; done" ]
+        env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: ECHO_FIELD
+            value: "original"

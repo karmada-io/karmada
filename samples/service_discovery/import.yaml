@@ -2,6 +2,7 @@ apiVersion: multicluster.x-k8s.io/v1alpha1
 kind: ServiceImport
 metadata:
   name: serve
+  namespace: discovery
 spec:
   type: ClusterSetIP
   ports:
@@ -12,6 +13,7 @@ apiVersion: policy.karmada.io/v1alpha1
 kind: PropagationPolicy
 metadata:
   name: serve-import-policy
+  namespace: discovery
 spec:
   resourceSelectors:
     - apiVersion: multicluster.x-k8s.io/v1alpha1
@@ -20,4 +22,4 @@ spec:
   placement:
     clusterAffinity:
       clusterNames:
-        - member2
+        - eu-central-1
