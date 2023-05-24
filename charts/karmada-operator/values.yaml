@@ -1,0 +1,66 @@
+## Default values for charts.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
+
+## @param global karmada global config
+global:
+  ## @param global.imageRegistry Global Docker image registry
+  imageRegistry: ""
+  ## E.g.
+  ## imagePullSecrets:
+  ##   - myRegistryKeySecretName
+  imagePullSecrets: []
+
+## operator manager config
+operator:
+  ## @param operator.labels
+  labels: {}
+  ## @param operator.replicaCount target replicas
+  replicaCount: 1
+  ## @param operator.podAnnotations
+  podAnnotations: {}
+  ## @param operator.podLabels
+  podLabels: {}
+  ## @param image.registry operator image registry
+  ## @param image.repository operator image repository
+  ## @param image.tag operator image tag (immutable tags are recommended)
+  ## @param image.pullPolicy operator image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-operator
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param.resources
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param.nodeSelector
+  nodeSelector: {}
+  ## @param.affinity
+  affinity: {}
+  ## @param.tolerations
+  tolerations: []
+  ## @param scheduler.strategy strategy of the scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
