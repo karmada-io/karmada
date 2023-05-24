@@ -3,9 +3,11 @@ package karmada
 import (
 	"context"
 	"reflect"
+	"strconv"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -23,6 +25,9 @@ const (
 
 	// ControllerFinalizerName is the name of the karmada controller finalizer
 	ControllerFinalizerName = "operator.karmada.io/finalizer"
+
+	// DisableCascadingDeletionLabel is the label that determine whether to perform cascade deletion
+	DisableCascadingDeletionLabel = "operator.karmada.io/disable-cascading-deletion"
 )
 
 // Controller controls the Karmada resource.
@@ -52,28 +57,33 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 		return controllerruntime.Result{}, err
 	}
 
-	// examine DeletionTimestamp to determine if object is under deletion
-	if karmada.DeletionTimestamp.IsZero() {
-		if err := ctrl.ensureKarmada(ctx, karmada); err != nil {
-			return controllerruntime.Result{}, err
-		}
-	}
-
-	klog.V(2).InfoS("Reconciling karmada", "name", req.Name)
-	planner, err := NewPlannerFor(karmada, ctrl.Client, ctrl.Config)
-	if err != nil {
-		return controllerruntime.Result{}, err
-	}
-	if err := planner.Execute(); err != nil {
-		return controllerruntime.Result{}, err
-	}
-
 	// The object is being deleted
 	if !karmada.DeletionTimestamp.IsZero() {
+		value, isExist := karmada.Labels[DisableCascadingDeletionLabel]
+		if !isExist || value == strconv.FormatBool(false) {
+			if err := ctrl.syncKarmada(karmada); err != nil {
+				return controllerruntime.Result{}, err
+			}
+		}
+
 		return ctrl.removeFinalizer(ctx, karmada)
 	}
 
-	return controllerruntime.Result{}, nil
+	if err := ctrl.ensureKarmada(ctx, karmada); err != nil {
+		return controllerruntime.Result{}, err
+	}
+
+	return controllerruntime.Result{}, ctrl.syncKarmada(karmada)
+}
+
+func (ctrl *Controller) syncKarmada(karmada *operatorv1alpha1.Karmada) error {
+	klog.V(2).InfoS("Reconciling karmada", "name", karmada.Name)
+	planner, err := NewPlannerFor(karmada, ctrl.Client, ctrl.Config)
+	if err != nil {
+		return err
+	}
+
+	return planner.Execute()
 }
 
 func (ctrl *Controller) removeFinalizer(ctx context.Context, karmada *operatorv1alpha1.Karmada) (controllerruntime.Result, error) {
@@ -89,6 +99,11 @@ func (ctrl *Controller) ensureKarmada(ctx context.Context, karmada *operatorv1al
 	// then lets add the finalizer and update the object. This is equivalent
 	// registering our finalizer.
 	updated := controllerutil.AddFinalizer(karmada, ControllerFinalizerName)
+	if _, isExist := karmada.Labels[DisableCascadingDeletionLabel]; !isExist {
+		karmada.SetLabels(labels.Set{DisableCascadingDeletionLabel: "false"})
+		updated = true
+	}
+
 	older := karmada.DeepCopy()
 
 	// Set the defaults for karmada
