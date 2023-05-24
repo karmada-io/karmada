@@ -411,6 +411,36 @@ func TestAggregatePodStatus(t *testing.T) {
 			},
 		},
 	}
+	newInitContainerStatuses1 := []corev1.ContainerStatus{
+		{
+			Ready: false,
+			State: corev1.ContainerState{
+				Waiting: &corev1.ContainerStateWaiting{Reason: "PodInitializing"},
+			},
+		},
+		{
+			Ready: false,
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
+					StartedAt: metav1.Time{
+						Time: timeNow,
+					},
+				},
+			},
+		},
+	}
+	newInitContainerObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+		InitContainerStatuses: newInitContainerStatuses1,
+		Phase:                 corev1.PodPending,
+	}})
+	initContainerStatusMap1 := map[string]interface{}{
+		"initContainerStatuses": []corev1.ContainerStatus{newInitContainerStatuses1[0], newInitContainerStatuses1[1]},
+		"phase":                 corev1.PodPending,
+	}
+	initContainerRaw1, _ := helper.BuildStatusRawExtension(initContainerStatusMap1)
+	aggregatedInitContainerStatusItems1 := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: initContainerRaw1, Applied: true},
+	}
 
 	curObj, _ := helper.ToUnstructured(&corev1.Pod{})
 	newObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
@@ -584,6 +614,12 @@ func TestAggregatePodStatus(t *testing.T) {
 		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
 		expectedObj           *unstructured.Unstructured
 	}{
+		{
+			name:                  "update initContainer status",
+			curObj:                curObj,
+			aggregatedStatusItems: aggregatedInitContainerStatusItems1,
+			expectedObj:           newInitContainerObj,
+		},
 		{
 			name:                  "update pod status",
 			curObj:                curObj,
