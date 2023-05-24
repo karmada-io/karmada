@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+  labels:
+    app: echo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: echo
+  template:
+    metadata:
+      labels:
+        app: echo
+    spec:
+      containers:
+      - image: alpine:3.17
+        name: main
+        command: [ "/bin/sh" ]
+        args: [ "-c", "while true; do echo \"${NODE_NAME} : $(date) : ${ECHO_FIELD}\"; sleep 2s; done" ]
+        env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: ECHO_FIELD
+            value: "original"
