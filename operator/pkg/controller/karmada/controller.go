@@ -59,8 +59,8 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 
 	// The object is being deleted
 	if !karmada.DeletionTimestamp.IsZero() {
-		value, isExist := karmada.Labels[DisableCascadingDeletionLabel]
-		if !isExist || value == strconv.FormatBool(false) {
+		val, ok := karmada.Labels[DisableCascadingDeletionLabel]
+		if !ok || val == strconv.FormatBool(false) {
 			if err := ctrl.syncKarmada(karmada); err != nil {
 				return controllerruntime.Result{}, err
 			}
