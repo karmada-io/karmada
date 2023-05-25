@@ -19,6 +19,7 @@ INTERPRETER_WEBHOOK_EXAMPLE_LABEL="karmada-interpreter-webhook-example"
 KARMADA_SEARCH_LABEL="karmada-search"
 KARMADA_OPENSEARCH_LABEL="karmada-opensearch"
 KARMADA_OPENSEARCH_DASHBOARDS_LABEL="karmada-opensearch-dashboards"
+KARMADA_METRICS_ADAPTER_LABEL="karmada-metrics-adapter"
 
 KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
@@ -37,6 +38,7 @@ KARMADA_TARGET_SOURCE=(
   karmada-interpreter-webhook-example=examples/customresourceinterpreter/webhook
   karmada-search=cmd/karmada-search
   karmada-operator=operator/cmd/operator
+  karmada-metrics-adapter=cmd/metrics-adapter
 )
 
 #https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KARMADA

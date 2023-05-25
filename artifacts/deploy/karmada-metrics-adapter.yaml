@@ -1,0 +1,86 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-metrics-adapter
+  namespace: karmada-system
+  labels:
+    app: karmada-metrics-adapter
+    apiserver: "true"
+spec:
+  selector:
+    matchLabels:
+      app: karmada-metrics-adapter
+      apiserver: "true"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: karmada-metrics-adapter
+        apiserver: "true"
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: karmada-metrics-adapter
+          image: docker.io/karmada/karmada-metrics-adapter:latest
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: karmada-certs
+              mountPath: /etc/karmada/pki
+              readOnly: true
+            - name: kubeconfig
+              subPath: kubeconfig
+              mountPath: /etc/kubeconfig
+          command:
+            - /bin/karmada-metrics-adapter
+            - --kubeconfig=/etc/kubeconfig
+            - --authentication-kubeconfig=/etc/kubeconfig
+            - --authorization-kubeconfig=/etc/kubeconfig
+            - --client-ca-file=/etc/karmada/pki/ca.crt
+            - --audit-log-path=-
+            - --audit-log-maxage=0
+            - --audit-log-maxbackup=0
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 1
+            failureThreshold: 3
+            periodSeconds: 3
+            timeoutSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            failureThreshold: 3
+            periodSeconds: 10
+            timeoutSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+      volumes:
+        - name: karmada-certs
+          secret:
+            secretName: karmada-cert-secret
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-metrics-adapter
+  namespace: karmada-system
+  labels:
+    app: karmada-metrics-adapter
+    apiserver: "true"
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 443
+  selector:
+    app: karmada-metrics-adapter

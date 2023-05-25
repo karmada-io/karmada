@@ -1,0 +1,25 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.metrics.k8s.io
+  labels:
+    app: karmada-metrics-adapter
+    apiserver: "true"
+spec:
+  insecureSkipTLSVerify: true
+  group: metrics.k8s.io
+  groupPriorityMinimum: 2000
+  service:
+    name: karmada-metrics-adapter
+    namespace: karmada-system
+  version: v1beta1
+  versionPriority: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-metrics-adapter
+  namespace: karmada-system
+spec:
+  type: ExternalName
+  externalName: karmada-metrics-adapter.karmada-system.svc.cluster.local
