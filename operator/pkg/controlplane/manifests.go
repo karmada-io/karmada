@@ -16,11 +16,6 @@ spec:
   selector:
     matchLabels:
       karmada-app: kube-controller-manager
-  strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-    type: RollingUpdate
   template:
     metadata:
       labels:

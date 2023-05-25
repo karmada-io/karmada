@@ -37,7 +37,7 @@ type InitOptions struct {
 }
 
 // InitOpt defines a type of function to set InitOptions values.
-type InitOpt func(opt *InitOptions)
+type InitOpt func(o *InitOptions)
 
 var _ tasks.InitData = &initData{}
 
@@ -234,16 +234,16 @@ func defaultJobInitOptions() *InitOptions {
 
 // NewInitOptWithKarmada returns a InitOpt function to initialize InitOptions with karmada resource
 func NewInitOptWithKarmada(karmada *operatorv1alpha1.Karmada) InitOpt {
-	return func(opt *InitOptions) {
-		opt.Karmada = karmada
-		opt.Name = karmada.GetName()
-		opt.Namespace = karmada.GetNamespace()
+	return func(o *InitOptions) {
+		o.Karmada = karmada
+		o.Name = karmada.GetName()
+		o.Namespace = karmada.GetNamespace()
 	}
 }
 
 // NewInitOptWithKubeconfig returns a InitOpt function to set kubeconfig to InitOptions with rest config
 func NewInitOptWithKubeconfig(config *rest.Config) InitOpt {
-	return func(options *InitOptions) {
-		options.Kubeconfig = config
+	return func(o *InitOptions) {
+		o.Kubeconfig = config
 	}
 }
