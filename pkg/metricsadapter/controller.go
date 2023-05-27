@@ -77,7 +77,7 @@ func (m *MetricsController) updateCluster(oldObj, curObj interface{}) {
 		m.queue.Add(curCluster.GetName())
 	}
 
-	if util.IsClusterSpecPartCriticalUpdated(curCluster.Spec, oldCluster.Spec) ||
+	if util.ClusterAccessCredentialChanged(curCluster.Spec, oldCluster.Spec) ||
 		util.IsClusterReady(&curCluster.Status) != util.IsClusterReady(&oldCluster.Status) {
 		// Cluster.Spec or Cluster health state is changed, rebuild informer.
 		m.InformerManager.Stop(curCluster.GetName())

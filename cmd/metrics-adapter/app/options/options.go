@@ -79,7 +79,7 @@ func (o *Options) Config() (*metricsadapter.MetricsServer, error) {
 	}
 
 	if err := api.Install(metricsAdapter, metricsAdapter.PodLister, metricsAdapter.NodeLister, server.GenericAPIServer, nil); err != nil {
-		klog.Errorf("unable to install resource metrics adapter: %v", err)
+		klog.Errorf("Unable to install resource metrics adapter: %v", err)
 		return nil, err
 	}
 

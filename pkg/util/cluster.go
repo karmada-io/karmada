@@ -192,8 +192,8 @@ func IsClusterIdentifyUnique(controlPlaneClient karmadaclientset.Interface, id s
 	return true, "", nil
 }
 
-// IsClusterSpecPartCriticalUpdated checks whether the critical part of ClusterSpec has been updated
-func IsClusterSpecPartCriticalUpdated(newSpec, oldSpec clusterv1alpha1.ClusterSpec) bool {
+// ClusterAccessCredentialChanged checks whether the cluster a ccess credential changed
+func ClusterAccessCredentialChanged(newSpec, oldSpec clusterv1alpha1.ClusterSpec) bool {
 	if oldSpec.APIEndpoint == newSpec.APIEndpoint &&
 		oldSpec.InsecureSkipTLSVerification == newSpec.InsecureSkipTLSVerification &&
 		oldSpec.ProxyURL == newSpec.ProxyURL &&
