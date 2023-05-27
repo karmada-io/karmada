@@ -56,6 +56,12 @@ NAME                               READY   STATUS    RESTARTS   AGE
 karmada-operator-5b7f485c5-g5lj5   1/1     Running   0          26s
 ```
 
+### Install Karmada operator crds
+
+```shell
+kubectl apply -f operator/config/crds/
+```
+
 ### Create a Karmada instance
 
 The Karmada operator provides a Karama CR that can define most configurations for Karmada components.
