@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -189,4 +190,15 @@ func IsClusterIdentifyUnique(controlPlaneClient karmadaclientset.Interface, id s
 		}
 	}
 	return true, "", nil
+}
+
+// ClusterAccessCredentialChanged checks whether the cluster a ccess credential changed
+func ClusterAccessCredentialChanged(newSpec, oldSpec clusterv1alpha1.ClusterSpec) bool {
+	if oldSpec.APIEndpoint == newSpec.APIEndpoint &&
+		oldSpec.InsecureSkipTLSVerification == newSpec.InsecureSkipTLSVerification &&
+		oldSpec.ProxyURL == newSpec.ProxyURL &&
+		equality.Semantic.DeepEqual(oldSpec.ProxyHeader, newSpec.ProxyHeader) {
+		return false
+	}
+	return true
 }

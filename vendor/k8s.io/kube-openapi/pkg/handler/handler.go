@@ -18,11 +18,8 @@ package handler
 
 import (
 	"bytes"
-	"compress/gzip"
 	"crypto/sha512"
-	"encoding/json"
 	"fmt"
-	"mime"
 	"net/http"
 	"strconv"
 	"sync"
@@ -42,12 +39,9 @@ import (
 )
 
 const (
-	jsonExt = ".json"
-
-	mimeJson = "application/json"
-	// TODO(mehdy): change @68f4ded to a version tag when gnostic add version tags.
-	mimePb   = "application/com.github.googleapis.gnostic.OpenAPIv2@68f4ded+protobuf"
-	mimePbGz = "application/x-gzip"
+	subTypeProtobufDeprecated = "com.github.proto-openapi.spec.v2@v1.0+protobuf"
+	subTypeProtobuf           = "com.github.proto-openapi.spec.v2.v1.0+protobuf"
+	subTypeJSON               = "json"
 )
 
 func computeETag(data []byte) string {
@@ -68,12 +62,6 @@ type OpenAPIService struct {
 	jsonCache  handler.HandlerCache
 	protoCache handler.HandlerCache
 	etagCache  handler.HandlerCache
-}
-
-func init() {
-	mime.AddExtensionType(".json", mimeJson)
-	mime.AddExtensionType(".pb-v1", mimePb)
-	mime.AddExtensionType(".gz", mimePbGz)
 }
 
 // NewOpenAPIService builds an OpenAPIService starting with the given spec.
@@ -117,7 +105,7 @@ func (o *OpenAPIService) UpdateSpec(openapiSpec *spec.Swagger) (err error) {
 	o.rwMutex.Lock()
 	defer o.rwMutex.Unlock()
 	o.jsonCache = o.jsonCache.New(func() ([]byte, error) {
-		return json.Marshal(openapiSpec)
+		return openapiSpec.MarshalJSON()
 	})
 	o.protoCache = o.protoCache.New(func() ([]byte, error) {
 		json, err := o.jsonCache.Get()
@@ -146,14 +134,6 @@ func ToProtoBinary(json []byte) ([]byte, error) {
 	return proto.Marshal(document)
 }
 
-func toGzip(data []byte) []byte {
-	var buf bytes.Buffer
-	zw := gzip.NewWriter(&buf)
-	zw.Write(data)
-	zw.Close()
-	return buf.Bytes()
-}
-
 // RegisterOpenAPIVersionedService registers a handler to provide access to provided swagger spec.
 //
 // Deprecated: use OpenAPIService.RegisterOpenAPIVersionedService instead.
@@ -168,12 +148,14 @@ func RegisterOpenAPIVersionedService(spec *spec.Swagger, servePath string, handl
 // RegisterOpenAPIVersionedService registers a handler to provide access to provided swagger spec.
 func (o *OpenAPIService) RegisterOpenAPIVersionedService(servePath string, handler common.PathHandler) error {
 	accepted := []struct {
-		Type           string
-		SubType        string
-		GetDataAndETag func() ([]byte, string, time.Time, error)
+		Type                string
+		SubType             string
+		ReturnedContentType string
+		GetDataAndETag      func() ([]byte, string, time.Time, error)
 	}{
-		{"application", "json", o.getSwaggerBytes},
-		{"application", "com.github.proto-openapi.spec.v2@v1.0+protobuf", o.getSwaggerPbBytes},
+		{"application", subTypeJSON, "application/" + subTypeJSON, o.getSwaggerBytes},
+		{"application", subTypeProtobufDeprecated, "application/" + subTypeProtobuf, o.getSwaggerPbBytes},
+		{"application", subTypeProtobuf, "application/" + subTypeProtobuf, o.getSwaggerPbBytes},
 	}
 
 	handler.Handle(servePath, gziphandler.GzipHandler(http.HandlerFunc(
@@ -192,7 +174,6 @@ func (o *OpenAPIService) RegisterOpenAPIVersionedService(servePath string, handl
 					if clause.SubType != accepts.SubType && clause.SubType != "*" {
 						continue
 					}
-
 					// serve the first matching media type in the sorted clause list
 					data, etag, lastModified, err := accepts.GetDataAndETag()
 					if err != nil {
@@ -203,6 +184,9 @@ func (o *OpenAPIService) RegisterOpenAPIVersionedService(servePath string, handl
 							return
 						}
 					}
+					// Set Content-Type header in the reponse
+					w.Header().Set("Content-Type", accepts.ReturnedContentType)
+
 					// ETag must be enclosed in double quotes: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
 					w.Header().Set("Etag", strconv.Quote(etag))
 					// ServeContent will take care of caching using eTag.
