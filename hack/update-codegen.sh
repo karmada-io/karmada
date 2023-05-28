@@ -83,8 +83,8 @@ deepcopy-gen \
   --output-file-base=zz_generated.deepcopy
 deepcopy-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/karmada-io/karmada/pkg/apis/autoscaling \
-  --output-package=github.com/karmada-io/karmada/pkg/apis/autoscaling \
+  --input-dirs=github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1 \
+  --output-package=github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1 \
   --output-file-base=zz_generated.deepcopy
 deepcopy-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \

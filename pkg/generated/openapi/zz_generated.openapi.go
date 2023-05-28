@@ -17,6 +17,9 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPA":                           schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPAList":                       schema_pkg_apis_autoscaling_v1alpha1_FederatedHPAList(ref),
+		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec":                       schema_pkg_apis_autoscaling_v1alpha1_FederatedHPASpec(ref),
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIEnablement":                              schema_pkg_apis_cluster_v1alpha1_APIEnablement(ref),
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIResource":                                schema_pkg_apis_cluster_v1alpha1_APIResource(ref),
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.AllocatableModeling":                        schema_pkg_apis_cluster_v1alpha1_AllocatableModeling(ref),
@@ -461,6 +464,163 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                                   schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
 		"k8s.io/apimachinery/pkg/runtime.Unknown":                                                    schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
 		"k8s.io/apimachinery/pkg/version.Info":                                                       schema_k8sio_apimachinery_pkg_version_Info(ref),
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FederatedHPA is centralized HPA that can aggregate the metrics in multiple clusters. When the system load increases, it will query the metrics from multiple clusters and scales up the replicas. When the system load decreases, it will query the metrics from multiple clusters and scales down the replicas. After the replicas are scaled up/down, karmada-scheduler will schedule the replicas based on the policy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec is the specification of the HPAAggregator.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status is the current status of the HPAAggregator.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/api/autoscaling/v2.HorizontalPodAutoscalerStatus"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec", "k8s.io/api/autoscaling/v2.HorizontalPodAutoscalerStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPAList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FederatedHPAList contains a list of FederatedHPA.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPA"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPA", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPASpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FederatedHPASpec describes the desired functionality of the HPAAggregator.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"scaleTargetRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleTargetRef points to the target resource to scale, and is used to the pods for which metrics should be collected, as well as to actually change the replica count.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/api/autoscaling/v2.CrossVersionObjectReference"),
+						},
+					},
+					"minReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "minReplicas is the lower limit for the number of replicas to which the autoscaler can scale down.  It defaults to 1 pod.  minReplicas is allowed to be 0 if the alpha feature gate HPAScaleToZero is enabled and at least one Object or External metric is configured.  Scaling is active as long as at least one metric value is available.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up. It cannot be less that minReplicas.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"metrics": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Metrics contains the specifications for which to use to calculate the desired replica count (the maximum replica count across all metrics will be used). The desired replica count is calculated multiplying the ratio between the target value and the current value by the current number of pods. Ergo, metrics used must decrease as the pod count is increased, and vice-versa. See the individual metric source types for more information about how each type of metric must respond. If not set, the default metric will be set to 80% average CPU utilization.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/autoscaling/v2.MetricSpec"),
+									},
+								},
+							},
+						},
+					},
+					"behavior": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Behavior configures the scaling behavior of the target in both Up and Down directions (scaleUp and scaleDown fields respectively). If not set, the default HPAScalingRules for scale up and scale down are used.",
+							Ref:         ref("k8s.io/api/autoscaling/v2.HorizontalPodAutoscalerBehavior"),
+						},
+					},
+				},
+				Required: []string{"scaleTargetRef", "maxReplicas"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/autoscaling/v2.CrossVersionObjectReference", "k8s.io/api/autoscaling/v2.HorizontalPodAutoscalerBehavior", "k8s.io/api/autoscaling/v2.MetricSpec"},
 	}
 }
 

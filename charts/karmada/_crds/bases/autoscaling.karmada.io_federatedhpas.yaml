@@ -22,7 +22,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: FederatedHPASpec is centralized HPA that can aggregate the metrics
+        description: FederatedHPA is centralized HPA that can aggregate the metrics
           in multiple clusters. When the system load increases, it will query the
           metrics from multiple clusters and scales up the replicas. When the system
           load decreases, it will query the metrics from multiple clusters and scales

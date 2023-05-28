@@ -9,7 +9,7 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:shortName=fhpa,categories={karmada-io}
 
-// FederatedHPASpec is centralized HPA that can aggregate the metrics in multiple clusters.
+// FederatedHPA is centralized HPA that can aggregate the metrics in multiple clusters.
 // When the system load increases, it will query the metrics from multiple clusters and scales up the replicas.
 // When the system load decreases, it will query the metrics from multiple clusters and scales down the replicas.
 // After the replicas are scaled up/down, karmada-scheduler will schedule the replicas based on the policy.
