@@ -19,6 +19,7 @@ jobs:
           - karmada-aggregated-apiserver
           - karmada-search
           - karmada-operator
+          - karmada-metrics-adapter
     runs-on: ubuntu-20.04
     steps:
       - name: checkout code
