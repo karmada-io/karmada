@@ -42,7 +42,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: Spec is the specification of the HPAAggregator.
+            description: Spec is the specification of the FederatedHPASpec.
             properties:
               behavior:
                 description: Behavior configures the scaling behavior of the target
@@ -668,7 +668,7 @@ spec:
             - scaleTargetRef
             type: object
           status:
-            description: Status is the current status of the HPAAggregator.
+            description: Status is the current status of the FederatedHPA.
             properties:
               conditions:
                 description: conditions is the set of conditions required for this

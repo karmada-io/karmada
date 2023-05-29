@@ -8,6 +8,7 @@ import (
 	time "time"
 
 	versioned "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	autoscaling "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/autoscaling"
 	cluster "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/cluster"
 	config "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/config"
 	internalinterfaces "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/internalinterfaces"
@@ -232,12 +233,17 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
+	Autoscaling() autoscaling.Interface
 	Cluster() cluster.Interface
 	Config() config.Interface
 	Networking() networking.Interface
 	Policy() policy.Interface
 	Search() search.Interface
 	Work() work.Interface
+}
+
+func (f *sharedInformerFactory) Autoscaling() autoscaling.Interface {
+	return autoscaling.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Cluster() cluster.Interface {
