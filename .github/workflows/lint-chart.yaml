@@ -11,7 +11,7 @@ on:
   push:
   pull_request:
     paths:
-      - "charts/karmada/**"
+      - "charts/**"
 
 jobs:
   chart-lint-test:
