@@ -85,7 +85,7 @@ func InitSummary(resourceModels []clusterapis.ResourceModel) (ResourceSummary, e
 	}
 	rs = make(ResourceSummary, len(rsList))
 	// generate a sorted array by first priority of ResourceName
-	modelSortings = make([][]resource.Quantity, len(rsList))
+	modelSortings = make([][]resource.Quantity, len(rsName))
 	for index := 0; index < len(rsList); index++ {
 		for i, name := range rsName {
 			modelSortings[i] = append(modelSortings[i], rsList[index][name])

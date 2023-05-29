@@ -96,6 +96,35 @@ func TestInitSummaryError(t *testing.T) {
 	}
 }
 
+func TestInitSummaryWithOneGrade(t *testing.T) {
+	rms := []clusterapis.ResourceModel{
+		{
+			Grade: 0,
+			Ranges: []clusterapis.ResourceModelRange{
+				{
+					Name: clusterapis.ResourceCPU,
+					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1, resource.DecimalSI),
+				},
+				{
+					Name: clusterapis.ResourceMemory,
+					Min:  *resource.NewMilliQuantity(0, resource.DecimalSI),
+					Max:  *resource.NewQuantity(1024, resource.DecimalSI),
+				},
+			},
+		},
+	}
+
+	rs, err := InitSummary(rms)
+	if actualValue := len(rs); actualValue != 1 {
+		t.Errorf("Got %v expected %v", actualValue, 1)
+	}
+
+	if err != nil {
+		t.Errorf("Got %v expected %v", err, nil)
+	}
+}
+
 func TestSearchLastLessElement(t *testing.T) {
 	nums, target := []resource.Quantity{
 		*resource.NewMilliQuantity(1999, resource.DecimalSI),
