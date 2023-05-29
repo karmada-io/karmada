@@ -16,6 +16,8 @@ data:
     {{- include "karmada.apiservice" . | nindent 4 }}
   {{- print "cluster-proxy-admin-rbac.yaml: " | nindent 2 }} |-
     {{- include "karmada.proxyRbac" . | nindent 4 }}
+  {{- print "bootstrap-token-configuration.yaml: " | nindent 2 }} |-
+    {{- include "karmada.bootstrapToken.configuration" . | nindent 4 }}
 ---
 apiVersion: v1
 kind: ConfigMap
