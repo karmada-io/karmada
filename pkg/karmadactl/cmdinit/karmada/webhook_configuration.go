@@ -77,6 +77,20 @@ webhooks:
     failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
+  - name: autoscaling.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["autoscaling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["federatedhpas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.%[1]s.svc:443/mutate-federatedhpa
+      caBundle: %[2]s
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 3`, systemNamespace, caBundle)
 }
 

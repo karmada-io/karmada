@@ -163,6 +163,7 @@ func TestNodeTransformFunc(t *testing.T) {
 }
 
 func TestPodTransformFunc(t *testing.T) {
+	timeNow := metav1.Now()
 	tests := []struct {
 		name string
 		obj  interface{}
@@ -181,12 +182,15 @@ func TestPodTransformFunc(t *testing.T) {
 							Manager: "whatever",
 						},
 					},
+					DeletionTimestamp: &timeNow,
 				},
 			},
 			want: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "foo",
-					Name:      "bar",
+					Namespace:         "foo",
+					Name:              "bar",
+					Labels:            map[string]string{"a": "b"},
+					DeletionTimestamp: &timeNow,
 				},
 			},
 		},
@@ -210,6 +214,12 @@ func TestPodTransformFunc(t *testing.T) {
 				},
 				Status: corev1.PodStatus{
 					Phase: corev1.PodRunning,
+					Conditions: []corev1.PodCondition{
+						{
+							Type: corev1.PodReady,
+						},
+					},
+					StartTime: &timeNow,
 				},
 			},
 			want: &corev1.Pod{
@@ -230,6 +240,12 @@ func TestPodTransformFunc(t *testing.T) {
 				},
 				Status: corev1.PodStatus{
 					Phase: corev1.PodRunning,
+					Conditions: []corev1.PodCondition{
+						{
+							Type: corev1.PodReady,
+						},
+					},
+					StartTime: &timeNow,
 				},
 			},
 		},

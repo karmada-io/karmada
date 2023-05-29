@@ -66,6 +66,20 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: autoscaling.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["autoscaling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["federatedhpas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ .Service }}.{{ .Namespace }}.svc:443/mutate-federatedhpa
+      caBundle: {{ .CaBundle }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
 `
 
 	// KarmadaWebhookValidatingWebhookConfiguration is KarmadaWebhook ValidatingWebhookConfiguration manifest

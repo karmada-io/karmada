@@ -17659,6 +17659,11 @@
           "version": "v2beta2"
         },
         {
+          "group": "autoscaling.karmada.io",
+          "kind": "DeleteOptions",
+          "version": "v1alpha1"
+        },
+        {
           "group": "batch",
           "kind": "DeleteOptions",
           "version": "v1"
@@ -18393,6 +18398,11 @@
           "group": "autoscaling",
           "kind": "WatchEvent",
           "version": "v2beta2"
+        },
+        {
+          "group": "autoscaling.karmada.io",
+          "kind": "WatchEvent",
+          "version": "v1alpha1"
         },
         {
           "group": "batch",
