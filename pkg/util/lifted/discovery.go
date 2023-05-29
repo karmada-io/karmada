@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector.go#L696-L732
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/controller/garbagecollector/garbagecollector.go#L741-L777
 
 package lifted
 
@@ -26,7 +26,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/controller/garbagecollector/garbagecollector.go#L696-L732
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/controller/garbagecollector/garbagecollector.go#L741-L777
 
 // GetDeletableResources returns all resources from discoveryClient that the
 // garbage collector should recognize and work with. More specifically, all
@@ -39,9 +39,9 @@ func GetDeletableResources(discoveryClient discovery.ServerResourcesInterface) m
 	preferredResources, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
 		if discovery.IsGroupDiscoveryFailedError(err) {
-			klog.Warningf("Failed to discover some groups: %v", err.(*discovery.ErrGroupDiscoveryFailed).Groups)
+			klog.Warningf("failed to discover some groups: %v", err.(*discovery.ErrGroupDiscoveryFailed).Groups)
 		} else {
-			klog.Warningf("Failed to discover preferred resources: %v", err)
+			klog.Warningf("failed to discover preferred resources: %v", err)
 		}
 	}
 	if preferredResources == nil {
@@ -55,7 +55,7 @@ func GetDeletableResources(discoveryClient discovery.ServerResourcesInterface) m
 	for _, rl := range deletableResources {
 		gv, err := schema.ParseGroupVersion(rl.GroupVersion)
 		if err != nil {
-			klog.Warningf("Ignore invalid discovered resource %q: %v", rl.GroupVersion, err)
+			klog.Warningf("ignoring invalid discovered resource %q: %v", rl.GroupVersion, err)
 			continue
 		}
 		for i := range rl.APIResources {

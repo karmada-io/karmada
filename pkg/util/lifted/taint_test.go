@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils_test.go#L372-L533
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils_test.go#L372-L533
 
 package lifted
 
@@ -26,6 +26,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 )
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils_test.go#L372-L533
 
 func TestParseTaints(t *testing.T) {
 	cases := []struct {

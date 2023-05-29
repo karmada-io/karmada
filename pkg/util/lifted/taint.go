@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L37-L126
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L37-L126
 
 package lifted
 
@@ -29,7 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L37-L73
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L37-L73
+// +lifted:changed
 
 // ParseTaints takes a spec which is an array and creates slices for new taints to be added, taints to be deleted.
 // It also validates the spec. For example, the form `<key>` may be used to remove a taint, but not to add one.
@@ -73,7 +74,7 @@ func ParseTaints(spec []string) ([]corev1.Taint, []corev1.Taint, error) {
 	return taints, taintsToRemove, nil
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L75-L118
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L75-L118
 
 // parseTaint parses a taint from a string, whose form must be either
 // '<key>=<value>:<effect>', '<key>:<effect>', or '<key>'.
@@ -120,7 +121,8 @@ func parseTaint(st string) (corev1.Taint, error) {
 	return taint, nil
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L120-L126
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L120-L126
+
 func validateTaintEffect(effect corev1.TaintEffect) error {
 	if effect != corev1.TaintEffectNoSchedule && effect != corev1.TaintEffectPreferNoSchedule && effect != corev1.TaintEffectNoExecute {
 		return fmt.Errorf("invalid taint effect: %v, unsupported taint effect", effect)

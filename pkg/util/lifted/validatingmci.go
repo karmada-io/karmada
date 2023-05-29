@@ -58,6 +58,35 @@ type IngressValidationOptions struct {
 	AllowInvalidWildcardHostRule bool
 }
 
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L299-L324
+
+func validateIngressTLS(spec *networkingv1.IngressSpec, fldPath *field.Path, opts IngressValidationOptions) field.ErrorList {
+	allErrs := field.ErrorList{}
+	// TODO: Perform a more thorough validation of spec.TLS.Hosts that takes
+	// the wildcard spec from RFC 6125 into account.
+	for tlsIndex, itls := range spec.TLS {
+		for i, host := range itls.Hosts {
+			if strings.Contains(host, "*") {
+				for _, msg := range validation.IsWildcardDNS1123Subdomain(host) {
+					allErrs = append(allErrs, field.Invalid(fldPath.Index(tlsIndex).Child("hosts").Index(i), host, msg))
+				}
+				continue
+			}
+			for _, msg := range validation.IsDNS1123Subdomain(host) {
+				allErrs = append(allErrs, field.Invalid(fldPath.Index(tlsIndex).Child("hosts").Index(i), host, msg))
+			}
+		}
+
+		if !opts.AllowInvalidSecretName {
+			for _, msg := range validateTLSSecretName(itls.SecretName) {
+				allErrs = append(allErrs, field.Invalid(fldPath.Index(tlsIndex).Child("secretName"), itls.SecretName, msg))
+			}
+		}
+	}
+
+	return allErrs
+}
+
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L326-L348
 
 // ValidateIngressSpec tests if required fields in the IngressSpec are set.
@@ -84,80 +113,27 @@ func ValidateIngressSpec(spec *networkingv1.IngressSpec, fldPath *field.Path, op
 	return allErrs
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L468C1-L509
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L357-L377
 
-func validateIngressBackend(backend *networkingv1.IngressBackend, fldPath *field.Path, opts IngressValidationOptions) field.ErrorList {
+// ValidateIngressLoadBalancerStatus validates required fields on an IngressLoadBalancerStatus
+func ValidateIngressLoadBalancerStatus(status *networkingv1.IngressLoadBalancerStatus, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-
-	hasResourceBackend := backend.Resource != nil
-	hasServiceBackend := backend.Service != nil
-
-	switch {
-	case hasResourceBackend && hasServiceBackend:
-		return append(allErrs, field.Invalid(fldPath, "", "cannot set both resource and service backends"))
-	case hasResourceBackend:
-		allErrs = append(allErrs, validateIngressTypedLocalObjectReference(backend.Resource, fldPath.Child("resource"))...)
-	case hasServiceBackend:
-		if len(backend.Service.Name) == 0 {
-			allErrs = append(allErrs, field.Required(fldPath.Child("service", "name"), ""))
-		} else {
-			for _, msg := range validateServiceName(backend.Service.Name, false) {
-				allErrs = append(allErrs, field.Invalid(fldPath.Child("service", "name"), backend.Service.Name, msg))
+	for i, ingress := range status.Ingress {
+		idxPath := fldPath.Child("ingress").Index(i)
+		if len(ingress.IP) > 0 {
+			if isIP := (netutils.ParseIPSloppy(ingress.IP) != nil); !isIP {
+				allErrs = append(allErrs, field.Invalid(idxPath.Child("ip"), ingress.IP, "must be a valid IP address"))
 			}
 		}
-
-		hasPortName := len(backend.Service.Port.Name) > 0
-		hasPortNumber := backend.Service.Port.Number != 0
-		if hasPortName && hasPortNumber {
-			allErrs = append(allErrs, field.Invalid(fldPath, "", "cannot set both port name & port number"))
-		} else if hasPortName {
-			for _, msg := range validation.IsValidPortName(backend.Service.Port.Name) {
-				allErrs = append(allErrs, field.Invalid(fldPath.Child("service", "port", "name"), backend.Service.Port.Name, msg))
+		if len(ingress.Hostname) > 0 {
+			for _, msg := range validation.IsDNS1123Subdomain(ingress.Hostname) {
+				allErrs = append(allErrs, field.Invalid(idxPath.Child("hostname"), ingress.Hostname, msg))
 			}
-		} else if hasPortNumber {
-			for _, msg := range validation.IsValidPortNum(int(backend.Service.Port.Number)) {
-				allErrs = append(allErrs, field.Invalid(fldPath.Child("service", "port", "number"), backend.Service.Port.Number, msg))
+			if isIP := (netutils.ParseIPSloppy(ingress.Hostname) != nil); isIP {
+				allErrs = append(allErrs, field.Invalid(idxPath.Child("hostname"), ingress.Hostname, "must be a DNS name, not an IP address"))
 			}
-		} else {
-			allErrs = append(allErrs, field.Required(fldPath, "port name or number is required"))
-		}
-	default:
-		allErrs = append(allErrs, field.Invalid(fldPath, "", "resource or service backend is required"))
-	}
-	return allErrs
-}
-
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L547C1-L578
-
-func validateIngressTypedLocalObjectReference(params *corev1.TypedLocalObjectReference, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-
-	if params == nil {
-		return allErrs
-	}
-
-	if params.APIGroup != nil {
-		for _, msg := range validation.IsDNS1123Subdomain(*params.APIGroup) {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("apiGroup"), *params.APIGroup, msg))
 		}
 	}
-
-	if params.Kind == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("kind"), "kind is required"))
-	} else {
-		for _, msg := range pathvalidation.IsValidPathSegmentName(params.Kind) {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("kind"), params.Kind, msg))
-		}
-	}
-
-	if params.Name == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("name"), "name is required"))
-	} else {
-		for _, msg := range pathvalidation.IsValidPathSegmentName(params.Name) {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("name"), params.Name, msg))
-		}
-	}
-
 	return allErrs
 }
 
@@ -171,7 +147,7 @@ func validateIngressRules(ingressRules []networkingv1.IngressRule, fldPath *fiel
 	for i, ih := range ingressRules {
 		wildcardHost := false
 		if len(ih.Host) > 0 {
-			if isIP := netutils.ParseIPSloppy(ih.Host) != nil; isIP {
+			if isIP := (netutils.ParseIPSloppy(ih.Host) != nil); isIP {
 				allErrs = append(allErrs, field.Invalid(fldPath.Index(i).Child("host"), ih.Host, "must be a DNS name, not an IP address"))
 			}
 			// TODO: Ports and ips are allowed in the host part of a url
@@ -195,7 +171,7 @@ func validateIngressRules(ingressRules []networkingv1.IngressRule, fldPath *fiel
 	return allErrs
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L411C1-L417
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L411-L417
 
 func validateIngressRuleValue(ingressRule *networkingv1.IngressRuleValue, fldPath *field.Path, opts IngressValidationOptions) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -206,6 +182,7 @@ func validateIngressRuleValue(ingressRule *networkingv1.IngressRuleValue, fldPat
 }
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L419-L428
+// +lifted:changed
 
 func validateHTTPIngressRuleValue(httpIngressRuleValue *networkingv1.HTTPIngressRuleValue, fldPath *field.Path, opts IngressValidationOptions) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -258,29 +235,77 @@ func validateHTTPIngressPath(path *networkingv1.HTTPIngressPath, fldPath *field.
 	return allErrs
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L299-L324
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L468-L509
 
-func validateIngressTLS(spec *networkingv1.IngressSpec, fldPath *field.Path, opts IngressValidationOptions) field.ErrorList {
+func validateIngressBackend(backend *networkingv1.IngressBackend, fldPath *field.Path, opts IngressValidationOptions) field.ErrorList {
 	allErrs := field.ErrorList{}
-	// TODO: Perform a more thorough validation of spec.TLS.Hosts that takes
-	// the wildcard spec from RFC 6125 into account.
-	for tlsIndex, itls := range spec.TLS {
-		for i, host := range itls.Hosts {
-			if strings.Contains(host, "*") {
-				for _, msg := range validation.IsWildcardDNS1123Subdomain(host) {
-					allErrs = append(allErrs, field.Invalid(fldPath.Index(tlsIndex).Child("hosts").Index(i), host, msg))
-				}
-				continue
-			}
-			for _, msg := range validation.IsDNS1123Subdomain(host) {
-				allErrs = append(allErrs, field.Invalid(fldPath.Index(tlsIndex).Child("hosts").Index(i), host, msg))
+
+	hasResourceBackend := backend.Resource != nil
+	hasServiceBackend := backend.Service != nil
+
+	switch {
+	case hasResourceBackend && hasServiceBackend:
+		return append(allErrs, field.Invalid(fldPath, "", "cannot set both resource and service backends"))
+	case hasResourceBackend:
+		allErrs = append(allErrs, validateIngressTypedLocalObjectReference(backend.Resource, fldPath.Child("resource"))...)
+	case hasServiceBackend:
+		if len(backend.Service.Name) == 0 {
+			allErrs = append(allErrs, field.Required(fldPath.Child("service", "name"), ""))
+		} else {
+			for _, msg := range validateServiceName(backend.Service.Name, false) {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("service", "name"), backend.Service.Name, msg))
 			}
 		}
 
-		if !opts.AllowInvalidSecretName {
-			for _, msg := range validateTLSSecretName(itls.SecretName) {
-				allErrs = append(allErrs, field.Invalid(fldPath.Index(tlsIndex).Child("secretName"), itls.SecretName, msg))
+		hasPortName := len(backend.Service.Port.Name) > 0
+		hasPortNumber := backend.Service.Port.Number != 0
+		if hasPortName && hasPortNumber {
+			allErrs = append(allErrs, field.Invalid(fldPath, "", "cannot set both port name & port number"))
+		} else if hasPortName {
+			for _, msg := range validation.IsValidPortName(backend.Service.Port.Name) {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("service", "port", "name"), backend.Service.Port.Name, msg))
 			}
+		} else if hasPortNumber {
+			for _, msg := range validation.IsValidPortNum(int(backend.Service.Port.Number)) {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("service", "port", "number"), backend.Service.Port.Number, msg))
+			}
+		} else {
+			allErrs = append(allErrs, field.Required(fldPath, "port name or number is required"))
+		}
+	default:
+		allErrs = append(allErrs, field.Invalid(fldPath, "", "resource or service backend is required"))
+	}
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L547-L578
+
+func validateIngressTypedLocalObjectReference(params *corev1.TypedLocalObjectReference, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if params == nil {
+		return allErrs
+	}
+
+	if params.APIGroup != nil {
+		for _, msg := range validation.IsDNS1123Subdomain(*params.APIGroup) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("apiGroup"), *params.APIGroup, msg))
+		}
+	}
+
+	if params.Kind == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kind"), "kind is required"))
+	} else {
+		for _, msg := range pathvalidation.IsValidPathSegmentName(params.Kind) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("kind"), params.Kind, msg))
+		}
+	}
+
+	if params.Name == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("name"), "name is required"))
+	} else {
+		for _, msg := range pathvalidation.IsValidPathSegmentName(params.Name) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("name"), params.Name, msg))
 		}
 	}
 
@@ -294,28 +319,4 @@ func validateTLSSecretName(name string) []string {
 		return nil
 	}
 	return validateSecretName(name, false)
-}
-
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L357-L377
-
-// ValidateIngressLoadBalancerStatus validates required fields on an IngressLoadBalancerStatus
-func ValidateIngressLoadBalancerStatus(status *networkingv1.IngressLoadBalancerStatus, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	for i, ingress := range status.Ingress {
-		idxPath := fldPath.Child("ingress").Index(i)
-		if len(ingress.IP) > 0 {
-			if isIP := netutils.ParseIPSloppy(ingress.IP) != nil; !isIP {
-				allErrs = append(allErrs, field.Invalid(idxPath.Child("ip"), ingress.IP, "must be a valid IP address"))
-			}
-		}
-		if len(ingress.Hostname) > 0 {
-			for _, msg := range validation.IsDNS1123Subdomain(ingress.Hostname) {
-				allErrs = append(allErrs, field.Invalid(idxPath.Child("hostname"), ingress.Hostname, msg))
-			}
-			if isIP := netutils.ParseIPSloppy(ingress.Hostname) != nil; isIP {
-				allErrs = append(allErrs, field.Invalid(idxPath.Child("hostname"), ingress.Hostname, "must be a DNS name, not an IP address"))
-			}
-		}
-	}
-	return allErrs
 }

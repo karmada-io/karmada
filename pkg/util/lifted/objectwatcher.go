@@ -18,7 +18,7 @@ limitations under the License.
 // object needs to be updated according to the desired object and the recorded version.
 // For reference:
 // https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/propagatedversion.go#L30-L59
-// https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/meta.go#L63-L80
+// https://github.com/kubernetes-retired/kubefed/blob/master/pkg/controller/util/meta.go#L82-L103
 
 package lifted
 
@@ -66,7 +66,7 @@ func ObjectNeedsUpdate(desiredObj, clusterObj *unstructured.Unstructured, record
 	return strings.HasPrefix(targetVersion, generationPrefix) && !objectMetaObjEquivalent(desiredObj, clusterObj)
 }
 
-// +lifted:source=https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/meta.go#L63-L80
+// +lifted:source=https://github.com/kubernetes-retired/kubefed/blob/master/pkg/controller/util/meta.go#L82-L103
 // +lifted:changed
 
 // objectMetaObjEquivalent checks if cluster-independent, user provided data in two given ObjectMeta are equal. If in
@@ -82,6 +82,11 @@ func objectMetaObjEquivalent(a, b metav1.Object) bool {
 	aLabels := a.GetLabels()
 	bLabels := b.GetLabels()
 	if !reflect.DeepEqual(aLabels, bLabels) && (len(aLabels) != 0 || len(bLabels) != 0) {
+		return false
+	}
+	aAnnotations := a.GetAnnotations()
+	bAnnotations := b.GetAnnotations()
+	if !reflect.DeepEqual(aAnnotations, bAnnotations) && (len(aAnnotations) != 0 || len(bAnnotations) != 0) {
 		return false
 	}
 	return true

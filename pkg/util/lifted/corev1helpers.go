@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-// https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go
+// https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/v1/helper/helpers.go
 
 package lifted
 
@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L31-L46
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/v1/helper/helpers.go#L31-L46
 // +lifted:changed
 
 // IsExtendedResourceName returns true if:
@@ -48,7 +48,7 @@ func IsExtendedResourceName(name corev1.ResourceName) bool {
 	return true
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L48-L51
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/v1/helper/helpers.go#L48-L51
 
 // IsPrefixedNativeResource returns true if the resource name is in the
 // *kubernetes.io/ namespace.
@@ -56,7 +56,7 @@ func IsPrefixedNativeResource(name corev1.ResourceName) bool {
 	return strings.Contains(string(name), corev1.ResourceDefaultNamespacePrefix)
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L54-L60
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/v1/helper/helpers.go#L54-L60
 
 // IsNativeResource returns true if the resource name is in the
 // *kubernetes.io/ namespace. Partially-qualified (unprefixed) names are
@@ -66,7 +66,7 @@ func IsNativeResource(name corev1.ResourceName) bool {
 		IsPrefixedNativeResource(name)
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L62-L66
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/v1/helper/helpers.go#L62-L66
 
 // IsHugePageResourceName returns true if the resource name has the huge page
 // resource prefix.
@@ -74,7 +74,7 @@ func IsHugePageResourceName(name corev1.ResourceName) bool {
 	return strings.HasPrefix(string(name), corev1.ResourceHugePagesPrefix)
 }
 
-// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/v1/helper/helpers.go#L132-L135
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/v1/helper/helpers.go#L132-L135
 
 // IsAttachableVolumeResourceName returns true when the resource name is prefixed in attachable volume
 func IsAttachableVolumeResourceName(name corev1.ResourceName) bool {
