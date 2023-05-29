@@ -510,14 +510,14 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref common.ReferenceCallb
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Spec is the specification of the HPAAggregator.",
+							Description: "Spec is the specification of the FederatedHPASpec.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status is the current status of the HPAAggregator.",
+							Description: "Status is the current status of the FederatedHPA.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/api/autoscaling/v2.HorizontalPodAutoscalerStatus"),
 						},
@@ -584,7 +584,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPASpec(ref common.ReferenceC
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "FederatedHPASpec describes the desired functionality of the HPAAggregator.",
+				Description: "FederatedHPASpec describes the desired functionality of the FederatedHPA.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"scaleTargetRef": {

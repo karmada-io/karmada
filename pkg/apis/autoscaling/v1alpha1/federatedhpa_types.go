@@ -17,16 +17,16 @@ type FederatedHPA struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec is the specification of the HPAAggregator.
+	// Spec is the specification of the FederatedHPASpec.
 	// +required
 	Spec FederatedHPASpec `json:"spec"`
 
-	// Status is the current status of the HPAAggregator.
+	// Status is the current status of the FederatedHPA.
 	// +optional
 	Status autoscalingv2.HorizontalPodAutoscalerStatus `json:"status"`
 }
 
-// FederatedHPASpec describes the desired functionality of the HPAAggregator.
+// FederatedHPASpec describes the desired functionality of the FederatedHPA.
 type FederatedHPASpec struct {
 	// ScaleTargetRef points to the target resource to scale, and is used to
 	// the pods for which metrics should be collected, as well as to actually
