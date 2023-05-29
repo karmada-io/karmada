@@ -195,3 +195,17 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: [ "v1" ]
     timeoutSeconds: 10
+  - name: federatedhpa.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["autoscaling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["federatedhpas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://karmada-webhook.karmada-system.svc:443/validate-federatedhpa
+      caBundle: {{caBundle}}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 10
