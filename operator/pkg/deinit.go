@@ -22,7 +22,7 @@ type DeInitOptions struct {
 }
 
 // DeInitOpt defines a type of function to set DeInitOptions values.
-type DeInitOpt func(opt *DeInitOptions)
+type DeInitOpt func(o *DeInitOptions)
 
 var _ tasks.DeInitData = &deInitData{}
 
@@ -103,19 +103,19 @@ func defaultJobDeInitOptions() *DeInitOptions {
 
 // NewDeInitOptWithKarmada returns a DeInitOpt function to initialize DeInitOptions with karmada resource
 func NewDeInitOptWithKarmada(karmada *operatorv1alpha1.Karmada) DeInitOpt {
-	return func(opt *DeInitOptions) {
-		opt.Name = karmada.GetName()
-		opt.Namespace = karmada.GetNamespace()
+	return func(o *DeInitOptions) {
+		o.Name = karmada.GetName()
+		o.Namespace = karmada.GetNamespace()
 
 		if karmada.Spec.HostCluster != nil {
-			opt.HostCluster = karmada.Spec.HostCluster
+			o.HostCluster = karmada.Spec.HostCluster
 		}
 	}
 }
 
 // NewDeInitOptWithKubeconfig returns a DeInitOpt function to set kubeconfig to DeInitOptions with rest config
 func NewDeInitOptWithKubeconfig(config *rest.Config) DeInitOpt {
-	return func(options *DeInitOptions) {
-		options.Kubeconfig = config
+	return func(o *DeInitOptions) {
+		o.Kubeconfig = config
 	}
 }

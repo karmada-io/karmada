@@ -73,9 +73,9 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string, disabledB
 	fs.Int32Var(&o.KubeAPIBurst, "kube-api-burst", o.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver.")
 	fs.StringSliceVar(&o.Controllers, "controllers", o.Controllers, fmt.Sprintf(""+
 		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller "+
-		"named 'foo', '-foo' disables the controller named 'foo'.\nAll controllers: %s\nDisabled-by-default controllers: %s",
+		"named 'foo', '-foo' disables the controller named 'foo'.\nAll controllers: %s .\nDisabled-by-default controllers: %s .",
 		strings.Join(allControllers, ", "), strings.Join(disabledByDefaultControllers, ", ")))
-	fs.IntVar(&o.ConcurrentKarmadaSyncs, "concurrent-karmada-syncs", o.ConcurrentKarmadaSyncs, "The number of karmada objects that are allowed to sync concurrently..")
+	fs.IntVar(&o.ConcurrentKarmadaSyncs, "concurrent-karmada-syncs", o.ConcurrentKarmadaSyncs, "The number of karmada objects that are allowed to sync concurrently.")
 	options.BindLeaderElectionFlags(&o.LeaderElection, fs)
 }
 
