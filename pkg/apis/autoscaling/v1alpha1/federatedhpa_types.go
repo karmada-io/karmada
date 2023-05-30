@@ -7,6 +7,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=fhpa,categories={karmada-io}
 
 // FederatedHPA is centralized HPA that can aggregate the metrics in multiple clusters.

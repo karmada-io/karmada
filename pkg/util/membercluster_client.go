@@ -11,9 +11,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/scale"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
@@ -30,6 +32,13 @@ type DynamicClusterClient struct {
 	ClusterName      string
 }
 
+// ClusterScaleClient stands for a cluster ClientSet with scale client for the given member cluster
+type ClusterScaleClient struct {
+	KubeClient  *kubeclientset.Clientset
+	ScaleClient scale.ScalesGetter
+	ClusterName string
+}
+
 // Config holds the common attributes that can be passed to a Kubernetes client on
 // initialization.
 
@@ -42,6 +51,35 @@ type ClientOption struct {
 	// Burst indicates the maximum burst for throttle.
 	// If it's zero, the created RESTClient will use DefaultBurst: 10.
 	Burst int
+}
+
+// NewClusterScaleClientSet returns a ClusterScaleClient for the given member cluster.
+func NewClusterScaleClientSet(clusterName string, client client.Client) (*ClusterScaleClient, error) {
+	clusterConfig, err := BuildClusterConfig(clusterName, clusterGetter(client), secretGetter(client))
+	if err != nil {
+		return nil, err
+	}
+
+	var clusterScaleClientSet = ClusterScaleClient{ClusterName: clusterName}
+
+	if clusterConfig != nil {
+		hpaClient := kubeclientset.NewForConfigOrDie(clusterConfig)
+		scaleKindResolver := scale.NewDiscoveryScaleKindResolver(hpaClient.Discovery())
+		mapper, err := apiutil.NewDiscoveryRESTMapper(clusterConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		scaleClient, err := scale.NewForConfig(clusterConfig, mapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+		if err != nil {
+			return nil, err
+		}
+
+		clusterScaleClientSet.KubeClient = hpaClient
+		clusterScaleClientSet.ScaleClient = scaleClient
+	}
+
+	return &clusterScaleClientSet, nil
 }
 
 // NewClusterClientSet returns a ClusterClient for the given member cluster.

@@ -17,6 +17,9 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
+	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
+	"k8s.io/metrics/pkg/client/custom_metrics"
+	"k8s.io/metrics/pkg/client/external_metrics"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
@@ -35,6 +38,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	controllerscontext "github.com/karmada-io/karmada/pkg/controllers/context"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
+	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa"
+	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
 	"github.com/karmada-io/karmada/pkg/controllers/hpa"
@@ -198,6 +203,7 @@ func init() {
 	controllers["federatedResourceQuotaStatus"] = startFederatedResourceQuotaStatusController
 	controllers["gracefulEviction"] = startGracefulEvictionController
 	controllers["applicationFailover"] = startApplicationFailoverController
+	controllers["federatedHorizontalPodAutoscaler"] = startFederatedHorizontalPodAutoscalerController
 }
 
 func startClusterController(ctx controllerscontext.Context) (enabled bool, err error) {
@@ -552,6 +558,38 @@ func startApplicationFailoverController(ctx controllerscontext.Context) (enabled
 	return true, nil
 }
 
+func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Context) (enabled bool, err error) {
+	apiVersionsGetter := custom_metrics.NewAvailableAPIsGetter(ctx.KubeClientSet.Discovery())
+	go custom_metrics.PeriodicallyInvalidate(
+		apiVersionsGetter,
+		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
+		ctx.StopChan)
+	metricsClient := metricsclient.NewRESTMetricsClient(
+		resourceclient.NewForConfigOrDie(ctx.Mgr.GetConfig()),
+		custom_metrics.NewForConfig(ctx.Mgr.GetConfig(), ctx.Mgr.GetRESTMapper(), apiVersionsGetter),
+		external_metrics.NewForConfigOrDie(ctx.Mgr.GetConfig()),
+	)
+	replicaCalculator := federatedhpa.NewReplicaCalculator(metricsClient,
+		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerTolerance,
+		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerCPUInitializationPeriod.Duration,
+		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerInitialReadinessDelay.Duration)
+	federatedHPAController := federatedhpa.FederatedHPAController{
+		Client:                            ctx.Mgr.GetClient(),
+		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(federatedhpa.ControllerName),
+		RESTMapper:                        ctx.Mgr.GetRESTMapper(),
+		DownscaleStabilisationWindow:      ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerDownscaleStabilizationWindow.Duration,
+		HorizontalPodAutoscalerSyncPeroid: ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
+		ReplicaCalc:                       replicaCalculator,
+		ClusterScaleClientSetFunc:         util.NewClusterScaleClientSet,
+		TypedInformerManager:              typedmanager.GetInstance(),
+		RateLimiterOptions:                ctx.Opts.RateLimiterOptions,
+	}
+	if err = federatedHPAController.SetupWithManager(ctx.Mgr); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // setupControllers initialize controllers and setup one by one.
 func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
 	restConfig := mgr.GetConfig()
@@ -640,9 +678,11 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			RateLimiterOptions:                opts.RateLimiterOpts,
 			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
 			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
+			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
 		},
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
+		KubeClientSet:               kubeClientSet,
 		OverrideManager:             overrideManager,
 		ControlPlaneInformerManager: controlPlaneInformerManager,
 		ResourceInterpreter:         resourceInterpreter,

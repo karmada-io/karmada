@@ -12,6 +12,7 @@ resources:
 - bases/config.karmada.io_resourceinterpretercustomizations.yaml
 - bases/config.karmada.io_resourceinterpreterwebhookconfigurations.yaml
 - bases/networking.karmada.io_multiclusteringresses.yaml
+- bases/autoscaling.karmada.io_federatedhpas.yaml
 
 patchesStrategicMerge:
 - patches/webhook_in_resourcebindings.yaml

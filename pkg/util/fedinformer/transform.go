@@ -60,8 +60,10 @@ func PodTransformFunc(obj interface{}) (interface{}, error) {
 
 	aggregatedPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      pod.Name,
-			Namespace: pod.Namespace,
+			Name:              pod.Name,
+			Namespace:         pod.Namespace,
+			Labels:            pod.Labels,
+			DeletionTimestamp: pod.DeletionTimestamp,
 		},
 		Spec: corev1.PodSpec{
 			NodeName:       pod.Spec.NodeName,
@@ -70,7 +72,9 @@ func PodTransformFunc(obj interface{}) (interface{}, error) {
 			Overhead:       pod.Spec.Overhead,
 		},
 		Status: corev1.PodStatus{
-			Phase: pod.Status.Phase,
+			Phase:      pod.Status.Phase,
+			Conditions: pod.Status.Conditions,
+			StartTime:  pod.Status.StartTime,
 		},
 	}
 	return aggregatedPod, nil
