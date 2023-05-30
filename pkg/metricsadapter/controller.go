@@ -1,9 +1,12 @@
 package metricsadapter
 
 import (
+	"context"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -17,6 +20,11 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+)
+
+var (
+	// NamespacesGVR is the gvr of namespaces
+	NamespacesGVR = corev1.SchemeGroupVersion.WithResource("namespaces")
 )
 
 // MetricsController is a controller for metrics, control the lifecycle of multi-clusters informer
@@ -142,6 +150,12 @@ func (m *MetricsController) handleClusters() bool {
 		clusterDynamicClient, err := util.NewClusterDynamicClientSet(clusterName, controlPlaneClient)
 		if err != nil {
 			return false
+		}
+		// Note: For pull mode clusters, users need to provide a method to connect the network between the Karmada control plane and the member cluster,
+		// so that `karmada-metrics-adapter` can access this member cluster.
+		if _, err = clusterDynamicClient.DynamicClientSet.Resource(NamespacesGVR).Get(context.Background(), "kube-system", metav1.GetOptions{}); err != nil {
+			klog.Warningf("unable to access cluster %s, Error: %+v", clusterName, err)
+			return true
 		}
 		_ = m.InformerManager.ForCluster(clusterName, clusterDynamicClient.DynamicClientSet, 0)
 	}
