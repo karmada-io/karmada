@@ -587,6 +587,7 @@ func (n *NodeLister) Get(name string) (*corev1.Node, error) {
 			return nil, errors.NewConflict(NodesGVR.GroupResource(), name, err)
 		}
 
+		nodeTyped = &corev1.Node{}
 		err = helper.ConvertToTypedObject(node, nodeTyped)
 		if err != nil {
 			klog.Errorf("Failed to convert to typed object: %v", err)

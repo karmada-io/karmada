@@ -24,7 +24,11 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.23/pkg/apis/core/helper/helpers.go#L57-L61
@@ -115,4 +119,107 @@ var integerResources = sets.NewString(
 // IsIntegerResourceName returns true if the resource is measured in integer values
 func IsIntegerResourceName(str string) bool {
 	return integerResources.Has(str) || IsExtendedResourceName(corev1.ResourceName(str))
+}
+
+// ValidateContainerResourceName checks the name of resource specified for a container
+func ValidateContainerResourceName(value string, fldPath *field.Path) field.ErrorList {
+	allErrs := validateResourceName(value, fldPath)
+	if len(strings.Split(value, "/")) == 1 {
+		if !IsStandardContainerResourceName(value) {
+			return append(allErrs, field.Invalid(fldPath, value, "must be a standard resource for containers"))
+		}
+	} else if !IsNativeResource(corev1.ResourceName(value)) {
+		if !IsExtendedResourceName(corev1.ResourceName(value)) {
+			return append(allErrs, field.Invalid(fldPath, value, "doesn't follow extended resource name standard"))
+		}
+	}
+	return allErrs
+}
+
+var standardContainerResources = sets.NewString(
+	string(corev1.ResourceCPU),
+	string(corev1.ResourceMemory),
+	string(corev1.ResourceEphemeralStorage),
+)
+
+// IsStandardContainerResourceName returns true if the container can make a resource request
+// for the specified resource
+func IsStandardContainerResourceName(str string) bool {
+	return standardContainerResources.Has(str) || IsHugePageResourceName(corev1.ResourceName(str))
+}
+
+func ValidateDNS1123Label(value string, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	for _, msg := range validation.IsDNS1123Label(value) {
+		allErrs = append(allErrs, field.Invalid(fldPath, value, msg))
+	}
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/core/validation/validation.go
+
+// ValidateNameFunc validates that the provided name is valid for a given resource type.
+// Not all resources have the same validation rules for names. Prefix is true
+// if the name will have a value appended to it.  If the name is not valid,
+// this returns a list of descriptions of individual characteristics of the
+// value that were not valid.  Otherwise this returns an empty list or nil.
+type ValidateNameFunc apimachineryvalidation.ValidateNameFunc
+
+// ValidateObjectMeta validates an object's metadata on creation. It expects that name generation has already
+// been performed.
+// It doesn't return an error for rootscoped resources with namespace, because namespace should already be cleared before.
+// TODO: Remove calls to this method scattered in validations of specific resources, e.g., ValidatePodUpdate.
+func ValidateObjectMeta(meta *metav1.ObjectMeta, requiresNamespace bool, nameFn ValidateNameFunc, fldPath *field.Path) field.ErrorList {
+	allErrs := apimachineryvalidation.ValidateObjectMeta(meta, requiresNamespace, apimachineryvalidation.ValidateNameFunc(nameFn), fldPath)
+	// run additional checks for the finalizer name
+	for i := range meta.Finalizers {
+		allErrs = append(allErrs, validateKubeFinalizerName(string(meta.Finalizers[i]), fldPath.Child("finalizers").Index(i))...)
+	}
+	return allErrs
+}
+
+// validateKubeFinalizerName checks for "standard" names of legacy finalizer
+func validateKubeFinalizerName(stringValue string, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if len(strings.Split(stringValue, "/")) == 1 {
+		if IsStandardFinalizerName(stringValue) {
+			return append(allErrs, field.Invalid(fldPath, stringValue, "name is neither a standard finalizer name nor is it fully qualified"))
+		}
+	}
+
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/core/helper/helpers.go
+
+var standardFinalizers = sets.NewString(
+	string(corev1.FinalizerKubernetes),
+	metav1.FinalizerOrphanDependents,
+	metav1.FinalizerDeleteDependents,
+)
+
+// IsStandardFinalizerName checks if the input string is a standard finalizer name
+func IsStandardFinalizerName(str string) bool {
+	return standardFinalizers.Has(str)
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/staging/src/k8s.io/apimachinery/pkg/api/validation/generic.go
+
+// NameIsDNSSubdomain is a ValidateNameFunc for names that must be a DNS subdomain.
+func NameIsDNSSubdomain(name string, prefix bool) []string {
+	if prefix {
+		name = maskTrailingDash(name)
+	}
+	return validation.IsDNS1123Subdomain(name)
+}
+
+// maskTrailingDash replaces the final character of a string with a subdomain safe
+// value if it is a dash and if the length of this string is greater than 1. Note that
+// this is used when a value could be appended to the string, see ValidateNameFunc
+// for more info.
+func maskTrailingDash(name string) string {
+	if len(name) > 1 && strings.HasSuffix(name, "-") {
+		return name[:len(name)-2] + "a"
+	}
+	return name
 }
