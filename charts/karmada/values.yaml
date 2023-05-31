@@ -148,7 +148,7 @@ scheduler:
   image:
     registry: docker.io
     repository: karmada/karmada-scheduler
-    tag: latest
+    tag: v1.6.0
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -205,7 +205,7 @@ webhook:
   image:
     registry: docker.io
     repository: karmada/karmada-webhook
-    tag: latest
+    tag: v1.6.0
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -262,7 +262,7 @@ controllerManager:
   image:
     registry: docker.io
     repository: karmada/karmada-controller-manager
-    tag: latest
+    tag: v1.6.0
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -409,7 +409,7 @@ aggregatedApiServer:
   image:
     registry: docker.io
     repository: karmada/karmada-aggregated-apiserver
-    tag: latest
+    tag: v1.6.0
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -636,7 +636,7 @@ agent:
   image:
     registry: docker.io
     repository: karmada/karmada-agent
-    tag: latest
+    tag: v1.6.0
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -714,7 +714,7 @@ schedulerEstimator:
   image:
     registry: docker.io
     repository: karmada/karmada-scheduler-estimator
-    tag: latest
+    tag: v1.6.0
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -771,7 +771,7 @@ descheduler:
   image:
     registry: docker.io
     repository: karmada/karmada-descheduler
-    tag: latest
+    tag: v1.6.0
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
@@ -830,7 +830,7 @@ search:
   image:
     registry: docker.io
     repository: karmada/karmada-search
-    tag: latest
+    tag: v1.6.0
     ## Specify a imagePullPolicy
     ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
