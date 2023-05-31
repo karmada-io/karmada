@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -14,28 +13,37 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 const (
@@ -47,13 +55,6 @@ const (
 	bindingDependenciesAnnotationKey = "resourcebinding.karmada.io/dependencies"
 )
 
-var supportedTypes = []schema.GroupVersionResource{
-	corev1.SchemeGroupVersion.WithResource("configmaps"),
-	corev1.SchemeGroupVersion.WithResource("secrets"),
-	corev1.SchemeGroupVersion.WithResource("serviceaccounts"),
-	corev1.SchemeGroupVersion.WithResource("persistentvolumeclaims"),
-}
-
 // DependenciesDistributor is to automatically propagate relevant resources.
 // Resource binding will be created when a resource(e.g. deployment) is matched by a propagation policy, we call it independent binding in DependenciesDistributor.
 // And when DependenciesDistributor works, it will create or update reference resource bindings of relevant resources(e.g. secret), which we call them attached bindings.
@@ -61,61 +62,17 @@ type DependenciesDistributor struct {
 	// Client is used to retrieve objects, it is often more convenient than lister.
 	Client client.Client
 	// DynamicClient used to fetch arbitrary resources.
-	DynamicClient dynamic.Interface
-
+	DynamicClient       dynamic.Interface
 	InformerManager     genericmanager.SingleClusterInformerManager
 	EventHandler        cache.ResourceEventHandler
 	EventRecorder       record.EventRecorder
 	Processor           util.AsyncWorker
 	RESTMapper          meta.RESTMapper
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
-
-	// bindingReconcileWorker maintains a rate limited queue which used to store ResourceBinding's key and
-	// a reconcile function to consume the items in queue.
-	bindingReconcileWorker util.AsyncWorker
-	resourceBindingLister  cache.GenericLister
+	RateLimiterOptions  ratelimiterflag.Options
+	GenericEvent        chan event.GenericEvent
 
 	stopCh <-chan struct{}
-}
-
-// Start runs the distributor, never stop until stopCh closed.
-func (d *DependenciesDistributor) Start(ctx context.Context) error {
-	klog.Infof("Starting dependencies distributor.")
-	d.stopCh = ctx.Done()
-
-	bindingWorkerOptions := util.Options{
-		Name:          "resourceBinding reconciler",
-		KeyFunc:       detector.ClusterWideKeyFunc,
-		ReconcileFunc: d.ReconcileResourceBinding,
-	}
-	// setup binding reconcile worker
-	d.bindingReconcileWorker = util.NewAsyncWorker(bindingWorkerOptions)
-	d.bindingReconcileWorker.Run(2, d.stopCh)
-
-	// watch and enqueue ResourceBinding changes.
-	resourceBindingGVR := schema.GroupVersionResource{
-		Group:    workv1alpha2.GroupVersion.Group,
-		Version:  workv1alpha2.GroupVersion.Version,
-		Resource: "resourcebindings",
-	}
-
-	bindingHandler := fedinformer.NewHandlerOnEvents(nil, d.OnResourceBindingUpdate, d.OnResourceBindingDelete)
-	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
-	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
-	resourceWorkerOptions := util.Options{
-		Name:          "resource detector",
-		KeyFunc:       detector.ClusterWideKeyFunc,
-		ReconcileFunc: d.Reconcile,
-	}
-	d.EventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
-	d.Processor = util.NewAsyncWorker(resourceWorkerOptions)
-	d.Processor.Run(2, d.stopCh)
-	go d.discoverResources(30 * time.Second)
-
-	<-d.stopCh
-
-	klog.Infof("Stopped as stopCh closed.")
-	return nil
 }
 
 // Check if our DependenciesDistributor implements necessary interfaces
@@ -126,19 +83,6 @@ var _ manager.LeaderElectionRunnable = &DependenciesDistributor{}
 // So that the distributor could run in the leader election mode.
 func (d *DependenciesDistributor) NeedLeaderElection() bool {
 	return true
-}
-
-func (d *DependenciesDistributor) discoverResources(period time.Duration) {
-	wait.Until(func() {
-		for _, gvr := range supportedTypes {
-			if d.InformerManager.IsHandlerExist(gvr, d.EventHandler) {
-				continue
-			}
-			klog.Infof("Setup informer for %s", gvr.String())
-			d.InformerManager.ForResource(gvr, d.EventHandler)
-		}
-		d.InformerManager.Start()
-	}, period, d.stopCh)
 }
 
 // OnAdd handles object add event and push the object to queue.
@@ -162,26 +106,24 @@ func (d *DependenciesDistributor) OnDelete(obj interface{}) {
 
 // Reconcile performs a full reconciliation for the object referred to by the key.
 // The key will be re-queued if an error is non-nil.
-func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
+func (d *DependenciesDistributor) reconcile(key util.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Error("Invalid key")
 		return fmt.Errorf("invalid key")
 	}
 	klog.V(4).Infof("DependenciesDistributor start to reconcile object: %s", clusterWideKey)
-
-	bindingObjectList, err := d.resourceBindingLister.ByNamespace(clusterWideKey.Namespace).List(labels.Everything())
-	if err != nil {
-		return err
-	}
-
-	bindingList, err := convertObjectsToResourceBindings(bindingObjectList)
+	bindingList := &workv1alpha2.ResourceBindingList{}
+	err := d.Client.List(context.TODO(), bindingList, &client.ListOptions{
+		Namespace:     clusterWideKey.Namespace,
+		LabelSelector: labels.Everything()})
 	if err != nil {
 		return err
 	}
 
 	var errs []error
-	for _, binding := range bindingList {
+	for i := range bindingList.Items {
+		binding := &bindingList.Items[i]
 		if !binding.DeletionTimestamp.IsZero() {
 			continue
 		}
@@ -197,14 +139,7 @@ func (d *DependenciesDistributor) Reconcile(key util.QueueKey) error {
 		}
 
 		klog.V(4).Infof("Resource binding(%s/%s) is matched for resource(%s/%s)", binding.Namespace, binding.Name, clusterWideKey.Namespace, clusterWideKey.Name)
-		bindingKey, err := detector.ClusterWideKeyFunc(binding)
-		if err != nil {
-			klog.Errorf("Failed to generate cluster wide key for binding %s/%s: %v", binding.Namespace, binding.Name, err)
-			errs = append(errs, err)
-			continue
-		}
-
-		d.bindingReconcileWorker.Add(bindingKey)
+		d.GenericEvent <- event.GenericEvent{Object: binding}
 	}
 
 	return utilerrors.NewAggregate(errs)
@@ -228,7 +163,7 @@ func dependentObjectReferenceMatches(objectKey keys.ClusterWideKey, referenceBin
 	}
 
 	for _, dependence := range dependenciesSlice {
-		if objectKey.Version == dependence.APIVersion &&
+		if objectKey.GroupVersion().String() == dependence.APIVersion &&
 			objectKey.Kind == dependence.Kind &&
 			objectKey.Namespace == dependence.Namespace &&
 			objectKey.Name == dependence.Name {
@@ -239,121 +174,54 @@ func dependentObjectReferenceMatches(objectKey keys.ClusterWideKey, referenceBin
 	return false, nil
 }
 
-// OnResourceBindingUpdate handles object update event and push the object to queue.
-func (d *DependenciesDistributor) OnResourceBindingUpdate(oldObj, newObj interface{}) {
-	oldBindingObject := &workv1alpha2.ResourceBinding{}
-	if err := helper.ConvertToTypedObject(oldObj, oldBindingObject); err != nil {
-		klog.Warningf("Convert to resource binding failed: %v", err)
-		return
-	}
-
-	newBindingObject := &workv1alpha2.ResourceBinding{}
-	if err := helper.ConvertToTypedObject(newObj, newBindingObject); err != nil {
-		klog.Warningf("Convert to resource binding failed: %v", err)
-		return
-	}
-
-	if oldBindingObject.Generation == newBindingObject.Generation {
-		klog.V(4).Infof("Dropping resource binding(%s/%s) as the Generation is not changed.", newBindingObject.Namespace, newBindingObject.Name)
-		return
-	}
-
-	// prevent newBindingObject from the queue if it's not scheduled yet.
-	if len(oldBindingObject.Spec.Clusters) == 0 && len(newBindingObject.Spec.Clusters) == 0 {
-		klog.V(4).Infof("Dropping resource binding(%s/%s) as it is not scheduled yet.", newBindingObject.Namespace, newBindingObject.Name)
-		return
-	}
-
-	// in case users set PropagateDeps field from "true" to "false"
-	// in case users set PropagateDeps field from "false" to "true"
-	if oldBindingObject.Spec.PropagateDeps || newBindingObject.Spec.PropagateDeps {
-		key, err := detector.ClusterWideKeyFunc(newObj)
-		if err != nil {
-			return
-		}
-
-		d.bindingReconcileWorker.Add(key)
-	}
-}
-
-// OnResourceBindingDelete handles object delete event and push the object to queue.
-func (d *DependenciesDistributor) OnResourceBindingDelete(obj interface{}) {
+// Reconcile performs a full reconciliation for the object referred to by the Request.
+// The Controller will requeue the Request to be processed again if an error is non-nil or
+// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
+func (d *DependenciesDistributor) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	klog.V(4).Infof("Start to reconcile ResourceBinding(%s)", request.NamespacedName)
 	bindingObject := &workv1alpha2.ResourceBinding{}
-	if err := helper.ConvertToTypedObject(obj, bindingObject); err != nil {
-		klog.Warningf("Convert to resource binding failed: %v", err)
-		return
-	}
-
-	if !bindingObject.Spec.PropagateDeps {
-		return
-	}
-
-	key, err := detector.ClusterWideKeyFunc(obj)
-	if err != nil {
-		return
-	}
-
-	d.bindingReconcileWorker.Add(key)
-}
-
-// ReconcileResourceBinding handles ResourceBinding object changes.
-func (d *DependenciesDistributor) ReconcileResourceBinding(key util.QueueKey) error {
-	ckey, ok := key.(keys.ClusterWideKey)
-	if !ok { // should not happen
-		klog.Error("Found invalid key when reconciling resource binding.")
-		return fmt.Errorf("invalid key")
-	}
-
-	klog.V(4).Infof("Start to reconcile ResourceBinding(%s)", ckey.NamespaceKey())
-	unstructuredObj, err := d.resourceBindingLister.Get(ckey.NamespaceKey())
+	err := d.Client.Get(ctx, types.NamespacedName{Namespace: request.Namespace, Name: request.Name}, bindingObject)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("ResourceBinding(%s) has been removed.", ckey.NamespaceKey())
-			return d.handleResourceBindingDeletion(ckey)
+			klog.V(4).Infof("ResourceBinding(%s) has been removed.", request.NamespacedName)
+			return reconcile.Result{}, d.handleResourceBindingDeletion(request.Namespace, request.Name)
 		}
-		klog.Errorf("Failed to get ResourceBinding(%s): %v", ckey.NamespaceKey(), err)
-		return err
-	}
-
-	bindingObject := &workv1alpha2.ResourceBinding{}
-	if err = helper.ConvertToTypedObject(unstructuredObj, bindingObject); err != nil {
-		klog.Errorf("Failed to convert ResourceBinding(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
-		return err
+		klog.Errorf("Failed to get ResourceBinding(%s): %v", request.NamespacedName, err)
+		return reconcile.Result{}, err
 	}
 
 	// in case users set PropagateDeps field from "true" to "false"
 	if !bindingObject.Spec.PropagateDeps || !bindingObject.DeletionTimestamp.IsZero() {
-		return d.handleResourceBindingDeletion(ckey)
+		return reconcile.Result{}, d.handleResourceBindingDeletion(request.Namespace, request.Name)
 	}
 
 	workload, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, bindingObject.Spec.Resource)
 	if err != nil {
 		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.", bindingObject.Namespace, bindingObject.Name, err)
-		return err
+		return reconcile.Result{}, err
 	}
 
 	if !d.ResourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) {
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	dependencies, err := d.ResourceInterpreter.GetDependencies(workload)
 	if err != nil {
 		klog.Errorf("Failed to customize dependencies for %s(%s), %v", workload.GroupVersionKind(), workload.GetName(), err)
 		d.EventRecorder.Eventf(workload, corev1.EventTypeWarning, events.EventReasonGetDependenciesFailed, err.Error())
-		return err
+		return reconcile.Result{}, err
 	}
 	d.EventRecorder.Eventf(workload, corev1.EventTypeNormal, events.EventReasonGetDependenciesSucceed, "Get dependencies(%+v) succeed.", dependencies)
-
-	return d.syncScheduleResultToAttachedBindings(bindingObject, dependencies)
+	return reconcile.Result{}, d.syncScheduleResultToAttachedBindings(bindingObject, dependencies)
 }
 
-func (d *DependenciesDistributor) handleResourceBindingDeletion(bindingKey keys.ClusterWideKey) error {
-	attachedBindings, err := d.listAttachedBindings(bindingKey.Namespace, bindingKey.Name)
+func (d *DependenciesDistributor) handleResourceBindingDeletion(namespace, name string) error {
+	attachedBindings, err := d.listAttachedBindings(namespace, name)
 	if err != nil {
 		return err
 	}
 
-	return d.removeScheduleResultFromAttachedBindings(bindingKey.Namespace, bindingKey.Name, attachedBindings)
+	return d.removeScheduleResultFromAttachedBindings(namespace, name, attachedBindings)
 }
 
 func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) (err error) {
@@ -386,6 +254,7 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 
 	// create or update attached bindings
 	var errs []error
+	var startInformerManager bool
 	for _, dependent := range dependencies {
 		resource := workv1alpha2.ObjectReference{
 			APIVersion: dependent.APIVersion,
@@ -393,7 +262,15 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 			Namespace:  dependent.Namespace,
 			Name:       dependent.Name,
 		}
-
+		gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, schema.FromAPIVersionAndKind(dependent.APIVersion, dependent.Kind))
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if !d.InformerManager.IsHandlerExist(gvr, d.EventHandler) {
+			d.InformerManager.ForResource(gvr, d.EventHandler)
+			startInformerManager = true
+		}
 		rawObject, err := helper.FetchResourceTemplate(d.DynamicClient, d.InformerManager, d.RESTMapper, resource)
 		if err != nil {
 			// do nothing if resource template not exist.
@@ -409,7 +286,10 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(binding *
 			errs = append(errs, err)
 		}
 	}
-
+	if startInformerManager {
+		d.InformerManager.Start()
+		d.InformerManager.WaitForCacheSync()
+	}
 	return utilerrors.NewAggregate(errs)
 }
 
@@ -471,47 +351,20 @@ func (d *DependenciesDistributor) findOrphanAttachedResourceBindings(independent
 	return orphanAttachedBindings, nil
 }
 
-func (d *DependenciesDistributor) listAttachedBindings(bindingNamespace, bindingName string) ([]*workv1alpha2.ResourceBinding, error) {
+func (d *DependenciesDistributor) listAttachedBindings(bindingNamespace, bindingName string) (res []*workv1alpha2.ResourceBinding, err error) {
 	label := generateBindingDependedByLabel(bindingNamespace, bindingName)
 	selector := labels.SelectorFromSet(label)
-
-	attachedBindingList, err := d.resourceBindingLister.List(selector)
+	bindingList := &workv1alpha2.ResourceBindingList{}
+	err = d.Client.List(context.TODO(), bindingList, &client.ListOptions{
+		Namespace:     bindingNamespace,
+		LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}
-
-	return convertObjectsToResourceBindings(attachedBindingList)
-}
-
-func generateBindingDependedByLabel(bindingNamespace, bindingName string) map[string]string {
-	labelKey := generateBindingDependedByLabelKey(bindingNamespace, bindingName)
-	labelValue := fmt.Sprintf(bindingNamespace + "_" + bindingName)
-	return map[string]string{labelKey: labelValue}
-}
-
-func generateBindingDependedByLabelKey(bindingNamespace, bindingName string) string {
-	bindHashKey := names.GenerateBindingReferenceKey(bindingNamespace, bindingName)
-	return fmt.Sprintf(bindingDependedByLabelKeyPrefix + bindHashKey)
-}
-
-func generateDependencyKey(kind, apiVersion, name, namespace string) string {
-	if len(namespace) == 0 {
-		return kind + "-" + apiVersion + "-" + name
+	for i := range bindingList.Items {
+		res = append(res, &bindingList.Items[i])
 	}
-
-	return kind + "-" + apiVersion + "-" + namespace + "-" + name
-}
-
-func convertObjectsToResourceBindings(bindingList []runtime.Object) ([]*workv1alpha2.ResourceBinding, error) {
-	bindings := make([]*workv1alpha2.ResourceBinding, 0, len(bindingList))
-	for _, obj := range bindingList {
-		binding := &workv1alpha2.ResourceBinding{}
-		if err := helper.ConvertToTypedObject(obj, binding); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to typed object: %v", err)
-		}
-		bindings = append(bindings, binding)
-	}
-	return bindings, nil
+	return res, nil
 }
 
 func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindingNamespace, bindingName string, attachedBindings []*workv1alpha2.ResourceBinding) error {
@@ -533,6 +386,116 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 	}
 
 	return utilerrors.NewAggregate(errs)
+}
+
+func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding *workv1alpha2.ResourceBinding) error {
+	if err := d.Client.Create(context.TODO(), attachedBinding); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			klog.Infof("Failed to create resource binding(%s/%s): %v", attachedBinding.Namespace, attachedBinding.Name, err)
+			return err
+		}
+
+		existBinding := &workv1alpha2.ResourceBinding{}
+		key := client.ObjectKeyFromObject(attachedBinding)
+		if err := d.Client.Get(context.TODO(), key, existBinding); err != nil {
+			klog.Infof("Failed to get resource binding(%s/%s): %v", attachedBinding.Namespace, attachedBinding.Name, err)
+			return err
+		}
+
+		updatedBindingSnapshot := mergeBindingSnapshot(existBinding.Spec.RequiredBy, attachedBinding.Spec.RequiredBy)
+		existBinding.Spec.RequiredBy = updatedBindingSnapshot
+		existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels, attachedBinding.Labels)
+		existBinding.Spec.Resource = attachedBinding.Spec.Resource
+
+		if err := d.Client.Update(context.TODO(), existBinding); err != nil {
+			klog.Errorf("Failed to update resource binding(%s/%s): %v", existBinding.Namespace, existBinding.Name, err)
+			return err
+		}
+	}
+	return nil
+}
+
+// Start runs the distributor, never stop until stopCh closed.
+func (d *DependenciesDistributor) Start(ctx context.Context) error {
+	klog.Infof("Starting dependencies distributor.")
+	d.stopCh = ctx.Done()
+	resourceWorkerOptions := util.Options{
+		Name:          "resource detector",
+		KeyFunc:       detector.ClusterWideKeyFunc,
+		ReconcileFunc: d.reconcile,
+	}
+	d.EventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
+	d.Processor = util.NewAsyncWorker(resourceWorkerOptions)
+	d.Processor.Run(2, d.stopCh)
+	<-d.stopCh
+
+	klog.Infof("Stopped as stopCh closed.")
+	return nil
+}
+
+// SetupWithManager creates a controller and register to controller manager.
+func (d *DependenciesDistributor) SetupWithManager(mgr controllerruntime.Manager) error {
+	return utilerrors.NewAggregate([]error{
+		mgr.Add(d),
+		controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ResourceBinding{}).
+			WithEventFilter(predicate.Funcs{
+				CreateFunc: func(event event.CreateEvent) bool {
+					bindingObject := event.Object.(*workv1alpha2.ResourceBinding)
+					if !bindingObject.Spec.PropagateDeps {
+						return false
+					}
+					if len(bindingObject.Spec.Clusters) == 0 {
+						klog.V(4).Infof("Dropping resource binding(%s/%s) as it is not scheduled yet.", bindingObject.Namespace, bindingObject.Name)
+						return false
+					}
+					return true
+				},
+				DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+					bindingObject := deleteEvent.Object.(*workv1alpha2.ResourceBinding)
+					return bindingObject.Spec.PropagateDeps
+				},
+				UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+					oldBindingObject := updateEvent.ObjectOld.(*workv1alpha2.ResourceBinding)
+					newBindingObject := updateEvent.ObjectNew.(*workv1alpha2.ResourceBinding)
+					if oldBindingObject.Generation == newBindingObject.Generation {
+						klog.V(4).Infof("Dropping resource binding(%s/%s) as the Generation is not changed.", newBindingObject.Namespace, newBindingObject.Name)
+						return false
+					}
+
+					// prevent newBindingObject from the queue if it's not scheduled yet.
+					if len(oldBindingObject.Spec.Clusters) == 0 && len(newBindingObject.Spec.Clusters) == 0 {
+						klog.V(4).Infof("Dropping resource binding(%s/%s) as it is not scheduled yet.", newBindingObject.Namespace, newBindingObject.Name)
+						return false
+					}
+					return oldBindingObject.Spec.PropagateDeps || newBindingObject.Spec.PropagateDeps
+				},
+			}).
+			WithOptions(controller.Options{
+				RateLimiter:             ratelimiterflag.DefaultControllerRateLimiter(d.RateLimiterOptions),
+				MaxConcurrentReconciles: 2,
+			}).
+			Watches(&source.Channel{Source: d.GenericEvent}, &handler.EnqueueRequestForObject{}).
+			Complete(d),
+	})
+}
+
+func generateBindingDependedByLabel(bindingNamespace, bindingName string) map[string]string {
+	labelKey := generateBindingDependedByLabelKey(bindingNamespace, bindingName)
+	labelValue := fmt.Sprintf(bindingNamespace + "_" + bindingName)
+	return map[string]string{labelKey: labelValue}
+}
+
+func generateBindingDependedByLabelKey(bindingNamespace, bindingName string) string {
+	bindHashKey := names.GenerateBindingReferenceKey(bindingNamespace, bindingName)
+	return fmt.Sprintf(bindingDependedByLabelKeyPrefix + bindHashKey)
+}
+
+func generateDependencyKey(kind, apiVersion, name, namespace string) string {
+	if len(namespace) == 0 {
+		return kind + "-" + apiVersion + "-" + name
+	}
+
+	return kind + "-" + apiVersion + "-" + namespace + "-" + name
 }
 
 func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) *workv1alpha2.ResourceBinding {
@@ -566,33 +529,6 @@ func buildAttachedBinding(binding *workv1alpha2.ResourceBinding, object *unstruc
 			RequiredBy: result,
 		},
 	}
-}
-
-func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding *workv1alpha2.ResourceBinding) error {
-	if err := d.Client.Create(context.TODO(), attachedBinding); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			klog.Infof("Failed to create resource binding(%s/%s): %v", attachedBinding.Namespace, attachedBinding.Name, err)
-			return err
-		}
-
-		existBinding := &workv1alpha2.ResourceBinding{}
-		key := client.ObjectKeyFromObject(attachedBinding)
-		if err := d.Client.Get(context.TODO(), key, existBinding); err != nil {
-			klog.Infof("Failed to get resource binding(%s/%s): %v", attachedBinding.Namespace, attachedBinding.Name, err)
-			return err
-		}
-
-		updatedBindingSnapshot := mergeBindingSnapshot(existBinding.Spec.RequiredBy, attachedBinding.Spec.RequiredBy)
-		existBinding.Spec.RequiredBy = updatedBindingSnapshot
-		existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels, attachedBinding.Labels)
-		existBinding.Spec.Resource = attachedBinding.Spec.Resource
-
-		if err := d.Client.Update(context.TODO(), existBinding); err != nil {
-			klog.Errorf("Failed to update resource binding(%s/%s): %v", existBinding.Namespace, existBinding.Name, err)
-			return err
-		}
-	}
-	return nil
 }
 
 func mergeBindingSnapshot(existSnapshot, newSnapshot []workv1alpha2.BindingSnapshot) []workv1alpha2.BindingSnapshot {

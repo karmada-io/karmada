@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -10,9 +11,13 @@ import (
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -314,6 +319,244 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					return configmapNum, nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(len(clusterNames)))
 			})
+		})
+	})
+
+	ginkgo.Context("CustomResource InterpreterOperation InterpretDependency testing", func() {
+		var crdGroup, crdGroupDep string
+		var randStr, randStrDep string
+		var crdSpecNames, crdSpecNamesDep apiextensionsv1.CustomResourceDefinitionNames
+		var crd, crdDep *apiextensionsv1.CustomResourceDefinition
+		var crdPolicy, crdDepPolicy *policyv1alpha1.ClusterPropagationPolicy
+		var crNamespace, crName, crNamespaceDep, crNameDep string
+		var crGVR, crGVRDep schema.GroupVersionResource
+		var crAPIVersion, crAPIVersionDep string
+		var cr, crDep *unstructured.Unstructured
+		var crPolicy *policyv1alpha1.PropagationPolicy
+		var customization *configv1alpha1.ResourceInterpreterCustomization
+
+		ginkgo.BeforeEach(func() {
+			crdGroupDep = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
+			randStrDep = rand.String(RandomStrLength)
+			crdSpecNamesDep = apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:     fmt.Sprintf("Foo%s", randStrDep),
+				ListKind: fmt.Sprintf("Foo%sList", randStrDep),
+				Plural:   fmt.Sprintf("foo%ss", randStrDep),
+				Singular: fmt.Sprintf("foo%s", randStrDep),
+			}
+			crdDep = testhelper.NewCustomResourceDefinition(crdGroupDep, crdSpecNamesDep, apiextensionsv1.NamespaceScoped)
+			crdDepPolicy = testhelper.NewClusterPropagationPolicy(crdDep.Name, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: crdDep.APIVersion,
+					Kind:       crdDep.Kind,
+					Name:       crdDep.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+
+			crNamespaceDep = testNamespace
+			crNameDep = crdNamePrefix + rand.String(RandomStrLength)
+			crGVRDep = schema.GroupVersionResource{Group: crdDep.Spec.Group, Version: "v1alpha1", Resource: crdDep.Spec.Names.Plural}
+
+			crAPIVersionDep = fmt.Sprintf("%s/%s", crdDep.Spec.Group, "v1alpha1")
+			crDep = testhelper.NewCustomResource(crAPIVersionDep, crdDep.Spec.Names.Kind, crNamespaceDep, crNameDep)
+			crdGroup = fmt.Sprintf("example-%s.karmada.io", rand.String(RandomStrLength))
+			randStr = rand.String(RandomStrLength)
+			crdSpecNames = apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:     fmt.Sprintf("Foo%s", randStr),
+				ListKind: fmt.Sprintf("Foo%sList", randStr),
+				Plural:   fmt.Sprintf("foo%ss", randStr),
+				Singular: fmt.Sprintf("foo%s", randStr),
+			}
+			crd = testhelper.NewCustomResourceDefinition(crdGroup, crdSpecNames, apiextensionsv1.NamespaceScoped)
+			crdPolicy = testhelper.NewClusterPropagationPolicy(crd.Name, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: crd.APIVersion,
+					Kind:       crd.Kind,
+					Name:       crd.Name,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+
+			crNamespace = testNamespace
+			crName = crdNamePrefix + rand.String(RandomStrLength)
+			crGVR = schema.GroupVersionResource{Group: crd.Spec.Group, Version: "v1alpha1", Resource: crd.Spec.Names.Plural}
+
+			crAPIVersion = fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1")
+			cr = testhelper.NewCustomResource(crAPIVersion, crd.Spec.Names.Kind, crNamespace, crName)
+			crPolicy = testhelper.NewPropagationPolicy(crNamespace, crName, []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: crAPIVersion,
+					Kind:       crd.Spec.Names.Kind,
+					Name:       crName,
+				},
+			}, policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: framework.ClusterNames(),
+				},
+			})
+			crPolicy.Spec.PropagateDeps = true
+			fmt.Printf("dependency cr apiVersion: %s kind: %s name: %s namespace: %s", crAPIVersionDep, crdSpecNamesDep.Kind, crNameDep, crNamespaceDep)
+			customization = testhelper.NewResourceInterpreterCustomization(
+				"interpreter-customization"+rand.String(RandomStrLength),
+				configv1alpha1.CustomizationTarget{
+					APIVersion: crAPIVersion,
+					Kind:       crdSpecNames.Kind,
+				},
+				configv1alpha1.CustomizationRules{
+					DependencyInterpretation: &configv1alpha1.DependencyInterpretation{
+						LuaScript: fmt.Sprintf(`
+function GetDependencies(desiredObj)
+	refs = {}
+	dependObj = {}
+	dependObj.apiVersion = '%s'
+	dependObj.kind = '%s'
+	dependObj.name = '%s'
+	dependObj.namespace = '%s'
+	refs[1] = dependObj
+	return refs
+end
+`, crAPIVersionDep, crdSpecNamesDep.Kind, crNameDep, crNamespaceDep),
+					},
+				})
+		})
+
+		ginkgo.BeforeEach(func() {
+			framework.CreateResourceInterpreterCustomization(karmadaClient, customization)
+			framework.CreateClusterPropagationPolicy(karmadaClient, crdPolicy)
+			framework.CreateClusterPropagationPolicy(karmadaClient, crdDepPolicy)
+			framework.CreateCRD(dynamicClient, crd)
+			framework.CreateCRD(dynamicClient, crdDep)
+
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveClusterPropagationPolicy(karmadaClient, crdPolicy.Name)
+				framework.RemoveCRD(dynamicClient, crd.Name)
+				framework.RemoveClusterPropagationPolicy(karmadaClient, crdDepPolicy.Name)
+				framework.RemoveCRD(dynamicClient, crdDep.Name)
+				framework.DeleteResourceInterpreterCustomization(karmadaClient, customization.Name)
+			})
+		})
+
+		ginkgo.It("dependency cr propagation testing", func() {
+			framework.GetCRD(dynamicClient, crd.Name)
+			framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(),
+				fmt.Sprintf("%s/%s", crd.Spec.Group, "v1alpha1"), crd.Spec.Names.Kind)
+			framework.GetCRD(dynamicClient, crdDep.Name)
+			framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(),
+				fmt.Sprintf("%s/%s", crdDep.Spec.Group, "v1alpha1"), crdDep.Spec.Names.Kind)
+
+			framework.CreatePropagationPolicy(karmadaClient, crPolicy)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, crPolicy.Namespace, crPolicy.Name)
+			})
+
+			ginkgo.By(fmt.Sprintf("creating cr(%s/%s)", crNamespace, crName), func() {
+				_, err := dynamicClient.Resource(crGVR).Namespace(crNamespace).Create(context.TODO(), cr, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+			ginkgo.By(fmt.Sprintf("creating dependency cr(%s/%s)", crNamespaceDep, crNameDep), func() {
+				_, err := dynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Create(context.TODO(), crDep, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if dependency cr present on member clusters", func() {
+				for _, cluster := range framework.Clusters() {
+					clusterDynamicClient := framework.GetClusterDynamicClient(cluster.Name)
+					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
+
+					klog.Infof("Waiting for dependency cr(%s/%s) present on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+						_, err = clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
+						if err != nil {
+							if apierrors.IsNotFound(err) {
+								return false, nil
+							}
+							return false, err
+						}
+						return true, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+
+			ginkgo.By("updating dependency cr", func() {
+				patch := []map[string]interface{}{
+					{
+						"op":    "replace",
+						"path":  "/spec/resource/namespace",
+						"value": updateCRnamespace,
+					},
+				}
+				bytes, err := json.Marshal(patch)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				_, err = dynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Patch(context.TODO(), crNameDep, types.JSONPatchType, bytes, metav1.PatchOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if update has been synced to member clusters", func() {
+				for _, cluster := range framework.Clusters() {
+					clusterDynamicClient := framework.GetClusterDynamicClient(cluster.Name)
+					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
+
+					klog.Infof("Waiting for cr(%s/%s) synced on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+						cr, err := clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
+						if err != nil {
+							return false, err
+						}
+
+						namespace, found, err := unstructured.NestedString(cr.Object, "spec", "resource", "namespace")
+						if err != nil || !found {
+							return false, err
+						}
+						if namespace == updateCRnamespace {
+							return true, nil
+						}
+
+						return false, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("removing cr(%s/%s)", crNamespace, crName), func() {
+				err := dynamicClient.Resource(crGVR).Namespace(crNamespace).Delete(context.TODO(), crName, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
+			ginkgo.By("check if dependency cr has been deleted from member clusters", func() {
+				for _, cluster := range framework.Clusters() {
+					clusterDynamicClient := framework.GetClusterDynamicClient(cluster.Name)
+					gomega.Expect(clusterDynamicClient).ShouldNot(gomega.BeNil())
+
+					klog.Infof("Waiting for dependency cr(%s/%s) disappear on cluster(%s)", crNamespaceDep, crNameDep, cluster.Name)
+					err := wait.PollImmediate(pollInterval, pollTimeout, func() (done bool, err error) {
+						_, err = clusterDynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Get(context.TODO(), crNameDep, metav1.GetOptions{})
+						if err != nil {
+							if apierrors.IsNotFound(err) {
+								return true, nil
+							}
+							return false, err
+						}
+
+						return false, nil
+					})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+
+			ginkgo.By(fmt.Sprintf("removing dep cr(%s/%s)", crNamespaceDep, crNameDep), func() {
+				err := dynamicClient.Resource(crGVRDep).Namespace(crNamespaceDep).Delete(context.TODO(), crNameDep, metav1.DeleteOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
+
 		})
 	})
 })
