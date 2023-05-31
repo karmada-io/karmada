@@ -9,6 +9,27 @@ set -o pipefail
 # 1. used by developer to setup develop environment quickly.
 # 2. used by e2e testing to setup test environment automatically.
 
+function usage() {
+    echo "Usage:"
+    echo "    hack/local-up-karmada.sh [HOST_IPADDRESS] [-h]"
+    echo "Args:"
+    echo "    HOST_IPADDRESS: (optional) if you want to export clusters' API server port to specific IP address"
+    echo "    h: print help information"
+}
+
+while getopts 'h' OPT; do
+    case $OPT in
+        h)
+          usage
+          exit 0
+          ;;
+        ?)
+          usage
+          exit 1
+          ;;
+    esac
+done
+
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}"/hack/util.sh
 
@@ -73,6 +94,7 @@ echo -e "Preparing kindClusterConfig in path: ${TEMP_PATH}"
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member1.yaml "${TEMP_PATH}"/member1.yaml
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member2.yaml "${TEMP_PATH}"/member2.yaml
 if [[ -n "${HOST_IPADDRESS}" ]]; then # If bind the port of clusters(karmada-host, member1 and member2) to the host IP
+  util::verify_ip_address "${HOST_IPADDRESS}"
   cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/karmada-host.yaml "${TEMP_PATH}"/karmada-host.yaml
   sed -i'' -e "s/{{host_ipaddress}}/${HOST_IPADDRESS}/g" "${TEMP_PATH}"/karmada-host.yaml
   sed -i'' -e 's/networking:/&\'$'\n''  apiServerAddress: "'${HOST_IPADDRESS}'"/' "${TEMP_PATH}"/member1.yaml

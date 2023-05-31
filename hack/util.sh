@@ -107,6 +107,14 @@ function util::verify_go_version {
     fi
 }
 
+function util::verify_ip_address {
+  IPADDRESS=${1}
+  if [[ ! "${IPADDRESS}" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
+    echo -e "\nError: invalid IP address"
+    exit 1
+  fi
+}
+
 # util::cmd_must_exist_cfssl downloads cfssl/cfssljson if they do not already exist in PATH
 function util::cmd_must_exist_cfssl {
     CFSSL_VERSION=${1}
@@ -630,12 +638,8 @@ function util::get_macos_ipaddress() {
     fi
     read -r -p "${tips_msg}" MAC_NIC_IPADDRESS
     MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-$tmp_ip}
-    if [[ "${MAC_NIC_IPADDRESS}" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
-      echo "Using IP address: ${MAC_NIC_IPADDRESS}"
-    else
-      echo -e "\nError: you input an invalid IP address"
-      exit 1
-    fi
+    util::verify_ip_address "${MAC_NIC_IPADDRESS}"
+    echo "Using IP address: ${MAC_NIC_IPADDRESS}"
   else # non-macOS
     MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-}
   fi
