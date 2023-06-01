@@ -3,6 +3,7 @@ package status
 import (
 	"context"
 	"fmt"
+	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"net/http"
 	"sort"
 	"strings"
@@ -43,14 +44,15 @@ import (
 
 const (
 	// ControllerName is the controller name that will be used when reporting events.
-	ControllerName            = "cluster-status-controller"
-	clusterReady              = "ClusterReady"
-	clusterHealthy            = "cluster is healthy and ready to accept workloads"
-	clusterNotReady           = "ClusterNotReady"
-	clusterUnhealthy          = "cluster is reachable but health endpoint responded without ok"
-	clusterNotReachableReason = "ClusterNotReachable"
-	clusterNotReachableMsg    = "cluster is not reachable"
-	statusCollectionFailed    = "StatusCollectionFailed"
+	ControllerName                   = "cluster-status-controller"
+	clusterReady                     = "ClusterReady"
+	clusterHealthy                   = "cluster is healthy and ready to accept workloads"
+	clusterNotReady                  = "ClusterNotReady"
+	clusterUnhealthy                 = "cluster is reachable but health endpoint responded without ok"
+	clusterNotReachableReason        = "ClusterNotReachable"
+	clusterNotReachableMsg           = "cluster is not reachable"
+	statusCollectionFailed           = "StatusCollectionFailed"
+	externalHealthCheckAnnotationKey = "cluster.karmada.io/health-checker"
 )
 
 var (
@@ -100,6 +102,8 @@ type ClusterStatusController struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+
+	ClientManager *webhookutil.ClientManager
 }
 
 // Reconcile syncs status of the given member cluster.
@@ -170,6 +174,13 @@ func (c *ClusterStatusController) syncClusterStatus(cluster *clusterv1alpha1.Clu
 	}
 
 	online, healthy := getClusterHealthStatus(clusterClient)
+	if online {
+		pass, err := tryExternalProbe(cluster)
+		if err != nil {
+			klog.Errorf("Failed to check external cluster health probe. cluster: %v, err is: %v", cluster.Name, err)
+		}
+		healthy = healthy && pass
+	}
 	observedReadyCondition := generateReadyCondition(online, healthy)
 	readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 
