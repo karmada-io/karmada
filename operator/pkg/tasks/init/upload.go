@@ -91,7 +91,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	if err != nil {
 		return err
 	}
-	data.SetControlplaneConifg(config)
+	data.SetControlplaneConfig(config)
 
 	klog.V(2).InfoS("[UploadAdminKubeconfig] Successfully created secret of karmada apiserver kubeconfig", "karmada", klog.KObj(data))
 	return nil

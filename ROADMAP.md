@@ -11,7 +11,7 @@ We hope that the items listed below will inspire further engagement from the com
 - Multi-cluster HPA (Horizontal Pod Autoscaling)
 - Karmada operator
 - ResourceInterpreter include third-party CRD resources
-- Karmada playgroud
+- Karmada playground
 
 ## 2023 H2
 - Karmada Dashboard - alpha release

@@ -99,7 +99,7 @@ func runWaitKarmadaAPIServer(r workflow.RunData) error {
 		return errors.New("wait-KarmadaAPIServer task invoked with an invalid data struct")
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConifg(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
 
 	err := waiter.WaitForSomePods(karmadaApiserverLabels.String(), data.GetNamespace(), 1)
 	if err != nil {
@@ -137,7 +137,7 @@ func runWaitKarmadaAggregatedAPIServer(r workflow.RunData) error {
 		return errors.New("wait-KarmadaAggregatedAPIServer task invoked with an invalid data struct")
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConifg(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
 
 	err := waiter.WaitForSomePods(karmadaAggregatedAPIServerLabels.String(), data.GetNamespace(), 1)
 	if err != nil {

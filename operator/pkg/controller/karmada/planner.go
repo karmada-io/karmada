@@ -12,7 +12,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
-// Action is a intention corresponding karmada resource modification
+// Action is an intention corresponding karmada resource modification
 type Action string
 
 const (
@@ -22,8 +22,8 @@ const (
 	DeInitAction Action = "deInit"
 )
 
-// Planner represents a planner to build a job woflow and startup it.
-// the karmada resource change and enqueue is correspond to a action.
+// Planner represents a planner to build a job workflow and startup it.
+// the karmada resource change and enqueue is corresponded to an action.
 // it will create different job workflow according to action.
 type Planner struct {
 	action Action

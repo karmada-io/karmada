@@ -18,7 +18,7 @@ import (
 	operatorscheme "github.com/karmada-io/karmada/operator/pkg/scheme"
 	tasks "github.com/karmada-io/karmada/operator/pkg/tasks/init"
 	"github.com/karmada-io/karmada/operator/pkg/util"
-	workflow "github.com/karmada-io/karmada/operator/pkg/workflow"
+	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
 var (
@@ -49,7 +49,7 @@ type initData struct {
 	name                string
 	namespace           string
 	karmadaVersion      *utilversion.Version
-	controlplaneConifig *rest.Config
+	controlplaneConfig  *rest.Config
 	controlplaneAddress string
 	remoteClient        clientset.Interface
 	karmadaClient       clientset.Interface
@@ -61,12 +61,12 @@ type initData struct {
 	components          *operatorv1alpha1.KarmadaComponents
 }
 
-// NewInitJob initializes a job with list of init sub task. and build
+// NewInitJob initializes a job with list of init sub-task. and build
 // init runData object.
 func NewInitJob(opt *InitOptions) *workflow.Job {
 	initJob := workflow.NewJob()
 
-	// add the all of tasks to the init job workflow.
+	// add the all tasks to the init job workflow.
 	initJob.AppendTask(tasks.NewPrepareCrdsTask())
 	initJob.AppendTask(tasks.NewCertTask())
 	initJob.AppendTask(tasks.NewNamespaceTask())
@@ -168,7 +168,7 @@ func (data *initData) RemoteClient() clientset.Interface {
 func (data *initData) KarmadaClient() clientset.Interface {
 	if data.karmadaClient == nil {
 		data.Once.Do(func() {
-			client, err := clientset.NewForConfig(data.controlplaneConifig)
+			client, err := clientset.NewForConfig(data.controlplaneConfig)
 			if err != nil {
 				klog.Errorf("error when init karmada client, err: %w", err)
 			}
@@ -179,12 +179,12 @@ func (data *initData) KarmadaClient() clientset.Interface {
 	return data.karmadaClient
 }
 
-func (data *initData) ControlplaneConifg() *rest.Config {
-	return data.controlplaneConifig
+func (data *initData) ControlplaneConfig() *rest.Config {
+	return data.controlplaneConfig
 }
 
-func (data *initData) SetControlplaneConifg(config *rest.Config) {
-	data.controlplaneConifig = config
+func (data *initData) SetControlplaneConfig(config *rest.Config) {
+	data.controlplaneConfig = config
 }
 
 func (data *initData) Components() *operatorv1alpha1.KarmadaComponents {
@@ -195,7 +195,7 @@ func (data *initData) DataDir() string {
 	return data.karmadaDataDir
 }
 
-func (data *initData) CrdsRomoteURL() string {
+func (data *initData) CrdsRemoteURL() string {
 	return data.crdRemoteURL
 }
 

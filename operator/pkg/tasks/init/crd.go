@@ -92,7 +92,7 @@ func runCrdsDownload(r workflow.RunData) error {
 	}
 
 	if !existCrdsTar(crdsDir) {
-		err := util.DownloadFile(data.CrdsRomoteURL(), crdsTarPath)
+		err := util.DownloadFile(data.CrdsRemoteURL(), crdsTarPath)
 		if err != nil {
 			return fmt.Errorf("failed to download crd tar, err: %w", err)
 		}

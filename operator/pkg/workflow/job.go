@@ -4,10 +4,10 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// RunData is a interface represents all of runDatas abstract object.
+// RunData is an interface represents all of runDatas abstract object.
 type RunData = interface{}
 
-// Job represents a executable workflow, it has list of tasks.
+// Job represents an executable workflow, it has list of tasks.
 // these tasks must be execution order. if one of these tasks throws
 // error, the entire job will fail. During the workflow,if there are
 // some artifacts, we can store it to runData.
@@ -48,8 +48,8 @@ func (j *Job) SetDataInitializer(build func() (RunData, error)) {
 	j.runDataInitializer = build
 }
 
-// Run start execte job workflow. if the task has sub task, it will
-// recursive call the sub tasks util all of task be completed or error be thrown.
+// Run start execute job workflow. if the task has sub-task, it will
+// recursive call the sub-tasks util all task be completed or error be thrown.
 func (j *Job) Run() error {
 	runData := j.runData
 	if runData == nil {
