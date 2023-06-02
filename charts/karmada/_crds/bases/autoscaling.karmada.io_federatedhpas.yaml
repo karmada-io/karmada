@@ -19,7 +19,26 @@ spec:
     singular: federatedhpa
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.scaleTargetRef.kind
+      name: REFERENCE-KIND
+      type: string
+    - jsonPath: .spec.scaleTargetRef.name
+      name: REFERENCE-NAME
+      type: string
+    - jsonPath: .spec.minReplicas
+      name: MINPODS
+      type: integer
+    - jsonPath: .spec.maxReplicas
+      name: MAXPODS
+      type: integer
+    - jsonPath: .status.currentReplicas
+      name: REPLICAS
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: FederatedHPA is centralized HPA that can aggregate the metrics
