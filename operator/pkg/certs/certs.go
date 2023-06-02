@@ -231,7 +231,7 @@ func (cert *KarmadaCert) KeyName() string {
 	return pair + keyExtension
 }
 
-// GeneratePrivateKey generates cert key with default size if 1024. it support
+// GeneratePrivateKey generates cert key with default size if 1024. it supports
 // ECDSA and RAS algorithm.
 func GeneratePrivateKey(keyType x509.PublicKeyAlgorithm) (crypto.Signer, error) {
 	if keyType == x509.ECDSA {
@@ -391,7 +391,7 @@ func appendSANsToAltNames(altNames *certutil.AltNames, SANs []string) {
 	}
 }
 
-// EncodeCertPEM returns PEM-endcoded certificate data
+// EncodeCertPEM returns PEM-encoded certificate data
 func EncodeCertPEM(cert *x509.Certificate) []byte {
 	block := pem.Block{
 		Type:  CertificateBlockType,

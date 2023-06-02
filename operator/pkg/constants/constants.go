@@ -97,7 +97,7 @@ const (
 	// KarmadaDeschedulerComponent defines the name of the karmada-descheduler component
 	KarmadaDeschedulerComponent = "KarmadaDescheduler"
 
-	// KarmadaOperatorLabelKeyName defines a label key used by all of resources created by karmada operator
+	// KarmadaOperatorLabelKeyName defines a label key used by all resources created by karmada operator
 	KarmadaOperatorLabelKeyName = "app.kubernetes.io/managed-by"
 )
 

@@ -112,7 +112,7 @@ type KarmadaComponents struct {
 	// +optional
 	KarmadaScheduler *KarmadaScheduler `json:"karmadaScheduler,omitempty"`
 
-	// KarmadaWebhook holds settings to karmada-webook component of the karmada.
+	// KarmadaWebhook holds settings to karmada-webhook component of the karmada.
 	// +optional
 	KarmadaWebhook *KarmadaWebhook `json:"karmadaWebhook,omitempty"`
 
@@ -151,7 +151,7 @@ type LocalEtcd struct {
 	CommonSettings `json:",inline"`
 
 	// VolumeData describes the settings of etcd data store.
-	// We will support 3 modes: emtydir, hostPath, PVC. default by hostPath.
+	// We will support 3 modes: emptyDir, hostPath, PVC. default by hostPath.
 	// +optional
 	VolumeData *VolumeData `json:"volumeData,omitempty"`
 
@@ -191,7 +191,7 @@ type VolumeData struct {
 }
 
 // ExternalEtcd describes an external etcd cluster.
-// operator has no knowledge of where certificate files live and they must be supplied.
+// operator has no knowledge of where certificate files live, and they must be supplied.
 type ExternalEtcd struct {
 	// Endpoints of etcd members. Required for ExternalEtcd.
 	Endpoints []string `json:"endpoints"`
@@ -210,7 +210,7 @@ type ExternalEtcd struct {
 }
 
 // KarmadaAPIServer holds settings to kube-apiserver component of the kubernetes.
-// Karmada uses it as it's own apiserver in order to provide Kubernetes-native APIs.
+// Karmada uses it as its own apiserver in order to provide Kubernetes-native APIs.
 type KarmadaAPIServer struct {
 	// CommonSettings holds common settings to kubernetes api server.
 	CommonSettings `json:",inline"`
@@ -220,7 +220,7 @@ type KarmadaAPIServer struct {
 	ServiceSubnet *string `json:"serviceSubnet,omitempty"`
 
 	// ServiceType represents the service type of karmada apiserver.
-	// it is Nodeport by default.
+	// it is NodePort by default.
 	// +optional
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
 
@@ -231,7 +231,7 @@ type KarmadaAPIServer struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// kube-apiserver component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -262,7 +262,7 @@ type KarmadaAggregatedAPIServer struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// karmada-aggregated-apiserver component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -321,7 +321,7 @@ type KubeControllerManager struct {
 	// https://karmada.io/docs/administrator/configuration/configure-controllers#kubernetes-controllers
 	//
 	// Others are disabled by default. If you want to enable or disable other controllers, you
-	// have to explicitly specify all the controllers that kube-controller-manager shoud enable
+	// have to explicitly specify all the controllers that kube-controller-manager should enable
 	// at startup phase.
 	// +optional
 	Controllers []string `json:"controllers,omitempty"`
@@ -333,7 +333,7 @@ type KubeControllerManager struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// kube-controller-manager component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -375,7 +375,7 @@ type KarmadaControllerManager struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// karmada-controller-manager component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -406,7 +406,7 @@ type KarmadaScheduler struct {
 	// Note: This is a temporary solution to allow for the configuration of the karmada-scheduler
 	// component. In the future, we will provide a more structured way to configure the component.
 	// Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -434,7 +434,7 @@ type KarmadaDescheduler struct {
 	// Note: This is a temporary solution to allow for the configuration of the karmada-descheduler
 	// component. In the future, we will provide a more structured way to configure the component.
 	// Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -456,7 +456,7 @@ type KarmadaSearch struct {
 	// Note: This is a temporary solution to allow for the configuration of the karmada-descheduler
 	// component. In the future, we will provide a more structured way to configure the component.
 	// Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -478,7 +478,7 @@ type KarmadaWebhook struct {
 	// Note: This is a temporary solution to allow for the configuration of the
 	// karmada-webhook component. In the future, we will provide a more structured way
 	// to configure the component. Once that is done, this field will be discouraged to be used.
-	// Incorrect settings on this feild maybe lead to the corresponding component in an unhealthy
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
 	// state. Before you do it, please confirm that you understand the risks of this configuration.
 	//
 	// For supported flags, please see
@@ -553,7 +553,7 @@ type HostCluster struct {
 	Networking *Networking `json:"networking,omitempty"`
 }
 
-// ConditionType declarative karmada condition type of karmada installtion.
+// ConditionType declarative karmada condition type of karmada installation.
 type ConditionType string
 
 const (
@@ -561,11 +561,11 @@ const (
 	// or unpredictable condition.
 	Unknown ConditionType = "Unknown"
 
-	// Ready represent a condition type the all installtion process to karmada have compaleted.
+	// Ready represent a condition type the all installation process to karmada have completed.
 	Ready ConditionType = "Ready"
 )
 
-// KarmadaStatus difine the most recently observed status of the Karmada.
+// KarmadaStatus define the most recently observed status of the Karmada.
 type KarmadaStatus struct {
 	// ObservedGeneration is the last observed generation.
 	// +optional
@@ -575,11 +575,11 @@ type KarmadaStatus struct {
 	// +optional
 	SecretRef *LocalSecretReference `json:"secretRef,omitempty"`
 
-	// KarmadaVersion represente the karmada version.
+	// KarmadaVersion represent the karmada version.
 	// +optional
 	KarmadaVersion string `json:"karmadaVersion,omitempty"`
 
-	// KubernetesVersion represente the karmada-apiserver version.
+	// KubernetesVersion represent the karmada-apiserver version.
 	// +optional
 	KubernetesVersion string `json:"kubernetesVersion,omitempty"`
 

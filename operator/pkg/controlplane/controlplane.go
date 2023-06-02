@@ -67,7 +67,7 @@ func getComponentManifests(name, namespace string, cfg *operatorv1alpha1.Karmada
 }
 
 func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alpha1.KubeControllerManager) (*appsv1.Deployment, error) {
-	kubeControllerManageretBytes, err := util.ParseTemplate(KubeControllerManagerDeployment, struct {
+	kubeControllerManagerBytes, err := util.ParseTemplate(KubeControllerManagerDeployment, struct {
 		DeploymentName, Namespace, Image     string
 		KarmadaCertsSecret, KubeconfigSecret string
 		Replicas                             *int32
@@ -84,7 +84,7 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 	}
 
 	kcm := &appsv1.Deployment{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), kubeControllerManageretBytes, kcm); err != nil {
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), kubeControllerManagerBytes, kcm); err != nil {
 		return nil, fmt.Errorf("err when decoding kube-controller-manager deployment: %w", err)
 	}
 
@@ -93,7 +93,7 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 }
 
 func getKarmadaControllerManagerManifest(name, namespace string, cfg *operatorv1alpha1.KarmadaControllerManager) (*appsv1.Deployment, error) {
-	karmadaControllerManageretBytes, err := util.ParseTemplate(KamradaControllerManagerDeployment, struct {
+	karmadaControllerManagerBytes, err := util.ParseTemplate(KamradaControllerManagerDeployment, struct {
 		Replicas                  *int32
 		DeploymentName, Namespace string
 		Image, KubeconfigSecret   string
@@ -109,7 +109,7 @@ func getKarmadaControllerManagerManifest(name, namespace string, cfg *operatorv1
 	}
 
 	kcm := &appsv1.Deployment{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaControllerManageretBytes, kcm); err != nil {
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), karmadaControllerManagerBytes, kcm); err != nil {
 		return nil, fmt.Errorf("err when decoding karmada-controller-manager deployment: %w", err)
 	}
 

@@ -92,7 +92,7 @@ func runCrds(r workflow.RunData) error {
 		crdsPatchPath = path.Join(crdsDir, "crds/patches")
 	)
 
-	crdsClient, err := apiclient.NewCRDsClient(data.ControlplaneConifg())
+	crdsClient, err := apiclient.NewCRDsClient(data.ControlplaneConfig())
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func runAPIService(r workflow.RunData) error {
 		return errors.New("webhookConfiguration task invoked with an invalid data struct")
 	}
 
-	config := data.ControlplaneConifg()
+	config := data.ControlplaneConfig()
 	client, err := apiclient.NewAPIRegistrationClient(config)
 	if err != nil {
 		return err
