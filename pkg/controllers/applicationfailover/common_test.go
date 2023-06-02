@@ -5,20 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
-
-func TestNewWorkloadUnhealthyMap(t *testing.T) {
-	m := newWorkloadUnhealthyMap()
-	expected := &workloadUnhealthyMap{
-		workloadUnhealthy: make(map[types.NamespacedName]map[string]metav1.Time),
-	}
-	assert.Equal(t, expected, m)
-}
 
 func TestTimeStampProcess(t *testing.T) {
 	key := types.NamespacedName{
