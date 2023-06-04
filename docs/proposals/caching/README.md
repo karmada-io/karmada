@@ -18,6 +18,10 @@ Provides a caching layer for Karmada to cache (member clusters) Kubernetes resou
 
 ## Motivation
 
+In multicluster scenario, if the administrators want to query the resource in multiple clusters, it's quite hard and inefficient, including changing the clusters' context, none-global resource view.  
+
+To address this issue, we propose a caching layer for Karmada to cache (member clusters) Kubernetes resources, the administrators could query the resource across multiple clusters efficiently with a unified entry.  
+
 ### Goals
 
 - Accelerates resource requests processing speed across regions
@@ -42,6 +46,12 @@ Goals:
 - Get resource information across clusters through a unified endpoint.
 - Accelerate processing speed of resource requests across regions.
 - Get resources in multiple clusters by labels.
+
+### Risks and Mitigations
+
+1. This feature aims to build a cache to store arbitrary resources from multiple member clusters. And these resources are exposed by `search/proxy` REST APIs. If a user has access privilege to `search/proxy`, they can directly access the cached resource without routing their request to the member clusters.
+1. As previously mentioned, the resource query request will not be routed to the member clusters. So if a secret is cached in the Karmada control plane but a user in the member cluster cannot access it via member cluster's apiserver due to RBAC privilege limitations, they can still access the secret through the Karmada control plane.
+1. This feature is designed for administrators who needs to query and view the resources in multiple clusters, not designed for the end users. Exposing this API to the end users may cause end users to be able to view resources that do not belong to them.
 
 ## Design Details
 
@@ -187,5 +197,7 @@ spec:
     - kind: Deployment
       apiVersion: apps/v1
 ```
+
+With this `ResourceRegistry`, Karmada will list and watch the resource defined in `spec.resourceSelectors` and caches the real-time manifest in the cache(local memory or database), and all the query results are from the cache.
 
 ### Test Plan

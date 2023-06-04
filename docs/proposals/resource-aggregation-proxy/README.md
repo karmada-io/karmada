@@ -57,7 +57,11 @@ Allow kubernetes API clients (kubectl, client-go, and other clients that use kub
 
 ## Non-Goals
 
+## Risks and Mitigations
 
+1. This feature aims to build a cache to store arbitrary resources from multiple member clusters. And these resources are exposed by `search/proxy` REST APIs. If a user has access privilege to `search/proxy`, they can directly access the cached resource without routing their request to the member clusters.
+1. As previously mentioned, the resource query request will not be routed to the member clusters. So if a secret is cached in the Karmada control plane but a user in the member cluster cannot access it via member cluster's apiserver due to RBAC privilege limitations, they can still access the secret through the Karmada control plane.
+1. This feature is designed for administrators who needs to query and view the resources in multiple clusters, not designed for the end users. Exposing this API to the end users may cause end users to be able to view resources that do not belong to them.
 
 # Proposal
 
