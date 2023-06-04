@@ -201,6 +201,10 @@ func BuildClusterConfig(clusterName string,
 			return nil, err
 		}
 		clusterConfig.Proxy = http.ProxyURL(proxy)
+
+		if len(cluster.Spec.ProxyHeader) != 0 {
+			clusterConfig.Wrap(NewProxyHeaderRoundTripperWrapperConstructor(clusterConfig.WrapTransport, cluster.Spec.ProxyHeader))
+		}
 	}
 
 	return clusterConfig, nil
