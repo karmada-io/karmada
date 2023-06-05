@@ -8,6 +8,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -16,6 +17,7 @@ import (
 	clusterV1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/metricsadapter/multiclient"
 	"github.com/karmada-io/karmada/pkg/metricsadapter/provider"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -29,23 +31,24 @@ var (
 
 // MetricsController is a controller for metrics, control the lifecycle of multi-clusters informer
 type MetricsController struct {
-	InformerFactory informerfactory.SharedInformerFactory
-	ClusterLister   clusterlister.ClusterLister
-	InformerManager genericmanager.MultiClusterInformerManager
-
-	queue      workqueue.RateLimitingInterface
-	restConfig *rest.Config
+	InformerFactory       informerfactory.SharedInformerFactory
+	ClusterLister         clusterlister.ClusterLister
+	InformerManager       genericmanager.MultiClusterInformerManager
+	MultiClusterDiscovery multiclient.MultiClusterDiscoveryInterface
+	queue                 workqueue.RateLimitingInterface
+	restConfig            *rest.Config
 }
 
 // NewMetricsController creates a new metrics controller
-func NewMetricsController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory) *MetricsController {
+func NewMetricsController(restConfig *rest.Config, factory informerfactory.SharedInformerFactory, kubeFactory informers.SharedInformerFactory) *MetricsController {
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
 	controller := &MetricsController{
-		InformerFactory: factory,
-		ClusterLister:   clusterLister,
-		InformerManager: genericmanager.GetInstance(),
-		restConfig:      restConfig,
-		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "metrics-adapter"),
+		InformerFactory:       factory,
+		ClusterLister:         clusterLister,
+		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory),
+		InformerManager:       genericmanager.GetInstance(),
+		restConfig:            restConfig,
+		queue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "metrics-adapter"),
 	}
 	controller.addEventHandler()
 
@@ -127,6 +130,7 @@ func (m *MetricsController) handleClusters() bool {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("try to stop cluster informer %s", clusterName)
 			m.InformerManager.Stop(clusterName)
+			m.MultiClusterDiscovery.Remove(clusterName)
 			return true
 		}
 		return false
@@ -135,12 +139,14 @@ func (m *MetricsController) handleClusters() bool {
 	if !cls.DeletionTimestamp.IsZero() {
 		klog.Infof("try to stop cluster informer %s", clusterName)
 		m.InformerManager.Stop(clusterName)
+		m.MultiClusterDiscovery.Remove(clusterName)
 		return true
 	}
 
 	if !util.IsClusterReady(&cls.Status) {
 		klog.Warningf("cluster %s is notReady try to stop this cluster informer", clusterName)
 		m.InformerManager.Stop(clusterName)
+		m.MultiClusterDiscovery.Remove(clusterName)
 		return false
 	}
 
@@ -159,8 +165,12 @@ func (m *MetricsController) handleClusters() bool {
 		}
 		_ = m.InformerManager.ForCluster(clusterName, clusterDynamicClient.DynamicClientSet, 0)
 	}
+	err = m.MultiClusterDiscovery.Set(clusterName)
+	if err != nil {
+		klog.Warningf("failed to build discoveryClient for cluster(%s), Error: %+v", clusterName, err)
+		return true
+	}
 	sci := m.InformerManager.GetSingleClusterManager(clusterName)
-
 	// Just trigger the informer to work
 	_ = sci.Lister(provider.PodsGVR)
 	_ = sci.Lister(provider.NodesGVR)

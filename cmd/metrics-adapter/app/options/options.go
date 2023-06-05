@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/pflag"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/custom-metrics-apiserver/pkg/cmd/options"
@@ -56,8 +58,9 @@ func (o *Options) Config() (*metricsadapter.MetricsServer, error) {
 
 	karmadaClient := karmadaclientset.NewForConfigOrDie(restConfig)
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
-
-	metricsController := metricsadapter.NewMetricsController(restConfig, factory)
+	kubeClient := kubernetes.NewForConfigOrDie(restConfig)
+	kubeFactory := informers.NewSharedInformerFactory(kubeClient, 0)
+	metricsController := metricsadapter.NewMetricsController(restConfig, factory, kubeFactory)
 	metricsAdapter := metricsadapter.NewMetricsAdapter(metricsController, o.CustomMetricsAdapterServerOptions)
 	metricsAdapter.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(api.Scheme))
 	metricsAdapter.OpenAPIConfig.Info.Title = "karmada-metrics-adapter"
@@ -70,6 +73,9 @@ func (o *Options) Config() (*metricsadapter.MetricsServer, error) {
 	}
 
 	err = server.GenericAPIServer.AddPostStartHook("start-karmada-informers", func(context genericapiserver.PostStartHookContext) error {
+		kubeFactory.Core().V1().Secrets().Informer()
+		kubeFactory.Start(context.StopCh)
+		kubeFactory.WaitForCacheSync(context.StopCh)
 		factory.Start(context.StopCh)
 		return nil
 	})
