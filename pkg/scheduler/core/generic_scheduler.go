@@ -204,11 +204,15 @@ func (g *genericScheduler) assignReplicas(
 			return nil, fmt.Errorf("unsupported replica scheduling strategy, replicaSchedulingType: %s, replicaDivisionPreference: %s, "+
 				"please try another scheduling strategy", replicaSchedulingStrategy.ReplicaSchedulingType, replicaSchedulingStrategy.ReplicaDivisionPreference)
 		}
-		return assign(&assignState{
+		assignResults, err := assign(&assignState{
 			candidates: clusters,
 			strategy:   replicaSchedulingStrategy,
 			object:     object,
 		})
+		if err != nil {
+			return nil, err
+		}
+		return removeZeroReplicasCluster(assignResults), nil
 	}
 
 	// If not workload, assign all clusters without considering replicas.
