@@ -30,9 +30,10 @@ func NewResourceRegistryStorage(scheme *runtime.Scheme, optsGetter generic.RESTO
 		PredicateFunc:            searchregistry.MatchResourceRegistry,
 		DefaultQualifiedResource: searchapis.Resource("resourceRegistries"),
 
-		CreateStrategy: strategy,
-		UpdateStrategy: strategy,
-		DeleteStrategy: strategy,
+		CreateStrategy:      strategy,
+		UpdateStrategy:      strategy,
+		DeleteStrategy:      strategy,
+		ResetFieldsStrategy: strategy,
 
 		// TODO: define table converter that exposes more than name/creation timestamp
 		TableConvertor: rest.NewDefaultTableConvertor(searchapis.Resource("resourceRegistries")),
