@@ -4,8 +4,77 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
+
+func TestTimeStampProcess(t *testing.T) {
+	key := types.NamespacedName{
+		Namespace: "default",
+		Name:      "test",
+	}
+	cluster := "cluster-1"
+
+	m := newWorkloadUnhealthyMap()
+	m.setTimeStamp(key, cluster)
+	res := m.hasWorkloadBeenUnhealthy(key, cluster)
+	assert.Equal(t, true, res)
+
+	time := m.getTimeStamp(key, cluster)
+	assert.NotEmpty(t, time)
+
+	m.delete(key)
+	res = m.hasWorkloadBeenUnhealthy(key, cluster)
+	assert.Equal(t, false, res)
+}
+
+func TestWorkloadUnhealthyMap_deleteIrrelevantClusters(t *testing.T) {
+	cluster1 := "cluster-1"
+	cluster2 := "cluster-2"
+	cluster3 := "cluster-3"
+	t.Run("normal case", func(t *testing.T) {
+		key := types.NamespacedName{
+			Namespace: "default",
+			Name:      "test",
+		}
+
+		m := newWorkloadUnhealthyMap()
+
+		m.setTimeStamp(key, cluster1)
+		m.setTimeStamp(key, cluster2)
+		m.setTimeStamp(key, cluster3)
+
+		allClusters := sets.New[string](cluster2, cluster3)
+		healthyClusters := []string{cluster3}
+
+		m.deleteIrrelevantClusters(key, allClusters, healthyClusters)
+		res1 := m.hasWorkloadBeenUnhealthy(key, cluster1)
+		assert.Equal(t, false, res1)
+		res2 := m.hasWorkloadBeenUnhealthy(key, cluster2)
+		assert.Equal(t, true, res2)
+		res3 := m.hasWorkloadBeenUnhealthy(key, cluster3)
+		assert.Equal(t, false, res3)
+	})
+
+	t.Run("unhealthyClusters is nil", func(t *testing.T) {
+		key := types.NamespacedName{
+			Namespace: "default",
+			Name:      "test",
+		}
+
+		m := newWorkloadUnhealthyMap()
+
+		allClusters := sets.New[string](cluster2, cluster3)
+		healthyClusters := []string{cluster3}
+
+		m.deleteIrrelevantClusters(key, allClusters, healthyClusters)
+		res := m.hasWorkloadBeenUnhealthy(key, cluster2)
+		assert.Equal(t, false, res)
+	})
+}
 
 func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 	tests := []struct {
