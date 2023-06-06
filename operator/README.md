@@ -4,7 +4,7 @@
 
 The Karmada operator is a method for installing, upgrading, and deleting Karmada instances.
 It builds upon the basic Karmada resource and controller concepts, provides convenience to
-centrally manage entire lifecyle of Karmada instances in a global cluster. With the operator,
+centrally manage entire lifecycle of Karmada instances in a global cluster. With the operator,
 you can extend Karmada with custom resources (CRs) to manage your instances not only in local
 clusters but also in remote clusters.
 
@@ -64,7 +64,7 @@ kubectl apply -f operator/config/crds/
 
 ### Create a Karmada instance
 
-The Karmada operator provides a Karama CR that can define most configurations for Karmada components.
+The Karmada operator provides a Karmada CR that can define most configurations for Karmada components.
 It includes `image` messages, `replica`, the `args` of binary file, and custom `label`, `annotation`, and `featuregate`.
 For details, see [API](./pkg/apis/operator/v1alpha1/type.go).
 

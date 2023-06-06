@@ -1,7 +1,7 @@
 package workflow
 
-// Task is minimum unit workflow. It is sample tree structrue.
-// we can set a list of sub tasks, they will all be executed if
+// Task is minimum unit workflow. It is sample tree structure.
+// we can set a list of sub-tasks, they will all be executed if
 // RunSubTasks is true.
 type Task struct {
 	Name        string

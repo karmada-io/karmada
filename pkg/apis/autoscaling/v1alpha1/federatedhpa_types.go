@@ -9,6 +9,12 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=fhpa,categories={karmada-io}
+// +kubebuilder:printcolumn:JSONPath=`.spec.scaleTargetRef.kind`,name=`REFERENCE-KIND`,type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.scaleTargetRef.name`,name=`REFERENCE-NAME`,type=string
+// +kubebuilder:printcolumn:JSONPath=`.spec.minReplicas`,name=`MINPODS`,type=integer
+// +kubebuilder:printcolumn:JSONPath=`.spec.maxReplicas`,name=`MAXPODS`,type=integer
+// +kubebuilder:printcolumn:JSONPath=`.status.currentReplicas`,name=`REPLICAS`,type=integer
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name=`AGE`,type=date
 
 // FederatedHPA is centralized HPA that can aggregate the metrics in multiple clusters.
 // When the system load increases, it will query the metrics from multiple clusters and scales up the replicas.

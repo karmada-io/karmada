@@ -34,7 +34,7 @@ func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv
 }
 
 func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, name, namespace string) error {
-	apiserverDeploymentbytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
+	apiserverDeploymentBytes, err := util.ParseTemplate(KarmadaApiserverDeployment, struct {
 		DeploymentName, Namespace, Image, EtcdClientService string
 		ServiceSubnet, KarmadaCertsSecret, EtcdCertsSecret  string
 		Replicas                                            *int32
@@ -55,7 +55,7 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 	}
 
 	apiserverDeployment := &appsv1.Deployment{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), apiserverDeploymentbytes, apiserverDeployment); err != nil {
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), apiserverDeploymentBytes, apiserverDeployment); err != nil {
 		return fmt.Errorf("error when decoding karmadaApiserver deployment: %w", err)
 	}
 

@@ -13,13 +13,13 @@ type InitData interface {
 	certs.CertStore
 	GetName() string
 	GetNamespace() string
-	SetControlplaneConifg(config *rest.Config)
-	ControlplaneConifg() *rest.Config
+	SetControlplaneConfig(config *rest.Config)
+	ControlplaneConfig() *rest.Config
 	ControlplaneAddress() string
 	RemoteClient() clientset.Interface
 	KarmadaClient() clientset.Interface
 	DataDir() string
-	CrdsRomoteURL() string
+	CrdsRemoteURL() string
 	KarmadaVersion() string
 	Components() *operatorv1alpha1.KarmadaComponents
 }

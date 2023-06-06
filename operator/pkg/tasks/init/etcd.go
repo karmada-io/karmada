@@ -72,7 +72,7 @@ func runWaitEtcd(r workflow.RunData) error {
 		return errors.New("wait-etcd task invoked with an invalid data struct")
 	}
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConifg(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
 
 	// wait etcd, karmada apiserver and aggregated apiserver to ready
 	// as long as a replica of pod is ready, we consider the service available.

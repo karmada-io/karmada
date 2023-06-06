@@ -38,7 +38,7 @@ func runWaitApiserver(r workflow.RunData) error {
 	}
 	klog.V(4).InfoS("[check-apiserver-health] Running task", "karmada", klog.KObj(data))
 
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConifg(), data.RemoteClient(), time.Second*30)
+	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
 
 	// check whether the karmada apiserver is health.
 	if err := apiclient.TryRunCommand(waiter.WaitForAPI, 3); err != nil {

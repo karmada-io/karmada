@@ -385,6 +385,13 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 			}
 			newStatus.ContainerStatuses = append(newStatus.ContainerStatuses, tempStatus)
 		}
+		for _, initContainerStatus := range temp.InitContainerStatuses {
+			tempStatus := corev1.ContainerStatus{
+				Ready: initContainerStatus.Ready,
+				State: initContainerStatus.State,
+			}
+			newStatus.InitContainerStatuses = append(newStatus.InitContainerStatuses, tempStatus)
+		}
 		klog.V(3).Infof("Grab pod(%s/%s) status from cluster(%s), phase: %s", pod.Namespace,
 			pod.Name, item.ClusterName, temp.Phase)
 	}
