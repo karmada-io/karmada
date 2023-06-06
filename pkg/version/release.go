@@ -39,7 +39,7 @@ func (r *ReleaseVersion) FirstMinorRelease() string {
 // PatchRelease returns the stable version with format "vx.y.z".
 func (r *ReleaseVersion) PatchRelease() string {
 	if r.Version == nil {
-		return "<nil>"
+		return "latest"
 	}
 
 	return fmt.Sprintf("v%d.%d.%d", r.Version.Major(), r.Version.Minor(), r.Version.Patch())
