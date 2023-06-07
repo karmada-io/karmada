@@ -16,7 +16,9 @@ import (
 	"k8s.io/metrics/pkg/apis/metrics"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -28,9 +30,6 @@ const (
 	// namespaceSpecifiedAnnotation is the annotation used in karmada-metrics-adapter,
 	// to record the namespace specified by the user
 	namespaceSpecifiedAnnotation = "internal.karmada.io/namespace"
-	// querySourceAnnotationKey is the annotation used in karmada-metrics-adapter to
-	// record the query source cluster
-	querySourceAnnotationKey = "resource.karmada.io/query-from-cluster"
 )
 
 var (
@@ -150,10 +149,14 @@ func (r *ResourceMetricsProvider) queryPodMetricsByName(name, namespace string) 
 		_, err := sci.Lister(PodsGVR).ByNamespace(namespace).Get(name)
 		return err
 	}
-	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, _ string) (interface{}, error) {
-		metrics, err := sci.GetClient().Resource(podMetricsGVR).
+	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
+		metricsValue, err := sci.GetClient().Resource(podMetricsGVR).
 			Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return metrics, err
+		if err != nil {
+			return nil, err
+		}
+		util.MergeAnnotation(metricsValue, autoscalingv1alpha1.QuerySourceAnnotationKey, clusterName)
+		return metricsValue, err
 	}
 
 	metricsQuery, err := r.getMetricsParallel(resourceQueryFunc, metricsQueryFunc)
@@ -192,12 +195,18 @@ func (r *ResourceMetricsProvider) queryPodMetricsBySelector(selector, namespace 
 		}
 		return nil
 	}
-	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, _ string) (interface{}, error) {
-		metrics, err := sci.GetClient().Resource(podMetricsGVR).
+	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
+		metricsList, err := sci.GetClient().Resource(podMetricsGVR).
 			Namespace(namespace).List(context.Background(), metav1.ListOptions{
 			LabelSelector: selector,
 		})
-		return metrics, err
+		if err != nil {
+			return nil, err
+		}
+		for i := range metricsList.Items {
+			util.MergeAnnotation(&metricsList.Items[i], autoscalingv1alpha1.QuerySourceAnnotationKey, clusterName)
+		}
+		return metricsList, err
 	}
 
 	metricsQuery, err := r.getMetricsParallel(resourceQueryFunc, metricsQueryFunc)
@@ -224,9 +233,13 @@ func (r *ResourceMetricsProvider) queryNodeMetricsByName(name string) ([]metrics
 		_, err := sci.Lister(NodesGVR).Get(name)
 		return err
 	}
-	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, _ string) (interface{}, error) {
-		metrics, err := sci.GetClient().Resource(nodeMetricsGVR).Get(context.Background(), name, metav1.GetOptions{})
-		return metrics, err
+	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
+		metricsValue, err := sci.GetClient().Resource(nodeMetricsGVR).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		util.MergeAnnotation(metricsValue, autoscalingv1alpha1.QuerySourceAnnotationKey, clusterName)
+		return metricsValue, err
 	}
 
 	metricsQuery, err := r.getMetricsParallel(resourceQueryFunc, metricsQueryFunc)
@@ -265,11 +278,17 @@ func (r *ResourceMetricsProvider) queryNodeMetricsBySelector(selector string) ([
 		}
 		return nil
 	}
-	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, _ string) (interface{}, error) {
-		metrics, err := sci.GetClient().Resource(nodeMetricsGVR).List(context.Background(), metav1.ListOptions{
+	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
+		metricsList, err := sci.GetClient().Resource(nodeMetricsGVR).List(context.Background(), metav1.ListOptions{
 			LabelSelector: selector,
 		})
-		return metrics, err
+		if err != nil {
+			return nil, err
+		}
+		for i := range metricsList.Items {
+			util.MergeAnnotation(&metricsList.Items[i], autoscalingv1alpha1.QuerySourceAnnotationKey, clusterName)
+		}
+		return metricsList, err
 	}
 
 	metricsQuery, err := r.getMetricsParallel(resourceQueryFunc, metricsQueryFunc)
@@ -292,18 +311,10 @@ func (r *ResourceMetricsProvider) queryNodeMetricsBySelector(selector string) ([
 
 // GetPodMetrics queries metrics by the internal constructed pod
 func (r *ResourceMetricsProvider) GetPodMetrics(pods ...*metav1.PartialObjectMetadata) ([]metrics.PodMetrics, error) {
-	var ret []metrics.PodMetrics
-	if len(pods) == 0 {
-		return ret, nil
-	}
-
-	podsKeyMap := map[string]string{}
-	for _, pod := range pods {
-		podKey := generateNamespaceNameKey(pod.Namespace, pod.Name)
-		podsKeyMap[podKey] = pod.Annotations[querySourceAnnotationKey]
-	}
-
 	var queryData []metrics.PodMetrics
+	if len(pods) == 0 {
+		return queryData, nil
+	}
 	var err error
 	// In the previous step, we construct the annotations, so it couldn't be nil
 	if _, ok := pods[0].Annotations[labelSelectorAnnotationInternal]; ok {
@@ -313,39 +324,18 @@ func (r *ResourceMetricsProvider) GetPodMetrics(pods ...*metav1.PartialObjectMet
 	} else {
 		queryData, err = r.queryPodMetricsByName(pods[0].Name, pods[0].Namespace)
 	}
-
 	if err != nil {
 		return nil, err
 	}
-
-	for _, i := range queryData {
-		podKey := generateNamespaceNameKey(i.Namespace, i.Name)
-		if queryCluster, ok := podsKeyMap[podKey]; ok {
-			if i.Annotations == nil {
-				i.Annotations = make(map[string]string)
-			}
-			i.Annotations[querySourceAnnotationKey] = queryCluster
-			ret = append(ret, i)
-		}
-	}
-
-	return ret, nil
+	return queryData, nil
 }
 
 // GetNodeMetrics queries metrics by the internal constructed node
 func (r *ResourceMetricsProvider) GetNodeMetrics(nodes ...*corev1.Node) ([]metrics.NodeMetrics, error) {
-	var ret []metrics.NodeMetrics
-	if len(nodes) == 0 {
-		return ret, nil
-	}
-
-	nodesKeyMap := map[string]string{}
-	for _, node := range nodes {
-		nodeKey := generateNamespaceNameKey("", node.Name)
-		nodesKeyMap[nodeKey] = node.Annotations[querySourceAnnotationKey]
-	}
-
 	var queryData []metrics.NodeMetrics
+	if len(nodes) == 0 {
+		return queryData, nil
+	}
 	var err error
 	// In the previous step, we construct the annotations, so it couldn't be nil
 	if _, ok := nodes[0].Annotations[labelSelectorAnnotationInternal]; ok {
@@ -354,23 +344,10 @@ func (r *ResourceMetricsProvider) GetNodeMetrics(nodes ...*corev1.Node) ([]metri
 	} else {
 		queryData, err = r.queryNodeMetricsByName(nodes[0].Name)
 	}
-
 	if err != nil {
 		return nil, err
 	}
-
-	for _, i := range queryData {
-		nodeKey := generateNamespaceNameKey(i.Namespace, i.Name)
-		if cluster, ok := nodesKeyMap[nodeKey]; ok {
-			if i.Annotations == nil {
-				i.Annotations = make(map[string]string)
-			}
-			i.Annotations[querySourceAnnotationKey] = cluster
-			ret = append(ret, i)
-		}
-	}
-
-	return ret, nil
+	return queryData, nil
 }
 
 // PodLister is an internal lister for pods
@@ -416,7 +393,6 @@ func (p *PodLister) List(selector labels.Selector) (ret []runtime.Object, err er
 				return nil, err
 			}
 			podPartial := p.convertToPodPartialData(podTyped, selector.String(), true)
-			podPartial.Annotations[querySourceAnnotationKey] = cluster.Name
 			ret = append(ret, podPartial)
 		}
 	}
@@ -481,7 +457,6 @@ func (p *PodLister) Get(name string) (runtime.Object, error) {
 			return nil, err
 		}
 		podPartial = p.convertToPodPartialData(podTyped, "", false)
-		podPartial.Annotations[querySourceAnnotationKey] = cluster.Name
 	}
 
 	if podPartial != nil {
@@ -550,7 +525,6 @@ func (n *NodeLister) List(selector labels.Selector) (ret []*corev1.Node, err err
 
 			//If user sets this annotation, we need to reset it.
 			nodeTyped.Annotations[labelSelectorAnnotationInternal] = selector.String()
-			nodeTyped.Annotations[querySourceAnnotationKey] = cluster.Name
 			ret = append(ret, nodeTyped)
 		}
 	}
@@ -599,7 +573,6 @@ func (n *NodeLister) Get(name string) (*corev1.Node, error) {
 
 		//If user sets this annotation, we need to remove it to avoid parsing wrong next.
 		delete(nodeTyped.Annotations, labelSelectorAnnotationInternal)
-		nodeTyped.Annotations[querySourceAnnotationKey] = cluster.Name
 	}
 
 	if nodeTyped != nil {
@@ -661,9 +634,4 @@ func metricsConvertV1beta1NodeToInternalNode(objs ...unstructured.Unstructured) 
 	}
 
 	return nodeMetricsInternal, nil
-}
-
-// generateNamespaceNameKey generates namespace/name key
-func generateNamespaceNameKey(namespace, name string) string {
-	return namespace + "/" + name
 }
