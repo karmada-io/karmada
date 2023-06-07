@@ -70,7 +70,7 @@ spec:
                           component. In the future, we will provide a more structured
                           way to configure the component. Once that is done, this
                           field will be discouraged to be used. Incorrect settings
-                          on this feild maybe lead to the corresponding component
+                          on this field maybe lead to the corresponding component
                           in an unhealthy state. Before you do it, please confirm
                           that you understand the risks of this configuration. \n
                           For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/descheduler/app/options/options.go
@@ -290,7 +290,7 @@ spec:
                             type: array
                           volumeData:
                             description: 'VolumeData describes the settings of etcd
-                              data store. We will support 3 modes: emtydir, hostPath,
+                              data store. We will support 3 modes: emptyDir, hostPath,
                               PVC. default by hostPath.'
                             properties:
                               emptyDir:
@@ -639,7 +639,7 @@ spec:
                           to allow for the configuration of the kube-apiserver component.
                           In the future, we will provide a more structured way to
                           configure the component. Once that is done, this field will
-                          be discouraged to be used. Incorrect settings on this feild
+                          be discouraged to be used. Incorrect settings on this field
                           maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand
                           the risks of this configuration. \n For supported flags,
@@ -732,7 +732,7 @@ spec:
                         type: string
                       serviceType:
                         description: ServiceType represents the service type of karmada
-                          apiserver. it is Nodeport by default.
+                          apiserver. it is NodePort by default.
                         type: string
                     type: object
                   karmadaAggregatedAPIServer:
@@ -765,7 +765,7 @@ spec:
                           the karmada-aggregated-apiserver component. In the future,
                           we will provide a more structured way to configure the component.
                           Once that is done, this field will be discouraged to be
-                          used. Incorrect settings on this feild maybe lead to the
+                          used. Incorrect settings on this field maybe lead to the
                           corresponding component in an unhealthy state. Before you
                           do it, please confirm that you understand the risks of this
                           configuration. \n For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/aggregated-apiserver/app/options/options.go
@@ -891,7 +891,7 @@ spec:
                           karmada-controller-manager component. In the future, we
                           will provide a more structured way to configure the component.
                           Once that is done, this field will be discouraged to be
-                          used. Incorrect settings on this feild maybe lead to the
+                          used. Incorrect settings on this field maybe lead to the
                           corresponding component in an unhealthy state. Before you
                           do it, please confirm that you understand the risks of this
                           configuration. \n For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/controller-manager/app/options/options.go
@@ -1006,7 +1006,7 @@ spec:
                           component. In the future, we will provide a more structured
                           way to configure the component. Once that is done, this
                           field will be discouraged to be used. Incorrect settings
-                          on this feild maybe lead to the corresponding component
+                          on this field maybe lead to the corresponding component
                           in an unhealthy state. Before you do it, please confirm
                           that you understand the risks of this configuration. \n
                           For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/scheduler/app/options/options.go
@@ -1118,7 +1118,7 @@ spec:
                           component. In the future, we will provide a more structured
                           way to configure the component. Once that is done, this
                           field will be discouraged to be used. Incorrect settings
-                          on this feild maybe lead to the corresponding component
+                          on this field maybe lead to the corresponding component
                           in an unhealthy state. Before you do it, please confirm
                           that you understand the risks of this configuration. \n
                           For supported flags, please see https://github.com/karmada-io/karmada/blob/master/cmd/descheduler/app/options/options.go
@@ -1200,8 +1200,8 @@ spec:
                         type: object
                     type: object
                   karmadaWebhook:
-                    description: KarmadaWebhook holds settings to karmada-webook component
-                      of the karmada.
+                    description: KarmadaWebhook holds settings to karmada-webhook
+                      component of the karmada.
                     properties:
                       annotations:
                         additionalProperties:
@@ -1222,7 +1222,7 @@ spec:
                           to allow for the configuration of the karmada-webhook component.
                           In the future, we will provide a more structured way to
                           configure the component. Once that is done, this field will
-                          be discouraged to be used. Incorrect settings on this feild
+                          be discouraged to be used. Incorrect settings on this field
                           maybe lead to the corresponding component in an unhealthy
                           state. Before you do it, please confirm that you understand
                           the risks of this configuration. \n For supported flags,
@@ -1349,8 +1349,8 @@ spec:
                           See https://karmada.io/docs/administrator/configuration/configure-controllers#kubernetes-controllers
                           \n Others are disabled by default. If you want to enable
                           or disable other controllers, you have to explicitly specify
-                          all the controllers that kube-controller-manager shoud enable
-                          at startup phase."
+                          all the controllers that kube-controller-manager should
+                          enable at startup phase."
                         items:
                           type: string
                         type: array
@@ -1365,7 +1365,7 @@ spec:
                           kube-controller-manager component. In the future, we will
                           provide a more structured way to configure the component.
                           Once that is done, this field will be discouraged to be
-                          used. Incorrect settings on this feild maybe lead to the
+                          used. Incorrect settings on this field maybe lead to the
                           corresponding component in an unhealthy state. Before you
                           do it, please confirm that you understand the risks of this
                           configuration. \n For supported flags, please see https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
@@ -1583,10 +1583,10 @@ spec:
                   type: object
                 type: array
               karmadaVersion:
-                description: KarmadaVersion represente the karmada version.
+                description: KarmadaVersion represent the karmada version.
                 type: string
               kubernetesVersion:
-                description: KubernetesVersion represente the karmada-apiserver version.
+                description: KubernetesVersion represent the karmada-apiserver version.
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the last observed generation.
