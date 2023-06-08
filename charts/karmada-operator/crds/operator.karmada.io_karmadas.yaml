@@ -1457,7 +1457,7 @@ spec:
                 additionalProperties:
                   type: boolean
                 description: 'FeatureGates enabled by the user. - Failover: https://karmada.io/docs/userguide/failover/#failover
-                  - GragscefulEviction: https://karmada.io/docs/userguide/failover/#graceful-eviction-feature
+                  - GracefulEviction: https://karmada.io/docs/userguide/failover/#graceful-eviction-feature
                   - PropagateDeps: https://karmada.io/docs/userguide/scheduling/propagate-dependencies
                   - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
                   More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go'
