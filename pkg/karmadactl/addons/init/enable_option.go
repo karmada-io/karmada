@@ -63,11 +63,11 @@ func init() {
 		klog.Infof("No default release version found. build version: %s", version.Get().String())
 		releaseVer = &version.ReleaseVersion{} // initialize to avoid panic
 	}
-	karmadaRelease = releaseVer.PatchRelease()
+	karmadaRelease = releaseVer.ReleaseVersion()
 
-	DefaultKarmadaDeschedulerImage = fmt.Sprintf("docker.io/karmada/karmada-descheduler:%s", releaseVer.PatchRelease())
-	DefaultKarmadaSchedulerEstimatorImage = fmt.Sprintf("docker.io/karmada/karmada-scheduler-estimator:%s", releaseVer.PatchRelease())
-	DefaultKarmadaSearchImage = fmt.Sprintf("docker.io/karmada/karmada-search:%s", releaseVer.PatchRelease())
+	DefaultKarmadaDeschedulerImage = fmt.Sprintf("docker.io/karmada/karmada-descheduler:%s", releaseVer.ReleaseVersion())
+	DefaultKarmadaSchedulerEstimatorImage = fmt.Sprintf("docker.io/karmada/karmada-scheduler-estimator:%s", releaseVer.ReleaseVersion())
+	DefaultKarmadaSearchImage = fmt.Sprintf("docker.io/karmada/karmada-search:%s", releaseVer.ReleaseVersion())
 }
 
 // KarmadaDeschedulerImage get karmada descheduler image

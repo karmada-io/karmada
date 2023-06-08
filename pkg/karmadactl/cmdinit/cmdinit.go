@@ -149,5 +149,5 @@ func initExample(parentCommand string) string {
 		klog.Infof("No default release version found. build version: %s", version.Get().String())
 		releaseVer = &version.ReleaseVersion{}
 	}
-	return fmt.Sprintf(initExamples, parentCommand, releaseVer.FirstMinorRelease())
+	return fmt.Sprintf(initExamples, parentCommand, releaseVer.ReleaseVersion())
 }
