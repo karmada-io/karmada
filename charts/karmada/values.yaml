@@ -388,6 +388,9 @@ apiServer:
     rollingUpdate:
       maxUnavailable: 1
       maxSurge: 1
+  ## @param apiServer.hostIP, hostIP of the apiServer
+  ## will take effect when 'apiServer.nodePort' is set.
+  hostIP: ""
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:
