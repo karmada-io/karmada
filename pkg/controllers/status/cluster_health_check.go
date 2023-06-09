@@ -6,13 +6,20 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/client-go/rest"
+	"sync"
 	"time"
 )
 
-func createClientManager() (pcm *webhookutil.ClientManager, err error) {
+var (
+	clientManager     *webhookutil.ClientManager
+	clientManagerOnce = new(sync.Once)
+)
+
+func createClientManagerInternal() (pcm *webhookutil.ClientManager, err error) {
 	var cm webhookutil.ClientManager
 	if cm, err = webhookutil.NewClientManager(
 		[]schema.GroupVersion{configv1alpha1.SchemeGroupVersion},
@@ -30,8 +37,16 @@ func createClientManager() (pcm *webhookutil.ClientManager, err error) {
 	return
 }
 
+func createClientManager() (pcm *webhookutil.ClientManager, err error) {
+	clientManagerOnce.Do(func() {
+		clientManager, err = createClientManagerInternal()
+	})
+	pcm = clientManager
+	return
+}
+
 func parseClientConfiguration(cluster *clusterv1alpha1.Cluster) (config *admissionregistrationv1.WebhookClientConfig, err error) {
-	if annotations := cluster.Annotations; annotations != nil {
+	if annotations := cluster.Annotations; annotations == nil {
 		return
 	} else if value, specified := annotations[externalHealthCheckAnnotationKey]; specified {
 		var cfg admissionregistrationv1.WebhookClientConfig
@@ -85,8 +100,11 @@ func tryExternalProbe(cluster *clusterv1alpha1.Cluster) (pass bool, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	request := client.Get().Do(ctx)
-	if err = request.Error(); err != nil {
-		return
+	if e := request.Error(); e != nil {
+		if _, ok := e.(*errors.StatusError); !ok {
+			err = e
+			return
+		}
 	}
 	var status int
 	request.StatusCode(&status)

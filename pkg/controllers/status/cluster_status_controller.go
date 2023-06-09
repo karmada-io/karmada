@@ -3,7 +3,6 @@ package status
 import (
 	"context"
 	"fmt"
-	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"net/http"
 	"sort"
 	"strings"
@@ -102,8 +101,6 @@ type ClusterStatusController struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
-
-	ClientManager *webhookutil.ClientManager
 }
 
 // Reconcile syncs status of the given member cluster.
