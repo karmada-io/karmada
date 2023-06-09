@@ -7,7 +7,7 @@ import (
 	"time"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/client-go/rest"
@@ -103,7 +103,7 @@ func tryExternalProbe(cluster *clusterv1alpha1.Cluster) (pass bool, err error) {
 	defer cancel()
 	request := client.Get().Do(ctx)
 	if e := request.Error(); e != nil {
-		if _, ok := e.(*errors.StatusError); !ok {
+		if _, ok := e.(*apierrors.StatusError); !ok {
 			err = e
 			return
 		}
