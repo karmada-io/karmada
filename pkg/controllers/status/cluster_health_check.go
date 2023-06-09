@@ -3,15 +3,17 @@ package status
 import (
 	"context"
 	"encoding/json"
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"sync"
+	"time"
+
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/client-go/rest"
-	"sync"
-	"time"
+
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
 var (
