@@ -157,22 +157,22 @@ func (s *store) Watch(ctx context.Context, key string, opts storage.ListOptions)
 
 // Create implements storage.Interface.
 func (s *store) Create(context.Context, string, runtime.Object, runtime.Object, uint64) error {
-	return fmt.Errorf("create is not suppported in proxy store")
+	return fmt.Errorf("create is not supported in proxy store")
 }
 
 // Delete implements storage.Interface.
 func (s *store) Delete(context.Context, string, runtime.Object, *storage.Preconditions, storage.ValidateObjectFunc, runtime.Object) error {
-	return fmt.Errorf("delete is not suppported in proxy store")
+	return fmt.Errorf("delete is not supported in proxy store")
 }
 
 // GuaranteedUpdate implements storage.Interface.
 func (s *store) GuaranteedUpdate(context.Context, string, runtime.Object, bool, *storage.Preconditions, storage.UpdateFunc, runtime.Object) error {
-	return fmt.Errorf("guaranteedUpdate is not suppported in proxy store")
+	return fmt.Errorf("guaranteedUpdate is not supported in proxy store")
 }
 
 // Count implements storage.Interface.
 func (s *store) Count(string) (int64, error) {
-	return 0, fmt.Errorf("count is not suppported in proxy store")
+	return 0, fmt.Errorf("count is not supported in proxy store")
 }
 
 func (s *store) client(namespace string) (dynamic.ResourceInterface, error) {
