@@ -42,6 +42,26 @@ jobs:
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz.sha256
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz.sha256
+  release-crds-assests:
+    name: release crds
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Rename the crds directory
+      run: |
+        mv ./charts/karmada/_crds ./charts/karmada/crds
+    - name: Tar the crds
+      uses: a7ul/tar-action@v1.1.0
+      with:
+        command: c
+        cwd: ./charts/karmada/
+        files: crds
+        outPath: crds.tar.gz
+    - name: Uploading crd assets...
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          crds.tar.gz
   update-krew-index:
     needs: release-assests
     name: Update krew-index
