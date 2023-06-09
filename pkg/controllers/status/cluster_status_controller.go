@@ -269,8 +269,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.
 
 			updated := &clusterv1alpha1.Cluster{}
 			if err = c.Get(context.TODO(), client.ObjectKey{Namespace: cluster.Namespace, Name: cluster.Name}, updated); err == nil {
-				// make a copy, so we don't mutate the shared cache
-				cluster = updated.DeepCopy()
+				cluster = updated
 			} else {
 				klog.Errorf("Failed to get updated cluster %s: %v", cluster.Name, err)
 			}

@@ -79,8 +79,7 @@ func AggregateResourceBindingWorkStatus(
 
 		updated := &workv1alpha2.ResourceBinding{}
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, updated); err == nil {
-			// make a copy, so we don't mutate the shared cache
-			binding = updated.DeepCopy()
+			binding = updated
 		} else {
 			klog.Errorf("Failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
 		}
@@ -138,8 +137,7 @@ func AggregateClusterResourceBindingWorkStatus(
 
 		updated := &workv1alpha2.ClusterResourceBinding{}
 		if err = c.Get(context.TODO(), client.ObjectKey{Name: binding.Name}, updated); err == nil {
-			// make a copy, so we don't mutate the shared cache
-			binding = updated.DeepCopy()
+			binding = updated
 		} else {
 			klog.Errorf("Failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
 		}

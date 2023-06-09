@@ -1137,8 +1137,7 @@ func (d *ResourceDetector) CleanupResourceBindingLabels(rb *workv1alpha2.Resourc
 
 		updated := &workv1alpha2.ResourceBinding{}
 		if err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: rb.GetNamespace(), Name: rb.GetName()}, updated); err == nil {
-			//make a copy, so we don't mutate the shared cache
-			rb = updated.DeepCopy()
+			rb = updated
 		} else {
 			klog.Errorf("Failed to get updated resource binding %s/%s: %v", rb.GetNamespace(), rb.GetName(), err)
 		}
@@ -1162,8 +1161,7 @@ func (d *ResourceDetector) CleanupClusterResourceBindingLabels(crb *workv1alpha2
 
 		updated := &workv1alpha2.ClusterResourceBinding{}
 		if err = d.Client.Get(context.TODO(), client.ObjectKey{Name: crb.GetName()}, updated); err == nil {
-			//make a copy, so we don't mutate the shared cache
-			crb = updated.DeepCopy()
+			crb = updated
 		} else {
 			klog.Errorf("Failed to get updated cluster resource binding %s: %v", crb.GetName(), err)
 		}

@@ -441,8 +441,7 @@ func (d *DependenciesDistributor) recordDependenciesForIndependentBinding(bindin
 
 		updated := &workv1alpha2.ResourceBinding{}
 		if err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: binding.Namespace, Name: binding.Name}, updated); err == nil {
-			//make a copy, so we don't mutate the shared cache
-			binding = updated.DeepCopy()
+			binding = updated
 		} else {
 			klog.Errorf("Failed to get updated binding %s/%s: %v", binding.Namespace, binding.Name, err)
 		}
