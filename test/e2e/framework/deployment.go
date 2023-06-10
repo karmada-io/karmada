@@ -43,21 +43,6 @@ func UpdateDeploymentPaused(client kubernetes.Interface, deployment *appsv1.Depl
 	})
 }
 
-// UpdateDeploymentStatus updates the Deployment status.
-func UpdateDeploymentStatus(client kubernetes.Interface, deployment *appsv1.Deployment) {
-	ginkgo.By(fmt.Sprintf("Update Deployment(%s/%s) status", deployment.Namespace, deployment.Name), func() {
-		gomega.Eventually(func() error {
-			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			deploy.Status = deployment.Status
-			_, err = client.AppsV1().Deployments(deploy.Namespace).UpdateStatus(context.TODO(), deploy, metav1.UpdateOptions{})
-			return err
-		}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())
-	})
-}
-
 // RemoveDeployment delete Deployment.
 func RemoveDeployment(client kubernetes.Interface, namespace, name string) {
 	ginkgo.By(fmt.Sprintf("Removing Deployment(%s/%s)", namespace, name), func() {
@@ -87,6 +72,19 @@ func WaitDeploymentPresentOnClustersFitWith(clusters []string, namespace, name s
 		for _, clusterName := range clusters {
 			WaitDeploymentPresentOnClusterFitWith(clusterName, namespace, name, fit)
 		}
+	})
+}
+
+// WaitDeploymentStatus wait the deployment on the cluster to have the specified replicas
+func WaitDeploymentStatus(client kubernetes.Interface, deployment *appsv1.Deployment, replicas int32) {
+	ginkgo.By(fmt.Sprintf("Waiting for deployment(%s/%s) status to have %d replicas", deployment.Namespace, deployment.Name, replicas), func() {
+		gomega.Eventually(func() bool {
+			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return false
+			}
+			return CheckDeploymentReadyStatus(deploy, replicas)
+		}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 	})
 }
 

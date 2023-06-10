@@ -611,8 +611,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 							memberDeployment = deployment
 							return true
 						})
-					memberDeployment.Status.ReadyReplicas = readyReplicas
-					framework.UpdateDeploymentStatus(clusterClient, memberDeployment)
+					framework.WaitDeploymentStatus(clusterClient, memberDeployment, readyReplicas)
 				}
 
 				CheckResult := func(result workv1alpha2.ResourceHealth) interface{} {
