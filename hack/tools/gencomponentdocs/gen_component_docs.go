@@ -13,6 +13,7 @@ import (
 	cmapp "github.com/karmada-io/karmada/cmd/controller-manager/app"
 	deschapp "github.com/karmada-io/karmada/cmd/descheduler/app"
 	searchapp "github.com/karmada-io/karmada/cmd/karmada-search/app"
+	adapterapp "github.com/karmada-io/karmada/cmd/metrics-adapter/app"
 	estiapp "github.com/karmada-io/karmada/cmd/scheduler-estimator/app"
 	schapp "github.com/karmada-io/karmada/cmd/scheduler/app"
 	webhookapp "github.com/karmada-io/karmada/cmd/webhook/app"
@@ -64,6 +65,9 @@ func main() {
 	case "karmada-webhook":
 		// generate docs for karmada-webhook
 		cmd = webhookapp.NewWebhookCommand(context.TODO())
+	case "karmada-metrics-adapter":
+		// generate docs for karmada-metrics-adapter
+		cmd = adapterapp.NewMetricsAdapterCommand(context.TODO())
 	default:
 		fmt.Fprintf(os.Stderr, "Module %s is not supported", module)
 		os.Exit(1)
