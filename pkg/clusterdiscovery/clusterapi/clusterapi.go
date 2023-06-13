@@ -14,7 +14,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	clusterapiv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4" //nolint:staticcheck // disable `deprecation` check for backward compatibility.
 	clusterapiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	secretutil "sigs.k8s.io/cluster-api/util/secret"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,7 +35,6 @@ const (
 
 var (
 	clusterGVRs = []schema.GroupVersionResource{
-		{Group: clusterapiv1alpha4.GroupVersion.Group, Version: clusterapiv1alpha4.GroupVersion.Version, Resource: resourceCluster},
 		{Group: clusterapiv1beta1.GroupVersion.Group, Version: clusterapiv1beta1.GroupVersion.Version, Resource: resourceCluster},
 	}
 )
@@ -129,7 +127,7 @@ func (d *ClusterDetector) Reconcile(key util.QueueKey) error {
 		return err
 	}
 
-	if ok && clusterPhase == string(clusterapiv1alpha4.ClusterPhaseProvisioned) {
+	if ok && clusterPhase == string(clusterapiv1beta1.ClusterPhaseProvisioned) {
 		return d.joinClusterAPICluster(clusterWideKey)
 	}
 
