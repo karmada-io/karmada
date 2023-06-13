@@ -10,6 +10,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/kubernetes"
+	cmdinitoptions "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -139,7 +140,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.Int32VarP(&opts.KarmadaWebhookReplicas, "karmada-webhook-replicas", "", 1, "Karmada webhook replica set")
 	flags.StringVarP(&opts.KarmadaAggregatedAPIServerImage, "karmada-aggregated-apiserver-image", "", kubernetes.DefaultKarmadaAggregatedAPIServerImage, "Karmada aggregated apiserver image")
 	flags.Int32VarP(&opts.KarmadaAggregatedAPIServerReplicas, "karmada-aggregated-apiserver-replicas", "", 1, "Karmada aggregated apiserver replica set")
-
+	flags.IntVarP(&opts.WaitComponentReadyTimeout, "wait-component-ready-timeout", "", cmdinitoptions.WaitComponentReadyTimeout, "Wait for karmada component ready timeout. 0 means wait forever")
 	return cmd
 }
 
