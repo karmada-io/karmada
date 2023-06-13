@@ -273,8 +273,7 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		}
 		updated := &workv1alpha1.Work{}
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
-			// make a copy, so we don't mutate the shared cache
-			work = updated.DeepCopy()
+			work = updated
 		} else {
 			klog.Errorf("Failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
 		}

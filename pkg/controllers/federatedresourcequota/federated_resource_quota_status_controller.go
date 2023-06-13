@@ -153,8 +153,7 @@ func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedRes
 
 		updated := &policyv1alpha1.FederatedResourceQuota{}
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: quota.Namespace, Name: quota.Name}, updated); err == nil {
-			// make a copy, so we don't mutate the shared cache
-			quota = updated.DeepCopy()
+			quota = updated
 		} else {
 			klog.Errorf("Failed to get updated  federatedResourceQuota(%s): %v", klog.KObj(quota).String(), err)
 		}
