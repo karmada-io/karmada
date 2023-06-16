@@ -6,6 +6,8 @@ on:
 jobs:
   publish-image-to-dockerhub:
     name: publish to DockerHub
+    permissions:
+      id-token: write # To be able to get OIDC ID token to sign images.
     # prevent job running from forked repository, otherwise
     # 1. running on the forked repository would fail as missing necessary secret.
     # 2. running on the forked repository would use unnecessary GitHub Action time.
@@ -37,6 +39,10 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.20.4
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.0.3
+        with:
+          cosign-release: 'v1.13.1'
       - name: install QEMU
         uses: docker/setup-qemu-action@v2
       - name: install Buildx
@@ -50,4 +56,6 @@ jobs:
         env:
           REGISTRY: karmada
           VERSION: latest
+          COSIGN_EXPERIMENTAL: 1
+          SIGN_IMAGE: 1
         run: make mp-image-${{ matrix.target }}
