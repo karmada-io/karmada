@@ -97,6 +97,7 @@ type Controller struct {
 	// FailoverEvictionTimeout represents the grace period for deleting scheduling result on failed clusters.
 	FailoverEvictionTimeout            time.Duration
 	ClusterTaintEvictionRetryFrequency time.Duration
+	ExecutionSpaceRetryFrequency       time.Duration
 
 	// Per Cluster map stores last observed health together with a local time when it was observed.
 	clusterHealthMap *clusterHealthMap
@@ -239,7 +240,8 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 		klog.Errorf("Failed to check weather the execution space exist in the given member cluster or not, error is: %v", err)
 		return controllerruntime.Result{Requeue: true}, err
 	} else if exist {
-		return controllerruntime.Result{Requeue: true}, fmt.Errorf("requeuing operation until the execution space %v deleted, ", cluster.Name)
+		klog.Infof("Requeuing operation until the cluster(%s) execution space deleted", cluster.Name)
+		return controllerruntime.Result{RequeueAfter: c.ExecutionSpaceRetryFrequency}, nil
 	}
 
 	// delete the health data from the map explicitly after we removing the cluster.

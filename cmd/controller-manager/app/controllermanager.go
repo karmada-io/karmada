@@ -219,6 +219,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		FailoverEvictionTimeout:            opts.FailoverEvictionTimeout.Duration,
 		EnableTaintManager:                 ctx.Opts.EnableTaintManager,
 		ClusterTaintEvictionRetryFrequency: 10 * time.Second,
+		ExecutionSpaceRetryFrequency:       10 * time.Second,
 	}
 	if err := clusterController.SetupWithManager(mgr); err != nil {
 		return false, err
