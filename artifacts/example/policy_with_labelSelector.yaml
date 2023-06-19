@@ -11,7 +11,7 @@ spec:
       labelSelector:
         matchLabels:
           a: b
-  association: false
+  propagateDeps: false
   placement:
     clusterAffinity:
       clusterNames:

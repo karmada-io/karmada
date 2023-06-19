@@ -3650,13 +3650,6 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 							},
 						},
 					},
-					"association": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Association tells if relevant resources should be selected automatically. e.g. a ConfigMap referred by a Deployment. default false. Deprecated: in favor of PropagateDeps.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"propagateDeps": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PropagateDeps tells if relevant resources should be propagated automatically. Take 'Deployment' which referencing 'ConfigMap' and 'Secret' as an example, when 'propagateDeps' is 'true', the referencing resources could be omitted(for saving config effort) from 'resourceSelectors' as they will be propagated along with the Deployment. In addition to the propagating process, the referencing resources will be migrated along with the Deployment in the fail-over scenario.\n\nDefaults to false.",
