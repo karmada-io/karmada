@@ -426,6 +426,28 @@ function util::kubectl_with_retry() {
     return ${ret}
 }
 
+# util::delete_all_clusters deletes all clusters directly
+# util::delete_all_clusters actually do three things: delete cluster、remove kubeconfig、record delete log
+# Parmeters:
+#  - $1: KUBECONFIG file of host cluster, such as "~/.kube/karmada.config"
+#  - $2: KUBECONFIG file of member cluster, such as "~/.kube/members.config"
+#  - $3: log file path, such as "/tmp/karmada/"
+function util::delete_all_clusters() {
+  local main_config=${1}
+  local member_config=${2}
+  local log_path=${3}
+
+  local log_file="${log_path}"/delete-all-clusters.log
+  rm -rf ${log_file}
+  mkdir -p ${log_path}
+
+  kind delete clusters --all >> "${log_file}" 2>&1
+  rm -f "${main_config}"
+  rm -f "${member_config}"
+
+  echo "Deleted all clusters and the log file is in ${log_file}"
+}
+
 # util::create_cluster creates a kubernetes cluster
 # util::create_cluster creates a kind cluster and don't wait for control plane node to be ready.
 # Parmeters:
@@ -443,7 +465,8 @@ function util::create_cluster() {
   mkdir -p ${log_path}
   rm -rf "${log_path}/${cluster_name}.log"
   rm -f "${kubeconfig}"
-  nohup kind delete cluster --name="${cluster_name}" >> "${log_path}"/"${cluster_name}".log 2>&1 && kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
+
+  nohup kind create cluster --name "${cluster_name}" --kubeconfig="${kubeconfig}" --image="${kind_image}" --config="${cluster_config}" >> "${log_path}"/"${cluster_name}".log 2>&1 &
   echo "Creating cluster ${cluster_name} and the log file is in ${log_path}/${cluster_name}.log"
 }
 
