@@ -214,8 +214,8 @@ func aggregateCronJobStatus(object *unstructured.Unstructured, aggregatedStatusI
 		if err = json.Unmarshal(item.Status.Raw, temp); err != nil {
 			return nil, err
 		}
-		klog.V(3).Infof("Grab cronJob(%s/%s) status from cluster(%s), active: %+v, lastScheduleTime: %s, lastSuccessfulTime: %s",
-			cronjob.Namespace, cronjob.Name, item.ClusterName, temp.Active, temp.LastScheduleTime.String(), temp.LastSuccessfulTime.String())
+		klog.V(3).Infof("Grab cronJob(%s/%s) status from cluster(%s), active: %+v, lastScheduleTime: %+v, lastSuccessfulTime: %+v",
+			cronjob.Namespace, cronjob.Name, item.ClusterName, temp.Active, temp.LastScheduleTime, temp.LastSuccessfulTime)
 		newStatus.Active = append(newStatus.Active, temp.Active...)
 		if newStatus.LastScheduleTime == nil {
 			newStatus.LastScheduleTime = temp.LastScheduleTime
