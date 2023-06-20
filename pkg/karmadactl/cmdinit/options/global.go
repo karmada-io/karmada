@@ -24,5 +24,5 @@ const (
 	// KarmadaKubeConfigName karmada kubeconfig name
 	KarmadaKubeConfigName = "karmada-apiserver.config"
 	// WaitComponentReadyTimeout wait component ready time
-	WaitComponentReadyTimeout = 30
+	WaitComponentReadyTimeout = 120
 )
