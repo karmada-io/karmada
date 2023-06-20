@@ -995,7 +995,7 @@ func Test_aggregateCronJobStatus(t *testing.T) {
 			},
 		},
 		"lastScheduleTime":   "2023-02-08T07:16:00Z",
-		"lastSuccessfulTime": "2023-02-08T07:15:00Z",
+		"lastSuccessfulTime": nil,
 	})
 	cronjobStatusRaw2, _ := helper.BuildStatusRawExtension(map[string]interface{}{
 		"active": []corev1.ObjectReference{
