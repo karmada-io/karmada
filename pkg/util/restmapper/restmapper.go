@@ -1,7 +1,6 @@
 package restmapper
 
 import (
-	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -53,14 +52,10 @@ func (g *cachedRESTMapper) ResourceSingularizer(resource string) (singular strin
 }
 
 func (g *cachedRESTMapper) RESTMapping(gk schema.GroupKind, versions ...string) (*meta.RESTMapping, error) {
-	// in case of multi-versions, cachedRESTMapper don't know which is the preferred version,
+	// in case of multi-versions or no versions, cachedRESTMapper don't know which is the preferred version,
 	// so just bypass the cache and consult the underlying mapper.
-	if len(versions) > 1 {
+	if len(versions) != 1 {
 		return g.restMapper.RESTMapping(gk, versions...)
-	}
-
-	if len(versions) == 0 {
-		return nil, fmt.Errorf("expected at least one version")
 	}
 
 	gvk := gk.WithVersion(versions[0])
